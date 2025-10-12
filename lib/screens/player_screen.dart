@@ -29,6 +29,22 @@ class _PlayerScreenState extends State<PlayerScreen>
     // Request focus on init
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _focusNode.requestFocus();
+      final player = Provider.of<PlayerProvider>(context, listen: false);
+      player.setPlaylistMode(PlaylistMode.full);
+    });
+    // Pause playback when switching tabs (tap or swipe)
+    _tabController.addListener(() {
+      if (_tabController.indexIsChanging ||
+          (_tabController.animation?.value !=
+              _tabController.index.toDouble())) {
+        final player = Provider.of<PlayerProvider>(context, listen: false);
+        player.pause();
+        player.setPlaylistMode(
+          _tabController.index == 0
+              ? PlaylistMode.full
+              : PlaylistMode.bookmarks,
+        );
+      }
     });
   }
 
@@ -84,23 +100,42 @@ class _PlayerScreenState extends State<PlayerScreen>
   Widget build(BuildContext context) {
     return Consumer<PlayerProvider>(
       builder: (context, player, child) {
-        return KeyboardListener(
-          focusNode: _focusNode,
-          onKeyEvent: (event) => _handleKeyEvent(event, player),
-          child: Scaffold(
-            appBar: AppBar(
-              title: Text(player.currentAudioItem?.name ?? 'Player'),
-              actions: [
-                IconButton(
-                  icon: const Icon(Icons.settings),
-                  onPressed: () => _showSettingsDialog(context, player),
-                  tooltip: 'Settings',
-                ),
-              ],
+        return Shortcuts(
+          shortcuts: <LogicalKeySet, Intent>{
+            LogicalKeySet(LogicalKeyboardKey.tab): const DoNothingIntent(),
+            LogicalKeySet(LogicalKeyboardKey.shift, LogicalKeyboardKey.tab):
+                const DoNothingIntent(),
+          },
+          child: KeyboardListener(
+            focusNode: _focusNode,
+            onKeyEvent: (event) => _handleKeyEvent(event, player),
+            child: Scaffold(
+              appBar: AppBar(
+                title: Text(player.currentAudioItem?.name ?? 'Player'),
+                actions: [
+                  IconButton(
+                    icon: Icon(
+                      player.autoScrollEnabled
+                          ? Icons.center_focus_strong
+                          : Icons.center_focus_weak,
+                    ),
+                    onPressed: () =>
+                        player.setAutoScroll(!player.autoScrollEnabled),
+                    tooltip: player.autoScrollEnabled
+                        ? 'Disable auto-scroll'
+                        : 'Enable auto-scroll',
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.settings),
+                    onPressed: () => _showSettingsDialog(context, player),
+                    tooltip: 'Settings',
+                  ),
+                ],
+              ),
+              body: !player.hasAudio
+                  ? const Center(child: Text('No audio loaded'))
+                  : _buildLayout(context, player),
             ),
-            body: !player.hasAudio
-                ? const Center(child: Text('No audio loaded'))
-                : _buildLayout(context, player),
           ),
         );
       },
@@ -141,6 +176,7 @@ class _PlayerScreenState extends State<PlayerScreen>
         // 标签栏
         TabBar(
           controller: _tabController,
+          onTap: (_) => player.pause(),
           tabs: [
             Tab(
               child: Row(
@@ -188,15 +224,15 @@ class _PlayerScreenState extends State<PlayerScreen>
 
     // 单句模式：只展示当前播放的句子
     if (player.settings.singleSentenceMode) {
-      if (player.currentSentenceIndex == null && player.sentences.isNotEmpty) {
+      if (player.currentFullIndex == null && player.sentences.isNotEmpty) {
         // 自动选择第一个句子
         WidgetsBinding.instance.addPostFrameCallback((_) {
           player.playSentence(0);
         });
         return const Center(child: CircularProgressIndicator());
       }
-      if (player.currentSentenceIndex != null) {
-        return _buildSingleSentenceView(player, player.currentSentenceIndex!);
+      if (player.currentFullIndex != null) {
+        return _buildSingleSentenceView(player, player.currentFullIndex!);
       }
       return Center(
         child: Text(
@@ -207,13 +243,22 @@ class _PlayerScreenState extends State<PlayerScreen>
     }
 
     // 非单句模式：展示所有句子列表
+    if (player.currentFullIndex == null && player.sentences.isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        player.selectFullSentence(0);
+      });
+    }
     return SentenceListView(
       sentences: player.sentences,
-      currentIndex: player.currentSentenceIndex,
+      currentIndex: player.currentFullIndex,
       bookmarkedIndices: player.bookmarkedIndices,
       showTranscript: player.settings.showTranscript,
-      onSentenceTap: (index) => player.playSentence(index),
+      autoScrollEnabled: player.autoScrollEnabled,
+      onSentenceTap: (index) => player.selectFullSentence(index),
+      onPlayTap: (index) => player.playSentence(index),
       onBookmarkToggle: (index) => player.toggleBookmark(index),
+      onUserScroll: () => player.setAutoScroll(false),
+      storageKey: 'full_text_list',
     );
   }
 
@@ -245,8 +290,8 @@ class _PlayerScreenState extends State<PlayerScreen>
 
     // 单句模式：只展示当前播放的句子（如果是收藏的）
     if (player.settings.singleSentenceMode) {
-      if (player.currentSentenceIndex == null ||
-          !player.bookmarkedIndices.contains(player.currentSentenceIndex)) {
+      if (player.currentBookmarkIndex == null ||
+          !player.bookmarkedIndices.contains(player.currentBookmarkIndex)) {
         // 自动选择第一个收藏的句子
         if (bookmarkedSentences.isNotEmpty) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -261,17 +306,28 @@ class _PlayerScreenState extends State<PlayerScreen>
           ),
         );
       }
-      return _buildSingleSentenceView(player, player.currentSentenceIndex!);
+      return _buildSingleSentenceView(player, player.currentBookmarkIndex!);
     }
 
     // 非单句模式：展示所有收藏的句子列表
+    if ((player.currentBookmarkIndex == null ||
+            !player.bookmarkedIndices.contains(player.currentBookmarkIndex)) &&
+        bookmarkedSentences.isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        player.selectBookmarkedSentence(bookmarkedSentences.first.index);
+      });
+    }
     return SentenceListView(
       sentences: bookmarkedSentences,
-      currentIndex: player.currentSentenceIndex,
+      currentIndex: player.currentBookmarkIndex,
       bookmarkedIndices: player.bookmarkedIndices,
       showTranscript: player.settings.showTranscript,
-      onSentenceTap: (index) => player.playSentence(index),
+      autoScrollEnabled: player.autoScrollEnabled,
+      onSentenceTap: (index) => player.selectBookmarkedSentence(index),
+      onPlayTap: (index) => player.playSentence(index),
       onBookmarkToggle: (index) => player.toggleBookmark(index),
+      onUserScroll: () => player.setAutoScroll(false),
+      storageKey: 'bookmarked_list',
     );
   }
 

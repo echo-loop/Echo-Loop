@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:file_picker/file_picker.dart';
@@ -287,9 +288,11 @@ class _AddAudioDialogState extends State<_AddAudioDialog> {
   }
 
   Future<void> _pickAudioFile() async {
+    final downloadsPath = '${Platform.environment['HOME']}/Downloads';
     final result = await FilePicker.platform.pickFiles(
       type: FileType.audio,
       allowMultiple: false,
+      initialDirectory: downloadsPath,
     );
 
     if (result != null && result.files.single.path != null) {
@@ -301,10 +304,12 @@ class _AddAudioDialogState extends State<_AddAudioDialog> {
   }
 
   Future<void> _pickTranscriptFile() async {
+    final downloadsPath = '${Platform.environment['HOME']}/Downloads';
     final result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
       allowedExtensions: ['srt', 'vtt'],
       allowMultiple: false,
+      initialDirectory: downloadsPath,
     );
 
     if (result != null && result.files.single.path != null) {

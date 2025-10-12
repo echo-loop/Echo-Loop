@@ -1,13 +1,14 @@
 // 播放设置模型
 class PlaybackSettings {
-  final bool loopEnabled;              // 是否启用句子循环
-  final int loopCount;                 // 句子循环次数，1-20
-  final Duration pauseInterval;        // 句子循环间隔时间
-  final double playbackSpeed;          // 播放速度
-  final bool singleSentenceMode;       // 单句模式：控制字幕展示方式
-  final bool showTranscript;           // 是否显示字幕文本
-  final bool loopAudioEnabled;         // 是否启用音频循环
-  final int loopAudio;                 // 音频循环次数：0=无穷，1-10=具体次数
+  final bool loopEnabled; // 是否启用句子循环
+  final int loopCount; // 句子循环次数，1-20
+  final Duration pauseInterval; // 句子循环间隔时间
+  final double playbackSpeed; // 播放速度
+  final bool singleSentenceMode; // 单句模式：控制字幕展示方式
+  final bool showTranscript; // 是否显示字幕文本
+  final bool loopAudioEnabled; // 是否启用音频循环
+  final int loopAudio; // 音频循环次数：0=无穷，1-10=具体次数
+  final bool autoPlayNextSentenceEnabled; // 句子循环完成后是否自动播放下一句
 
   PlaybackSettings({
     this.loopEnabled = false,
@@ -16,8 +17,9 @@ class PlaybackSettings {
     this.playbackSpeed = 1.0,
     this.singleSentenceMode = false,
     this.showTranscript = true,
-    this.loopAudioEnabled = false,    // 默认不启用音频循环
-    this.loopAudio = 1,                // 默认循环1次
+    this.loopAudioEnabled = false, // 默认不启用音频循环
+    this.loopAudio = 1, // 默认循环1次
+    this.autoPlayNextSentenceEnabled = true, // 默认自动播放下一句
   });
 
   Map<String, dynamic> toJson() => {
@@ -29,6 +31,7 @@ class PlaybackSettings {
     'showTranscript': showTranscript,
     'loopAudioEnabled': loopAudioEnabled,
     'loopAudio': loopAudio,
+    'autoPlayNextSentenceEnabled': autoPlayNextSentenceEnabled,
   };
 
   factory PlaybackSettings.fromJson(Map<String, dynamic> json) =>
@@ -63,6 +66,8 @@ class PlaybackSettings {
           if (v > 10) return 10;
           return v;
         })(),
+        autoPlayNextSentenceEnabled:
+            json['autoPlayNextSentenceEnabled'] ?? true,
       );
 
   PlaybackSettings copyWith({
@@ -74,6 +79,7 @@ class PlaybackSettings {
     bool? showTranscript,
     bool? loopAudioEnabled,
     int? loopAudio,
+    bool? autoPlayNextSentenceEnabled,
   }) {
     return PlaybackSettings(
       loopEnabled: loopEnabled ?? this.loopEnabled,
@@ -84,6 +90,8 @@ class PlaybackSettings {
       showTranscript: showTranscript ?? this.showTranscript,
       loopAudioEnabled: loopAudioEnabled ?? this.loopAudioEnabled,
       loopAudio: loopAudio ?? this.loopAudio,
+      autoPlayNextSentenceEnabled:
+          autoPlayNextSentenceEnabled ?? this.autoPlayNextSentenceEnabled,
     );
   }
 }

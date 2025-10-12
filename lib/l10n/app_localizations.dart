@@ -452,6 +452,12 @@ abstract class AppLocalizations {
   /// **'Show only current sentence'**
   String get singleSentenceModeDesc;
 
+  /// No description provided for @autoPlayNextSentence.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto Play Next Sentence'**
+  String get autoPlayNextSentence;
+
   /// No description provided for @sentenceRepeat.
   ///
   /// In en, this message translates to:

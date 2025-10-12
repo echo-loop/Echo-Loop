@@ -59,6 +59,7 @@
   "infinite": "无限",
   "singleSentenceMode": "单句模式",
   "singleSentenceModeDesc": "只展示当前播放的句子",
+  "autoPlayNextSentence": "自动播放下一句",
   "sentenceRepeat": "句子重复",
   "repeatCount": "重复次数",
   "intervalTime": "间隔时间（秒）",

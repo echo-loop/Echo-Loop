@@ -188,6 +188,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get singleSentenceModeDesc => '只展示当前播放的句子';
 
   @override
+  String get autoPlayNextSentence => '自动播放下一句';
+
+  @override
   String get sentenceRepeat => '句子重复';
 
   @override

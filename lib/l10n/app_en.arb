@@ -66,6 +66,7 @@
   "infinite": "∞",
   "singleSentenceMode": "Single Sentence Mode",
   "singleSentenceModeDesc": "Show only current sentence",
+  "autoPlayNextSentence": "Auto Play Next Sentence",
   "sentenceRepeat": "Sentence Repeat",
   "repeatCount": "Repeat Count",
   "intervalTime": "Interval (seconds)",

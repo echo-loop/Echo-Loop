@@ -188,6 +188,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get singleSentenceModeDesc => 'Show only current sentence';
 
   @override
+  String get autoPlayNextSentence => 'Auto Play Next Sentence';
+
+  @override
   String get sentenceRepeat => 'Sentence Repeat';
 
   @override

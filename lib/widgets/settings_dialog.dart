@@ -39,7 +39,7 @@ class SettingsDialog extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         _buildSentenceRepeatSettings(context, l10n),
-                        const SizedBox(height: 32),
+                        const SizedBox(height: 16),
                         _buildAudioLoopSettings(context, l10n),
                       ],
                     ),
@@ -55,10 +55,30 @@ class SettingsDialog extends StatelessWidget {
 
   // 句子重复设置
   Widget _buildSentenceRepeatSettings(
-      BuildContext context, AppLocalizations l10n) {
+    BuildContext context,
+    AppLocalizations l10n,
+  ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              l10n.autoPlayNextSentence,
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+            ),
+            Switch(
+              value: player.settings.autoPlayNextSentenceEnabled,
+              onChanged: (value) {
+                player.updateSettings(
+                  player.settings.copyWith(autoPlayNextSentenceEnabled: value),
+                );
+              },
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
@@ -157,8 +177,7 @@ class SettingsDialog extends StatelessWidget {
   }
 
   // 音频循环设置
-  Widget _buildAudioLoopSettings(
-      BuildContext context, AppLocalizations l10n) {
+  Widget _buildAudioLoopSettings(BuildContext context, AppLocalizations l10n) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
