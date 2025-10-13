@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/foundation.dart';
 import '../models/audio_item.dart';
 import '../services/storage_service.dart';
@@ -14,7 +15,33 @@ class AudioLibraryProvider extends ChangeNotifier {
     _isLoading = true;
     notifyListeners();
 
-    _audioItems = await StorageService.loadAudioLibrary();
+    final allItems = await StorageService.loadAudioLibrary();
+    
+    // 验证文件是否存在，过滤掉无效的条目
+    final validItems = <AudioItem>[];
+    bool hasInvalidItems = false;
+    
+    for (final item in allItems) {
+      // 检查音频文件是否存在
+      final audioFile = File(item.audioPath);
+      final audioExists = await audioFile.exists();
+      
+      // 只保留音频文件存在的条目（字幕文件是可选的，不影响有效性）
+      if (audioExists) {
+        validItems.add(item);
+      } else {
+        hasInvalidItems = true;
+        print('Removed invalid audio item: ${item.name} (audio file not found)');
+      }
+    }
+    
+    _audioItems = validItems;
+    
+    // 如果有无效条目被移除，更新存储
+    if (hasInvalidItems) {
+      await _saveLibrary();
+      print('Cleaned up ${allItems.length - validItems.length} invalid audio items');
+    }
 
     _isLoading = false;
     notifyListeners();

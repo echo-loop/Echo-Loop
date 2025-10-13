@@ -76,5 +76,7 @@
   "tapBookmarkIcon": "点击句子旁的书签图标收藏",
   "removeBookmarkTip": "取消收藏",
   "addBookmarkTip": "收藏",
-  "listMode": "列表模式"
+  "listMode": "列表模式",
+  "copy": "复制",
+  "copied": "已复制到剪贴板"
 }

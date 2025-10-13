@@ -124,6 +124,7 @@ class _PlayerScreenState extends State<PlayerScreen>
         TabBar(
           controller: _tabController,
           onTap: (_) => player.pause(),
+          labelPadding: const EdgeInsets.symmetric(horizontal: 8),
           tabs: [
             Tab(
               child: Row(
@@ -385,7 +386,7 @@ class _PlayerScreenState extends State<PlayerScreen>
 
   Widget _buildProgressBar(PlayerProvider player) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       child: StreamBuilder<Duration>(
         stream: player.absolutePositionStream,
         builder: (context, snapshot) {
@@ -400,24 +401,24 @@ class _PlayerScreenState extends State<PlayerScreen>
                 progress: position,
                 total: total,
                 onSeek: (duration) => player.seekAbsolute(duration),
-                barHeight: 4,
-                thumbRadius: 6,
-                timeLabelTextStyle: const TextStyle(fontSize: 12),
+                barHeight: 3,
+                thumbRadius: 5,
+                timeLabelTextStyle: const TextStyle(fontSize: 11),
                 timeLabelLocation: TimeLabelLocation.none,
               ),
-              const SizedBox(height: 4),
+              const SizedBox(height: 2),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
                     SubtitleParser.formatDuration(position),
-                    style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                    style: TextStyle(fontSize: 11, color: Colors.grey[600]),
                   ),
                   Text(() {
                     final clampedPos = position > total ? total : position;
                     final remaining = total - clampedPos;
                     return '-${SubtitleParser.formatDuration(remaining)}';
-                  }(), style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+                  }(), style: TextStyle(fontSize: 11, color: Colors.grey[600])),
                 ],
               ),
             ],
@@ -432,7 +433,7 @@ class _PlayerScreenState extends State<PlayerScreen>
     final l10n = AppLocalizations.of(context)!;
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
@@ -444,55 +445,55 @@ class _PlayerScreenState extends State<PlayerScreen>
                 player.settings.singleSentenceMode
                     ? Icons.format_quote
                     : Icons.article,
-                size: 16,
+                size: 14,
                 color: Colors.grey[600],
               ),
-              const SizedBox(width: 4),
+              const SizedBox(width: 3),
               Text(
                 player.settings.singleSentenceMode
                     ? l10n.singleSentenceMode
                     : l10n.listMode,
-                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                style: TextStyle(fontSize: 11, color: Colors.grey[600]),
               ),
             ],
           ),
           // 显示句子循环状态
           if (player.settings.loopEnabled) ...[
-            const SizedBox(width: 16),
+            const SizedBox(width: 12),
             Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.repeat_one, size: 16, color: Colors.grey[600]),
-                const SizedBox(width: 4),
+                Icon(Icons.repeat_one, size: 14, color: Colors.grey[600]),
+                const SizedBox(width: 3),
                 Text(
                   'x${player.settings.loopCount}',
-                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                  style: TextStyle(fontSize: 11, color: Colors.grey[600]),
                 ),
               ],
             ),
           ],
           // 显示音频循环状态
           if (player.settings.loopAudioEnabled) ...[
-            const SizedBox(width: 16),
+            const SizedBox(width: 12),
             Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.repeat, size: 16, color: Colors.grey[600]),
-                const SizedBox(width: 4),
+                Icon(Icons.repeat, size: 14, color: Colors.grey[600]),
+                const SizedBox(width: 3),
                 Text(
                   player.settings.loopAudio == 0
                       ? '∞'
                       : 'x${player.settings.loopAudio}',
-                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                  style: TextStyle(fontSize: 11, color: Colors.grey[600]),
                 ),
               ],
             ),
           ],
           // 显示播放速度
-          const SizedBox(width: 16),
+          const SizedBox(width: 12),
           Text(
             '${player.settings.playbackSpeed}x',
-            style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+            style: TextStyle(fontSize: 11, color: Colors.grey[600]),
           ),
         ],
       ),

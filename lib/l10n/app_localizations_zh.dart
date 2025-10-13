@@ -240,4 +240,10 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get listMode => '列表模式';
+
+  @override
+  String get copy => '复制';
+
+  @override
+  String get copied => '已复制到剪贴板';
 }

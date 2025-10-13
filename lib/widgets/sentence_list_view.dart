@@ -1,8 +1,10 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart';
 import '../models/sentence.dart';
 import '../services/subtitle_parser.dart';
+import '../l10n/app_localizations.dart';
 
 class SentenceListView extends StatefulWidget {
   final List<Sentence> sentences;
@@ -166,6 +168,44 @@ class _SentenceTile extends StatelessWidget {
     required this.isItemPlaying,
   });
 
+  void _showContextMenu(BuildContext context, Offset position) async {
+    final l10n = AppLocalizations.of(context)!;
+    final RenderBox? overlay =
+        Overlay.of(context).context.findRenderObject() as RenderBox?;
+    
+    final result = await showMenu(
+      context: context,
+      position: RelativeRect.fromRect(
+        position & const Size(40, 40),
+        Offset.zero & (overlay?.size ?? const Size(0, 0)),
+      ),
+      items: [
+        PopupMenuItem<String>(
+          value: 'copy',
+          child: Row(
+            children: [
+              const Icon(Icons.copy, size: 20),
+              const SizedBox(width: 12),
+              Text(l10n.copy),
+            ],
+          ),
+        ),
+      ],
+    );
+
+    if (result == 'copy' && context.mounted) {
+      await Clipboard.setData(ClipboardData(text: sentence.text));
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(l10n.copied),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Card(
@@ -186,90 +226,108 @@ class _SentenceTile extends StatelessWidget {
               )
             : const BorderSide(color: Colors.transparent),
       ),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                width: 32,
-                height: 32,
-                decoration: BoxDecoration(
-                  color: isCurrent
-                      ? Theme.of(context).colorScheme.primary
-                      : Theme.of(context).colorScheme.surfaceContainerHighest,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Center(
-                  child: Text(
-                    '${sentence.index + 1}',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                      color: isCurrent
-                          ? Theme.of(context).colorScheme.onPrimary
-                          : Theme.of(context).colorScheme.onSurface,
+      child: GestureDetector(
+        onSecondaryTapDown: (details) {
+          _showContextMenu(context, details.globalPosition);
+        },
+        onLongPressStart: (details) {
+          _showContextMenu(context, details.globalPosition);
+        },
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(12),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 28,
+                  height: 28,
+                  decoration: BoxDecoration(
+                    color: isCurrent
+                        ? Theme.of(context).colorScheme.primary
+                        : Theme.of(context).colorScheme.surfaceContainerHighest,
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Center(
+                    child: Text(
+                      '${sentence.index + 1}',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: isCurrent
+                            ? Theme.of(context).colorScheme.onPrimary
+                            : Theme.of(context).colorScheme.onSurface,
+                      ),
                     ),
                   ),
                 ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Stack(
-                      children: [
-                        Text(
-                          sentence.text,
-                          style: const TextStyle(fontSize: 16, height: 1.5),
-                        ),
-                        if (!showTranscript)
-                          Positioned.fill(
-                            child: IgnorePointer(
-                              child: ClipRRect(
-                                borderRadius: BorderRadius.circular(4),
-                                child: BackdropFilter(
-                                  filter: ImageFilter.blur(
-                                    sigmaX: 5,
-                                    sigmaY: 5,
-                                  ),
-                                  child: Container(
-                                    color: Colors.grey.withValues(alpha: 0.1),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Stack(
+                        children: [
+                          Text(
+                            sentence.text,
+                            style: const TextStyle(fontSize: 15, height: 1.4),
+                          ),
+                          if (!showTranscript)
+                            Positioned.fill(
+                              child: IgnorePointer(
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(4),
+                                  child: BackdropFilter(
+                                    filter: ImageFilter.blur(
+                                      sigmaX: 5,
+                                      sigmaY: 5,
+                                    ),
+                                    child: Container(
+                                      color: Colors.grey.withValues(alpha: 0.1),
+                                    ),
                                   ),
                                 ),
                               ),
                             ),
-                          ),
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      '${SubtitleParser.formatDuration(sentence.startTime)} - ${SubtitleParser.formatDuration(sentence.endTime)}',
-                      style: Theme.of(
-                        context,
-                      ).textTheme.bodySmall?.copyWith(color: Colors.grey[600]),
-                    ),
-                  ],
+                        ],
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        '${SubtitleParser.formatDuration(sentence.startTime)} - ${SubtitleParser.formatDuration(sentence.endTime)}',
+                        style: Theme.of(
+                          context,
+                        ).textTheme.bodySmall?.copyWith(
+                              color: Colors.grey[600],
+                              fontSize: 11,
+                            ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              IconButton(
-                icon: Icon(isItemPlaying ? Icons.pause : Icons.play_arrow),
-                onPressed: onPlay,
-                tooltip: isItemPlaying ? 'Pause sentence' : 'Play sentence',
-              ),
-              IconButton(
-                icon: Icon(
-                  isBookmarked ? Icons.bookmark : Icons.bookmark_border,
-                  color: isBookmarked ? Colors.amber : Colors.grey,
+                const SizedBox(width: 4),
+                IconButton(
+                  icon: Icon(isItemPlaying ? Icons.pause : Icons.play_arrow),
+                  iconSize: 22,
+                  padding: const EdgeInsets.all(8),
+                  constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                  onPressed: onPlay,
+                  tooltip: isItemPlaying ? 'Pause sentence' : 'Play sentence',
                 ),
-                onPressed: onBookmarkToggle,
-                tooltip: isBookmarked ? 'Remove bookmark' : 'Add bookmark',
-              ),
-            ],
+                IconButton(
+                  icon: Icon(
+                    isBookmarked ? Icons.bookmark : Icons.bookmark_border,
+                    color: isBookmarked ? Colors.amber : Colors.grey,
+                  ),
+                  iconSize: 22,
+                  padding: const EdgeInsets.all(8),
+                  constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                  onPressed: onBookmarkToggle,
+                  tooltip: isBookmarked ? 'Remove bookmark' : 'Add bookmark',
+                ),
+              ],
+            ),
           ),
         ),
       ),

@@ -158,27 +158,31 @@ class _MainScreenState extends State<MainScreen> {
           ),
           bottomNavigationBar: isWideScreen
               ? null
-              : NavigationBar(
-                  selectedIndex: _selectedIndex,
-                  onDestinationSelected: (index) {
-                    setState(() {
-                      _selectedIndex = index;
-                    });
-                  },
-                  destinations: [
-                    NavigationDestination(
-                      icon: const Icon(Icons.library_music),
-                      label: l10n.library,
-                    ),
-                    NavigationDestination(
-                      icon: const Icon(Icons.play_circle),
-                      label: l10n.player,
-                    ),
-                    NavigationDestination(
-                      icon: const Icon(Icons.account_circle),
-                      label: l10n.account,
-                    ),
-                  ],
+              : SizedBox(
+                  height: 65,
+                  child: NavigationBar(
+                    selectedIndex: _selectedIndex,
+                    onDestinationSelected: (index) {
+                      setState(() {
+                        _selectedIndex = index;
+                      });
+                    },
+                    labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+                    destinations: [
+                      NavigationDestination(
+                        icon: const Icon(Icons.library_music, size: 22),
+                        label: l10n.library,
+                      ),
+                      NavigationDestination(
+                        icon: const Icon(Icons.play_circle, size: 22),
+                        label: l10n.player,
+                      ),
+                      NavigationDestination(
+                        icon: const Icon(Icons.account_circle, size: 22),
+                        label: l10n.account,
+                      ),
+                    ],
+                  ),
                 ),
         );
       },

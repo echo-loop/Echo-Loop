@@ -83,5 +83,7 @@
   "tapBookmarkIcon": "Tap bookmark icon to save",
   "removeBookmarkTip": "Remove bookmark",
   "addBookmarkTip": "Add bookmark",
-  "listMode": "List Mode"
+  "listMode": "List Mode",
+  "copy": "Copy",
+  "copied": "Copied to clipboard"
 }

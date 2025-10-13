@@ -90,7 +90,8 @@ class PlayerProvider extends ChangeNotifier {
   }
 
   void _onPositionChanged(Duration position) {
-    _updateCurrentSentence(position);
+    final absolute = _clipStart + position;
+    _updateCurrentSentence(absolute);
   }
 
   void _onPlayerStateChanged(PlayerState state) {
@@ -140,6 +141,10 @@ class PlayerProvider extends ChangeNotifier {
 
   void _updateCurrentSentence(Duration position) {
     if (_sentences.isEmpty) return;
+
+    // 如果正在进行 item 播放，不要自动更新选中状态
+    // 这样可以避免点击播放按钮时选中状态跳转
+    if (_itemPlaybackSentenceIndex != null) return;
 
     final index = _sentences.indexWhere(
       (s) => position >= s.startTime && position < s.endTime,
@@ -287,16 +292,26 @@ class PlayerProvider extends ChangeNotifier {
       return;
     }
 
-    // 确保初始索引存在
+    // 确保初始索引存在（只在真正需要时初始化，避免覆盖用户选择）
     if (_playlistMode == PlaylistMode.bookmarks) {
       final bookmarked = bookmarkedSentences;
-      if (bookmarked.isEmpty) return;
+      if (bookmarked.isEmpty) {
+        _isMainPlaybackPlaying = false;
+        notifyListeners();
+        return;
+      }
+      // 只有当前索引无效时才初始化
       if (_currentBookmarkIndex == null ||
           !_bookmarkedIndices.contains(_currentBookmarkIndex)) {
         _currentBookmarkIndex = bookmarked.first.index;
+        notifyListeners();
       }
-    } else if (_currentFullIndex == null) {
-      _currentFullIndex = 0;
+    } else {
+      // Full Text 模式：只有当前索引无效时才初始化为0
+      if (_currentFullIndex == null || _currentFullIndex! >= _sentences.length) {
+        _currentFullIndex = 0;
+        notifyListeners();
+      }
     }
 
     if (_shouldUseContinuousMode()) {
@@ -390,12 +405,22 @@ class PlayerProvider extends ChangeNotifier {
         final sentence = playList[i];
 
         // 更新当前索引（使用句子的原始索引）
+        // 只在索引真正改变时才更新，避免不必要的 UI 刷新
+        bool indexChanged = false;
         if (_playlistMode == PlaylistMode.bookmarks) {
-          _currentBookmarkIndex = sentence.index;
+          if (_currentBookmarkIndex != sentence.index) {
+            _currentBookmarkIndex = sentence.index;
+            indexChanged = true;
+          }
         } else {
-          _currentFullIndex = sentence.index;
+          if (_currentFullIndex != sentence.index) {
+            _currentFullIndex = sentence.index;
+            indexChanged = true;
+          }
         }
-        notifyListeners();
+        if (indexChanged) {
+          notifyListeners();
+        }
 
         // 播放当前句子
         print(
@@ -426,9 +451,15 @@ class PlayerProvider extends ChangeNotifier {
           return;
         }
 
-        // 如果不是自动播放下一句，退出循环
+        // 如果不是自动播放下一句，等待当前句子播放完成后退出
         if (!_settings.autoPlayNextSentenceEnabled) {
           print("3");
+          // 等待音频播放完成
+          if (_audioPlayer.playing) {
+            await _audioPlayer.playerStateStream.firstWhere(
+              (state) => !state.playing || state.processingState == ProcessingState.completed,
+            );
+          }
           _isMainPlaybackPlaying = false;
           notifyListeners();
           return;
@@ -516,9 +547,11 @@ class PlayerProvider extends ChangeNotifier {
 
     await _playSingleSentenceOnce(sentence, sessionId);
 
-    // 播放完成，清除item播放状态
-    _itemPlaybackSentenceIndex = null;
-    notifyListeners();
+    // 播放完成，清除item播放状态（只有当前会话仍然有效时才清除）
+    if (_is_active_session(sessionId) && _itemPlaybackSentenceIndex == index) {
+      _itemPlaybackSentenceIndex = null;
+      notifyListeners();
+    }
   }
 
   // ============================================================================
@@ -566,6 +599,14 @@ class PlayerProvider extends ChangeNotifier {
 
   Future<void> selectFullSentence(int index) async {
     if (index < 0 || index >= _sentences.length) return;
+    
+    // 如果正在进行 item 播放，停止播放
+    if (_itemPlaybackSentenceIndex != null) {
+      ++_playbackSessionId; // 取消当前播放会话
+      _itemPlaybackSentenceIndex = null;
+      await _audioPlayer.pause();
+    }
+    
     _currentFullIndex = index;
     _autoScrollEnabled = true;
 
@@ -574,22 +615,23 @@ class PlayerProvider extends ChangeNotifier {
       // 清除 clip 限制，切换到完整音频模式
       if (_clipStart != Duration.zero) {
         await _audioPlayer.setClip(start: null, end: null);
-        // 先 seek 到目标位置，然后再更新 _clipStart
-        await _audioPlayer.seek(_sentences[index].startTime);
         _clipStart = Duration.zero;
-        // 如果正在 item 播放，清除 item 播放状态
-        if (_itemPlaybackSentenceIndex != null) {
-          _itemPlaybackSentenceIndex = null;
-        }
-      } else {
-        await _audioPlayer.seek(_sentences[index].startTime);
       }
+      await _audioPlayer.seek(_sentences[index].startTime);
     }
     notifyListeners();
   }
 
   Future<void> selectBookmarkedSentence(int index) async {
     if (index < 0 || index >= _sentences.length) return;
+    
+    // 如果正在进行 item 播放，停止播放
+    if (_itemPlaybackSentenceIndex != null) {
+      ++_playbackSessionId; // 取消当前播放会话
+      _itemPlaybackSentenceIndex = null;
+      await _audioPlayer.pause();
+    }
+    
     _currentBookmarkIndex = index;
     _autoScrollEnabled = true;
 
@@ -598,16 +640,9 @@ class PlayerProvider extends ChangeNotifier {
       // 清除 clip 限制，切换到完整音频模式
       if (_clipStart != Duration.zero) {
         await _audioPlayer.setClip(start: null, end: null);
-        // 先 seek 到目标位置，然后再更新 _clipStart
-        await _audioPlayer.seek(_sentences[index].startTime);
         _clipStart = Duration.zero;
-        // 如果正在 item 播放，清除 item 播放状态
-        if (_itemPlaybackSentenceIndex != null) {
-          _itemPlaybackSentenceIndex = null;
-        }
-      } else {
-        await _audioPlayer.seek(_sentences[index].startTime);
       }
+      await _audioPlayer.seek(_sentences[index].startTime);
     }
     notifyListeners();
   }
@@ -625,19 +660,16 @@ class PlayerProvider extends ChangeNotifier {
       return;
     }
 
-    // 停止主播放（如果正在播放）
-    if (_isMainPlaybackPlaying) {
-      ++_playbackSessionId; // 取消主播放会话
-      _isMainPlaybackPlaying = false;
+    // 停止所有播放
+    ++_playbackSessionId; // 取消当前播放会话
+    final wasPlaying = _audioPlayer.playing;
+    if (wasPlaying) {
       await _audioPlayer.pause();
     }
-
-    // 停止item播放（如果正在播放）
-    if (_itemPlaybackSentenceIndex != null) {
-      ++_playbackSessionId; // 取消item播放会话
-      _itemPlaybackSentenceIndex = null;
-      await _audioPlayer.pause();
-    }
+    
+    // 清除所有播放状态
+    _isMainPlaybackPlaying = false;
+    _itemPlaybackSentenceIndex = null;
 
     // 根据播放模式设置当前播放索引
     if (_playlistMode == PlaylistMode.bookmarks) {
@@ -649,11 +681,11 @@ class PlayerProvider extends ChangeNotifier {
 
     // 标记为item播放
     _itemPlaybackSentenceIndex = index;
-    ++_playbackSessionId;
+    final currentSessionId = ++_playbackSessionId;
 
     // 先通知 UI 状态变化，然后开始播放（播放内部会再次通知进度条更新）
     notifyListeners();
-    await playSingleSentenceOnce(index, _playbackSessionId);
+    await playSingleSentenceOnce(index, currentSessionId);
   }
 
   Future<void> nextSentence() async {
@@ -763,9 +795,19 @@ class PlayerProvider extends ChangeNotifier {
   }
 
   Future<void> toggleBookmark(int index) async {
-    if (_bookmarkedIndices.contains(index)) {
+    final isRemoving = _bookmarkedIndices.contains(index);
+    
+    if (isRemoving) {
       _bookmarkedIndices.remove(index);
       _sentences[index].isBookmarked = false;
+      
+      // 如果在 bookmark 模式下取消了当前选中的 bookmark
+      if (_playlistMode == PlaylistMode.bookmarks && _currentBookmarkIndex == index) {
+        // 清除选中状态
+        _currentBookmarkIndex = null;
+        // 禁用自动滚动，避免列表跳动
+        _autoScrollEnabled = false;
+      }
     } else {
       _bookmarkedIndices.add(index);
       _sentences[index].isBookmarked = true;
