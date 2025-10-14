@@ -11,7 +11,7 @@ class PlaybackControls extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         final isMobile = constraints.maxWidth < 600;
-        
+
         if (isMobile) {
           return _buildMobileLayout(context);
         } else {
@@ -101,7 +101,9 @@ class PlaybackControls extends StatelessWidget {
                 IconButton(
                   icon: const Icon(Icons.skip_next),
                   iconSize: 32,
-                  onPressed: player.hasSentences ? () => player.nextSentence() : null,
+                  onPressed: player.hasSentences
+                      ? () => player.nextSentence()
+                      : null,
                   tooltip: 'Next Sentence',
                 ),
               ],
@@ -208,7 +210,7 @@ class PlaybackControls extends StatelessWidget {
           if (player.isMainPlaybackPlaying) {
             player.pause();
           } else {
-            player.mainPlay();
+            player.play();
           }
         },
         tooltip: player.isMainPlaybackPlaying ? 'Pause' : 'Play',

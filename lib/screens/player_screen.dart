@@ -28,17 +28,17 @@ class _PlayerScreenState extends State<PlayerScreen>
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
       final player = Provider.of<PlayerProvider>(context, listen: false);
-      player.setPlaylistMode(PlaylistMode.full);
+      await player.setPlaylistMode(PlaylistMode.full);
     });
-    // Pause playback when switching tabs (tap or swipe)
+    // Switch mode and pause playback when switching tabs (tap or swipe)
     _tabController.addListener(() {
       if (_tabController.indexIsChanging ||
           (_tabController.animation?.value !=
               _tabController.index.toDouble())) {
         final player = Provider.of<PlayerProvider>(context, listen: false);
-        player.pause();
+        // setPlaylistMode will handle pause automatically
         player.setPlaylistMode(
           _tabController.index == 0
               ? PlaylistMode.full
@@ -139,7 +139,6 @@ class _PlayerScreenState extends State<PlayerScreen>
         // 标签栏
         TabBar(
           controller: _tabController,
-          onTap: (_) => player.pause(),
           labelPadding: const EdgeInsets.symmetric(horizontal: 8),
           tabs: [
             Tab(
