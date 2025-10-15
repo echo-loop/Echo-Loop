@@ -44,6 +44,11 @@ class _SentenceListViewState extends State<SentenceListView> {
     super.initState();
     // 监听滚动位置变化，检测用户手动滚动
     _itemPositionsListener.itemPositions.addListener(_onScrollPositionChanged);
+
+    // 初次加载后滚动到当前句子
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _scrollToCurrentSentence();
+    });
   }
 
   @override
@@ -62,9 +67,13 @@ class _SentenceListViewState extends State<SentenceListView> {
   @override
   void didUpdateWidget(covariant SentenceListView oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // 当 currentIndex 变化或 autoScroll 从禁用变为启用时，滚动到当前句子
+    // 当以下情况时滚动到当前句子：
+    // 1. currentIndex 变化
+    // 2. sentences 列表变化（标签页切换）
+    // 3. autoScroll 从禁用变为启用
     if (widget.currentIndex != null && widget.autoScrollEnabled) {
       if (widget.currentIndex != oldWidget.currentIndex ||
+          widget.sentences != oldWidget.sentences ||
           (!oldWidget.autoScrollEnabled && widget.autoScrollEnabled)) {
         _scrollToCurrentSentence();
       }

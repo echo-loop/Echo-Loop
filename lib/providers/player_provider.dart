@@ -245,6 +245,9 @@ class PlayerProvider extends ChangeNotifier {
       _sentences = [];
       _currentFullIndex = null;
       _currentBookmarkIndex = null;
+      
+      // 加载新音频时启用自动滚动
+      _autoScrollEnabled = true;
 
       print("loadAudio: ${audioItem.name}");
       // Load audio
