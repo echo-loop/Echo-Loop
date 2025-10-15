@@ -184,8 +184,8 @@ class _AudioListTile extends StatelessWidget {
             context.read<AudioLibraryProvider>().removeAudioItem(audioItem.id);
             return;
           }
-
-          context.read<PlayerProvider>().loadAudio(audioItem);
+          await context.read<PlayerProvider>().loadAudio(audioItem);
+          if (!context.mounted) return;
           Navigator.pushNamed(context, '/player');
         },
       ),

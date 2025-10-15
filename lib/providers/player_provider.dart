@@ -232,6 +232,10 @@ class PlayerProvider extends ChangeNotifier {
   }
 
   Future<void> loadAudio(AudioItem audioItem) async {
+    print("loadAudio: ${audioItem.name}");
+    // 加载新音频时启用自动滚动
+    _autoScrollEnabled = true;
+
     if (_currentAudioItem?.id == audioItem.id) return;
 
     _isLoading = true;
@@ -245,11 +249,7 @@ class PlayerProvider extends ChangeNotifier {
       _sentences = [];
       _currentFullIndex = null;
       _currentBookmarkIndex = null;
-      
-      // 加载新音频时启用自动滚动
-      _autoScrollEnabled = true;
 
-      print("loadAudio: ${audioItem.name}");
       // Load audio
       try {
         // 使用动态获取的完整路径
@@ -640,12 +640,16 @@ class PlayerProvider extends ChangeNotifier {
     if (wasPlaying) {
       await pause();
     }
+
+    // 启用自动滚动，确保选中的句子可见
+    _autoScrollEnabled = true;
+
     // 清除 clip 限制，切换到完整音频模式
     if (_clipStart != Duration.zero) {
+      _clipStart = Duration.zero;
       await _audioPlayer.setClip(start: null, end: null);
       // 先 seek 到绝对位置，然后再更新 _clipStart
       await _audioPlayer.seek(absolutePosition);
-      _clipStart = Duration.zero;
     } else {
       // 直接 seek 到绝对位置
       await _audioPlayer.seek(absolutePosition);
@@ -684,8 +688,6 @@ class PlayerProvider extends ChangeNotifier {
           // 全文模式直接使用找到的索引
           _currentFullIndex = newIndex;
         }
-        // 启用自动滚动，确保选中的句子可见
-        _autoScrollEnabled = true;
       }
     }
 

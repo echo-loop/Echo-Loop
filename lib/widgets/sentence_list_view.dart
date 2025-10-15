@@ -67,20 +67,24 @@ class _SentenceListViewState extends State<SentenceListView> {
   @override
   void didUpdateWidget(covariant SentenceListView oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // 当以下情况时滚动到当前句子：
-    // 1. currentIndex 变化
-    // 2. sentences 列表变化（标签页切换）
-    // 3. autoScroll 从禁用变为启用
+
     if (widget.currentIndex != null && widget.autoScrollEnabled) {
-      if (widget.currentIndex != oldWidget.currentIndex ||
-          widget.sentences != oldWidget.sentences ||
-          (!oldWidget.autoScrollEnabled && widget.autoScrollEnabled)) {
-        _scrollToCurrentSentence();
+      // 场景1：currentIndex 变化（播放中自动更新）→ 总是居中显示
+      if (widget.currentIndex != oldWidget.currentIndex) {
+        _scrollToCurrentSentence(checkVisibility: false);
+      }
+      // 场景3：autoScroll 从禁用变为启用 → 总是居中
+      else if (!oldWidget.autoScrollEnabled && widget.autoScrollEnabled) {
+        _scrollToCurrentSentence(checkVisibility: false);
+      }
+      // 场景2：sentences 列表变化（标签页切换）→ 智能滚动（可见则不动）
+      else {
+        _scrollToCurrentSentence(checkVisibility: true);
       }
     }
   }
 
-  void _scrollToCurrentSentence() {
+  void _scrollToCurrentSentence({bool checkVisibility = false}) {
     if (widget.currentIndex == null || !widget.autoScrollEnabled) return;
 
     // 查找目标句子在当前列表中的位置
@@ -89,11 +93,25 @@ class _SentenceListViewState extends State<SentenceListView> {
     );
     if (localPos == -1) return;
 
-    // 使用 ScrollablePositionedList 的 scrollTo 方法
-    // 这会自动处理所有边界情况和 item 构建
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
 
+      // 如果需要检查可见性（标签页切换场景）
+      if (checkVisibility) {
+        final positions = _itemPositionsListener.itemPositions.value;
+
+        // 如果能获取到可见位置信息，检查目标是否已经可见
+        if (positions.isNotEmpty) {
+          final isVisible = positions.any((pos) => pos.index == localPos);
+
+          // 如果已经可见，不需要滚动
+          if (isVisible) {
+            return;
+          }
+        }
+      }
+
+      // 执行滚动（播放中总是滚动，标签页切换时只在不可见时滚动）
       _itemScrollController.scrollTo(
         index: localPos,
         duration: const Duration(milliseconds: 300),
