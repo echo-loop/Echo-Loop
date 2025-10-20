@@ -1,6 +1,7 @@
-import 'dart:io';
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:universal_io/io.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
@@ -226,7 +227,7 @@ class _SentenceTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // 移动端优化：减小编号和按钮尺寸，增加文字区域宽度
-    final isMobile = Platform.isIOS || Platform.isAndroid;
+    final isMobile = !kIsWeb && (Platform.isIOS || Platform.isAndroid);
     final numberBoxSize = isMobile ? 20.0 : 28.0;
     final numberFontSize = isMobile ? 10.0 : 11.0;
     final numberSpacing = isMobile ? 4.0 : 10.0;

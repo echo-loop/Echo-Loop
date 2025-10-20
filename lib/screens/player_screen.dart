@@ -1,8 +1,9 @@
 import 'dart:async';
-import 'dart:io';
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/services.dart';
+import 'package:universal_io/io.dart';
 import 'package:provider/provider.dart';
 import 'package:audio_video_progress_bar/audio_video_progress_bar.dart';
 import '../l10n/app_localizations.dart';
@@ -305,7 +306,7 @@ class _PlayerScreenState extends State<PlayerScreen>
     final isBookmarked = player.bookmarkedIndices.contains(
       currentSentence.index,
     );
-    final isMobile = Platform.isIOS || Platform.isAndroid;
+    final isMobile = !kIsWeb && (Platform.isIOS || Platform.isAndroid);
 
     return Center(
       child: Padding(
@@ -605,7 +606,7 @@ class _PlayerScreenState extends State<PlayerScreen>
           // 2 用 Spacer 把右侧整体推到最右
           const Spacer(),
           // 右侧：macOS 快捷键提示轮播
-          if (Platform.isMacOS)
+          if (!kIsWeb && Platform.isMacOS)
             SizedBox(
               // 使用 Align 将子组件贴到 Row 的最右侧
               child: Align(

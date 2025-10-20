@@ -1,4 +1,4 @@
-import 'dart:io';
+import 'package:universal_io/io.dart';
 import 'package:subtitle/subtitle.dart';
 import '../models/sentence.dart';
 

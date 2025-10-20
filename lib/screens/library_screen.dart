@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import 'dart:io';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/services.dart';
+import 'package:universal_io/io.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:file_picker/file_picker.dart';
@@ -311,20 +312,19 @@ class _AddAudioDialogState extends State<_AddAudioDialog> {
     try {
       final FilePickerResult? result;
 
-      if (Platform.isIOS) {
+      if (!kIsWeb && Platform.isIOS) {
         // iOS: 使用 custom 类型和明确的扩展名列表
         result = await FilePicker.platform.pickFiles(
           type: FileType.custom,
-          allowedExtensions: ['mp3', 'm4a', 'aac', 'wav', 'flac'],
+          allowedExtensions: ['mp3', 'wav', 'm4a', 'aac', 'flac'],
         );
       } else {
         // macOS 等其他平台：保持原有逻辑
-        final initialDir = Platform.isMacOS
+        final initialDir = !kIsWeb && Platform.isMacOS
             ? await _getDownloadsDirectory()
             : null;
         result = await FilePicker.platform.pickFiles(
           type: FileType.audio,
-          allowMultiple: false,
           initialDirectory: initialDir,
         );
       }
@@ -352,23 +352,22 @@ class _AddAudioDialogState extends State<_AddAudioDialog> {
     try {
       final FilePickerResult? result;
 
-      if (Platform.isIOS) {
+      if (!kIsWeb && Platform.isIOS) {
         // iOS: 使用 custom 类型，配合 Info.plist 中注册的 UTType
         result = await FilePicker.platform.pickFiles(
           type: FileType.custom,
-          allowedExtensions: ['srt', 'vtt'],
+          allowedExtensions: ['srt', 'lrc', 'txt', 'vtt', 'ass', 'ssa'],
           allowMultiple: false,
         );
       } else {
         // macOS 等其他平台：保持原有逻辑
-        final initialDir = Platform.isMacOS
+        final initialDir = !kIsWeb && Platform.isMacOS
             ? await _getDownloadsDirectory()
             : null;
         result = await FilePicker.platform.pickFiles(
-          type: FileType.custom,
-          allowedExtensions: ['srt', 'vtt'],
-          allowMultiple: false,
+          type: FileType.any,
           initialDirectory: initialDir,
+          allowMultiple: false,
         );
       }
 

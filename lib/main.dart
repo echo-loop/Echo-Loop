@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:provider/provider.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:audio_session/audio_session.dart';
@@ -17,28 +18,32 @@ void main() async {
   // 初始化 PackageInfo (官方推荐在 runApp 之前调用)
   final packageInfo = await PackageInfo.fromPlatform();
 
-  // 初始化音频会话，支持后台播放
-  try {
-    final session = await AudioSession.instance;
-    await session.configure(
-      const AudioSessionConfiguration(
-        avAudioSessionCategory: AVAudioSessionCategory.playback,
-        avAudioSessionCategoryOptions: AVAudioSessionCategoryOptions.duckOthers,
-        avAudioSessionMode: AVAudioSessionMode.spokenAudio,
-        avAudioSessionRouteSharingPolicy:
-            AVAudioSessionRouteSharingPolicy.defaultPolicy,
-        avAudioSessionSetActiveOptions: AVAudioSessionSetActiveOptions.none,
-        androidAudioAttributes: AndroidAudioAttributes(
-          contentType: AndroidAudioContentType.speech,
-          usage: AndroidAudioUsage.media,
+  // 初始化音频会话，支持后台播放 (仅限原生平台)
+  if (!kIsWeb) {
+    try {
+      final session = await AudioSession.instance;
+      await session.configure(
+        const AudioSessionConfiguration(
+          avAudioSessionCategory: AVAudioSessionCategory.playback,
+          avAudioSessionCategoryOptions: AVAudioSessionCategoryOptions.duckOthers,
+          avAudioSessionMode: AVAudioSessionMode.spokenAudio,
+          avAudioSessionRouteSharingPolicy:
+              AVAudioSessionRouteSharingPolicy.defaultPolicy,
+          avAudioSessionSetActiveOptions: AVAudioSessionSetActiveOptions.none,
+          androidAudioAttributes: AndroidAudioAttributes(
+            contentType: AndroidAudioContentType.speech,
+            usage: AndroidAudioUsage.media,
+          ),
+          androidAudioFocusGainType: AndroidAudioFocusGainType.gain,
+          androidWillPauseWhenDucked: false,
         ),
-        androidAudioFocusGainType: AndroidAudioFocusGainType.gain,
-        androidWillPauseWhenDucked: false,
-      ),
-    );
-    print('Audio session configured for background playback');
-  } catch (e) {
-    print('Error configuring audio session: $e');
+      );
+      print('Audio session configured for background playback');
+    } catch (e) {
+      print('Error configuring audio session: $e');
+    }
+  } else {
+    print('Web platform: skipping audio session configuration');
   }
 
   runApp(ListenMasterApp(packageInfo: packageInfo));

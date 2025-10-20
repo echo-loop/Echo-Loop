@@ -547,7 +547,7 @@ packages:
     source: hosted
     version: "1.4.0"
   universal_io:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: universal_io
       sha256: "1722b2dcc462b4b2f3ee7d188dad008b6eb4c40bbd03a3de451d82c78bba9aad"
