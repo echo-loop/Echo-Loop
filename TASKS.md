@@ -19,7 +19,7 @@
 - [x] 清理 StorageService（仅保留 PlaybackSettings 方法）
 
 **完成时间**: 2026-02-21
-**Commit**: 待提交
+**Commit**: 0bcc0f1
 **变更点**:
 - 新建 16 个文件（表定义、DAO、数据库、迁移服务、Provider、枚举、测试）
 - 修改 12 个文件（main.dart、4 个 Provider、模型、屏幕、测试）
