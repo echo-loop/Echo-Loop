@@ -1,0 +1,102 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(./**)",
+
+      "Bash(flutter test:*)",
+      "Bash(flutter analyze:*)",
+      "Bash(flutter build:*)",
+      "Bash(pkill:*)",
+      "Bash(open:*)",
+      "Bash(flutter pub get:*)",
+      "Bash(dart run build_runner build:*)",
+      "Bash(dart run build_runner watch:*)",
+      "Bash(dart fix:*)",
+      "Bash(dart format:*)",
+      "Bash(dart --version:*)",
+      "Bash(flutter run:*)",
+      "Bash(flutter doctor:*)",
+      "Bash(flutter --version:*)",
+      "Bash(flutter devices:*)",
+      "Bash(flutter pub deps:*)",
+      "Bash(flutter pub outdated:*)",
+      "Bash(flutter gen-l10n:*)",
+      "Bash(flutter pub:*)",
+
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(git branch:*)",
+      "Bash(git checkout:*)",
+      "Bash(git switch:*)",
+      "Bash(git fetch:*)",
+      "Bash(git pull:*)",
+      "Bash(git push:*)",
+      "Bash(git add:*)",
+      "Bash(git restore:*)",
+      "Bash(git merge:*)",
+      "Bash(git rebase:*)",
+      "Bash(git cherry-pick:*)",
+      "Bash(git stash:*)",
+      "Bash(git tag:*)",
+      "Bash(git worktree:*)",
+      "Bash(git show:*)",
+      "Bash(git remote:*)",
+      "Bash(git rev-parse:*)",
+      "Bash(git describe:*)",
+
+      "Bash(tee:*)",
+      "Bash(echo:*)",
+      "Bash(grep:*)",
+      "Bash(tail:*)",
+      
+      "Bash(kill:*)",
+      "Bash(lsof:*)",
+
+      "Bash(ls:*)",
+      "Bash(pwd:*)",
+
+      "Bash(cat:*)",
+      "Bash(sed:*)",
+      "Bash(awk:*)",
+      "Bash(find:*)",
+      "Bash(xargs:*)",
+      "Bash(rg:*)",
+      "Bash(head:*)",
+      "Bash(wc:*)",
+
+      "Bash(npx:*)",
+      "Bash(node:*)",
+      "Bash(pnpm:*)",
+      "Bash(npm:*)",
+      "Bash(yarn:*)",
+
+      "Bash(docker:*)",
+      "Bash(docker compose:*)",
+      "Bash(docker-compose:*)",
+
+      "Bash(curl:*)",
+      "Bash(wget:*)",
+      "Bash(ping:*)",
+
+      "Bash(make:*)",
+
+      "Bash(whoami:*)",
+      "Bash(date:*)",
+      "Bash(uname:*)",
+      "Bash(sw_vers:*)",
+      "Bash(which:*)",
+      "Bash(type:*)",
+      "Bash(env:*)",
+      "Bash(printenv:*)",
+
+      "Bash(less:*)",
+      "Bash(more:*)",
+
+      "Bash(ps:*)",
+      "Bash(top:*)",
+      "Bash(df:*)",
+      "Bash(du:*)"
+    ]
+  }
+}
