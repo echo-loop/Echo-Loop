@@ -849,4 +849,30 @@ class AppLocalizationsEn extends AppLocalizations {
   String stepProgressLabel(int current, int total, String stage) {
     return 'Step $current/$total ($stage)';
   }
+
+  @override
+  String get manageTags => 'Manage Tags';
+
+  @override
+  String get noTagsYet => 'No tags yet';
+
+  @override
+  String get createTag => 'Create Tag';
+
+  @override
+  String get tagName => 'Tag Name';
+
+  @override
+  String get enterTagName => 'Enter tag name';
+
+  @override
+  String get selectColor => 'Select Color';
+
+  @override
+  String get deleteTag => 'Delete Tag';
+
+  @override
+  String deleteTagConfirm(String name) {
+    return 'Are you sure you want to delete \"$name\"? It will be removed from all audio.';
+  }
 }

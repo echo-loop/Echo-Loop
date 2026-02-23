@@ -9,6 +9,7 @@ import '../utils/audio_duration.dart';
 import '../utils/transcript_stats.dart';
 import 'collection_provider.dart';
 import 'learning_progress_provider.dart';
+import 'tag_provider.dart';
 
 part 'audio_library_provider.g.dart';
 
@@ -203,6 +204,9 @@ class AudioLibrary extends _$AudioLibrary {
 
     // 从所有合集中清理对该音频的引用（更新 Provider 内存状态）
     ref.read(collectionListProvider.notifier).removeAudioFromAllCollections(id);
+
+    // 从所有标签中清理对该音频的引用（更新 Provider 内存状态）
+    ref.read(tagListProvider.notifier).removeAudioFromAllTags(id);
   }
 
   Future<void> updateAudioItem(AudioItem updatedItem) async {

@@ -7,6 +7,7 @@ import 'daos/bookmark_dao.dart';
 import 'daos/playback_state_dao.dart';
 import 'daos/learning_progress_dao.dart';
 import 'daos/stage_completion_dao.dart';
+import 'daos/tag_dao.dart';
 
 /// 数据库 Provider
 /// 在 main.dart 中通过 ProviderScope override 注入实例
@@ -42,4 +43,9 @@ final learningProgressDaoProvider = Provider<LearningProgressDao>((ref) {
 /// StageCompletion DAO Provider
 final stageCompletionDaoProvider = Provider<StageCompletionDao>((ref) {
   return ref.watch(appDatabaseProvider).stageCompletionDao;
+});
+
+/// Tag DAO Provider
+final tagDaoProvider = Provider<TagDao>((ref) {
+  return ref.watch(appDatabaseProvider).tagDao;
 });

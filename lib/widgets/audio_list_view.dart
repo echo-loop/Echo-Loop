@@ -14,6 +14,7 @@ import '../theme/app_theme.dart';
 import '../widgets/add_audio_dialog.dart';
 import 'audio_list_tile.dart';
 import 'edit_collection_membership_sheet.dart';
+import 'edit_tag_membership_sheet.dart';
 
 /// 音频列表视图 — 资源库全局列表和合集详情页共用
 ///
@@ -65,6 +66,7 @@ class AudioListView extends ConsumerWidget {
           collectionId: collectionId,
           onManageCollections: () =>
               _showManageCollectionsSheet(context, item.id),
+          onManageTags: () => _showManageTagsSheet(context, item.id),
           onDelete: () => _confirmDeleteAudio(context, ref, item),
         );
       },
@@ -93,6 +95,15 @@ class AudioListView extends ConsumerWidget {
       context: context,
       isScrollControlled: true,
       builder: (context) => EditCollectionMembershipSheet(audioId: audioId),
+    );
+  }
+
+  /// 显示标签归属编辑 BottomSheet
+  void _showManageTagsSheet(BuildContext context, String audioId) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) => EditTagMembershipSheet(audioId: audioId),
     );
   }
 

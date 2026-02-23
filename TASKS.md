@@ -5,6 +5,27 @@
 
 ---
 
+## 音频标签功能
+
+- [x] 数据库层 — 新建 `tags` 和 `audio_item_tags` 两张表 + schema v8→v9 迁移 + 反向查询索引
+- [x] 标签 Model — `lib/models/tag.dart`（id, name, colorValue, createdDate, color getter, copyWith）
+- [x] 标签 DAO — `lib/database/daos/tag_dao.dart`（CRUD + Junction 操作 + CASCADE）
+- [x] Provider 注册 — `tagDaoProvider` 添加到 `lib/database/providers.dart`
+- [x] 标签 Provider — `lib/providers/tag_provider.dart`（TagState + TagList notifier + audioToTagsMap 反向索引 + diff 模式更新）
+- [x] 集成 — 音频删除时清理标签缓存（`removeAudioFromAllTags`）
+- [x] 集成 — 启动时加载标签（`main_shell.dart` 中 `loadTags()`）
+- [x] 预定义颜色板 — `lib/theme/tag_colors.dart`（10 个颜色）
+- [x] UI — 管理标签 BottomSheet — `lib/widgets/edit_tag_membership_sheet.dart`（CheckboxListTile + 颜色圆点 + 创建标签对话框 + 颜色选择）
+- [x] UI — 音频列表项集成 — `AudioListTile` 新增"管理标签"菜单项 + 彩色标签 chips + `AudioListView` 传入回调
+- [x] 国际化 — 6 个新 key（manageTags / noTagsYet / createTag / tagName / enterTagName / selectColor）
+- [x] 代码生成 — `build_runner build` + `flutter gen-l10n`
+- [x] 测试 — Tag Model 测试(4) + Tag DAO 测试(10) + TagState 测试(4) + EditTagMembershipSheet Widget 测试(4) + smoke test 修复
+- [x] UI — 标签删除功能 — 删除按钮 + 确认对话框 + 国际化(+2 key) + Widget 测试(+1)
+
+**完成时间**: 2026-02-23
+
+---
+
 ## 音频星标功能
 
 - [x] 数据库表 `audio_items` 添加 `isStarred` 列 + schema v7→v8 迁移

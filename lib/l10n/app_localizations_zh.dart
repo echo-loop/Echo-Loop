@@ -830,4 +830,30 @@ class AppLocalizationsZh extends AppLocalizations {
   String stepProgressLabel(int current, int total, String stage) {
     return '步骤进度：$current/$total（$stage）';
   }
+
+  @override
+  String get manageTags => '管理标签';
+
+  @override
+  String get noTagsYet => '还没有创建标签';
+
+  @override
+  String get createTag => '创建标签';
+
+  @override
+  String get tagName => '标签名称';
+
+  @override
+  String get enterTagName => '输入标签名称';
+
+  @override
+  String get selectColor => '选择颜色';
+
+  @override
+  String get deleteTag => '删除标签';
+
+  @override
+  String deleteTagConfirm(String name) {
+    return '确定要删除「$name」吗？将从所有音频中移除。';
+  }
 }

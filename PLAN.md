@@ -23,6 +23,7 @@ lib/
 ├── models/                          # 纯数据模型（不含业务逻辑）
 │   ├── audio_item.dart              #   音频文件元数据（相对路径）
 │   ├── collection.dart              #   合集（包含多个 AudioItem）
+│   ├── tag.dart                     #   标签（名称 + 颜色）
 │   ├── sentence.dart                #   字幕句子（时间轴 + 书签状态）
 │   ├── playback_settings.dart       #   播放设置（循环、速度、间隔等）
 │   ├── intensive_listen_settings.dart #  精听设置（循环次数、停顿模式）
@@ -33,21 +34,24 @@ lib/
 │   ├── app_database.dart            #   数据库定义 + 连接 + 索引
 │   ├── enums.dart                   #   SyncStatus / LearningStage / SubStageType / DifficultyLevel 枚举
 │   ├── providers.dart               #   数据库 + DAO 的 Riverpod Provider
-│   ├── tables/                      #   6 张表定义
+│   ├── tables/                      #   8 张表定义
 │   │   ├── audio_items.dart
 │   │   ├── collections.dart
 │   │   ├── collection_audio_items.dart
 │   │   ├── bookmarks.dart
 │   │   ├── playback_states.dart
 │   │   ├── learning_progresses.dart
-│   │   └── stage_completions.dart
-│   ├── daos/                        #   6 个 DAO
+│   │   ├── stage_completions.dart
+│   │   ├── tags.dart
+│   │   └── audio_item_tags.dart
+│   ├── daos/                        #   7 个 DAO
 │   │   ├── audio_item_dao.dart
 │   │   ├── collection_dao.dart
 │   │   ├── bookmark_dao.dart
 │   │   ├── playback_state_dao.dart
 │   │   ├── learning_progress_dao.dart
-│   │   └── stage_completion_dao.dart
+│   │   ├── stage_completion_dao.dart
+│   │   └── tag_dao.dart
 │   └── migration/
 │       └── sp_to_drift_migration.dart  # SP → Drift 一次性迁移
 ├── services/                        # 基础服务（无状态/单例）
@@ -56,6 +60,7 @@ lib/
 ├── providers/                       # Riverpod 状态管理（代码生成）
 │   ├── audio_library_provider.dart  #   音频库管理（导入/删除/路径迁移）
 │   ├── collection_provider.dart     #   合集 CRUD + 排序 + 反向索引
+│   ├── tag_provider.dart            #   标签 CRUD + 反向索引 + diff 更新
 │   ├── audio_list_settings_provider.dart # 音频列表排序设置
 │   ├── settings_provider.dart       #   全局设置（主题/语言）
 │   ├── audio_engine/
@@ -170,7 +175,7 @@ FluencyApp (main.dart)
 
 业务数据使用 Drift (SQLite)，纯设置使用 SharedPreferences：
 
-**Drift (SQLite) — 7 张表**：
+**Drift (SQLite) — 9 张表**：
 
 | 表 | 说明 |
 |----|------|
@@ -181,6 +186,8 @@ FluencyApp (main.dart)
 | `playback_states` | 播放断点（仅 position_ms + playlistMode） |
 | `learning_progresses` | 学习进度（阶段、小阶段、难度、首学完成时间、复习调度、学习时长） |
 | `stage_completions` | 步骤完成历史（按步骤记录完成时间和耗时） |
+| `tags` | 标签（名称、颜色、sync 字段） |
+| `audio_item_tags` | 标签-音频关联表（多对多 Junction） |
 
 **SharedPreferences — 纯设置项**：
 

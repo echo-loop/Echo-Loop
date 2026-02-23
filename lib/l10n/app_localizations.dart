@@ -1615,6 +1615,54 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Step {current}/{total} ({stage})'**
   String stepProgressLabel(int current, int total, String stage);
+
+  /// No description provided for @manageTags.
+  ///
+  /// In en, this message translates to:
+  /// **'Manage Tags'**
+  String get manageTags;
+
+  /// No description provided for @noTagsYet.
+  ///
+  /// In en, this message translates to:
+  /// **'No tags yet'**
+  String get noTagsYet;
+
+  /// No description provided for @createTag.
+  ///
+  /// In en, this message translates to:
+  /// **'Create Tag'**
+  String get createTag;
+
+  /// No description provided for @tagName.
+  ///
+  /// In en, this message translates to:
+  /// **'Tag Name'**
+  String get tagName;
+
+  /// No description provided for @enterTagName.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter tag name'**
+  String get enterTagName;
+
+  /// No description provided for @selectColor.
+  ///
+  /// In en, this message translates to:
+  /// **'Select Color'**
+  String get selectColor;
+
+  /// No description provided for @deleteTag.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete Tag'**
+  String get deleteTag;
+
+  /// No description provided for @deleteTagConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Are you sure you want to delete \"{name}\"? It will be removed from all audio.'**
+  String deleteTagConfirm(String name);
 }
 
 class _AppLocalizationsDelegate

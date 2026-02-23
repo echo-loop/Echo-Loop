@@ -434,5 +434,20 @@
       "total": { "type": "int" },
       "stage": { "type": "String" }
     }
+  },
+  "manageTags": "Manage Tags",
+  "noTagsYet": "No tags yet",
+  "createTag": "Create Tag",
+  "tagName": "Tag Name",
+  "enterTagName": "Enter tag name",
+  "selectColor": "Select Color",
+  "deleteTag": "Delete Tag",
+  "deleteTagConfirm": "Are you sure you want to delete \"{name}\"? It will be removed from all audio.",
+  "@deleteTagConfirm": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
   }
 }

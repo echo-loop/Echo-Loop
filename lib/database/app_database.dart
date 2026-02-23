@@ -12,18 +12,21 @@ import 'tables/bookmarks.dart';
 import 'tables/playback_states.dart';
 import 'tables/learning_progresses.dart';
 import 'tables/stage_completions.dart';
+import 'tables/tags.dart';
+import 'tables/audio_item_tags.dart';
 import 'daos/audio_item_dao.dart';
 import 'daos/collection_dao.dart';
 import 'daos/bookmark_dao.dart';
 import 'daos/playback_state_dao.dart';
 import 'daos/learning_progress_dao.dart';
 import 'daos/stage_completion_dao.dart';
+import 'daos/tag_dao.dart';
 
 part 'app_database.g.dart';
 
 /// Fluency 应用数据库
-/// 包含 7 张表：audio_items, collections, collection_audio_items, bookmarks,
-/// playback_states, learning_progresses, stage_completions
+/// 包含 9 张表：audio_items, collections, collection_audio_items, bookmarks,
+/// playback_states, learning_progresses, stage_completions, tags, audio_item_tags
 @DriftDatabase(
   tables: [
     AudioItems,
@@ -33,6 +36,8 @@ part 'app_database.g.dart';
     PlaybackStates,
     LearningProgresses,
     StageCompletions,
+    Tags,
+    AudioItemTags,
   ],
   daos: [
     AudioItemDao,
@@ -41,13 +46,14 @@ part 'app_database.g.dart';
     PlaybackStateDao,
     LearningProgressDao,
     StageCompletionDao,
+    TagDao,
   ],
 )
 class AppDatabase extends _$AppDatabase {
   AppDatabase(super.e);
 
   @override
-  int get schemaVersion => 8;
+  int get schemaVersion => 9;
 
   @override
   MigrationStrategy get migration {
@@ -77,6 +83,21 @@ class AppDatabase extends _$AppDatabase {
             'ALTER TABLE audio_items ADD COLUMN is_starred INTEGER NOT NULL DEFAULT 0',
           );
         }
+        // v8→v9：新增 tags 和 audio_item_tags 表
+        if (from < 9) {
+          // 防御性补列：is_starred 可能因旧版迁移异常未实际添加
+          await _addColumnIfNotExists(
+            'audio_items',
+            'is_starred',
+            'INTEGER NOT NULL DEFAULT 0',
+          );
+          await m.createTable(tags);
+          await m.createTable(audioItemTags);
+          await customStatement('''
+            CREATE INDEX IF NOT EXISTS idx_audio_item_tags_reverse
+            ON audio_item_tags(audio_item_id)
+          ''');
+        }
         // v5→v6：audio_items 新增 sentenceCount、wordCount 列
         if (from < 6) {
           await customStatement(
@@ -88,6 +109,24 @@ class AppDatabase extends _$AppDatabase {
         }
       },
     );
+  }
+
+  /// 防御性补列：检查列是否存在，不存在则添加
+  ///
+  /// 解决开发阶段可能出现的迁移版本号已更新但列未实际添加的问题。
+  Future<void> _addColumnIfNotExists(
+    String table,
+    String column,
+    String definition,
+  ) async {
+    final result = await customSelect(
+      "SELECT COUNT(*) AS cnt FROM pragma_table_info('$table') WHERE name = '$column'",
+    ).getSingle();
+    if (result.data['cnt'] == 0) {
+      await customStatement(
+        'ALTER TABLE $table ADD COLUMN $column $definition',
+      );
+    }
   }
 
   /// 创建自定义索引
@@ -124,6 +163,12 @@ class AppDatabase extends _$AppDatabase {
       CREATE INDEX IF NOT EXISTS idx_audio_sync
       ON audio_items(sync_status)
       WHERE sync_status != 0
+    ''');
+
+    // 标签 Junction 表反向查询
+    await customStatement('''
+      CREATE INDEX IF NOT EXISTS idx_audio_item_tags_reverse
+      ON audio_item_tags(audio_item_id)
     ''');
   }
 }

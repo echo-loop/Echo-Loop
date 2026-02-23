@@ -299,5 +299,13 @@
       "total": { "type": "int" },
       "stage": { "type": "String" }
     }
-  }
+  },
+  "manageTags": "管理标签",
+  "noTagsYet": "还没有创建标签",
+  "createTag": "创建标签",
+  "tagName": "标签名称",
+  "enterTagName": "输入标签名称",
+  "selectColor": "选择颜色",
+  "deleteTag": "删除标签",
+  "deleteTagConfirm": "确定要删除「{name}」吗？将从所有音频中移除。"
 }

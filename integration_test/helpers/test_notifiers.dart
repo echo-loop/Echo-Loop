@@ -10,6 +10,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:fluency/main.dart';
 import 'package:fluency/models/audio_item.dart';
 import 'package:fluency/models/collection.dart';
+import 'package:fluency/models/tag.dart';
 import 'package:fluency/models/audio_engine_state.dart';
 import 'package:fluency/models/intensive_listen_settings.dart';
 import 'package:fluency/models/learning_progress.dart';
@@ -21,6 +22,7 @@ import 'package:fluency/database/providers.dart';
 import 'package:fluency/providers/settings_provider.dart';
 import 'package:fluency/providers/audio_library_provider.dart';
 import 'package:fluency/providers/collection_provider.dart';
+import 'package:fluency/providers/tag_provider.dart';
 import 'package:fluency/providers/listening_practice/listening_practice_provider.dart';
 import 'package:fluency/providers/audio_engine/audio_engine_provider.dart';
 import 'package:fluency/providers/learning_progress_provider.dart';
@@ -214,6 +216,83 @@ class TestCollectionList extends CollectionList {
         isStarred: !collections[index].isStarred,
       );
       state = state.copyWith(rawCollections: collections);
+    }
+  }
+}
+
+/// 测试用 TagList — 不访问数据库
+class TestTagList extends TagList {
+  @override
+  TagState build() => const TagState();
+
+  @override
+  Future<void> loadTags() async {}
+
+  @override
+  Future<void> createTag(String name, int colorValue) async {
+    final tag = Tag(
+      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      name: name,
+      colorValue: colorValue,
+      createdDate: DateTime.now(),
+    );
+    state = state.copyWith(tags: [...state.tags, tag]);
+  }
+
+  @override
+  Future<void> deleteTag(String id) async {
+    final newMap = Map<String, List<String>>.from(state.audioIdsMap)
+      ..remove(id);
+    state = state.copyWith(
+      tags: state.tags.where((t) => t.id != id).toList(),
+      audioIdsMap: newMap,
+    );
+  }
+
+  @override
+  Future<void> addAudioToTag(String tagId, String audioId) async {
+    final newMap = Map<String, List<String>>.from(state.audioIdsMap);
+    final ids = List<String>.from(newMap[tagId] ?? []);
+    if (!ids.contains(audioId)) {
+      ids.add(audioId);
+      newMap[tagId] = ids;
+      state = state.copyWith(audioIdsMap: newMap);
+    }
+  }
+
+  @override
+  Future<void> removeAudioFromTag(String tagId, String audioId) async {
+    final newMap = Map<String, List<String>>.from(state.audioIdsMap);
+    final ids = List<String>.from(newMap[tagId] ?? []);
+    ids.remove(audioId);
+    newMap[tagId] = ids;
+    state = state.copyWith(audioIdsMap: newMap);
+  }
+
+  @override
+  Future<void> removeAudioFromAllTags(String audioId) async {
+    final newMap = Map<String, List<String>>.from(state.audioIdsMap);
+    for (final key in newMap.keys) {
+      newMap[key] = List<String>.from(newMap[key]!)..remove(audioId);
+    }
+    state = state.copyWith(audioIdsMap: newMap);
+  }
+
+  @override
+  Future<void> updateAudioTagMembership(
+    String audioId,
+    Set<String> targetTagIds,
+  ) async {
+    final currentTags =
+        state.audioToTagsMap[audioId]?.toSet() ?? <String>{};
+    final toAdd = targetTagIds.difference(currentTags);
+    final toRemove = currentTags.difference(targetTagIds);
+
+    for (final tagId in toAdd) {
+      await addAudioToTag(tagId, audioId);
+    }
+    for (final tagId in toRemove) {
+      await removeAudioFromTag(tagId, audioId);
     }
   }
 }
@@ -702,6 +781,7 @@ Widget createTestApp() {
       appSettingsProvider.overrideWith(() => TestAppSettings()),
       audioLibraryProvider.overrideWith(() => TestAudioLibrary()),
       collectionListProvider.overrideWith(() => TestCollectionList()),
+      tagListProvider.overrideWith(() => TestTagList()),
       listeningPracticeProvider.overrideWith(() => TestListeningPractice()),
       audioEngineProvider.overrideWith(() => TestAudioEngine()),
       learningProgressNotifierProvider.overrideWith(
@@ -750,6 +830,7 @@ Widget createTestAppWithAudio({
         return notifier;
       }),
       collectionListProvider.overrideWith(() => TestCollectionList()),
+      tagListProvider.overrideWith(() => TestTagList()),
       listeningPracticeProvider.overrideWith(() => TestListeningPractice()),
       audioEngineProvider.overrideWith(() => TestAudioEngine()),
       learningProgressNotifierProvider.overrideWith(

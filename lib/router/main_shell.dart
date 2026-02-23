@@ -12,6 +12,7 @@ import '../l10n/app_localizations.dart';
 import '../providers/audio_library_provider.dart';
 import '../providers/collection_provider.dart';
 import '../providers/learning_progress_provider.dart';
+import '../providers/tag_provider.dart';
 import '../theme/app_theme.dart';
 
 /// 主导航壳组件 — 包含 NavigationRail / NavigationBar + 内容区域
@@ -32,6 +33,7 @@ class _MainShellState extends ConsumerState<MainShell> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(audioLibraryProvider.notifier).loadLibrary().then((_) {
         ref.read(collectionListProvider.notifier).loadCollections();
+        ref.read(tagListProvider.notifier).loadTags();
         ref.read(audioLibraryProvider.notifier).backfillDurations();
         ref.read(audioLibraryProvider.notifier).backfillTranscriptStats();
       });

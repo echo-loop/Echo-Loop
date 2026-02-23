@@ -13,6 +13,7 @@ import 'package:fluency/l10n/app_localizations.dart';
 import 'package:fluency/providers/settings_provider.dart';
 import 'package:fluency/providers/audio_library_provider.dart';
 import 'package:fluency/providers/collection_provider.dart';
+import 'package:fluency/providers/tag_provider.dart';
 import 'package:fluency/providers/listening_practice/listening_practice_provider.dart';
 import 'package:fluency/providers/audio_engine/audio_engine_provider.dart';
 import 'package:fluency/providers/learning_progress_provider.dart';
@@ -42,6 +43,7 @@ Widget createTestApp(
     ),
     audioLibraryProvider.overrideWith(() => TestAudioLibrary()),
     collectionListProvider.overrideWith(() => TestCollectionList()),
+    tagListProvider.overrideWith(() => TestTagList()),
     listeningPracticeProvider.overrideWith(() => TestListeningPractice()),
     audioEngineProvider.overrideWith(() => TestAudioEngine()),
     learningProgressNotifierProvider.overrideWith(
@@ -82,6 +84,7 @@ Widget createTestScreen(
     ),
     audioLibraryProvider.overrideWith(() => TestAudioLibrary()),
     collectionListProvider.overrideWith(() => TestCollectionList()),
+    tagListProvider.overrideWith(() => TestTagList()),
     listeningPracticeProvider.overrideWith(() => TestListeningPractice()),
     audioEngineProvider.overrideWith(() => TestAudioEngine()),
   ];

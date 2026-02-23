@@ -7,10 +7,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:universal_io/io.dart';
 import '../models/audio_item.dart';
+import '../models/tag.dart';
 import '../providers/audio_library_provider.dart';
 import '../providers/collection_provider.dart';
 import '../providers/learning_progress_provider.dart';
 import '../providers/listening_practice/listening_practice_provider.dart';
+import '../providers/tag_provider.dart';
 import '../l10n/app_localizations.dart';
 import '../router/app_router.dart';
 import '../theme/app_theme.dart';
@@ -36,6 +38,9 @@ class AudioListTile extends ConsumerWidget {
   /// 管理合集回调（仅全局列表使用）
   final VoidCallback? onManageCollections;
 
+  /// 管理标签回调
+  final VoidCallback? onManageTags;
+
   /// 删除音频回调
   final VoidCallback? onDelete;
 
@@ -44,6 +49,7 @@ class AudioListTile extends ConsumerWidget {
     required this.audioItem,
     this.collectionId,
     this.onManageCollections,
+    this.onManageTags,
     this.onDelete,
   });
 
@@ -76,6 +82,9 @@ class AudioListTile extends ConsumerWidget {
         ? const <String>[]
         : _getCollectionNames(ref);
 
+    // 获取音频关联的标签数据
+    final tagData = _getTagData(ref);
+
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
       color: isCurrentlyPlaying
@@ -101,11 +110,30 @@ class AudioListTile extends ConsumerWidget {
           theme,
           progress,
           collectionNames,
+          tagData,
         ),
         trailing: _buildTrailing(context, ref, l10n, theme, isCurrentlyPlaying),
         onTap: () => _handleTap(context, l10n),
       ),
     );
+  }
+
+  /// 获取音频关联的标签数据（名称 + 颜色）
+  List<Tag> _getTagData(WidgetRef ref) {
+    final tagIds = ref.watch(
+      tagListProvider.select(
+        (s) => s.audioToTagsMap[audioItem.id],
+      ),
+    );
+    if (tagIds == null) return const [];
+
+    final tagState = ref.watch(tagListProvider);
+    final result = <Tag>[];
+    for (final tId in tagIds) {
+      final tag = tagState.tags.where((t) => t.id == tId).firstOrNull;
+      if (tag != null) result.add(tag);
+    }
+    return result;
   }
 
   /// 获取音频所属合集名称列表（仅全局上下文使用）
@@ -135,6 +163,7 @@ class AudioListTile extends ConsumerWidget {
     ThemeData theme,
     dynamic progress,
     List<String> collectionNames,
+    List<Tag> tagData,
   ) {
     return Wrap(
       spacing: 12,
@@ -214,6 +243,24 @@ class AudioListTile extends ConsumerWidget {
               style: theme.textTheme.labelSmall?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
                 fontSize: 10,
+              ),
+            ),
+          ),
+        ),
+        // 标签 chips（彩色）
+        ...tagData.map(
+          (tag) => Container(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+            decoration: BoxDecoration(
+              color: tag.color.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: Text(
+              tag.name,
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: tag.color,
+                fontSize: 10,
+                fontWeight: FontWeight.w500,
               ),
             ),
           ),
@@ -321,6 +368,16 @@ class AudioListTile extends ConsumerWidget {
           ),
         ),
         PopupMenuItem(
+          value: 'manageTags',
+          child: Row(
+            children: [
+              const Icon(Icons.label_outline, size: 20),
+              const SizedBox(width: 8),
+              Text(l10n.manageTags),
+            ],
+          ),
+        ),
+        PopupMenuItem(
           value: 'delete',
           child: Row(
             children: [
@@ -338,6 +395,8 @@ class AudioListTile extends ConsumerWidget {
           uploadTranscriptForAudio(context, ref, audioItem);
         } else if (value == 'manage') {
           onManageCollections?.call();
+        } else if (value == 'manageTags') {
+          onManageTags?.call();
         } else if (value == 'delete') {
           onDelete?.call();
         }
