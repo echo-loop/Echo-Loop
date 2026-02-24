@@ -102,9 +102,17 @@ class _IntensiveListenPlayerScreenState
       return;
     }
 
-    // 保存断点 + 难句
+    // 保存断点 + 难句 + 难句数快照
     await _saveSentenceProgress();
     await _saveDifficultSentences();
+
+    final playerState = ref.read(intensiveListenPlayerProvider);
+    await ref
+        .read(learningProgressNotifierProvider.notifier)
+        .saveDifficultCount(
+          widget.audioItemId,
+          playerState.difficultSentences.length,
+        );
 
     await ref.read(learningSessionProvider.notifier).exitLearningMode();
     if (mounted) context.pop();
@@ -263,8 +271,17 @@ class _IntensiveListenPlayerScreenState
       return;
     }
 
-    // 自由练习模式直接退出
+    // 自由练习模式：保存难句数 + 递增遍数 → 退出
     if (session.isFreePlay) {
+      await ref
+          .read(learningProgressNotifierProvider.notifier)
+          .saveDifficultCount(
+            widget.audioItemId,
+            playerState.difficultSentences.length,
+          );
+      await ref
+          .read(learningProgressNotifierProvider.notifier)
+          .incrementIntensiveListenPassCount(widget.audioItemId);
       await ref.read(learningSessionProvider.notifier).exitLearningMode();
       _isShowingDialog = false;
       if (mounted) context.pop();
@@ -293,6 +310,18 @@ class _IntensiveListenPlayerScreenState
 
     if (result != null) {
       try {
+        // 保存精听统计（难句数快照 + 递增总遍数）
+        final stats = ref.read(intensiveListenPlayerProvider);
+        await ref
+            .read(learningProgressNotifierProvider.notifier)
+            .saveDifficultCount(
+              widget.audioItemId,
+              stats.difficultSentences.length,
+            );
+        await ref
+            .read(learningProgressNotifierProvider.notifier)
+            .incrementIntensiveListenPassCount(widget.audioItemId);
+
         // 清除断点（已完成）
         await ref
             .read(learningProgressNotifierProvider.notifier)
@@ -902,7 +931,7 @@ class _IntensiveListenCompleteDialog extends StatelessWidget {
           children: [
             Icon(Icons.check_circle, color: theme.colorScheme.primary),
             const SizedBox(width: AppSpacing.s),
-            Text(l10n.intensiveListenCompleteTitle),
+            Flexible(child: Text(l10n.intensiveListenCompleteTitle)),
           ],
         ),
         content: Column(

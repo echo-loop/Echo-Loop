@@ -200,8 +200,11 @@ class _ListenAndRepeatPlayerScreenState
       return;
     }
 
-    // 自由练习模式直接退出
+    // 自由练习模式：递增遍数 → 退出
     if (session.isFreePlay) {
+      await ref
+          .read(learningProgressNotifierProvider.notifier)
+          .incrementShadowingPassCount(widget.audioItemId);
       await ref.read(learningSessionProvider.notifier).exitLearningMode();
       _isShowingDialog = false;
       if (mounted) context.pop();
@@ -228,6 +231,11 @@ class _ListenAndRepeatPlayerScreenState
 
     if (result != null) {
       try {
+        // 递增跟读总遍数
+        await ref
+            .read(learningProgressNotifierProvider.notifier)
+            .incrementShadowingPassCount(widget.audioItemId);
+
         // 清除断点（已完成）
         await ref
             .read(learningProgressNotifierProvider.notifier)
@@ -600,7 +608,7 @@ class _ListenAndRepeatCompleteDialog extends StatelessWidget {
           children: [
             Icon(Icons.check_circle, color: theme.colorScheme.primary),
             const SizedBox(width: AppSpacing.s),
-            Text(l10n.listenAndRepeatCompleteTitle),
+            Flexible(child: Text(l10n.listenAndRepeatCompleteTitle)),
           ],
         ),
         content: Column(

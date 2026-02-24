@@ -255,8 +255,27 @@ class ListenAndRepeatPlayer extends _$ListenAndRepeatPlayer {
   }
 
   /// 更新跟读设置（即时生效，仅本次会话）
+  ///
+  /// 当 repeatCount 调小时，clamp currentPlayCount 避免越界显示（如"第3/1遍"），
+  /// 并中断当前播放循环、以新设置重新开始当前句子。
   void updateSettings(IntensiveListenSettings newSettings) {
-    state = state.copyWith(settings: newSettings);
+    var clampedPlayCount = state.currentPlayCount;
+    if (clampedPlayCount > newSettings.repeatCount) {
+      clampedPlayCount = newSettings.repeatCount;
+    }
+
+    final needRestart = newSettings.repeatCount != state.settings.repeatCount;
+
+    state = state.copyWith(
+      settings: newSettings,
+      currentPlayCount: clampedPlayCount,
+    );
+
+    // repeatCount 变化时中断当前循环，以新设置重新开始
+    if (needRestart && state.isPlaying) {
+      _engine.invalidateSession();
+      _startSentence();
+    }
   }
 
   /// 释放资源
