@@ -14,6 +14,7 @@ import 'package:fluency/providers/listening_practice/listening_practice_provider
 import 'package:fluency/providers/audio_engine/audio_engine_provider.dart';
 import 'package:fluency/providers/learning_progress_provider.dart';
 import 'package:fluency/providers/learning_session/learning_session_provider.dart';
+import 'package:fluency/providers/time_provider.dart';
 import 'package:fluency/theme/app_theme.dart';
 
 import '../helpers/mock_providers.dart';
@@ -40,6 +41,7 @@ void main() {
     Locale locale = const Locale('en'),
     LearningProgressState? progressState,
     AudioItem? audioItem,
+    DateTime? fixedNow,
   }) {
     final item = audioItem ?? testAudioItem;
     final router = GoRouter(
@@ -65,6 +67,11 @@ void main() {
           builder: (context, state) =>
               const Scaffold(body: Text('Blind Listen')),
         ),
+        GoRoute(
+          path: '/audio/:audioId/review/:subStage',
+          builder: (context, state) =>
+              const Scaffold(body: Text('Review Placeholder')),
+        ),
       ],
     );
 
@@ -81,6 +88,7 @@ void main() {
           ),
         ),
         learningSessionProvider.overrideWith(() => TestLearningSession()),
+        if (fixedNow != null) nowProvider.overrideWithValue(() => fixedNow),
       ],
       child: MaterialApp.router(
         locale: locale,
@@ -162,8 +170,11 @@ void main() {
           ),
         },
       );
+      final fixedNow = DateTime(2026, 1, 1, 5, 0);
 
-      await tester.pumpWidget(createTestWidget(progressState: progressState));
+      await tester.pumpWidget(
+        createTestWidget(progressState: progressState, fixedNow: fixedNow),
+      );
       await tester.pumpAndSettle();
 
       // 滚动到首轮复习并检查其子阶段
@@ -192,7 +203,40 @@ void main() {
           .where((widget) => widget.turns == 0.5)
           .length;
       expect(expandedAfterSecondTap, 1); // 再次折叠后仅首学展开
-      expect(find.text('Now'), findsOneWidget);
+      expect(find.text('Available in 1 hours'), findsOneWidget);
+      expect(find.text('After 6 hours'), findsNothing);
+    });
+
+    testWidgets('当前复习轮次逾期时显示逾期文案且不显示固定间隔', (tester) async {
+      tester.view.physicalSize = const Size(1200, 2400);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      final now = DateTime(2026, 2, 26, 12, 0);
+      final progressState = LearningProgressState(
+        progressMap: {
+          'test-1': LearningProgress(
+            audioItemId: 'test-1',
+            currentStage: LearningStage.review0,
+            currentSubStage: SubStageType.reviewDifficultPractice,
+            // review0 窗口结束 = completed + 12h，这里逾期 2h
+            lastStageCompletedAt: now.subtract(const Duration(hours: 14)),
+            updatedAt: now,
+          ),
+        },
+      );
+
+      await tester.pumpWidget(
+        createTestWidget(progressState: progressState, fixedNow: now),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(find.text('Review 1'), 200);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Overdue by 2 hour(s)'), findsOneWidget);
+      expect(find.text('After 6 hours'), findsNothing);
     });
 
     testWidgets('显示底部"开始学习"按钮', (tester) async {
@@ -218,6 +262,84 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Continue Learning'), findsOneWidget);
+    });
+
+    testWidgets('复习未到时间时底部继续学习按钮禁用', (tester) async {
+      final now = DateTime(2026, 2, 25, 12, 0);
+      final progressState = LearningProgressState(
+        progressMap: {
+          'test-1': LearningProgress(
+            audioItemId: 'test-1',
+            currentStage: LearningStage.review1,
+            currentSubStage: SubStageType.blindListen,
+            lastStageCompletedAt: now,
+            updatedAt: now,
+          ),
+        },
+      );
+
+      await tester.pumpWidget(
+        createTestWidget(progressState: progressState, fixedNow: now),
+      );
+      await tester.pumpAndSettle();
+
+      final continueButton = tester.widget<FilledButton>(
+        find.widgetWithText(FilledButton, 'Continue Learning'),
+      );
+      expect(continueButton.onPressed, isNull);
+    });
+
+    testWidgets('复习边界时刻到底后底部继续学习按钮可用', (tester) async {
+      final now = DateTime(2026, 2, 25, 12, 0);
+      final progressState = LearningProgressState(
+        progressMap: {
+          'test-1': LearningProgress(
+            audioItemId: 'test-1',
+            currentStage: LearningStage.review1,
+            currentSubStage: SubStageType.blindListen,
+            lastStageCompletedAt: now.subtract(const Duration(hours: 24)),
+            updatedAt: now,
+          ),
+        },
+      );
+
+      await tester.pumpWidget(
+        createTestWidget(progressState: progressState, fixedNow: now),
+      );
+      await tester.pumpAndSettle();
+
+      final continueButton = tester.widget<FilledButton>(
+        find.widgetWithText(FilledButton, 'Continue Learning'),
+      );
+      expect(continueButton.onPressed, isNotNull);
+    });
+
+    testWidgets('复习继续学习先弹窗再进入当前子步骤', (tester) async {
+      final now = DateTime(2026, 2, 25, 12, 0);
+      final progressState = LearningProgressState(
+        progressMap: {
+          'test-1': LearningProgress(
+            audioItemId: 'test-1',
+            currentStage: LearningStage.review1,
+            currentSubStage: SubStageType.blindListen,
+            lastStageCompletedAt: now.subtract(const Duration(hours: 24)),
+            updatedAt: now,
+          ),
+        },
+      );
+
+      await tester.pumpWidget(
+        createTestWidget(progressState: progressState, fixedNow: now),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Continue Learning'));
+      await tester.pumpAndSettle();
+      expect(find.text('Start Practice'), findsOneWidget);
+
+      await tester.tap(find.text('Start Practice'));
+      await tester.pumpAndSettle();
+      expect(find.text('Review Placeholder'), findsOneWidget);
     });
 
     testWidgets('有进度时显示正确的完成步骤数', (tester) async {

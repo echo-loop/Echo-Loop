@@ -41,7 +41,7 @@ void main() {
       final progress = LearningProgress(
         audioItemId: 'audio-1',
         currentStage: LearningStage.review0,
-        currentSubStage: SubStageType.blindListen,
+        currentSubStage: SubStageType.reviewDifficultPractice,
         firstLearnCompletedAt: now,
         updatedAt: now,
       );
@@ -58,14 +58,14 @@ void main() {
       final progress = LearningProgress(
         audioItemId: 'audio-1',
         currentStage: LearningStage.review2,
-        currentSubStage: SubStageType.listenAndRepeat,
+        currentSubStage: SubStageType.reviewDifficultPractice,
         firstLearnCompletedAt: now,
         updatedAt: now,
       );
 
-      // 完成了：4(首学) + 3(review0) + 3(review1) + 1(review2的第1个子步骤) = 11
+      // 完成了：4(首学) + 2(review0) + 3(review1) + 1(review2的第1个子步骤) = 10
       final total = LearningProgress.totalSubStages;
-      expect(progress.progressPercent, closeTo(11 / total, 0.001));
+      expect(progress.progressPercent, closeTo(10 / total, 0.001));
       expect(progress.completedFirstStudySteps, 4);
       expect(progress.completedReviewStages, 2); // review0, review1 完成
     });
@@ -90,7 +90,7 @@ void main() {
       final progress = LearningProgress(
         audioItemId: 'audio-1',
         currentStage: LearningStage.review2,
-        currentSubStage: SubStageType.listenAndRepeat,
+        currentSubStage: SubStageType.reviewDifficultPractice,
         updatedAt: now,
       );
 
@@ -160,7 +160,7 @@ void main() {
       expect(
         progress.isSubStageCompleted(
           LearningStage.review0,
-          SubStageType.retell,
+          SubStageType.reviewRetellParagraph,
         ),
         true,
       );
@@ -178,7 +178,7 @@ void main() {
       final progress = LearningProgress(
         audioItemId: 'audio-1',
         currentStage: LearningStage.review7,
-        currentSubStage: SubStageType.listenAndRepeat,
+        currentSubStage: SubStageType.reviewDifficultPractice,
         updatedAt: now,
       );
 
@@ -245,13 +245,13 @@ void main() {
     });
 
     test('totalSubStages 动态计算正确', () {
-      // firstLearn: 4 + review0-review28(7个×3): 21 + completed: 0 = 25
-      expect(LearningProgress.totalSubStages, 25);
+      // firstLearn: 4 + review0:2 + review1/2/4/7/14: 5*3 + review28:3 = 24
+      expect(LearningProgress.totalSubStages, 24);
     });
   });
 
-  group('nextReviewAt / isReviewReady', () {
-    test('首学阶段 — nextReviewAt 为 null，isReviewReady 为 true', () {
+  group('nextReviewAt / isReviewReadyAt / isReviewLockedAt', () {
+    test('首学阶段 — nextReviewAt 为 null，isReviewReadyAt 为 true', () {
       final progress = LearningProgress(
         audioItemId: 'audio-1',
         currentStage: LearningStage.firstLearn,
@@ -259,21 +259,22 @@ void main() {
       );
 
       expect(progress.nextReviewAt, isNull);
-      expect(progress.isReviewReady, true);
+      expect(progress.isReviewReadyAt(DateTime(2026, 2, 21, 10, 0)), true);
     });
 
-    test('review0 — intervalHours=0，nextReviewAt 为 null', () {
+    test('review0 — intervalHours=6，nextReviewAt 正确计算', () {
+      final completedAt = DateTime(2026, 2, 21, 10, 0);
       final progress = LearningProgress(
         audioItemId: 'audio-1',
         currentStage: LearningStage.review0,
         currentSubStage: SubStageType.blindListen,
-        lastStageCompletedAt: now,
-        updatedAt: now,
+        lastStageCompletedAt: completedAt,
+        updatedAt: completedAt,
       );
 
-      // review0 的 intervalHours 是 0，所以 nextReviewAt 为 null
-      expect(progress.nextReviewAt, isNull);
-      expect(progress.isReviewReady, true);
+      // review0 的 intervalHours 是 6
+      final expectedReviewAt = completedAt.add(const Duration(hours: 6));
+      expect(progress.nextReviewAt, expectedReviewAt);
     });
 
     test('review1 — 有 lastStageCompletedAt 时正确计算', () {
@@ -300,7 +301,7 @@ void main() {
       );
 
       expect(progress.nextReviewAt, isNull);
-      expect(progress.isReviewReady, true);
+      expect(progress.isReviewReadyAt(DateTime(2026, 2, 21, 10, 0)), true);
     });
 
     test('review7 — 正确计算 168 小时间隔', () {
@@ -316,12 +317,139 @@ void main() {
       final expectedReviewAt = completedAt.add(const Duration(hours: 168));
       expect(progress.nextReviewAt, expectedReviewAt);
     });
+
+    test('review0 解锁边界：未到时间时锁定、边界时刻解锁、超过边界解锁', () {
+      final completedAt = DateTime(2026, 2, 21, 10, 0);
+      final progress = LearningProgress(
+        audioItemId: 'audio-1',
+        currentStage: LearningStage.review0,
+        currentSubStage: SubStageType.blindListen,
+        lastStageCompletedAt: completedAt,
+        updatedAt: completedAt,
+      );
+
+      final reviewAt = completedAt.add(const Duration(hours: 6));
+      final before = reviewAt.subtract(const Duration(seconds: 1));
+      final at = reviewAt;
+      final after = reviewAt.add(const Duration(seconds: 1));
+
+      expect(progress.isInReviewStage, true);
+      expect(progress.isReviewReadyAt(before), false);
+      expect(progress.isReviewLockedAt(before), true);
+      expect(progress.isReviewReadyAt(at), true);
+      expect(progress.isReviewLockedAt(at), false);
+      expect(progress.isReviewReadyAt(after), true);
+      expect(progress.isReviewLockedAt(after), false);
+    });
+
+    test('review1 解锁边界：未到时间时锁定、边界时刻解锁、超过边界解锁', () {
+      final completedAt = DateTime(2026, 2, 21, 10, 0);
+      final progress = LearningProgress(
+        audioItemId: 'audio-1',
+        currentStage: LearningStage.review1,
+        currentSubStage: SubStageType.blindListen,
+        lastStageCompletedAt: completedAt,
+        updatedAt: completedAt,
+      );
+
+      final reviewAt = completedAt.add(const Duration(hours: 24));
+      final before = reviewAt.subtract(const Duration(seconds: 1));
+      final at = reviewAt;
+      final after = reviewAt.add(const Duration(seconds: 1));
+
+      expect(progress.isReviewReadyAt(before), false);
+      expect(progress.isReviewLockedAt(before), true);
+      expect(progress.isReviewReadyAt(at), true);
+      expect(progress.isReviewLockedAt(at), false);
+      expect(progress.isReviewReadyAt(after), true);
+      expect(progress.isReviewLockedAt(after), false);
+    });
+
+    test('首学阶段 isReviewLockedAt=false', () {
+      final progress = LearningProgress(
+        audioItemId: 'audio-1',
+        currentStage: LearningStage.firstLearn,
+        currentSubStage: SubStageType.intensiveListen,
+        updatedAt: now,
+      );
+
+      expect(progress.isInReviewStage, false);
+      expect(progress.isReviewLockedAt(DateTime(2026, 2, 21, 10, 0)), false);
+    });
+
+    test('review0 逾期窗口：解锁后 6 小时内不算逾期，超过才逾期', () {
+      final completedAt = DateTime(2026, 2, 21, 10, 0);
+      final progress = LearningProgress(
+        audioItemId: 'audio-1',
+        currentStage: LearningStage.review0,
+        currentSubStage: SubStageType.reviewDifficultPractice,
+        lastStageCompletedAt: completedAt,
+        updatedAt: completedAt,
+      );
+
+      final reviewAt = completedAt.add(const Duration(hours: 6));
+      final windowEnd = reviewAt.add(const Duration(hours: 6));
+      expect(progress.reviewWindowDuration, const Duration(hours: 6));
+      expect(progress.reviewWindowEndAt, windowEnd);
+
+      final beforeWindowEnd = windowEnd.subtract(const Duration(seconds: 1));
+      expect(progress.isReviewOverdueAt(beforeWindowEnd), false);
+      expect(progress.isReviewOverdueAt(windowEnd), false);
+
+      final afterWindowEnd = windowEnd.add(const Duration(seconds: 1));
+      expect(progress.isReviewOverdueAt(afterWindowEnd), true);
+      expect(
+        progress.overdueDurationAt(afterWindowEnd),
+        const Duration(seconds: 1),
+      );
+    });
+
+    test('review1 逾期窗口：解锁后 24 小时内不算逾期，超过才逾期', () {
+      final completedAt = DateTime(2026, 2, 21, 10, 0);
+      final progress = LearningProgress(
+        audioItemId: 'audio-1',
+        currentStage: LearningStage.review1,
+        currentSubStage: SubStageType.blindListen,
+        lastStageCompletedAt: completedAt,
+        updatedAt: completedAt,
+      );
+
+      final reviewAt = completedAt.add(const Duration(hours: 24));
+      final windowEnd = reviewAt.add(const Duration(hours: 24));
+      expect(progress.reviewWindowDuration, const Duration(hours: 24));
+      expect(progress.reviewWindowEndAt, windowEnd);
+
+      final beforeWindowEnd = windowEnd.subtract(const Duration(seconds: 1));
+      expect(progress.isReviewOverdueAt(beforeWindowEnd), false);
+      expect(progress.isReviewOverdueAt(windowEnd), false);
+
+      final afterWindowEnd = windowEnd.add(const Duration(seconds: 1));
+      expect(progress.isReviewOverdueAt(afterWindowEnd), true);
+      expect(
+        progress.overdueDurationAt(afterWindowEnd),
+        const Duration(seconds: 1),
+      );
+    });
+
+    test('非复习阶段无逾期窗口，始终不逾期', () {
+      final progress = LearningProgress(
+        audioItemId: 'audio-1',
+        currentStage: LearningStage.firstLearn,
+        currentSubStage: SubStageType.listenAndRepeat,
+        updatedAt: now,
+      );
+
+      expect(progress.reviewWindowDuration, isNull);
+      expect(progress.reviewWindowEndAt, isNull);
+      expect(progress.isReviewOverdueAt(DateTime(2026, 2, 21, 12, 0)), false);
+      expect(progress.overdueDurationAt(DateTime(2026, 2, 21, 12, 0)), isNull);
+    });
   });
 
   group('LearningStage', () {
     test('subStageCount 正确', () {
       expect(LearningStage.firstLearn.subStageCount, 4);
-      expect(LearningStage.review0.subStageCount, 3);
+      expect(LearningStage.review0.subStageCount, 2);
       expect(LearningStage.review1.subStageCount, 3);
       expect(LearningStage.review28.subStageCount, 3);
       expect(LearningStage.completed.subStageCount, 0);
@@ -357,9 +485,18 @@ void main() {
         SubStageType.retell,
       ]);
       expect(LearningStage.review0.subStages, [
+        SubStageType.reviewDifficultPractice,
+        SubStageType.reviewRetellParagraph,
+      ]);
+      expect(LearningStage.review1.subStages, [
         SubStageType.blindListen,
-        SubStageType.listenAndRepeat,
-        SubStageType.retell,
+        SubStageType.reviewDifficultPractice,
+        SubStageType.reviewRetellParagraph,
+      ]);
+      expect(LearningStage.review28.subStages, [
+        SubStageType.blindListen,
+        SubStageType.reviewDifficultPractice,
+        SubStageType.reviewRetellSummary,
       ]);
       expect(LearningStage.completed.subStages, isEmpty);
     });
@@ -373,6 +510,10 @@ void main() {
         SubStageType.listenAndRepeat,
       );
       expect(SubStageType.fromKey('retell'), SubStageType.retell);
+      expect(
+        SubStageType.fromKey('reviewDifficultPractice'),
+        SubStageType.reviewDifficultPractice,
+      );
       // 无效键返回 blindListen
       expect(SubStageType.fromKey('invalid'), SubStageType.blindListen);
     });
