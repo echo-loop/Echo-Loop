@@ -1,7 +1,7 @@
 # Fluency 项目规划
 
-> 最后更新：2026-02-23
-> 当前阶段：Milestone 1 已完成 ✅，Drift 迁移已完成 ✅，资源库 Tab 改造已完成 ✅，Milestone 2 计划中
+> 最后更新：2026-02-26
+> 当前阶段：Milestone 1 已完成 ✅，Drift 迁移已完成 ✅，资源库 Tab 改造已完成 ✅，Milestone 2 进行中（复习提醒闭环、复习占位流程、未解锁复习防提前学习、首轮6小时解锁、复习解锁统一时钟与边界自动化测试、复习入口弹窗直达与ReviewHub移除、复习逾期窗口策略与自动化测试已完成）
 
 ## 项目概述
 
@@ -77,7 +77,7 @@ lib/
 ├── screens/                         # 页面级 UI 组件
 │   ├── collection_screen.dart       #   合集列表页
 │   ├── collection_detail_screen.dart#   合集详情页
-│   ├── study_screen.dart            #   学习页（当前占位）
+│   ├── study_screen.dart            #   学习页（任务列表：复习优先）
 │   ├── favorites_screen.dart        #   收藏页（当前占位）
 │   ├── learning_plan_screen.dart     #   学习计划表页
 │   ├── blind_listen_player_screen.dart #  盲听播放器（极简界面）
