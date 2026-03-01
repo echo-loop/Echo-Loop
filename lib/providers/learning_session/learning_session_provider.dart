@@ -67,7 +67,7 @@ class LearningSessionState {
     this.audioItemId,
     this.savedSettings,
     this.isFreePlay = false,
-    this.targetBlindListenPasses = 2,
+    this.targetBlindListenPasses = 1,
   });
 
   /// 是否处于学习模式中
@@ -303,8 +303,11 @@ class LearningSession extends _$LearningSession {
 
     // 初始化复述播放器
     final player = ref.read(retellPlayerProvider.notifier);
-    player.initialize(paragraphs, keywordsMap,
-        startSentenceIndex: startSentenceIndex);
+    player.initialize(
+      paragraphs,
+      keywordsMap,
+      startSentenceIndex: startSentenceIndex,
+    );
   }
 
   /// 退出学习模式

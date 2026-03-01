@@ -97,9 +97,9 @@ void main() {
       expect(updated.isFreePlay, true);
     });
 
-    test('targetBlindListenPasses 默认为 2', () {
+    test('targetBlindListenPasses 默认为 1', () {
       const state = LearningSessionState();
-      expect(state.targetBlindListenPasses, 2);
+      expect(state.targetBlindListenPasses, 1);
     });
 
     test('copyWith 设置 targetBlindListenPasses', () {
