@@ -188,8 +188,13 @@ void main() {
   group('tokenize', () {
     test('按空格和标点分词', () {
       expect(tokenize('Hello, world!'), ['Hello', 'world']);
-      expect(tokenize("it's a beautiful day"), ['it', 's', 'a', 'beautiful', 'day']);
+      expect(tokenize("it's a beautiful day"), ["it's", 'a', 'beautiful', 'day']);
       expect(tokenize('one-two—three'), ['one', 'two', 'three']);
+    });
+
+    test('撇号缩写和所有格不拆分', () {
+      expect(tokenize("don't stop"), ["don't", 'stop']);
+      expect(tokenize("library's book"), ["library's", 'book']);
     });
 
     test('空字符串返回空列表', () {

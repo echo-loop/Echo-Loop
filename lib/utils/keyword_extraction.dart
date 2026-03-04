@@ -10,7 +10,7 @@ import '../models/retell_settings.dart';
 import '../models/sentence.dart';
 
 /// 分词分隔符正则：空格 + 常见标点
-final _wordSplitPattern = RegExp(r'''[\s,;:!?."'\-—–]+''');
+final _wordSplitPattern = RegExp(r'[\s,;:!?."\-—–]+');
 
 /// 从段落句子中提取关键词
 ///
