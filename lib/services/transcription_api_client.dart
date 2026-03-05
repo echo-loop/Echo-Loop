@@ -5,6 +5,7 @@
 import 'package:dio/dio.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:universal_io/io.dart';
+import '../config/api_config.dart';
 import '../utils/srt_generator.dart';
 
 part 'transcription_api_client.g.dart';
@@ -130,7 +131,15 @@ class TranscriptionApiClient {
           connectTimeout: const Duration(seconds: 15),
           receiveTimeout: const Duration(seconds: 30),
         ),
-      );
+      ) {
+    _dio.interceptors.add(
+      LogInterceptor(
+        requestBody: false,
+        responseBody: false,
+        logPrint: (obj) => print('[DIO] $obj'),
+      ),
+    );
+  }
 
   /// 用于测试的构造函数，允许注入 Dio 实例
   TranscriptionApiClient.withDio(this._dio);
@@ -237,15 +246,10 @@ class TranscriptionApiClient {
 
 // ─── Provider ───────────────────────────────────────────────
 
-/// 服务器基础 URL
-///
-/// TODO: 从设置中读取或使用环境变量
-const _defaultBaseUrl = 'http://localhost:3000';
-
 /// 转录 API 客户端单例 Provider
 @Riverpod(keepAlive: true)
 TranscriptionApiClient transcriptionApiClient(TranscriptionApiClientRef ref) {
-  final client = TranscriptionApiClient(baseUrl: _defaultBaseUrl);
+  final client = TranscriptionApiClient(baseUrl: apiBaseUrl);
   ref.onDispose(client.dispose);
   return client;
 }

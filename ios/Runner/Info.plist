@@ -117,6 +117,13 @@
 			</array>
 		</dict>
 	</array>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsArbitraryLoads</key>
+		<true/>
+	</dict>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>This app needs to connect to a local server for AI transcription.</string>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>audio</string>

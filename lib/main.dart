@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'dart:async';
+import 'dart:io' show Platform;
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:audio_session/audio_session.dart';
@@ -15,7 +17,22 @@ import 'providers/settings_provider.dart';
 import 'providers/review_reminder_provider.dart';
 import 'router/app_router.dart';
 import 'theme/app_theme.dart';
+import 'config/api_config.dart';
 import 'services/notification_tap_router_bridge.dart';
+
+/// 通过原生网络栈连接后端服务器。
+///
+/// Flutter 的 dart:io HttpClient 绕过了 iOS 原生网络栈，
+/// 不会触发系统网络权限弹窗。此方法通过 Method Channel
+/// 调用 iOS 原生 URLSession 发起请求，确保触发权限弹窗。
+Future<void> _triggerNetworkPermission() async {
+  try {
+    const channel = MethodChannel('top.valuespot.fluency/network');
+    await channel.invokeMethod('triggerNetworkPermission', {'url': apiBaseUrl});
+  } catch (_) {
+    // 忽略错误——目的只是触发权限弹窗
+  }
+}
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -64,6 +81,11 @@ void main() async {
     }
   } else {
     print('Web platform: skipping audio session configuration');
+  }
+
+  // iOS: 通过原生网络栈触发系统网络权限弹窗
+  if (!kIsWeb && Platform.isIOS) {
+    unawaited(_triggerNetworkPermission());
   }
 
   runApp(

@@ -110,5 +110,10 @@ flutter build macos
 - Provider 使用 `riverpod_generator` 代码生成，文件包含 `part 'xxx.g.dart';`
 - 修改 Provider 后运行：`dart run build_runner build`
 
-**文档版本**: v4.0
-**更新时间**: 2026-02-20
+### 5.4 iOS 网络注意事项
+- Flutter `dart:io` HttpClient 绕过 iOS 原生网络栈，**不会触发系统网络权限弹窗**
+- 需要通过 Method Channel 调用 iOS 原生 `URLSession` 才能触发
+- 当前方案：App 启动时通过 `top.valuespot.fluency/network` Channel 发起原生请求（见 `AppDelegate.swift` + `main.dart`）
+
+**文档版本**: v4.1
+**更新时间**: 2026-03-05
