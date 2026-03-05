@@ -82,7 +82,7 @@ void main() {
         expect(find.text('AI Transcription'), findsOneWidget);
 
         // 无删除按钮
-        expect(find.text('Delete Subtitle'), findsNothing);
+        expect(find.byTooltip('Delete Subtitle'), findsNothing);
 
         // 状态文字：无字幕
         expect(find.text('No subtitle yet'), findsOneWidget);
@@ -101,8 +101,8 @@ void main() {
         // 状态文字
         expect(find.text('Current: Local Upload'), findsOneWidget);
 
-        // 有删除按钮
-        expect(find.text('Delete Subtitle'), findsOneWidget);
+        // 有删除按钮（标题栏右侧图标按钮）
+        expect(find.byTooltip('Delete Subtitle'), findsOneWidget);
       });
 
       testWidgets('有 AI(en) 字幕音频：AI 同语言禁用', (tester) async {
@@ -160,8 +160,8 @@ void main() {
         await tester.tap(find.text('Open'));
         await tester.pumpAndSettle();
 
-        // 点击删除
-        await tester.tap(find.text('Delete Subtitle'));
+        // 点击删除图标按钮
+        await tester.tap(find.byTooltip('Delete Subtitle'));
         await tester.pumpAndSettle();
 
         // 确认对话框出现
@@ -183,7 +183,7 @@ void main() {
         await tester.tap(find.text('Open'));
         await tester.pumpAndSettle();
 
-        await tester.tap(find.text('Delete Subtitle'));
+        await tester.tap(find.byTooltip('Delete Subtitle'));
         await tester.pumpAndSettle();
 
         // 点击取消
@@ -192,7 +192,7 @@ void main() {
 
         // 字幕状态不变
         expect(find.text('Current: Local Upload'), findsOneWidget);
-        expect(find.text('Delete Subtitle'), findsOneWidget);
+        expect(find.byTooltip('Delete Subtitle'), findsOneWidget);
       });
 
       testWidgets('AI(en) 已转录 + 选中 multi → 按钮可点击', (tester) async {
@@ -241,7 +241,7 @@ void main() {
         await tester.tap(find.text('Open'));
         await tester.pumpAndSettle();
 
-        await tester.tap(find.text('Delete Subtitle'));
+        await tester.tap(find.byTooltip('Delete Subtitle'));
         await tester.pumpAndSettle();
 
         // 显示警告文字

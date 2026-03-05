@@ -101,7 +101,7 @@ class _ManageSubtitlesSheetState extends ConsumerState<ManageSubtitlesSheet> {
 
     return SafeArea(
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: AppSpacing.m),
+        padding: const EdgeInsets.fromLTRB(0, AppSpacing.m, 0, AppSpacing.s),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -111,38 +111,47 @@ class _ManageSubtitlesSheetState extends ConsumerState<ManageSubtitlesSheet> {
               child: Container(
                 width: 32,
                 height: 4,
-                margin: const EdgeInsets.only(bottom: 8),
+                margin: const EdgeInsets.only(bottom: AppSpacing.m),
                 decoration: BoxDecoration(
-                  color: theme.colorScheme.onSurfaceVariant.withValues(
-                    alpha: 0.4,
-                  ),
+                  color: theme.colorScheme.outlineVariant,
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
             ),
-            // 标题 + 当前状态
+            // 标题行 + 删除按钮
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: AppSpacing.m),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    l10n.manageSubtitles,
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          l10n.manageSubtitles,
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                      // 删除按钮（仅有字幕且非进度模式时显示）
+                      if (audioItem.hasTranscript && !isTaskActive)
+                        IconButton(
+                          onPressed: () =>
+                              _handleDeleteSubtitle(context, audioItem),
+                          icon: const Icon(Icons.delete_outline, size: 20),
+                          color: theme.colorScheme.onSurfaceVariant,
+                          tooltip: l10n.deleteSubtitle,
+                          visualDensity: VisualDensity.compact,
+                        ),
+                    ],
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    _getStatusText(l10n, audioItem),
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
+                  const SizedBox(height: 8),
+                  _buildStatusChip(l10n, theme, audioItem),
                 ],
               ),
             ),
-            const Divider(),
+            const SizedBox(height: AppSpacing.m),
             // 进度模式 或 选择模式
             AnimatedSwitcher(
               duration: const Duration(milliseconds: 300),
@@ -152,7 +161,7 @@ class _ManageSubtitlesSheetState extends ConsumerState<ManageSubtitlesSheet> {
                   ? _buildErrorView(l10n, theme, taskState, audioItem)
                   : _buildRadioOptions(l10n, theme, audioItem),
             ),
-            const Divider(),
+            const SizedBox(height: AppSpacing.m),
             // 操作按钮（进度模式下隐藏）
             if (!isTaskActive && taskState is! TranscriptionCompleted)
               Padding(
@@ -177,35 +186,14 @@ class _ManageSubtitlesSheetState extends ConsumerState<ManageSubtitlesSheet> {
                   ),
                 ),
               ),
-            // 删除字幕按钮（仅有字幕且非进度模式时显示）
-            if (audioItem.hasTranscript && !isTaskActive) ...[
-              const SizedBox(height: 8),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.m),
-                child: SizedBox(
-                  width: double.infinity,
-                  child: TextButton.icon(
-                    onPressed: () => _handleDeleteSubtitle(context, audioItem),
-                    icon: Icon(
-                      Icons.delete_outline,
-                      color: theme.colorScheme.error,
-                    ),
-                    label: Text(
-                      l10n.deleteSubtitle,
-                      style: TextStyle(color: theme.colorScheme.error),
-                    ),
-                  ),
-                ),
-              ),
-            ],
-            const SizedBox(height: 8),
+            const SizedBox(height: AppSpacing.s),
           ],
         ),
       ),
     );
   }
 
-  /// 构建进度视图
+  /// 构建进度视图（带圆角背景卡片 + 圆形图标容器）
   Widget _buildProgressView(
     AppLocalizations l10n,
     ThemeData theme,
@@ -233,37 +221,61 @@ class _ManageSubtitlesSheetState extends ConsumerState<ManageSubtitlesSheet> {
       iconColor = theme.colorScheme.primary;
     }
 
+    final isCompleted = taskState is TranscriptionCompleted;
+
     return Padding(
       key: const ValueKey('progress'),
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.m,
-        vertical: AppSpacing.m,
-      ),
-      child: Column(
-        children: [
-          Icon(icon, size: 48, color: iconColor),
-          const SizedBox(height: 12),
-          Text(
-            text,
-            style: theme.textTheme.titleSmall?.copyWith(
-              color: iconColor,
-              fontWeight: FontWeight.bold,
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.m),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(vertical: AppSpacing.l),
+        decoration: BoxDecoration(
+          color: isCompleted
+              ? Colors.green.withValues(alpha: 0.08)
+              : theme.colorScheme.primaryContainer.withValues(alpha: 0.3),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Column(
+          children: [
+            Container(
+              width: 56,
+              height: 56,
+              decoration: BoxDecoration(
+                color: iconColor.withValues(alpha: 0.12),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, size: 28, color: iconColor),
             ),
-          ),
-          if (taskState is! TranscriptionCompleted) ...[
             const SizedBox(height: 12),
-            LinearProgressIndicator(
-              value: taskState is TranscriptionUploading
-                  ? taskState.progress
-                  : null,
+            Text(
+              text,
+              style: theme.textTheme.titleSmall?.copyWith(
+                color: iconColor,
+                fontWeight: FontWeight.w600,
+              ),
             ),
+            if (!isCompleted) ...[
+              const SizedBox(height: 16),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.l),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(4),
+                  child: LinearProgressIndicator(
+                    value: taskState is TranscriptionUploading
+                        ? taskState.progress
+                        : null,
+                    minHeight: 4,
+                  ),
+                ),
+              ),
+            ],
           ],
-        ],
+        ),
       ),
     );
   }
 
-  /// 构建错误视图
+  /// 构建错误视图（带圆角背景卡片 + 圆形图标容器）
   Widget _buildErrorView(
     AppLocalizations l10n,
     ThemeData theme,
@@ -272,30 +284,50 @@ class _ManageSubtitlesSheetState extends ConsumerState<ManageSubtitlesSheet> {
   ) {
     return Padding(
       key: const ValueKey('error'),
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.m,
-        vertical: AppSpacing.m,
-      ),
-      child: Column(
-        children: [
-          Icon(Icons.error_outline, size: 48, color: theme.colorScheme.error),
-          const SizedBox(height: 12),
-          Text(
-            l10n.transcriptionFailed,
-            style: theme.textTheme.titleSmall?.copyWith(
-              color: theme.colorScheme.error,
-              fontWeight: FontWeight.bold,
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.m),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(vertical: AppSpacing.l),
+        decoration: BoxDecoration(
+          color: theme.colorScheme.errorContainer.withValues(alpha: 0.3),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Column(
+          children: [
+            Container(
+              width: 56,
+              height: 56,
+              decoration: BoxDecoration(
+                color: theme.colorScheme.error.withValues(alpha: 0.12),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.error_outline,
+                size: 28,
+                color: theme.colorScheme.error,
+              ),
             ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            taskState.message,
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
+            const SizedBox(height: 12),
+            Text(
+              l10n.transcriptionFailed,
+              style: theme.textTheme.titleSmall?.copyWith(
+                color: theme.colorScheme.error,
+                fontWeight: FontWeight.w600,
+              ),
             ),
-            textAlign: TextAlign.center,
-          ),
-        ],
+            const SizedBox(height: 4),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.m),
+              child: Text(
+                taskState.message,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -316,78 +348,251 @@ class _ManageSubtitlesSheetState extends ConsumerState<ManageSubtitlesSheet> {
     }
   }
 
-  /// 构建 Radio 选项列表
+  /// 构建选项卡片列表（替代 RadioListTile）
   Widget _buildRadioOptions(
     AppLocalizations l10n,
     ThemeData theme,
     AudioItem audioItem,
   ) {
-    return Column(
+    return Padding(
       key: const ValueKey('options'),
-      children: [
-        RadioListTile<_SubtitleAction>(
-          title: Text(l10n.localUpload),
-          subtitle: Text(l10n.uploadTranscript),
-          value: _SubtitleAction.localUpload,
-          groupValue: _selectedAction,
-          onChanged: (value) {
-            if (value != null) setState(() => _selectedAction = value);
-          },
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.m),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildOptionTile(
+            theme: theme,
+            icon: Icons.folder_open_outlined,
+            title: l10n.localUpload,
+            subtitle: l10n.uploadTranscript,
+            selected: _selectedAction == _SubtitleAction.localUpload,
+            onTap: () =>
+                setState(() => _selectedAction = _SubtitleAction.localUpload),
+          ),
+          const SizedBox(height: AppSpacing.s),
+          _buildOptionTile(
+            theme: theme,
+            icon: Icons.auto_awesome_outlined,
+            title: l10n.aiTranscription,
+            selected: _selectedAction == _SubtitleAction.aiTranscription,
+            onTap: () => setState(
+              () => _selectedAction = _SubtitleAction.aiTranscription,
+            ),
+          ),
+          // AI 转录语言选择（动画展开/收起）
+          AnimatedSize(
+            duration: const Duration(milliseconds: 200),
+            curve: Curves.easeInOut,
+            alignment: Alignment.topCenter,
+            child: _selectedAction == _SubtitleAction.aiTranscription
+                ? _buildLanguageSelector(l10n, theme, audioItem)
+                : const SizedBox(width: double.infinity, height: 0),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 构建语言选择区域（浅色背景圆角容器）
+  Widget _buildLanguageSelector(
+    AppLocalizations l10n,
+    ThemeData theme,
+    AudioItem audioItem,
+  ) {
+    return Padding(
+      padding: const EdgeInsets.only(top: AppSpacing.s),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surfaceContainerHighest.withValues(
+            alpha: 0.5,
+          ),
+          borderRadius: BorderRadius.circular(12),
         ),
-        RadioListTile<_SubtitleAction>(
-          title: Text(l10n.aiTranscription),
-          value: _SubtitleAction.aiTranscription,
-          groupValue: _selectedAction,
-          onChanged: (value) {
-            if (value != null) setState(() => _selectedAction = value);
-          },
-        ),
-        // AI 转录语言选择（仅在 AI 选中时显示）
-        if (_selectedAction == _SubtitleAction.aiTranscription)
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  l10n.selectLanguage,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              l10n.selectLanguage,
+              style: theme.textTheme.labelMedium?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 8),
+            SizedBox(
+              width: double.infinity,
+              child: SegmentedButton<String>(
+                segments: [
+                  ButtonSegment(value: 'en', label: Text(l10n.languageEnglish)),
+                  ButtonSegment(
+                    value: 'multi',
+                    label: Text(l10n.languageMulti),
+                  ),
+                ],
+                selected: {_selectedLanguage},
+                onSelectionChanged: (selected) {
+                  setState(() => _selectedLanguage = selected.first);
+                },
+              ),
+            ),
+            if (_isAiDisabled(audioItem))
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Text(
+                  l10n.alreadyTranscribedWithOption,
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: theme.colorScheme.onSurfaceVariant,
                   ),
                 ),
-                const SizedBox(height: 8),
-                SegmentedButton<String>(
-                  segments: [
-                    ButtonSegment(
-                      value: 'en',
-                      label: Text(l10n.languageEnglish),
-                    ),
-                    ButtonSegment(
-                      value: 'multi',
-                      label: Text(l10n.languageMulti),
-                    ),
-                  ],
-                  selected: {_selectedLanguage},
-                  onSelectionChanged: (selected) {
-                    setState(() => _selectedLanguage = selected.first);
-                  },
-                ),
-                // AI 已转录该语言时显示提示
-                if (_isAiDisabled(audioItem))
-                  Padding(
-                    padding: const EdgeInsets.only(top: 8),
-                    child: Text(
-                      l10n.alreadyTranscribedWithOption,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                  ),
-                const SizedBox(height: 8),
-              ],
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// 构建选项卡片（带图标 + 选中态边框高亮）
+  Widget _buildOptionTile({
+    required ThemeData theme,
+    required IconData icon,
+    required String title,
+    String? subtitle,
+    required bool selected,
+    required VoidCallback onTap,
+  }) {
+    final colorScheme = theme.colorScheme;
+    return Material(
+      color: selected
+          ? colorScheme.primaryContainer.withValues(alpha: 0.3)
+          : Colors.transparent,
+      borderRadius: BorderRadius.circular(12),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: selected
+                  ? colorScheme.primary
+                  : colorScheme.outlineVariant,
+              width: selected ? 1.5 : 1,
             ),
           ),
-      ],
+          child: Row(
+            children: [
+              // 图标容器
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: selected
+                      ? colorScheme.primary.withValues(alpha: 0.12)
+                      : colorScheme.surfaceContainerHighest,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(
+                  icon,
+                  color: selected
+                      ? colorScheme.primary
+                      : colorScheme.onSurfaceVariant,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 12),
+              // 文字内容
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: theme.textTheme.bodyLarge?.copyWith(
+                        fontWeight: selected
+                            ? FontWeight.w600
+                            : FontWeight.normal,
+                        color: selected
+                            ? colorScheme.onSurface
+                            : colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                    if (subtitle != null)
+                      Text(
+                        subtitle,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              // Radio 指示器
+              Icon(
+                selected
+                    ? Icons.radio_button_checked
+                    : Icons.radio_button_unchecked,
+                color: selected
+                    ? colorScheme.primary
+                    : colorScheme.onSurfaceVariant,
+                size: 22,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// 构建字幕状态标签（带图标的圆角标签）
+  Widget _buildStatusChip(
+    AppLocalizations l10n,
+    ThemeData theme,
+    AudioItem audioItem,
+  ) {
+    final statusText = _getStatusText(l10n, audioItem);
+    final hasTranscript = audioItem.hasTranscript;
+    final IconData iconData;
+    if (!hasTranscript) {
+      iconData = Icons.subtitles_off_outlined;
+    } else if (audioItem.transcriptSource == TranscriptSource.ai) {
+      iconData = Icons.auto_awesome;
+    } else {
+      iconData = Icons.folder_outlined;
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: hasTranscript
+            ? theme.colorScheme.primaryContainer.withValues(alpha: 0.4)
+            : theme.colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            iconData,
+            size: 14,
+            color: hasTranscript
+                ? theme.colorScheme.primary
+                : theme.colorScheme.onSurfaceVariant,
+          ),
+          const SizedBox(width: 4),
+          Text(
+            statusText,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: hasTranscript
+                  ? theme.colorScheme.primary
+                  : theme.colorScheme.onSurfaceVariant,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
     );
   }
 
