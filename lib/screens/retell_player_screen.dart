@@ -56,10 +56,11 @@ class _RetellPlayerScreenState extends ConsumerState<RetellPlayerScreen> {
   /// 处理退出
   Future<void> _handleExit() async {
     final l10n = AppLocalizations.of(context)!;
+    final sessionState = ref.read(learningSessionProvider);
     final state = ref.read(retellPlayerProvider);
 
-    // 已完成直接退出
-    if (state.isCompleted) {
+    // 已完成或自由练习模式直接退出
+    if (state.isCompleted || sessionState.isFreePlay) {
       await _exit();
       return;
     }
@@ -221,7 +222,7 @@ class _RetellPlayerScreenState extends ConsumerState<RetellPlayerScreen> {
         appBar: AppBar(
           title: Text(l10n.retellTitle),
           leading: IconButton(
-            icon: const Icon(Icons.arrow_back),
+            icon: const Icon(Icons.close),
             onPressed: _handleExit,
           ),
           actions: [

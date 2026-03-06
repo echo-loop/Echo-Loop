@@ -365,6 +365,10 @@ class _ListenAndRepeatPlayerScreenState
         appBar: AppBar(
           title: Text(l10n.listenAndRepeatAppBarTitle),
           centerTitle: true,
+          leading: IconButton(
+            icon: const Icon(Icons.close),
+            onPressed: _handleExit,
+          ),
           actions: [
             IconButton(
               icon: const Icon(Icons.tune),

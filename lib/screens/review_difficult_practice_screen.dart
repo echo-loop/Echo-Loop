@@ -59,11 +59,12 @@ class _ReviewDifficultPracticeScreenState
     player.pause();
     if (!mounted) return;
 
+    final session = ref.read(learningSessionProvider);
     final l10n = AppLocalizations.of(context)!;
     final playerState = ref.read(reviewDifficultPracticeProvider);
 
-    // 已完成直接退出
-    if (playerState.isCompleted) {
+    // 已完成或自由练习模式直接退出
+    if (playerState.isCompleted || session.isFreePlay) {
       await _exit();
       return;
     }
@@ -72,7 +73,7 @@ class _ReviewDifficultPracticeScreenState
       context: context,
       builder: (ctx) => AlertDialog(
         title: Text(l10n.exitReviewDifficultPracticeTitle),
-        content: Text(l10n.exitReviewDifficultPracticeMessage),
+        content: Text(l10n.exitReviewDifficultPracticeConfirmMessage),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
@@ -182,15 +183,39 @@ class _ReviewDifficultPracticeScreenState
 
     final session = ref.read(learningSessionProvider);
 
-    // 自由练习模式：直接退出，不弹完成对话框、不推进步骤
+    // 自由练习模式：弹窗询问"完成"或"再练一遍"
     if (session.isFreePlay) {
+      final playerState = ref.read(reviewDifficultPracticeProvider);
+      final l10n = AppLocalizations.of(context)!;
+
+      final result = await showDialog<bool>(
+        context: context,
+        barrierDismissible: false,
+        builder: (ctx) => _FreePlayCompleteDialog(
+          title: l10n.reviewDifficultPracticeCompleteTitle,
+          message: l10n.reviewDifficultPracticeCompleteMessage(
+            playerState.totalSentences,
+          ),
+        ),
+      );
+
+      _isShowingDialog = false;
+      if (!mounted) return;
+
       // 清除断点（已全部完成）
       await ref
           .read(learningProgressNotifierProvider.notifier)
           .saveDifficultPracticeSentenceIndex(widget.audioItemId, null);
-      await ref.read(learningSessionProvider.notifier).exitLearningMode();
-      _isShowingDialog = false;
-      if (mounted) context.pop();
+
+      if (result == true) {
+        await ref.read(learningSessionProvider.notifier).exitLearningMode();
+        if (mounted) context.pop();
+      } else {
+        // 再练一遍
+        await ref
+            .read(reviewDifficultPracticeProvider.notifier)
+            .resetToStart();
+      }
       return;
     }
 
@@ -283,6 +308,10 @@ class _ReviewDifficultPracticeScreenState
         appBar: AppBar(
           title: Text(l10n.reviewDifficultPracticeTitle),
           centerTitle: true,
+          leading: IconButton(
+            icon: const Icon(Icons.close),
+            onPressed: _handleExit,
+          ),
         ),
         body: Column(
           children: [
@@ -979,6 +1008,55 @@ class _CompleteDialog extends StatelessWidget {
         ),
       ];
     }
+  }
+}
+
+/// 难句补练自由练习完成对话框
+///
+/// 返回 `true` 表示完成退出，`false` 表示再练一遍。
+class _FreePlayCompleteDialog extends StatelessWidget {
+  final String title;
+  final String message;
+
+  const _FreePlayCompleteDialog({required this.title, required this.message});
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final theme = Theme.of(context);
+
+    return PopScope(
+      canPop: false,
+      child: AlertDialog(
+        title: Row(
+          children: [
+            Icon(Icons.check_circle, color: theme.colorScheme.primary),
+            const SizedBox(width: AppSpacing.s),
+            Flexible(child: Text(title)),
+          ],
+        ),
+        content: Text(message, style: theme.textTheme.bodyMedium),
+        actions: [
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: () => Navigator.of(context).pop(true),
+                  child: Text(l10n.done),
+                ),
+              ),
+              const SizedBox(width: AppSpacing.s),
+              Expanded(
+                child: FilledButton(
+                  onPressed: () => Navigator.of(context).pop(false),
+                  child: Text(l10n.practiceAgain),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
   }
 }
 

@@ -477,6 +477,10 @@ class _IntensiveListenPlayerScreenState
         appBar: AppBar(
           title: Text(l10n.intensiveListenAppBarTitle),
           centerTitle: true,
+          leading: IconButton(
+            icon: const Icon(Icons.close),
+            onPressed: _handleExit,
+          ),
           actions: [
             IconButton(
               icon: const Icon(Icons.tune),

@@ -6,7 +6,7 @@
 /// 播放完成后根据目标遍数决定行为：
 /// - 未达目标遍数：显示 5 秒倒计时 → 自动播放下一遍
 /// - 已达/超过目标遍数：弹完成对话框（难度选择 + 双按钮）
-/// - 自由练习模式：无倒计时、无弹窗
+/// - 自由练习模式：无倒计时，弹完成/再听一遍对话框
 ///
 /// 完成对话框支持三种操作：
 /// - 再听一遍：重播当前盲听
@@ -89,8 +89,11 @@ class _BlindListenPlayerScreenState
 
     final session = ref.read(learningSessionProvider);
 
-    // 自由练习模式：播放完成后不弹对话框、不倒计时，用户可手动重播或返回
-    if (session.isFreePlay) return;
+    // 自由练习模式：弹窗询问"完成"或"再听一遍"
+    if (session.isFreePlay) {
+      _showFreePlayCompleteDialog();
+      return;
+    }
 
     if (session.hasRemainingPasses) {
       // 未达目标遍数 → 倒计时 → 自动播放下一遍
@@ -98,6 +101,32 @@ class _BlindListenPlayerScreenState
     } else {
       // 达到目标遍数 → 弹完成对话框
       _showCompleteDialog();
+    }
+  }
+
+  /// 自由练习完成对话框
+  Future<void> _showFreePlayCompleteDialog() async {
+    _isShowingDialog = true;
+    final l10n = AppLocalizations.of(context)!;
+
+    final result = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => _FreePlayCompleteDialog(
+        title: l10n.blindListenComplete,
+      ),
+    );
+
+    _isShowingDialog = false;
+    if (!mounted) return;
+
+    if (result == true) {
+      // 完成退出
+      await ref.read(learningSessionProvider.notifier).exitLearningMode();
+      if (mounted) context.pop();
+    } else {
+      // 再听一遍
+      await ref.read(learningSessionProvider.notifier).replayBlindListen();
     }
   }
 
@@ -379,6 +408,13 @@ class _BlindListenPlayerScreenState
         appBar: AppBar(
           title: Text(l10n.blindListenAppBarTitle),
           centerTitle: true,
+          leading: IconButton(
+            icon: const Icon(Icons.close),
+            onPressed: () {
+              // 触发 PopScope 的 onPopInvokedWithResult
+              Navigator.of(context).maybePop();
+            },
+          ),
         ),
         body: Column(
           children: [
@@ -601,6 +637,53 @@ class _CountdownIndicator extends StatelessWidget {
         ),
         TextButton(onPressed: onSkip, child: Text(l10n.skipCountdown)),
       ],
+    );
+  }
+}
+
+/// 盲听自由练习完成对话框
+///
+/// 返回 `true` 表示完成退出，`false` 表示再听一遍。
+class _FreePlayCompleteDialog extends StatelessWidget {
+  final String title;
+
+  const _FreePlayCompleteDialog({required this.title});
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final theme = Theme.of(context);
+
+    return PopScope(
+      canPop: false,
+      child: AlertDialog(
+        title: Row(
+          children: [
+            Icon(Icons.check_circle, color: theme.colorScheme.primary),
+            const SizedBox(width: AppSpacing.s),
+            Flexible(child: Text(title)),
+          ],
+        ),
+        actions: [
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: () => Navigator.of(context).pop(true),
+                  child: Text(l10n.done),
+                ),
+              ),
+              const SizedBox(width: AppSpacing.s),
+              Expanded(
+                child: FilledButton(
+                  onPressed: () => Navigator.of(context).pop(false),
+                  child: Text(l10n.listenAgain),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 }
