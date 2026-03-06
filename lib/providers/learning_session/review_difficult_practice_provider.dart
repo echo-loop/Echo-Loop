@@ -2,8 +2,7 @@
 ///
 /// 复习阶段的核心训练步骤：仅加载已标记为难句（bookmarked）的句子，
 /// 每句盲听 1 遍 → 句间停顿 → 自动推进下一句。
-/// 用户可随时「偷看」字幕或按「听不懂」进入标注模式（暂停 + 揭示文本），
-/// 标注模式退出时带字幕重播一遍再自动推进。
+/// 用户可随时「偷看」字幕或按「听不懂」进入跟读模式（显示字幕，播放 N 遍 + 跟读留白）。
 ///
 /// 交互对齐逐句精听（IntensiveListenPlayer），使用布尔标志位替代枚举阶段。
 /// R1+ 支持取消难句标记（听懂的句子可 unbookmark）。
@@ -30,13 +29,16 @@ class ReviewDifficultPracticeState {
   /// 难句总数
   final int totalSentences;
 
-  /// 当前遍数（1-based，难句补练固定为 1 遍盲听）
+  /// 当前遍数（1-based）
   final int currentPlayCount;
+
+  /// 跟读模式目标遍数（默认 3）
+  final int targetRepeatCount;
 
   /// 是否正在播放
   final bool isPlaying;
 
-  /// 是否处于遍间停顿中（难句补练固定 1 遍，此字段保留以复用 UI）
+  /// 是否处于遍间停顿中（盲听句间停顿 / 跟读留白）
   final bool isPauseBetweenPlays;
 
   /// 是否处于句间停顿中
@@ -48,11 +50,8 @@ class ReviewDifficultPracticeState {
   /// 停顿总时长
   final Duration pauseDuration;
 
-  /// 是否处于标注模式（听不懂 → 暂停 + 揭示文本）
+  /// 是否处于跟读模式（听不懂 → 显示字幕 + 播放 N 遍跟读循环）
   final bool isAnnotationMode;
-
-  /// 是否处于标注模式重播（带字幕重播一遍）
-  final bool isAnnotationReplay;
 
   /// 是否偷看字幕（不暂停、不标记，切句时重置）
   final bool isTextRevealed;
@@ -70,13 +69,13 @@ class ReviewDifficultPracticeState {
     this.currentSentenceIndex = 0,
     this.totalSentences = 0,
     this.currentPlayCount = 1,
+    this.targetRepeatCount = 3,
     this.isPlaying = false,
     this.isPauseBetweenPlays = false,
     this.isPauseBetweenSentences = false,
     this.pauseRemaining = Duration.zero,
     this.pauseDuration = Duration.zero,
     this.isAnnotationMode = false,
-    this.isAnnotationReplay = false,
     this.isTextRevealed = false,
     this.isCompleted = false,
     this.isCountdownPaused = false,
@@ -87,13 +86,13 @@ class ReviewDifficultPracticeState {
     int? currentSentenceIndex,
     int? totalSentences,
     int? currentPlayCount,
+    int? targetRepeatCount,
     bool? isPlaying,
     bool? isPauseBetweenPlays,
     bool? isPauseBetweenSentences,
     Duration? pauseRemaining,
     Duration? pauseDuration,
     bool? isAnnotationMode,
-    bool? isAnnotationReplay,
     bool? isTextRevealed,
     bool? isCompleted,
     bool? isCountdownPaused,
@@ -103,6 +102,7 @@ class ReviewDifficultPracticeState {
       currentSentenceIndex: currentSentenceIndex ?? this.currentSentenceIndex,
       totalSentences: totalSentences ?? this.totalSentences,
       currentPlayCount: currentPlayCount ?? this.currentPlayCount,
+      targetRepeatCount: targetRepeatCount ?? this.targetRepeatCount,
       isPlaying: isPlaying ?? this.isPlaying,
       isPauseBetweenPlays: isPauseBetweenPlays ?? this.isPauseBetweenPlays,
       isPauseBetweenSentences:
@@ -110,7 +110,6 @@ class ReviewDifficultPracticeState {
       pauseRemaining: pauseRemaining ?? this.pauseRemaining,
       pauseDuration: pauseDuration ?? this.pauseDuration,
       isAnnotationMode: isAnnotationMode ?? this.isAnnotationMode,
-      isAnnotationReplay: isAnnotationReplay ?? this.isAnnotationReplay,
       isTextRevealed: isTextRevealed ?? this.isTextRevealed,
       isCompleted: isCompleted ?? this.isCompleted,
       isCountdownPaused: isCountdownPaused ?? this.isCountdownPaused,
@@ -182,6 +181,8 @@ class ReviewDifficultPractice extends _$ReviewDifficultPractice {
   }
 
   /// 暂停播放
+  ///
+  /// 跟读模式下保留 isAnnotationMode 标记，resume 时恢复跟读循环。
   void pause() {
     _engine.invalidateSession();
     state = state.copyWith(
@@ -194,71 +195,38 @@ class ReviewDifficultPractice extends _$ReviewDifficultPractice {
 
   /// 恢复播放
   ///
-  /// 标注模式下不恢复（保持暂停），其他情况从当前句重新开始。
+  /// 跟读模式下从第 1 遍重新开始跟读循环（与跟读页行为一致）。
+  /// 盲听模式下从当前句重新开始。
   Future<void> resume() async {
-    if (state.isAnnotationMode) return;
+    if (state.isAnnotationMode) {
+      _startShadowReading();
+      return;
+    }
     await _startSentence();
   }
 
-  /// 进入标注模式（听不懂）
+  /// 进入跟读模式（听不懂）
   ///
-  /// 暂停音频 → 揭示文本。因为都已是难句，不需要额外标记。
+  /// 中断当前播放 → 启动跟读循环（显示字幕，播放 N 遍 + 跟读留白）。
+  /// fire-and-forget 模式，与 listen_and_repeat 一致。
   void enterAnnotationMode() {
     if (state.isAnnotationMode) return;
 
     _engine.invalidateSession();
-
-    state = state.copyWith(
-      isAnnotationMode: true,
-      isPlaying: false,
-      isPauseBetweenPlays: false,
-      isPauseBetweenSentences: false,
-      isTextRevealed: false,
-    );
+    _startShadowReading();
   }
 
-  /// 退出标注模式（点击"继续"）
+  /// 跳过跟读（跟读模式下点"跳过"）
   ///
-  /// 带字幕重播当前句一遍 → 播完自动推进到下一句
-  Future<void> exitAnnotationMode() async {
+  /// 中断跟读循环 → 重置跟读模式 → 自动推进到下一句。
+  Future<void> skipShadowReading() async {
+    _engine.invalidateSession();
     state = state.copyWith(
       isAnnotationMode: false,
-      isAnnotationReplay: true,
-      isPlaying: true,
+      isPlaying: false,
+      isPauseBetweenPlays: false,
     );
-
-    final sentence = currentSentence;
-    if (sentence == null || sentence.duration <= Duration.zero) {
-      await _finishAnnotationReplay();
-      return;
-    }
-
-    // 播放一遍（使用 playOnce）
-    final sessionId = _engine.newSession();
-    final engine = ref.read(audioEngineProvider.notifier);
-    await engine.playClipOnce(sentence, sessionId);
-
-    if (!_engine.isActiveSession(sessionId)) return;
-
-    await _finishAnnotationReplay();
-  }
-
-  /// 标注模式下重播当前句子一遍
-  ///
-  /// 仅在标注模式下可用，播放一遍后停止，不推进、不退出标注模式。
-  Future<void> replayInAnnotationMode() async {
-    if (!state.isAnnotationMode) return;
-    final sentence = currentSentence;
-    if (sentence == null || sentence.duration <= Duration.zero) return;
-
-    final sessionId = _engine.newSession();
-    state = state.copyWith(isPlaying: true);
-
-    final engine = ref.read(audioEngineProvider.notifier);
-    await engine.playClipOnce(sentence, sessionId);
-
-    if (!_engine.isActiveSession(sessionId)) return;
-    state = state.copyWith(isPlaying: false);
+    await _autoAdvance();
   }
 
   /// 设置偷看字幕状态（按住显示，松开隐藏）
@@ -298,7 +266,6 @@ class ReviewDifficultPractice extends _$ReviewDifficultPractice {
       totalSentences: _sentences.length,
       isPlaying: false,
       isAnnotationMode: false,
-      isAnnotationReplay: false,
       isTextRevealed: false,
       isPauseBetweenPlays: false,
       isPauseBetweenSentences: false,
@@ -316,7 +283,6 @@ class ReviewDifficultPractice extends _$ReviewDifficultPractice {
       currentSentenceIndex: state.currentSentenceIndex + 1,
       currentPlayCount: 1,
       isAnnotationMode: false,
-      isAnnotationReplay: false,
       isTextRevealed: false,
       isPauseBetweenPlays: false,
       isPauseBetweenSentences: false,
@@ -334,7 +300,6 @@ class ReviewDifficultPractice extends _$ReviewDifficultPractice {
       currentSentenceIndex: state.currentSentenceIndex - 1,
       currentPlayCount: 1,
       isAnnotationMode: false,
-      isAnnotationReplay: false,
       isTextRevealed: false,
       isPauseBetweenPlays: false,
       isPauseBetweenSentences: false,
@@ -372,15 +337,21 @@ class ReviewDifficultPractice extends _$ReviewDifficultPractice {
   }
 
   /// 倒计时期间重播当前句子
+  ///
+  /// 跟读模式下重启跟读循环，盲听模式下重播盲听。
   Future<void> replayDuringCountdown() async {
     _engine.invalidateSession();
-    state = state.copyWith(
-      isPauseBetweenPlays: false,
-      isPauseBetweenSentences: false,
-      isCountdownPaused: false,
-      isCountdownFastForward: false,
-    );
-    await _startSentence();
+    if (state.isAnnotationMode) {
+      _startShadowReading();
+    } else {
+      state = state.copyWith(
+        isPauseBetweenPlays: false,
+        isPauseBetweenSentences: false,
+        isCountdownPaused: false,
+        isCountdownFastForward: false,
+      );
+      await _startSentence();
+    }
   }
 
   /// 释放资源
@@ -391,6 +362,58 @@ class ReviewDifficultPractice extends _$ReviewDifficultPractice {
   }
 
   // ========== 内部方法 ==========
+
+  /// 开始跟读循环（显示字幕，播放 N 遍 + 跟读留白）
+  ///
+  /// fire-and-forget，与 listen_and_repeat 的 _startSentence 模式一致。
+  void _startShadowReading() {
+    final sentence = currentSentence;
+    if (sentence == null || sentence.duration <= Duration.zero) return;
+
+    state = state.copyWith(
+      isAnnotationMode: true,
+      isPlaying: true,
+      currentPlayCount: 1,
+      isPauseBetweenPlays: false,
+      isPauseBetweenSentences: false,
+      isTextRevealed: false,
+      isCountdownPaused: false,
+      isCountdownFastForward: false,
+    );
+
+    _engine.playSentenceLoop(
+      sentence: sentence,
+      repeatCount: state.targetRepeatCount,
+      pauseCalculator: listenAndRepeatPauseCalculator,
+      onPlayCountChanged: (count) {
+        state = state.copyWith(currentPlayCount: count, isPlaying: true);
+      },
+      onPauseStarted: (dur) {
+        state = state.copyWith(
+          isPauseBetweenPlays: true,
+          isPlaying: false,
+          isCountdownPaused: false,
+          isCountdownFastForward: false,
+          pauseDuration: dur,
+          pauseRemaining: dur,
+        );
+      },
+      onPauseEnded: () {
+        state = state.copyWith(isPauseBetweenPlays: false);
+      },
+      onTick: (remaining) {
+        state = state.copyWith(pauseRemaining: remaining);
+      },
+      onAllPlaysCompleted: () async {
+        state = state.copyWith(
+          isAnnotationMode: false,
+          isPlaying: false,
+          isPauseBetweenPlays: false,
+        );
+        await _autoAdvance();
+      },
+    );
+  }
 
   /// 开始播放当前句子（盲听 1 遍）
   Future<void> _startSentence() async {
@@ -473,17 +496,10 @@ class ReviewDifficultPractice extends _$ReviewDifficultPractice {
             isPauseBetweenPlays: false,
             isPauseBetweenSentences: false,
             isAnnotationMode: false,
-            isAnnotationReplay: false,
           );
           await _startSentence();
         }
       },
     );
-  }
-
-  /// 标注重播完成后推进
-  Future<void> _finishAnnotationReplay() async {
-    state = state.copyWith(isAnnotationReplay: false, isPlaying: false);
-    await _autoAdvance();
   }
 }
