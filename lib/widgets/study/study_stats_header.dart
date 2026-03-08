@@ -7,7 +7,7 @@ import '../../theme/app_theme.dart';
 
 /// 学习统计头部组件
 ///
-/// 包含 3 个统计指标卡片（连续天数、今日时长、本周时长）和 7 天柱状图。
+/// 包含 2 个统计指标卡片（今日时长、本周时长）和 7 天柱状图。
 class StudyStatsHeader extends ConsumerWidget {
   const StudyStatsHeader({super.key});
 
@@ -31,7 +31,7 @@ class StudyStatsHeader extends ConsumerWidget {
   }
 }
 
-/// 3 个统计指标：连续天数、今日时长、本周时长
+/// 2 个统计指标：今日时长、本周时长
 ///
 /// 使用自定义样式容器替代默认 Chip，增加视觉层次。
 class _StatsChips extends StatelessWidget {
@@ -48,12 +48,6 @@ class _StatsChips extends StatelessWidget {
       spacing: AppSpacing.s,
       runSpacing: AppSpacing.xs,
       children: [
-        if (stats.streak > 0)
-          _StatChip(
-            icon: Icons.local_fire_department_rounded,
-            iconColor: Colors.orange,
-            label: l10n.streakDays(stats.streak),
-          ),
         _StatChip(
           icon: Icons.timer_outlined,
           iconColor: theme.colorScheme.primary,
