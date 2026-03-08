@@ -1324,4 +1324,100 @@ class AppLocalizationsEn extends AppLocalizations {
   String studyTimeHoursMinutes(int hours, int minutes) {
     return '${hours}h ${minutes}m';
   }
+
+  @override
+  String get studyTasks => 'Study Tasks';
+
+  @override
+  String get continueLearningHero => 'Continue Learning';
+
+  @override
+  String get startButton => 'Start';
+
+  @override
+  String get continueButton => 'Continue';
+
+  @override
+  String get reviewButton => 'Review';
+
+  @override
+  String streakDays(int count) {
+    return '${count}d streak';
+  }
+
+  @override
+  String get todayStudyTimeShort => 'Today';
+
+  @override
+  String get weekStudyTimeShort => 'Week';
+
+  @override
+  String readyToReview(int count) {
+    return 'Ready to Review ($count)';
+  }
+
+  @override
+  String upcomingReviews(int count) {
+    return 'Upcoming Reviews ($count)';
+  }
+
+  @override
+  String upcomingReviewsSummary(int count) {
+    return '$count review tasks will unlock later';
+  }
+
+  @override
+  String firstStudySection(int count) {
+    return 'First Study ($count)';
+  }
+
+  @override
+  String completedSection(int count) {
+    return 'Completed ($count)';
+  }
+
+  @override
+  String get noStudyTasks => 'No study tasks yet';
+
+  @override
+  String get noStudyTasksHint => 'Import audio files to start learning.';
+
+  @override
+  String get goToLibrary => 'Go to Library';
+
+  @override
+  String get allDoneTitle => 'All done for now!';
+
+  @override
+  String get allDoneHint => 'Great work today. Come back later for reviews.';
+
+  @override
+  String overdueDays(int count) {
+    return 'Overdue ${count}d';
+  }
+
+  @override
+  String overdueHours(int count) {
+    return 'Overdue ${count}h';
+  }
+
+  @override
+  String availableInDays(int count) {
+    return 'in ${count}d';
+  }
+
+  @override
+  String availableInHours(int count) {
+    return 'in ${count}h';
+  }
+
+  @override
+  String subStageLabelFirstLearn(String subStage) {
+    return 'First Study - $subStage';
+  }
+
+  @override
+  String subStageLabelReview(String reviewName, String subStage) {
+    return '$reviewName - $subStage';
+  }
 }

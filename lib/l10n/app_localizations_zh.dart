@@ -1290,4 +1290,100 @@ class AppLocalizationsZh extends AppLocalizations {
   String studyTimeHoursMinutes(int hours, int minutes) {
     return '$hours小时$minutes分钟';
   }
+
+  @override
+  String get studyTasks => '学习任务';
+
+  @override
+  String get continueLearningHero => '继续学习';
+
+  @override
+  String get startButton => '开始';
+
+  @override
+  String get continueButton => '继续';
+
+  @override
+  String get reviewButton => '复习';
+
+  @override
+  String streakDays(int count) {
+    return '连续 $count 天';
+  }
+
+  @override
+  String get todayStudyTimeShort => '今日';
+
+  @override
+  String get weekStudyTimeShort => '本周';
+
+  @override
+  String readyToReview(int count) {
+    return '待复习 ($count)';
+  }
+
+  @override
+  String upcomingReviews(int count) {
+    return '待解锁 ($count)';
+  }
+
+  @override
+  String upcomingReviewsSummary(int count) {
+    return '$count 个复习任务将在稍后解锁';
+  }
+
+  @override
+  String firstStudySection(int count) {
+    return '首学 ($count)';
+  }
+
+  @override
+  String completedSection(int count) {
+    return '已完成 ($count)';
+  }
+
+  @override
+  String get noStudyTasks => '暂无学习任务';
+
+  @override
+  String get noStudyTasksHint => '导入音频后即可开始学习。';
+
+  @override
+  String get goToLibrary => '去导入音频';
+
+  @override
+  String get allDoneTitle => '今日任务完成！';
+
+  @override
+  String get allDoneHint => '做得不错，稍后回来复习吧。';
+
+  @override
+  String overdueDays(int count) {
+    return '逾期 $count 天';
+  }
+
+  @override
+  String overdueHours(int count) {
+    return '逾期 $count 小时';
+  }
+
+  @override
+  String availableInDays(int count) {
+    return '$count 天后';
+  }
+
+  @override
+  String availableInHours(int count) {
+    return '$count 小时后';
+  }
+
+  @override
+  String subStageLabelFirstLearn(String subStage) {
+    return '首学 - $subStage';
+  }
+
+  @override
+  String subStageLabelReview(String reviewName, String subStage) {
+    return '$reviewName - $subStage';
+  }
 }

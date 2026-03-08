@@ -741,5 +741,69 @@
       "hours": { "type": "int" },
       "minutes": { "type": "int" }
     }
+  },
+
+  "studyTasks": "Study Tasks",
+  "continueLearningHero": "Continue Learning",
+  "startButton": "Start",
+  "continueButton": "Continue",
+  "reviewButton": "Review",
+  "streakDays": "{count}d streak",
+  "@streakDays": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "todayStudyTimeShort": "Today",
+  "weekStudyTimeShort": "Week",
+  "readyToReview": "Ready to Review ({count})",
+  "@readyToReview": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "upcomingReviews": "Upcoming Reviews ({count})",
+  "@upcomingReviews": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "upcomingReviewsSummary": "{count} review tasks will unlock later",
+  "@upcomingReviewsSummary": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "firstStudySection": "First Study ({count})",
+  "@firstStudySection": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "completedSection": "Completed ({count})",
+  "@completedSection": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "noStudyTasks": "No study tasks yet",
+  "noStudyTasksHint": "Import audio files to start learning.",
+  "goToLibrary": "Go to Library",
+  "allDoneTitle": "All done for now!",
+  "allDoneHint": "Great work today. Come back later for reviews.",
+  "overdueDays": "Overdue {count}d",
+  "@overdueDays": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "overdueHours": "Overdue {count}h",
+  "@overdueHours": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "availableInDays": "in {count}d",
+  "@availableInDays": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "availableInHours": "in {count}h",
+  "@availableInHours": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "subStageLabelFirstLearn": "First Study - {subStage}",
+  "@subStageLabelFirstLearn": {
+    "placeholders": { "subStage": { "type": "String" } }
+  },
+  "subStageLabelReview": "{reviewName} - {subStage}",
+  "@subStageLabelReview": {
+    "placeholders": {
+      "reviewName": { "type": "String" },
+      "subStage": { "type": "String" }
+    }
   }
 }

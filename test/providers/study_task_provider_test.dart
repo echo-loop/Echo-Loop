@@ -287,4 +287,99 @@ void main() {
       expect(tasks[1].isOverdue, false);
     });
   });
+
+  group('completedAudioProvider', () {
+    test('已完成音频正确返回', () {
+      final now = DateTime(2026, 2, 25, 12, 0);
+      final audioItems = [
+        AudioItem(
+          id: 'a',
+          name: 'Completed',
+          audioPath: 'audios/a.mp3',
+          addedDate: now,
+        ),
+        AudioItem(
+          id: 'b',
+          name: 'In Progress',
+          audioPath: 'audios/b.mp3',
+          addedDate: now,
+        ),
+        AudioItem(
+          id: 'c',
+          name: 'Also Completed',
+          audioPath: 'audios/c.mp3',
+          addedDate: now,
+        ),
+      ];
+      final progressMap = {
+        'a': LearningProgress(
+          audioItemId: 'a',
+          currentStage: LearningStage.completed,
+          currentSubStage: SubStageType.blindListen,
+          updatedAt: now,
+        ),
+        'b': LearningProgress(
+          audioItemId: 'b',
+          currentStage: LearningStage.review1,
+          currentSubStage: SubStageType.blindListen,
+          lastStageCompletedAt: now,
+          updatedAt: now,
+        ),
+        'c': LearningProgress(
+          audioItemId: 'c',
+          currentStage: LearningStage.completed,
+          currentSubStage: SubStageType.blindListen,
+          updatedAt: now,
+        ),
+      };
+
+      final container = ProviderContainer(
+        overrides: [
+          audioLibraryProvider.overrideWith(
+            () => TestAudioLibrary(AudioLibraryState(audioItems: audioItems)),
+          ),
+          learningProgressNotifierProvider.overrideWith(
+            () => TestLearningProgressNotifier(
+              LearningProgressState(progressMap: progressMap),
+            ),
+          ),
+          nowProvider.overrideWithValue(() => now),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      final completed = container.read(completedAudioProvider);
+      expect(completed.length, 2);
+      expect(completed[0].audioName, 'Completed');
+      expect(completed[1].audioName, 'Also Completed');
+    });
+
+    test('无已完成音频时返回空列表', () {
+      final now = DateTime(2026, 2, 25, 12, 0);
+      final audioItems = [
+        AudioItem(
+          id: 'a',
+          name: 'First Study',
+          audioPath: 'audios/a.mp3',
+          addedDate: now,
+        ),
+      ];
+
+      final container = ProviderContainer(
+        overrides: [
+          audioLibraryProvider.overrideWith(
+            () => TestAudioLibrary(AudioLibraryState(audioItems: audioItems)),
+          ),
+          learningProgressNotifierProvider.overrideWith(
+            () => TestLearningProgressNotifier(),
+          ),
+          nowProvider.overrideWithValue(() => now),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      final completed = container.read(completedAudioProvider);
+      expect(completed, isEmpty);
+    });
+  });
 }

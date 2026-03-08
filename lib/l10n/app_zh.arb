@@ -569,5 +569,30 @@
 
   "todayStudyTime": "今日：{time}",
   "studyTimeMinutes": "{minutes} 分钟",
-  "studyTimeHoursMinutes": "{hours}小时{minutes}分钟"
+  "studyTimeHoursMinutes": "{hours}小时{minutes}分钟",
+
+  "studyTasks": "学习任务",
+  "continueLearningHero": "继续学习",
+  "startButton": "开始",
+  "continueButton": "继续",
+  "reviewButton": "复习",
+  "streakDays": "连续 {count} 天",
+  "todayStudyTimeShort": "今日",
+  "weekStudyTimeShort": "本周",
+  "readyToReview": "待复习 ({count})",
+  "upcomingReviews": "待解锁 ({count})",
+  "upcomingReviewsSummary": "{count} 个复习任务将在稍后解锁",
+  "firstStudySection": "首学 ({count})",
+  "completedSection": "已完成 ({count})",
+  "noStudyTasks": "暂无学习任务",
+  "noStudyTasksHint": "导入音频后即可开始学习。",
+  "goToLibrary": "去导入音频",
+  "allDoneTitle": "今日任务完成！",
+  "allDoneHint": "做得不错，稍后回来复习吧。",
+  "overdueDays": "逾期 {count} 天",
+  "overdueHours": "逾期 {count} 小时",
+  "availableInDays": "{count} 天后",
+  "availableInHours": "{count} 小时后",
+  "subStageLabelFirstLearn": "首学 - {subStage}",
+  "subStageLabelReview": "{reviewName} - {subStage}"
 }

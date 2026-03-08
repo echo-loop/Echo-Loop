@@ -2407,6 +2407,150 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{hours}h {minutes}m'**
   String studyTimeHoursMinutes(int hours, int minutes);
+
+  /// No description provided for @studyTasks.
+  ///
+  /// In en, this message translates to:
+  /// **'Study Tasks'**
+  String get studyTasks;
+
+  /// No description provided for @continueLearningHero.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue Learning'**
+  String get continueLearningHero;
+
+  /// No description provided for @startButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Start'**
+  String get startButton;
+
+  /// No description provided for @continueButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue'**
+  String get continueButton;
+
+  /// No description provided for @reviewButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Review'**
+  String get reviewButton;
+
+  /// No description provided for @streakDays.
+  ///
+  /// In en, this message translates to:
+  /// **'{count}d streak'**
+  String streakDays(int count);
+
+  /// No description provided for @todayStudyTimeShort.
+  ///
+  /// In en, this message translates to:
+  /// **'Today'**
+  String get todayStudyTimeShort;
+
+  /// No description provided for @weekStudyTimeShort.
+  ///
+  /// In en, this message translates to:
+  /// **'Week'**
+  String get weekStudyTimeShort;
+
+  /// No description provided for @readyToReview.
+  ///
+  /// In en, this message translates to:
+  /// **'Ready to Review ({count})'**
+  String readyToReview(int count);
+
+  /// No description provided for @upcomingReviews.
+  ///
+  /// In en, this message translates to:
+  /// **'Upcoming Reviews ({count})'**
+  String upcomingReviews(int count);
+
+  /// No description provided for @upcomingReviewsSummary.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} review tasks will unlock later'**
+  String upcomingReviewsSummary(int count);
+
+  /// No description provided for @firstStudySection.
+  ///
+  /// In en, this message translates to:
+  /// **'First Study ({count})'**
+  String firstStudySection(int count);
+
+  /// No description provided for @completedSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Completed ({count})'**
+  String completedSection(int count);
+
+  /// No description provided for @noStudyTasks.
+  ///
+  /// In en, this message translates to:
+  /// **'No study tasks yet'**
+  String get noStudyTasks;
+
+  /// No description provided for @noStudyTasksHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Import audio files to start learning.'**
+  String get noStudyTasksHint;
+
+  /// No description provided for @goToLibrary.
+  ///
+  /// In en, this message translates to:
+  /// **'Go to Library'**
+  String get goToLibrary;
+
+  /// No description provided for @allDoneTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'All done for now!'**
+  String get allDoneTitle;
+
+  /// No description provided for @allDoneHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Great work today. Come back later for reviews.'**
+  String get allDoneHint;
+
+  /// No description provided for @overdueDays.
+  ///
+  /// In en, this message translates to:
+  /// **'Overdue {count}d'**
+  String overdueDays(int count);
+
+  /// No description provided for @overdueHours.
+  ///
+  /// In en, this message translates to:
+  /// **'Overdue {count}h'**
+  String overdueHours(int count);
+
+  /// No description provided for @availableInDays.
+  ///
+  /// In en, this message translates to:
+  /// **'in {count}d'**
+  String availableInDays(int count);
+
+  /// No description provided for @availableInHours.
+  ///
+  /// In en, this message translates to:
+  /// **'in {count}h'**
+  String availableInHours(int count);
+
+  /// No description provided for @subStageLabelFirstLearn.
+  ///
+  /// In en, this message translates to:
+  /// **'First Study - {subStage}'**
+  String subStageLabelFirstLearn(String subStage);
+
+  /// No description provided for @subStageLabelReview.
+  ///
+  /// In en, this message translates to:
+  /// **'{reviewName} - {subStage}'**
+  String subStageLabelReview(String reviewName, String subStage);
 }
 
 class _AppLocalizationsDelegate
