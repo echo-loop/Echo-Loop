@@ -563,9 +563,8 @@ class _IntensiveListenPlayerScreenState
                           playerState: playerState,
                           l10n: l10n,
                           theme: theme,
-                          onPeekToggle: () => player.setTextRevealed(
-                            !playerState.isTextRevealed,
-                          ),
+                          onPeekToggle: (revealed) =>
+                              player.setTextRevealed(revealed),
                           onCantUnderstand: () => player.enterAnnotationMode(),
                           onToggleDifficult: _toggleAndSaveDifficult,
                           onPauseCountdown: () => playerState.isCountdownPaused
@@ -670,7 +669,7 @@ class _NormalModeView extends StatelessWidget {
   final IntensiveListenState playerState;
   final AppLocalizations l10n;
   final ThemeData theme;
-  final VoidCallback onPeekToggle;
+  final ValueChanged<bool> onPeekToggle;
   final VoidCallback onCantUnderstand;
 
   /// 取消难句标记回调
@@ -784,7 +783,9 @@ class _NormalModeView extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               GestureDetector(
-                onTap: onPeekToggle,
+                onTapDown: (_) => onPeekToggle(true),
+                onTapUp: (_) => onPeekToggle(false),
+                onTapCancel: () => onPeekToggle(false),
                 child: _ActionChip(
                   icon: playerState.isTextRevealed
                       ? Icons.visibility_off_outlined
