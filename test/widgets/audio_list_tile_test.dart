@@ -81,15 +81,19 @@ void main() {
       expect(icon.color, AppTheme.bookmarkColor);
     });
 
-    testWidgets('已星标时 leading 音频图标使用 bookmarkColor', (tester) async {
+    testWidgets('已星标时 leading 音频图标颜色不受星标影响（显示进度状态）',
+        (tester) async {
       final starredItem = baseItem.copyWith(isStarred: true);
       await tester.pumpWidget(
         buildTile(AudioLibraryState(audioItems: [starredItem])),
       );
       await tester.pumpAndSettle();
 
+      // leading 图标现在显示进度状态，不再根据星标变色
+      // 未学习状态下使用 onSurfaceVariant 色
       final audioIcon = tester.widget<Icon>(find.byIcon(Icons.audiotrack));
-      expect(audioIcon.color, AppTheme.bookmarkColor);
+      expect(audioIcon.color, isNotNull);
+      expect(audioIcon.color, isNot(AppTheme.bookmarkColor));
     });
 
     testWidgets('点击星标按钮触发 toggleStar 并更新图标', (tester) async {

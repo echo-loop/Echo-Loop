@@ -12,7 +12,7 @@ import 'package:fluency/providers/learning_session/blind_listen_player_provider.
 import 'package:fluency/providers/learning_session/learning_session_provider.dart';
 import 'package:fluency/router/app_router.dart';
 import 'package:fluency/screens/blind_listen_player_screen.dart';
-import 'package:fluency/widgets/blind_listen_complete_dialog.dart';
+import 'package:fluency/widgets/dialogs/step_complete_dialog.dart';
 
 import '../helpers/test_notifiers.dart';
 
@@ -131,7 +131,7 @@ void blindListenTests() {
       await tester.pumpAndSettle();
 
       // 验证完成对话框弹出
-      expect(find.byType(BlindListenCompleteDialog), findsOneWidget);
+      expect(find.byType(StepCompleteDialog), findsOneWidget);
       expect(find.text('Listening Complete'), findsOneWidget);
       // 验证难度选择存在
       expect(find.text('How did it feel?'), findsOneWidget);

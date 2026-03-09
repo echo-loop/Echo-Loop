@@ -14,7 +14,7 @@ import 'package:fluency/providers/learning_session/learning_session_provider.dar
 import 'package:fluency/router/app_router.dart';
 import 'package:fluency/screens/blind_listen_player_screen.dart';
 import 'package:fluency/widgets/blind_listen_briefing_sheet.dart';
-import 'package:fluency/widgets/blind_listen_complete_dialog.dart';
+import 'package:fluency/widgets/dialogs/step_complete_dialog.dart';
 
 import '../helpers/test_notifiers.dart';
 
@@ -91,7 +91,7 @@ void learningFlowTests() {
       await _pumpUi(tester, 1000);
 
       // === 5. 完成对话框 → 选择难度 → 点击"返回计划" ===
-      expect(find.byType(BlindListenCompleteDialog), findsOneWidget);
+      expect(find.byType(StepCompleteDialog), findsOneWidget);
 
       // 选择 "Okay" 难度
       await tester.tap(find.text('Okay'));
