@@ -479,37 +479,10 @@ class _BookmarkSentenceTileState extends ConsumerState<_BookmarkSentenceTile> {
                 color: theme.colorScheme.onSurfaceVariant,
               ),
             ),
-            trailing: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                SizedBox(
-                  width: 32,
-                  height: 32,
-                  child: IconButton(
-                    icon: const Icon(Icons.bookmark, size: 18),
-                    color: theme.colorScheme.primary,
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(),
-                    tooltip: l10n.favoritesBookmarkRemoved,
-                    onPressed: () {
-                      ref
-                          .read(bookmarkDaoProvider)
-                          .removeBookmark(widget.audioId, bm.sentenceIndex);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(l10n.favoritesBookmarkRemoved),
-                          duration: const Duration(seconds: 1),
-                        ),
-                      );
-                    },
-                  ),
-                ),
-                Icon(
-                  _isExpanded ? Icons.expand_less : Icons.expand_more,
-                  size: 20,
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ],
+            trailing: Icon(
+              _isExpanded ? Icons.expand_less : Icons.expand_more,
+              size: 20,
+              color: theme.colorScheme.onSurfaceVariant,
             ),
             onTap: () => setState(() => _isExpanded = !_isExpanded),
           ),
@@ -802,40 +775,12 @@ class _SavedWordTileState extends ConsumerState<_SavedWordTile> {
             setState(() => _isExpanded = expanded);
           },
           // 收起状态：单词 + 收藏图标 + 音标 + 简释
-          title: Row(
-            children: [
-              Expanded(
-                child: Text(
-                  word.word,
-                  style: theme.textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: -0.2,
-                  ),
-                ),
-              ),
-              SizedBox(
-                width: 32,
-                height: 32,
-                child: IconButton(
-                  icon: const Icon(Icons.bookmark, size: 18),
-                  color: theme.colorScheme.primary,
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(),
-                  tooltip: l10n.favoritesWordRemoved,
-                  onPressed: () {
-                    ref
-                        .read(savedWordListProvider.notifier)
-                        .removeWord(word.word);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(l10n.favoritesWordRemoved),
-                        duration: const Duration(seconds: 1),
-                      ),
-                    );
-                  },
-                ),
-              ),
-            ],
+          title: Text(
+            word.word,
+            style: theme.textTheme.titleSmall?.copyWith(
+              fontWeight: FontWeight.w700,
+              letterSpacing: -0.2,
+            ),
           ),
           subtitle: !_isExpanded && _dictLoaded && _dictEntry != null
               ? Text(
