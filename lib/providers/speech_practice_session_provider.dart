@@ -62,10 +62,13 @@ class SpeechPracticeSession extends Notifier<SpeechPracticeSessionState> {
     return const SpeechPracticeSessionState();
   }
 
-  /// App 生命周期变化回调：回前台时异步刷新权限缓存。
+  /// App 生命周期变化回调：回前台时刷新权限，进后台时停止录音。
   void _handleAppLifecycleChange(AppLifecycleState appState) {
     if (appState == AppLifecycleState.resumed) {
       unawaited(ensurePermissions());
+    } else if (appState == AppLifecycleState.paused ||
+        appState == AppLifecycleState.hidden) {
+      unawaited(cancelActiveRecording());
     }
   }
 
@@ -382,6 +385,12 @@ class SpeechPracticeSession extends Notifier<SpeechPracticeSessionState> {
       if (filePath != null && filePath.isNotEmpty) {
         await _deleteRecording(filePath);
       }
+    }
+
+    // 释放原生引擎（removeTap + engine.stop），彻底归还麦克风。
+    final backend = ref.read(speechPracticeBackendProvider);
+    if (backend.isSupported) {
+      await backend.shutdown();
     }
 
     state = const SpeechPracticeSessionState();

@@ -18,6 +18,7 @@ import '../learned_vocabulary_tracker_provider.dart';
 import '../study_stats_provider.dart';
 import '../audio_engine/audio_engine_provider.dart';
 import '../learning_progress_provider.dart';
+import '../listen_and_repeat_turn_controller_provider.dart';
 import '../speech_practice_session_provider.dart';
 import '../listening_practice/listening_practice_provider.dart';
 import 'blind_listen_player_provider.dart';
@@ -520,6 +521,8 @@ class LearningSession extends _$LearningSession {
       final intensivePlayer = ref.read(intensiveListenPlayerProvider.notifier);
       intensivePlayer.disposePlayer();
     } else if (mode == LearningMode.listenAndRepeat) {
+      // 清理 turn controller 定时器，防止退出后自动重试录音
+      ref.read(listenAndRepeatTurnControllerProvider.notifier).clearTurn();
       // 释放跟读播放器资源
       final player = ref.read(listenAndRepeatPlayerProvider.notifier);
       player.disposePlayer();

@@ -3,6 +3,7 @@ library;
 
 import 'dart:async';
 
+import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/speech_practice_models.dart';
@@ -225,7 +226,13 @@ class ListenAndRepeatTurnController extends Notifier<ListenAndRepeatTurnState> {
 
   @override
   ListenAndRepeatTurnState build() {
-    ref.onDispose(_cancelAllTimers);
+    final lifecycleListener = AppLifecycleListener(
+      onStateChange: _handleAppLifecycleChange,
+    );
+    ref.onDispose(() {
+      lifecycleListener.dispose();
+      _cancelAllTimers();
+    });
     ref.listen<SpeechPracticeSessionState>(
       speechPracticeSessionProvider,
       _handleSpeechPracticeStateChanged,
@@ -386,6 +393,14 @@ class ListenAndRepeatTurnController extends Notifier<ListenAndRepeatTurnState> {
       isReviewCountdownPaused: false,
     );
     _startReviewCountdown();
+  }
+
+  /// App 进入后台时清理 turn，停止所有定时器。
+  void _handleAppLifecycleChange(AppLifecycleState appState) {
+    if (appState == AppLifecycleState.paused ||
+        appState == AppLifecycleState.hidden) {
+      clearTurn();
+    }
   }
 
   void clearTurn() {
