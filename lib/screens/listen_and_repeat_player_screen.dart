@@ -723,12 +723,9 @@ class _ProgressSection extends StatelessWidget {
           const SizedBox(height: AppSpacing.xs),
           Row(
             children: [
-              Flexible(
-                child: Text(
-                  l10n.listenAndRepeatProgress(current, total),
-                  style: subtitleStyle,
-                  overflow: TextOverflow.ellipsis,
-                ),
+              Text(
+                l10n.listenAndRepeatProgress(current, total),
+                style: subtitleStyle,
               ),
               const Spacer(),
               if (durationText case final dur?) Text(dur, style: subtitleStyle),

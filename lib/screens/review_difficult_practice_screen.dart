@@ -448,11 +448,6 @@ class _ReviewDifficultPracticeScreenState
             ),
           )
         : null;
-    final timestampText = hasDuration
-        ? '${_formatTimestamp(currentSentence.startTime)}'
-              ' - ${_formatTimestamp(currentSentence.endTime)}'
-        : null;
-
     return LearningHotkeyScope(
       onPlayPause: () {
         unawaited(_prepareForExternalPlaybackAction());
@@ -502,7 +497,6 @@ class _ReviewDifficultPracticeScreenState
                 playerState: playerState,
                 l10n: l10n,
                 durationText: durationText,
-                timestampText: timestampText,
               ),
 
               // 主体内容：盲听/跟读 双态切换
@@ -632,13 +626,11 @@ class _ProgressSection extends StatelessWidget {
   final ReviewDifficultPracticeState playerState;
   final AppLocalizations l10n;
   final String? durationText;
-  final String? timestampText;
 
   const _ProgressSection({
     required this.playerState,
     required this.l10n,
     this.durationText,
-    this.timestampText,
   });
 
   @override
@@ -649,9 +641,6 @@ class _ProgressSection extends StatelessWidget {
     final progress = total > 0 ? current / total : 0.0;
     final subtitleStyle = theme.textTheme.bodySmall?.copyWith(
       color: theme.colorScheme.onSurfaceVariant,
-    );
-    final timestampStyle = theme.textTheme.labelSmall?.copyWith(
-      color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
     );
 
     return Padding(
@@ -674,10 +663,6 @@ class _ProgressSection extends StatelessWidget {
               ),
               const Spacer(),
               if (durationText case final dur?) Text(dur, style: subtitleStyle),
-              if (timestampText case final ts?) ...[
-                const SizedBox(width: 6),
-                Text(ts, style: timestampStyle),
-              ],
             ],
           ),
         ],
@@ -1131,18 +1116,4 @@ class _NavButton extends StatelessWidget {
       ),
     );
   }
-}
-
-/// 格式化时间戳为 MM:SS.m 格式
-String _formatTimestamp(Duration d) {
-  final hours = d.inHours;
-  final minutes = d.inMinutes % 60;
-  final seconds = d.inSeconds % 60;
-  final tenths = (d.inMilliseconds % 1000) ~/ 100;
-  final mm = minutes.toString().padLeft(2, '0');
-  final ss = seconds.toString().padLeft(2, '0');
-  if (hours > 0) {
-    return '$hours:$mm:$ss.$tenths';
-  }
-  return '$mm:$ss.$tenths';
 }
