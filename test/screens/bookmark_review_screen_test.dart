@@ -413,7 +413,7 @@ void main() {
       await tester.pump();
       await tester.pump();
 
-      expect(find.text('3s'), findsOneWidget);
+      expect(find.text('3'), findsOneWidget);
       expect(find.byType(CircularProgressIndicator), findsOneWidget);
     });
   });
@@ -478,7 +478,7 @@ void main() {
       await tester.pump();
       await tester.pump();
 
-      expect(find.text('5s'), findsOneWidget);
+      expect(find.text('5'), findsOneWidget);
       expect(find.text('Your turn — repeat out loud!'), findsOneWidget);
     });
   });

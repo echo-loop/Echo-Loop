@@ -363,7 +363,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byType(SentenceAnnotationCard), findsOneWidget);
-      expect(find.text('3s'), findsOneWidget);
+      expect(find.text('3'), findsOneWidget);
       expect(find.text('Continue'), findsNothing);
     });
 
@@ -433,7 +433,7 @@ void main() {
       await tester.pump();
 
       // CountdownChip 显示秒数文本和进度环
-      expect(find.text('3s'), findsOneWidget);
+      expect(find.text('3'), findsOneWidget);
       expect(find.byType(CircularProgressIndicator), findsOneWidget);
     });
 
@@ -453,7 +453,7 @@ void main() {
       await tester.pump();
 
       // CountdownChip 显示秒数文本和进度环
-      expect(find.text('3s'), findsOneWidget);
+      expect(find.text('3'), findsOneWidget);
       expect(find.byType(CircularProgressIndicator), findsOneWidget);
     });
 

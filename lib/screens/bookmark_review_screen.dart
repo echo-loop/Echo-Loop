@@ -446,7 +446,7 @@ class _NormalModeView extends StatelessWidget {
 
           // 倒计时控制 + 盲听状态标签
           SizedBox(
-            height: 72,
+            height: 76,
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
@@ -607,7 +607,7 @@ class _ShadowReadingView extends StatelessWidget {
 
           // 底部固定区域：跟读提示 / 倒计时
           SizedBox(
-            height: 116,
+            height: 124,
             child: Column(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [

@@ -9,15 +9,10 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fluency/l10n/app_localizations.dart';
-import 'package:fluency/models/word_analysis.dart';
-import 'package:fluency/providers/word_ai_provider.dart';
 import 'package:fluency/services/dictionary_service.dart';
 import 'package:fluency/theme/app_theme.dart';
 import 'package:fluency/widgets/intensive_listen/word_dictionary_sheet.dart';
-import 'package:mocktail/mocktail.dart';
 import 'package:sqlite3/sqlite3.dart';
-
-class MockWordAiNotifier extends Mock implements WordAiNotifier {}
 
 /// 创建测试用内存词典数据库
 Database _createTestDb() {
@@ -41,12 +36,10 @@ Database _createTestDb() {
   return db;
 }
 
-late MockWordAiNotifier _mockWordAi;
-
 /// 构建打开弹窗的测试页面
 Widget _buildTestPage(String word, {String? sentenceText}) {
   return ProviderScope(
-    overrides: [wordAiNotifierProvider.overrideWithValue(_mockWordAi)],
+    overrides: const [],
     child: MaterialApp(
       locale: const Locale('en'),
       supportedLocales: const [Locale('en'), Locale('zh')],
@@ -94,8 +87,6 @@ void main() {
     oldInstance = DictionaryService.replaceInstance(
       DictionaryService.withDatabase(db),
     );
-    _mockWordAi = MockWordAiNotifier();
-    when(() => _mockWordAi.getCachedWordAnalysis(any())).thenReturn(null);
   });
 
   tearDown(() {
@@ -188,77 +179,8 @@ void main() {
       expect(find.text('/əbændən/'), findsOneWidget);
     });
 
-    testWidgets('显示 AI 解析折叠区块', (tester) async {
-      await _openSheet(tester, 'abandon');
-
-      // AI 解析标题应存在
-      expect(find.text('AI Analysis'), findsOneWidget);
-      // 应有展开箭头
-      expect(find.byIcon(Icons.expand_more), findsOneWidget);
-    });
-
-    testWidgets('未收录词也显示 AI 解析', (tester) async {
-      await _openSheet(tester, 'xyznotaword');
-
-      expect(find.text('AI Analysis'), findsOneWidget);
-    });
-
-    testWidgets('展开 AI 解析后显示结构化内容', (tester) async {
-      when(
-        () => _mockWordAi.getWordAnalysis(
-          any(),
-          sentence: any(named: 'sentence'),
-        ),
-      ).thenAnswer(
-        (_) async => const WordAnalysis(
-          contextMeaning: '放弃、抛弃（人或事物）',
-          collocations: 'abandon hope | abandon ship',
-          usage: '与 give up 的区别：abandon 更正式、程度更深',
-          wordFamily: 'abandonment (n. 放弃)',
-        ),
-      );
-
-      await _openSheet(tester, 'abandon');
-
-      // 点击展开
-      await tester.tap(find.text('AI Analysis'));
-      await tester.pump();
-      await tester.pumpAndSettle();
-
-      // 四个字段标签和内容
-      expect(find.text('Contextual Meaning'), findsOneWidget);
-      expect(find.text('放弃、抛弃（人或事物）'), findsOneWidget);
-      expect(find.text('Collocations'), findsOneWidget);
-      expect(find.text('abandon hope | abandon ship'), findsOneWidget);
-      expect(find.text('Usage Notes'), findsOneWidget);
-      expect(find.text('与 give up 的区别：abandon 更正式、程度更深'), findsOneWidget);
-      expect(find.text('Word Family'), findsOneWidget);
-      expect(find.text('abandonment (n. 放弃)'), findsOneWidget);
-    });
-
-    testWidgets('null 字段不渲染', (tester) async {
-      when(
-        () => _mockWordAi.getWordAnalysis(
-          any(),
-          sentence: any(named: 'sentence'),
-        ),
-      ).thenAnswer((_) async => const WordAnalysis(contextMeaning: '猫，家猫'));
-
-      await _openSheet(tester, 'hello');
-
-      // 点击展开
-      await tester.tap(find.text('AI Analysis'));
-      await tester.pump();
-      await tester.pumpAndSettle();
-
-      // 只有 contextMeaning 显示
-      expect(find.text('Contextual Meaning'), findsOneWidget);
-      expect(find.text('猫，家猫'), findsOneWidget);
-      // 其他标签不应出现
-      expect(find.text('Collocations'), findsNothing);
-      expect(find.text('Usage Notes'), findsNothing);
-      expect(find.text('Word Family'), findsNothing);
-    });
+    // NOTE: AI 解析功能已暂时隐藏（见 word_dictionary_sheet.dart），
+    // 相关测试待功能恢复后重新添加。
 
     testWidgets('弹窗内容可滚动', (tester) async {
       await _openSheet(tester, 'abandon');

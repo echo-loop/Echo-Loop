@@ -92,9 +92,9 @@ void main() {
         // 合集名称
         expect(find.text('English Lessons'), findsOneWidget);
         expect(find.text('Podcasts'), findsOneWidget);
-        // 音频数量
-        expect(find.text('2 audios'), findsOneWidget);
-        expect(find.text('1 audios'), findsOneWidget);
+        // 音频数量（列表模式下 audioCount 与日期组合显示）
+        expect(find.textContaining('2 audios'), findsOneWidget);
+        expect(find.textContaining('1 audios'), findsOneWidget);
       });
 
       testWidgets('星标合集显示星标图标', (tester) async {
