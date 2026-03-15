@@ -88,6 +88,71 @@ void main() {
       expect(container.read(appSettingsProvider).timeMachineDateTime, expected);
     });
 
+    test('isDemoMode 默认为 false', () async {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+
+      final state = container.read(appSettingsProvider);
+      expect(state.isDemoMode, isFalse);
+      expect(state.isDemoModeLoading, isFalse);
+    });
+
+    test('setDemoMode(true) 更新状态并持久化到 SP', () async {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+
+      final notifier = container.read(appSettingsProvider.notifier);
+      await notifier.setDemoMode(true);
+
+      expect(container.read(appSettingsProvider).isDemoMode, isTrue);
+      expect(container.read(appSettingsProvider).isDemoModeLoading, isFalse);
+
+      // 验证持久化
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.getBool('demo_mode'), isTrue);
+    });
+
+    test('setDemoMode(false) 更新状态并持久化到 SP', () async {
+      SharedPreferences.setMockInitialValues({'demo_mode': true});
+
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+
+      final notifier = container.read(appSettingsProvider.notifier);
+      await notifier.setDemoMode(false);
+
+      expect(container.read(appSettingsProvider).isDemoMode, isFalse);
+
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.getBool('demo_mode'), isFalse);
+    });
+
+    test('isDemoModeLoading 在手动设置时为 true', () {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+
+      final notifier = container.read(appSettingsProvider.notifier);
+      notifier.setDemoModeLoading(true);
+
+      expect(container.read(appSettingsProvider).isDemoModeLoading, isTrue);
+
+      notifier.setDemoModeLoading(false);
+      expect(container.read(appSettingsProvider).isDemoModeLoading, isFalse);
+    });
+
+    test('加载已保存的 isDemoMode', () async {
+      SharedPreferences.setMockInitialValues({'demo_mode': true});
+
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+
+      container.read(appSettingsProvider);
+      await Future<void>.delayed(Duration.zero);
+      await Future<void>.delayed(Duration.zero);
+
+      expect(container.read(appSettingsProvider).isDemoMode, isTrue);
+    });
+
     test('兼容旧版 unlock_all_reviews 配置', () async {
       SharedPreferences.setMockInitialValues({'unlock_all_reviews': true});
       final before = DateTime.now();

@@ -1814,4 +1814,11 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get checkUpdateFailed => 'Check failed, please check your network';
+
+  @override
+  String get demoMode => 'Demo Mode';
+
+  @override
+  String get demoModeSubtitle =>
+      'Use demo data for screenshots and presentations';
 }

@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'dart:async';
-import 'dart:io' show Platform;
+import 'dart:io' show File, Platform;
 import 'package:flutter/services.dart';
+import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:audio_session/audio_session.dart';
@@ -34,25 +36,54 @@ Future<void> _triggerNetworkPermission() async {
   }
 }
 
+/// 数据库文件重命名迁移：fluency.db → echo_loop.db
+///
+/// 旧版本使用 `fluency.db` / `fluency_demo.db`，新版本统一为
+/// `echo_loop.db` / `echo_loop_demo.db`。仅在新文件不存在时重命名。
+Future<void> _migrateDbFileNames() async {
+  final docsDir = await getApplicationDocumentsDirectory();
+  const renames = {
+    'fluency.db': 'echo_loop.db',
+    'fluency_demo.db': 'echo_loop_demo.db',
+  };
+  for (final entry in renames.entries) {
+    final oldFile = File(p.join(docsDir.path, entry.key));
+    final newFile = File(p.join(docsDir.path, entry.value));
+    if (await oldFile.exists() && !await newFile.exists()) {
+      await oldFile.rename(newFile.path);
+    }
+  }
+}
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   final packageInfo = await PackageInfo.fromPlatform();
 
-  // 初始化数据库
-  final database = AppDatabase(openConnection());
+  // 数据库文件名迁移（fluency → echo_loop）
+  await _migrateDbFileNames();
 
-  // 执行 SP → Drift 迁移
+  // 检查是否处于演示模式
   final prefs = await SharedPreferences.getInstance();
-  final migration = SpToDriftMigration(
-    database,
-    prefs,
-    subtitleLoader: defaultSubtitleLoader,
-  );
-  try {
-    await migration.migrate();
-  } catch (e) {
-    print('SP → Drift 迁移失败，下次启动重试: $e');
+  final isDemoMode = prefs.getBool('demo_mode') ?? false;
+
+  // 初始化数据库（演示模式使用独立数据库文件）
+  final dbFileName = isDemoMode ? 'echo_loop_demo.db' : 'echo_loop.db';
+  final database = AppDatabase(openConnectionWithName(dbFileName));
+  initAppDatabase(database);
+
+  // 执行 SP → Drift 迁移（仅对生产数据库）
+  if (!isDemoMode) {
+    final migration = SpToDriftMigration(
+      database,
+      prefs,
+      subtitleLoader: defaultSubtitleLoader,
+    );
+    try {
+      await migration.migrate();
+    } catch (e) {
+      print('SP → Drift 迁移失败，下次启动重试: $e');
+    }
   }
 
   if (!kIsWeb) {
@@ -91,7 +122,6 @@ void main() async {
   runApp(
     ProviderScope(
       overrides: [
-        appDatabaseProvider.overrideWithValue(database),
         packageInfoProvider.overrideWithValue(packageInfo),
       ],
       child: const FluencyApp(),

@@ -3253,6 +3253,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Check failed, please check your network'**
   String get checkUpdateFailed;
+
+  /// No description provided for @demoMode.
+  ///
+  /// In en, this message translates to:
+  /// **'Demo Mode'**
+  String get demoMode;
+
+  /// No description provided for @demoModeSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Use demo data for screenshots and presentations'**
+  String get demoModeSubtitle;
 }
 
 class _AppLocalizationsDelegate

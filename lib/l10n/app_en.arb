@@ -995,5 +995,7 @@
   "linkCopied": "Link copied",
   "checkForUpdate": "Check for Updates",
   "alreadyLatest": "Already up to date",
-  "checkUpdateFailed": "Check failed, please check your network"
+  "checkUpdateFailed": "Check failed, please check your network",
+  "demoMode": "Demo Mode",
+  "demoModeSubtitle": "Use demo data for screenshots and presentations"
 }

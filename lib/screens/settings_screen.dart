@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../database/app_database.dart';
 import '../database/providers.dart';
 import '../l10n/app_localizations.dart';
 import '../models/app_update_info.dart';
@@ -11,6 +12,11 @@ import '../providers/package_info_provider.dart';
 import '../providers/sentence_ai_provider.dart';
 import '../providers/settings_provider.dart';
 import '../providers/word_ai_provider.dart';
+import '../providers/audio_library_provider.dart';
+import '../providers/collection_provider.dart';
+import '../providers/learning_progress_provider.dart';
+import '../providers/tag_provider.dart';
+import '../services/demo_data_seeder.dart';
 import '../theme/app_theme.dart';
 import '../widgets/app_update_dialog.dart';
 
@@ -43,7 +49,8 @@ class SettingsScreen extends ConsumerWidget {
           _buildAboutSection(context, ref, l10n),
           if (showDeveloperOptions) ...[
             const SizedBox(height: AppSpacing.m),
-            _buildDeveloperSection(context, l10n, settings, settingsController),
+            _buildDeveloperSection(
+                context, ref, l10n, settings, settingsController),
           ],
         ],
       ),
@@ -243,6 +250,7 @@ class SettingsScreen extends ConsumerWidget {
   /// 构建开发者选项区域
   Widget _buildDeveloperSection(
     BuildContext context,
+    WidgetRef ref,
     AppLocalizations l10n,
     AppSettingsState settings,
     AppSettings controller,
@@ -271,8 +279,83 @@ class SettingsScreen extends ConsumerWidget {
             settings.timeMachineDateTime,
           ),
         ),
+        ListTile(
+          leading: _emojiIcon('🎭'),
+          title: Text(l10n.demoMode),
+          subtitle: Text(l10n.demoModeSubtitle),
+          trailing: settings.isDemoModeLoading
+              ? const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : Switch(
+                  value: settings.isDemoMode,
+                  onChanged: (value) =>
+                      _toggleDemoMode(context, ref, controller, value),
+                ),
+        ),
       ],
     );
+  }
+
+  /// 切换演示模式。
+  ///
+  /// 切库 3 步：准备目标库 → 切换指向 → 重新加载数据。
+  /// 开启时创建演示数据库并 seed，关闭时切回生产数据库并清理文件。
+  Future<void> _toggleDemoMode(
+    BuildContext context,
+    WidgetRef ref,
+    AppSettings controller,
+    bool enabled,
+  ) async {
+    controller.setDemoModeLoading(true);
+
+    // 记住当前数据库名称，异常时用于恢复连接
+    final currentDbName =
+        enabled ? 'echo_loop.db' : 'echo_loop_demo.db';
+
+    try {
+      // Step 1: 关闭旧数据库（避免 Drift "multiple databases" 警告）
+      await closeCurrentDatabase();
+
+      if (enabled) {
+        // Step 2a: 创建并 seed demo 库（幂等）
+        final demoDb = AppDatabase(openConnectionWithName('echo_loop_demo.db'));
+        await DemoDataSeeder(demoDb).seedIfEmpty();
+        // Step 3a: 切换指向
+        switchAppDatabase(demoDb, ref);
+      } else {
+        // Step 2b: 创建 prod 库
+        final prodDb = AppDatabase(openConnectionWithName('echo_loop.db'));
+        // Step 3b: 切换指向
+        switchAppDatabase(prodDb, ref);
+        // 清理演示文件（demo 数据库已关闭）
+        await DemoDataSeeder.cleanupFiles();
+      }
+
+      // Step 4: 重新加载数据（与 MainShell.initState 一致）
+      await ref.read(audioLibraryProvider.notifier).loadLibrary();
+      ref.read(collectionListProvider.notifier).loadCollections();
+      ref.read(tagListProvider.notifier).loadTags();
+      await ref.read(learningProgressNotifierProvider.notifier).loadAll();
+
+      await controller.setDemoMode(enabled);
+    } catch (e) {
+      // 恢复数据库连接，防止 app 处于无数据库状态
+      final fallbackDb = AppDatabase(openConnectionWithName(currentDbName));
+      switchAppDatabase(fallbackDb, ref);
+      await ref.read(audioLibraryProvider.notifier).loadLibrary();
+      ref.read(collectionListProvider.notifier).loadCollections();
+      ref.read(tagListProvider.notifier).loadTags();
+      await ref.read(learningProgressNotifierProvider.notifier).loadAll();
+
+      controller.setDemoModeLoading(false);
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Demo mode error: $e')),
+      );
+    }
   }
 
   /// 显示时光机设置对话框。

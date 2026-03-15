@@ -8,6 +8,7 @@ const _themeModeKey = 'theme_mode';
 const _localeKey = 'locale';
 const _timeMachineDateTimeKey = 'developer_time_machine_at_ms';
 const _legacyUnlockAllReviewsKey = 'unlock_all_reviews';
+const _demoModeKey = 'demo_mode';
 
 class AppSettingsState {
   final ThemeMode themeMode;
@@ -18,10 +19,20 @@ class AppSettingsState {
   /// 为 null 时表示使用系统真实时间。
   final DateTime? timeMachineDateTime;
 
+  /// 开发者选项：演示模式。
+  ///
+  /// 开启后使用独立的演示数据库，展示精心设计的假数据。
+  final bool isDemoMode;
+
+  /// 演示模式切换中的加载状态。
+  final bool isDemoModeLoading;
+
   const AppSettingsState({
     this.themeMode = ThemeMode.system,
     this.locale = const Locale('en'),
     this.timeMachineDateTime,
+    this.isDemoMode = false,
+    this.isDemoModeLoading = false,
   });
 
   AppSettingsState copyWith({
@@ -29,6 +40,8 @@ class AppSettingsState {
     Locale? locale,
     DateTime? timeMachineDateTime,
     bool clearTimeMachineDateTime = false,
+    bool? isDemoMode,
+    bool? isDemoModeLoading,
   }) {
     return AppSettingsState(
       themeMode: themeMode ?? this.themeMode,
@@ -36,6 +49,8 @@ class AppSettingsState {
       timeMachineDateTime: clearTimeMachineDateTime
           ? null
           : timeMachineDateTime ?? this.timeMachineDateTime,
+      isDemoMode: isDemoMode ?? this.isDemoMode,
+      isDemoModeLoading: isDemoModeLoading ?? this.isDemoModeLoading,
     );
   }
 }
@@ -62,11 +77,13 @@ class AppSettings extends _$AppSettings {
     final locale = Locale(localeString);
 
     final timeMachineDateTime = await _loadTimeMachineDateTime(prefs);
+    final isDemoMode = prefs.getBool(_demoModeKey) ?? false;
 
     state = state.copyWith(
       themeMode: themeMode,
       locale: locale,
       timeMachineDateTime: timeMachineDateTime,
+      isDemoMode: isDemoMode,
     );
   }
 
@@ -127,5 +144,21 @@ class AppSettings extends _$AppSettings {
       await prefs.setInt(_timeMachineDateTimeKey, value.millisecondsSinceEpoch);
     }
     await prefs.remove(_legacyUnlockAllReviewsKey);
+  }
+
+  /// 设置演示模式加载状态（供 UI 显示 loading 指示器）。
+  void setDemoModeLoading(bool loading) {
+    state = state.copyWith(isDemoModeLoading: loading);
+  }
+
+  /// 持久化演示模式开关状态。
+  ///
+  /// 数据库切换由调用方（settings_screen）负责，
+  /// 此方法只更新 UI 状态和 SharedPreferences。
+  Future<void> setDemoMode(bool enabled) async {
+    state = state.copyWith(isDemoMode: enabled, isDemoModeLoading: false);
+
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_demoModeKey, enabled);
   }
 }

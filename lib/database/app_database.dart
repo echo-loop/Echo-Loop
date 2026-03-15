@@ -363,9 +363,16 @@ class AppDatabase extends _$AppDatabase {
 
 /// 创建数据库连接（生产环境使用）
 LazyDatabase openConnection() {
+  return openConnectionWithName('echo_loop.db');
+}
+
+/// 创建指定文件名的数据库连接。
+///
+/// 用于运行时切换数据库（如演示模式使用 `echo_loop_demo.db`）。
+LazyDatabase openConnectionWithName(String fileName) {
   return LazyDatabase(() async {
     final dbFolder = await getApplicationDocumentsDirectory();
-    final file = File(p.join(dbFolder.path, 'fluency.db'));
+    final file = File(p.join(dbFolder.path, fileName));
     return NativeDatabase.createInBackground(
       file,
       setup: (db) {
