@@ -920,10 +920,10 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String get listenAndRepeatListenHint => '先听，听完后跟读';
+  String get listenAndRepeatListenHint => '先听再跟读';
 
   @override
-  String get listenAndRepeatYourTurnHint => '请跟读这个句子';
+  String get listenAndRepeatYourTurnHint => '请跟读';
 
   @override
   String get listenAndRepeatRecordButton => '录音';

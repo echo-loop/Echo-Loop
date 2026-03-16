@@ -38,8 +38,9 @@ class ReviewDifficultPracticeState {
   /// 练习设置（盲听/跟读循环次数、句间停顿）
   final DifficultPracticeSettings settings;
 
-  /// 跟读模式目标遍数（由 settings.shadowReadingRepeatCount 提供）
-  int get targetRepeatCount => settings.shadowReadingRepeatCount;
+  /// 跟读模式目标遍数（手动模式下强制为 1）
+  int get targetRepeatCount =>
+      settings.isManualMode ? 1 : settings.shadowReadingRepeatCount;
 
   /// 是否正在播放
   final bool isPlaying;
@@ -384,6 +385,17 @@ class ReviewDifficultPractice extends _$ReviewDifficultPractice {
     }
   }
 
+  /// 强制完成（用户在最后一句主动点击完成按钮）
+  void forceComplete() {
+    _engine.invalidateSession();
+    state = state.copyWith(
+      isCompleted: true,
+      isPlaying: false,
+      isPauseBetweenPlays: false,
+      isPauseBetweenSentences: false,
+    );
+  }
+
   /// 释放资源
   void disposePlayer() {
     _engine.cleanup();
@@ -530,7 +542,10 @@ class ReviewDifficultPractice extends _$ReviewDifficultPractice {
       return;
     }
 
-    final repeatCount = state.settings.blindListenRepeatCount;
+    // 手动模式下盲听只播 1 遍
+    final repeatCount = state.settings.isManualMode
+        ? 1
+        : state.settings.blindListenRepeatCount;
 
     state = state.copyWith(
       isPlaying: true,

@@ -65,13 +65,17 @@ class _ReviewDifficultPracticeScreenState
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       // 注册 TurnController 回调
-      ref
-          .read(listenAndRepeatTurnControllerProvider.notifier)
-          .setOnContinue(
-            () => ref
-                .read(reviewDifficultPracticeProvider.notifier)
-                .completePausedTurn(),
-          );
+      final turnController =
+          ref.read(listenAndRepeatTurnControllerProvider.notifier);
+      turnController.setOnContinue(
+        () => ref
+            .read(reviewDifficultPracticeProvider.notifier)
+            .completePausedTurn(),
+      );
+      // 同步初始控制模式
+      turnController.setManualMode(
+        ref.read(reviewDifficultPracticeProvider).settings.isManualMode,
+      );
       ref.read(reviewDifficultPracticeProvider.notifier).startPlaying();
     });
   }
@@ -376,13 +380,30 @@ class _ReviewDifficultPracticeScreenState
     final speechState = ref.watch(speechPracticeSessionProvider);
     final turnState = ref.watch(listenAndRepeatTurnControllerProvider);
 
-    // 监听完成状态
+    // 监听完成状态 + 控制模式变化
     ref.listen<ReviewDifficultPracticeState>(reviewDifficultPracticeProvider, (
       prev,
       next,
     ) {
       if (next.isCompleted && !(prev?.isCompleted ?? false)) {
         _handleCompleted();
+      }
+      // 控制模式切换时同步到 TurnController，并取消正在进行的自动录音
+      if (prev?.settings.controlMode != next.settings.controlMode) {
+        final turnController =
+            ref.read(listenAndRepeatTurnControllerProvider.notifier);
+        turnController.setManualMode(next.settings.isManualMode);
+        if (next.settings.isManualMode) {
+          final turnState = ref.read(listenAndRepeatTurnControllerProvider);
+          if (turnState.isActive) {
+            unawaited(
+              ref
+                  .read(speechPracticeSessionProvider.notifier)
+                  .cancelActiveRecording(),
+            );
+            turnController.clearTurn();
+          }
+        }
       }
     });
 
@@ -391,7 +412,20 @@ class _ReviewDifficultPracticeScreenState
     final currentAttempt = speechState.attempts[currentPromptId];
     final isRecordingCurrent = speechState.recordingPromptId == currentPromptId;
 
-    // 跟读模式 + 停顿中 + TurnController idle → 自动开始录音（与跟读页一致）
+    // 手动模式 + 盲听停顿中 → 立即暂停倒计时，等用户手动下一句
+    if (!playerState.isAnnotationMode &&
+        playerState.isPauseBetweenPlays &&
+        playerState.settings.isManualMode &&
+        !playerState.isCountdownPaused) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        final latest = ref.read(reviewDifficultPracticeProvider);
+        if (!latest.isPauseBetweenPlays || latest.isCountdownPaused) return;
+        ref.read(reviewDifficultPracticeProvider.notifier).pauseCountdown();
+      });
+    }
+
+    // 跟读模式 + 停顿中 + TurnController idle → 暂停倒计时 + 自动录音
     if (playerState.isAnnotationMode &&
         playerState.isPauseBetweenPlays &&
         currentSentence != null &&
@@ -408,6 +442,10 @@ class _ReviewDifficultPracticeScreenState
         // 暂停 provider 层倒计时（录音由 TurnController 接管）
         if (!latestPlayer.isCountdownPaused) {
           ref.read(reviewDifficultPracticeProvider.notifier).pauseCountdown();
+        }
+        // 手动模式下不自动开始录音，等用户点击录音按钮
+        if (latestPlayer.settings.isManualMode) {
+          return;
         }
         unawaited(
           ref
@@ -566,7 +604,17 @@ class _ReviewDifficultPracticeScreenState
                 },
                 onNext: () {
                   unawaited(_prepareForExternalPlaybackAction());
-                  player.goToNext();
+                  final isLast = playerState.currentSentenceIndex >=
+                      playerState.totalSentences - 1;
+                  if (isLast) {
+                    player.forceComplete();
+                  } else if (playerState.isPauseBetweenPlays &&
+                      playerState.isAnnotationMode) {
+                    // 跟读停顿中：走 completePausedTurn（递增遍数或推进）
+                    unawaited(player.completePausedTurn());
+                  } else {
+                    unawaited(player.goToNext());
+                  }
                 },
                 onPlayPause: () {
                   unawaited(_prepareForExternalPlaybackAction());
@@ -580,39 +628,45 @@ class _ReviewDifficultPracticeScreenState
                 },
               ),
 
-              // 遍数
+              // 遍数（手动模式下隐藏文字但保留占位）
               if (playerState.isAnnotationMode)
                 Padding(
                   padding: const EdgeInsets.only(bottom: AppSpacing.m),
-                  child: Text(
-                    l10n.listenAndRepeatPlayCount(
-                      playerState.currentPlayCount,
-                      playerState.targetRepeatCount,
-                    ),
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant.withValues(
-                        alpha: 0.5,
+                  child: Opacity(
+                    opacity: playerState.settings.isManualMode ? 0 : 1,
+                    child: Text(
+                      l10n.listenAndRepeatPlayCount(
+                        playerState.currentPlayCount,
+                        playerState.targetRepeatCount,
                       ),
-                    ),
-                  ),
-                )
-              else if (playerState.settings.blindListenRepeatCount > 1)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: AppSpacing.m),
-                  child: Text(
-                    l10n.listenAndRepeatPlayCount(
-                      playerState.currentPlayCount,
-                      playerState.settings.blindListenRepeatCount,
-                    ),
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant.withValues(
-                        alpha: 0.5,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant.withValues(
+                          alpha: 0.5,
+                        ),
                       ),
                     ),
                   ),
                 )
               else
-                const SizedBox(height: AppSpacing.m),
+                Padding(
+                  padding: const EdgeInsets.only(bottom: AppSpacing.m),
+                  child: Opacity(
+                    opacity: playerState.settings.isManualMode ? 0 : 1,
+                    child: Text(
+                      l10n.listenAndRepeatPlayCount(
+                        playerState.currentPlayCount,
+                        playerState.settings.isManualMode
+                            ? 1
+                            : playerState.settings.blindListenRepeatCount,
+                      ),
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant.withValues(
+                          alpha: 0.5,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
             ],
           ),
         ),
@@ -742,31 +796,13 @@ class _NormalModeView extends StatelessWidget {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                if (playerState.isPauseBetweenPlays)
+                if (playerState.isPauseBetweenPlays &&
+                    !playerState.settings.isManualMode)
                   CountdownChip(
                     remaining: playerState.pauseRemaining,
                     total: playerState.pauseDuration,
                     isPaused: playerState.isCountdownPaused,
                     onTap: onPauseCountdown,
-                  ),
-                if (playerState.isPlaying)
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        Icons.headphones,
-                        size: 20,
-                        color: theme.colorScheme.primary,
-                      ),
-                      const SizedBox(width: AppSpacing.s),
-                      Text(
-                        l10n.reviewDifficultPracticeBlindListen,
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          color: theme.colorScheme.primary,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ],
                   ),
               ],
             ),
@@ -949,15 +985,8 @@ class _ShadowReadingView extends StatelessWidget {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
-                  if (playerState.isPlaying) ...[
-                    // 播放中提示：先听，听完后跟读
-                    Text(
-                      l10n.listenAndRepeatListenHint,
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                    const SizedBox(height: AppSpacing.xs),
+                  if (playerState.isPlaying)
+                    // 播放中提示：先听，听完后跟读 + 耳机图标
                     Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
@@ -966,9 +995,15 @@ class _ShadowReadingView extends StatelessWidget {
                           size: 20,
                           color: theme.colorScheme.primary,
                         ),
+                        const SizedBox(width: AppSpacing.xs),
+                        Text(
+                          l10n.listenAndRepeatListenHint,
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
                       ],
                     ),
-                  ],
                 ],
               ),
             ),
@@ -1035,8 +1070,9 @@ class _PlaybackControls extends StatelessWidget {
     final theme = Theme.of(context);
 
     final canGoPrev = playerState.currentSentenceIndex > 0;
-    final canGoNext =
-        playerState.currentSentenceIndex < playerState.totalSentences - 1;
+    final isLastSentence =
+        playerState.currentSentenceIndex >= playerState.totalSentences - 1;
+    final canGoNext = true;
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(
@@ -1083,7 +1119,9 @@ class _PlaybackControls extends StatelessWidget {
           const SizedBox(width: 48),
 
           _NavButton(
-            icon: Icons.skip_next_rounded,
+            icon: isLastSentence
+                ? Icons.check_circle_rounded
+                : Icons.skip_next_rounded,
             enabled: canGoNext,
             onTap: canGoNext ? onNext : null,
           ),

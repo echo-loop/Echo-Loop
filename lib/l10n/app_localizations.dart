@@ -1763,13 +1763,13 @@ abstract class AppLocalizations {
   /// No description provided for @listenAndRepeatListenHint.
   ///
   /// In en, this message translates to:
-  /// **'Listen first, then repeat'**
+  /// **'Listen then repeat'**
   String get listenAndRepeatListenHint;
 
   /// No description provided for @listenAndRepeatYourTurnHint.
   ///
   /// In en, this message translates to:
-  /// **'Your turn — repeat out loud!'**
+  /// **'Repeat'**
   String get listenAndRepeatYourTurnHint;
 
   /// No description provided for @listenAndRepeatRecordButton.

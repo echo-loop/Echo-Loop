@@ -10,9 +10,12 @@ import 'intensive_listen_settings.dart';
 
 /// 难句补练/收藏复习设置
 ///
-/// 包含盲听循环次数、跟读循环次数和句间停顿配置。
+/// 包含控制模式、盲听循环次数、跟读循环次数和句间停顿配置。
 /// 设置仅对当次练习有效，不持久化。
 class DifficultPracticeSettings {
+  /// 控制模式（默认 auto），复用跟读页已有枚举
+  final ShadowingControlMode controlMode;
+
   /// 盲听循环次数（1-10，默认 1）
   final int blindListenRepeatCount;
 
@@ -29,6 +32,7 @@ class DifficultPracticeSettings {
   final double pauseMultiplier;
 
   const DifficultPracticeSettings({
+    this.controlMode = ShadowingControlMode.auto,
     this.blindListenRepeatCount = 1,
     this.shadowReadingRepeatCount = 3,
     this.pauseMode = PauseMode.smart,
@@ -36,7 +40,11 @@ class DifficultPracticeSettings {
     this.pauseMultiplier = 2.0,
   });
 
+  /// 是否为手动控制模式
+  bool get isManualMode => controlMode == ShadowingControlMode.manual;
+
   DifficultPracticeSettings copyWith({
+    ShadowingControlMode? controlMode,
     int? blindListenRepeatCount,
     int? shadowReadingRepeatCount,
     PauseMode? pauseMode,
@@ -44,6 +52,7 @@ class DifficultPracticeSettings {
     double? pauseMultiplier,
   }) {
     return DifficultPracticeSettings(
+      controlMode: controlMode ?? this.controlMode,
       blindListenRepeatCount:
           blindListenRepeatCount ?? this.blindListenRepeatCount,
       shadowReadingRepeatCount:
@@ -74,6 +83,7 @@ class DifficultPracticeSettings {
   }
 
   Map<String, dynamic> toJson() => {
+    'controlMode': controlMode.name,
     'blindListenRepeatCount': blindListenRepeatCount,
     'shadowReadingRepeatCount': shadowReadingRepeatCount,
     'pauseMode': pauseMode.name,
@@ -84,6 +94,7 @@ class DifficultPracticeSettings {
   /// 防御性解析：非法值回退默认
   factory DifficultPracticeSettings.fromJson(Map<String, dynamic> json) {
     return DifficultPracticeSettings(
+      controlMode: _parseControlMode(json['controlMode']),
       blindListenRepeatCount: _clampInt(json['blindListenRepeatCount'], 1, 10),
       shadowReadingRepeatCount: _clampInt(
         json['shadowReadingRepeatCount'],
@@ -95,6 +106,12 @@ class DifficultPracticeSettings {
       fixedPauseSeconds: _parseFixedPause(json['fixedPauseSeconds']),
       pauseMultiplier: _parseMultiplier(json['pauseMultiplier']),
     );
+  }
+
+  static ShadowingControlMode _parseControlMode(dynamic raw) {
+    if (raw is! String) return ShadowingControlMode.auto;
+    return ShadowingControlMode.values.where((e) => e.name == raw).firstOrNull ??
+        ShadowingControlMode.auto;
   }
 
   static int _clampInt(dynamic raw, int min, int max, {int fallback = 1}) {

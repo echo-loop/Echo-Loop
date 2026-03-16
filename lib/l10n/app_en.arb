@@ -503,8 +503,8 @@
       "seconds": { "type": "int" }
     }
   },
-  "listenAndRepeatListenHint": "Listen first, then repeat",
-  "listenAndRepeatYourTurnHint": "Your turn — repeat out loud!",
+  "listenAndRepeatListenHint": "Listen then repeat",
+  "listenAndRepeatYourTurnHint": "Repeat",
   "listenAndRepeatRecordButton": "Record",
   "listenAndRepeatStopRecordingButton": "Stop",
   "listenAndRepeatPlayRecordingButton": "Play My Recording",

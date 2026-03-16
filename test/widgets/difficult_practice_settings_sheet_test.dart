@@ -90,7 +90,8 @@ void main() {
       await openSheet(tester);
 
       // Smart 模式下有 info_outline 图标和描述文字
-      expect(find.byIcon(Icons.info_outline), findsOneWidget);
+      // （控制模式区域也有一个 info_outline 图标，共 2 个）
+      expect(find.byIcon(Icons.info_outline), findsNWidgets(2));
       expect(find.textContaining('Auto-adjusted based on'), findsOneWidget);
     });
   });

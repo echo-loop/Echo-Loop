@@ -259,7 +259,7 @@ void main() {
       expect(opacity.opacity, 0.15);
     });
 
-    testWidgets('最后一句时下一句按钮禁用', (tester) async {
+    testWidgets('最后一句时显示完成图标且始终可用', (tester) async {
       await tester.pumpWidget(
         createTestWidget(
           playerState: createPlayerState(
@@ -270,13 +270,18 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      final nextIcon = find.byIcon(Icons.skip_next_rounded);
+      // 最后一句显示 check_circle_rounded 而非 skip_next_rounded
+      expect(find.byIcon(Icons.check_circle_rounded), findsOneWidget);
+      expect(find.byIcon(Icons.skip_next_rounded), findsNothing);
+
+      // 按钮始终可用（opacity > 0.15）
+      final checkIcon = find.byIcon(Icons.check_circle_rounded);
       final opacity = tester.widget<AnimatedOpacity>(
         find
-            .ancestor(of: nextIcon, matching: find.byType(AnimatedOpacity))
+            .ancestor(of: checkIcon, matching: find.byType(AnimatedOpacity))
             .first,
       );
-      expect(opacity.opacity, 0.15);
+      expect(opacity.opacity, greaterThan(0.15));
     });
 
     testWidgets('偷看时显示文本', (tester) async {

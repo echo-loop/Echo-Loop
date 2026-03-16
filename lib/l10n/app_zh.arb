@@ -346,8 +346,8 @@
       "seconds": { "type": "int" }
     }
   },
-  "listenAndRepeatListenHint": "先听，听完后跟读",
-  "listenAndRepeatYourTurnHint": "请跟读这个句子",
+  "listenAndRepeatListenHint": "先听再跟读",
+  "listenAndRepeatYourTurnHint": "请跟读",
   "listenAndRepeatRecordButton": "录音",
   "listenAndRepeatStopRecordingButton": "停止",
   "listenAndRepeatPlayRecordingButton": "播放我的录音",

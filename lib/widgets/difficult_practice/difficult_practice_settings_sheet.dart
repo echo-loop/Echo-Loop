@@ -77,10 +77,11 @@ class _DifficultPracticeSettingsSheet extends ConsumerWidget {
           AppSpacing.l,
           AppSpacing.l,
         ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
             // 拖拽条
             Center(
               child: Container(
@@ -114,50 +115,122 @@ class _DifficultPracticeSettingsSheet extends ConsumerWidget {
             ),
             const SizedBox(height: AppSpacing.l),
 
-            // 盲听循环次数
-            _buildRepeatRow(
-              label: l10n.difficultPracticeBlindListenRepeat,
-              value: settings.blindListenRepeatCount,
-              l10n: l10n,
-              theme: theme,
-              onChanged: (value) => onUpdate(
-                ref,
-                settings.copyWith(blindListenRepeatCount: value),
+            // 控制模式
+            _buildControlModeSection(l10n, theme, settings, ref),
+
+            // 自动模式才显示循环次数和停顿设置
+            if (!settings.isManualMode) ...[
+              const SizedBox(height: AppSpacing.l),
+
+              // 盲听循环次数
+              _buildRepeatRow(
+                label: l10n.difficultPracticeBlindListenRepeat,
+                value: settings.blindListenRepeatCount,
+                l10n: l10n,
+                theme: theme,
+                onChanged: (value) => onUpdate(
+                  ref,
+                  settings.copyWith(blindListenRepeatCount: value),
+                ),
               ),
-            ),
-            const SizedBox(height: AppSpacing.m),
+              const SizedBox(height: AppSpacing.m),
 
-            // 跟读循环次数
-            _buildRepeatRow(
-              label: l10n.difficultPracticeShadowReadingRepeat,
-              value: settings.shadowReadingRepeatCount,
-              l10n: l10n,
-              theme: theme,
-              onChanged: (value) => onUpdate(
-                ref,
-                settings.copyWith(shadowReadingRepeatCount: value),
+              // 跟读循环次数
+              _buildRepeatRow(
+                label: l10n.difficultPracticeShadowReadingRepeat,
+                value: settings.shadowReadingRepeatCount,
+                l10n: l10n,
+                theme: theme,
+                onChanged: (value) => onUpdate(
+                  ref,
+                  settings.copyWith(shadowReadingRepeatCount: value),
+                ),
               ),
-            ),
-            const SizedBox(height: AppSpacing.l),
+              const SizedBox(height: AppSpacing.l),
 
-            // 句间停顿
-            Text(
-              l10n.intensiveListenPauseLabel,
-              style: theme.textTheme.titleSmall?.copyWith(
-                fontWeight: FontWeight.w600,
+              // 句间停顿
+              Text(
+                l10n.intensiveListenPauseLabel,
+                style: theme.textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
               ),
-            ),
-            const SizedBox(height: AppSpacing.s),
+              const SizedBox(height: AppSpacing.s),
 
-            // 模式切换
-            _buildPauseModeSelector(l10n, settings, ref),
-            const SizedBox(height: AppSpacing.m),
+              // 模式切换
+              _buildPauseModeSelector(l10n, settings, ref),
+              const SizedBox(height: AppSpacing.m),
 
-            // 模式详情
-            _buildPauseModeDetail(l10n, theme, settings, ref),
+              // 模式详情
+              _buildPauseModeDetail(l10n, theme, settings, ref),
+            ],
           ],
         ),
+        ),
       ),
+    );
+  }
+
+  /// 控制模式选择区域（自动/手动）
+  Widget _buildControlModeSection(
+    AppLocalizations l10n,
+    ThemeData theme,
+    DifficultPracticeSettings settings,
+    WidgetRef ref,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          l10n.listenAndRepeatControlModeLabel,
+          style: theme.textTheme.titleSmall?.copyWith(
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: AppSpacing.s),
+        SizedBox(
+          width: double.infinity,
+          child: SegmentedButton<ShadowingControlMode>(
+            segments: [
+              ButtonSegment(
+                value: ShadowingControlMode.auto,
+                label: Text(l10n.listenAndRepeatControlModeAuto),
+                icon: const Icon(Icons.autorenew, size: 18),
+              ),
+              ButtonSegment(
+                value: ShadowingControlMode.manual,
+                label: Text(l10n.listenAndRepeatControlModeManual),
+                icon: const Icon(Icons.touch_app, size: 18),
+              ),
+            ],
+            selected: {settings.controlMode},
+            onSelectionChanged: (selected) {
+              onUpdate(ref, settings.copyWith(controlMode: selected.first));
+            },
+          ),
+        ),
+        const SizedBox(height: AppSpacing.xs),
+        Row(
+          children: [
+            Icon(
+              Icons.info_outline,
+              size: 16,
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+            const SizedBox(width: AppSpacing.xs),
+            Expanded(
+              child: Text(
+                settings.isManualMode
+                    ? l10n.listenAndRepeatControlModeManualDesc
+                    : l10n.listenAndRepeatControlModeAutoDesc,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
     );
   }
 
