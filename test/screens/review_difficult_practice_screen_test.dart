@@ -204,7 +204,7 @@ void main() {
       expect(find.text("Can't understand"), findsOneWidget);
     });
 
-    testWidgets('播放中显示盲听提示和耳机图标', (tester) async {
+    testWidgets('播放中不显示盲听标签（共享 widget 简化）', (tester) async {
       await tester.pumpWidget(
         createTestWidget(
           playerState: createPlayerState(
@@ -215,8 +215,9 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.byIcon(Icons.headphones), findsOneWidget);
-      expect(find.text('Listening...'), findsOneWidget);
+      // 共享 PracticeNormalModeView 不再显示盲听标签
+      expect(find.byIcon(Icons.headphones), findsNothing);
+      expect(find.text('Listening...'), findsNothing);
     });
 
     testWidgets('显示播放/暂停和上下句按钮', (tester) async {

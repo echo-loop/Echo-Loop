@@ -19,9 +19,13 @@ import 'package:fluency/database/providers.dart';
 import 'package:fluency/models/bookmark_sentence.dart';
 import 'package:fluency/models/sentence.dart';
 import 'package:fluency/providers/sentence_ai_provider.dart';
+import 'package:fluency/providers/speech_practice_session_provider.dart';
+import 'package:fluency/providers/listen_and_repeat_turn_controller_provider.dart';
 import 'package:fluency/services/sentence_ai_api_client.dart';
 import 'package:fluency/theme/app_theme.dart';
 import 'package:fluency/widgets/intensive_listen/sentence_annotation_card.dart';
+import 'package:fluency/widgets/listen_and_repeat/speech_practice_turn_panel.dart';
+import 'package:fluency/widgets/listen_and_repeat/speech_record_button.dart';
 
 import '../helpers/mock_providers.dart';
 
@@ -249,6 +253,12 @@ void main() {
           () => _TestBookmarkReview(initialPlayerState, testSentences),
         ),
         bookmarkDaoProvider.overrideWithValue(_TestBookmarkDao()),
+        speechPracticeSessionProvider.overrideWith(
+          () => TestSpeechPracticeSession(),
+        ),
+        listenAndRepeatTurnControllerProvider.overrideWith(
+          () => TestListenAndRepeatTurnController(),
+        ),
         sentenceAiNotifierProvider.overrideWithValue(
           SentenceAiNotifier(
             cacheDao: _MockCacheDao(),
@@ -334,14 +344,15 @@ void main() {
       expect(find.text("Can't understand"), findsOneWidget);
     });
 
-    testWidgets('播放中显示盲听提示和耳机图标', (tester) async {
+    testWidgets('播放中不显示盲听标签（共享 widget 简化）', (tester) async {
       await tester.pumpWidget(
         createTestWidget(playerState: createPlayerState(isPlaying: true)),
       );
       await tester.pumpAndSettle();
 
-      expect(find.byIcon(Icons.headphones), findsOneWidget);
-      expect(find.text('Listening...'), findsOneWidget);
+      // 共享 PracticeNormalModeView 不再显示盲听标签
+      expect(find.byIcon(Icons.headphones), findsNothing);
+      expect(find.text('Listening...'), findsNothing);
     });
 
     testWidgets('偷看切换显示句子文本', (tester) async {
@@ -463,7 +474,7 @@ void main() {
       expect(find.text('Play 2/3'), findsOneWidget);
     });
 
-    testWidgets('跟读留白期显示跟读提示', (tester) async {
+    testWidgets('跟读留白期显示录音面板', (tester) async {
       await tester.pumpWidget(
         createTestWidget(
           playerState: createPlayerState(
@@ -478,8 +489,9 @@ void main() {
       await tester.pump();
       await tester.pump();
 
-      expect(find.text('5'), findsOneWidget);
-      expect(find.text('Your turn — repeat out loud!'), findsOneWidget);
+      // 跟读留白期显示录音面板（含录音按钮）
+      expect(find.byType(SpeechPracticeTurnPanel), findsOneWidget);
+      expect(find.byType(SpeechRecordButton), findsOneWidget);
     });
   });
 
@@ -540,7 +552,7 @@ void main() {
       expect(opacity.opacity, 0.15);
     });
 
-    testWidgets('最后一句时下一句按钮禁用', (tester) async {
+    testWidgets('最后一句时显示完成图标且始终可用', (tester) async {
       await tester.pumpWidget(
         createTestWidget(
           playerState: createPlayerState(
@@ -551,13 +563,18 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      final nextIcon = find.byIcon(Icons.skip_next_rounded);
+      // 最后一句显示 check_circle_rounded 而非 skip_next_rounded
+      expect(find.byIcon(Icons.check_circle_rounded), findsOneWidget);
+      expect(find.byIcon(Icons.skip_next_rounded), findsNothing);
+
+      // 按钮始终可用（opacity > 0.15）
+      final checkIcon = find.byIcon(Icons.check_circle_rounded);
       final opacity = tester.widget<AnimatedOpacity>(
         find
-            .ancestor(of: nextIcon, matching: find.byType(AnimatedOpacity))
+            .ancestor(of: checkIcon, matching: find.byType(AnimatedOpacity))
             .first,
       );
-      expect(opacity.opacity, 0.15);
+      expect(opacity.opacity, greaterThan(0.15));
     });
 
     testWidgets('点击听不懂进入跟读模式', (tester) async {

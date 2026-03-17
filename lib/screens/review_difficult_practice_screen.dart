@@ -18,23 +18,22 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../database/providers.dart';
 import '../l10n/app_localizations.dart';
-import '../models/speech_practice_models.dart';
 import '../providers/learning_progress_provider.dart';
 import '../providers/learning_session/learning_session_provider.dart';
 import '../providers/learning_session/review_difficult_practice_provider.dart';
 import '../providers/listen_and_repeat_turn_controller_provider.dart';
 import '../providers/speech_practice_session_provider.dart';
-import '../theme/app_theme.dart';
 import '../utils/wakelock_mixin.dart';
 import '../providers/sentence_ai_provider.dart';
 import '../widgets/dialogs/free_play_complete_dialog.dart';
 import '../widgets/dialogs/step_complete_dialog.dart';
 import '../widgets/difficult_practice/difficult_practice_settings_sheet.dart';
-import '../widgets/intensive_listen/sentence_annotation_card.dart';
-import '../widgets/common/countdown_chip.dart';
-import '../widgets/listen_and_repeat/speech_practice_turn_panel.dart';
-import '../widgets/listen_and_repeat/speech_practice_result_card.dart';
 import '../widgets/player_hotkey_scope.dart';
+import '../widgets/practice/practice_normal_mode_view.dart';
+import '../widgets/practice/practice_play_count_label.dart';
+import '../widgets/practice/practice_playback_controls.dart';
+import '../widgets/practice/practice_progress_section.dart';
+import '../widgets/practice/practice_shadow_reading_view.dart';
 
 /// 复习难句补练页面
 class ReviewDifficultPracticeScreen extends ConsumerStatefulWidget {
@@ -65,8 +64,9 @@ class _ReviewDifficultPracticeScreenState
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       // 注册 TurnController 回调
-      final turnController =
-          ref.read(listenAndRepeatTurnControllerProvider.notifier);
+      final turnController = ref.read(
+        listenAndRepeatTurnControllerProvider.notifier,
+      );
       turnController.setOnContinue(
         () => ref
             .read(reviewDifficultPracticeProvider.notifier)
@@ -390,8 +390,9 @@ class _ReviewDifficultPracticeScreenState
       }
       // 控制模式切换时同步到 TurnController，并取消正在进行的自动录音
       if (prev?.settings.controlMode != next.settings.controlMode) {
-        final turnController =
-            ref.read(listenAndRepeatTurnControllerProvider.notifier);
+        final turnController = ref.read(
+          listenAndRepeatTurnControllerProvider.notifier,
+        );
         turnController.setManualMode(next.settings.isManualMode);
         if (next.settings.isManualMode) {
           final turnState = ref.read(listenAndRepeatTurnControllerProvider);
@@ -476,7 +477,7 @@ class _ReviewDifficultPracticeScreenState
       });
     }
 
-    // 句子时长和时间戳
+    // 句子时长
     final hasDuration =
         currentSentence != null && currentSentence.duration > Duration.zero;
     final durationText = hasDuration
@@ -531,7 +532,7 @@ class _ReviewDifficultPracticeScreenState
           body: Column(
             children: [
               // 进度区域
-              _ProgressSection(
+              PracticeProgressSection(
                 playerState: playerState,
                 l10n: l10n,
                 durationText: durationText,
@@ -542,42 +543,45 @@ class _ReviewDifficultPracticeScreenState
                 child: AnimatedSwitcher(
                   duration: const Duration(milliseconds: 300),
                   child: playerState.isAnnotationMode
-                      ? _ShadowReadingView(
+                      ? PracticeShadowReadingView(
                           key: const ValueKey('shadow'),
                           text: currentSentence?.text ?? '',
                           playerState: playerState,
-                          turnState: turnState,
-                          speechState: speechState,
-                          currentPromptId: currentPromptId,
-                          currentAttempt: currentAttempt,
-                          isRecordingCurrent: isRecordingCurrent,
                           l10n: l10n,
-                          onRemoveDifficult: _handleRemoveDifficult,
-                          onRecordTap: _handleRecordTap,
-                          onAttemptPlaybackTap: _handleAttemptPlaybackTap,
-                          onFastForward: () => ref
-                              .read(
-                                listenAndRepeatTurnControllerProvider.notifier,
-                              )
-                              .fastForwardReviewCountdown(),
-                          onCountdownTap: turnState.isReviewCountdownPaused
-                              ? () => ref
-                                    .read(
-                                      listenAndRepeatTurnControllerProvider
-                                          .notifier,
-                                    )
-                                    .resumeReviewCountdown()
-                              : () => ref
-                                    .read(
-                                      listenAndRepeatTurnControllerProvider
-                                          .notifier,
-                                    )
-                                    .pauseReviewCountdown(),
+                          onRemoveMark: _handleRemoveDifficult,
                           aiNotifier: ref.read(sentenceAiNotifierProvider),
                           audioItemId: widget.audioItemId,
                           sentenceIndex: player.currentIndex,
+                          recording: RecordingConfig(
+                            turnState: turnState,
+                            speechState: speechState,
+                            currentPromptId: currentPromptId,
+                            currentAttempt: currentAttempt,
+                            isRecordingCurrent: isRecordingCurrent,
+                            onRecordTap: _handleRecordTap,
+                            onAttemptPlaybackTap: _handleAttemptPlaybackTap,
+                            onFastForward: () => ref
+                                .read(
+                                  listenAndRepeatTurnControllerProvider
+                                      .notifier,
+                                )
+                                .fastForwardReviewCountdown(),
+                            onCountdownTap: turnState.isReviewCountdownPaused
+                                ? () => ref
+                                      .read(
+                                        listenAndRepeatTurnControllerProvider
+                                            .notifier,
+                                      )
+                                      .resumeReviewCountdown()
+                                : () => ref
+                                      .read(
+                                        listenAndRepeatTurnControllerProvider
+                                            .notifier,
+                                      )
+                                      .pauseReviewCountdown(),
+                          ),
                         )
-                      : _NormalModeView(
+                      : PracticeNormalModeView(
                           key: const ValueKey('normal'),
                           playerState: playerState,
                           l10n: l10n,
@@ -586,7 +590,7 @@ class _ReviewDifficultPracticeScreenState
                             !playerState.isTextRevealed,
                           ),
                           onCantUnderstand: () => player.enterAnnotationMode(),
-                          onRemoveDifficult: _handleRemoveDifficult,
+                          onRemoveMark: _handleRemoveDifficult,
                           onPauseCountdown: () => playerState.isCountdownPaused
                               ? player.resumeCountdown()
                               : player.pauseCountdown(),
@@ -596,7 +600,7 @@ class _ReviewDifficultPracticeScreenState
               ),
 
               // 底部播放控制
-              _PlaybackControls(
+              PracticePlaybackControls(
                 playerState: playerState,
                 onPrevious: () {
                   unawaited(_prepareForExternalPlaybackAction());
@@ -604,7 +608,8 @@ class _ReviewDifficultPracticeScreenState
                 },
                 onNext: () {
                   unawaited(_prepareForExternalPlaybackAction());
-                  final isLast = playerState.currentSentenceIndex >=
+                  final isLast =
+                      playerState.currentSentenceIndex >=
                       playerState.totalSentences - 1;
                   if (isLast) {
                     player.forceComplete();
@@ -628,528 +633,14 @@ class _ReviewDifficultPracticeScreenState
                 },
               ),
 
-              // 遍数（手动模式下隐藏文字但保留占位）
-              if (playerState.isAnnotationMode)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: AppSpacing.m),
-                  child: Opacity(
-                    opacity: playerState.settings.isManualMode ? 0 : 1,
-                    child: Text(
-                      l10n.listenAndRepeatPlayCount(
-                        playerState.currentPlayCount,
-                        playerState.targetRepeatCount,
-                      ),
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant.withValues(
-                          alpha: 0.5,
-                        ),
-                      ),
-                    ),
-                  ),
-                )
-              else
-                Padding(
-                  padding: const EdgeInsets.only(bottom: AppSpacing.m),
-                  child: Opacity(
-                    opacity: playerState.settings.isManualMode ? 0 : 1,
-                    child: Text(
-                      l10n.listenAndRepeatPlayCount(
-                        playerState.currentPlayCount,
-                        playerState.settings.isManualMode
-                            ? 1
-                            : playerState.settings.blindListenRepeatCount,
-                      ),
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant.withValues(
-                          alpha: 0.5,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// 顶部进度条区域
-class _ProgressSection extends StatelessWidget {
-  final ReviewDifficultPracticeState playerState;
-  final AppLocalizations l10n;
-  final String? durationText;
-
-  const _ProgressSection({
-    required this.playerState,
-    required this.l10n,
-    this.durationText,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final total = playerState.totalSentences;
-    final current = playerState.currentSentenceIndex + 1;
-    final progress = total > 0 ? current / total : 0.0;
-    final subtitleStyle = theme.textTheme.bodySmall?.copyWith(
-      color: theme.colorScheme.onSurfaceVariant,
-    );
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.m,
-        vertical: AppSpacing.s,
-      ),
-      child: Column(
-        children: [
-          LinearProgressIndicator(
-            value: progress,
-            borderRadius: BorderRadius.circular(2),
-          ),
-          const SizedBox(height: AppSpacing.xs),
-          Row(
-            children: [
-              Text(
-                l10n.reviewDifficultPracticeProgress(current, total),
-                style: subtitleStyle,
-              ),
-              const Spacer(),
-              if (durationText case final dur?) Text(dur, style: subtitleStyle),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// 普通模式视图（文字遮盖 / 偷看）
-class _NormalModeView extends StatelessWidget {
-  final ReviewDifficultPracticeState playerState;
-  final AppLocalizations l10n;
-  final ThemeData theme;
-  final VoidCallback onPeekToggle;
-  final VoidCallback onCantUnderstand;
-  final VoidCallback onRemoveDifficult;
-  final VoidCallback onPauseCountdown;
-  final String? sentenceText;
-
-  const _NormalModeView({
-    super.key,
-    required this.playerState,
-    required this.l10n,
-    required this.theme,
-    required this.onPeekToggle,
-    required this.onCantUnderstand,
-    required this.onRemoveDifficult,
-    required this.onPauseCountdown,
-    this.sentenceText,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.l),
-      child: Column(
-        children: [
-          const SizedBox(height: AppSpacing.s),
-
-          // 难句标记行
-          GestureDetector(
-            onTap: onRemoveDifficult,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                Flexible(
-                  child: Text(
-                    l10n.intensiveListenMarkedDifficult,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.outline.withValues(alpha: 0.6),
-                    ),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                const SizedBox(width: AppSpacing.xs),
-                Icon(Icons.bookmark, color: Colors.amber, size: 18),
-              ],
-            ),
-          ),
-
-          // 遮盖/偷看区域
-          Expanded(
-            child: Center(
-              child: playerState.isTextRevealed && sentenceText != null
-                  ? Text(
-                      sentenceText!,
-                      style: theme.textTheme.titleMedium?.copyWith(height: 1.6),
-                      textAlign: TextAlign.center,
-                    )
-                  : _HiddenTextPlaceholder(),
-            ),
-          ),
-
-          // 倒计时控制（上） + 盲听状态标签（下）
-          SizedBox(
-            height: 80,
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                if (playerState.isPauseBetweenPlays &&
-                    !playerState.settings.isManualMode)
-                  CountdownChip(
-                    remaining: playerState.pauseRemaining,
-                    total: playerState.pauseDuration,
-                    isPaused: playerState.isCountdownPaused,
-                    onTap: onPauseCountdown,
-                  ),
-              ],
-            ),
-          ),
-
-          const SizedBox(height: AppSpacing.m),
-
-          // 偷看/听不懂按钮
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              GestureDetector(
-                onTap: onPeekToggle,
-                child: _ActionChip(
-                  icon: playerState.isTextRevealed
-                      ? Icons.visibility_off_outlined
-                      : Icons.visibility_outlined,
-                  label: l10n.intensiveListenPeek,
-                ),
-              ),
-              const SizedBox(width: AppSpacing.s),
-              FilledButton.tonal(
-                onPressed: onCantUnderstand,
-                child: Text(l10n.intensiveListenCantUnderstand),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.s),
-        ],
-      ),
-    );
-  }
-}
-
-/// 隐藏文本占位（灰色线条）
-class _HiddenTextPlaceholder extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(
-          Icons.hearing,
-          size: 48,
-          color: theme.colorScheme.primary.withValues(alpha: 0.3),
-        ),
-        const SizedBox(height: AppSpacing.l),
-        for (int i = 0; i < 3; i++) ...[
-          Container(
-            width: 200 - i * 40,
-            height: 8,
-            margin: const EdgeInsets.symmetric(vertical: 4),
-            decoration: BoxDecoration(
-              color: theme.colorScheme.surfaceContainerHighest,
-              borderRadius: BorderRadius.circular(4),
-            ),
-          ),
-        ],
-      ],
-    );
-  }
-}
-
-/// 跟读模式视图（听不懂 → 显示字幕 + 自动录音 + 评分反馈）
-class _ShadowReadingView extends StatelessWidget {
-  final String text;
-  final ReviewDifficultPracticeState playerState;
-  final ListenAndRepeatTurnState turnState;
-  final SpeechPracticeSessionState speechState;
-  final String currentPromptId;
-  final SpeechPracticeAttempt? currentAttempt;
-  final bool isRecordingCurrent;
-  final AppLocalizations l10n;
-  final VoidCallback onRemoveDifficult;
-  final VoidCallback onRecordTap;
-  final void Function(String promptId) onAttemptPlaybackTap;
-  final VoidCallback onFastForward;
-  final VoidCallback onCountdownTap;
-  final SentenceAiNotifier? aiNotifier;
-  final String? audioItemId;
-  final int? sentenceIndex;
-
-  const _ShadowReadingView({
-    super.key,
-    required this.text,
-    required this.playerState,
-    required this.turnState,
-    required this.speechState,
-    required this.currentPromptId,
-    required this.currentAttempt,
-    required this.isRecordingCurrent,
-    required this.l10n,
-    required this.onRemoveDifficult,
-    required this.onRecordTap,
-    required this.onAttemptPlaybackTap,
-    required this.onFastForward,
-    required this.onCountdownTap,
-    this.aiNotifier,
-    this.audioItemId,
-    this.sentenceIndex,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final ai = aiNotifier;
-    final cachedTranslation = ai?.getCachedTranslation(text)?.translation;
-    final cachedAnalysis = ai?.getCachedAnalysis(text);
-    final cachedAnalysisText = cachedAnalysis?.toDisplayString();
-
-    // 停顿期间显示录音面板（与跟读页一致，遍间和句间都触发录音）
-    final shouldShowTurnPanel = playerState.isPauseBetweenPlays;
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.l),
-      child: Column(
-        children: [
-          const SizedBox(height: AppSpacing.s),
-
-          // 句子卡片（含难句标记、可点击查词、AI 翻译/解析、录音反馈）
-          Expanded(
-            child: SingleChildScrollView(
-              child: SentenceAnnotationCard(
-                key: ValueKey(text),
-                text: text,
-                isDifficult: true,
-                onToggle: onRemoveDifficult,
-                audioItemId: audioItemId,
-                sentenceIndex: sentenceIndex,
-                highlightedSegments: currentAttempt?.referenceSegments,
-                inlineFeedback: switch (currentAttempt) {
-                  final attempt? when attempt.hasFinalFeedback =>
-                    SpeechPracticeResultCard(
-                      l10n: l10n,
-                      attempt: attempt,
-                      isPlayingAttempt:
-                          speechState.playingPromptId == currentPromptId,
-                      onPlayAttempt: attempt.hasRecording
-                          ? () => onAttemptPlaybackTap(currentPromptId)
-                          : null,
-                    ),
-                  _ => null,
-                },
-                onRequestTranslation: ai != null
-                    ? () async {
-                        final result = await ai.getTranslation(text);
-                        return result.translation;
-                      }
-                    : null,
-                onRequestAnalysis: ai != null
-                    ? () async {
-                        final result = await ai.getAnalysis(text);
-                        return result.toDisplayString();
-                      }
-                    : null,
-                cachedTranslation: cachedTranslation,
-                cachedAnalysis: cachedAnalysisText,
-              ),
-            ),
-          ),
-
-          // 底部固定区域：录音面板 / 跟读提示 / 播放状态
-          if (shouldShowTurnPanel)
-            Padding(
-              padding: const EdgeInsets.only(bottom: AppSpacing.m),
-              child: SpeechPracticeTurnPanel(
+              // 遍数
+              PracticePlayCountLabel(
+                playerState: playerState,
                 l10n: l10n,
-                turnState: turnState,
-                isRecordingCurrent: isRecordingCurrent,
-                onRecordTap: onRecordTap,
-                onFastForward: onFastForward,
-                onCountdownTap: onCountdownTap,
+                theme: theme,
               ),
-            )
-          else
-            SizedBox(
-              height: 116,
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  if (playerState.isPlaying)
-                    // 播放中提示：先听，听完后跟读 + 耳机图标
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.headphones,
-                          size: 20,
-                          color: theme.colorScheme.primary,
-                        ),
-                        const SizedBox(width: AppSpacing.xs),
-                        Text(
-                          l10n.listenAndRepeatListenHint,
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            color: theme.colorScheme.onSurfaceVariant,
-                          ),
-                        ),
-                      ],
-                    ),
-                ],
-              ),
-            ),
-
-          const SizedBox(height: AppSpacing.m),
-        ],
-      ),
-    );
-  }
-}
-
-/// 操作按钮（偷看字幕 / 听不懂）
-class _ActionChip extends StatelessWidget {
-  final IconData icon;
-  final String label;
-
-  const _ActionChip({required this.icon, required this.label});
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(18),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 15, color: theme.colorScheme.onSurfaceVariant),
-          const SizedBox(width: 5),
-          Text(
-            label,
-            style: theme.textTheme.labelMedium?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
+            ],
           ),
-        ],
-      ),
-    );
-  }
-}
-
-/// 底部播放控制
-///
-/// 布局：[上一句] --- [播放/暂停] --- [下一句]
-class _PlaybackControls extends StatelessWidget {
-  final ReviewDifficultPracticeState playerState;
-  final VoidCallback onPrevious;
-  final VoidCallback onNext;
-  final VoidCallback onPlayPause;
-
-  const _PlaybackControls({
-    required this.playerState,
-    required this.onPrevious,
-    required this.onNext,
-    required this.onPlayPause,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    final canGoPrev = playerState.currentSentenceIndex > 0;
-    final isLastSentence =
-        playerState.currentSentenceIndex >= playerState.totalSentences - 1;
-    final canGoNext = true;
-
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        AppSpacing.l,
-        AppSpacing.xs,
-        AppSpacing.l,
-        AppSpacing.xs,
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          _NavButton(
-            icon: Icons.skip_previous_rounded,
-            enabled: canGoPrev,
-            onTap: canGoPrev ? onPrevious : null,
-          ),
-          const SizedBox(width: 48),
-
-          GestureDetector(
-            onTap: onPlayPause,
-            child: Container(
-              width: 56,
-              height: 56,
-              decoration: BoxDecoration(
-                color: theme.colorScheme.primary,
-                shape: BoxShape.circle,
-                boxShadow: [
-                  BoxShadow(
-                    color: theme.colorScheme.primary.withValues(alpha: 0.15),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: Icon(
-                playerState.isPlaying
-                    ? Icons.pause_rounded
-                    : Icons.play_arrow_rounded,
-                size: 28,
-                color: theme.colorScheme.onPrimary,
-              ),
-            ),
-          ),
-          const SizedBox(width: 48),
-
-          _NavButton(
-            icon: isLastSentence
-                ? Icons.check_circle_rounded
-                : Icons.skip_next_rounded,
-            enabled: canGoNext,
-            onTap: canGoNext ? onNext : null,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// 导航按钮（上一句/下一句）
-class _NavButton extends StatelessWidget {
-  final IconData icon;
-  final bool enabled;
-  final VoidCallback? onTap;
-
-  const _NavButton({required this.icon, required this.enabled, this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedOpacity(
-        opacity: enabled ? 0.6 : 0.15,
-        duration: const Duration(milliseconds: 150),
-        child: Icon(
-          icon,
-          size: 32,
-          color: Theme.of(context).colorScheme.onSurface,
         ),
       ),
     );

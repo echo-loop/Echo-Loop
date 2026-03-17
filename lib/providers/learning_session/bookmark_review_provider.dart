@@ -2,7 +2,8 @@
 ///
 /// 加载所有收藏句子，按音频分组乱序后逐句复习。
 /// 交互模式与难句补练（ReviewDifficultPractice）一致：
-/// 盲听 1 遍 → 句间停顿 → 自动推进；支持偷看字幕、听不懂进入跟读模式。
+/// 盲听 N 遍 → 句间停顿 → 自动推进；支持偷看字幕、听不懂进入跟读模式。
+/// 支持手动模式（盲听强制 1 遍、跟读强制 1 遍）和自动录音（跟读停顿触发）。
 ///
 /// 与难句补练的关键差异：
 /// - 数据来源：全局 bookmarks（跨音频）
@@ -323,6 +324,71 @@ class BookmarkReview extends _$BookmarkReview {
     }
   }
 
+  /// 强制完成（用户在最后一句主动点击完成按钮）
+  void forceComplete() {
+    _engine.invalidateSession();
+    state = state.copyWith(
+      isCompleted: true,
+      isPlaying: false,
+      isPauseBetweenPlays: false,
+      isPauseBetweenSentences: false,
+    );
+  }
+
+  /// 立即完成当前停顿回合，继续后续播放流程。
+  ///
+  /// 由 TurnController 的 handleContinue 通过回调调用。
+  Future<void> completePausedTurn() async {
+    if (!state.isPauseBetweenPlays || !state.isAnnotationMode) return;
+
+    // 句间停顿 → 走 autoAdvance 逻辑
+    if (state.isPauseBetweenSentences) {
+      final isLastSentence =
+          state.currentSentenceIndex >= state.totalSentences - 1;
+      _engine.invalidateSession();
+      state = state.copyWith(
+        isPauseBetweenPlays: false,
+        isPauseBetweenSentences: false,
+        isCountdownPaused: false,
+        isCountdownFastForward: false,
+        pauseRemaining: Duration.zero,
+        isAnnotationMode: false,
+      );
+      if (isLastSentence) {
+        state = state.copyWith(isCompleted: true, isPlaying: false);
+      } else {
+        state = state.copyWith(
+          currentSentenceIndex: state.currentSentenceIndex + 1,
+          currentPlayCount: 1,
+          isTextRevealed: false,
+        );
+        await _startSentence();
+      }
+      return;
+    }
+
+    // 遍间停顿：递增遍数
+    _engine.invalidateSession();
+    state = state.copyWith(
+      isPauseBetweenPlays: false,
+      isPauseBetweenSentences: false,
+      isCountdownPaused: false,
+      isCountdownFastForward: false,
+      pauseRemaining: Duration.zero,
+    );
+
+    final nextPlayCount = state.currentPlayCount + 1;
+    if (nextPlayCount > state.targetRepeatCount) {
+      // 跟读遍数用完 → 退出跟读模式 → autoAdvance
+      state = state.copyWith(isAnnotationMode: false, isPlaying: false);
+      await _autoAdvance();
+      return;
+    }
+
+    // 还有遍数 → 继续下一遍
+    _startShadowReading(startPlayCount: nextPlayCount);
+  }
+
   /// 重置到第一句并重新乱序播放（"再来一遍"）
   Future<void> resetToStart() async {
     // 先保存已累计时间
@@ -419,7 +485,10 @@ class BookmarkReview extends _$BookmarkReview {
       return;
     }
 
-    final repeatCount = state.settings.blindListenRepeatCount;
+    // 手动模式下盲听只播 1 遍
+    final repeatCount = state.settings.isManualMode
+        ? 1
+        : state.settings.blindListenRepeatCount;
     final wordCount = countWords(sentence.text);
 
     state = state.copyWith(
@@ -475,8 +544,10 @@ class BookmarkReview extends _$BookmarkReview {
     );
   }
 
-  /// 开始跟读循环
-  void _startShadowReading() {
+  /// 开始跟读循环（显示字幕，播放 N 遍 + 跟读留白）
+  ///
+  /// [startPlayCount] 从第几遍开始（默认第 1 遍）。
+  void _startShadowReading({int startPlayCount = 1}) {
     final sentence = currentSentence;
     if (sentence == null || sentence.duration <= Duration.zero) return;
 
@@ -485,7 +556,7 @@ class BookmarkReview extends _$BookmarkReview {
     state = state.copyWith(
       isAnnotationMode: true,
       isPlaying: true,
-      currentPlayCount: 1,
+      currentPlayCount: startPlayCount,
       isPauseBetweenPlays: false,
       isPauseBetweenSentences: false,
       isTextRevealed: false,
@@ -496,6 +567,7 @@ class BookmarkReview extends _$BookmarkReview {
     _engine.playSentenceLoop(
       sentence: sentence,
       repeatCount: state.targetRepeatCount,
+      startPlayCount: startPlayCount,
       pauseCalculator: listenAndRepeatPauseCalculator,
       onPlayCountChanged: (count) {
         state = state.copyWith(currentPlayCount: count, isPlaying: true);
@@ -524,13 +596,9 @@ class BookmarkReview extends _$BookmarkReview {
       },
       onAllPlaysCompleted: () async {
         // 最后一遍只有输入，没有跟读停顿
+        // 保持 annotationMode，让句间停顿也触发自动录音（与跟读页一致）
         _addInputWords(wordCount);
         _recordLearnedSentence(sentence.text);
-        state = state.copyWith(
-          isAnnotationMode: false,
-          isPlaying: false,
-          isPauseBetweenPlays: false,
-        );
         await _autoAdvance();
       },
     );
