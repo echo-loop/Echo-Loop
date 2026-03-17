@@ -719,7 +719,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get intensiveListenHideSubtitle => 'Hide';
 
   @override
-  String get intensiveListenCantUnderstand => 'Can\'t understand';
+  String get intensiveListenCantUnderstand => 'Unclear';
 
   @override
   String get intensiveListenAutoMarkedDifficult =>
@@ -1838,4 +1838,7 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get demoModeSubtitle =>
       'Use demo data for screenshots and presentations';
+
+  @override
+  String get practiceRemoveMark => 'Unmark';
 }

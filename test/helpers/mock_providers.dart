@@ -1553,8 +1553,16 @@ class TestSpeechPracticeSession extends SpeechPracticeSession {
 
 /// 测试用 ListenAndRepeatTurnController — 不依赖平台通道
 class TestListenAndRepeatTurnController extends ListenAndRepeatTurnController {
+  /// 初始阶段（默认 idle）
+  final ListenAndRepeatTurnPhase initialPhase;
+
+  TestListenAndRepeatTurnController({
+    this.initialPhase = ListenAndRepeatTurnPhase.idle,
+  });
+
   @override
-  ListenAndRepeatTurnState build() => const ListenAndRepeatTurnState();
+  ListenAndRepeatTurnState build() =>
+      ListenAndRepeatTurnState(phase: initialPhase);
 
   @override
   void setOnContinue(Future<void> Function()? callback) {}

@@ -711,7 +711,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get intensiveListenHideSubtitle => '隐藏字幕';
 
   @override
-  String get intensiveListenCantUnderstand => '听不懂';
+  String get intensiveListenCantUnderstand => '听不太懂';
 
   @override
   String get intensiveListenAutoMarkedDifficult => '已自动标记为难句，点此取消';
@@ -1788,4 +1788,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get demoModeSubtitle => '开启后使用演示数据，方便截图展示';
+
+  @override
+  String get practiceRemoveMark => '取消标记';
 }

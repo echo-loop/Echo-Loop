@@ -1,7 +1,12 @@
 /// 练习页面共享的普通模式视图（盲听 — 文字遮盖/偷看）
 ///
-/// 包含 HiddenTextPlaceholder 和 ActionChip。
-/// 手动模式下隐藏倒计时，不显示盲听标签。
+/// 布局：
+/// - 上方：难句/收藏标记行
+/// - 中间（Expanded）：隐藏占位 / 偷看文本，整个区域可点击切换字幕显示
+/// - 中间下方：偷看字幕标签（提示用户可点击）
+/// - 底部固定区：听不懂按钮（居中，与跟读录音按钮同位置） + 倒计时
+///
+/// 手动模式下隐藏倒计时。
 /// 用于难句补练和收藏复习。
 library;
 
@@ -52,6 +57,8 @@ class PracticeNormalModeView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isRevealed = playerState.isTextRevealed;
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: AppSpacing.l),
       child: Column(
@@ -79,62 +86,144 @@ class PracticeNormalModeView extends StatelessWidget {
             ),
           ),
 
-          // 遮盖/偷看区域
+          // 字幕区域（整个区域可点击切换字幕）
           Expanded(
-            child: Center(
-              child: playerState.isTextRevealed && sentenceText != null
-                  ? Text(
-                      sentenceText!,
-                      style: theme.textTheme.titleMedium?.copyWith(height: 1.6),
-                      textAlign: TextAlign.center,
-                    )
-                  : const _HiddenTextPlaceholder(),
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: onPeekToggle,
+              child: Stack(
+                children: [
+                  // 字幕内容偏上（-0.4 ≈ 上方 30% 位置）
+                  Align(
+                    alignment: const Alignment(0, -0.4),
+                    child: isRevealed && sentenceText != null
+                        ? GestureDetector(
+                            onTap: () {}, // 拦截点击，不冒泡到外层
+                            child: Text(
+                              sentenceText!,
+                              style: theme.textTheme.titleMedium
+                                  ?.copyWith(height: 1.6),
+                              textAlign: TextAlign.center,
+                            ),
+                          )
+                        : const _HiddenTextPlaceholder(),
+                  ),
+                  // 偷看字幕标签（固定在字幕区中间偏下）
+                  Align(
+                    alignment: const Alignment(0, 0.55),
+                    child: _PeekLabel(
+                      isRevealed: isRevealed,
+                      l10n: l10n,
+                      theme: theme,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
 
-          // 倒计时控制（手动模式隐藏，不显示盲听标签）
-          SizedBox(
-            height: 80,
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                if (playerState.isPauseBetweenPlays &&
-                    !playerState.settings.isManualMode)
-                  CountdownChip(
-                    remaining: playerState.pauseRemaining,
-                    total: playerState.pauseDuration,
-                    isPaused: playerState.isCountdownPaused,
-                    onTap: onPauseCountdown,
+          // 底部固定区：倒计时 + 按钮行
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // 倒计时（固定 56 高度占位，避免字幕区跳动）
+              SizedBox(
+                height: 56,
+                child: (playerState.isPauseBetweenPlays &&
+                        !playerState.settings.isManualMode)
+                    ? CountdownChip(
+                        remaining: playerState.pauseRemaining,
+                        total: playerState.pauseDuration,
+                        isPaused: playerState.isCountdownPaused,
+                        onTap: onPauseCountdown,
+                      )
+                    : null,
+              ),
+              const SizedBox(height: AppSpacing.m),
+              // 取消标记 + 听不懂按钮（并排，统一 tonal 风格）
+              SizedBox(
+                height: 48,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    TextButton(
+                      onPressed: onRemoveMark,
+                      style: TextButton.styleFrom(
+                        foregroundColor:
+                            theme.colorScheme.onSurfaceVariant,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 20,
+                          vertical: 12,
+                        ),
+                      ),
+                      child: Text(
+                        l10n.practiceRemoveMark,
+                        style: theme.textTheme.titleSmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: AppSpacing.m),
+                    FilledButton.tonal(
+                      onPressed: onCantUnderstand,
+                      style: FilledButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 28,
+                          vertical: 12,
+                        ),
+                      ),
+                      child: Text(
+                        l10n.intensiveListenCantUnderstand,
+                        style: theme.textTheme.titleSmall,
+                      ),
+                    ),
+                    ],
                   ),
+                ),
               ],
             ),
-          ),
 
-          const SizedBox(height: AppSpacing.m),
-
-          // 偷看/听不懂按钮
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              GestureDetector(
-                onTap: onPeekToggle,
-                child: _ActionChip(
-                  icon: playerState.isTextRevealed
-                      ? Icons.visibility_off_outlined
-                      : Icons.visibility_outlined,
-                  label: l10n.intensiveListenPeek,
-                ),
-              ),
-              const SizedBox(width: AppSpacing.s),
-              FilledButton.tonal(
-                onPressed: onCantUnderstand,
-                child: Text(l10n.intensiveListenCantUnderstand),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.s),
+          const SizedBox(height: AppSpacing.l),
         ],
       ),
+    );
+  }
+}
+
+/// 偷看字幕标签（字幕区下方，提示可点击）
+class _PeekLabel extends StatelessWidget {
+  final bool isRevealed;
+  final AppLocalizations l10n;
+  final ThemeData theme;
+
+  const _PeekLabel({
+    required this.isRevealed,
+    required this.l10n,
+    required this.theme,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(
+          isRevealed
+              ? Icons.visibility_off_outlined
+              : Icons.visibility_outlined,
+          size: 14,
+          color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
+        ),
+        const SizedBox(width: 4),
+        Text(
+          isRevealed
+              ? l10n.intensiveListenPeek
+              : l10n.intensiveListenPeek,
+          style: theme.textTheme.labelSmall?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -168,40 +257,6 @@ class _HiddenTextPlaceholder extends StatelessWidget {
           ),
         ],
       ],
-    );
-  }
-}
-
-/// 操作按钮
-class _ActionChip extends StatelessWidget {
-  final IconData icon;
-  final String label;
-
-  const _ActionChip({required this.icon, required this.label});
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(18),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 15, color: theme.colorScheme.onSurfaceVariant),
-          const SizedBox(width: 5),
-          Text(
-            label,
-            style: theme.textTheme.labelMedium?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
-          ),
-        ],
-      ),
     );
   }
 }

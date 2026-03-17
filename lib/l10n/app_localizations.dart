@@ -1409,7 +1409,7 @@ abstract class AppLocalizations {
   /// No description provided for @intensiveListenCantUnderstand.
   ///
   /// In en, this message translates to:
-  /// **'Can\'t understand'**
+  /// **'Unclear'**
   String get intensiveListenCantUnderstand;
 
   /// No description provided for @intensiveListenAutoMarkedDifficult.
@@ -3295,6 +3295,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Use demo data for screenshots and presentations'**
   String get demoModeSubtitle;
+
+  /// No description provided for @practiceRemoveMark.
+  ///
+  /// In en, this message translates to:
+  /// **'Unmark'**
+  String get practiceRemoveMark;
 }
 
 class _AppLocalizationsDelegate

@@ -232,6 +232,7 @@ void main() {
     Locale locale = const Locale('en'),
     ReviewDifficultPracticeState? playerState,
     List<BookmarkSentence>? sentences,
+    ListenAndRepeatTurnPhase turnPhase = ListenAndRepeatTurnPhase.idle,
   }) {
     final testSentences = sentences ?? createBookmarkSentences();
     final initialPlayerState = playerState ?? createPlayerState();
@@ -257,7 +258,7 @@ void main() {
           () => TestSpeechPracticeSession(),
         ),
         listenAndRepeatTurnControllerProvider.overrideWith(
-          () => TestListenAndRepeatTurnController(),
+          () => TestListenAndRepeatTurnController(initialPhase: turnPhase),
         ),
         sentenceAiNotifierProvider.overrideWithValue(
           SentenceAiNotifier(
@@ -341,7 +342,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Peek'), findsOneWidget);
-      expect(find.text("Can't understand"), findsOneWidget);
+      expect(find.text("Unclear"), findsOneWidget);
     });
 
     testWidgets('播放中不显示盲听标签（共享 widget 简化）', (tester) async {
@@ -456,7 +457,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Peek'), findsNothing);
-      expect(find.text("Can't understand"), findsNothing);
+      expect(find.text("Unclear"), findsNothing);
     });
 
     testWidgets('跟读模式显示遍数标签', (tester) async {
@@ -484,6 +485,7 @@ void main() {
             pauseRemaining: const Duration(seconds: 5),
             pauseDuration: const Duration(seconds: 8),
           ),
+          turnPhase: ListenAndRepeatTurnPhase.awaitingSpeech,
         ),
       );
       await tester.pump();
@@ -583,7 +585,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text("Can't understand"));
+      await tester.tap(find.text("Unclear"));
       await tester.pumpAndSettle();
 
       // 进入跟读模式后显示 SentenceAnnotationCard
@@ -599,7 +601,7 @@ void main() {
 
       expect(find.text('收藏复习'), findsOneWidget);
       expect(find.text('偷看字幕'), findsOneWidget);
-      expect(find.text('听不懂'), findsOneWidget);
+      expect(find.text('听不太懂'), findsOneWidget);
     });
   });
 }

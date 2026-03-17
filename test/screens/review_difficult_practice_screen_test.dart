@@ -97,6 +97,7 @@ void main() {
     Locale locale = const Locale('en'),
     ReviewDifficultPracticeState? playerState,
     LearningSessionState? sessionState,
+    ListenAndRepeatTurnPhase turnPhase = ListenAndRepeatTurnPhase.idle,
     TestReviewDifficultPractice Function(
       ReviewDifficultPracticeState initialState,
       List<Sentence> sentences,
@@ -148,7 +149,7 @@ void main() {
           () => TestSpeechPracticeSession(),
         ),
         listenAndRepeatTurnControllerProvider.overrideWith(
-          () => TestListenAndRepeatTurnController(),
+          () => TestListenAndRepeatTurnController(initialPhase: turnPhase),
         ),
         sentenceAiNotifierProvider.overrideWithValue(
           SentenceAiNotifier(
@@ -201,7 +202,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Peek'), findsOneWidget);
-      expect(find.text("Can't understand"), findsOneWidget);
+      expect(find.text("Unclear"), findsOneWidget);
     });
 
     testWidgets('播放中不显示盲听标签（共享 widget 简化）', (tester) async {
@@ -464,7 +465,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Peek'), findsNothing);
-      expect(find.text("Can't understand"), findsNothing);
+      expect(find.text("Unclear"), findsNothing);
     });
 
     testWidgets('跟读留白期显示录音面板', (tester) async {
@@ -477,6 +478,7 @@ void main() {
             pauseRemaining: const Duration(seconds: 5),
             pauseDuration: const Duration(seconds: 8),
           ),
+          turnPhase: ListenAndRepeatTurnPhase.awaitingSpeech,
         ),
       );
       await tester.pump();
@@ -576,14 +578,14 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text("Can't understand"));
+      await tester.tap(find.text("Unclear"));
       await tester.pumpAndSettle();
 
       // 进入跟读模式后应显示 SentenceAnnotationCard
       expect(find.byType(SentenceAnnotationCard), findsOneWidget);
       // 偷看和听不懂按钮应消失
       expect(find.text('Peek'), findsNothing);
-      expect(find.text("Can't understand"), findsNothing);
+      expect(find.text("Unclear"), findsNothing);
     });
 
     testWidgets('跟读模式暂停后恢复 → 从第 1 遍重新开始', (tester) async {
@@ -617,7 +619,7 @@ void main() {
 
       expect(find.text('难句补练'), findsOneWidget);
       expect(find.text('偷看字幕'), findsOneWidget);
-      expect(find.text('听不懂'), findsOneWidget);
+      expect(find.text('听不太懂'), findsOneWidget);
     });
 
     testWidgets('中文跟读模式遍数显示', (tester) async {

@@ -357,7 +357,7 @@
   },
   "intensiveListenPeek": "Peek",
   "intensiveListenHideSubtitle": "Hide",
-  "intensiveListenCantUnderstand": "Can't understand",
+  "intensiveListenCantUnderstand": "Unclear",
   "intensiveListenAutoMarkedDifficult": "Auto-marked difficult, tap to undo",
   "intensiveListenMarkedDifficult": "Marked difficult, tap to undo",
   "intensiveListenNotDifficult": "Tap to mark as difficult",
@@ -1002,5 +1002,6 @@
   "alreadyLatest": "Already up to date",
   "checkUpdateFailed": "Check failed, please check your network",
   "demoMode": "Demo Mode",
-  "demoModeSubtitle": "Use demo data for screenshots and presentations"
+  "demoModeSubtitle": "Use demo data for screenshots and presentations",
+  "practiceRemoveMark": "Unmark"
 }

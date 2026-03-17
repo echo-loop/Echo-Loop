@@ -218,7 +218,7 @@
   "intensiveListenPlayCount": "第 {current}/{total} 遍",
   "intensiveListenPeek": "偷看字幕",
   "intensiveListenHideSubtitle": "隐藏字幕",
-  "intensiveListenCantUnderstand": "听不懂",
+  "intensiveListenCantUnderstand": "听不太懂",
   "intensiveListenAutoMarkedDifficult": "已自动标记为难句，点此取消",
   "intensiveListenMarkedDifficult": "已标记为难句，点此取消",
   "intensiveListenNotDifficult": "点击标记为难句",
@@ -751,5 +751,6 @@
   "alreadyLatest": "已是最新版本",
   "checkUpdateFailed": "检查失败，请检查网络",
   "demoMode": "演示模式",
-  "demoModeSubtitle": "开启后使用演示数据，方便截图展示"
+  "demoModeSubtitle": "开启后使用演示数据，方便截图展示",
+  "practiceRemoveMark": "取消标记"
 }
