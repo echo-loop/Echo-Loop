@@ -639,8 +639,9 @@ class _ListenAndRepeatPlayerScreenState
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    // 录音面板 / 播放提示
-                    if (playerState.isPauseBetweenPlays)
+                    // 录音面板 / 播放提示（idle 阶段不显示，避免蓝→红闪烁）
+                    if (playerState.isPauseBetweenPlays &&
+                        turnState.phase != ListenAndRepeatTurnPhase.idle)
                       Padding(
                         padding: const EdgeInsets.only(bottom: AppSpacing.m),
                         child: SpeechPracticeTurnPanel(
