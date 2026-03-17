@@ -133,9 +133,9 @@ class _MainShellState extends ConsumerState<MainShell> {
                       label: Text(l10n.study),
                     ),
                     NavigationRailDestination(
-                      icon: const Icon(Icons.favorite_border),
+                      icon: const Icon(Icons.bookmark_border),
                       selectedIcon: const Icon(
-                        Icons.favorite,
+                        Icons.bookmark,
                         color: AppTheme.navActiveColor,
                       ),
                       label: Text(l10n.favorites),
@@ -183,9 +183,9 @@ class _MainShellState extends ConsumerState<MainShell> {
                       label: l10n.study,
                     ),
                     NavigationDestination(
-                      icon: const Icon(Icons.favorite_border),
+                      icon: const Icon(Icons.bookmark_border),
                       selectedIcon: const Icon(
-                        Icons.favorite,
+                        Icons.bookmark,
                         color: AppTheme.navActiveColor,
                       ),
                       label: l10n.favorites,

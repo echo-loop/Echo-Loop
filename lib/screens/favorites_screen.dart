@@ -46,6 +46,11 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen> {
     final l10n = AppLocalizations.of(context)!;
     final theme = Theme.of(context);
 
+    // 获取收藏数量
+    final bookmarkDao = ref.watch(bookmarkDaoProvider);
+    final savedWordsAsync = ref.watch(savedWordListProvider);
+    final wordCount = savedWordsAsync.valueOrNull?.length;
+
     return Scaffold(
       appBar: AppBar(title: Text(l10n.favorites), centerTitle: true),
       body: Column(
@@ -56,21 +61,32 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen> {
               horizontal: AppSpacing.l,
               vertical: AppSpacing.s,
             ),
-            child: SizedBox(
-              width: double.infinity,
-              child: SegmentedButton<_FavoritesView>(
-                segments: [
-                  ButtonSegment(
-                    value: _FavoritesView.sentences,
-                    label: Text(l10n.favoritesSentences),
-                    icon: const Icon(Icons.format_quote, size: 18),
-                  ),
-                  ButtonSegment(
-                    value: _FavoritesView.words,
-                    label: Text(l10n.favoritesWords),
-                    icon: const Icon(Icons.abc, size: 18),
-                  ),
-                ],
+            child: StreamBuilder<List<BookmarkWithAudio>>(
+              stream: bookmarkDao.watchAllWithAudioName(),
+              builder: (context, snapshot) {
+                final sentenceCount = snapshot.data?.length;
+                final sentenceLabel = sentenceCount != null && sentenceCount > 0
+                    ? '${l10n.favoritesSentences} ($sentenceCount)'
+                    : l10n.favoritesSentences;
+                final wordLabel = wordCount != null && wordCount > 0
+                    ? '${l10n.favoritesWords} ($wordCount)'
+                    : l10n.favoritesWords;
+
+                return SizedBox(
+                  width: double.infinity,
+                  child: SegmentedButton<_FavoritesView>(
+                    segments: [
+                      ButtonSegment(
+                        value: _FavoritesView.sentences,
+                        label: Text(sentenceLabel),
+                        icon: const Icon(Icons.format_quote, size: 18),
+                      ),
+                      ButtonSegment(
+                        value: _FavoritesView.words,
+                        label: Text(wordLabel),
+                        icon: const Icon(Icons.abc, size: 18),
+                      ),
+                    ],
                 selected: {_currentView},
                 onSelectionChanged: (selected) {
                   setState(() => _currentView = selected.first);
@@ -80,7 +96,9 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen> {
                     fontWeight: FontWeight.w600,
                   ),
                 ),
-              ),
+                  ),
+                );
+              },
             ),
           ),
 

@@ -408,7 +408,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get study => 'Study';
 
   @override
-  String get favorites => 'Favorites';
+  String get favorites => 'Bookmarks';
 
   @override
   String get profile => 'Profile';

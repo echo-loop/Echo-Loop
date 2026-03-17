@@ -863,7 +863,7 @@ abstract class AppLocalizations {
   /// No description provided for @favorites.
   ///
   /// In en, this message translates to:
-  /// **'Favorites'**
+  /// **'Bookmarks'**
   String get favorites;
 
   /// No description provided for @profile.
