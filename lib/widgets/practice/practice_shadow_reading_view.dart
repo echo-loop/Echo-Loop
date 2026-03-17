@@ -107,9 +107,11 @@ class PracticeShadowReadingView extends StatelessWidget {
 
     final rec = recording;
     // 自动模式 idle 阶段不显示录音面板，避免蓝→红闪烁（等 ensureAutoTurn 启动后再显示）
+    // 手动模式下 idle 是正常待录音状态，需要显示蓝色按钮
     final shouldShowTurnPanel = rec != null &&
         playerState.isPauseBetweenPlays &&
-        rec.turnState.phase != ListenAndRepeatTurnPhase.idle;
+        (playerState.settings.isManualMode ||
+            rec.turnState.phase != ListenAndRepeatTurnPhase.idle);
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: AppSpacing.l),
