@@ -4,6 +4,7 @@
 /// 布局: AppBar → 进度条 → 句子列表 → (录音结果卡) → 阶段指示器 → 底部控制。
 /// 支持 listening/retelling 双阶段切换、显示模式循环。
 /// retelling 阶段通过 [RetellRecordingController] 驱动录音识别流程。
+/// 录音回放通过 [AudioPlaybackService] 播放本地 .m4a 文件。
 library;
 
 import 'dart:async';
@@ -21,8 +22,8 @@ import '../providers/learning_session/retell_player_provider.dart';
 import '../providers/listen_and_repeat_turn_controller_provider.dart'
     show ListenAndRepeatTurnPhase, ListenAndRepeatTurnState;
 import '../providers/retell_recording_controller_provider.dart';
-import '../providers/speech_practice_session_provider.dart';
 import '../services/app_logger.dart';
+import '../services/audio_playback_service.dart';
 import '../theme/app_theme.dart';
 import '../utils/wakelock_mixin.dart';
 import '../widgets/intensive_listen/word_dictionary_sheet.dart';
@@ -59,12 +60,33 @@ class _RetellPlayerScreenState extends ConsumerState<RetellPlayerScreen>
   /// 用户在当前段手动停止过录音 → 本段不再自动录音/倒计时
   bool _manualStoppedThisParagraph = false;
 
+  /// 录音回放服务
+  final AudioPlaybackService _playbackService = AudioPlaybackService();
+
+  /// 当前正在播放的 promptId（null = 未播放）
+  String? _playingPromptId;
+
+  /// 播放状态监听
+  StreamSubscription<bool>? _playbackSub;
+
   @override
   void initState() {
     super.initState();
+    _playbackSub = _playbackService.isPlayingStream.listen((isPlaying) {
+      if (!isPlaying && mounted) {
+        setState(() => _playingPromptId = null);
+      }
+    });
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(retellPlayerProvider.notifier).startPlaying();
     });
+  }
+
+  @override
+  void dispose() {
+    _playbackSub?.cancel();
+    _playbackService.dispose();
+    super.dispose();
   }
 
   /// 格式化时长（纯秒数 + 单位）
@@ -99,10 +121,10 @@ class _RetellPlayerScreenState extends ConsumerState<RetellPlayerScreen>
 
     final controller = ref.read(retellRecordingControllerProvider.notifier);
     final player = ref.read(retellPlayerProvider.notifier);
-    final speech = ref.read(speechPracticeSessionProvider.notifier);
+    final recState = ref.read(retellRecordingControllerProvider);
 
     final promptId = _currentPromptId();
-    if (speech.isRecordingPrompt(promptId)) {
+    if (recState.isRecordingPrompt(promptId)) {
       AppLogger.log('RetellScreen', '手动停止录音 → 本段退出自动模式');
       _manualStoppedThisParagraph = true;
       await controller.stopAndEvaluate(
@@ -116,6 +138,9 @@ class _RetellPlayerScreenState extends ConsumerState<RetellPlayerScreen>
       player.cancelCountdown();
     }
 
+    // 停止录音回放
+    await _stopPlayback();
+
     AppLogger.log('RetellScreen', '手动开始录音: '
         '段落${ref.read(retellPlayerProvider).currentParagraphIndex + 1}');
     _updateRecordingThresholds();
@@ -127,10 +152,8 @@ class _RetellPlayerScreenState extends ConsumerState<RetellPlayerScreen>
 
   /// 处理录音回放按钮点击
   Future<void> _handleAttemptPlaybackTap(String promptId) async {
-    final speech = ref.read(speechPracticeSessionProvider.notifier);
-    final speechState = ref.read(speechPracticeSessionProvider);
-    if (speechState.playingPromptId == promptId) {
-      await speech.stopAttemptPlayback();
+    if (_playingPromptId == promptId) {
+      await _stopPlayback();
       return;
     }
 
@@ -138,14 +161,29 @@ class _RetellPlayerScreenState extends ConsumerState<RetellPlayerScreen>
     if (playerState.isPlaying) {
       await ref.read(retellPlayerProvider.notifier).pause();
     }
-    await speech.playAttempt(promptId);
+
+    final recState = ref.read(retellRecordingControllerProvider);
+    final attempt = recState.currentAttempt;
+    final filePath = attempt?.filePath;
+    if (filePath == null || filePath.isEmpty) return;
+
+    setState(() => _playingPromptId = promptId);
+    await _playbackService.play(filePath);
+  }
+
+  /// 停止录音回放
+  Future<void> _stopPlayback() async {
+    await _playbackService.stop();
+    if (mounted) {
+      setState(() => _playingPromptId = null);
+    }
   }
 
   /// 取消录音和回放
   Future<void> _cancelRecordingAndPlayback() async {
-    final speech = ref.read(speechPracticeSessionProvider.notifier);
-    await speech.cancelActiveRecording();
-    await speech.stopAttemptPlayback();
+    final controller = ref.read(retellRecordingControllerProvider.notifier);
+    await controller.cancelActiveRecording();
+    await _stopPlayback();
   }
 
   /// 处理退出
@@ -203,8 +241,7 @@ class _RetellPlayerScreenState extends ConsumerState<RetellPlayerScreen>
 
   /// 执行退出
   Future<void> _exit() async {
-    await ref.read(speechPracticeSessionProvider.notifier).disposeSession();
-    ref.read(retellRecordingControllerProvider.notifier).fullReset();
+    await ref.read(retellRecordingControllerProvider.notifier).fullReset();
     await ref.read(learningSessionProvider.notifier).exitLearningMode();
     if (mounted) context.pop();
   }
@@ -279,9 +316,7 @@ class _RetellPlayerScreenState extends ConsumerState<RetellPlayerScreen>
       await _exit();
     } else {
       // 再来一遍
-      await ref
-          .read(speechPracticeSessionProvider.notifier)
-          .disposeSession();
+      await ref.read(retellRecordingControllerProvider.notifier).fullReset();
       await ref.read(retellPlayerProvider.notifier).restart();
     }
   }
@@ -444,7 +479,6 @@ class _RetellPlayerScreenState extends ConsumerState<RetellPlayerScreen>
     final player = ref.read(retellPlayerProvider.notifier);
 
     // watch 录音相关状态
-    final speechState = ref.watch(speechPracticeSessionProvider);
     final retellRecState = ref.watch(retellRecordingControllerProvider);
 
     // 映射为 ListenAndRepeatTurnState 供 SpeechPracticeTurnPanel 复用
@@ -515,11 +549,10 @@ class _RetellPlayerScreenState extends ConsumerState<RetellPlayerScreen>
         ? (state.currentParagraphIndex + 1) / state.totalParagraphs
         : 0.0;
 
-    // 录音结果
+    // 录音结果（从 controller state 获取）
     final currentPromptId = _currentPromptId();
-    final currentAttempt = speechState.attempts[currentPromptId];
-    final isRecordingCurrent =
-        speechState.recordingPromptId == currentPromptId;
+    final currentAttempt = retellRecState.currentAttempt;
+    final isRecordingCurrent = retellRecState.isRecordingPrompt(currentPromptId);
 
     return LearningHotkeyScope(
       onPlayPause: () {
@@ -647,7 +680,7 @@ class _RetellPlayerScreenState extends ConsumerState<RetellPlayerScreen>
                     l10n: l10n,
                     attempt: currentAttempt,
                     isPlayingAttempt:
-                        speechState.playingPromptId == currentPromptId,
+                        _playingPromptId == currentPromptId,
                     onPlayAttempt: () =>
                         _handleAttemptPlaybackTap(currentPromptId),
                   ),

@@ -1,9 +1,12 @@
 /// 复述录音控制器 provider。
 ///
 /// 独立于跟读的 [ListenAndRepeatTurnController]，专为复述场景设计。
+/// 使用 [RecordingService] 管理录音生命周期，录音结束后自动释放麦克风。
+/// 评估由控制器直接调用 [SpeechTranscriptMatcher]。
+///
 /// 状态机：idle → recording → processing → idle。
 ///
-/// 自动模式录音流程（严格对齐跟读）：
+/// 自动模式录音流程：
 /// 1. startRecording → recording，启动 60s 等待开口计时器
 /// 2. 检测到语音 → 取消等待计时器，启动最大录音时长计时器
 /// 3. 双通道检测结束：
@@ -22,16 +25,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/speech_practice_models.dart';
 import '../services/app_logger.dart';
+import '../services/recording_service.dart';
 import '../services/speech_completion_detector.dart';
-import 'listen_and_repeat_turn_controller_provider.dart'
-    show speechPracticeCompletionHeuristicProvider;
+import '../services/speech_practice_platform.dart';
 import 'speech_practice_session_provider.dart';
 
 /// 等待开口最大时长
 const _awaitingSpeechTimeout = Duration(seconds: 60);
-
-/// 绝对静音兜底阈值
-const _defaultSilenceTimeout = Duration(seconds: 20);
 
 /// 自动模式默认最大录音时长
 const _defaultMaxRecordingDuration = Duration(seconds: 30);
@@ -62,26 +62,66 @@ class RetellRecordingState {
   /// 等待开口超时后置 true，阻止 screen 层重新自动开始录音
   final bool awaitingSpeechTimedOut;
 
+  /// 当前录音结果（录音完成后保存）
+  final SpeechPracticeAttempt? currentAttempt;
+
+  /// 录音中的 live transcript
+  final String? liveTranscript;
+
+  /// 是否已检测到用户开口
+  final bool hasDetectedSpeech;
+
+  /// 用户开口后的连续静音时长
+  final Duration silenceDuration;
+
+  /// 权限状态
+  final SpeechPracticePermissionState permissions;
+
   const RetellRecordingState({
     this.phase = RetellRecordingPhase.idle,
     this.promptId,
     this.awaitingSpeechTimedOut = false,
+    this.currentAttempt,
+    this.liveTranscript,
+    this.hasDetectedSpeech = false,
+    this.silenceDuration = Duration.zero,
+    this.permissions = const SpeechPracticePermissionState(),
   });
 
   /// 是否处于活跃状态（非 idle）
   bool get isActive => phase != RetellRecordingPhase.idle;
+
+  /// 是否正在录制指定 promptId
+  bool isRecordingPrompt(String id) =>
+      promptId == id && phase == RetellRecordingPhase.recording;
 
   RetellRecordingState copyWith({
     RetellRecordingPhase? phase,
     String? promptId,
     bool clearPromptId = false,
     bool? awaitingSpeechTimedOut,
+    SpeechPracticeAttempt? currentAttempt,
+    bool clearCurrentAttempt = false,
+    String? liveTranscript,
+    bool clearLiveTranscript = false,
+    bool? hasDetectedSpeech,
+    Duration? silenceDuration,
+    SpeechPracticePermissionState? permissions,
   }) {
     return RetellRecordingState(
       phase: phase ?? this.phase,
       promptId: clearPromptId ? null : (promptId ?? this.promptId),
       awaitingSpeechTimedOut:
           awaitingSpeechTimedOut ?? this.awaitingSpeechTimedOut,
+      currentAttempt: clearCurrentAttempt
+          ? null
+          : (currentAttempt ?? this.currentAttempt),
+      liveTranscript: clearLiveTranscript
+          ? null
+          : (liveTranscript ?? this.liveTranscript),
+      hasDetectedSpeech: hasDetectedSpeech ?? this.hasDetectedSpeech,
+      silenceDuration: silenceDuration ?? this.silenceDuration,
+      permissions: permissions ?? this.permissions,
     );
   }
 }
@@ -94,11 +134,13 @@ final retellRecordingControllerProvider =
 
 /// 复述录音控制器。
 ///
-/// 录音流程严格对齐跟读 [ListenAndRepeatTurnController]：
-/// - 通道 1：声学静音 + [SpeechPracticeCompletionHeuristic] 动态阈值
-/// - 通道 2：转录停滞计时器（嘈杂环境备用通道）
-/// - 兜底：绝对静音超时 + 最大录音时长
+/// 使用 [RecordingService] 管理录音，[SpeechTranscriptMatcher] 做评估。
+/// 录音结束后自动释放麦克风，无需调用方管理引擎生命周期。
 class RetellRecordingController extends Notifier<RetellRecordingState> {
+  // ── 服务 ──
+  late final RecordingService _recordingService;
+  StreamSubscription<SpeechPracticeEvent>? _eventSub;
+
   // ── 计时器 ──
   Timer? _awaitingSpeechTimer;
   Timer? _maxDurationTimer;
@@ -113,25 +155,23 @@ class RetellRecordingController extends Notifier<RetellRecordingState> {
   // ── 配置 ──
   bool _isManualMode = false;
 
-  /// 绝对静音兜底阈值（通道 1 的无转录兜底）
-  Duration _silenceTimeout = _defaultSilenceTimeout;
-
   /// 自动模式最大录音时长（检测到语音后启动）
   Duration _maxRecordingDuration = _defaultMaxRecordingDuration;
 
   @override
   RetellRecordingState build() {
+    final backend = ref.read(speechPracticeBackendProvider);
+    _recordingService = RecordingService(backend);
+
     final lifecycleListener = AppLifecycleListener(
       onStateChange: _handleAppLifecycleChange,
     );
     ref.onDispose(() {
       lifecycleListener.dispose();
       _cancelAllTimers();
+      _eventSub?.cancel();
+      _recordingService.dispose();
     });
-    ref.listen<SpeechPracticeSessionState>(
-      speechPracticeSessionProvider,
-      _handleSpeechPracticeStateChanged,
-    );
     return const RetellRecordingState();
   }
 
@@ -142,9 +182,9 @@ class RetellRecordingController extends Notifier<RetellRecordingState> {
     _isManualMode = value;
   }
 
-  /// 设置绝对静音兜底阈值（默认 20s）
+  /// 设置绝对静音兜底阈值（复述场景不使用，保留接口兼容）
   void setSilenceTimeout(Duration value) {
-    _silenceTimeout = value;
+    // 复述场景完全靠 maxDuration 兜底，不使用绝对静音阈值。
   }
 
   /// 设置最大录音时长（默认 30s，仅自动模式；手动模式固定 60s）
@@ -180,14 +220,28 @@ class RetellRecordingController extends Notifier<RetellRecordingState> {
     state = RetellRecordingState(
       phase: RetellRecordingPhase.recording,
       promptId: promptId,
+      permissions: state.permissions,
     );
 
-    final session = ref.read(speechPracticeSessionProvider.notifier);
-    await session.startRecording(promptId: promptId);
-    final currentAttempt = session.attemptFor(promptId);
-    if (currentAttempt?.status != SpeechPracticeAttemptStatus.recording) {
-      AppLogger.log('RetellRec', '└ 录音启动失败 → idle');
-      state = state.copyWith(phase: RetellRecordingPhase.idle);
+    try {
+      await _recordingService.startRecording(promptId: promptId);
+      // 订阅事件流
+      _eventSub?.cancel();
+      _eventSub = _recordingService.events.listen(_handleRecordingEvent);
+
+      state = state.copyWith(
+        permissions: _recordingService.permissions,
+      );
+    } on SpeechPracticePlatformException catch (error) {
+      AppLogger.log('RetellRec', '└ 录音启动失败: ${error.code} → idle');
+      state = state.copyWith(
+        phase: RetellRecordingPhase.idle,
+        currentAttempt: SpeechPracticeAttempt(promptId: promptId).copyWith(
+          status: _statusFromError(error.code),
+          errorMessage: error.message,
+        ),
+        permissions: _recordingService.permissions,
+      );
       return;
     }
 
@@ -210,12 +264,24 @@ class RetellRecordingController extends Notifier<RetellRecordingState> {
     AppLogger.log('RetellRec', '● 手动停止录音');
     _isStopping = true;
     _enterProcessing(promptId);
-    await ref
-        .read(speechPracticeSessionProvider.notifier)
-        .stopRecordingAndEvaluate(
-          promptId: promptId,
-          referenceText: referenceText,
-        );
+    await _doStopAndEvaluate(promptId: promptId, referenceText: referenceText);
+  }
+
+  /// 取消当前录音
+  Future<void> cancelActiveRecording() async {
+    if (!_recordingService.isRecording) return;
+
+    _cancelAllTimers();
+    await _eventSub?.cancel();
+    _eventSub = null;
+    await _recordingService.cancelRecording();
+
+    state = state.copyWith(
+      phase: RetellRecordingPhase.idle,
+      clearLiveTranscript: true,
+      hasDetectedSpeech: false,
+      silenceDuration: Duration.zero,
+    );
   }
 
   // ========== 清理方法 ==========
@@ -227,25 +293,203 @@ class RetellRecordingController extends Notifier<RetellRecordingState> {
     _isStopping = false;
     _hasDetectedSpeech = false;
     _lastKnownTranscript = null;
-    state = const RetellRecordingState();
+    _eventSub?.cancel();
+    _eventSub = null;
+    state = RetellRecordingState(permissions: state.permissions);
   }
 
   /// 完全重置（页面 dispose 时调用）
-  void fullReset() {
+  Future<void> fullReset() async {
+    await cancelActiveRecording();
     clearRecording();
     _isManualMode = false;
     _cachedReferenceText = null;
-    _silenceTimeout = _defaultSilenceTimeout;
     _maxRecordingDuration = _defaultMaxRecordingDuration;
+  }
+
+  /// 删除指定录音文件
+  Future<void> deleteRecording(String filePath) async {
+    await _recordingService.deleteRecording(filePath);
   }
 
   // ========== 内部方法 ==========
 
+  /// 停止录音 + 评估
+  Future<void> _doStopAndEvaluate({
+    required String promptId,
+    required String referenceText,
+  }) async {
+    _cancelAllTimers();
+    await _eventSub?.cancel();
+    _eventSub = null;
+
+    final result = await _recordingService.stopRecording(promptId: promptId);
+    AppLogger.log('RetellRec', '📋 final: "${result.finalTranscript ?? '(null)'}"');
+
+    if (!result.isSuccess) {
+      final attempt = SpeechPracticeAttempt(promptId: promptId).copyWith(
+        filePath: result.filePath,
+        status: _statusFromError(result.errorCode),
+        errorMessage: result.errorMessage,
+      );
+      AppLogger.log('RetellRec', '✗ 录音失败: ${result.errorCode}');
+      state = state.copyWith(
+        phase: RetellRecordingPhase.idle,
+        currentAttempt: attempt,
+        clearLiveTranscript: true,
+        hasDetectedSpeech: false,
+        silenceDuration: Duration.zero,
+      );
+      return;
+    }
+
+    // 评估
+    final matcher = ref.read(speechTranscriptMatcherProvider);
+    final matchResult = matcher.evaluate(
+      referenceText: referenceText,
+      transcript: result.finalTranscript!,
+    );
+    final attempt = SpeechPracticeAttempt(promptId: promptId).copyWith(
+      filePath: result.filePath,
+      status: matchResult.status,
+      finalTranscript: matchResult.finalTranscript,
+      score: matchResult.score,
+      matchedTokenCount: matchResult.matchedTokenCount,
+      totalTargetTokenCount: matchResult.totalTargetTokenCount,
+      transcriptSegments: matchResult.transcriptSegments,
+      referenceSegments: matchResult.referenceSegments,
+    );
+
+    AppLogger.log('RetellRec', '✓ 评估完成: '
+        'status=${attempt.status.name}, '
+        'score=${attempt.score?.toStringAsFixed(2)}, '
+        'matched=${attempt.matchedTokenCount}/${attempt.totalTargetTokenCount}');
+
+    state = state.copyWith(
+      phase: RetellRecordingPhase.idle,
+      currentAttempt: attempt,
+      clearLiveTranscript: true,
+      hasDetectedSpeech: false,
+      silenceDuration: Duration.zero,
+    );
+  }
+
   void _enterProcessing(String promptId) {
     if (state.promptId != promptId) return;
     _cancelAllTimers();
-    AppLogger.log('RetellRec', '→ processing');
     state = state.copyWith(phase: RetellRecordingPhase.processing);
+  }
+
+  // ── 事件处理 ──
+
+  void _handleRecordingEvent(SpeechPracticeEvent event) {
+    final promptId = state.promptId;
+    if (promptId == null || event.promptId != promptId) return;
+    if (state.phase != RetellRecordingPhase.recording || _isStopping) return;
+
+    switch (event.type) {
+      case SpeechPracticeEventType.partialTranscriptUpdated:
+        _handlePartialTranscript(event);
+      case SpeechPracticeEventType.speechStarted:
+        _handleSpeechStarted(event);
+      case SpeechPracticeEventType.silenceProgress:
+        _handleSilenceProgress(event);
+      case SpeechPracticeEventType.finalTranscriptReady ||
+          SpeechPracticeEventType.error:
+        break; // RecordingService 内部处理
+    }
+  }
+
+  void _handlePartialTranscript(SpeechPracticeEvent event) {
+    final text = (event.transcript ?? '').trim();
+    final prevText = state.liveTranscript?.trim() ?? '';
+    if (text.isNotEmpty && text != prevText) {
+      AppLogger.log('RetellRec', '📝 live: "$text"');
+    }
+    state = state.copyWith(
+      liveTranscript: text,
+      silenceDuration: Duration.zero,
+    );
+
+    // 触发语音检测 + 自动停止逻辑
+    _checkSpeechAndAutoStop(text);
+  }
+
+  void _handleSpeechStarted(SpeechPracticeEvent event) {
+    state = state.copyWith(
+      hasDetectedSpeech: true,
+      silenceDuration: Duration.zero,
+    );
+
+    if (!_hasDetectedSpeech) {
+      _handleSpeechDetected(state.promptId!);
+    }
+  }
+
+  void _handleSilenceProgress(SpeechPracticeEvent event) {
+    final silence = event.silenceDuration ?? Duration.zero;
+    state = state.copyWith(silenceDuration: silence);
+
+    // 触发自动停止检测
+    _checkAutoStopOnSilence(silence);
+  }
+
+  /// 检查语音检测 + 自动停止
+  void _checkSpeechAndAutoStop(String liveText) {
+    final promptId = state.promptId;
+    if (promptId == null) return;
+
+    final hasVoiceInput =
+        state.hasDetectedSpeech || liveText.isNotEmpty;
+
+    // 首次检测到语音
+    if (!_hasDetectedSpeech && hasVoiceInput) {
+      _handleSpeechDetected(promptId);
+    }
+
+    if (_isManualMode || !_hasDetectedSpeech) return;
+
+    // 转录停滞检测（通道 2）
+    if (liveText.isNotEmpty && liveText != _lastKnownTranscript) {
+      _lastKnownTranscript = liveText;
+      _resetTranscriptStaleTimer(
+        promptId: promptId,
+        referenceText: _cachedReferenceText!,
+        transcript: liveText,
+      );
+    }
+  }
+
+  /// 静音时的自动停止检测
+  void _checkAutoStopOnSilence(Duration currentSilence) {
+    final promptId = state.promptId;
+    if (promptId == null || _isManualMode || !_hasDetectedSpeech) return;
+
+    final liveTranscript = state.liveTranscript?.trim() ?? '';
+    final referenceText = _cachedReferenceText;
+    if (referenceText == null || liveTranscript.isEmpty) return;
+    if (currentSilence <= Duration.zero) return;
+
+    final ctx = buildMatchContext(
+      referenceText: referenceText,
+      partialTranscript: liveTranscript,
+    );
+    if (!ctx.hasMatch) return;
+
+    final ruleA = detectTailMatch(ctx);
+    final ruleB = detectOverallMatchRate(ctx);
+    for (final rule in [ruleA, ruleB]) {
+      if (rule.triggered && currentSilence >= rule.threshold!) {
+        final pct = (ctx.matchRate * 100).toInt();
+        AppLogger.log('RetellRec', '⏹ 静音停止: '
+            '${currentSilence.inMilliseconds}ms ≥ '
+            '${rule.threshold!.inMilliseconds}ms | '
+            '匹配${ctx.lcsPairs.length}/${ctx.referenceTokens.length}词'
+            '($pct%), ${rule.description}');
+        _stopForEvaluation(promptId: promptId, reason: rule.description);
+        return;
+      }
+    }
   }
 
   // ── 等待开口计时器 ──
@@ -259,74 +503,12 @@ class RetellRecordingController extends Notifier<RetellRecordingState> {
         return;
       }
       AppLogger.log('RetellRec', '⏰ ${_awaitingSpeechTimeout.inSeconds}s 未检测到语音 → 退出自动录音');
-      await ref
-          .read(speechPracticeSessionProvider.notifier)
-          .cancelActiveRecording();
+      await cancelActiveRecording();
       state = state.copyWith(
         phase: RetellRecordingPhase.idle,
         awaitingSpeechTimedOut: true,
       );
     });
-  }
-
-  // ── 核心状态变化监听 ──
-
-  void _handleSpeechPracticeStateChanged(
-    SpeechPracticeSessionState? previous,
-    SpeechPracticeSessionState next,
-  ) {
-    final promptId = state.promptId;
-    if (promptId == null) return;
-
-    final previousAttempt = previous?.attempts[promptId];
-    final attempt = next.attempts[promptId];
-    if (attempt == null) return;
-
-    // awaitingFinal → processing
-    if (attempt.status == SpeechPracticeAttemptStatus.awaitingFinal) {
-      _enterProcessing(promptId);
-      return;
-    }
-
-    // 评估完成 → idle
-    if (attempt.hasFinalFeedback &&
-        !(previousAttempt?.hasFinalFeedback ?? false)) {
-      AppLogger.log('RetellRec', '✓ 评估完成: '
-          'status=${attempt.status.name}, '
-          'score=${attempt.score?.toStringAsFixed(2)}, '
-          'matched=${attempt.matchedTokenCount}/${attempt.totalTargetTokenCount}');
-      _cancelAllTimers();
-      state = state.copyWith(phase: RetellRecordingPhase.idle);
-      return;
-    }
-
-    // ── recording 阶段：语音检测 + 自动停止 ──
-    if (state.phase != RetellRecordingPhase.recording || _isStopping) return;
-
-    // 检测语音：VAD 触发或 ASR 已产出文字
-    final liveText = attempt.liveTranscript?.trim() ?? '';
-    if (liveText.isNotEmpty &&
-        liveText != (previousAttempt?.liveTranscript?.trim() ?? '')) {
-      AppLogger.log('RetellRec', '📝 live: "$liveText"');
-    }
-    final hasVoiceInput = attempt.hasDetectedSpeech || liveText.isNotEmpty;
-
-    // 首次检测到语音 → 切换到 speaking 逻辑
-    if (!_hasDetectedSpeech && hasVoiceInput) {
-      _handleSpeechDetected(promptId);
-    }
-
-    // 手动模式：不做自动停止检测（除了 maxDuration 兜底）
-    if (_isManualMode) return;
-
-    // 只有检测到语音后才开始自动停止检测
-    if (!_hasDetectedSpeech) return;
-
-    _handleSpeakingAttemptUpdate(
-      promptId: promptId,
-      attempt: attempt,
-      previousAttempt: previousAttempt,
-    );
   }
 
   /// 首次检测到语音的处理
@@ -344,62 +526,6 @@ class RetellRecordingController extends Notifier<RetellRecordingState> {
       promptId: promptId,
       maxDuration: effectiveMaxDuration,
     );
-  }
-
-  /// speaking 阶段的双通道自动停止检测（严格对齐跟读）
-  void _handleSpeakingAttemptUpdate({
-    required String promptId,
-    required SpeechPracticeAttempt attempt,
-    required SpeechPracticeAttempt? previousAttempt,
-  }) {
-    if (!attempt.hasDetectedSpeech) return;
-
-    final referenceText = _cachedReferenceText;
-    if (referenceText == null) return;
-
-    final liveTranscript = attempt.liveTranscript?.trim() ?? '';
-
-    // ── 静音检测 ──
-    //
-    // 复述场景只在高匹配率时提前停止（规则 A/B），低匹配率不做静音检测，
-    // 完全靠 maxDuration 兜底。用户需要时间思考，中间停顿是正常的。
-    final currentSilence = attempt.silenceDuration;
-    if (currentSilence > Duration.zero && liveTranscript.isNotEmpty) {
-      final ctx = buildMatchContext(
-        referenceText: referenceText,
-        partialTranscript: liveTranscript,
-      );
-      if (ctx.hasMatch) {
-        final ruleA = detectTailMatch(ctx);
-        final ruleB = detectOverallMatchRate(ctx);
-        // 只在规则 A 或 B 明确触发时才提前停止
-        for (final rule in [ruleA, ruleB]) {
-          if (rule.triggered && currentSilence >= rule.threshold!) {
-            final pct = (ctx.matchRate * 100).toInt();
-            AppLogger.log('RetellRec', '⏹ 静音停止: '
-                '${currentSilence.inMilliseconds}ms ≥ '
-                '${rule.threshold!.inMilliseconds}ms | '
-                '匹配${ctx.lcsPairs.length}/${ctx.referenceTokens.length}词'
-                '($pct%), ${rule.description}');
-            _stopForEvaluation(promptId: promptId,
-                reason: rule.description);
-            return;
-          }
-        }
-      }
-    }
-
-    // ── 转录停滞检测（通道 2，嘈杂环境备用）──
-    //
-    // 同样只在规则 A/B 触发时才设置定时器，否则不设。
-    if (liveTranscript.isNotEmpty && liveTranscript != _lastKnownTranscript) {
-      _lastKnownTranscript = liveTranscript;
-      _resetTranscriptStaleTimer(
-        promptId: promptId,
-        referenceText: referenceText,
-        transcript: liveTranscript,
-      );
-    }
   }
 
   /// 转录停滞定时器：只在规则 A/B 触发时才设置。
@@ -475,12 +601,7 @@ class RetellRecordingController extends Notifier<RetellRecordingState> {
     }
 
     unawaited(
-      ref
-          .read(speechPracticeSessionProvider.notifier)
-          .stopRecordingAndEvaluate(
-            promptId: promptId,
-            referenceText: referenceText,
-          ),
+      _doStopAndEvaluate(promptId: promptId, referenceText: referenceText),
     );
   }
 
@@ -494,7 +615,11 @@ class RetellRecordingController extends Notifier<RetellRecordingState> {
       _isStopping = false;
       _hasDetectedSpeech = false;
       _lastKnownTranscript = null;
-      state = const RetellRecordingState();
+      _eventSub?.cancel();
+      _eventSub = null;
+      // 取消录音但不 await（后台不可靠）
+      unawaited(_recordingService.cancelRecording());
+      state = RetellRecordingState(permissions: state.permissions);
     }
   }
 
@@ -505,5 +630,15 @@ class RetellRecordingController extends Notifier<RetellRecordingState> {
     _maxDurationTimer = null;
     _transcriptStaleTimer?.cancel();
     _transcriptStaleTimer = null;
+  }
+
+  /// 判断错误码对应的 attempt 状态。
+  SpeechPracticeAttemptStatus _statusFromError(String? code) {
+    return switch (code) {
+      'permissionDenied' => SpeechPracticeAttemptStatus.permissionDenied,
+      'notAvailable' => SpeechPracticeAttemptStatus.unavailable,
+      'noSpeech' => SpeechPracticeAttemptStatus.noEnglishDetected,
+      _ => SpeechPracticeAttemptStatus.error,
+    };
   }
 }
