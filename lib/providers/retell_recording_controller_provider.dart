@@ -30,6 +30,7 @@ import '../services/recording_service.dart';
 import '../services/speech_completion_detector.dart';
 import '../services/speech_practice_platform.dart';
 import '../services/text_embedding_platform.dart';
+import '../widgets/listen_and_repeat/speech_practice_result_card.dart';
 import 'speech_practice_session_provider.dart';
 
 /// 等待开口最大时长
@@ -345,17 +346,27 @@ class RetellRecordingController extends Notifier<RetellRecordingState> {
       return;
     }
 
-    // 评估
+    // 评估：覆盖率 + embedding 取最高级别
     final matcher = ref.read(speechTranscriptMatcherProvider);
     final matchResult = matcher.evaluate(
       referenceText: referenceText,
       transcript: result.finalTranscript!,
     );
+
+    final effectiveScore = await _bestScore(
+      coverageScore: matchResult.score,
+      referenceText: referenceText,
+      transcript: result.finalTranscript!,
+    );
+    final effectiveStatus = effectiveScore >= 0.2
+        ? SpeechPracticeAttemptStatus.passed
+        : matchResult.status;
+
     final attempt = SpeechPracticeAttempt(promptId: promptId).copyWith(
       filePath: result.filePath,
-      status: matchResult.status,
+      status: effectiveStatus,
       finalTranscript: matchResult.finalTranscript,
-      score: matchResult.score,
+      score: effectiveScore,
       matchedTokenCount: matchResult.matchedTokenCount,
       totalTargetTokenCount: matchResult.totalTargetTokenCount,
       transcriptSegments: matchResult.transcriptSegments,
@@ -366,9 +377,6 @@ class RetellRecordingController extends Notifier<RetellRecordingState> {
         'status=${attempt.status.name}, '
         'score=${attempt.score?.toStringAsFixed(2)}, '
         'matched=${attempt.matchedTokenCount}/${attempt.totalTargetTokenCount}');
-
-    // Debug: 计算 embedding cosine similarity（异步，不阻塞 UI）
-    unawaited(_logEmbeddingSimilarity(referenceText, result.finalTranscript!));
 
     state = state.copyWith(
       phase: RetellRecordingPhase.idle,
@@ -637,31 +645,47 @@ class RetellRecordingController extends Notifier<RetellRecordingState> {
     _transcriptStaleTimer = null;
   }
 
-  /// Debug: 异步计算并打印 embedding cosine similarity。
-  Future<void> _logEmbeddingSimilarity(
-    String referenceText,
-    String transcript,
-  ) async {
+  /// 综合覆盖率和 embedding 相似度，取级别更高的分数。
+  ///
+  /// 当 embedding 不可用或计算失败时，回退到覆盖率分数。
+  Future<double> _bestScore({
+    required double coverageScore,
+    required String referenceText,
+    required String transcript,
+  }) async {
+    final coverageLevel = _coverageToRatingLevel(coverageScore);
+    double? embeddingScore;
+    _RatingLevel? embeddingLevel;
+
     try {
       final similarity = EmbeddingSimilarity(
         backend: TextEmbeddingPlatform.instance,
       );
-      if (!similarity.isSupported) {
-        AppLogger.log('RetellRec', '🧮 Embedding: 当前平台不支持');
-        return;
+      if (similarity.isSupported) {
+        embeddingScore = await similarity.computeSimilarity(
+          referenceText,
+          transcript,
+        );
+        embeddingLevel = _embeddingToRatingLevel(embeddingScore);
       }
-      final score = await similarity.computeSimilarity(
-        referenceText,
-        transcript,
-      );
-      AppLogger.log(
-        'RetellRec',
-        '🧮 Embedding cosine similarity: ${score.toStringAsFixed(4)} '
-            '(ref=${referenceText.length}字, transcript=${transcript.length}字)',
-      );
     } on Exception catch (e) {
       AppLogger.log('RetellRec', '🧮 Embedding 计算失败: $e');
     }
+
+    final useEmbedding =
+        embeddingLevel != null && embeddingLevel.index > coverageLevel.index;
+    final effectiveScore = useEmbedding ? embeddingScore! : coverageScore;
+    final effectiveLevel = useEmbedding ? embeddingLevel : coverageLevel;
+
+    AppLogger.log(
+      'RetellRec',
+      '🧮 覆盖率=${coverageScore.toStringAsFixed(2)} (${coverageLevel.name})'
+          ', Embedding=${embeddingScore?.toStringAsFixed(2) ?? "N/A"}'
+              ' (${embeddingLevel?.name ?? "N/A"})'
+          ', 最终=${effectiveScore.toStringAsFixed(2)} (${effectiveLevel.name})',
+    );
+
+    return effectiveScore;
   }
 
   /// 判断错误码对应的 attempt 状态。
@@ -673,4 +697,36 @@ class RetellRecordingController extends Notifier<RetellRecordingState> {
       _ => SpeechPracticeAttemptStatus.error,
     };
   }
+}
+
+/// 评分级别，index 越大越好，与 UI 中 _ratingLabel 阈值一致。
+enum _RatingLevel {
+  keepGoing, // < 0.40
+  fair, // >= 0.40
+  good, // >= 0.60
+  excellent, // >= 0.80
+  perfect, // >= 0.95
+}
+
+/// 覆盖率 → 评分级别（复述场景阈值）。
+///
+/// 阈值与 [RatingThresholds.retell] 保持一致。
+_RatingLevel _coverageToRatingLevel(double score) {
+  const t = RatingThresholds.retell;
+  if (score >= t.perfect) return _RatingLevel.perfect;
+  if (score >= t.excellent) return _RatingLevel.excellent;
+  if (score >= t.good) return _RatingLevel.good;
+  if (score >= t.fair) return _RatingLevel.fair;
+  return _RatingLevel.keepGoing;
+}
+
+/// Embedding cosine similarity → 评分级别。
+///
+/// cosine similarity 值域偏高，阈值独立于覆盖率。
+_RatingLevel _embeddingToRatingLevel(double score) {
+  if (score >= 0.90) return _RatingLevel.perfect;
+  if (score >= 0.70) return _RatingLevel.excellent;
+  if (score >= 0.60) return _RatingLevel.good;
+  if (score >= 0.50) return _RatingLevel.fair;
+  return _RatingLevel.keepGoing;
 }

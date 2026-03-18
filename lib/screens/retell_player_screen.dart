@@ -683,6 +683,7 @@ class _RetellPlayerScreenState extends ConsumerState<RetellPlayerScreen>
                         _playingPromptId == currentPromptId,
                     onPlayAttempt: () =>
                         _handleAttemptPlaybackTap(currentPromptId),
+                    thresholds: RatingThresholds.retell,
                   ),
                 ),
 

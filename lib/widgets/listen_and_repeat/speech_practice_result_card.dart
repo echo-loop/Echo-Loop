@@ -9,6 +9,44 @@ import '../../l10n/app_localizations.dart';
 import '../../models/speech_practice_models.dart';
 import '../../theme/app_theme.dart';
 
+/// 评分阈值配置。
+class RatingThresholds {
+  /// Perfect 阈值。
+  final double perfect;
+
+  /// Excellent 阈值。
+  final double excellent;
+
+  /// Good 阈值。
+  final double good;
+
+  /// Fair 阈值。
+  final double fair;
+
+  const RatingThresholds({
+    required this.perfect,
+    required this.excellent,
+    required this.good,
+    required this.fair,
+  });
+
+  /// 跟读场景默认阈值。
+  static const listenAndRepeat = RatingThresholds(
+    perfect: 0.95,
+    excellent: 0.80,
+    good: 0.60,
+    fair: 0.40,
+  );
+
+  /// 复述场景阈值（比跟读宽松）。
+  static const retell = RatingThresholds(
+    perfect: 0.90,
+    excellent: 0.75,
+    good: 0.50,
+    fair: 0.20,
+  );
+}
+
 /// 跟读录音结果卡。
 class SpeechPracticeResultCard extends StatelessWidget {
   final AppLocalizations l10n;
@@ -16,12 +54,16 @@ class SpeechPracticeResultCard extends StatelessWidget {
   final bool isPlayingAttempt;
   final VoidCallback? onPlayAttempt;
 
+  /// 评分阈值，默认跟读阈值。
+  final RatingThresholds thresholds;
+
   const SpeechPracticeResultCard({
     super.key,
     required this.l10n,
     required this.attempt,
     required this.isPlayingAttempt,
     this.onPlayAttempt,
+    this.thresholds = RatingThresholds.listenAndRepeat,
   });
 
   @override
@@ -96,16 +138,16 @@ class SpeechPracticeResultCard extends StatelessWidget {
 
   String _ratingLabel() {
     final score = attempt.score ?? 0;
-    if (score >= 0.95) {
+    if (score >= thresholds.perfect) {
       return l10n.listenAndRepeatRatingPerfect;
     }
-    if (score >= 0.80) {
+    if (score >= thresholds.excellent) {
       return l10n.listenAndRepeatRatingExcellent;
     }
-    if (score >= 0.60) {
+    if (score >= thresholds.good) {
       return l10n.listenAndRepeatRatingGood;
     }
-    if (score >= 0.40) {
+    if (score >= thresholds.fair) {
       return l10n.listenAndRepeatRatingFair;
     }
     return l10n.listenAndRepeatRatingKeepGoing;
@@ -145,8 +187,8 @@ class SpeechPracticeResultCard extends StatelessWidget {
     final isDark = theme.brightness == Brightness.dark;
     final score = attempt.score ?? 0;
 
-    // Perfect (>= 0.95) — 金色
-    if (score >= 0.95) {
+    // Perfect — 金色
+    if (score >= thresholds.perfect) {
       return isDark
           ? const RatingBadgeStyle(
               textColor: Color(0xFFFFE082),
@@ -162,8 +204,8 @@ class SpeechPracticeResultCard extends StatelessWidget {
             );
     }
 
-    // Excellent (>= 0.80) — 绿色
-    if (score >= 0.80) {
+    // Excellent — 绿色
+    if (score >= thresholds.excellent) {
       return isDark
           ? const RatingBadgeStyle(
               textColor: Color(0xFFB9F5C8),
@@ -179,8 +221,8 @@ class SpeechPracticeResultCard extends StatelessWidget {
             );
     }
 
-    // Good (>= 0.60) — 黄绿色
-    if (score >= 0.60) {
+    // Good — 黄绿色
+    if (score >= thresholds.good) {
       return isDark
           ? const RatingBadgeStyle(
               textColor: Color(0xFFE4F3B2),
@@ -196,8 +238,8 @@ class SpeechPracticeResultCard extends StatelessWidget {
             );
     }
 
-    // Fair (>= 0.40) — 橙色（鼓励）
-    if (score >= 0.40) {
+    // Fair — 橙色（鼓励）
+    if (score >= thresholds.fair) {
       return isDark
           ? const RatingBadgeStyle(
               textColor: Color(0xFFF7D79B),
