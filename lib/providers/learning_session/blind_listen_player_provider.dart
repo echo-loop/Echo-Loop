@@ -263,8 +263,17 @@ class BlindListenPlayer extends _$BlindListenPlayer {
   }
 
   /// 更新设置
+  ///
+  /// 切换到手动模式时，取消正在进行的倒计时。
   void updateSettings(BlindListenSettings newSettings) {
+    final switchedToManual = newSettings.isManualMode &&
+        !state.settings.isManualMode;
+
     state = state.copyWith(settings: newSettings);
+
+    if (switchedToManual && state.isPauseCountdown) {
+      cancelCountdown();
+    }
   }
 
   /// 暂停倒计时
@@ -330,6 +339,13 @@ class BlindListenPlayer extends _$BlindListenPlayer {
     } catch (_) {}
 
     _positionSub?.cancel();
+
+    // 手动模式：播放完直接停止，等待用户操作
+    if (state.settings.isManualMode) {
+      state = state.copyWith(isPlaying: false, playingSentenceIndex: -1);
+      return;
+    }
+
     _startPauseCountdown();
   }
 

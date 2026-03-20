@@ -564,7 +564,7 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String get blindListenComplete => '听力完成';
+  String get blindListenComplete => '盲听完成';
 
   @override
   String blindListenPassInfo(int count) {
@@ -767,7 +767,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String intensiveListenCompleteMessage(int total, int difficult) {
-    return '你已完成全部 $total 个句子的精听。共标记 $difficult 个难句。';
+    return '你已完成全部 $total 个句子的精听。\n共标记 $difficult 个难句。';
   }
 
   @override
@@ -829,6 +829,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get intensiveListenPauseSmartDesc => '根据难度、句子长度和学习阶段自动调整';
 
   @override
+  String get intensiveListenControlModeAutoDesc => '自动循环、自动停顿、自动下一句';
+
+  @override
+  String get intensiveListenControlModeManualDesc => '手动重听、手动下一句';
+
+  @override
   String intensiveListenPauseFixedUnit(int seconds) {
     return '$seconds秒';
   }
@@ -850,9 +856,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String difficultyLabel(String difficulty) {
     return '难度: $difficulty';
   }
-
-  @override
-  String get backToPlan => '返回计划';
 
   @override
   String continueToStep(String step) {
@@ -1826,7 +1829,13 @@ class AppLocalizationsZh extends AppLocalizations {
   String get blindListenDisplayShowAll => '显示字幕';
 
   @override
-  String get blindListenRecallHint => '试着回忆刚才听到的内容';
+  String get blindListenRecallHint => '回想刚才听到的内容';
+
+  @override
+  String get blindListenControlModeAutoDesc => '自动重复、自动停顿、自动下一段';
+
+  @override
+  String get blindListenControlModeManualDesc => '手动重听、手动下一段';
 
   @override
   String get blindListenNoParagraph => '不分段';
@@ -1835,4 +1844,18 @@ class AppLocalizationsZh extends AppLocalizations {
   String blindListenParagraphCount(int count) {
     return '$count 个段落';
   }
+
+  @override
+  String get resetLearningProgress => '重置学习进度';
+
+  @override
+  String get resetLearningProgressConfirmTitle => '重置学习进度？';
+
+  @override
+  String resetLearningProgressConfirmMessage(String name) {
+    return '将清除「$name」的所有学习进度，此操作不可撤销。';
+  }
+
+  @override
+  String get resetLearningProgressDone => '学习进度已重置';
 }

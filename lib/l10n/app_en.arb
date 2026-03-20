@@ -267,7 +267,7 @@
       "count": { "type": "int" }
     }
   },
-  "blindListenComplete": "Listening Complete",
+  "blindListenComplete": "Blind Listen Complete",
   "blindListenPassInfo": "Listened {count} time(s)",
   "@blindListenPassInfo": {
     "placeholders": {
@@ -384,7 +384,7 @@
     }
   },
   "intensiveListenCompleteTitle": "Intensive Listening Complete",
-  "intensiveListenCompleteMessage": "You've completed intensive listening for all {total} sentences. {difficult} sentence(s) marked as difficult.",
+  "intensiveListenCompleteMessage": "You've completed intensive listening for all {total} sentences.\n{difficult} sentence(s) marked as difficult.",
   "@intensiveListenCompleteMessage": {
     "placeholders": {
       "total": { "type": "int" },
@@ -419,6 +419,8 @@
   "intensiveListenPauseMultiplierMode": "Multiplier",
   "intensiveListenSettingsTemporaryHint": "Settings apply to this session only",
   "intensiveListenPauseSmartDesc": "Auto-adjusted based on difficulty, sentence length, and learning stage",
+  "intensiveListenControlModeAutoDesc": "Auto-loop, auto-pause, auto-next",
+  "intensiveListenControlModeManualDesc": "Tap to replay, tap next",
   "intensiveListenPauseFixedUnit": "{seconds}s",
   "@intensiveListenPauseFixedUnit": {
     "placeholders": {
@@ -444,7 +446,6 @@
       "difficulty": { "type": "String" }
     }
   },
-  "backToPlan": "Back to Plan",
   "continueToStep": "Continue: {step}",
   "@continueToStep": {
     "placeholders": {
@@ -1032,11 +1033,23 @@
   "blindListenDisplayHideAll": "Hide Subtitles",
   "blindListenDisplayShowAll": "Show Subtitles",
   "blindListenRecallHint": "Try to recall what you just heard",
+  "blindListenControlModeAutoDesc": "Auto-repeat, auto-pause, auto-next",
+  "blindListenControlModeManualDesc": "Tap to replay, tap next",
   "blindListenNoParagraph": "No split",
   "blindListenParagraphCount": "{count} paragraphs",
   "@blindListenParagraphCount": {
     "placeholders": {
       "count": {"type": "int"}
     }
-  }
+  },
+
+  "resetLearningProgress": "Reset Progress",
+  "resetLearningProgressConfirmTitle": "Reset Learning Progress?",
+  "resetLearningProgressConfirmMessage": "This will clear all learning progress for \"{name}\". This action cannot be undone.",
+  "@resetLearningProgressConfirmMessage": {
+    "placeholders": {
+      "name": { "type": "String" }
+    }
+  },
+  "resetLearningProgressDone": "Learning progress has been reset"
 }

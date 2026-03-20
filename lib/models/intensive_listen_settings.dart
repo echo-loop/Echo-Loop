@@ -39,7 +39,7 @@ class IntensiveListenSettings {
   /// 句长倍数（默认 2.0）
   final double pauseMultiplier;
 
-  /// 跟读控制模式（默认 auto，仅跟读页使用）
+  /// 控制模式（默认 auto，跟读/精听共用）
   final ShadowingControlMode controlMode;
 
   /// 固定间隔可选值

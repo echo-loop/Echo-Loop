@@ -417,6 +417,13 @@ class _BlindListenPlayerScreenState
     return _buildParagraphMode(context, l10n, theme, session, playerState);
   }
 
+  /// 手动模式下播放完成后的空闲状态（非播放、非倒计时）
+  bool _isManualIdleState(BlindListenPlayerState state) {
+    return state.settings.isManualMode &&
+        !state.isPlaying &&
+        !state.isPauseCountdown;
+  }
+
   // ========== 段落分段模式 UI ==========
 
   Widget _buildParagraphMode(
@@ -573,7 +580,7 @@ class _BlindListenPlayerScreenState
                 ),
               ),
 
-              // 回忆提示（仅倒计时时显示）
+              // 回忆提示（仅自动模式倒计时时显示）
               SizedBox(
                 height: 28,
                 child: Center(
@@ -588,7 +595,7 @@ class _BlindListenPlayerScreenState
                 ),
               ),
 
-              // 倒计时/耳机图标区域
+              // 倒计时/状态提示区域
               SizedBox(
                 height: 56,
                 child: Center(
@@ -623,7 +630,27 @@ class _BlindListenPlayerScreenState
                                 ),
                               ],
                             )
-                          : null,
+                          : _isManualIdleState(playerState)
+                              ? Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      Icons.lightbulb_outline,
+                                      size: 20,
+                                      color: theme.colorScheme.primary,
+                                    ),
+                                    const SizedBox(width: AppSpacing.s),
+                                    Text(
+                                      l10n.blindListenRecallHint,
+                                      style: theme.textTheme.bodyMedium
+                                          ?.copyWith(
+                                        color: theme.colorScheme.primary,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ],
+                                )
+                              : null,
                 ),
               ),
 
@@ -652,20 +679,23 @@ class _BlindListenPlayerScreenState
                 },
               ),
 
-              // 遍数
-              Padding(
-                padding: const EdgeInsets.only(bottom: AppSpacing.m),
-                child: Text(
-                  l10n.blindListenRepeatInfo(
-                    playerState.currentRepeatCount,
-                    playerState.settings.repeatCount,
+              // 遍数（手动模式隐藏）
+              if (!playerState.settings.isManualMode)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: AppSpacing.m),
+                  child: Text(
+                    l10n.blindListenRepeatInfo(
+                      playerState.currentRepeatCount,
+                      playerState.settings.repeatCount,
+                    ),
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant
+                          .withValues(alpha: 0.5),
+                    ),
                   ),
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant
-                        .withValues(alpha: 0.5),
-                  ),
-                ),
-              ),
+                )
+              else
+                const SizedBox(height: AppSpacing.m),
             ],
           ),
         ),

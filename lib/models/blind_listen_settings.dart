@@ -4,7 +4,7 @@
 /// 仅在会话内临时生效，不持久化。
 library;
 
-import 'intensive_listen_settings.dart' show PauseMode;
+import 'intensive_listen_settings.dart' show PauseMode, ShadowingControlMode;
 
 /// 盲听设置（会话内临时生效）
 class BlindListenSettings {
@@ -20,6 +20,12 @@ class BlindListenSettings {
   /// 段长倍数（默认 1.5）
   final double pauseMultiplier;
 
+  /// 控制模式（默认 auto）
+  final ShadowingControlMode controlMode;
+
+  /// 是否为手动控制模式
+  bool get isManualMode => controlMode == ShadowingControlMode.manual;
+
   /// 固定间隔可选值（秒）
   static const List<int> fixedPauseOptions = [5, 10, 15, 20, 25, 30, 45, 60];
 
@@ -33,6 +39,7 @@ class BlindListenSettings {
     this.pauseMode = PauseMode.multiplier,
     this.fixedPauseSeconds = 15,
     this.pauseMultiplier = 1.5,
+    this.controlMode = ShadowingControlMode.auto,
   });
 
   /// 从弹窗回调的 pauseMultiplier 创建设置
@@ -66,12 +73,14 @@ class BlindListenSettings {
     PauseMode? pauseMode,
     int? fixedPauseSeconds,
     double? pauseMultiplier,
+    ShadowingControlMode? controlMode,
   }) {
     return BlindListenSettings(
       repeatCount: repeatCount ?? this.repeatCount,
       pauseMode: pauseMode ?? this.pauseMode,
       fixedPauseSeconds: fixedPauseSeconds ?? this.fixedPauseSeconds,
       pauseMultiplier: pauseMultiplier ?? this.pauseMultiplier,
+      controlMode: controlMode ?? this.controlMode,
     );
   }
 }

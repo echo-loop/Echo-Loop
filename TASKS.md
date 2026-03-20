@@ -1,7 +1,23 @@
 # Fluency 任务清单
 
-> 最后更新：2026-03-19
+> 最后更新：2026-03-20
 > 当前焦点：录音+识别功能
+
+## 已完成：全文盲听 & 逐句精听添加手动控制模式
+- [x] BlindListenSettings 添加 controlMode 字段 + isManualMode getter + copyWith 扩展
+- [x] IntensiveListenSettings 注释更新（controlMode 精听也用）
+- [x] BlindListenPlayerProvider 手动模式：播放完段落后跳过倒计时，直接停止
+- [x] IntensiveListenPlayerProvider 手动模式：播放一遍后停止、标注重播后停止、controlMode 变化触发 restart
+- [x] BlindListenSettingsSheet 添加控制模式 SegmentedButton，手动模式隐藏重复次数和停顿设置
+- [x] IntensiveListenSettingsSheet 添加控制模式 SegmentedButton，手动模式隐藏循环次数和停顿设置
+- [x] BlindListenPlayerScreen 手动模式隐藏遍数文字
+- [x] IntensiveListenPlayerScreen 手动模式隐藏播放遍数文字
+- [x] 国际化新增 4 个描述 key（blindListen/intensiveListen ControlMode Auto/ManualDesc，en + zh）
+- [x] 测试覆盖（BlindListenSettings 7 个 + BlindListenPlayer 4 个 + IntensiveListenPlayer 手动模式 3 个 = 14 个新测试）
+
+  **完成时间**: 2026-03-20
+
+---
 
 ## 已完成：跟读录音控制器独立实现 + UI 优化
 - [x] 新增 `ShadowingRecordingController` 替代跟读场景对 `retellRecordingControllerProvider` 的复用

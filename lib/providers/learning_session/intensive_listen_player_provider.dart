@@ -489,7 +489,8 @@ class IntensiveListenPlayer extends _$IntensiveListenPlayer {
       clampedPlayCount = newSettings.repeatCount;
     }
 
-    final needRestart = newSettings.repeatCount != state.settings.repeatCount;
+    final needRestart = newSettings.repeatCount != state.settings.repeatCount ||
+        newSettings.controlMode != state.settings.controlMode;
 
     state = state.copyWith(
       settings: newSettings,
@@ -547,9 +548,12 @@ class IntensiveListenPlayer extends _$IntensiveListenPlayer {
   }
 
   /// 句子播放循环：播放 repeatCount 遍，遍间停顿
+  ///
+  /// 手动模式下仅播放一遍后停止，等待用户操作。
   Future<void> _playSentenceLoop(Sentence sentence, int sessionId) async {
     final engine = ref.read(audioEngineProvider.notifier);
-    final repeatCount = state.settings.repeatCount;
+    final isManual = state.settings.isManualMode;
+    final repeatCount = isManual ? 1 : state.settings.repeatCount;
 
     for (int playCount = 1; playCount <= repeatCount; playCount++) {
       if (!engine.isActiveSession(sessionId)) return;
@@ -565,6 +569,12 @@ class IntensiveListenPlayer extends _$IntensiveListenPlayer {
       final session = ref.read(learningSessionProvider.notifier);
       session.addInputWords(wordCount);
       session.recordLearnedSentence(sentence.text);
+
+      // 手动模式：播完一遍即停止，等待用户操作
+      if (isManual) {
+        state = state.copyWith(isPlaying: false);
+        return;
+      }
 
       // 遍间停顿（最后一遍不停顿）
       if (playCount < repeatCount) {
@@ -711,6 +721,8 @@ class IntensiveListenPlayer extends _$IntensiveListenPlayer {
   }
 
   /// 当前页内的详情重播完成后推进
+  ///
+  /// 手动模式下重播完成后停止等待，不自动推进。
   Future<void> _finishAnnotationReplay() async {
     state = state.copyWith(
       isAnnotationReplay: false,
@@ -720,6 +732,13 @@ class IntensiveListenPlayer extends _$IntensiveListenPlayer {
       isCountdownPaused: false,
       isCountdownFastForward: false,
     );
+
+    // 手动模式：重播完成后退出标注模式，停止等待用户操作
+    if (state.settings.isManualMode) {
+      state = state.copyWith(isAnnotationMode: false);
+      return;
+    }
+
     await _autoAdvance();
   }
 

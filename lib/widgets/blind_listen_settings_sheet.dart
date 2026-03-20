@@ -9,7 +9,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../l10n/app_localizations.dart';
 import '../models/blind_listen_settings.dart';
-import '../models/intensive_listen_settings.dart' show PauseMode;
+import '../models/intensive_listen_settings.dart'
+    show PauseMode, ShadowingControlMode;
 import '../providers/learning_session/blind_listen_player_provider.dart';
 import '../theme/app_theme.dart';
 
@@ -77,85 +78,158 @@ class _BlindListenSettingsSheet extends ConsumerWidget {
             ),
             const SizedBox(height: AppSpacing.l),
 
-            // 每段重复次数
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  l10n.retellRepeatCount,
-                  style: theme.textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                DropdownButton<int>(
-                  value: settings.repeatCount,
-                  underline: const SizedBox.shrink(),
-                  items: List.generate(5, (i) {
-                    final count = i + 1;
-                    return DropdownMenuItem(
-                      value: count,
-                      child: Text('$count'),
-                    );
-                  }),
-                  onChanged: (value) {
-                    if (value != null) {
-                      ref
-                          .read(blindListenPlayerProvider.notifier)
-                          .updateSettings(
-                            settings.copyWith(repeatCount: value),
-                          );
-                    }
-                  },
-                ),
-              ],
-            ),
-            const SizedBox(height: AppSpacing.l),
+            // 控制模式
+            _buildControlModeSection(l10n, theme, settings, ref),
 
-            // 段间停顿标题
-            Text(
-              l10n.blindListenPauseBetween,
-              style: theme.textTheme.titleSmall?.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            const SizedBox(height: AppSpacing.s),
+            // 重复次数和停顿设置仅在自动模式下显示
+            if (!settings.isManualMode) ...[
+              const SizedBox(height: AppSpacing.l),
 
-            // 停顿模式切换
-            SizedBox(
-              width: double.infinity,
-              child: SegmentedButton<PauseMode>(
-                showSelectedIcon: false,
-                segments: [
-                  ButtonSegment(
-                    value: PauseMode.smart,
-                    label: Text(l10n.pauseModeSmart),
+              // 每段重复次数
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    l10n.retellRepeatCount,
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
-                  ButtonSegment(
-                    value: PauseMode.fixed,
-                    label: Text(l10n.pauseModeFixed),
-                  ),
-                  ButtonSegment(
-                    value: PauseMode.multiplier,
-                    label: Text(l10n.pauseModeMultiplier),
+                  DropdownButton<int>(
+                    value: settings.repeatCount,
+                    underline: const SizedBox.shrink(),
+                    items: List.generate(5, (i) {
+                      final count = i + 1;
+                      return DropdownMenuItem(
+                        value: count,
+                        child: Text('$count'),
+                      );
+                    }),
+                    onChanged: (value) {
+                      if (value != null) {
+                        ref
+                            .read(blindListenPlayerProvider.notifier)
+                            .updateSettings(
+                              settings.copyWith(repeatCount: value),
+                            );
+                      }
+                    },
                   ),
                 ],
-                selected: {settings.pauseMode},
-                onSelectionChanged: (selected) {
-                  ref
-                      .read(blindListenPlayerProvider.notifier)
-                      .updateSettings(
-                        settings.copyWith(pauseMode: selected.first),
-                      );
-                },
               ),
-            ),
-            const SizedBox(height: AppSpacing.m),
+              const SizedBox(height: AppSpacing.l),
 
-            // 停顿模式详情
-            _buildPauseModeDetail(l10n, theme, settings, ref),
+              // 段间停顿标题
+              Text(
+                l10n.blindListenPauseBetween,
+                style: theme.textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: AppSpacing.s),
+
+              // 停顿模式切换
+              SizedBox(
+                width: double.infinity,
+                child: SegmentedButton<PauseMode>(
+                  showSelectedIcon: false,
+                  segments: [
+                    ButtonSegment(
+                      value: PauseMode.smart,
+                      label: Text(l10n.pauseModeSmart),
+                    ),
+                    ButtonSegment(
+                      value: PauseMode.fixed,
+                      label: Text(l10n.pauseModeFixed),
+                    ),
+                    ButtonSegment(
+                      value: PauseMode.multiplier,
+                      label: Text(l10n.pauseModeMultiplier),
+                    ),
+                  ],
+                  selected: {settings.pauseMode},
+                  onSelectionChanged: (selected) {
+                    ref
+                        .read(blindListenPlayerProvider.notifier)
+                        .updateSettings(
+                          settings.copyWith(pauseMode: selected.first),
+                        );
+                  },
+                ),
+              ),
+              const SizedBox(height: AppSpacing.m),
+
+              // 停顿模式详情
+              _buildPauseModeDetail(l10n, theme, settings, ref),
+            ],
           ],
         ),
       ),
+    );
+  }
+
+  /// 控制模式选择区域
+  Widget _buildControlModeSection(
+    AppLocalizations l10n,
+    ThemeData theme,
+    BlindListenSettings settings,
+    WidgetRef ref,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          l10n.listenAndRepeatControlModeLabel,
+          style: theme.textTheme.titleSmall?.copyWith(
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: AppSpacing.s),
+        SizedBox(
+          width: double.infinity,
+          child: SegmentedButton<ShadowingControlMode>(
+            segments: [
+              ButtonSegment(
+                value: ShadowingControlMode.auto,
+                label: Text(l10n.listenAndRepeatControlModeAuto),
+                icon: const Icon(Icons.autorenew, size: 18),
+              ),
+              ButtonSegment(
+                value: ShadowingControlMode.manual,
+                label: Text(l10n.listenAndRepeatControlModeManual),
+                icon: const Icon(Icons.touch_app, size: 18),
+              ),
+            ],
+            selected: {settings.controlMode},
+            onSelectionChanged: (selected) {
+              ref.read(blindListenPlayerProvider.notifier).updateSettings(
+                    settings.copyWith(controlMode: selected.first),
+                  );
+            },
+          ),
+        ),
+        const SizedBox(height: AppSpacing.xs),
+        Row(
+          children: [
+            Icon(
+              Icons.info_outline,
+              size: 16,
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+            const SizedBox(width: AppSpacing.xs),
+            Expanded(
+              child: Text(
+                settings.isManualMode
+                    ? l10n.blindListenControlModeManualDesc
+                    : l10n.blindListenControlModeAutoDesc,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
     );
   }
 

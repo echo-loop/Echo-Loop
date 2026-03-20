@@ -80,28 +80,101 @@ class _IntensiveListenSettingsSheet extends ConsumerWidget {
             ),
             const SizedBox(height: AppSpacing.l),
 
-            // 每句循环次数
-            _buildRepeatCountRow(l10n, theme, settings, ref),
-            const SizedBox(height: AppSpacing.l),
+            // 控制模式
+            _buildControlModeSection(l10n, theme, settings, ref),
 
-            // 句间停顿
-            Text(
-              l10n.intensiveListenPauseLabel,
-              style: theme.textTheme.titleSmall?.copyWith(
-                fontWeight: FontWeight.w600,
+            // 循环次数和停顿设置仅在自动模式下显示
+            if (!settings.isManualMode) ...[
+              const SizedBox(height: AppSpacing.l),
+
+              // 每句循环次数
+              _buildRepeatCountRow(l10n, theme, settings, ref),
+              const SizedBox(height: AppSpacing.l),
+
+              // 句间停顿
+              Text(
+                l10n.intensiveListenPauseLabel,
+                style: theme.textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
               ),
-            ),
-            const SizedBox(height: AppSpacing.s),
+              const SizedBox(height: AppSpacing.s),
 
-            // 模式切换
-            _buildPauseModeSelector(l10n, settings, ref),
-            const SizedBox(height: AppSpacing.m),
+              // 模式切换
+              _buildPauseModeSelector(l10n, settings, ref),
+              const SizedBox(height: AppSpacing.m),
 
-            // 模式详情
-            _buildPauseModeDetail(l10n, theme, settings, ref),
+              // 模式详情
+              _buildPauseModeDetail(l10n, theme, settings, ref),
+            ],
           ],
         ),
       ),
+    );
+  }
+
+  /// 控制模式选择区域
+  Widget _buildControlModeSection(
+    AppLocalizations l10n,
+    ThemeData theme,
+    IntensiveListenSettings settings,
+    WidgetRef ref,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          l10n.listenAndRepeatControlModeLabel,
+          style: theme.textTheme.titleSmall?.copyWith(
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: AppSpacing.s),
+        SizedBox(
+          width: double.infinity,
+          child: SegmentedButton<ShadowingControlMode>(
+            segments: [
+              ButtonSegment(
+                value: ShadowingControlMode.auto,
+                label: Text(l10n.listenAndRepeatControlModeAuto),
+                icon: const Icon(Icons.autorenew, size: 18),
+              ),
+              ButtonSegment(
+                value: ShadowingControlMode.manual,
+                label: Text(l10n.listenAndRepeatControlModeManual),
+                icon: const Icon(Icons.touch_app, size: 18),
+              ),
+            ],
+            selected: {settings.controlMode},
+            onSelectionChanged: (selected) {
+              ref.read(intensiveListenPlayerProvider.notifier).updateSettings(
+                    settings.copyWith(controlMode: selected.first),
+                  );
+            },
+          ),
+        ),
+        const SizedBox(height: AppSpacing.xs),
+        Row(
+          children: [
+            Icon(
+              Icons.info_outline,
+              size: 16,
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+            const SizedBox(width: AppSpacing.xs),
+            Expanded(
+              child: Text(
+                settings.isManualMode
+                    ? l10n.intensiveListenControlModeManualDesc
+                    : l10n.intensiveListenControlModeAutoDesc,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
     );
   }
 

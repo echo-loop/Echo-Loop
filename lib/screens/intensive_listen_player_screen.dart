@@ -688,18 +688,19 @@ class _IntensiveListenPlayerScreenState
                         }
                       },
                     ),
-                    // 播放遍数
-                    Text(
-                      l10n.intensiveListenPlayCount(
-                        playerState.currentPlayCount,
-                        playerState.settings.repeatCount,
-                      ),
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant.withValues(
-                          alpha: 0.5,
+                    // 播放遍数（手动模式隐藏）
+                    if (!playerState.settings.isManualMode)
+                      Text(
+                        l10n.intensiveListenPlayCount(
+                          playerState.currentPlayCount,
+                          playerState.settings.repeatCount,
+                        ),
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant.withValues(
+                            alpha: 0.5,
+                          ),
                         ),
                       ),
-                    ),
                   ],
                 ),
               ),

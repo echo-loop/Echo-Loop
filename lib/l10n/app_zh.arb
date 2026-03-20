@@ -175,7 +175,7 @@
   "startPractice": "开始练习",
   "blindListenAppBarTitle": "全文盲听",
   "blindListenPassLabel": "第 {count} 遍",
-  "blindListenComplete": "听力完成",
+  "blindListenComplete": "盲听完成",
   "blindListenPassInfo": "已听 {count} 遍",
   "selectDifficulty": "感觉如何？",
   "selectDifficultyRequired": "请选择难度后继续",
@@ -245,7 +245,7 @@
     }
   },
   "intensiveListenCompleteTitle": "精听完成",
-  "intensiveListenCompleteMessage": "你已完成全部 {total} 个句子的精听。共标记 {difficult} 个难句。",
+  "intensiveListenCompleteMessage": "你已完成全部 {total} 个句子的精听。\n共标记 {difficult} 个难句。",
   "intensiveListenCompleteNext": "下一步",
   "exitIntensiveListenTitle": "退出精听？",
   "exitIntensiveListenMessage": "进度已保存，下次可从断点继续。",
@@ -269,6 +269,8 @@
   "intensiveListenPauseMultiplierMode": "句长倍数",
   "intensiveListenSettingsTemporaryHint": "设置仅对本次精听有效",
   "intensiveListenPauseSmartDesc": "根据难度、句子长度和学习阶段自动调整",
+  "intensiveListenControlModeAutoDesc": "自动循环、自动停顿、自动下一句",
+  "intensiveListenControlModeManualDesc": "手动重听、手动下一句",
   "intensiveListenPauseFixedUnit": "{seconds}秒",
   "@intensiveListenPauseFixedUnit": {
     "placeholders": {
@@ -294,7 +296,6 @@
       "difficulty": { "type": "String" }
     }
   },
-  "backToPlan": "返回计划",
   "continueToStep": "继续：{step}",
   "@continueToStep": {
     "placeholders": {
@@ -763,7 +764,14 @@
   "blindListenTargetDuration": "段落时长",
   "blindListenDisplayHideAll": "隐藏字幕",
   "blindListenDisplayShowAll": "显示字幕",
-  "blindListenRecallHint": "试着回忆刚才听到的内容",
+  "blindListenRecallHint": "回想刚才听到的内容",
+  "blindListenControlModeAutoDesc": "自动重复、自动停顿、自动下一段",
+  "blindListenControlModeManualDesc": "手动重听、手动下一段",
   "blindListenNoParagraph": "不分段",
-  "blindListenParagraphCount": "{count} 个段落"
+  "blindListenParagraphCount": "{count} 个段落",
+
+  "resetLearningProgress": "重置学习进度",
+  "resetLearningProgressConfirmTitle": "重置学习进度？",
+  "resetLearningProgressConfirmMessage": "将清除「{name}」的所有学习进度，此操作不可撤销。",
+  "resetLearningProgressDone": "学习进度已重置"
 }

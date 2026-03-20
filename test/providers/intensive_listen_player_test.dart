@@ -585,6 +585,90 @@ void main() {
     });
   });
 
+  group('手动模式行为', () {
+    late ProviderContainer container;
+    late IntensiveListenPlayer notifier;
+
+    final sentences = [
+      Sentence(
+        index: 0,
+        text: 'First short sentence.',
+        startTime: Duration.zero,
+        endTime: const Duration(milliseconds: 120),
+      ),
+      Sentence(
+        index: 1,
+        text: 'Second short sentence.',
+        startTime: const Duration(milliseconds: 200),
+        endTime: const Duration(milliseconds: 320),
+      ),
+    ];
+
+    setUp(() async {
+      container = ProviderContainer(
+        overrides: [
+          audioEngineProvider.overrideWith(() => _ReplayTestAudioEngine()),
+          learningSessionProvider.overrideWith(() => TestLearningSession()),
+        ],
+      );
+      notifier = container.read(intensiveListenPlayerProvider.notifier);
+      await notifier.initialize(sentences);
+      // 切换到手动模式
+      notifier.updateSettings(
+        const IntensiveListenSettings(
+          controlMode: ShadowingControlMode.manual,
+        ),
+      );
+    });
+
+    tearDown(() => container.dispose());
+
+    test('手动模式下播放一遍后停止，不自动推进', () async {
+      await notifier.startPlaying();
+
+      final state = container.read(intensiveListenPlayerProvider);
+      // 播放完一遍后应该停止
+      expect(state.isPlaying, false);
+      // 仍在第一句
+      expect(state.currentSentenceIndex, 0);
+      // 没有进入倒计时
+      expect(state.isPauseBetweenPlays, false);
+      expect(state.isPauseBetweenSentences, false);
+    });
+
+    test('手动模式下退出标注重播后停止，不自动推进', () async {
+      // 先正常播放一遍
+      await notifier.startPlaying();
+      // 进入标注模式
+      notifier.enterAnnotationMode();
+      // 退出标注模式（触发重播）
+      await notifier.exitAnnotationMode();
+
+      final state = container.read(intensiveListenPlayerProvider);
+      // 重播完成后停止，不自动推进
+      expect(state.isPlaying, false);
+      expect(state.isAnnotationReplay, false);
+      // 仍在第一句
+      expect(state.currentSentenceIndex, 0);
+    });
+
+    test('手动模式下 repeatCount 被忽略，只播一遍', () async {
+      // 设置 repeatCount=3 但仍是手动模式
+      notifier.updateSettings(
+        const IntensiveListenSettings(
+          controlMode: ShadowingControlMode.manual,
+          repeatCount: 3,
+        ),
+      );
+      await notifier.startPlaying();
+
+      final state = container.read(intensiveListenPlayerProvider);
+      expect(state.isPlaying, false);
+      expect(state.currentPlayCount, 1);
+      expect(state.currentSentenceIndex, 0);
+    });
+  });
+
   group('calculatePauseDuration', () {
     test('smart 模式：1 倍句子时长', () {
       final result = calculatePauseDuration(

@@ -1151,7 +1151,7 @@ abstract class AppLocalizations {
   /// No description provided for @blindListenComplete.
   ///
   /// In en, this message translates to:
-  /// **'Listening Complete'**
+  /// **'Blind Listen Complete'**
   String get blindListenComplete;
 
   /// No description provided for @blindListenPassInfo.
@@ -1511,7 +1511,7 @@ abstract class AppLocalizations {
   /// No description provided for @intensiveListenCompleteMessage.
   ///
   /// In en, this message translates to:
-  /// **'You\'ve completed intensive listening for all {total} sentences. {difficult} sentence(s) marked as difficult.'**
+  /// **'You\'ve completed intensive listening for all {total} sentences.\n{difficult} sentence(s) marked as difficult.'**
   String intensiveListenCompleteMessage(int total, int difficult);
 
   /// No description provided for @intensiveListenCompleteNext.
@@ -1622,6 +1622,18 @@ abstract class AppLocalizations {
   /// **'Auto-adjusted based on difficulty, sentence length, and learning stage'**
   String get intensiveListenPauseSmartDesc;
 
+  /// No description provided for @intensiveListenControlModeAutoDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto-loop, auto-pause, auto-next'**
+  String get intensiveListenControlModeAutoDesc;
+
+  /// No description provided for @intensiveListenControlModeManualDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap to replay, tap next'**
+  String get intensiveListenControlModeManualDesc;
+
   /// No description provided for @intensiveListenPauseFixedUnit.
   ///
   /// In en, this message translates to:
@@ -1651,12 +1663,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Difficulty: {difficulty}'**
   String difficultyLabel(String difficulty);
-
-  /// No description provided for @backToPlan.
-  ///
-  /// In en, this message translates to:
-  /// **'Back to Plan'**
-  String get backToPlan;
 
   /// No description provided for @continueToStep.
   ///
@@ -3362,6 +3368,18 @@ abstract class AppLocalizations {
   /// **'Try to recall what you just heard'**
   String get blindListenRecallHint;
 
+  /// No description provided for @blindListenControlModeAutoDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto-repeat, auto-pause, auto-next'**
+  String get blindListenControlModeAutoDesc;
+
+  /// No description provided for @blindListenControlModeManualDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap to replay, tap next'**
+  String get blindListenControlModeManualDesc;
+
   /// No description provided for @blindListenNoParagraph.
   ///
   /// In en, this message translates to:
@@ -3373,6 +3391,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{count} paragraphs'**
   String blindListenParagraphCount(int count);
+
+  /// No description provided for @resetLearningProgress.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset Progress'**
+  String get resetLearningProgress;
+
+  /// No description provided for @resetLearningProgressConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset Learning Progress?'**
+  String get resetLearningProgressConfirmTitle;
+
+  /// No description provided for @resetLearningProgressConfirmMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'This will clear all learning progress for \"{name}\". This action cannot be undone.'**
+  String resetLearningProgressConfirmMessage(String name);
+
+  /// No description provided for @resetLearningProgressDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Learning progress has been reset'**
+  String get resetLearningProgressDone;
 }
 
 class _AppLocalizationsDelegate

@@ -568,7 +568,7 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get blindListenComplete => 'Listening Complete';
+  String get blindListenComplete => 'Blind Listen Complete';
 
   @override
   String blindListenPassInfo(int count) {
@@ -777,7 +777,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String intensiveListenCompleteMessage(int total, int difficult) {
-    return 'You\'ve completed intensive listening for all $total sentences. $difficult sentence(s) marked as difficult.';
+    return 'You\'ve completed intensive listening for all $total sentences.\n$difficult sentence(s) marked as difficult.';
   }
 
   @override
@@ -845,6 +845,13 @@ class AppLocalizationsEn extends AppLocalizations {
       'Auto-adjusted based on difficulty, sentence length, and learning stage';
 
   @override
+  String get intensiveListenControlModeAutoDesc =>
+      'Auto-loop, auto-pause, auto-next';
+
+  @override
+  String get intensiveListenControlModeManualDesc => 'Tap to replay, tap next';
+
+  @override
   String intensiveListenPauseFixedUnit(int seconds) {
     return '${seconds}s';
   }
@@ -866,9 +873,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String difficultyLabel(String difficulty) {
     return 'Difficulty: $difficulty';
   }
-
-  @override
-  String get backToPlan => 'Back to Plan';
 
   @override
   String continueToStep(String step) {
@@ -1879,10 +1883,31 @@ class AppLocalizationsEn extends AppLocalizations {
   String get blindListenRecallHint => 'Try to recall what you just heard';
 
   @override
+  String get blindListenControlModeAutoDesc =>
+      'Auto-repeat, auto-pause, auto-next';
+
+  @override
+  String get blindListenControlModeManualDesc => 'Tap to replay, tap next';
+
+  @override
   String get blindListenNoParagraph => 'No split';
 
   @override
   String blindListenParagraphCount(int count) {
     return '$count paragraphs';
   }
+
+  @override
+  String get resetLearningProgress => 'Reset Progress';
+
+  @override
+  String get resetLearningProgressConfirmTitle => 'Reset Learning Progress?';
+
+  @override
+  String resetLearningProgressConfirmMessage(String name) {
+    return 'This will clear all learning progress for \"$name\". This action cannot be undone.';
+  }
+
+  @override
+  String get resetLearningProgressDone => 'Learning progress has been reset';
 }
