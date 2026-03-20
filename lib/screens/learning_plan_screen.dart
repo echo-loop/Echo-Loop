@@ -26,7 +26,6 @@ import '../models/intensive_listen_settings.dart' show PauseMode;
 import '../models/retell_settings.dart';
 import '../utils/keyword_extraction.dart';
 import '../utils/paragraph_grouping.dart';
-import '../widgets/blind_listen_briefing_sheet.dart';
 import '../widgets/blind_listen_paragraph_sheet.dart';
 import '../widgets/intensive_listen/intensive_listen_briefing_sheet.dart';
 import '../widgets/listen_and_repeat/listen_and_repeat_briefing_sheet.dart';
@@ -102,7 +101,9 @@ class _LearningPlanScreenState extends ConsumerState<LearningPlanScreen> {
       if (audioItem == null) return;
 
       // 始终调用 loadAudio：同一音频时只重新读取字幕，不重新加载音频文件
-      _loadAudioFuture = ref.read(listeningPracticeProvider.notifier).loadAudio(audioItem);
+      _loadAudioFuture = ref
+          .read(listeningPracticeProvider.notifier)
+          .loadAudio(audioItem);
 
       // 监听字幕变化（上传/AI转录完成后重新加载字幕）
       ref.listenManual(
@@ -118,7 +119,9 @@ class _LearningPlanScreenState extends ConsumerState<LearningPlanScreen> {
                 .read(audioLibraryProvider.notifier)
                 .getItemById(widget.audioItemId);
             if (updated != null) {
-              _loadAudioFuture = ref.read(listeningPracticeProvider.notifier).loadAudio(updated);
+              _loadAudioFuture = ref
+                  .read(listeningPracticeProvider.notifier)
+                  .loadAudio(updated);
             }
           }
         },
@@ -253,10 +256,7 @@ class _LearningPlanScreenState extends ConsumerState<LearningPlanScreen> {
             );
         if (!context.mounted) return;
         context.push(
-          AppRoutes.blindListenPlayer(
-            widget.collectionId,
-            widget.audioItemId,
-          ),
+          AppRoutes.blindListenPlayer(widget.collectionId, widget.audioItemId),
         );
       },
     );
@@ -294,9 +294,9 @@ class _LearningPlanScreenState extends ConsumerState<LearningPlanScreen> {
           .read(learningProgressNotifierProvider.notifier)
           .completeCurrentSubStage(widget.audioItemId);
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(l10n.reviewDifficultPracticeNone)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(l10n.reviewDifficultPracticeNone)));
       // 根据新的 currentSubStage 导航到对应复述入口
       _navigateToReviewRetellFromPlan(context);
       return;
@@ -410,10 +410,12 @@ class _LearningPlanScreenState extends ConsumerState<LearningPlanScreen> {
     if (pauseMultiplier >= 0) {
       final player = ref.read(retellPlayerProvider.notifier);
       final current = ref.read(retellPlayerProvider).settings;
-      player.updateSettings(current.copyWith(
-        pauseMode: PauseMode.multiplier,
-        pauseMultiplier: pauseMultiplier,
-      ));
+      player.updateSettings(
+        current.copyWith(
+          pauseMode: PauseMode.multiplier,
+          pauseMultiplier: pauseMultiplier,
+        ),
+      );
     }
   }
 
@@ -421,51 +423,36 @@ class _LearningPlanScreenState extends ConsumerState<LearningPlanScreen> {
   ///
   /// 先弹简报弹窗，点"开始练习"后等待音频加载，
   /// 有字幕时再弹段落选择弹窗，无字幕时直接进入极简播放。
-  void _startBlindListen(BuildContext context, LearningProgress? progress) {
-    final isFirstStudy =
-        progress == null || progress.currentStage == LearningStage.firstLearn;
-    final reviewRound = progress != null ? progress.currentStage.index : 0;
-    final totalDuration = ref.read(audioEngineProvider).totalDuration;
+  Future<void> _startBlindListen(
+    BuildContext context,
+    LearningProgress? progress,
+  ) async {
+    // 等待音频加载完成，获取字幕
+    final lpState = await _ensureAudioLoaded();
+    if (!context.mounted) return;
+    final sentences = lpState?.sentences ?? const [];
 
-    showBlindListenBriefingSheet(
+    if (sentences.isEmpty) return;
+
+    showBlindListenParagraphSheet(
       context: context,
-      isFirstStudy: isFirstStudy,
-      reviewRound: reviewRound,
-      audioDuration: totalDuration,
-      estimatedDuration: totalDuration,
-      onStartPractice: () async {
-        // 等待音频加载完成，获取字幕
-        final lpState = await _ensureAudioLoaded();
+      sentences: sentences,
+      onStartPractice: (targetDuration, pauseMultiplier) async {
+        final paragraphs = groupSentencesIntoParagraphs(
+          sentences,
+          targetDuration,
+        );
+        final settings = BlindListenSettings.fromMultiplier(pauseMultiplier);
+        await ref
+            .read(learningSessionProvider.notifier)
+            .enterBlindListenMode(
+              widget.audioItemId,
+              paragraphs: paragraphs,
+              settings: settings,
+            );
         if (!context.mounted) return;
-        final sentences = lpState?.sentences ?? const [];
-
-        if (sentences.isEmpty) return;
-
-        showBlindListenParagraphSheet(
-          context: context,
-          sentences: sentences,
-          onStartPractice: (targetDuration, pauseMultiplier) async {
-            final paragraphs = groupSentencesIntoParagraphs(
-              sentences,
-              targetDuration,
-            );
-            final settings =
-                BlindListenSettings.fromMultiplier(pauseMultiplier);
-            await ref
-                .read(learningSessionProvider.notifier)
-                .enterBlindListenMode(
-                  widget.audioItemId,
-                  paragraphs: paragraphs,
-                  settings: settings,
-                );
-            if (!context.mounted) return;
-            context.push(
-              AppRoutes.blindListenPlayer(
-                widget.collectionId,
-                widget.audioItemId,
-              ),
-            );
-          },
+        context.push(
+          AppRoutes.blindListenPlayer(widget.collectionId, widget.audioItemId),
         );
       },
     );
@@ -729,9 +716,12 @@ class _LearningPlanScreenState extends ConsumerState<LearningPlanScreen> {
                   progress: progress,
                   collectionId: widget.collectionId,
                   audioItemId: widget.audioItemId,
-                  isExpanded: _isFirstLearnExpanded ??= progress?.isCurrentStage(LearningStage.firstLearn) ?? true,
+                  isExpanded: _isFirstLearnExpanded ??=
+                      progress?.isCurrentStage(LearningStage.firstLearn) ??
+                      true,
                   onToggle: () => setState(
-                    () => _isFirstLearnExpanded = !(_isFirstLearnExpanded ?? true),
+                    () => _isFirstLearnExpanded =
+                        !(_isFirstLearnExpanded ?? true),
                   ),
                 ),
                 const SizedBox(height: AppSpacing.l),
@@ -1050,15 +1040,20 @@ class _FirstStudySection extends ConsumerWidget {
                           l10n.firstStudy,
                           style: theme.textTheme.titleMedium?.copyWith(
                             fontWeight: FontWeight.bold,
-                            color: isFirstLearnCompleted
-                                ? Colors.green
-                                : null,
+                            color: isFirstLearnCompleted ? Colors.green : null,
                           ),
                         ),
                       ),
                       const SizedBox(width: AppSpacing.xs),
                       Text(
-                        isFirstLearnCompleted ? '✅' : progress?.isCurrentStage(LearningStage.firstLearn) ?? false ? '📖' : '🔒',
+                        isFirstLearnCompleted
+                            ? '✅'
+                            : progress?.isCurrentStage(
+                                    LearningStage.firstLearn,
+                                  ) ??
+                                  false
+                            ? '📖'
+                            : '🔒',
                         style: const TextStyle(fontSize: 16),
                       ),
                     ],
@@ -1239,9 +1234,7 @@ class _FirstStudySection extends ConsumerWidget {
               settings: settings,
             );
         if (context.mounted) {
-          context.push(
-            AppRoutes.blindListenPlayer(collectionId, audioItemId),
-          );
+          context.push(AppRoutes.blindListenPlayer(collectionId, audioItemId));
         }
       },
     );
@@ -1325,10 +1318,12 @@ class _FirstStudySection extends ConsumerWidget {
         if (pauseMultiplier >= 0) {
           final player = ref.read(retellPlayerProvider.notifier);
           final current = ref.read(retellPlayerProvider).settings;
-          player.updateSettings(current.copyWith(
-            pauseMode: PauseMode.multiplier,
-            pauseMultiplier: pauseMultiplier,
-          ));
+          player.updateSettings(
+            current.copyWith(
+              pauseMode: PauseMode.multiplier,
+              pauseMultiplier: pauseMultiplier,
+            ),
+          );
         }
         if (context.mounted) {
           context.push(AppRoutes.retellPlayer(collectionId, audioItemId));
@@ -1691,9 +1686,7 @@ class _ReviewRoundSection extends ConsumerWidget {
               settings: settings,
             );
         if (context.mounted) {
-          context.push(
-            AppRoutes.blindListenPlayer(collectionId, audioItemId),
-          );
+          context.push(AppRoutes.blindListenPlayer(collectionId, audioItemId));
         }
       },
     );
@@ -1775,10 +1768,12 @@ class _ReviewRoundSection extends ConsumerWidget {
         if (pauseMultiplier >= 0) {
           final player = ref.read(retellPlayerProvider.notifier);
           final current = ref.read(retellPlayerProvider).settings;
-          player.updateSettings(current.copyWith(
-            pauseMode: PauseMode.multiplier,
-            pauseMultiplier: pauseMultiplier,
-          ));
+          player.updateSettings(
+            current.copyWith(
+              pauseMode: PauseMode.multiplier,
+              pauseMultiplier: pauseMultiplier,
+            ),
+          );
         }
         if (context.mounted) {
           context.push(AppRoutes.retellPlayer(collectionId, audioItemId));
@@ -1803,8 +1798,8 @@ class _ReviewRoundSection extends ConsumerWidget {
     final titleColor = isCompleted
         ? Colors.green
         : isFuture
-            ? theme.colorScheme.onSurfaceVariant
-            : null;
+        ? theme.colorScheme.onSurfaceVariant
+        : null;
     // 状态文案颜色：已完成→绿色，当前轮次→onSurfaceVariant，固定间隔→onSurfaceVariant
     final statusColor = theme.colorScheme.onSurfaceVariant;
 
@@ -1839,7 +1834,11 @@ class _ReviewRoundSection extends ConsumerWidget {
                         ),
                         const SizedBox(width: AppSpacing.xs),
                         Text(
-                          isCompleted ? '✅' : isCurrent ? '📖' : '🔒',
+                          isCompleted
+                              ? '✅'
+                              : isCurrent
+                              ? '📖'
+                              : '🔒',
                           style: const TextStyle(fontSize: 16),
                         ),
                         // 状态文案内联到标题行（已完成阶段不显示）
@@ -1873,10 +1872,10 @@ class _ReviewRoundSection extends ConsumerWidget {
                       color: theme.colorScheme.onSurfaceVariant,
                     ),
                   ),
-              ],
+                ],
+              ),
             ),
           ),
-        ),
         ),
         if (isExpanded)
           Column(
@@ -1912,16 +1911,17 @@ class _ReviewRoundSection extends ConsumerWidget {
                   };
                 } else {
                   onTap = switch (subStage) {
-                    SubStageType.blindListen =>
-                      () => _startFreePlayBlindListen(context, ref),
+                    SubStageType.blindListen => () => _startFreePlayBlindListen(
+                      context,
+                      ref,
+                    ),
                     SubStageType.reviewDifficultPractice =>
                       () => _startFreePlayDifficultPractice(context, ref),
                     SubStageType.reviewRetellParagraph =>
-                      () => _startFreePlayRetell(
-                        context, ref, isSummary: false),
+                      () =>
+                          _startFreePlayRetell(context, ref, isSummary: false),
                     SubStageType.reviewRetellSummary =>
-                      () => _startFreePlayRetell(
-                        context, ref, isSummary: true),
+                      () => _startFreePlayRetell(context, ref, isSummary: true),
                     _ => null,
                   };
                 }

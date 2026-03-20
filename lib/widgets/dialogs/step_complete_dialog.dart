@@ -1,36 +1,31 @@
 /// 步骤完成通用对话框
 ///
 /// 合并了精听、跟读、复述、难句补练、盲听等多个播放器页面的完成对话框。
-/// 统一的布局：标题行（图标 + 标题 + 可选再听按钮）、步骤进度、自定义内容、
+/// 统一的布局：右上角关闭按钮、标题行（图标 + 标题）、步骤进度、自定义内容、
 /// 可选难度选择器、底部操作按钮。
 ///
 /// 按钮布局根据上下文分三种情况：
-/// 1. 有下一步可继续：[返回计划] [继续：X]
+/// 1. 有下一步可继续：[完成] [继续：X]
 /// 2. 末步骤：[完成首次学习/复习]（全宽）
-/// 3. 非末步骤但下一步不可用：[返回计划]（全宽）
+/// 3. 非末步骤但下一步不可用：[完成]（全宽）
 ///
-/// 点击外部区域关闭弹窗（返回 null），不会导致父路由被 pop。
-///
-/// 实现方式：使用 [Overlay] 替代 [Navigator] 显示弹窗，完全绕过 GoRouter 路由栈。
-/// 弹窗内部通过 `onResult` 回调传递结果，而非 `Navigator.pop`。
+/// 使用 [showDialog] + `useRootNavigator: true` 显示弹窗，
+/// 弹窗挂到 root Navigator，与 GoRouter 路由栈隔离。
+/// `barrierDismissible: true`，点击外部区域或右上角关闭按钮返回 null。
 library;
 
 import 'package:flutter/material.dart';
 import '../../database/enums.dart';
 import '../../l10n/app_localizations.dart';
 import '../../theme/app_theme.dart';
-import 'overlay_dialog.dart';
 
 /// 用户在完成对话框中的选择
 enum StepCompleteAction {
   /// 继续下一步
   continueNext,
 
-  /// 返回计划页
+  /// 完成当前步骤，返回计划页
   back,
-
-  /// 再来一遍
-  replay,
 }
 
 /// 步骤完成对话框返回结果
@@ -44,7 +39,7 @@ typedef StepCompleteResult = ({
 
 /// 显示步骤完成对话框
 ///
-/// 返回 `null` 表示用户点击外部区域关闭，
+/// 返回 `null` 表示用户点击外部区域或关闭按钮关闭，
 /// 返回 [StepCompleteResult] 表示用户点击了操作按钮。
 ///
 /// [title] 对话框标题文本。
@@ -55,7 +50,6 @@ typedef StepCompleteResult = ({
 /// [nextStepName] 下一步名称（null 表示下一步不可用或不存在）。
 /// [isLastStep] 是否为当前阶段的最后一步。
 /// [showDifficultySelector] 是否显示 5 档难度选择器。
-/// [replayLabel] "再来一遍"按钮文本，null 则不显示。
 Future<StepCompleteResult?> showStepCompleteDialog({
   required BuildContext context,
   required String title,
@@ -66,15 +60,13 @@ Future<StepCompleteResult?> showStepCompleteDialog({
   String? nextStepName,
   bool isLastStep = false,
   bool showDifficultySelector = false,
-  String? replayLabel,
-  bool filledContinueButton = true,
 }) {
-  // 使用 Overlay 替代 Navigator 显示弹窗，完全绕过 GoRouter 路由栈。
-  // 弹窗的关闭通过移除 overlay entry + Completer 传递结果。
-  return showOverlayDialog<StepCompleteResult>(
+  return showDialog<StepCompleteResult>(
     context: context,
-    builder: (onResult) => StepCompleteDialog(
-      onResult: onResult,
+    useRootNavigator: true,
+    barrierDismissible: true,
+    builder: (dialogContext) => StepCompleteDialog(
+      onResult: (result) => Navigator.of(dialogContext).pop(result),
       title: title,
       contentBody: contentBody,
       stepIndex: stepIndex,
@@ -83,8 +75,6 @@ Future<StepCompleteResult?> showStepCompleteDialog({
       nextStepName: nextStepName,
       isLastStep: isLastStep,
       showDifficultySelector: showDifficultySelector,
-      replayLabel: replayLabel,
-      filledContinueButton: filledContinueButton,
     ),
   );
 }
@@ -115,15 +105,7 @@ class StepCompleteDialog extends StatefulWidget {
   /// 是否显示难度选择器
   final bool showDifficultySelector;
 
-  /// "再来一遍"按钮文本，null 则不显示
-  final String? replayLabel;
-
-  /// 继续按钮是否使用 FilledButton 样式（默认 true）
-  final bool filledContinueButton;
-
-  /// 结果回调，替代 Navigator.pop 传递结果
-  ///
-  /// 由 [showOverlayDialog] 提供，调用后关闭 overlay 并传递结果。
+  /// 结果回调
   final void Function(StepCompleteResult?) onResult;
 
   const StepCompleteDialog({
@@ -137,8 +119,6 @@ class StepCompleteDialog extends StatefulWidget {
     this.nextStepName,
     this.isLastStep = false,
     this.showDifficultySelector = false,
-    this.replayLabel,
-    this.filledContinueButton = true,
   });
 
   @override
@@ -156,74 +136,98 @@ class _StepCompleteDialogState extends State<StepCompleteDialog> {
       !widget.showDifficultySelector || _selectedDifficulty != null;
 
   @override
-  void initState() {
-    super.initState();
-    // 不显示难度选择器时，设置默认值以简化返回逻辑
-    if (!widget.showDifficultySelector) {
-      _selectedDifficulty = null;
-    }
-  }
-
-  @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final theme = Theme.of(context);
 
-    return AlertDialog(
-        title: Row(
-          children: [
-            Icon(Icons.check_circle, color: theme.colorScheme.primary),
-            const SizedBox(width: AppSpacing.s),
-            Expanded(child: Text(widget.title)),
-            // "再来一遍"按钮（右上角）
-            if (widget.replayLabel != null)
-              TextButton(
-                onPressed: () => widget.onResult((
-                      action: StepCompleteAction.replay,
-                      difficulty: _selectedDifficulty,
-                    )),
-                child: Text(widget.replayLabel!),
-              ),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // 步骤进度信息
-            if (widget.stepIndex != null &&
-                widget.totalSteps != null &&
-                widget.stageName != null)
-              Padding(
-                padding: const EdgeInsets.only(bottom: AppSpacing.xs),
-                child: Text(
-                  l10n.stepProgressLabel(
-                    widget.stepIndex! + 1,
-                    widget.totalSteps!,
-                    widget.stageName!,
-                  ),
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
+    return Dialog(
+      clipBehavior: Clip.antiAlias,
+      child: Stack(
+        children: [
+          // 主体内容
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.l,
+              AppSpacing.l,
+              AppSpacing.l,
+              AppSpacing.m,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // 标题行
+                Row(
+                  children: [
+                    Icon(
+                      Icons.check_circle,
+                      color: theme.colorScheme.primary,
+                      size: 28,
+                    ),
+                    const SizedBox(width: AppSpacing.s),
+                    Flexible(
+                      child: Text(
+                        widget.title,
+                        style: theme.textTheme.titleLarge,
+                      ),
+                    ),
+                  ],
                 ),
+                // 步骤进度信息
+                if (widget.stepIndex != null &&
+                    widget.totalSteps != null &&
+                    widget.stageName != null) ...[
+                  const SizedBox(height: AppSpacing.xs),
+                  Text(
+                    l10n.stepProgressLabel(
+                      widget.stepIndex! + 1,
+                      widget.totalSteps!,
+                      widget.stageName!,
+                    ),
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+                // 自定义内容
+                if (widget.contentBody != null) ...[
+                  const SizedBox(height: AppSpacing.xs),
+                  widget.contentBody!,
+                ],
+                // 难度选择器
+                if (widget.showDifficultySelector) ...[
+                  const SizedBox(height: AppSpacing.l),
+                  Text(
+                    l10n.selectDifficulty,
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.s),
+                  _buildDifficultySelector(l10n),
+                ],
+                const SizedBox(height: AppSpacing.l),
+                // 底部操作按钮
+                ..._buildActions(context, l10n),
+              ],
+            ),
+          ),
+          // 右上角关闭按钮
+          Positioned(
+            right: 4,
+            top: 4,
+            child: IconButton(
+              onPressed: () => widget.onResult(null),
+              icon: const Icon(Icons.close, size: 18),
+              color: theme.colorScheme.onSurfaceVariant,
+              style: IconButton.styleFrom(
+                minimumSize: const Size(32, 32),
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
               ),
-            // 自定义内容
-            if (widget.contentBody != null) widget.contentBody!,
-            // 难度选择器
-            if (widget.showDifficultySelector) ...[
-              const SizedBox(height: AppSpacing.l),
-              Text(
-                l10n.selectDifficulty,
-                style: theme.textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: AppSpacing.s),
-              _buildDifficultySelector(l10n),
-            ],
-          ],
-        ),
-        actions: _buildActions(context, l10n),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -245,6 +249,7 @@ class _StepCompleteDialogState extends State<StepCompleteDialog> {
         return ChoiceChip(
           label: Text(difficultyLabels[level] ?? level.label),
           selected: isSelected,
+          showCheckmark: false,
           onSelected: (selected) {
             setState(() {
               _selectedDifficulty = selected ? level : null;
@@ -258,9 +263,9 @@ class _StepCompleteDialogState extends State<StepCompleteDialog> {
   /// 构建底部操作按钮
   ///
   /// 三种情况：
-  /// 1. 有下一步可继续：[返回计划 Outlined] [继续：X Filled] 同一行
+  /// 1. 有下一步可继续：[完成 Outlined] [继续：X Filled] 同一行
   /// 2. 末步骤：[完成首次学习/复习 Filled]（全宽）
-  /// 3. 非末步骤但下一步不可用：[返回计划 Filled]（全宽）
+  /// 3. 非末步骤但下一步不可用：[完成 Filled]（全宽）
   List<Widget> _buildActions(BuildContext context, AppLocalizations l10n) {
     if (widget.nextStepName != null) {
       // 情况 1：有下一步可继续
@@ -268,6 +273,7 @@ class _StepCompleteDialogState extends State<StepCompleteDialog> {
         Row(
           children: [
             Expanded(
+              flex: 2,
               child: OutlinedButton(
                 onPressed: _actionsEnabled
                     ? () => widget.onResult((
@@ -275,30 +281,24 @@ class _StepCompleteDialogState extends State<StepCompleteDialog> {
                         difficulty: _selectedDifficulty,
                       ))
                     : null,
-                child: Text(l10n.backToPlan),
+                child: Text(l10n.done),
               ),
             ),
             const SizedBox(width: AppSpacing.s),
             Expanded(
-              child: widget.filledContinueButton
-                  ? FilledButton(
-                      onPressed: _actionsEnabled
-                          ? () => widget.onResult((
-                              action: StepCompleteAction.continueNext,
-                              difficulty: _selectedDifficulty,
-                            ))
-                          : null,
-                      child: Text(l10n.continueToStep(widget.nextStepName!)),
-                    )
-                  : OutlinedButton(
-                      onPressed: _actionsEnabled
-                          ? () => widget.onResult((
-                              action: StepCompleteAction.continueNext,
-                              difficulty: _selectedDifficulty,
-                            ))
-                          : null,
-                      child: Text(l10n.continueToStep(widget.nextStepName!)),
-                    ),
+              flex: 3,
+              child: FilledButton(
+                onPressed: _actionsEnabled
+                    ? () => widget.onResult((
+                        action: StepCompleteAction.continueNext,
+                        difficulty: _selectedDifficulty,
+                      ))
+                    : null,
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(l10n.continueToStep(widget.nextStepName!)),
+                ),
+              ),
             ),
           ],
         ),
@@ -339,7 +339,7 @@ class _StepCompleteDialogState extends State<StepCompleteDialog> {
                     difficulty: _selectedDifficulty,
                   ))
                 : null,
-            child: Text(l10n.backToPlan),
+            child: Text(l10n.done),
           ),
         ),
       ];

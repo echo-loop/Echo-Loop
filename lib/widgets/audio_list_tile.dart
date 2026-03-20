@@ -353,6 +353,12 @@ class AudioListTile extends ConsumerWidget {
     AppLocalizations l10n,
     ThemeData theme,
   ) {
+    final hasProgress = ref.read(
+      learningProgressNotifierProvider.select(
+        (s) => s.progressMap[audioItem.id]?.isStarted ?? false,
+      ),
+    );
+
     return PopupMenuButton<String>(
       itemBuilder: (context) => [
         PopupMenuItem(
@@ -395,6 +401,22 @@ class AudioListTile extends ConsumerWidget {
             ],
           ),
         ),
+        // 仅在有学习进度时显示重置选项
+        if (hasProgress)
+          PopupMenuItem(
+            value: 'resetProgress',
+            child: Row(
+              children: [
+                Icon(
+                  Icons.restart_alt,
+                  size: 20,
+                  color: theme.colorScheme.error,
+                ),
+                const SizedBox(width: 8),
+                Text(l10n.resetLearningProgress),
+              ],
+            ),
+          ),
         PopupMenuItem(
           value: 'delete',
           child: Row(
@@ -415,6 +437,8 @@ class AudioListTile extends ConsumerWidget {
           onManageCollections?.call();
         } else if (value == 'manageTags') {
           onManageTags?.call();
+        } else if (value == 'resetProgress') {
+          _showResetProgressDialog(context, ref);
         } else if (value == 'delete') {
           onDelete?.call();
         }
@@ -470,6 +494,45 @@ class AudioListTile extends ConsumerWidget {
       isScrollControlled: true,
       builder: (_) => ManageSubtitlesSheet(audioItem: audioItem),
     );
+  }
+
+  /// 重置学习进度确认对话框
+  Future<void> _showResetProgressDialog(
+    BuildContext context,
+    WidgetRef ref,
+  ) async {
+    final l10n = AppLocalizations.of(context)!;
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(l10n.resetLearningProgressConfirmTitle),
+        content: Text(l10n.resetLearningProgressConfirmMessage(audioItem.name)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(l10n.cancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(ctx).colorScheme.error,
+            ),
+            child: Text(l10n.confirm),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      await ref
+          .read(learningProgressNotifierProvider.notifier)
+          .deleteProgress(audioItem.id);
+      if (context.mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(l10n.resetLearningProgressDone)));
+      }
+    }
   }
 
   /// 重命名音频对话框
