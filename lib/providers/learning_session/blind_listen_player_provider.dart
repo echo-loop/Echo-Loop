@@ -47,9 +47,6 @@ class BlindListenPlayerState {
   /// 是否正在播放
   final bool isPlaying;
 
-  /// 是否已完成所有段落
-  final bool isCompleted;
-
   /// 段间停顿倒计时进行中
   final bool isPauseCountdown;
 
@@ -74,7 +71,6 @@ class BlindListenPlayerState {
     this.playingSentenceIndex = -1,
     this.currentRepeatCount = 1,
     this.isPlaying = false,
-    this.isCompleted = false,
     this.isPauseCountdown = false,
     this.pauseRemaining = Duration.zero,
     this.pauseDuration = Duration.zero,
@@ -89,7 +85,6 @@ class BlindListenPlayerState {
     int? playingSentenceIndex,
     int? currentRepeatCount,
     bool? isPlaying,
-    bool? isCompleted,
     bool? isPauseCountdown,
     Duration? pauseRemaining,
     Duration? pauseDuration,
@@ -104,7 +99,6 @@ class BlindListenPlayerState {
       playingSentenceIndex: playingSentenceIndex ?? this.playingSentenceIndex,
       currentRepeatCount: currentRepeatCount ?? this.currentRepeatCount,
       isPlaying: isPlaying ?? this.isPlaying,
-      isCompleted: isCompleted ?? this.isCompleted,
       isPauseCountdown: isPauseCountdown ?? this.isPauseCountdown,
       pauseRemaining: pauseRemaining ?? this.pauseRemaining,
       pauseDuration: pauseDuration ?? this.pauseDuration,
@@ -187,10 +181,7 @@ class BlindListenPlayer extends _$BlindListenPlayer {
 
   /// 开始播放第一段
   Future<void> startPlaying() async {
-    if (_paragraphs.isEmpty) {
-      state = state.copyWith(isCompleted: true);
-      return;
-    }
+    if (_paragraphs.isEmpty) return;
     await _playCurrentParagraph();
   }
 
@@ -217,9 +208,10 @@ class BlindListenPlayer extends _$BlindListenPlayer {
 
   /// 跳转到下一段
   Future<void> goToNextParagraph() async {
+    // 最后一段 → 停止播放，由 screen 处理完成逻辑
     if (state.currentParagraphIndex >= state.totalParagraphs - 1) {
       await _cancelAll();
-      state = state.copyWith(isCompleted: true, isPlaying: false);
+      state = state.copyWith(isPlaying: false, isPauseCountdown: false);
       return;
     }
 
@@ -407,12 +399,17 @@ class BlindListenPlayer extends _$BlindListenPlayer {
     state = state.copyWith(isPauseCountdown: false);
 
     if (state.currentRepeatCount < state.settings.repeatCount) {
+      // 当前段还有遍数 → 继续播放
       state = state.copyWith(
         currentRepeatCount: state.currentRepeatCount + 1,
       );
       await _playCurrentParagraph();
-    } else {
+    } else if (state.currentParagraphIndex < state.totalParagraphs - 1) {
+      // 还有下一段 → 推进
       await goToNextParagraph();
+    } else {
+      // 最后一段最后一遍 → 停止，等用户点完成按钮
+      state = state.copyWith(isPlaying: false);
     }
   }
 

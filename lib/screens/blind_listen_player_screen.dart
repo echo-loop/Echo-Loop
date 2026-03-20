@@ -22,7 +22,6 @@ import '../providers/learning_session/learning_session_provider.dart';
 import '../providers/listening_practice/listening_practice_provider.dart';
 import '../router/app_router.dart';
 import '../theme/app_theme.dart';
-import '../widgets/blind_listen_complete_dialog.dart';
 import '../widgets/dialogs/step_complete_dialog.dart';
 import '../widgets/blind_listen_settings_sheet.dart';
 import '../widgets/common/countdown_chip.dart';
@@ -61,9 +60,6 @@ class BlindListenPlayerScreen extends ConsumerStatefulWidget {
 class _BlindListenPlayerScreenState
     extends ConsumerState<BlindListenPlayerScreen>
     with WakelockMixin {
-  /// 是否正在显示完成对话框
-  bool _isShowingDialog = false;
-
   /// 是否正在退出页面，防止退出过程中 listener 触发弹窗
   bool _isExiting = false;
 
@@ -76,11 +72,11 @@ class _BlindListenPlayerScreenState
   }
 
 
-  // ========== 段落模式完成处理 ==========
+  // ========== 完成处理 ==========
 
-  /// 段落模式播放完成处理
-  void _handleParagraphModeCompleted() {
-    if (_isShowingDialog || _isExiting) return;
+  /// 播放完成处理
+  void _handleCompleted() {
+    if (_isExiting) return;
     final session = ref.read(learningSessionProvider);
 
     if (session.isFreePlay) {
@@ -97,7 +93,6 @@ class _BlindListenPlayerScreenState
 
   /// 自由练习完成对话框
   Future<void> _showFreePlayCompleteDialog() async {
-    _isShowingDialog = true;
     final l10n = AppLocalizations.of(context)!;
 
     await handleFreePlayComplete(
@@ -111,15 +106,12 @@ class _BlindListenPlayerScreenState
         await ref.read(learningSessionProvider.notifier).exitLearningMode();
       },
     );
-    _isShowingDialog = false;
   }
 
   /// 正常模式完成对话框
   Future<void> _showCompleteDialog() async {
-    if (_isShowingDialog || !mounted) return;
-    _isShowingDialog = true;
+    if (!mounted) return;
 
-    final session = ref.read(learningSessionProvider);
     final stepCtx = _getStepContext();
 
     final progress = ref
@@ -127,23 +119,10 @@ class _BlindListenPlayerScreenState
         .progressMap[widget.audioItemId];
     final isReview = progress?.isInReviewStage ?? false;
 
-    // 弹窗前立即标记完成
-    try {
-      await ref
-          .read(learningProgressNotifierProvider.notifier)
-          .completeCurrentSubStage(widget.audioItemId);
-    } catch (e) {
-      debugPrint('盲听完成处理出错: $e');
-    }
-
-    if (!mounted) {
-      _isShowingDialog = false;
-      return;
-    }
-
-    final result = await showBlindListenCompleteDialog(
+    final l10n = AppLocalizations.of(context)!;
+    final result = await showStepCompleteDialog(
       context: context,
-      passCount: session.blindListenPassCount,
+      title: l10n.blindListenComplete,
       stepIndex: stepCtx.stepIndex,
       totalSteps: stepCtx.totalSteps,
       stageName: stepCtx.stageName,
@@ -152,37 +131,32 @@ class _BlindListenPlayerScreenState
       showDifficultySelector: !isReview,
     );
 
-    if (!mounted) { _isShowingDialog = false; return; }
+    if (!mounted || result == null) return;
 
-    if (result == null) {
-      _isShowingDialog = false;
-      return;
-    }
-
-    // 保持 _isShowingDialog = true 阻止 listener 在处理期间重复触发
-
-    // 保存难度
-    if (!isReview) {
-      try {
+    // 用户确认后：保存难度 + 标记完成
+    try {
+      if (!isReview) {
         await ref
             .read(learningProgressNotifierProvider.notifier)
-            .setDifficulty(widget.audioItemId, result.difficulty);
-      } catch (e) {
-        debugPrint('盲听保存难度出错: $e');
+            .setDifficulty(
+              widget.audioItemId,
+              result.difficulty ?? DifficultyLevel.medium,
+            );
       }
+      await ref
+          .read(learningProgressNotifierProvider.notifier)
+          .completeCurrentSubStage(widget.audioItemId);
+    } catch (e) {
+      debugPrint('盲听完成处理出错: $e');
     }
 
-    if (result.action == StepCompleteAction.replay) {
-      // 再听一遍
-      await ref.read(learningSessionProvider.notifier).replayBlindListen();
-    } else if (result.action == StepCompleteAction.continueNext) {
+    if (result.action == StepCompleteAction.continueNext) {
       await _navigateToNextStep();
     } else {
       // back：返回计划页
       if (mounted) context.pop();
       await ref.read(learningSessionProvider.notifier).exitLearningMode();
     }
-    _isShowingDialog = false;
   }
 
   /// 获取当前步骤上下文
@@ -398,12 +372,6 @@ class _BlindListenPlayerScreenState
   Future<void> _handleExit() async {
     final l10n = AppLocalizations.of(context)!;
     final sessionState = ref.read(learningSessionProvider);
-    final playerState = ref.read(blindListenPlayerProvider);
-
-    if (playerState.isCompleted) {
-      await _exit();
-      return;
-    }
 
     if (sessionState.isFreePlay) {
       await _exit();
@@ -460,13 +428,6 @@ class _BlindListenPlayerScreenState
   ) {
     final player = ref.read(blindListenPlayerProvider.notifier);
 
-    // 监听完成状态（不要求 false→true 转变，_isShowingDialog 已防重复弹出）
-    ref.listen<BlindListenPlayerState>(blindListenPlayerProvider, (prev, next) {
-      if (next.isCompleted) {
-        _handleParagraphModeCompleted();
-      }
-    });
-
     final sentences = player.currentParagraphSentences;
     final paragraphDuration = player.currentParagraphDuration;
     final progress = (playerState.totalParagraphs > 0)
@@ -485,7 +446,17 @@ class _BlindListenPlayerScreenState
         }
       },
       onPrevious: () => player.goToPreviousParagraph(),
-      onNext: () => player.goToNextParagraph(),
+      onNext: () {
+        final ps = ref.read(blindListenPlayerProvider);
+        final isLast =
+            ps.currentParagraphIndex >= ps.totalParagraphs - 1;
+        if (isLast) {
+          ref.read(blindListenPlayerProvider.notifier).pause();
+          _handleCompleted();
+        } else {
+          ref.read(blindListenPlayerProvider.notifier).goToNextParagraph();
+        }
+      },
       child: PopScope(
         canPop: false,
         onPopInvokedWithResult: (didPop, _) async {
@@ -669,7 +640,16 @@ class _BlindListenPlayerScreenState
                 onCenter:
                     playerState.isPlaying ? player.pause : player.resume,
                 onPrevious: () => player.goToPreviousParagraph(),
-                onNext: () => player.goToNextParagraph(),
+                onNext: () {
+                  final isLast = playerState.currentParagraphIndex >=
+                      playerState.totalParagraphs - 1;
+                  if (isLast) {
+                    player.pause();
+                    _handleCompleted();
+                  } else {
+                    player.goToNextParagraph();
+                  }
+                },
               ),
 
               // 遍数

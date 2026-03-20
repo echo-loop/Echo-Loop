@@ -64,9 +64,6 @@ class ReviewDifficultPracticeState {
   /// 是否偷看字幕（不暂停、不标记，切句时重置）
   final bool isTextRevealed;
 
-  /// 是否已完成所有句子
-  final bool isCompleted;
-
   /// 倒计时是否暂停中
   final bool isCountdownPaused;
 
@@ -88,7 +85,6 @@ class ReviewDifficultPracticeState {
     this.pauseDuration = Duration.zero,
     this.isAnnotationMode = false,
     this.isTextRevealed = false,
-    this.isCompleted = false,
     this.isCountdownPaused = false,
     this.isCountdownFastForward = false,
     this.isPostEvalCountdown = false,
@@ -106,7 +102,6 @@ class ReviewDifficultPracticeState {
     Duration? pauseDuration,
     bool? isAnnotationMode,
     bool? isTextRevealed,
-    bool? isCompleted,
     bool? isCountdownPaused,
     bool? isCountdownFastForward,
     bool? isPostEvalCountdown,
@@ -124,7 +119,6 @@ class ReviewDifficultPracticeState {
       pauseDuration: pauseDuration ?? this.pauseDuration,
       isAnnotationMode: isAnnotationMode ?? this.isAnnotationMode,
       isTextRevealed: isTextRevealed ?? this.isTextRevealed,
-      isCompleted: isCompleted ?? this.isCompleted,
       isCountdownPaused: isCountdownPaused ?? this.isCountdownPaused,
       isCountdownFastForward:
           isCountdownFastForward ?? this.isCountdownFastForward,
@@ -223,10 +217,7 @@ class ReviewDifficultPractice extends _$ReviewDifficultPractice {
 
   /// 开始播放（从当前句子开始盲听）
   Future<void> startPlaying() async {
-    if (_sentences.isEmpty) {
-      state = state.copyWith(isCompleted: true);
-      return;
-    }
+    if (_sentences.isEmpty) return;
     await _startSentence();
   }
 
@@ -306,7 +297,6 @@ class ReviewDifficultPractice extends _$ReviewDifficultPractice {
 
     if (_sentences.isEmpty) {
       state = state.copyWith(
-        isCompleted: true,
         isPlaying: false,
         totalSentences: 0,
       );
@@ -422,7 +412,6 @@ class ReviewDifficultPractice extends _$ReviewDifficultPractice {
   void startPostEvaluationPause() {
     if (!state.isPauseBetweenPlays) return;
     if (!state.isAnnotationMode) return;
-    if (state.isCompleted) return;
     if (state.settings.isManualMode) return;
 
     const pauseDuration = Duration(seconds: 5);
@@ -479,15 +468,16 @@ class ReviewDifficultPractice extends _$ReviewDifficultPractice {
     _countdown.cancel();
   }
 
-  /// 强制完成（用户在最后一句主动点击完成按钮）
-  void forceComplete() {
+  /// 停止播放（用户在最后一句主动点击完成按钮时调用）
+  ///
+  /// 仅停止播放，弹窗由 screen 层直接调用。
+  void stopPlayback() {
     _engine.invalidateSession();
     _invalidatePostEvalCountdown();
     try {
       ref.read(learningSessionProvider.notifier).stopOutputTimer();
     } catch (_) {}
     state = state.copyWith(
-      isCompleted: true,
       isPlaying: false,
       isPauseBetweenPlays: false,
       isPauseBetweenSentences: false,
@@ -536,7 +526,7 @@ class ReviewDifficultPractice extends _$ReviewDifficultPractice {
         isAnnotationMode: false,
       );
       if (isLastSentence) {
-        state = state.copyWith(isCompleted: true, isPlaying: false);
+        state = state.copyWith(isPlaying: false);
       } else {
         state = state.copyWith(
           currentSentenceIndex: state.currentSentenceIndex + 1,
@@ -742,9 +732,8 @@ class ReviewDifficultPractice extends _$ReviewDifficultPractice {
       },
       onAdvance: () async {
         if (isLastSentence) {
-          // 最后一句停顿结束 → 标记完成
+          // 最后一句停顿结束 → 发出完成信号
           state = state.copyWith(
-            isCompleted: true,
             isPlaying: false,
             isPauseBetweenPlays: false,
             isPauseBetweenSentences: false,

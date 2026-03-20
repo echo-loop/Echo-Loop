@@ -65,8 +65,6 @@ class ListenAndRepeatPlayerScreen extends ConsumerStatefulWidget {
 class _ListenAndRepeatPlayerScreenState
     extends ConsumerState<ListenAndRepeatPlayerScreen>
     with WakelockMixin {
-  bool _isShowingDialog = false;
-
   /// 是否正在退出页面，防止退出过程中 listener 触发弹窗
   bool _isExiting = false;
 
@@ -328,7 +326,7 @@ class _ListenAndRepeatPlayerScreenState
 
     // 如果还有句子且未完成，自动开始播放下一句
     final state = ref.read(listenAndRepeatPlayerProvider);
-    if (!state.isCompleted && state.totalSentences > 0) {
+    if (state.totalSentences > 0) {
       _manualStoppedThisSentence = false;
       await player.startPlaying();
     }
@@ -392,16 +390,12 @@ class _ListenAndRepeatPlayerScreenState
 
   /// 处理播放完成
   Future<void> _handleCompleted() async {
-    if (_isShowingDialog || _isExiting || !mounted) return;
-    _isShowingDialog = true;
+    if (_isExiting || !mounted) return;
 
     final session = ref.read(learningSessionProvider);
     final playerState = ref.read(listenAndRepeatPlayerProvider);
 
-    if (!mounted) {
-      _isShowingDialog = false;
-      return;
-    }
+    if (!mounted) return;
 
     // 自由练习模式：弹窗询问"完成"或"再来一遍"
     if (session.isFreePlay) {
@@ -411,10 +405,7 @@ class _ListenAndRepeatPlayerScreenState
           .read(learningProgressNotifierProvider.notifier)
           .incrementShadowingPassCount(widget.audioItemId);
 
-      if (!mounted) {
-        _isShowingDialog = false;
-        return;
-      }
+      if (!mounted) return;
 
       await handleFreePlayComplete(
         context: context,
@@ -436,31 +427,21 @@ class _ListenAndRepeatPlayerScreenState
           await _exit();
         },
       );
-      _isShowingDialog = false;
       return;
     }
 
     final stepCtx = _getStepContext();
 
-    // 弹窗前立即标记完成
+    // 弹窗前保存统计（事实记录，不影响步骤进度）
     try {
       await ref
           .read(learningProgressNotifierProvider.notifier)
           .incrementShadowingPassCount(widget.audioItemId);
-      await ref
-          .read(learningProgressNotifierProvider.notifier)
-          .saveShadowingSentenceIndex(widget.audioItemId, null);
-      await ref
-          .read(learningProgressNotifierProvider.notifier)
-          .completeCurrentSubStage(widget.audioItemId);
     } catch (e) {
-      debugPrint('跟读完成处理出错: $e');
+      debugPrint('跟读保存统计出错: $e');
     }
 
-    if (!mounted) {
-      _isShowingDialog = false;
-      return;
-    }
+    if (!mounted) return;
 
     final l10nStep = AppLocalizations.of(context)!;
     final result = await showStepCompleteDialog(
@@ -476,9 +457,19 @@ class _ListenAndRepeatPlayerScreenState
       isLastStep: stepCtx.isLastStep,
     );
 
-    if (!mounted) { _isShowingDialog = false; return; }
+    if (!mounted || result == null) return;
 
-    if (result == null) { _isShowingDialog = false; return; }
+    // 用户确认后：清除断点 + 标记完成
+    try {
+      await ref
+          .read(learningProgressNotifierProvider.notifier)
+          .saveShadowingSentenceIndex(widget.audioItemId, null);
+      await ref
+          .read(learningProgressNotifierProvider.notifier)
+          .completeCurrentSubStage(widget.audioItemId);
+    } catch (e) {
+      debugPrint('跟读完成处理出错: $e');
+    }
 
     if (result.action == StepCompleteAction.continueNext) {
       // 继续下一步：段落复述
@@ -487,7 +478,6 @@ class _ListenAndRepeatPlayerScreenState
       // 返回计划 → 退出
       await _exit();
     }
-    _isShowingDialog = false;
   }
 
   /// 导航到段落复述播放器
@@ -541,14 +531,11 @@ class _ListenAndRepeatPlayerScreenState
     // watch 录音相关状态
     final turnState = ref.watch(shadowingRecordingControllerProvider);
 
-    // 监听完成状态 + 句子切换时清除录音结果
+    // 监听句子切换 + 自动播完信号
     ref.listen<ListenAndRepeatPlayerState>(listenAndRepeatPlayerProvider, (
       prev,
       next,
     ) {
-      if (next.isCompleted && !(prev?.isCompleted ?? false)) {
-        _handleCompleted();
-      }
       // 句子切换时清除上一句的录音结果，为下一句自动录音做准备
       if (prev != null &&
           prev.currentSentenceIndex != next.currentSentenceIndex) {
@@ -569,7 +556,6 @@ class _ListenAndRepeatPlayerScreenState
           next.currentAttempt != null) {
         final latestState = ref.read(listenAndRepeatPlayerProvider);
         if (latestState.isPauseBetweenPlays &&
-            !latestState.isCompleted &&
             !latestState.settings.isManualMode &&
             !_manualStoppedThisSentence) {
           AppLogger.log('ShadowScreen', '评估完成 → 启动 review countdown');
@@ -604,7 +590,6 @@ class _ListenAndRepeatPlayerScreenState
     // 自动模式录音触发（对应复述页面的 !state.isRetellCountdown）：
     // 停顿中 + 未完成 + 非手动模式 + recording idle + 非倒计时中 + 本句未手动停止过
     if (playerState.isPauseBetweenPlays &&
-        !playerState.isCompleted &&
         !playerState.settings.isManualMode &&
         turnState.phase == ListenAndRepeatTurnPhase.idle &&
         !playerState.isPostEvalCountdown &&
@@ -814,8 +799,9 @@ class _ListenAndRepeatPlayerScreenState
                             playerState.currentSentenceIndex >=
                             playerState.totalSentences - 1;
                         if (isLast) {
-                          // 最后一句：直接完成
-                          player.forceComplete();
+                          // 最后一句：停止播放，直接弹窗
+                          player.stopPlayback();
+                          _handleCompleted();
                         } else {
                           unawaited(player.goToNext());
                         }

@@ -140,11 +140,16 @@ void listenAndRepeatTests() {
 
       final container = getContainer(tester);
 
-      // 触发完成：设置 isCompleted = true
+      // 定位到最后一句，点击"下一句"触发完成
       final player =
           container.read(listenAndRepeatPlayerProvider.notifier)
               as TestListenAndRepeatPlayer;
-      player.setState(player.state.copyWith(isCompleted: true));
+      player.setState(player.state.copyWith(
+        currentSentenceIndex: player.state.totalSentences - 1,
+        isPlaying: false,
+      ));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byIcon(Icons.skip_next_rounded));
       await tester.pumpAndSettle();
 
       // 验证完成对话框弹出
@@ -152,7 +157,7 @@ void listenAndRepeatTests() {
       // 验证步骤进度信息
       expect(find.textContaining('3/4'), findsOneWidget);
       // 验证"返回计划"按钮
-      expect(find.text('Back to Plan'), findsOneWidget);
+      expect(find.text('Back'), findsOneWidget);
     });
 
     testWidgets('跟读中退出保存断点', (tester) async {

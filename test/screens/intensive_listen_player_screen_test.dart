@@ -49,13 +49,16 @@ class _TestBookmarkDao implements BookmarkDao {
   }
 }
 
-/// 启动后立即进入完成态，用于触发完成对话框逻辑
+/// 启动后定位到最后一句（等用户点"下一句"触发完成弹窗）
 class _AutoCompleteIntensiveListenPlayer extends TestIntensiveListenPlayer {
   _AutoCompleteIntensiveListenPlayer(super.initialState, super.testSentences);
 
   @override
   Future<void> startPlaying() async {
-    state = state.copyWith(isPlaying: false, isCompleted: true);
+    state = state.copyWith(
+      currentSentenceIndex: state.totalSentences - 1,
+      isPlaying: false,
+    );
   }
 }
 
@@ -112,7 +115,6 @@ void main() {
     Duration pauseDuration = Duration.zero,
     Duration annotationReplayRemaining = Duration.zero,
     Duration annotationReplayDuration = Duration.zero,
-    bool isCompleted = false,
     Set<int> difficultSentences = const {},
     bool isCurrentSentenceAutoMarked = false,
   }) {
@@ -131,7 +133,6 @@ void main() {
       pauseDuration: pauseDuration,
       annotationReplayRemaining: annotationReplayRemaining,
       annotationReplayDuration: annotationReplayDuration,
-      isCompleted: isCompleted,
       difficultSentences: difficultSentences,
       isCurrentSentenceAutoMarked: isCurrentSentenceAutoMarked,
     );
@@ -480,7 +481,6 @@ void main() {
       await tester.pumpWidget(
         createTestWidget(
           playerState: createPlayerState(
-            isCompleted: false,
             totalSentences: 5,
             difficultSentences: {0},
           ),
@@ -494,6 +494,10 @@ void main() {
           ),
         ),
       );
+      await tester.pumpAndSettle();
+
+      // 最后一句显示完成按钮（check_circle_rounded），点击触发完成弹窗
+      await tester.tap(find.byIcon(Icons.check_circle_rounded));
       await tester.pumpAndSettle();
 
       expect(

@@ -142,7 +142,6 @@ void main() {
     bool isPauseBetweenSentences = false,
     Duration pauseRemaining = Duration.zero,
     Duration pauseDuration = Duration.zero,
-    bool isCompleted = false,
   }) {
     return ListenAndRepeatPlayerState(
       currentSentenceIndex: currentSentenceIndex,
@@ -155,7 +154,6 @@ void main() {
       isPauseBetweenSentences: isPauseBetweenSentences,
       pauseRemaining: pauseRemaining,
       pauseDuration: pauseDuration,
-      isCompleted: isCompleted,
     );
   }
 

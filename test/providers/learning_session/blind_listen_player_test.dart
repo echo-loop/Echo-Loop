@@ -8,7 +8,6 @@ void main() {
       const state = BlindListenPlayerState();
 
       expect(state.isPlaying, false);
-      expect(state.isCompleted, false);
       expect(state.currentParagraphIndex, 0);
       expect(state.totalParagraphs, 0);
       expect(state.playingSentenceIndex, -1);
@@ -43,14 +42,6 @@ void main() {
       final showAll = state.copyWith(displayMode: BlindListenDisplayMode.showAll);
 
       expect(showAll.displayMode, BlindListenDisplayMode.showAll);
-    });
-
-    test('copyWith 标记完成', () {
-      const state = BlindListenPlayerState(isPlaying: true);
-      final completed = state.copyWith(isPlaying: false, isCompleted: true);
-
-      expect(completed.isPlaying, false);
-      expect(completed.isCompleted, true);
     });
 
     test('copyWith 设置倒计时状态', () {
@@ -92,8 +83,6 @@ void main() {
       expect(resetState.isPlaying, false);
       expect(resetState.currentParagraphIndex, 0);
       expect(resetState.totalParagraphs, 0);
-      expect(resetState.isCompleted, false);
-
       // 原状态不受影响（immutable）
       expect(state.isPlaying, true);
     });

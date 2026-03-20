@@ -79,12 +79,17 @@ void statsDisplayTests() {
       final p =
           screenContainer.read(intensiveListenPlayerProvider.notifier)
               as TestIntensiveListenPlayer;
-      p.setState(p.state.copyWith(isCompleted: true));
+      p.setState(p.state.copyWith(
+        currentSentenceIndex: p.state.totalSentences - 1,
+        isPlaying: false,
+      ));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byIcon(Icons.skip_next_rounded));
       await tester.pumpAndSettle();
 
       // 完成对话框弹出 → 点击"Back to Plan"
       expect(find.text('Intensive Listening Complete'), findsOneWidget);
-      await tester.tap(find.text('Back to Plan'));
+      await tester.tap(find.text('Back'));
       await tester.pumpAndSettle();
 
       // 验证进度已更新
@@ -221,7 +226,12 @@ void statsDisplayTests() {
       final p =
           screenContainer.read(intensiveListenPlayerProvider.notifier)
               as TestIntensiveListenPlayer;
-      p.setState(p.state.copyWith(isCompleted: true));
+      p.setState(p.state.copyWith(
+        currentSentenceIndex: p.state.totalSentences - 1,
+        isPlaying: false,
+      ));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byIcon(Icons.skip_next_rounded));
       await tester.pumpAndSettle();
 
       // 自由练习完成后弹窗，点击"完成"退出
@@ -298,12 +308,17 @@ void statsDisplayTests() {
       final p =
           screenContainer.read(listenAndRepeatPlayerProvider.notifier)
               as TestListenAndRepeatPlayer;
-      p.setState(p.state.copyWith(isCompleted: true));
+      p.setState(p.state.copyWith(
+        currentSentenceIndex: p.state.totalSentences - 1,
+        isPlaying: false,
+      ));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byIcon(Icons.skip_next_rounded));
       await tester.pumpAndSettle();
 
       // 完成对话框弹出 → 点击"Back to Plan"
       expect(find.text('Listen & Repeat Complete'), findsOneWidget);
-      await tester.tap(find.text('Back to Plan'));
+      await tester.tap(find.text('Back'));
       await tester.pumpAndSettle();
 
       // 验证跟读遍数递增
@@ -371,7 +386,12 @@ void statsDisplayTests() {
       final p =
           screenContainer.read(listenAndRepeatPlayerProvider.notifier)
               as TestListenAndRepeatPlayer;
-      p.setState(p.state.copyWith(isCompleted: true));
+      p.setState(p.state.copyWith(
+        currentSentenceIndex: p.state.totalSentences - 1,
+        isPlaying: false,
+      ));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byIcon(Icons.skip_next_rounded));
       await tester.pumpAndSettle();
 
       // 完成对话框弹出 → 点击"Done"完成退出
@@ -476,12 +496,17 @@ void statsDisplayTests() {
       final p =
           screenContainer.read(intensiveListenPlayerProvider.notifier)
               as TestIntensiveListenPlayer;
-      p.setState(p.state.copyWith(isCompleted: true));
+      p.setState(p.state.copyWith(
+        currentSentenceIndex: p.state.totalSentences - 1,
+        isPlaying: false,
+      ));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byIcon(Icons.skip_next_rounded));
       await tester.pumpAndSettle();
 
       // 点击"Back to Plan"
       expect(find.text('Intensive Listening Complete'), findsOneWidget);
-      await tester.tap(find.text('Back to Plan'));
+      await tester.tap(find.text('Back'));
       await tester.pumpAndSettle();
 
       // 验证 Provider 中遍数递增（1 → 2）

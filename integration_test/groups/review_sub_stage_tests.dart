@@ -324,15 +324,16 @@ void reviewSubStageTests() {
           );
       await tester.pumpAndSettle();
 
-      // 模拟完成：设置 isCompleted = true
+      // 定位到最后一句，点击"下一句"触发完成
       player.setState(
         const ReviewDifficultPracticeState(
           currentSentenceIndex: 2,
           totalSentences: 3,
-          isCompleted: true,
           isPlaying: false,
         ),
       );
+      await tester.pumpAndSettle();
+      await tester.tap(find.byIcon(Icons.skip_next_rounded));
       await tester.pumpAndSettle();
 
       // 验证完成对话框出现
@@ -341,7 +342,7 @@ void reviewSubStageTests() {
 
       // 验证有"Continue"和"Back to Plan"按钮
       // review0 当前是第 1 步（共 2 步），还有下一步（reviewRetellParagraph）
-      expect(find.text('Back to Plan'), findsOneWidget);
+      expect(find.text('Back'), findsOneWidget);
       // 下一步名称包含 "Continue:"
       expect(find.textContaining('Continue:'), findsOneWidget);
     });

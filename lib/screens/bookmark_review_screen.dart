@@ -226,8 +226,11 @@ class _BookmarkReviewScreenState extends ConsumerState<BookmarkReviewScreen>
 
     // 如果还有句子且未完成，自动开始播放下一句
     final playerState = ref.read(bookmarkReviewProvider);
-    if (!playerState.isCompleted && playerState.totalSentences > 0) {
+    if (playerState.totalSentences > 0) {
       await player.startPlaying();
+    } else {
+      // 所有收藏已删除 → 直接触发完成
+      _handleCompleted();
     }
   }
 
@@ -270,14 +273,11 @@ class _BookmarkReviewScreenState extends ConsumerState<BookmarkReviewScreen>
     // watch 录音相关状态
     final turnState = ref.watch(shadowingRecordingControllerProvider);
 
-    // 监听完成状态 + 控制模式变化
+    // 监听句子切换 + 自动播完信号 + 控制模式变化
     ref.listen<ReviewDifficultPracticeState>(bookmarkReviewProvider, (
       prev,
       next,
     ) {
-      if (next.isCompleted && !(prev?.isCompleted ?? false)) {
-        _handleCompleted();
-      }
       // 句子切换时清除上一句的录音结果，为下一句自动录音做准备
       if (prev != null &&
           prev.currentSentenceIndex != next.currentSentenceIndex) {
@@ -313,7 +313,6 @@ class _BookmarkReviewScreenState extends ConsumerState<BookmarkReviewScreen>
         final latestState = ref.read(bookmarkReviewProvider);
         if (latestState.isPauseBetweenPlays &&
             latestState.isAnnotationMode &&
-            !latestState.isCompleted &&
             !latestState.settings.isManualMode &&
             !_manualStoppedThisSentence) {
           ref.read(bookmarkReviewProvider.notifier).startPostEvaluationPause();
@@ -344,7 +343,6 @@ class _BookmarkReviewScreenState extends ConsumerState<BookmarkReviewScreen>
     if (playerState.isAnnotationMode &&
         playerState.isPauseBetweenPlays &&
         currentSentence != null &&
-        !playerState.isCompleted &&
         !playerState.settings.isManualMode &&
         turnState.phase == ListenAndRepeatTurnPhase.idle &&
         !playerState.isPostEvalCountdown &&
@@ -540,6 +538,7 @@ class _BookmarkReviewScreenState extends ConsumerState<BookmarkReviewScreen>
                       playerState.totalSentences - 1;
                   if (isLast) {
                     player.forceComplete();
+                    _handleCompleted();
                   } else {
                     unawaited(player.goToNext());
                   }

@@ -55,8 +55,6 @@ class IntensiveListenPlayerScreen extends ConsumerStatefulWidget {
 class _IntensiveListenPlayerScreenState
     extends ConsumerState<IntensiveListenPlayerScreen>
     with WakelockMixin {
-  bool _isShowingDialog = false;
-
   /// 是否正在退出页面，防止退出过程中 listener 触发弹窗
   bool _isExiting = false;
 
@@ -394,10 +392,7 @@ class _IntensiveListenPlayerScreenState
   ///
   /// 弹出完成对话框，支持双按钮："返回计划"和"继续下一步"。
   Future<void> _handleCompleted() async {
-    debugPrint('[IntensiveListen] _handleCompleted called, _isShowingDialog=$_isShowingDialog, _isExiting=$_isExiting, mounted=$mounted');
-    if (_isShowingDialog || _isExiting || !mounted) return;
-    _isShowingDialog = true;
-    debugPrint('[IntensiveListen] _isShowingDialog set to true');
+    if (_isExiting || !mounted) return;
 
     final session = ref.read(learningSessionProvider);
     final playerState = ref.read(intensiveListenPlayerProvider);
@@ -406,10 +401,7 @@ class _IntensiveListenPlayerScreenState
     await _saveDifficultSentences();
     final totalDifficultCount = await _loadTotalDifficultCount();
 
-    if (!mounted) {
-      _isShowingDialog = false;
-      return;
-    }
+    if (!mounted) return;
 
     // 自由练习模式：弹窗询问"完成"或"再来一遍"
     if (session.isFreePlay) {
@@ -422,12 +414,8 @@ class _IntensiveListenPlayerScreenState
           .read(learningProgressNotifierProvider.notifier)
           .incrementIntensiveListenPassCount(widget.audioItemId);
 
-      if (!mounted) {
-        _isShowingDialog = false;
-        return;
-      }
+      if (!mounted) return;
 
-      debugPrint('[IntensiveListen] about to call handleFreePlayComplete');
       await handleFreePlayComplete(
         context: context,
         title: l10n.intensiveListenCompleteTitle,
@@ -436,12 +424,9 @@ class _IntensiveListenPlayerScreenState
           totalDifficultCount,
         ),
         onStudyAgain: () async {
-          debugPrint('[IntensiveListen] onStudyAgain: calling resetToStart');
           ref.read(intensiveListenPlayerProvider.notifier).resetToStart();
-          debugPrint('[IntensiveListen] onStudyAgain: resetToStart done');
         },
         onExit: () async {
-          debugPrint('[IntensiveListen] onExit called');
           await ref
               .read(learningProgressNotifierProvider.notifier)
               .saveIntensiveListenSentenceIndex(widget.audioItemId, null);
@@ -449,14 +434,12 @@ class _IntensiveListenPlayerScreenState
           if (mounted) context.pop();
         },
       );
-      debugPrint('[IntensiveListen] handleFreePlayComplete returned');
-      _isShowingDialog = false;
       return;
     }
 
     final stepCtx = _getStepContext();
 
-    // 弹窗前立即标记完成
+    // 弹窗前保存统计（事实记录，不影响步骤进度）
     try {
       await ref
           .read(learningProgressNotifierProvider.notifier)
@@ -464,20 +447,11 @@ class _IntensiveListenPlayerScreenState
       await ref
           .read(learningProgressNotifierProvider.notifier)
           .incrementIntensiveListenPassCount(widget.audioItemId);
-      await ref
-          .read(learningProgressNotifierProvider.notifier)
-          .saveIntensiveListenSentenceIndex(widget.audioItemId, null);
-      await ref
-          .read(learningProgressNotifierProvider.notifier)
-          .completeCurrentSubStage(widget.audioItemId);
     } catch (e) {
-      debugPrint('精听完成处理出错: $e');
+      debugPrint('精听保存统计出错: $e');
     }
 
-    if (!mounted) {
-      _isShowingDialog = false;
-      return;
-    }
+    if (!mounted) return;
 
     final l10nDialog = AppLocalizations.of(context)!;
     final result = await showStepCompleteDialog(
@@ -497,9 +471,19 @@ class _IntensiveListenPlayerScreenState
       isLastStep: stepCtx.isLastStep,
     );
 
-    if (!mounted) { _isShowingDialog = false; return; }
+    if (!mounted || result == null) return;
 
-    if (result == null) { _isShowingDialog = false; return; }
+    // 用户确认后：清除断点 + 标记完成
+    try {
+      await ref
+          .read(learningProgressNotifierProvider.notifier)
+          .saveIntensiveListenSentenceIndex(widget.audioItemId, null);
+      await ref
+          .read(learningProgressNotifierProvider.notifier)
+          .completeCurrentSubStage(widget.audioItemId);
+    } catch (e) {
+      debugPrint('精听完成处理出错: $e');
+    }
 
     if (result.action == StepCompleteAction.continueNext) {
       // 继续下一步 → 进入难句跟读
@@ -512,7 +496,6 @@ class _IntensiveListenPlayerScreenState
       await ref.read(learningSessionProvider.notifier).exitLearningMode();
       if (mounted) context.pop();
     }
-    _isShowingDialog = false;
   }
 
   @override
@@ -522,18 +505,6 @@ class _IntensiveListenPlayerScreenState
 
     final playerState = ref.watch(intensiveListenPlayerProvider);
     final player = ref.read(intensiveListenPlayerProvider.notifier);
-
-    // 监听完成状态
-    ref.listen<IntensiveListenState>(intensiveListenPlayerProvider, (
-      prev,
-      next,
-    ) {
-      debugPrint('[IntensiveListen] listener: prev.isCompleted=${prev?.isCompleted}, next.isCompleted=${next.isCompleted}, _isShowingDialog=$_isShowingDialog');
-      if (next.isCompleted && !(prev?.isCompleted ?? false)) {
-        debugPrint('[IntensiveListen] listener: transition detected, calling _handleCompleted');
-        _handleCompleted();
-      }
-    });
 
     final currentSentence = player.currentSentence;
 
@@ -697,7 +668,8 @@ class _IntensiveListenPlayerScreenState
                             playerState.currentSentenceIndex >=
                             playerState.totalSentences - 1;
                         if (isLast) {
-                          player.forceComplete();
+                          player.stopPlayback();
+                          _handleCompleted();
                         } else {
                           player.goToNext();
                         }

@@ -224,11 +224,16 @@ void intensiveListenTests() {
 
       final container = getContainer(tester);
 
-      // 触发完成：设置 isCompleted = true
+      // 定位到最后一句，点击"下一句"触发完成
       final player =
           container.read(intensiveListenPlayerProvider.notifier)
               as TestIntensiveListenPlayer;
-      player.setState(player.state.copyWith(isCompleted: true));
+      player.setState(player.state.copyWith(
+        currentSentenceIndex: player.state.totalSentences - 1,
+        isPlaying: false,
+      ));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byIcon(Icons.skip_next_rounded));
       await tester.pumpAndSettle();
 
       // 验证完成对话框弹出
@@ -236,7 +241,7 @@ void intensiveListenTests() {
       // 验证步骤进度信息
       expect(find.textContaining('2/4'), findsOneWidget);
       // 精听后的步骤（listenAndRepeat）有播放器，显示"继续"和"返回计划"两个按钮
-      expect(find.text('Back to Plan'), findsOneWidget);
+      expect(find.text('Back'), findsOneWidget);
       expect(find.textContaining('Continue'), findsOneWidget);
     });
 

@@ -49,13 +49,16 @@ class _TestBookmarkDao implements BookmarkDao {
   }
 }
 
-/// 启动后立即进入完成态，用于触发完成对话框逻辑
+/// 启动后定位到最后一句（等用户点"下一句"触发完成弹窗）
 class _AutoCompleteReviewDifficultPractice extends TestReviewDifficultPractice {
   _AutoCompleteReviewDifficultPractice(super.initialState, super.testSentences);
 
   @override
   Future<void> startPlaying() async {
-    state = state.copyWith(isPlaying: false, isCompleted: true);
+    state = state.copyWith(
+      currentSentenceIndex: state.totalSentences - 1,
+      isPlaying: false,
+    );
   }
 }
 
@@ -72,7 +75,6 @@ void main() {
     bool isPauseBetweenSentences = false,
     Duration pauseRemaining = Duration.zero,
     Duration pauseDuration = Duration.zero,
-    bool isCompleted = false,
     bool isCountdownPaused = false,
     bool isCountdownFastForward = false,
   }) {
@@ -87,7 +89,6 @@ void main() {
       isPauseBetweenSentences: isPauseBetweenSentences,
       pauseRemaining: pauseRemaining,
       pauseDuration: pauseDuration,
-      isCompleted: isCompleted,
       isCountdownPaused: isCountdownPaused,
       isCountdownFastForward: isCountdownFastForward,
     );
@@ -640,18 +641,25 @@ void main() {
   });
 
   group('ReviewDifficultPracticeScreen — 完成弹窗', () {
-    testWidgets('非自由练习模式完成弹窗显示"再来一遍"按钮', (tester) async {
+    testWidgets('非自由练习模式完成弹窗显示步骤完成对话框', (tester) async {
       await tester.pumpWidget(
         createTestWidget(
           sessionState: const LearningSessionState(isFreePlay: false),
-          playerFactory: (initialState, sentences) =>
-              _AutoCompleteReviewDifficultPractice(initialState, sentences),
+          playerState: createPlayerState(
+            currentSentenceIndex: 4,
+            totalSentences: 5,
+            isPlaying: false,
+          ),
         ),
       );
       await tester.pumpAndSettle();
 
-      // 完成弹窗应显示"Practice Again"按钮
-      expect(find.text('Practice Again'), findsOneWidget);
+      // 最后一句显示完成按钮（check_circle_rounded），点击触发完成弹窗
+      await tester.tap(find.byIcon(Icons.check_circle_rounded));
+      await tester.pumpAndSettle();
+
+      // 完成弹窗应显示步骤完成对话框
+      expect(find.text('Difficult Practice Complete'), findsOneWidget);
     });
   });
 }

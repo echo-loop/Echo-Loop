@@ -191,10 +191,7 @@ class BookmarkReview extends _$BookmarkReview {
 
   /// 开始播放
   Future<void> startPlaying() async {
-    if (_sentences.isEmpty) {
-      state = state.copyWith(isCompleted: true);
-      return;
-    }
+    if (_sentences.isEmpty) return;
     await _startSentence();
   }
 
@@ -249,7 +246,6 @@ class BookmarkReview extends _$BookmarkReview {
 
     if (_sentences.isEmpty) {
       state = state.copyWith(
-        isCompleted: true,
         isPlaying: false,
         totalSentences: 0,
       );
@@ -345,7 +341,7 @@ class BookmarkReview extends _$BookmarkReview {
   void startPostEvaluationPause() {
     if (!state.isPauseBetweenPlays) return;
     if (!state.isAnnotationMode) return;
-    if (state.isCompleted) return;
+    if (state.totalSentences == 0) return;
     if (state.settings.isManualMode) return;
 
     const pauseDuration = Duration(seconds: 5);
@@ -408,7 +404,6 @@ class BookmarkReview extends _$BookmarkReview {
     _invalidatePostEvalCountdown();
     _outputStopwatch.stop();
     state = state.copyWith(
-      isCompleted: true,
       isPlaying: false,
       isPauseBetweenPlays: false,
       isPauseBetweenSentences: false,
@@ -437,7 +432,7 @@ class BookmarkReview extends _$BookmarkReview {
         isAnnotationMode: false,
       );
       if (isLastSentence) {
-        state = state.copyWith(isCompleted: true, isPlaying: false);
+        state = state.copyWith(isPlaying: false);
       } else {
         state = state.copyWith(
           currentSentenceIndex: state.currentSentenceIndex + 1,
@@ -781,7 +776,6 @@ class BookmarkReview extends _$BookmarkReview {
       onAdvance: () async {
         if (isLastSentence) {
           state = state.copyWith(
-            isCompleted: true,
             isPlaying: false,
             isPauseBetweenPlays: false,
             isPauseBetweenSentences: false,

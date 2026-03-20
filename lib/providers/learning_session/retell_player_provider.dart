@@ -68,9 +68,6 @@ class RetellPlayerState {
   /// 倒计时总时长
   final Duration pauseDuration;
 
-  /// 是否已完成所有段落
-  final bool isCompleted;
-
   /// 倒计时是否暂停中
   final bool isCountdownPaused;
 
@@ -92,7 +89,6 @@ class RetellPlayerState {
     this.isRetellCountdown = false,
     this.pauseRemaining = Duration.zero,
     this.pauseDuration = Duration.zero,
-    this.isCompleted = false,
     this.isCountdownPaused = false,
     this.isCountdownFastForward = false,
     this.userOverrodeDisplayMode = false,
@@ -110,7 +106,6 @@ class RetellPlayerState {
     bool? isRetellCountdown,
     Duration? pauseRemaining,
     Duration? pauseDuration,
-    bool? isCompleted,
     bool? isCountdownPaused,
     bool? isCountdownFastForward,
     bool? userOverrodeDisplayMode,
@@ -128,7 +123,6 @@ class RetellPlayerState {
       isRetellCountdown: isRetellCountdown ?? this.isRetellCountdown,
       pauseRemaining: pauseRemaining ?? this.pauseRemaining,
       pauseDuration: pauseDuration ?? this.pauseDuration,
-      isCompleted: isCompleted ?? this.isCompleted,
       isCountdownPaused: isCountdownPaused ?? this.isCountdownPaused,
       isCountdownFastForward:
           isCountdownFastForward ?? this.isCountdownFastForward,
@@ -334,10 +328,7 @@ class RetellPlayer extends _$RetellPlayer {
 
   /// 开始播放当前段落
   Future<void> startPlaying() async {
-    if (_paragraphs.isEmpty) {
-      state = state.copyWith(isCompleted: true);
-      return;
-    }
+    if (_paragraphs.isEmpty) return;
     await _playCurrentParagraph();
   }
 
@@ -373,10 +364,10 @@ class RetellPlayer extends _$RetellPlayer {
 
   /// 跳转到下一段
   Future<void> goToNextParagraph() async {
+    // 最后一段 → 停止播放，由 screen 处理完成逻辑
     if (state.currentParagraphIndex >= state.totalParagraphs - 1) {
-      // 最后一段完成
       await _cancelAll();
-      state = state.copyWith(isCompleted: true, isPlaying: false);
+      state = state.copyWith(isPlaying: false, isRetellCountdown: false);
       return;
     }
 

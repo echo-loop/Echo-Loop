@@ -23,7 +23,6 @@ void main() {
       expect(state.isAnnotationMode, false);
       expect(state.isTextRevealed, false);
       expect(state.targetRepeatCount, 3);
-      expect(state.isCompleted, false);
     });
 
     test('copyWith — 更新单个字段', () {
@@ -74,19 +73,6 @@ void main() {
       // 偷看不影响播放状态
       expect(peeked.isPlaying, false);
       expect(peeked.isAnnotationMode, false);
-    });
-
-    test('copyWith — 标记完成', () {
-      const state = ReviewDifficultPracticeState(
-        currentSentenceIndex: 4,
-        totalSentences: 5,
-        isPlaying: true,
-      );
-      final completed = state.copyWith(isCompleted: true, isPlaying: false);
-
-      expect(completed.isCompleted, true);
-      expect(completed.isPlaying, false);
-      expect(completed.currentSentenceIndex, 4);
     });
 
     test('copyWith — 句间停顿状态', () {

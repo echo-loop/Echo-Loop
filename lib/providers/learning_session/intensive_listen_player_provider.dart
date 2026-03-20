@@ -90,9 +90,6 @@ class IntensiveListenState {
   /// 是否处于当前页内的详情重播状态（带字幕重播一遍）
   final bool isAnnotationReplay;
 
-  /// 是否已完成所有句子
-  final bool isCompleted;
-
   /// 是否偷看字幕
   final bool isTextRevealed;
 
@@ -126,7 +123,6 @@ class IntensiveListenState {
     this.annotationReplayDuration = Duration.zero,
     this.isAnnotationMode = false,
     this.isAnnotationReplay = false,
-    this.isCompleted = false,
     this.isTextRevealed = false,
     this.difficultSentences = const {},
     this.isCurrentSentenceAutoMarked = false,
@@ -148,7 +144,6 @@ class IntensiveListenState {
     Duration? annotationReplayDuration,
     bool? isAnnotationMode,
     bool? isAnnotationReplay,
-    bool? isCompleted,
     bool? isTextRevealed,
     Set<int>? difficultSentences,
     bool? isCurrentSentenceAutoMarked,
@@ -172,7 +167,6 @@ class IntensiveListenState {
           annotationReplayDuration ?? this.annotationReplayDuration,
       isAnnotationMode: isAnnotationMode ?? this.isAnnotationMode,
       isAnnotationReplay: isAnnotationReplay ?? this.isAnnotationReplay,
-      isCompleted: isCompleted ?? this.isCompleted,
       isTextRevealed: isTextRevealed ?? this.isTextRevealed,
       difficultSentences: difficultSentences ?? this.difficultSentences,
       isCurrentSentenceAutoMarked:
@@ -645,9 +639,8 @@ class IntensiveListenPlayer extends _$IntensiveListenPlayer {
     if (!engine.isActiveSession(sessionId)) return;
 
     if (isLastSentence) {
-      // 最后一句停顿结束 → 标记完成
+      // 最后一句停顿结束 → 发出完成信号（screen listener 检测增量触发弹窗）
       state = state.copyWith(
-        isCompleted: true,
         isPlaying: false,
         isAnnotationMode: false,
         isPauseBetweenPlays: false,
@@ -677,14 +670,15 @@ class IntensiveListenPlayer extends _$IntensiveListenPlayer {
     }
   }
 
-  /// 强制完成（用户在最后一句主动点击完成按钮）
-  void forceComplete() {
+  /// 停止播放（用户在最后一句主动点击完成按钮时调用）
+  ///
+  /// 仅停止播放，弹窗由 screen 层直接调用。
+  void stopPlayback() {
     _invalidateSession();
     try {
       ref.read(learningSessionProvider.notifier).stopOutputTimer();
     } catch (_) {}
     state = state.copyWith(
-      isCompleted: true,
       isPlaying: false,
       isPauseBetweenPlays: false,
       isPauseBetweenSentences: false,
@@ -701,7 +695,6 @@ class IntensiveListenPlayer extends _$IntensiveListenPlayer {
     state = state.copyWith(
       currentSentenceIndex: 0,
       currentPlayCount: 1,
-      isCompleted: false,
       isPlaying: false,
       isPauseBetweenPlays: false,
       isPauseBetweenSentences: false,

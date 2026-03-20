@@ -137,7 +137,7 @@ void blindListenTests() {
       expect(find.text('How did it feel?'), findsOneWidget);
       // 验证双按钮："返回计划"和"继续：逐句精听"，以及"再听一遍"
       expect(find.text('Listen Again'), findsOneWidget);
-      expect(find.text('Back to Plan'), findsOneWidget);
+      expect(find.text('Back'), findsOneWidget);
       expect(find.text('Continue: Intensive Listening'), findsOneWidget);
       // 验证步骤进度
       expect(find.textContaining('1/4'), findsOneWidget);
@@ -170,7 +170,7 @@ void blindListenTests() {
       await _pumpUi(tester, 600);
 
       // 点击"返回计划"
-      await tester.tap(find.text('Back to Plan'));
+      await tester.tap(find.text('Back'));
       await _pumpUi(tester, 1000);
 
       // 验证盲听页面已退出（不再显示盲听播放器）

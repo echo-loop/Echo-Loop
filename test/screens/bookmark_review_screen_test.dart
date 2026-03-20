@@ -207,7 +207,6 @@ void main() {
     bool isPauseBetweenSentences = false,
     Duration pauseRemaining = Duration.zero,
     Duration pauseDuration = Duration.zero,
-    bool isCompleted = false,
     bool isCountdownPaused = false,
     bool isCountdownFastForward = false,
   }) {
@@ -222,7 +221,6 @@ void main() {
       isPauseBetweenSentences: isPauseBetweenSentences,
       pauseRemaining: pauseRemaining,
       pauseDuration: pauseDuration,
-      isCompleted: isCompleted,
       isCountdownPaused: isCountdownPaused,
       isCountdownFastForward: isCountdownFastForward,
     );

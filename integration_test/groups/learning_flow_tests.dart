@@ -97,8 +97,8 @@ void learningFlowTests() {
       await tester.tap(find.text('Okay'));
       await _pumpUi(tester, 800);
 
-      // 点击 "Back to Plan"（返回计划页查看进度更新）
-      await tester.tap(find.text('Back to Plan'));
+      // 点击 "Back"（返回计划页查看进度更新）
+      await tester.tap(find.text('Back'));
       await _pumpUi(tester, 1200);
 
       // === 6. 返回学习计划页 → 验证进度更新 ===

@@ -76,7 +76,6 @@ void main() {
       expect(state.currentSentenceIndex, 0);
       expect(state.totalSentences, 5);
       expect(state.isPlaying, false);
-      expect(state.isCompleted, false);
     });
 
     test('取消收藏后列表更新 — 移除中间句子', () {
@@ -117,19 +116,18 @@ void main() {
       expect(afterRemove.totalSentences, 4);
     });
 
-    test('取消收藏后列表为空 — 标记完成', () {
+    test('取消收藏后列表为空 — 停止播放', () {
       const state = ReviewDifficultPracticeState(
         currentSentenceIndex: 0,
         totalSentences: 1,
       );
 
       final afterRemove = state.copyWith(
-        isCompleted: true,
         isPlaying: false,
         totalSentences: 0,
       );
 
-      expect(afterRemove.isCompleted, true);
+      expect(afterRemove.isPlaying, false);
       expect(afterRemove.totalSentences, 0);
     });
 
@@ -141,7 +139,6 @@ void main() {
       );
 
       expect(reset.currentSentenceIndex, 0);
-      expect(reset.isCompleted, false);
       expect(reset.totalSentences, 5);
     });
   });

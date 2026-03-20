@@ -57,9 +57,6 @@ class ListenAndRepeatPlayerState {
   /// 停顿总时长
   final Duration pauseDuration;
 
-  /// 是否已完成所有句子
-  final bool isCompleted;
-
   /// 倒计时是否暂停中
   final bool isCountdownPaused;
 
@@ -80,7 +77,6 @@ class ListenAndRepeatPlayerState {
     this.isPauseBetweenSentences = false,
     this.pauseRemaining = Duration.zero,
     this.pauseDuration = Duration.zero,
-    this.isCompleted = false,
     this.isCountdownPaused = false,
     this.isCountdownFastForward = false,
     this.isPostEvalCountdown = false,
@@ -97,7 +93,6 @@ class ListenAndRepeatPlayerState {
     bool? isPauseBetweenSentences,
     Duration? pauseRemaining,
     Duration? pauseDuration,
-    bool? isCompleted,
     bool? isCountdownPaused,
     bool? isCountdownFastForward,
     bool? isPostEvalCountdown,
@@ -114,7 +109,6 @@ class ListenAndRepeatPlayerState {
           isPauseBetweenSentences ?? this.isPauseBetweenSentences,
       pauseRemaining: pauseRemaining ?? this.pauseRemaining,
       pauseDuration: pauseDuration ?? this.pauseDuration,
-      isCompleted: isCompleted ?? this.isCompleted,
       isCountdownPaused: isCountdownPaused ?? this.isCountdownPaused,
       isCountdownFastForward:
           isCountdownFastForward ?? this.isCountdownFastForward,
@@ -205,10 +199,7 @@ class ListenAndRepeatPlayer extends _$ListenAndRepeatPlayer {
 
   /// 开始播放当前句子
   Future<void> startPlaying() async {
-    if (_sentences.isEmpty) {
-      state = state.copyWith(isCompleted: true);
-      return;
-    }
+    if (_sentences.isEmpty) return;
     await _startSentence();
   }
 
@@ -286,7 +277,6 @@ class ListenAndRepeatPlayer extends _$ListenAndRepeatPlayer {
 
     if (_sentences.isEmpty) {
       state = state.copyWith(
-        isCompleted: true,
         isPlaying: false,
         totalSentences: 0,
         isPauseBetweenPlays: false,
@@ -408,7 +398,7 @@ class ListenAndRepeatPlayer extends _$ListenAndRepeatPlayer {
           state.currentSentenceIndex >= state.totalSentences - 1;
       if (isLastSentence) {
         AppLogger.log('Player', '→ 完成（最后一句）');
-        state = state.copyWith(isCompleted: true, isPlaying: false);
+        state = state.copyWith(isPlaying: false);
         return;
       }
 
@@ -441,7 +431,6 @@ class ListenAndRepeatPlayer extends _$ListenAndRepeatPlayer {
   /// 手动模式下直接 return，由用户手动推进。
   void startPostEvaluationPause() {
     if (!state.isPauseBetweenPlays) return;
-    if (state.isCompleted) return;
     if (state.settings.isManualMode) return;
 
     const pauseDuration = Duration(seconds: 5);
@@ -496,15 +485,16 @@ class ListenAndRepeatPlayer extends _$ListenAndRepeatPlayer {
     _countdown.cancel();
   }
 
-  /// 强制完成（用户在最后一句主动点击完成按钮）
-  void forceComplete() {
+  /// 停止播放（用户在最后一句主动点击完成按钮时调用）
+  ///
+  /// 仅停止播放，弹窗由 screen 层直接调用。
+  void stopPlayback() {
     _engine.invalidateSession();
     _invalidatePostEvalCountdown();
     try {
       ref.read(learningSessionProvider.notifier).stopOutputTimer();
     } catch (_) {}
     state = state.copyWith(
-      isCompleted: true,
       isPlaying: false,
       isPauseBetweenPlays: false,
       isPauseBetweenSentences: false,
@@ -623,9 +613,8 @@ class ListenAndRepeatPlayer extends _$ListenAndRepeatPlayer {
       },
       onAdvance: () async {
         if (isLastSentence) {
-          // 最后一句停顿结束 → 标记完成
+          // 最后一句停顿结束 → 发出完成信号
           state = state.copyWith(
-            isCompleted: true,
             isPlaying: false,
             isPauseBetweenPlays: false,
             isPauseBetweenSentences: false,
@@ -651,7 +640,6 @@ class ListenAndRepeatPlayer extends _$ListenAndRepeatPlayer {
     state = state.copyWith(
       currentSentenceIndex: 0,
       currentPlayCount: 1,
-      isCompleted: false,
       isPlaying: false,
       isPauseBetweenPlays: false,
       isPauseBetweenSentences: false,

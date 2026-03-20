@@ -832,7 +832,7 @@ class TestBlindListenPlayer extends BlindListenPlayer {
 
   @override
   Future<void> startPlaying() async {
-    state = state.copyWith(isPlaying: true, isCompleted: false);
+    state = state.copyWith(isPlaying: true);
   }
 
   @override
@@ -1106,7 +1106,6 @@ class TestListenAndRepeatPlayer extends ListenAndRepeatPlayer {
 
     if (_testSentences.isEmpty) {
       state = state.copyWith(
-        isCompleted: true,
         isPlaying: false,
         totalSentences: 0,
       );
@@ -1197,10 +1196,7 @@ class TestRetellPlayer extends RetellPlayer {
 
   @override
   Future<void> startPlaying() async {
-    if (_testParagraphs.isEmpty) {
-      state = state.copyWith(isCompleted: true);
-      return;
-    }
+    if (_testParagraphs.isEmpty) return;
     state = state.copyWith(
       phase: RetellPhase.listening,
       isPlaying: true,
@@ -1236,7 +1232,7 @@ class TestRetellPlayer extends RetellPlayer {
   @override
   Future<void> goToNextParagraph() async {
     if (state.currentParagraphIndex >= state.totalParagraphs - 1) {
-      state = state.copyWith(isCompleted: true, isPlaying: false);
+      state = state.copyWith(isPlaying: false, isRetellCountdown: false);
       return;
     }
     state = state.copyWith(
@@ -1369,10 +1365,7 @@ class TestReviewDifficultPractice extends ReviewDifficultPractice {
 
   @override
   Future<void> startPlaying() async {
-    if (_testSentences.isEmpty) {
-      state = state.copyWith(isCompleted: true);
-      return;
-    }
+    if (_testSentences.isEmpty) return;
     state = state.copyWith(isPlaying: true);
   }
 
@@ -1425,7 +1418,6 @@ class TestReviewDifficultPractice extends ReviewDifficultPractice {
 
     if (_testSentences.isEmpty) {
       state = state.copyWith(
-        isCompleted: true,
         isPlaying: false,
         totalSentences: 0,
       );

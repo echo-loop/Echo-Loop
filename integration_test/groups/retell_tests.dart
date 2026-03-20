@@ -296,10 +296,17 @@ void retellTests() {
 
       final container = getContainer(tester);
 
-      // 触发完成：设置 isCompleted = true
+      // 定位到最后一段，然后点击"下一段"触发完成
       final player =
           container.read(retellPlayerProvider.notifier) as TestRetellPlayer;
-      player.setState(player.state.copyWith(isCompleted: true));
+      player.setState(player.state.copyWith(
+        currentParagraphIndex: player.state.totalParagraphs - 1,
+        isPlaying: false,
+      ));
+      await tester.pumpAndSettle();
+
+      // 点击"下一段"按钮触发完成
+      await tester.tap(find.byIcon(Icons.skip_next_rounded));
       await tester.pumpAndSettle();
 
       // 验证完成对话框弹出
@@ -327,10 +334,15 @@ void retellTests() {
 
       final container = getContainer(tester);
 
-      // 触发完成
+      // 定位到最后一段，点击"下一段"触发完成
       final player =
           container.read(retellPlayerProvider.notifier) as TestRetellPlayer;
-      player.setState(player.state.copyWith(isCompleted: true));
+      player.setState(player.state.copyWith(
+        currentParagraphIndex: player.state.totalParagraphs - 1,
+        isPlaying: false,
+      ));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byIcon(Icons.skip_next_rounded));
       await tester.pumpAndSettle();
 
       // 点击"再来一遍"

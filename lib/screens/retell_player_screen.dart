@@ -213,11 +213,6 @@ class _RetellPlayerScreenState extends ConsumerState<RetellPlayerScreen>
     final sessionState = ref.read(learningSessionProvider);
     final state = ref.read(retellPlayerProvider);
 
-    if (state.isCompleted) {
-      await _exit();
-      return;
-    }
-
     if (sessionState.isFreePlay) {
       final sentenceIndex = ref
           .read(retellPlayerProvider.notifier)
@@ -293,7 +288,7 @@ class _RetellPlayerScreenState extends ConsumerState<RetellPlayerScreen>
   }
 
   /// 处理完成
-  Future<void> _handleComplete() async {
+  Future<void> _handleCompleted() async {
     if (_isShowingDialog || _isExiting || !mounted) return;
     _isShowingDialog = true;
 
@@ -344,7 +339,6 @@ class _RetellPlayerScreenState extends ConsumerState<RetellPlayerScreen>
       totalSteps: stepCtx.totalSteps,
       stageName: stepCtx.stageName,
       isLastStep: true,
-      replayLabel: l10n.retellPracticeAgain,
     );
 
     _isShowingDialog = false;
@@ -363,9 +357,7 @@ class _RetellPlayerScreenState extends ConsumerState<RetellPlayerScreen>
           .completeCurrentSubStage(widget.audioItemId);
       await _exit();
     } else {
-      // 再来一遍
-      await ref.read(retellRecordingControllerProvider.notifier).fullReset();
-      await ref.read(retellPlayerProvider.notifier).restart();
+      // 关闭弹窗 → 留在页面，不做操作
     }
   }
 
@@ -527,6 +519,11 @@ class _RetellPlayerScreenState extends ConsumerState<RetellPlayerScreen>
     } else {
       await ref.read(retellPlayerProvider.notifier).goToNextParagraph();
     }
+
+    // 最后一段 → 直接触发完成处理
+    if (isLastParagraph) {
+      _handleCompleted();
+    }
   }
 
   Future<void> _goToPreviousParagraph() async {
@@ -549,13 +546,6 @@ class _RetellPlayerScreenState extends ConsumerState<RetellPlayerScreen>
 
     // 映射为 ListenAndRepeatTurnState 供 SpeechPracticeTurnPanel 复用
     final turnState = _mapToTurnState(retellRecState);
-
-    // 监听完成状态
-    ref.listen<RetellPlayerState>(retellPlayerProvider, (prev, next) {
-      if (next.isCompleted && !(prev?.isCompleted ?? false)) {
-        _handleComplete();
-      }
-    });
 
     // 评估完成 → 启动段间停顿倒计时
     ref.listen<RetellRecordingState>(
@@ -597,7 +587,6 @@ class _RetellPlayerScreenState extends ConsumerState<RetellPlayerScreen>
     // 自动模式录音触发：
     // retelling + 未完成 + 非手动模式 + recording idle + 未超时 + 非倒计时中 + 本段未手动停止过
     if (state.phase == RetellPhase.retelling &&
-        !state.isCompleted &&
         !state.settings.isManualMode &&
         retellRecState.phase == RetellRecordingPhase.idle &&
         !retellRecState.awaitingSpeechTimedOut &&

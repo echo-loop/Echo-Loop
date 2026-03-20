@@ -85,7 +85,6 @@ void main() {
       expect(state.pauseDuration, Duration.zero);
       expect(state.isAnnotationMode, false);
       expect(state.isAnnotationReplay, false);
-      expect(state.isCompleted, false);
       expect(state.isTextRevealed, false);
       expect(state.difficultSentences, isEmpty);
       expect(state.isCurrentSentenceAutoMarked, false);
@@ -190,14 +189,6 @@ void main() {
       expect(paused.isPlaying, false);
       expect(paused.pauseDuration, const Duration(seconds: 3));
       expect(paused.pauseRemaining, const Duration(seconds: 2));
-    });
-
-    test('copyWith 完成状态', () {
-      const state = IntensiveListenState();
-      final completed = state.copyWith(isCompleted: true, isPlaying: false);
-
-      expect(completed.isCompleted, true);
-      expect(completed.isPlaying, false);
     });
 
     test('copyWith 难句集合累积', () {
@@ -393,7 +384,6 @@ void main() {
       await notifier.exitAnnotationMode();
 
       final completed = container.read(intensiveListenPlayerProvider);
-      expect(completed.isCompleted, true);
       expect(completed.isAnnotationReplay, false);
       expect(completed.isPauseBetweenSentences, false);
     });
