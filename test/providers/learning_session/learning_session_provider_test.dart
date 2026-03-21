@@ -493,18 +493,18 @@ void main() {
       expect(s.isStudyTimerRunning, false);
     });
 
-    test('进入后台且音频正在播放（盲听息屏）→ 继续计时', () async {
+    test('进入后台且音频正在播放（盲听息屏）→ 暂停计时', () async {
       container = createContainer(isPlaying: true);
       final s = session(container);
 
       await s.enterBlindListenMode('audio-1', paragraphs: const []);
       expect(s.isStudyTimerRunning, true);
 
-      // 模拟：音频播放中息屏（iOS 不挂起 app）
+      // 模拟：音频播放中息屏 → 统一暂停计时（不再区分是否有音频播放）
       testAudioEngine.isPlaying = true;
       simulateEnterBackground();
 
-      expect(s.isStudyTimerRunning, true);
+      expect(s.isStudyTimerRunning, false);
     });
 
     test('回到前台且在学习模式 → 恢复计时', () async {

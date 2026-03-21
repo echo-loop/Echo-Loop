@@ -26,22 +26,28 @@ class _TestStudyStatsNotifier extends StudyStatsNotifier {
 }
 
 void main() {
-  AppDatabase createTestDb() {
-    return AppDatabase(
+  /// 每个测试共享的内存数据库，tearDown 时关闭
+  late AppDatabase testDb;
+
+  setUp(() {
+    testDb = AppDatabase(
       NativeDatabase.memory(
         setup: (db) => db.execute('PRAGMA foreign_keys = ON'),
       ),
     );
-  }
+  });
+
+  tearDown(() => testDb.close());
 
   Widget createTestWidget({
     required StudyStats stats,
     Locale locale = const Locale('en'),
     AppDatabase? db,
   }) {
+    final effectiveDb = db ?? testDb;
     return ProviderScope(
       overrides: [
-        if (db != null) appDatabaseProvider.overrideWithValue(db),
+        appDatabaseProvider.overrideWithValue(effectiveDb),
         studyStatsNotifierProvider.overrideWith(
           () => _TestStudyStatsNotifier(stats),
         ),
@@ -199,15 +205,13 @@ void main() {
 
   group('StudyStatsHeader — 词汇量', () {
     testWidgets('点击词汇区域打开底部弹窗', (tester) async {
-      final db = createTestDb();
-      await db.learnedWordFormDao.insertIfAbsentAll({
+      await testDb.learnedWordFormDao.insertIfAbsentAll({
         'beta': DateTime(2026, 3, 12, 10),
       });
 
       await tester.pumpWidget(
         createTestWidget(
           stats: const StudyStats(todayNewWordForms: 1),
-          db: db,
         ),
       );
       await tester.pumpAndSettle();
@@ -218,8 +222,6 @@ void main() {
       expect(find.text('Vocab'), findsWidgets);
       expect(find.text('1 words'), findsOneWidget);
       expect(find.text('beta'), findsOneWidget);
-
-      await db.close();
     });
   });
 
@@ -320,7 +322,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // 弹窗标题
-      expect(find.text('Listening'), findsOneWidget);
+      expect(find.text('Listening Details'), findsOneWidget);
       // 小节标题 + 表头
       expect(find.text('Daily recommendation'), findsOneWidget);
       expect(find.text('Listening (input)'), findsOneWidget);
@@ -363,7 +365,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // 弹窗标题 + 表头
-      expect(find.text('Speaking'), findsOneWidget);
+      expect(find.text('Speaking Details'), findsOneWidget);
       expect(find.text('Listening (input)'), findsOneWidget);
       expect(find.text('Speaking (output)'), findsOneWidget);
       // 听 + 说时长都出现
@@ -394,7 +396,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // 弹窗标题
-      expect(find.text('听'), findsOneWidget);
+      expect(find.text('听力详情'), findsOneWidget);
       // 小节标题
       expect(find.text('每日推荐练习量'), findsOneWidget);
       // 表头

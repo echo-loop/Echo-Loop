@@ -201,14 +201,14 @@ void main() {
         await demoDir.create(recursive: true);
         await File(p.join(demoDir.path, 'test.srt'))
             .writeAsString('test');
-        await File(p.join(tempDir.path, 'fluency_demo.db'))
+        await File(p.join(tempDir.path, 'echo_loop_demo.db'))
             .writeAsString('db');
 
         await DemoDataSeeder.cleanupFiles();
 
         expect(demoDir.existsSync(), isFalse);
         expect(
-          File(p.join(tempDir.path, 'fluency_demo.db')).existsSync(),
+          File(p.join(tempDir.path, 'echo_loop_demo.db')).existsSync(),
           isFalse,
         );
       });

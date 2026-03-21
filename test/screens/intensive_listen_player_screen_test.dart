@@ -530,10 +530,9 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // 标注模式不传 onToggle → 不显示难句标记行
-      expect(find.byIcon(Icons.bookmark), findsNothing);
-      expect(find.byIcon(Icons.bookmark_border), findsNothing);
-      expect(find.text('Auto-marked difficult, tap to undo'), findsNothing);
+      // 标注模式现在也显示书签标记行（通过 _AnnotationWithBookmark）
+      // difficultSentences 包含 0 且 currentSentenceIndex=0，所以显示 bookmark 实心图标
+      expect(find.byIcon(Icons.bookmark), findsOneWidget);
     });
 
     testWidgets('正常模式下难句显示标记行和取消标记按钮', (tester) async {

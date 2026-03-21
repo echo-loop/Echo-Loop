@@ -11,6 +11,7 @@ import 'package:go_router/go_router.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:fluency/l10n/app_localizations.dart';
 import 'package:fluency/screens/favorites_screen.dart';
+import 'package:fluency/database/daos/audio_item_dao.dart';
 import 'package:fluency/database/daos/bookmark_dao.dart';
 import 'package:fluency/database/daos/saved_word_dao.dart';
 import 'package:fluency/database/daos/sentence_ai_cache_dao.dart';
@@ -28,6 +29,13 @@ import '../helpers/mock_providers.dart';
 class _MockCacheDao extends Mock implements SentenceAiCacheDao {}
 
 class _MockApiClient extends Mock implements SentenceAiApiClient {}
+
+class _MockAudioItemDao extends Mock implements AudioItemDao {
+  _MockAudioItemDao() {
+    // 默认返回 null（音频不存在），避免未 stub 报错
+    when(() => getById(any())).thenAnswer((_) async => null);
+  }
+}
 
 /// 测试用 BookmarkDao — 通过 StreamController 控制数据
 class _TestBookmarkDao implements BookmarkDao {
@@ -150,6 +158,7 @@ void main() {
         savedWordDaoProvider.overrideWithValue(
           _TestSavedWordDao(wordController),
         ),
+        audioItemDaoProvider.overrideWithValue(_MockAudioItemDao()),
         audioEngineProvider.overrideWith(() => TestAudioEngine()),
         sentenceAiNotifierProvider.overrideWithValue(
           SentenceAiNotifier(
@@ -214,6 +223,7 @@ void main() {
     testWidgets('无数据时显示句子空状态', (tester) async {
       await tester.pumpWidget(createTestWidget());
       bookmarkController.add([]);
+      wordController.add([]);
       await tester.pumpAndSettle();
 
       expect(find.text('No saved sentences yet'), findsOneWidget);
@@ -251,6 +261,7 @@ void main() {
           audioName: 'Audio Two',
         ),
       ]);
+      wordController.add([]);
       await tester.pumpAndSettle();
 
       // 两个音频分组标题
@@ -274,6 +285,7 @@ void main() {
           audioName: 'Audio One',
         ),
       ]);
+      wordController.add([]);
       await tester.pumpAndSettle();
 
       // FilledButton.tonal 类型的开始复习按钮
@@ -296,6 +308,7 @@ void main() {
           audioName: 'Audio One',
         ),
       ]);
+      wordController.add([]);
       await tester.pumpAndSettle();
 
       // 展开音频组
@@ -322,6 +335,7 @@ void main() {
           audioName: 'Audio One',
         ),
       ]);
+      wordController.add([]);
       await tester.pumpAndSettle();
 
       // 展开
@@ -346,6 +360,7 @@ void main() {
           audioName: 'Audio One',
         ),
       ]);
+      wordController.add([]);
       await tester.pumpAndSettle();
 
       // 展开
@@ -377,6 +392,7 @@ void main() {
           audioName: 'Audio Two',
         ),
       ]);
+      wordController.add([]);
       await tester.pumpAndSettle();
 
       // 每个音频组标题旁有耳机练习按钮 + 顶部复习按钮
@@ -442,6 +458,7 @@ void main() {
 
       await tester.tap(find.text('Words'));
       await tester.pump();
+      bookmarkController.add([]);
       wordController.add([
         _createSavedWord(
           id: 1,
@@ -451,8 +468,7 @@ void main() {
           sentenceText: longSentence,
         ),
       ]);
-      await tester.pump();
-      await tester.pump();
+      await tester.pumpAndSettle();
 
       // 展开单词详情
       await tester.tap(find.text('encountered'));
@@ -481,6 +497,7 @@ void main() {
     testWidgets('中文句子空状态', (tester) async {
       await tester.pumpWidget(createTestWidget(locale: const Locale('zh')));
       bookmarkController.add([]);
+      wordController.add([]);
       await tester.pumpAndSettle();
 
       expect(find.text('暂无收藏句子'), findsOneWidget);

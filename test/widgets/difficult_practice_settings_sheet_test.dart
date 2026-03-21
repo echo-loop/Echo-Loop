@@ -80,7 +80,8 @@ void main() {
       await openSheet(tester);
 
       expect(find.text('Pause between sentences'), findsOneWidget);
-      expect(find.text('Smart'), findsOneWidget);
+      // "Auto" appears in both control mode and pause mode sections
+      expect(find.text('Auto'), findsNWidgets(2));
       expect(find.text('Fixed'), findsOneWidget);
       expect(find.text('Multiplier'), findsAtLeast(1));
     });
@@ -124,11 +125,9 @@ void main() {
       );
       await openSheet(tester);
 
-      // Fixed 模式显示 ChoiceChip，默认选中 5s
+      // Fixed 模式使用 Slider，右侧显示当前秒数（默认 5s）
       expect(find.text('5s'), findsOneWidget);
-      // 其他选项也可见
-      expect(find.text('1s'), findsOneWidget);
-      expect(find.text('10s'), findsOneWidget);
+      expect(find.byType(Slider), findsOneWidget);
     });
 
     testWidgets('点击 Multiplier 显示倍数下拉框', (tester) async {

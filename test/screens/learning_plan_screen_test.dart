@@ -13,6 +13,7 @@ import 'package:fluency/providers/audio_library_provider.dart';
 import 'package:fluency/providers/listening_practice/listening_practice_provider.dart';
 import 'package:fluency/providers/audio_engine/audio_engine_provider.dart';
 import 'package:fluency/providers/learning_progress_provider.dart';
+import 'package:fluency/models/sentence.dart';
 import 'package:fluency/providers/learning_session/learning_session_provider.dart';
 import 'package:fluency/providers/time_provider.dart';
 import 'package:fluency/theme/app_theme.dart';
@@ -37,11 +38,24 @@ void main() {
     addedDate: DateTime(2026, 1, 1),
   );
 
+  /// 创建测试用句子列表（模拟字幕加载后的 LP 状态）
+  List<Sentence> createTestSentences({int count = 5}) {
+    return List.generate(count, (i) {
+      return Sentence(
+        index: i,
+        text: 'Test sentence number ${i + 1}.',
+        startTime: Duration(seconds: i * 5),
+        endTime: Duration(seconds: (i + 1) * 5),
+      );
+    });
+  }
+
   Widget createTestWidget({
     Locale locale = const Locale('en'),
     LearningProgressState? progressState,
     AudioItem? audioItem,
     DateTime? fixedNow,
+    ListeningPracticeState? lpState,
   }) {
     final item = audioItem ?? testAudioItem;
     final router = GoRouter(
@@ -80,7 +94,17 @@ void main() {
         audioLibraryProvider.overrideWith(
           () => TestAudioLibrary(AudioLibraryState(audioItems: [item])),
         ),
-        listeningPracticeProvider.overrideWith(() => TestListeningPractice()),
+        listeningPracticeProvider.overrideWith(
+          () => TestListeningPractice(
+            lpState ??
+                (item.hasTranscript
+                    ? ListeningPracticeState(
+                        currentAudioItem: item,
+                        sentences: createTestSentences(),
+                      )
+                    : ListeningPracticeState(currentAudioItem: item)),
+          ),
+        ),
         audioEngineProvider.overrideWith(() => TestAudioEngine()),
         learningProgressNotifierProvider.overrideWith(
           () => TestLearningProgressNotifier(
@@ -337,12 +361,13 @@ void main() {
 
       await tester.tap(find.text('Continue Learning'));
       await tester.pumpAndSettle();
+      // 复习简报弹窗显示"开始练习"
       expect(find.text('Start Practice'), findsOneWidget);
 
       await tester.tap(find.text('Start Practice'));
       await tester.pumpAndSettle();
-      // 复习盲听导航到盲听播放器页面
-      expect(find.text('Blind Listen'), findsOneWidget);
+      // 复习盲听弹出段落选择弹窗（标题为 Full Listening）
+      expect(find.text('Full Listening'), findsOneWidget);
     });
 
     testWidgets('有进度时显示正确的完成步骤数', (tester) async {
@@ -401,7 +426,14 @@ void main() {
         },
       );
 
-      await tester.pumpWidget(createTestWidget(progressState: progressState));
+      // LP 有 currentAudioItem 但无句子（模拟字幕缺失）
+      await tester.pumpWidget(createTestWidget(
+        progressState: progressState,
+        lpState: ListeningPracticeState(
+          currentAudioItem: testAudioItem,
+          sentences: const [],
+        ),
+      ));
       await tester.pumpAndSettle();
 
       await tester.tap(find.text('Continue Learning'));
@@ -501,13 +533,13 @@ void main() {
       await tester.pumpWidget(createTestWidget(progressState: progressState));
       await tester.pumpAndSettle();
 
-      // 盲听步骤已完成，点击直接导航到盲听播放器（不弹 briefing sheet）
+      // 盲听步骤已完成，点击弹出段落选择弹窗（自由练习模式）
       await tester.tap(find.text('Blind Listening').first);
       await tester.pumpAndSettle();
 
-      // 不应弹出简报弹窗，而是直接导航到盲听播放器
-      expect(find.text('Full Listening'), findsNothing);
-      expect(find.text('Blind Listen'), findsOneWidget);
+      // 应弹出段落选择弹窗（标题为 Full Listening）
+      expect(find.text('Full Listening'), findsOneWidget);
+      expect(find.text('Start Practice'), findsOneWidget);
     });
 
     testWidgets('未完成盲听步骤不可点击', (tester) async {

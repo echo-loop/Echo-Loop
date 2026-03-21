@@ -133,20 +133,20 @@ void main() {
 
   group('背面倒计时额外秒数', () {
     // 直接测试 FlashcardSettings.calculateSmartSeconds 算法
-    test('智能倒计时：短词 + 首次练习 → maxTime(5s)', () {
+    test('智能倒计时：短词 + 首次练习 → maxTime(4s)', () {
       final seconds = FlashcardSettings.calculateSmartSeconds(
         wordLength: 3,
         practiceCount: 0,
       );
-      expect(seconds, 5);
+      expect(seconds, 4);
     });
 
-    test('智能倒计时：长词 + 首次练习 → maxTime(10s)', () {
+    test('智能倒计时：长词 + 首次练习 → maxTime(8s)', () {
       final seconds = FlashcardSettings.calculateSmartSeconds(
         wordLength: 14,
         practiceCount: 0,
       );
-      expect(seconds, 10);
+      expect(seconds, 8);
     });
 
     test('智能倒计时：短词 + 5 次练习 → minTime(2s)', () {
@@ -170,9 +170,9 @@ void main() {
         wordLength: 8,
         practiceCount: 2,
       );
-      // ratio = (8-4)/(12-4) = 0.5, maxTime=7.5, minTime=3.5
-      // decay = 2/5 = 0.4, result = 7.5 - 0.4*4 = 5.9 → 6
-      expect(seconds, 6);
+      // ratio = (8-4)/(12-4) = 0.5, maxTime=6.0, minTime=3.5
+      // decay = 2/5 = 0.4, result = 6.0 - 0.4*2.5 = 5.0 → 5
+      expect(seconds, 5);
     });
   });
 

@@ -91,7 +91,8 @@ void main() {
       await tester.pumpAndSettle();
       await openSheet(tester);
 
-      expect(find.text('智能间隔'), findsOneWidget);
+      // "自动" appears in both control mode and pause mode sections
+      expect(find.text('自动'), findsNWidgets(2));
       expect(find.text('固定间隔'), findsOneWidget);
       expect(find.text('句长倍数'), findsOneWidget);
     });
@@ -105,7 +106,7 @@ void main() {
       expect(find.text('根据难度、句子长度和学习阶段自动调整'), findsOneWidget);
     });
 
-    testWidgets('切换到固定间隔模式显示 ChoiceChip', (tester) async {
+    testWidgets('切换到固定间隔模式显示 Slider', (tester) async {
       await tester.pumpWidget(createTestWidget());
       await tester.pumpAndSettle();
       await openSheet(tester);
@@ -114,9 +115,9 @@ void main() {
       await tester.tap(find.text('固定间隔'));
       await tester.pumpAndSettle();
 
-      // 应该显示秒数选项
-      expect(find.text('5秒'), findsOneWidget);
-      expect(find.text('10秒'), findsOneWidget);
+      // 固定间隔模式使用 Slider，右侧显示当前秒数（默认 5s）
+      expect(find.byType(Slider), findsOneWidget);
+      expect(find.text('5s'), findsOneWidget);
     });
 
     testWidgets('切换到倍数模式显示倍数选择', (tester) async {
@@ -141,7 +142,8 @@ void main() {
       expect(find.text('Settings apply to this session only'), findsOneWidget);
       expect(find.text('Repeat per sentence'), findsOneWidget);
       expect(find.text('Pause between sentences'), findsOneWidget);
-      expect(find.text('Smart'), findsOneWidget);
+      // "Auto" appears in both control mode and pause mode sections
+      expect(find.text('Auto'), findsNWidgets(2));
       expect(find.text('Fixed'), findsOneWidget);
       expect(find.text('Multiplier'), findsWidgets);
     });
@@ -177,8 +179,8 @@ void main() {
       await tester.pumpAndSettle();
       await openSheet(tester);
 
-      // 固定间隔模式下应显示秒数选项
-      expect(find.text('10秒'), findsOneWidget);
+      // 固定间隔模式下 Slider 右侧显示当前秒数（硬编码后缀 s）
+      expect(find.text('10s'), findsOneWidget);
     });
   });
 }
