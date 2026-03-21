@@ -10,6 +10,7 @@ import 'package:go_router/go_router.dart';
 
 import '../l10n/app_localizations.dart';
 import '../models/app_update_info.dart';
+import '../models/learning_progress.dart';
 import '../providers/app_update_provider.dart';
 import '../providers/audio_library_provider.dart';
 import '../providers/collection_provider.dart';
@@ -36,6 +37,8 @@ class MainShell extends ConsumerStatefulWidget {
 
 class _MainShellState extends ConsumerState<MainShell> {
   ProviderSubscription<int>? _pendingTaskCountSubscription;
+  ProviderSubscription<Map<String, LearningProgress>>?
+      _progressMapSubscription;
   ProviderSubscription<AppUpdateState>? _appUpdateSubscription;
 
   @override
@@ -58,6 +61,17 @@ class _MainShellState extends ConsumerState<MainShell> {
         fireImmediately: true,
       );
 
+      // 监听学习进度变化，确保完成复习阶段后重新调度 per-audio 通知。
+      // pendingStudyTaskCountProvider 只监听任务数量，完成复习后任务数
+      // 可能不变（reviewReady → reviewUpcoming），导致通知不会被调度。
+      _progressMapSubscription = ref.listenManual(
+        learningProgressNotifierProvider.select((s) => s.progressMap),
+        (_, __) {
+          final service = ref.read(reviewReminderServiceProvider);
+          _syncPerAudioReminders(service);
+        },
+      );
+
       // 监听版本更新状态，弹出对话框
       _appUpdateSubscription = ref.listenManual<AppUpdateState>(
         appUpdateProvider,
@@ -73,6 +87,7 @@ class _MainShellState extends ConsumerState<MainShell> {
   @override
   void dispose() {
     _pendingTaskCountSubscription?.close();
+    _progressMapSubscription?.close();
     _appUpdateSubscription?.close();
     super.dispose();
   }
