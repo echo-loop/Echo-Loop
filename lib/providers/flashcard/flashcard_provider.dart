@@ -212,12 +212,13 @@ class FlashcardNotifier extends _$FlashcardNotifier {
   }
 
   /// 翻转卡片
+  ///
+  /// 先同步更新状态让翻转动画立即开始，再异步停止旧播放。
   void flipCard() {
     if (state.isCompleted || state.words.isEmpty) return;
 
     final wasShowingBack = state.isShowingBack;
-    // 停止当前播放（避免翻转时 TTS/音频重叠）
-    _stopAllPlayback();
+    // 先更新状态 → 翻转动画立即启动
     state = state.copyWith(isShowingBack: !wasShowingBack);
 
     if (!wasShowingBack) {
@@ -241,42 +242,57 @@ class FlashcardNotifier extends _$FlashcardNotifier {
       }
     } else {
       // 翻回正面：朗读单词
-      _speakCurrentWord();
       _startCountdown();
     }
+
+    // 异步停止旧播放（翻回正面时同时朗读新单词）
+    Future.microtask(() {
+      _stopAllPlayback();
+      if (wasShowingBack) _speakCurrentWord();
+    });
   }
 
   /// 下一张卡片
+  ///
+  /// 先同步更新状态让 UI 立即刷新，再异步停止旧播放 + 朗读新单词，
+  /// 避免平台通道调用（TTS stop / audio stop）阻塞当前帧渲染。
   void nextCard() {
     if (state.isCompleted || state.words.isEmpty) return;
 
-    _stopAllPlayback();
-
     if (state.currentIndex >= state.words.length - 1) {
       // 最后一张 → 完成
+      _stopAllPlayback();
       _countdown.cancel();
       _saveStudyTime();
       state = state.copyWith(isCompleted: true);
       return;
     }
 
+    // 1. 同步更新状态 → UI 立即刷新
+    _countdown.cancel();
     _saveStudyTime();
     state = state.copyWith(
       currentIndex: state.currentIndex + 1,
       isShowingBack: false,
       cardStartTime: DateTime.now(),
     );
-
-    _preloadDictionaries();
-    _speakCurrentWord();
     _startCountdown();
+    _preloadDictionaries();
+
+    // 2. 异步停止旧播放 + 朗读新单词（不阻塞帧渲染）
+    Future.microtask(() {
+      _stopAllPlayback();
+      _speakCurrentWord();
+    });
   }
 
   /// 上一张卡片
+  ///
+  /// 先同步更新状态让 UI 立即刷新，再异步停止旧播放 + 朗读新单词。
   void previousCard() {
     if (state.currentIndex <= 0) return;
 
-    _stopAllPlayback();
+    // 1. 同步更新状态 → UI 立即刷新
     _countdown.cancel();
     _saveStudyTime();
     state = state.copyWith(
@@ -284,10 +300,14 @@ class FlashcardNotifier extends _$FlashcardNotifier {
       isShowingBack: false,
       cardStartTime: DateTime.now(),
     );
-
-    _preloadDictionaries();
-    _speakCurrentWord();
     _startCountdown();
+    _preloadDictionaries();
+
+    // 2. 异步停止旧播放 + 朗读新单词（不阻塞帧渲染）
+    Future.microtask(() {
+      _stopAllPlayback();
+      _speakCurrentWord();
+    });
   }
 
   /// 取消收藏当前单词
