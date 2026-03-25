@@ -19,6 +19,7 @@ import 'providers/settings_provider.dart';
 import 'providers/review_reminder_provider.dart';
 import 'router/app_router.dart';
 import 'services/dictionary_service.dart';
+import 'services/bundled_example_installer.dart';
 import 'theme/app_theme.dart';
 import 'config/api_config.dart';
 import 'services/notification_tap_router_bridge.dart';
@@ -89,6 +90,13 @@ void main() async {
     } catch (e) {
       print('SP → Drift 迁移失败，下次启动重试: $e');
     }
+
+    // 首次启动时安装内置示例内容
+    try {
+      await BundledExampleInstaller(database, prefs).installOnFirstLaunch();
+    } catch (e) {
+      print('内置示例安装失败: $e');
+    }
   }
 
   if (!kIsWeb) {
@@ -125,9 +133,7 @@ void main() async {
   }
 
   // 初始化 Firebase（所有平台都初始化，采集开关由通道选择逻辑控制）
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
   // 初始化分析服务（根据 geo 选择 Firebase/友盟/Log 通道）
   final analyticsService = await initAnalyticsService(prefs);
@@ -142,9 +148,7 @@ void main() async {
 
   runApp(
     ProviderScope(
-      overrides: [
-        packageInfoProvider.overrideWithValue(packageInfo),
-      ],
+      overrides: [packageInfoProvider.overrideWithValue(packageInfo)],
       child: const FluencyApp(),
     ),
   );
