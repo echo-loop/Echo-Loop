@@ -91,12 +91,23 @@ class _SentenceAnnotationCardState extends State<SentenceAnnotationCard> {
   final List<TapGestureRecognizer> _recognizers = [];
   static final RegExp _textPartPattern = RegExp(r'\s+|[^\s]+');
 
+  /// 当前被按压高亮的词索引（-1 表示无）
+  int _highlightedWordIndex = -1;
+
   @override
   void dispose() {
     for (final r in _recognizers) {
       r.dispose();
     }
     super.dispose();
+  }
+
+  /// 短暂高亮被点击的词（150ms 后自动清除）
+  void _flashWord(int index) {
+    setState(() => _highlightedWordIndex = index);
+    Future.delayed(const Duration(milliseconds: 150), () {
+      if (mounted) setState(() => _highlightedWordIndex = -1);
+    });
   }
 
   /// 每次 build 前清理旧 recognizer，创建新的
@@ -111,14 +122,21 @@ class _SentenceAnnotationCardState extends State<SentenceAnnotationCard> {
         .allMatches(widget.text)
         .map((match) => match.group(0) ?? '')
         .toList();
-    return parts.map((part) {
-      final cleanWord = part.replaceAll(RegExp(r'[.,!?;:\-—…、，。！？；：]'), '');
+    final highlightColor = theme.colorScheme.primary.withValues(alpha: 0.1);
+    final result = <InlineSpan>[];
+    for (int i = 0; i < parts.length; i++) {
+      final part = parts[i];
+      final cleanWord =
+          part.replaceAll(RegExp(r'[.,!?;:\-—…、，。！？；：]'), '');
       if (part.trim().isEmpty) {
-        return TextSpan(text: part);
+        result.add(TextSpan(text: part));
+        continue;
       }
+      final wordIndex = i;
       final recognizer = TapGestureRecognizer()
         ..onTap = () {
           if (cleanWord.isNotEmpty) {
+            _flashWord(wordIndex);
             showWordDictionarySheet(
               context: context,
               word: cleanWord,
@@ -131,8 +149,17 @@ class _SentenceAnnotationCardState extends State<SentenceAnnotationCard> {
           }
         };
       _recognizers.add(recognizer);
-      return TextSpan(text: part, recognizer: recognizer);
-    }).toList();
+      result.add(TextSpan(
+        text: part,
+        recognizer: recognizer,
+        style: _highlightedWordIndex == wordIndex
+            ? TextStyle(
+                backgroundColor: highlightColor,
+              )
+            : null,
+      ));
+    }
+    return result;
   }
 
   /// 基于高亮片段生成可点击的富文本 span。
@@ -147,7 +174,9 @@ class _SentenceAnnotationCardState extends State<SentenceAnnotationCard> {
     }
     _recognizers.clear();
 
+    final highlightColor = theme.colorScheme.primary.withValues(alpha: 0.1);
     final spans = <InlineSpan>[];
+    int wordIndex = 0;
     for (final segment in segments) {
       final parts = _textPartPattern
           .allMatches(segment.text)
@@ -162,9 +191,11 @@ class _SentenceAnnotationCardState extends State<SentenceAnnotationCard> {
           continue;
         }
         final cleanWord = part.replaceAll(RegExp(r'[.,!?;:\-—…、，。！？；：]'), '');
+        final currentIndex = wordIndex++;
         final recognizer = TapGestureRecognizer()
           ..onTap = () {
             if (cleanWord.isNotEmpty) {
+              _flashWord(currentIndex);
               showWordDictionarySheet(
                 context: context,
                 word: cleanWord,
@@ -177,13 +208,15 @@ class _SentenceAnnotationCardState extends State<SentenceAnnotationCard> {
             }
           };
         _recognizers.add(recognizer);
+        final isHighlighted = _highlightedWordIndex == currentIndex;
         spans.add(
           TextSpan(
             text: part,
             recognizer: recognizer,
-            style: segment.isMatched
-                ? const TextStyle(color: Color(0xFF2E9B51))
-                : null,
+            style: TextStyle(
+              color: segment.isMatched ? const Color(0xFF2E9B51) : null,
+              backgroundColor: isHighlighted ? highlightColor : null,
+            ),
           ),
         );
       }
