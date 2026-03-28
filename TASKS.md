@@ -306,8 +306,13 @@
 - [x] 国际化（senseGroupSplit / senseGroupLoading / senseGroupSingleGroup）
 - [x] Critic Review 修复（_autoAdvance 重置意群状态、exitAnnotationMode 停止意群播放、死代码清理、SenseGroupText 改 StatelessWidget、双空格修复）
 - [x] 单元测试（27 个：模型 fromJson/toJson + 时间戳映射算法）
+- [x] 意群模型重构：移除 translation 字段，新增 isCore 核心意群标记
+- [x] 后端 prompt/schema 同步更新（SenseGroupData 接口 + Zod schema + system prompt）
+- [x] 意群 badge UI 重构：Wrap + 多色色板（亮/暗主题各 6 色）、移除单词级点击查词典（避免与 group 点击冲突）
+- [x] 缓存容错：SQLite L2 缓存解析失败时自动删除并 fallthrough 到 API
+- [x] 新增 SentenceAiCacheDao.deleteByHash() 方法
 
-  **完成时间**: 2026-03-14
+  **完成时间**: 2026-03-14 (初版) / 2026-03-28 (重构)
 
 ---
 

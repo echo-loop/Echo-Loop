@@ -19,8 +19,8 @@ WordTimestamp _word(String text, int startMs, int endMs) {
 }
 
 /// 构造 SenseGroup 的辅助方法
-SenseGroup _group(String text, [String translation = '翻译']) {
-  return SenseGroup(text: text, translation: translation);
+SenseGroup _group(String text) {
+  return SenseGroup(text: text);
 }
 
 void main() {

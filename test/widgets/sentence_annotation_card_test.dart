@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:fluency/models/sense_group_result.dart';
 import 'package:fluency/models/sentence_ai_result.dart';
 import 'package:fluency/utils/sense_group_timing.dart';
+import 'package:fluency/widgets/intensive_listen/sense_group_text.dart';
 import 'package:fluency/widgets/intensive_listen/sentence_annotation_card.dart';
 
 import '../helpers/test_app.dart';
@@ -400,8 +401,8 @@ void main() {
 
     testWidgets('有意群数据时显示色块并可 toggle', (tester) async {
       final groups = [
-        SenseGroup(text: 'Hello', translation: '你好'),
-        SenseGroup(text: 'world', translation: '世界'),
+        SenseGroup(text: 'Hello', isCore: true),
+        SenseGroup(text: 'world'),
       ];
       final timings = [
         SenseGroupTiming(
@@ -431,23 +432,20 @@ void main() {
 
       await tester.pumpAndSettle();
 
-      // 意群色块中显示翻译文本
-      expect(find.text('你好'), findsOneWidget);
-      expect(find.text('世界'), findsOneWidget);
+      // 意群色块组件已渲染
+      expect(find.byType(SenseGroupText), findsOneWidget);
 
       // 点击拆意群按钮 toggle 回纯文本
       await tester.tap(find.text('Groups'));
       await tester.pumpAndSettle();
 
-      // 意群翻译不再显示（已切回纯文本模式）
-      expect(find.text('你好'), findsNothing);
-      expect(find.text('世界'), findsNothing);
+      // 意群色块不再显示（已切回纯文本模式）
+      expect(find.byType(SenseGroupText), findsNothing);
 
       // 再次点击恢复色块
       await tester.tap(find.text('Groups'));
       await tester.pumpAndSettle();
-      expect(find.text('你好'), findsOneWidget);
-      expect(find.text('世界'), findsOneWidget);
+      expect(find.byType(SenseGroupText), findsOneWidget);
     });
 
     testWidgets('加载意群时按钮显示 spinner', (tester) async {
