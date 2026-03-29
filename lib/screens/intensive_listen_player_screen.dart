@@ -87,7 +87,7 @@ class _IntensiveListenPlayerScreenState
     });
   }
 
-  /// 加载词级时间戳（DB 优先，未命中则从 API 拉取并缓存）
+  /// 加载词级时间戳（DB 优先，未命中则从 API 拉取并保存）
   Future<void> _fetchWordTimestamps() async {
     final audioDao = ref.read(audioItemDaoProvider);
     final audioItem = await audioDao.getById(widget.audioItemId);
@@ -95,18 +95,16 @@ class _IntensiveListenPlayerScreenState
     // 仅 AI 转录有词级时间戳
     if (audioItem.transcriptSource != TranscriptSource.ai.index) return;
 
-    final cacheDao = ref.read(wordTimestampCacheDaoProvider);
-
-    // 1. 优先从本地 DB 读取
-    final cached = await cacheDao.getByAudioItemId(widget.audioItemId);
-    if (cached != null) {
-      final words = decodeWordTimestamps(cached);
+    // 1. 优先从 audio_items 表读取
+    final json = audioItem.wordTimestampsJson;
+    if (json != null) {
+      final words = decodeWordTimestamps(json);
       if (words != null && words.isNotEmpty) {
         if (mounted) setState(() => _wordTimestamps = words);
         return;
       }
-      // JSON 解析失败，删除脏数据，走 API fallback
-      await cacheDao.deleteByAudioItemId(widget.audioItemId);
+      // JSON 解析失败，清除脏数据，走 API fallback
+      await audioDao.updateWordTimestamps(widget.audioItemId, null);
     }
 
     // 2. DB 未命中，从 API 拉取并保存
@@ -121,8 +119,8 @@ class _IntensiveListenPlayerScreenState
       final api = ref.read(transcriptionApiClientProvider);
       final result = await api.getTranscript(sha256, language);
       if (result.words != null && result.words!.isNotEmpty) {
-        // 保存到 DB
-        await cacheDao.upsert(
+        // 保存到 audio_items 表
+        await audioDao.updateWordTimestamps(
           widget.audioItemId,
           encodeWordTimestamps(result.words!),
         );
@@ -605,6 +603,8 @@ class _IntensiveListenPlayerScreenState
           s.isCountdownPaused,
           s.isCountdownFastForward,
           s.stepFinished,
+          s.playingSenseGroupIndex,
+          s.playedSenseGroupIndices,
         ),
       ),
     );

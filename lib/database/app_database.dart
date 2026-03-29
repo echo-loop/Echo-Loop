@@ -20,7 +20,6 @@ import 'tables/saved_words.dart';
 import 'tables/learned_word_forms.dart';
 import 'tables/daily_study_records.dart';
 import 'tables/daily_stage_study_records.dart';
-import 'tables/word_timestamp_cache.dart';
 import '../models/study_stage.dart';
 import 'daos/audio_item_dao.dart';
 import 'daos/collection_dao.dart';
@@ -34,15 +33,14 @@ import 'daos/saved_word_dao.dart';
 import 'daos/learned_word_form_dao.dart';
 import 'daos/daily_study_record_dao.dart';
 import 'daos/daily_stage_study_record_dao.dart';
-import 'daos/word_timestamp_cache_dao.dart';
 
 part 'app_database.g.dart';
 
 /// Fluency 应用数据库
-/// 包含 15 张表：audio_items, collections, collection_audio_items, bookmarks,
+/// 包含 14 张表：audio_items, collections, collection_audio_items, bookmarks,
 /// playback_states, learning_progresses, stage_completions, tags, audio_item_tags,
 /// sentence_ai_cache, saved_words, learned_word_forms, daily_study_records,
-/// daily_stage_study_records, word_timestamp_cache
+/// daily_stage_study_records
 @DriftDatabase(
   tables: [
     AudioItems,
@@ -59,7 +57,6 @@ part 'app_database.g.dart';
     LearnedWordForms,
     DailyStudyRecords,
     DailyStageStudyRecords,
-    WordTimestampCache,
   ],
   daos: [
     AudioItemDao,
@@ -74,14 +71,13 @@ part 'app_database.g.dart';
     LearnedWordFormDao,
     DailyStudyRecordDao,
     DailyStageStudyRecordDao,
-    WordTimestampCacheDao,
   ],
 )
 class AppDatabase extends _$AppDatabase {
   AppDatabase(super.e);
 
   /// 当前 schema 版本（静态访问，用于导入前版本检查）
-  static const currentSchemaVersion = 24;
+  static const currentSchemaVersion = 25;
 
   @override
   int get schemaVersion => currentSchemaVersion;
@@ -241,9 +237,28 @@ class AppDatabase extends _$AppDatabase {
             'INTEGER',
           );
         }
-        // v23→v24：新增 word_timestamp_cache 表（词级时间戳本地缓存）
-        if (from < 24) {
-          await m.createTable(wordTimestampCache);
+        // v24→v25：词级时间戳从独立表迁移到 audio_items 列
+        if (from < 25) {
+          await _addColumnIfNotExists(
+            'audio_items',
+            'word_timestamps_json',
+            'TEXT',
+          );
+          // 从旧表迁移数据（旧表可能不存在，忽略错误）
+          try {
+            await customStatement('''
+              UPDATE audio_items
+              SET word_timestamps_json = (
+                SELECT data FROM word_timestamp_cache
+                WHERE word_timestamp_cache.audio_item_id = audio_items.id
+              )
+            ''');
+          } catch (_) {
+            // word_timestamp_cache 表可能不存在（全新安装直接到 v25）
+          }
+          await customStatement(
+            'DROP TABLE IF EXISTS word_timestamp_cache',
+          );
         }
         // v12→v13：audio_items 新增 transcript_source, audio_sha256, transcript_language 列
         if (from < 13) {

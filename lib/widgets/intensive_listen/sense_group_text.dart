@@ -84,12 +84,12 @@ class _SenseGroupTextState extends State<SenseGroupText> {
         ? colorScheme.primaryContainer
         : isDark ? _groupColorDark : _groupColorLight;
 
-    // 边框：始终保留相同宽度，避免点击时布局偏移
+    // 边框：默认显示浅色边框，播放中/已播放加深
     final borderColor = isPlaying
         ? colorScheme.primary
         : isPlayed
         ? colorScheme.primary.withValues(alpha: 0.3)
-        : Colors.transparent;
+        : colorScheme.outline.withValues(alpha: 0.3);
     final border = Border.all(color: borderColor, width: 1.5);
 
     return GestureDetector(

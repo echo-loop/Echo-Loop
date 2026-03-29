@@ -166,6 +166,17 @@ class $AudioItemsTable extends AudioItems
     type: DriftSqlType.dateTime,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _wordTimestampsJsonMeta =
+      const VerificationMeta('wordTimestampsJson');
+  @override
+  late final GeneratedColumn<String> wordTimestampsJson =
+      GeneratedColumn<String>(
+        'word_timestamps_json',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
   static const VerificationMeta _syncStatusMeta = const VerificationMeta(
     'syncStatus',
   );
@@ -194,6 +205,7 @@ class $AudioItemsTable extends AudioItems
     transcriptLanguage,
     updatedAt,
     deletedAt,
+    wordTimestampsJson,
     syncStatus,
   ];
   @override
@@ -317,6 +329,15 @@ class $AudioItemsTable extends AudioItems
         deletedAt.isAcceptableOrUnknown(data['deleted_at']!, _deletedAtMeta),
       );
     }
+    if (data.containsKey('word_timestamps_json')) {
+      context.handle(
+        _wordTimestampsJsonMeta,
+        wordTimestampsJson.isAcceptableOrUnknown(
+          data['word_timestamps_json']!,
+          _wordTimestampsJsonMeta,
+        ),
+      );
+    }
     if (data.containsKey('sync_status')) {
       context.handle(
         _syncStatusMeta,
@@ -388,6 +409,10 @@ class $AudioItemsTable extends AudioItems
         DriftSqlType.dateTime,
         data['${effectivePrefix}deleted_at'],
       ),
+      wordTimestampsJson: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}word_timestamps_json'],
+      ),
       syncStatus: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}sync_status'],
@@ -444,6 +469,9 @@ class AudioItem extends DataClass implements Insertable<AudioItem> {
   /// 软删除标记
   final DateTime? deletedAt;
 
+  /// 词级时间戳 JSON（AI 转录时由后端返回，与字幕一起管理）
+  final String? wordTimestampsJson;
+
   /// 同步状态：0=synced, 1=pendingUpload, 2=pendingDelete
   final int syncStatus;
   const AudioItem({
@@ -461,6 +489,7 @@ class AudioItem extends DataClass implements Insertable<AudioItem> {
     this.transcriptLanguage,
     required this.updatedAt,
     this.deletedAt,
+    this.wordTimestampsJson,
     required this.syncStatus,
   });
   @override
@@ -489,6 +518,9 @@ class AudioItem extends DataClass implements Insertable<AudioItem> {
     map['updated_at'] = Variable<DateTime>(updatedAt);
     if (!nullToAbsent || deletedAt != null) {
       map['deleted_at'] = Variable<DateTime>(deletedAt);
+    }
+    if (!nullToAbsent || wordTimestampsJson != null) {
+      map['word_timestamps_json'] = Variable<String>(wordTimestampsJson);
     }
     map['sync_status'] = Variable<int>(syncStatus);
     return map;
@@ -520,6 +552,9 @@ class AudioItem extends DataClass implements Insertable<AudioItem> {
       deletedAt: deletedAt == null && nullToAbsent
           ? const Value.absent()
           : Value(deletedAt),
+      wordTimestampsJson: wordTimestampsJson == null && nullToAbsent
+          ? const Value.absent()
+          : Value(wordTimestampsJson),
       syncStatus: Value(syncStatus),
     );
   }
@@ -546,6 +581,9 @@ class AudioItem extends DataClass implements Insertable<AudioItem> {
       ),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
       deletedAt: serializer.fromJson<DateTime?>(json['deletedAt']),
+      wordTimestampsJson: serializer.fromJson<String?>(
+        json['wordTimestampsJson'],
+      ),
       syncStatus: serializer.fromJson<int>(json['syncStatus']),
     );
   }
@@ -567,6 +605,7 @@ class AudioItem extends DataClass implements Insertable<AudioItem> {
       'transcriptLanguage': serializer.toJson<String?>(transcriptLanguage),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
       'deletedAt': serializer.toJson<DateTime?>(deletedAt),
+      'wordTimestampsJson': serializer.toJson<String?>(wordTimestampsJson),
       'syncStatus': serializer.toJson<int>(syncStatus),
     };
   }
@@ -586,6 +625,7 @@ class AudioItem extends DataClass implements Insertable<AudioItem> {
     Value<String?> transcriptLanguage = const Value.absent(),
     DateTime? updatedAt,
     Value<DateTime?> deletedAt = const Value.absent(),
+    Value<String?> wordTimestampsJson = const Value.absent(),
     int? syncStatus,
   }) => AudioItem(
     id: id ?? this.id,
@@ -608,6 +648,9 @@ class AudioItem extends DataClass implements Insertable<AudioItem> {
         : this.transcriptLanguage,
     updatedAt: updatedAt ?? this.updatedAt,
     deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
+    wordTimestampsJson: wordTimestampsJson.present
+        ? wordTimestampsJson.value
+        : this.wordTimestampsJson,
     syncStatus: syncStatus ?? this.syncStatus,
   );
   AudioItem copyWithCompanion(AudioItemsCompanion data) {
@@ -638,6 +681,9 @@ class AudioItem extends DataClass implements Insertable<AudioItem> {
           : this.transcriptLanguage,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
       deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
+      wordTimestampsJson: data.wordTimestampsJson.present
+          ? data.wordTimestampsJson.value
+          : this.wordTimestampsJson,
       syncStatus: data.syncStatus.present
           ? data.syncStatus.value
           : this.syncStatus,
@@ -661,6 +707,7 @@ class AudioItem extends DataClass implements Insertable<AudioItem> {
           ..write('transcriptLanguage: $transcriptLanguage, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('deletedAt: $deletedAt, ')
+          ..write('wordTimestampsJson: $wordTimestampsJson, ')
           ..write('syncStatus: $syncStatus')
           ..write(')'))
         .toString();
@@ -682,6 +729,7 @@ class AudioItem extends DataClass implements Insertable<AudioItem> {
     transcriptLanguage,
     updatedAt,
     deletedAt,
+    wordTimestampsJson,
     syncStatus,
   );
   @override
@@ -702,6 +750,7 @@ class AudioItem extends DataClass implements Insertable<AudioItem> {
           other.transcriptLanguage == this.transcriptLanguage &&
           other.updatedAt == this.updatedAt &&
           other.deletedAt == this.deletedAt &&
+          other.wordTimestampsJson == this.wordTimestampsJson &&
           other.syncStatus == this.syncStatus);
 }
 
@@ -720,6 +769,7 @@ class AudioItemsCompanion extends UpdateCompanion<AudioItem> {
   final Value<String?> transcriptLanguage;
   final Value<DateTime> updatedAt;
   final Value<DateTime?> deletedAt;
+  final Value<String?> wordTimestampsJson;
   final Value<int> syncStatus;
   final Value<int> rowid;
   const AudioItemsCompanion({
@@ -737,6 +787,7 @@ class AudioItemsCompanion extends UpdateCompanion<AudioItem> {
     this.transcriptLanguage = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.deletedAt = const Value.absent(),
+    this.wordTimestampsJson = const Value.absent(),
     this.syncStatus = const Value.absent(),
     this.rowid = const Value.absent(),
   });
@@ -755,6 +806,7 @@ class AudioItemsCompanion extends UpdateCompanion<AudioItem> {
     this.transcriptLanguage = const Value.absent(),
     required DateTime updatedAt,
     this.deletedAt = const Value.absent(),
+    this.wordTimestampsJson = const Value.absent(),
     this.syncStatus = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
@@ -777,6 +829,7 @@ class AudioItemsCompanion extends UpdateCompanion<AudioItem> {
     Expression<String>? transcriptLanguage,
     Expression<DateTime>? updatedAt,
     Expression<DateTime>? deletedAt,
+    Expression<String>? wordTimestampsJson,
     Expression<int>? syncStatus,
     Expression<int>? rowid,
   }) {
@@ -795,6 +848,8 @@ class AudioItemsCompanion extends UpdateCompanion<AudioItem> {
       if (transcriptLanguage != null) 'transcript_language': transcriptLanguage,
       if (updatedAt != null) 'updated_at': updatedAt,
       if (deletedAt != null) 'deleted_at': deletedAt,
+      if (wordTimestampsJson != null)
+        'word_timestamps_json': wordTimestampsJson,
       if (syncStatus != null) 'sync_status': syncStatus,
       if (rowid != null) 'rowid': rowid,
     });
@@ -815,6 +870,7 @@ class AudioItemsCompanion extends UpdateCompanion<AudioItem> {
     Value<String?>? transcriptLanguage,
     Value<DateTime>? updatedAt,
     Value<DateTime?>? deletedAt,
+    Value<String?>? wordTimestampsJson,
     Value<int>? syncStatus,
     Value<int>? rowid,
   }) {
@@ -833,6 +889,7 @@ class AudioItemsCompanion extends UpdateCompanion<AudioItem> {
       transcriptLanguage: transcriptLanguage ?? this.transcriptLanguage,
       updatedAt: updatedAt ?? this.updatedAt,
       deletedAt: deletedAt ?? this.deletedAt,
+      wordTimestampsJson: wordTimestampsJson ?? this.wordTimestampsJson,
       syncStatus: syncStatus ?? this.syncStatus,
       rowid: rowid ?? this.rowid,
     );
@@ -883,6 +940,9 @@ class AudioItemsCompanion extends UpdateCompanion<AudioItem> {
     if (deletedAt.present) {
       map['deleted_at'] = Variable<DateTime>(deletedAt.value);
     }
+    if (wordTimestampsJson.present) {
+      map['word_timestamps_json'] = Variable<String>(wordTimestampsJson.value);
+    }
     if (syncStatus.present) {
       map['sync_status'] = Variable<int>(syncStatus.value);
     }
@@ -909,6 +969,7 @@ class AudioItemsCompanion extends UpdateCompanion<AudioItem> {
           ..write('transcriptLanguage: $transcriptLanguage, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('deletedAt: $deletedAt, ')
+          ..write('wordTimestampsJson: $wordTimestampsJson, ')
           ..write('syncStatus: $syncStatus, ')
           ..write('rowid: $rowid')
           ..write(')'))
@@ -8267,285 +8328,6 @@ class DailyStageStudyRecordsCompanion
   }
 }
 
-class $WordTimestampCacheTable extends WordTimestampCache
-    with TableInfo<$WordTimestampCacheTable, WordTimestampCacheData> {
-  @override
-  final GeneratedDatabase attachedDatabase;
-  final String? _alias;
-  $WordTimestampCacheTable(this.attachedDatabase, [this._alias]);
-  static const VerificationMeta _audioItemIdMeta = const VerificationMeta(
-    'audioItemId',
-  );
-  @override
-  late final GeneratedColumn<String> audioItemId = GeneratedColumn<String>(
-    'audio_item_id',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-  );
-  static const VerificationMeta _dataMeta = const VerificationMeta('data');
-  @override
-  late final GeneratedColumn<String> data = GeneratedColumn<String>(
-    'data',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-  );
-  static const VerificationMeta _createdAtMeta = const VerificationMeta(
-    'createdAt',
-  );
-  @override
-  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
-    'created_at',
-    aliasedName,
-    false,
-    type: DriftSqlType.dateTime,
-    requiredDuringInsert: true,
-  );
-  @override
-  List<GeneratedColumn> get $columns => [audioItemId, data, createdAt];
-  @override
-  String get aliasedName => _alias ?? actualTableName;
-  @override
-  String get actualTableName => $name;
-  static const String $name = 'word_timestamp_cache';
-  @override
-  VerificationContext validateIntegrity(
-    Insertable<WordTimestampCacheData> instance, {
-    bool isInserting = false,
-  }) {
-    final context = VerificationContext();
-    final data = instance.toColumns(true);
-    if (data.containsKey('audio_item_id')) {
-      context.handle(
-        _audioItemIdMeta,
-        audioItemId.isAcceptableOrUnknown(
-          data['audio_item_id']!,
-          _audioItemIdMeta,
-        ),
-      );
-    } else if (isInserting) {
-      context.missing(_audioItemIdMeta);
-    }
-    if (data.containsKey('data')) {
-      context.handle(
-        _dataMeta,
-        this.data.isAcceptableOrUnknown(data['data']!, _dataMeta),
-      );
-    } else if (isInserting) {
-      context.missing(_dataMeta);
-    }
-    if (data.containsKey('created_at')) {
-      context.handle(
-        _createdAtMeta,
-        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
-      );
-    } else if (isInserting) {
-      context.missing(_createdAtMeta);
-    }
-    return context;
-  }
-
-  @override
-  Set<GeneratedColumn> get $primaryKey => {audioItemId};
-  @override
-  WordTimestampCacheData map(Map<String, dynamic> data, {String? tablePrefix}) {
-    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
-    return WordTimestampCacheData(
-      audioItemId: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}audio_item_id'],
-      )!,
-      data: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}data'],
-      )!,
-      createdAt: attachedDatabase.typeMapping.read(
-        DriftSqlType.dateTime,
-        data['${effectivePrefix}created_at'],
-      )!,
-    );
-  }
-
-  @override
-  $WordTimestampCacheTable createAlias(String alias) {
-    return $WordTimestampCacheTable(attachedDatabase, alias);
-  }
-}
-
-class WordTimestampCacheData extends DataClass
-    implements Insertable<WordTimestampCacheData> {
-  /// 关联的音频 ID（同时作为主键，一个音频只有一份词级时间戳）
-  final String audioItemId;
-
-  /// JSON 编码的 List<WordTimestamp>
-  final String data;
-
-  /// 创建时间
-  final DateTime createdAt;
-  const WordTimestampCacheData({
-    required this.audioItemId,
-    required this.data,
-    required this.createdAt,
-  });
-  @override
-  Map<String, Expression> toColumns(bool nullToAbsent) {
-    final map = <String, Expression>{};
-    map['audio_item_id'] = Variable<String>(audioItemId);
-    map['data'] = Variable<String>(data);
-    map['created_at'] = Variable<DateTime>(createdAt);
-    return map;
-  }
-
-  WordTimestampCacheCompanion toCompanion(bool nullToAbsent) {
-    return WordTimestampCacheCompanion(
-      audioItemId: Value(audioItemId),
-      data: Value(data),
-      createdAt: Value(createdAt),
-    );
-  }
-
-  factory WordTimestampCacheData.fromJson(
-    Map<String, dynamic> json, {
-    ValueSerializer? serializer,
-  }) {
-    serializer ??= driftRuntimeOptions.defaultSerializer;
-    return WordTimestampCacheData(
-      audioItemId: serializer.fromJson<String>(json['audioItemId']),
-      data: serializer.fromJson<String>(json['data']),
-      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
-    );
-  }
-  @override
-  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
-    serializer ??= driftRuntimeOptions.defaultSerializer;
-    return <String, dynamic>{
-      'audioItemId': serializer.toJson<String>(audioItemId),
-      'data': serializer.toJson<String>(data),
-      'createdAt': serializer.toJson<DateTime>(createdAt),
-    };
-  }
-
-  WordTimestampCacheData copyWith({
-    String? audioItemId,
-    String? data,
-    DateTime? createdAt,
-  }) => WordTimestampCacheData(
-    audioItemId: audioItemId ?? this.audioItemId,
-    data: data ?? this.data,
-    createdAt: createdAt ?? this.createdAt,
-  );
-  WordTimestampCacheData copyWithCompanion(WordTimestampCacheCompanion data) {
-    return WordTimestampCacheData(
-      audioItemId: data.audioItemId.present
-          ? data.audioItemId.value
-          : this.audioItemId,
-      data: data.data.present ? data.data.value : this.data,
-      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
-    );
-  }
-
-  @override
-  String toString() {
-    return (StringBuffer('WordTimestampCacheData(')
-          ..write('audioItemId: $audioItemId, ')
-          ..write('data: $data, ')
-          ..write('createdAt: $createdAt')
-          ..write(')'))
-        .toString();
-  }
-
-  @override
-  int get hashCode => Object.hash(audioItemId, data, createdAt);
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      (other is WordTimestampCacheData &&
-          other.audioItemId == this.audioItemId &&
-          other.data == this.data &&
-          other.createdAt == this.createdAt);
-}
-
-class WordTimestampCacheCompanion
-    extends UpdateCompanion<WordTimestampCacheData> {
-  final Value<String> audioItemId;
-  final Value<String> data;
-  final Value<DateTime> createdAt;
-  final Value<int> rowid;
-  const WordTimestampCacheCompanion({
-    this.audioItemId = const Value.absent(),
-    this.data = const Value.absent(),
-    this.createdAt = const Value.absent(),
-    this.rowid = const Value.absent(),
-  });
-  WordTimestampCacheCompanion.insert({
-    required String audioItemId,
-    required String data,
-    required DateTime createdAt,
-    this.rowid = const Value.absent(),
-  }) : audioItemId = Value(audioItemId),
-       data = Value(data),
-       createdAt = Value(createdAt);
-  static Insertable<WordTimestampCacheData> custom({
-    Expression<String>? audioItemId,
-    Expression<String>? data,
-    Expression<DateTime>? createdAt,
-    Expression<int>? rowid,
-  }) {
-    return RawValuesInsertable({
-      if (audioItemId != null) 'audio_item_id': audioItemId,
-      if (data != null) 'data': data,
-      if (createdAt != null) 'created_at': createdAt,
-      if (rowid != null) 'rowid': rowid,
-    });
-  }
-
-  WordTimestampCacheCompanion copyWith({
-    Value<String>? audioItemId,
-    Value<String>? data,
-    Value<DateTime>? createdAt,
-    Value<int>? rowid,
-  }) {
-    return WordTimestampCacheCompanion(
-      audioItemId: audioItemId ?? this.audioItemId,
-      data: data ?? this.data,
-      createdAt: createdAt ?? this.createdAt,
-      rowid: rowid ?? this.rowid,
-    );
-  }
-
-  @override
-  Map<String, Expression> toColumns(bool nullToAbsent) {
-    final map = <String, Expression>{};
-    if (audioItemId.present) {
-      map['audio_item_id'] = Variable<String>(audioItemId.value);
-    }
-    if (data.present) {
-      map['data'] = Variable<String>(data.value);
-    }
-    if (createdAt.present) {
-      map['created_at'] = Variable<DateTime>(createdAt.value);
-    }
-    if (rowid.present) {
-      map['rowid'] = Variable<int>(rowid.value);
-    }
-    return map;
-  }
-
-  @override
-  String toString() {
-    return (StringBuffer('WordTimestampCacheCompanion(')
-          ..write('audioItemId: $audioItemId, ')
-          ..write('data: $data, ')
-          ..write('createdAt: $createdAt, ')
-          ..write('rowid: $rowid')
-          ..write(')'))
-        .toString();
-  }
-}
-
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -8573,8 +8355,6 @@ abstract class _$AppDatabase extends GeneratedDatabase {
       $DailyStudyRecordsTable(this);
   late final $DailyStageStudyRecordsTable dailyStageStudyRecords =
       $DailyStageStudyRecordsTable(this);
-  late final $WordTimestampCacheTable wordTimestampCache =
-      $WordTimestampCacheTable(this);
   late final AudioItemDao audioItemDao = AudioItemDao(this as AppDatabase);
   late final CollectionDao collectionDao = CollectionDao(this as AppDatabase);
   late final BookmarkDao bookmarkDao = BookmarkDao(this as AppDatabase);
@@ -8600,8 +8380,6 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   );
   late final DailyStageStudyRecordDao dailyStageStudyRecordDao =
       DailyStageStudyRecordDao(this as AppDatabase);
-  late final WordTimestampCacheDao wordTimestampCacheDao =
-      WordTimestampCacheDao(this as AppDatabase);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -8621,7 +8399,6 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     learnedWordForms,
     dailyStudyRecords,
     dailyStageStudyRecords,
-    wordTimestampCache,
   ];
   @override
   StreamQueryUpdateRules get streamUpdateRules => const StreamQueryUpdateRules([
@@ -8707,6 +8484,7 @@ typedef $$AudioItemsTableCreateCompanionBuilder =
       Value<String?> transcriptLanguage,
       required DateTime updatedAt,
       Value<DateTime?> deletedAt,
+      Value<String?> wordTimestampsJson,
       Value<int> syncStatus,
       Value<int> rowid,
     });
@@ -8726,6 +8504,7 @@ typedef $$AudioItemsTableUpdateCompanionBuilder =
       Value<String?> transcriptLanguage,
       Value<DateTime> updatedAt,
       Value<DateTime?> deletedAt,
+      Value<String?> wordTimestampsJson,
       Value<int> syncStatus,
       Value<int> rowid,
     });
@@ -8970,6 +8749,11 @@ class $$AudioItemsTableFilterComposer
 
   ColumnFilters<DateTime> get deletedAt => $composableBuilder(
     column: $table.deletedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get wordTimestampsJson => $composableBuilder(
+    column: $table.wordTimestampsJson,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -9233,6 +9017,11 @@ class $$AudioItemsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get wordTimestampsJson => $composableBuilder(
+    column: $table.wordTimestampsJson,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<int> get syncStatus => $composableBuilder(
     column: $table.syncStatus,
     builder: (column) => ColumnOrderings(column),
@@ -9301,6 +9090,11 @@ class $$AudioItemsTableAnnotationComposer
 
   GeneratedColumn<DateTime> get deletedAt =>
       $composableBuilder(column: $table.deletedAt, builder: (column) => column);
+
+  GeneratedColumn<String> get wordTimestampsJson => $composableBuilder(
+    column: $table.wordTimestampsJson,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<int> get syncStatus => $composableBuilder(
     column: $table.syncStatus,
@@ -9535,6 +9329,7 @@ class $$AudioItemsTableTableManager
                 Value<String?> transcriptLanguage = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
                 Value<DateTime?> deletedAt = const Value.absent(),
+                Value<String?> wordTimestampsJson = const Value.absent(),
                 Value<int> syncStatus = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => AudioItemsCompanion(
@@ -9552,6 +9347,7 @@ class $$AudioItemsTableTableManager
                 transcriptLanguage: transcriptLanguage,
                 updatedAt: updatedAt,
                 deletedAt: deletedAt,
+                wordTimestampsJson: wordTimestampsJson,
                 syncStatus: syncStatus,
                 rowid: rowid,
               ),
@@ -9571,6 +9367,7 @@ class $$AudioItemsTableTableManager
                 Value<String?> transcriptLanguage = const Value.absent(),
                 required DateTime updatedAt,
                 Value<DateTime?> deletedAt = const Value.absent(),
+                Value<String?> wordTimestampsJson = const Value.absent(),
                 Value<int> syncStatus = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => AudioItemsCompanion.insert(
@@ -9588,6 +9385,7 @@ class $$AudioItemsTableTableManager
                 transcriptLanguage: transcriptLanguage,
                 updatedAt: updatedAt,
                 deletedAt: deletedAt,
+                wordTimestampsJson: wordTimestampsJson,
                 syncStatus: syncStatus,
                 rowid: rowid,
               ),
@@ -14574,183 +14372,6 @@ typedef $$DailyStageStudyRecordsTableProcessedTableManager =
       DailyStageStudyRecord,
       PrefetchHooks Function()
     >;
-typedef $$WordTimestampCacheTableCreateCompanionBuilder =
-    WordTimestampCacheCompanion Function({
-      required String audioItemId,
-      required String data,
-      required DateTime createdAt,
-      Value<int> rowid,
-    });
-typedef $$WordTimestampCacheTableUpdateCompanionBuilder =
-    WordTimestampCacheCompanion Function({
-      Value<String> audioItemId,
-      Value<String> data,
-      Value<DateTime> createdAt,
-      Value<int> rowid,
-    });
-
-class $$WordTimestampCacheTableFilterComposer
-    extends Composer<_$AppDatabase, $WordTimestampCacheTable> {
-  $$WordTimestampCacheTableFilterComposer({
-    required super.$db,
-    required super.$table,
-    super.joinBuilder,
-    super.$addJoinBuilderToRootComposer,
-    super.$removeJoinBuilderFromRootComposer,
-  });
-  ColumnFilters<String> get audioItemId => $composableBuilder(
-    column: $table.audioItemId,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<String> get data => $composableBuilder(
-    column: $table.data,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<DateTime> get createdAt => $composableBuilder(
-    column: $table.createdAt,
-    builder: (column) => ColumnFilters(column),
-  );
-}
-
-class $$WordTimestampCacheTableOrderingComposer
-    extends Composer<_$AppDatabase, $WordTimestampCacheTable> {
-  $$WordTimestampCacheTableOrderingComposer({
-    required super.$db,
-    required super.$table,
-    super.joinBuilder,
-    super.$addJoinBuilderToRootComposer,
-    super.$removeJoinBuilderFromRootComposer,
-  });
-  ColumnOrderings<String> get audioItemId => $composableBuilder(
-    column: $table.audioItemId,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<String> get data => $composableBuilder(
-    column: $table.data,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
-    column: $table.createdAt,
-    builder: (column) => ColumnOrderings(column),
-  );
-}
-
-class $$WordTimestampCacheTableAnnotationComposer
-    extends Composer<_$AppDatabase, $WordTimestampCacheTable> {
-  $$WordTimestampCacheTableAnnotationComposer({
-    required super.$db,
-    required super.$table,
-    super.joinBuilder,
-    super.$addJoinBuilderToRootComposer,
-    super.$removeJoinBuilderFromRootComposer,
-  });
-  GeneratedColumn<String> get audioItemId => $composableBuilder(
-    column: $table.audioItemId,
-    builder: (column) => column,
-  );
-
-  GeneratedColumn<String> get data =>
-      $composableBuilder(column: $table.data, builder: (column) => column);
-
-  GeneratedColumn<DateTime> get createdAt =>
-      $composableBuilder(column: $table.createdAt, builder: (column) => column);
-}
-
-class $$WordTimestampCacheTableTableManager
-    extends
-        RootTableManager<
-          _$AppDatabase,
-          $WordTimestampCacheTable,
-          WordTimestampCacheData,
-          $$WordTimestampCacheTableFilterComposer,
-          $$WordTimestampCacheTableOrderingComposer,
-          $$WordTimestampCacheTableAnnotationComposer,
-          $$WordTimestampCacheTableCreateCompanionBuilder,
-          $$WordTimestampCacheTableUpdateCompanionBuilder,
-          (
-            WordTimestampCacheData,
-            BaseReferences<
-              _$AppDatabase,
-              $WordTimestampCacheTable,
-              WordTimestampCacheData
-            >,
-          ),
-          WordTimestampCacheData,
-          PrefetchHooks Function()
-        > {
-  $$WordTimestampCacheTableTableManager(
-    _$AppDatabase db,
-    $WordTimestampCacheTable table,
-  ) : super(
-        TableManagerState(
-          db: db,
-          table: table,
-          createFilteringComposer: () =>
-              $$WordTimestampCacheTableFilterComposer($db: db, $table: table),
-          createOrderingComposer: () =>
-              $$WordTimestampCacheTableOrderingComposer($db: db, $table: table),
-          createComputedFieldComposer: () =>
-              $$WordTimestampCacheTableAnnotationComposer(
-                $db: db,
-                $table: table,
-              ),
-          updateCompanionCallback:
-              ({
-                Value<String> audioItemId = const Value.absent(),
-                Value<String> data = const Value.absent(),
-                Value<DateTime> createdAt = const Value.absent(),
-                Value<int> rowid = const Value.absent(),
-              }) => WordTimestampCacheCompanion(
-                audioItemId: audioItemId,
-                data: data,
-                createdAt: createdAt,
-                rowid: rowid,
-              ),
-          createCompanionCallback:
-              ({
-                required String audioItemId,
-                required String data,
-                required DateTime createdAt,
-                Value<int> rowid = const Value.absent(),
-              }) => WordTimestampCacheCompanion.insert(
-                audioItemId: audioItemId,
-                data: data,
-                createdAt: createdAt,
-                rowid: rowid,
-              ),
-          withReferenceMapper: (p0) => p0
-              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
-              .toList(),
-          prefetchHooksCallback: null,
-        ),
-      );
-}
-
-typedef $$WordTimestampCacheTableProcessedTableManager =
-    ProcessedTableManager<
-      _$AppDatabase,
-      $WordTimestampCacheTable,
-      WordTimestampCacheData,
-      $$WordTimestampCacheTableFilterComposer,
-      $$WordTimestampCacheTableOrderingComposer,
-      $$WordTimestampCacheTableAnnotationComposer,
-      $$WordTimestampCacheTableCreateCompanionBuilder,
-      $$WordTimestampCacheTableUpdateCompanionBuilder,
-      (
-        WordTimestampCacheData,
-        BaseReferences<
-          _$AppDatabase,
-          $WordTimestampCacheTable,
-          WordTimestampCacheData
-        >,
-      ),
-      WordTimestampCacheData,
-      PrefetchHooks Function()
-    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -14785,6 +14406,4 @@ class $AppDatabaseManager {
         _db,
         _db.dailyStageStudyRecords,
       );
-  $$WordTimestampCacheTableTableManager get wordTimestampCache =>
-      $$WordTimestampCacheTableTableManager(_db, _db.wordTimestampCache);
 }

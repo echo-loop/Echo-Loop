@@ -63,4 +63,21 @@ class AudioItemDao extends DatabaseAccessor<AppDatabase>
   Future<void> hardDelete(String id) {
     return (delete(audioItems)..where((t) => t.id.equals(id))).go();
   }
+
+  /// 获取指定音频的词级时间戳 JSON
+  ///
+  /// 独立查询，避免列表加载时读取大 JSON 字段。
+  Future<String?> getWordTimestamps(String audioItemId) async {
+    final query = select(audioItems)
+      ..where((t) => t.id.equals(audioItemId));
+    final row = await query.getSingleOrNull();
+    return row?.wordTimestampsJson;
+  }
+
+  /// 更新词级时间戳（独立更新，不影响其他字段）
+  Future<void> updateWordTimestamps(String audioItemId, String? json) {
+    return (update(audioItems)..where((t) => t.id.equals(audioItemId))).write(
+      AudioItemsCompanion(wordTimestampsJson: Value(json)),
+    );
+  }
 }

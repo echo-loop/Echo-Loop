@@ -350,11 +350,11 @@ class TranscriptionTaskManager extends _$TranscriptionTaskManager {
           ),
         );
 
-    // 保存词级时间戳到本地缓存（非阻塞，失败不影响主流程）
+    // 保存词级时间戳到 audio_items 表（非阻塞，失败不影响主流程）
     if (transcript.words != null && transcript.words!.isNotEmpty) {
       try {
-        final blobDao = ref.read(wordTimestampCacheDaoProvider);
-        await blobDao.upsert(
+        final audioDao = ref.read(audioItemDaoProvider);
+        await audioDao.updateWordTimestamps(
           audioItem.id,
           encodeWordTimestamps(transcript.words!),
         );

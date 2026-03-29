@@ -44,6 +44,9 @@ class AudioItems extends Table {
   /// 软删除标记
   DateTimeColumn get deletedAt => dateTime().nullable()();
 
+  /// 词级时间戳 JSON（AI 转录时由后端返回，与字幕一起管理）
+  TextColumn get wordTimestampsJson => text().nullable()();
+
   /// 同步状态：0=synced, 1=pendingUpload, 2=pendingDelete
   IntColumn get syncStatus => integer().withDefault(const Constant(0))();
 

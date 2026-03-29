@@ -13,7 +13,6 @@ import 'daos/saved_word_dao.dart';
 import 'daos/learned_word_form_dao.dart';
 import 'daos/daily_study_record_dao.dart';
 import 'daos/daily_stage_study_record_dao.dart';
-import 'daos/word_timestamp_cache_dao.dart';
 import '../services/study_time_service.dart';
 import '../providers/audio_library_provider.dart';
 import '../providers/collection_provider.dart';
@@ -166,11 +165,6 @@ final dailyStudyRecordDaoProvider = Provider<DailyStudyRecordDao>((ref) {
 final dailyStageStudyRecordDaoProvider =
     Provider<DailyStageStudyRecordDao>((ref) {
   return ref.watch(appDatabaseProvider).dailyStageStudyRecordDao;
-});
-
-/// WordTimestampCache DAO Provider
-final wordTimestampCacheDaoProvider = Provider<WordTimestampCacheDao>((ref) {
-  return ref.watch(appDatabaseProvider).wordTimestampCacheDao;
 });
 
 /// 收藏句子列表 Provider（流式，keepAlive）

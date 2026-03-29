@@ -502,12 +502,12 @@ class IntensiveListenPlayer extends _$IntensiveListenPlayer {
     Duration end,
     int groupIndex,
   ) async {
-    // 停止正在播放的意群
-    _invalidateSession();
-
+    // 直接创建新 session 使旧 session 失效，避免 _invalidateSession 中
+    // 的 engine.pause() 异步递增 sessionId 导致新 session 被意外作废
     final engine = ref.read(audioEngineProvider.notifier);
     _currentSessionId = engine.newSession();
     final sessionId = _currentSessionId;
+    _countdown.cancel();
 
     final played = Set<int>.from(state.playedSenseGroupIndices)
       ..add(groupIndex);

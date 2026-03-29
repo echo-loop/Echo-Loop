@@ -747,10 +747,10 @@ class _ManageSubtitlesSheetState extends ConsumerState<ManageSubtitlesSheet> {
       }
     }
 
-    // 3. 清除词级时间戳缓存
+    // 3. 清除词级时间戳
     await ref
-        .read(wordTimestampCacheDaoProvider)
-        .deleteByAudioItemId(audioItem.id);
+        .read(audioItemDaoProvider)
+        .updateWordTimestamps(audioItem.id, null);
 
     // 4. 更新本地数据库：清除字幕相关字段
     ref
