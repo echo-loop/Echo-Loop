@@ -1193,5 +1193,25 @@
   "annotationBtnAnalysis": "Analysis",
   "senseGroupLoadFailed": "Failed to split sense groups, please retry",
   "senseGroupNotAvailable": "Only available for AI-transcribed audio",
-  "wordTimestampsNotFound": "Word-level timestamps not found. Please restart the app to retry."
+  "wordTimestampsNotFound": "Word-level timestamps not found. Please restart the app to retry.",
+
+  "recycleBinTitle": "Recycle Bin",
+  "recycleBinEmpty": "No removed items",
+  "recycleBinClearAll": "Clear All",
+  "recycleBinClearAllConfirm": "Permanently delete all {count} items? This cannot be undone.",
+  "@recycleBinClearAllConfirm": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "recycleBinRestore": "Restore",
+  "recycleBinDelete": "Delete",
+  "recycleBinSortTimeDesc": "Recently Removed",
+  "recycleBinSortTimeAsc": "Oldest Removed",
+  "recycleBinItemCount": "{count} items",
+  "@recycleBinItemCount": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  }
 }

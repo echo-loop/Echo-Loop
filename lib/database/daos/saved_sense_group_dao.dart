@@ -2,6 +2,7 @@ import 'package:drift/drift.dart';
 
 import '../app_database.dart';
 import '../tables/saved_sense_groups.dart';
+import 'bookmark_dao.dart' show RecycleBinSortMode;
 
 part 'saved_sense_group_dao.g.dart';
 
@@ -67,28 +68,25 @@ class SavedSenseGroupDao extends DatabaseAccessor<AppDatabase>
   Future<void> removeSenseGroup(String phraseText) {
     return (update(savedSenseGroups)
           ..where((t) => t.phraseText.equals(phraseText)))
-        .write(
-      SavedSenseGroupsCompanion(deletedAt: Value(DateTime.now())),
-    );
+        .write(SavedSenseGroupsCompanion(deletedAt: Value(DateTime.now())));
   }
 
   /// 查询意群是否已收藏
   Future<bool> isSenseGroupSaved(String phraseText) async {
-    final row = await (select(savedSenseGroups)
-          ..where(
-            (t) => t.phraseText.equals(phraseText) & t.deletedAt.isNull(),
-          )
-          ..limit(1))
-        .getSingleOrNull();
+    final row =
+        await (select(savedSenseGroups)
+              ..where(
+                (t) => t.phraseText.equals(phraseText) & t.deletedAt.isNull(),
+              )
+              ..limit(1))
+            .getSingleOrNull();
     return row != null;
   }
 
   /// 流式监听意群是否已收藏
   Stream<bool> watchIsSenseGroupSaved(String phraseText) {
     return (select(savedSenseGroups)
-          ..where(
-            (t) => t.phraseText.equals(phraseText) & t.deletedAt.isNull(),
-          )
+          ..where((t) => t.phraseText.equals(phraseText) & t.deletedAt.isNull())
           ..limit(1))
         .watchSingleOrNull()
         .map((row) => row != null);
@@ -96,17 +94,13 @@ class SavedSenseGroupDao extends DatabaseAccessor<AppDatabase>
 
   /// 监听所有已收藏意群的归一化文本集合（用于 badge 染色）
   Stream<Set<String>> watchSavedPhraseTexts() {
-    return watchAll().map(
-      (list) => list.map((e) => e.phraseText).toSet(),
-    );
+    return watchAll().map((list) => list.map((e) => e.phraseText).toSet());
   }
 
   /// 更新 Flashcard 练习统计
   ///
   /// 每次翻转到背面时调用：practiceCount +1，更新 updatedAt。
-  Future<void> updatePracticeStats({
-    required String phraseText,
-  }) async {
+  Future<void> updatePracticeStats({required String phraseText}) async {
     await customStatement(
       '''
       UPDATE saved_sense_groups
@@ -114,10 +108,7 @@ class SavedSenseGroupDao extends DatabaseAccessor<AppDatabase>
           updated_at = ?
       WHERE phrase_text = ? AND deleted_at IS NULL
     ''',
-      [
-        DateTime.now().millisecondsSinceEpoch ~/ 1000,
-        phraseText,
-      ],
+      [DateTime.now().millisecondsSinceEpoch ~/ 1000, phraseText],
     );
   }
 
@@ -126,9 +117,9 @@ class SavedSenseGroupDao extends DatabaseAccessor<AppDatabase>
   /// 音频删除时调用，将非 FK 字段全部置 NULL。
   /// audioItemId 由 FK SET NULL 自动处理。
   Future<void> clearContextForAudio(String audioItemId) {
-    return (update(savedSenseGroups)
-          ..where((t) => t.audioItemId.equals(audioItemId)))
-        .write(
+    return (update(
+      savedSenseGroups,
+    )..where((t) => t.audioItemId.equals(audioItemId))).write(
       const SavedSenseGroupsCompanion(
         sentenceIndex: Value(null),
         sentenceText: Value(null),
@@ -138,5 +129,60 @@ class SavedSenseGroupDao extends DatabaseAccessor<AppDatabase>
         groupEndMs: Value(null),
       ),
     );
+  }
+
+  /// 获取所有已软删除的意群
+  ///
+  /// 用于回收站弹窗展示。
+  Future<List<SavedSenseGroup>> getDeletedSenseGroups({
+    required RecycleBinSortMode sortMode,
+  }) {
+    return (select(savedSenseGroups)
+          ..where((t) => t.deletedAt.isNotNull())
+          ..orderBy([
+            (t) => _buildDeletedOrdering(t, sortMode),
+            (t) => OrderingTerm.desc(t.id),
+          ]))
+        .get();
+  }
+
+  /// 恢复已软删除的意群（清除 deletedAt）
+  Future<void> restoreSenseGroup(String phraseText) {
+    return (update(
+      savedSenseGroups,
+    )..where((t) => t.phraseText.equals(phraseText))).write(
+      SavedSenseGroupsCompanion(
+        deletedAt: const Value(null),
+        updatedAt: Value(DateTime.now()),
+      ),
+    );
+  }
+
+  /// 永久删除单个已软删除的意群
+  Future<void> permanentlyDeleteSenseGroup(String phraseText) {
+    return (delete(savedSenseGroups)..where(
+          (t) => t.phraseText.equals(phraseText) & t.deletedAt.isNotNull(),
+        ))
+        .go();
+  }
+
+  /// 永久删除所有已软删除的意群（清空回收站）
+  Future<void> permanentlyDeleteAllDeleted() {
+    return (delete(
+      savedSenseGroups,
+    )..where((t) => t.deletedAt.isNotNull())).go();
+  }
+
+  /// 构建回收站排序条件
+  OrderingTerm _buildDeletedOrdering(
+    $SavedSenseGroupsTable t,
+    RecycleBinSortMode sortMode,
+  ) {
+    return switch (sortMode) {
+      RecycleBinSortMode.timeDesc => OrderingTerm.desc(t.deletedAt),
+      RecycleBinSortMode.timeAsc => OrderingTerm.asc(t.deletedAt),
+      RecycleBinSortMode.alphaAsc => OrderingTerm.asc(t.displayText),
+      RecycleBinSortMode.alphaDesc => OrderingTerm.desc(t.displayText),
+    };
   }
 }

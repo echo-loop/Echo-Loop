@@ -2211,4 +2211,35 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get wordTimestampsNotFound =>
       'Word-level timestamps not found. Please restart the app to retry.';
+
+  @override
+  String get recycleBinTitle => 'Recycle Bin';
+
+  @override
+  String get recycleBinEmpty => 'No removed items';
+
+  @override
+  String get recycleBinClearAll => 'Clear All';
+
+  @override
+  String recycleBinClearAllConfirm(int count) {
+    return 'Permanently delete all $count items? This cannot be undone.';
+  }
+
+  @override
+  String get recycleBinRestore => 'Restore';
+
+  @override
+  String get recycleBinDelete => 'Delete';
+
+  @override
+  String get recycleBinSortTimeDesc => 'Recently Removed';
+
+  @override
+  String get recycleBinSortTimeAsc => 'Oldest Removed';
+
+  @override
+  String recycleBinItemCount(int count) {
+    return '$count items';
+  }
 }

@@ -2,6 +2,7 @@ import 'package:drift/drift.dart';
 
 import '../app_database.dart';
 import '../tables/saved_words.dart';
+import 'bookmark_dao.dart' show RecycleBinSortMode;
 
 part 'saved_word_dao.g.dart';
 
@@ -70,8 +71,9 @@ class SavedWordDao extends DatabaseAccessor<AppDatabase>
 
   /// 移除收藏单词（软删除，设置 deletedAt）
   Future<void> removeWord(String word) {
-    return (update(savedWords)..where((t) => t.word.equals(word)))
-        .write(SavedWordsCompanion(deletedAt: Value(DateTime.now())));
+    return (update(savedWords)..where((t) => t.word.equals(word))).write(
+      SavedWordsCompanion(deletedAt: Value(DateTime.now())),
+    );
   }
 
   /// 查询单词是否已收藏
@@ -148,5 +150,55 @@ class SavedWordDao extends DatabaseAccessor<AppDatabase>
           ..limit(1))
         .watchSingleOrNull()
         .map((row) => row != null);
+  }
+
+  /// 获取所有已软删除的单词
+  ///
+  /// 用于回收站弹窗展示。
+  Future<List<SavedWord>> getDeletedWords({
+    required RecycleBinSortMode sortMode,
+  }) {
+    return (select(savedWords)
+          ..where((t) => t.deletedAt.isNotNull())
+          ..orderBy([
+            (t) => _buildDeletedOrdering(t, sortMode),
+            (t) => OrderingTerm.desc(t.id),
+          ]))
+        .get();
+  }
+
+  /// 恢复已软删除的单词（清除 deletedAt）
+  Future<void> restoreWord(String word) {
+    return (update(savedWords)..where((t) => t.word.equals(word))).write(
+      SavedWordsCompanion(
+        deletedAt: const Value(null),
+        updatedAt: Value(DateTime.now()),
+      ),
+    );
+  }
+
+  /// 永久删除单个已软删除的单词
+  Future<void> permanentlyDeleteWord(String word) {
+    return (delete(
+      savedWords,
+    )..where((t) => t.word.equals(word) & t.deletedAt.isNotNull())).go();
+  }
+
+  /// 永久删除所有已软删除的单词（清空回收站）
+  Future<void> permanentlyDeleteAllDeleted() {
+    return (delete(savedWords)..where((t) => t.deletedAt.isNotNull())).go();
+  }
+
+  /// 构建回收站排序条件
+  OrderingTerm _buildDeletedOrdering(
+    $SavedWordsTable t,
+    RecycleBinSortMode sortMode,
+  ) {
+    return switch (sortMode) {
+      RecycleBinSortMode.timeDesc => OrderingTerm.desc(t.deletedAt),
+      RecycleBinSortMode.timeAsc => OrderingTerm.asc(t.deletedAt),
+      RecycleBinSortMode.alphaAsc => OrderingTerm.asc(t.word),
+      RecycleBinSortMode.alphaDesc => OrderingTerm.desc(t.word),
+    };
   }
 }

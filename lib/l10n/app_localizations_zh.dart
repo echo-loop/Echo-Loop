@@ -2148,4 +2148,35 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get wordTimestampsNotFound => '词级字幕未找到，请重启应用重试';
+
+  @override
+  String get recycleBinTitle => '回收站';
+
+  @override
+  String get recycleBinEmpty => '没有已移除的内容';
+
+  @override
+  String get recycleBinClearAll => '清空';
+
+  @override
+  String recycleBinClearAllConfirm(int count) {
+    return '永久删除全部 $count 条内容？此操作不可撤销。';
+  }
+
+  @override
+  String get recycleBinRestore => '恢复';
+
+  @override
+  String get recycleBinDelete => '删除';
+
+  @override
+  String get recycleBinSortTimeDesc => '最近移除';
+
+  @override
+  String get recycleBinSortTimeAsc => '最早移除';
+
+  @override
+  String recycleBinItemCount(int count) {
+    return '$count 条';
+  }
 }

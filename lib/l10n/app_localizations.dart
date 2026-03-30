@@ -3967,6 +3967,60 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Word-level timestamps not found. Please restart the app to retry.'**
   String get wordTimestampsNotFound;
+
+  /// No description provided for @recycleBinTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Recycle Bin'**
+  String get recycleBinTitle;
+
+  /// No description provided for @recycleBinEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No removed items'**
+  String get recycleBinEmpty;
+
+  /// No description provided for @recycleBinClearAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear All'**
+  String get recycleBinClearAll;
+
+  /// No description provided for @recycleBinClearAllConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Permanently delete all {count} items? This cannot be undone.'**
+  String recycleBinClearAllConfirm(int count);
+
+  /// No description provided for @recycleBinRestore.
+  ///
+  /// In en, this message translates to:
+  /// **'Restore'**
+  String get recycleBinRestore;
+
+  /// No description provided for @recycleBinDelete.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete'**
+  String get recycleBinDelete;
+
+  /// No description provided for @recycleBinSortTimeDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Recently Removed'**
+  String get recycleBinSortTimeDesc;
+
+  /// No description provided for @recycleBinSortTimeAsc.
+  ///
+  /// In en, this message translates to:
+  /// **'Oldest Removed'**
+  String get recycleBinSortTimeAsc;
+
+  /// No description provided for @recycleBinItemCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} items'**
+  String recycleBinItemCount(int count);
 }
 
 class _AppLocalizationsDelegate

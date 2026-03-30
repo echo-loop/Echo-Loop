@@ -883,5 +883,15 @@
   "annotationBtnAnalysis": "解析",
   "senseGroupLoadFailed": "意群拆分失败，请重试",
   "senseGroupNotAvailable": "仅 AI 转录的音频支持意群拆分",
-  "wordTimestampsNotFound": "词级字幕未找到，请重启应用重试"
+  "wordTimestampsNotFound": "词级字幕未找到，请重启应用重试",
+
+  "recycleBinTitle": "回收站",
+  "recycleBinEmpty": "没有已移除的内容",
+  "recycleBinClearAll": "清空",
+  "recycleBinClearAllConfirm": "永久删除全部 {count} 条内容？此操作不可撤销。",
+  "recycleBinRestore": "恢复",
+  "recycleBinDelete": "删除",
+  "recycleBinSortTimeDesc": "最近移除",
+  "recycleBinSortTimeAsc": "最早移除",
+  "recycleBinItemCount": "{count} 条"
 }
