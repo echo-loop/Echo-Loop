@@ -803,87 +803,221 @@ class _VocabularyPhrase extends _VocabularyItem {
   DateTime get createdAt => phrase.createdAt;
 }
 
-/// 收藏意群列表项
-class _SavedPhraseTile extends ConsumerWidget {
+/// 收藏意群列表项（可展开，样式与 _SavedWordTile 一致）
+class _SavedPhraseTile extends ConsumerStatefulWidget {
   final SavedSenseGroup savedPhrase;
 
   const _SavedPhraseTile({super.key, required this.savedPhrase});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_SavedPhraseTile> createState() => _SavedPhraseTileState();
+}
+
+class _SavedPhraseTileState extends ConsumerState<_SavedPhraseTile> {
+  bool _isPlaying = false;
+  bool _isExpanded = false;
+  String? _audioName;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadAudioName();
+  }
+
+  Future<void> _loadAudioName() async {
+    final audioId = widget.savedPhrase.audioItemId;
+    if (audioId == null) return;
+    final dao = ref.read(audioItemDaoProvider);
+    final row = await dao.getById(audioId);
+    if (mounted && row != null) {
+      setState(() => _audioName = row.name);
+    }
+  }
+
+  /// 播放意群片段（优先意群时间，回退句子时间）
+  Future<void> _playPhrase() async {
+    final phrase = widget.savedPhrase;
+    if (phrase.audioItemId == null) return;
+
+    // 优先意群时间，回退句子时间
+    final startMs = phrase.groupStartMs ?? phrase.sentenceStartMs;
+    final endMs = phrase.groupEndMs ?? phrase.sentenceEndMs;
+    if (startMs == null || endMs == null) return;
+
+    if (_isPlaying) {
+      ref.read(audioEngineProvider.notifier).stop();
+      setState(() => _isPlaying = false);
+      return;
+    }
+
+    setState(() => _isPlaying = true);
+
+    try {
+      final engine = ref.read(audioEngineProvider.notifier);
+      final engineState = ref.read(audioEngineProvider);
+
+      final dao = ref.read(audioItemDaoProvider);
+      final row = await dao.getById(phrase.audioItemId!);
+      if (row == null || !mounted) {
+        setState(() => _isPlaying = false);
+        return;
+      }
+
+      final audioItem = model.AudioItem(
+        id: row.id,
+        name: row.name,
+        audioPath: row.audioPath,
+        transcriptPath: row.transcriptPath,
+        addedDate: row.addedDate,
+        totalDuration: row.totalDuration,
+        sentenceCount: row.sentenceCount,
+        wordCount: row.wordCount,
+        isStarred: row.isStarred,
+        transcriptSource: model.TranscriptSource.fromIndex(
+          row.transcriptSource,
+        ),
+        audioSha256: row.audioSha256,
+        transcriptLanguage: row.transcriptLanguage,
+      );
+
+      if (engineState.currentAudioId != phrase.audioItemId) {
+        await engine.loadAudio(audioItem, 1.0);
+      }
+      if (!mounted) return;
+
+      final sessionId = engine.newSession();
+      await engine.playRangeOnce(
+        Duration(milliseconds: startMs),
+        Duration(milliseconds: endMs),
+        sessionId,
+      );
+    } catch (_) {
+      // 忽略播放错误
+    } finally {
+      if (mounted) setState(() => _isPlaying = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final l10n = AppLocalizations.of(context)!;
+    final phrase = widget.savedPhrase;
 
-    return Padding(
-      padding: const EdgeInsets.only(bottom: AppSpacing.s),
-      child: Container(
-        decoration: BoxDecoration(
-          color: theme.colorScheme.surface,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: Colors.orange.shade200,
-            width: 1,
+    return Dismissible(
+      key: ValueKey('phrase_${phrase.id}'),
+      direction: DismissDirection.endToStart,
+      background: Container(
+        alignment: Alignment.centerRight,
+        padding: const EdgeInsets.only(right: AppSpacing.l),
+        color: theme.colorScheme.error,
+        child: Icon(Icons.bookmark_remove, color: theme.colorScheme.onError),
+      ),
+      onDismissed: (_) {
+        ref
+            .read(savedSenseGroupListProvider.notifier)
+            .removeSenseGroup(phrase.phraseText);
+      },
+      child: Card(
+        margin: const EdgeInsets.only(bottom: AppSpacing.xs),
+        child: ExpansionTile(
+          tilePadding: const EdgeInsets.symmetric(horizontal: AppSpacing.m),
+          onExpansionChanged: (expanded) {
+            setState(() => _isExpanded = expanded);
+          },
+          // 收起状态：意群文本 + 来源句子预览
+          title: Text(
+            phrase.displayText,
+            style: theme.textTheme.titleSmall?.copyWith(
+              fontWeight: FontWeight.w700,
+              letterSpacing: -0.2,
+            ),
           ),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.m),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // 意群文本
-              Row(
-                children: [
-                  Icon(
-                    Icons.auto_fix_high,
-                    size: 14,
-                    color: Colors.orange.shade700,
-                  ),
-                  const SizedBox(width: 6),
-                  Expanded(
-                    child: Text(
-                      savedPhrase.displayText,
-                      style: theme.textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                  // 删除按钮
-                  IconButton(
-                    icon: Icon(
-                      Icons.close,
-                      size: 18,
-                      color: theme.colorScheme.onSurfaceVariant.withValues(
-                        alpha: 0.5,
-                      ),
-                    ),
-                    onPressed: () {
-                      ref
-                          .read(savedSenseGroupListProvider.notifier)
-                          .removeSenseGroup(savedPhrase.phraseText);
-                    },
-                    visualDensity: VisualDensity.compact,
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(
-                      minWidth: 24,
-                      minHeight: 24,
-                    ),
-                  ),
-                ],
-              ),
-              // 来源句子
-              if (savedPhrase.sentenceText != null) ...[
-                const SizedBox(height: 4),
-                Text(
-                  savedPhrase.sentenceText!,
+          subtitle: !_isExpanded && phrase.sentenceText != null
+              ? Text(
+                  phrase.sentenceText!,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: theme.colorScheme.onSurfaceVariant,
                   ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
+                )
+              : null,
+          // 展开状态：来源句子 + 来源音频
+          children: [
+            SizedBox(
+              width: double.infinity,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.m,
+                  0,
+                  AppSpacing.m,
+                  AppSpacing.m,
                 ),
-              ],
-            ],
-          ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // 来源句子（可播放）
+                    if (phrase.sentenceText != null) ...[
+                      InkWell(
+                        onTap: phrase.audioItemId != null ? _playPhrase : null,
+                        borderRadius: BorderRadius.circular(8),
+                        child: Row(
+                          children: [
+                            if (phrase.audioItemId != null)
+                              Icon(
+                                _isPlaying
+                                    ? Icons.stop_circle_outlined
+                                    : Icons.play_circle_outline,
+                                size: 18,
+                                color: theme.colorScheme.primary,
+                              ),
+                            if (phrase.audioItemId != null)
+                              const SizedBox(width: AppSpacing.xs),
+                            Expanded(
+                              child: Text(
+                                phrase.sentenceText!,
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: theme.colorScheme.onSurfaceVariant,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+
+                    // 来源音频
+                    if (_audioName != null && phrase.audioItemId != null) ...[
+                      const SizedBox(height: AppSpacing.xs),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.headphones,
+                              size: 12,
+                              color: theme.colorScheme.onSurfaceVariant
+                                  .withValues(alpha: 0.5),
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              '${l10n.bookmarkReviewFromAudio(_audioName!)}',
+                              style: theme.textTheme.labelSmall?.copyWith(
+                                color: theme.colorScheme.onSurfaceVariant
+                                    .withValues(alpha: 0.5),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
