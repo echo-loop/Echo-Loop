@@ -159,20 +159,29 @@ class FlashcardNotifier extends _$FlashcardNotifier {
   ///
   /// [items] 闪卡项列表（单词 + 意群）
   Future<void> initialize(List<FlashcardItem> items) async {
+    final sw = Stopwatch()..start();
     _countdown.cancel();
 
     // 加载持久化设置
     final settings = await _loadSettings();
+    debugPrint('[PERF] flashcard _loadSettings: ${sw.elapsedMilliseconds}ms');
 
     // 排序
     final sorted = _sortItems(items, settings.sortMode);
+    debugPrint('[PERF] flashcard _sortItems: ${sw.elapsedMilliseconds}ms');
 
     // 批量加载词典（仅对有 displayText 的项查询）
     final allTexts = sorted.map((w) => w.displayText).toList();
     final allEntries = await DictionaryService.instance.lookupAll(allTexts);
+    debugPrint(
+      '[PERF] flashcard lookupAll (${allTexts.length} words): ${sw.elapsedMilliseconds}ms',
+    );
     final withDict = sorted
         .map((item) => item.withDictEntry(allEntries[item.displayText]))
         .toList();
+    debugPrint(
+      '[PERF] flashcard withDictEntry 映射: ${sw.elapsedMilliseconds}ms',
+    );
 
     state = FlashcardState(
       words: withDict,
@@ -180,6 +189,7 @@ class FlashcardNotifier extends _$FlashcardNotifier {
       settings: settings,
       cardStartTime: DateTime.now(),
     );
+    debugPrint('[PERF] flashcard state 赋值: ${sw.elapsedMilliseconds}ms');
 
     // 启动学习计时
     _studyStopwatch.reset();
@@ -197,6 +207,7 @@ class FlashcardNotifier extends _$FlashcardNotifier {
         _startCountdown();
       }
     }
+    debugPrint('[PERF] flashcard initialize 总计: ${sw.elapsedMilliseconds}ms');
   }
 
   /// 翻转卡片
@@ -335,7 +346,9 @@ class FlashcardNotifier extends _$FlashcardNotifier {
       // 恢复收藏
       switch (item) {
         case FlashcardWordItem(:final savedWord):
-          await ref.read(savedWordDaoProvider).saveWord(
+          await ref
+              .read(savedWordDaoProvider)
+              .saveWord(
                 word: savedWord.word,
                 audioItemId: savedWord.audioItemId,
                 sentenceIndex: savedWord.sentenceIndex,
@@ -344,7 +357,9 @@ class FlashcardNotifier extends _$FlashcardNotifier {
                 sentenceEndMs: savedWord.sentenceEndMs,
               );
         case FlashcardPhraseItem(:final savedPhrase):
-          await ref.read(savedSenseGroupDaoProvider).saveSenseGroup(
+          await ref
+              .read(savedSenseGroupDaoProvider)
+              .saveSenseGroup(
                 phraseText: savedPhrase.phraseText,
                 displayText: savedPhrase.displayText,
                 audioItemId: savedPhrase.audioItemId,
@@ -537,10 +552,7 @@ class FlashcardNotifier extends _$FlashcardNotifier {
 
     final seconds = _getTimerSeconds();
     final total = Duration(seconds: seconds);
-    state = state.copyWith(
-      countdownRemaining: total,
-      countdownTotal: total,
-    );
+    state = state.copyWith(countdownRemaining: total, countdownTotal: total);
 
     _countdown.start(total, (remaining) {
       state = state.copyWith(countdownRemaining: remaining);
@@ -630,14 +642,13 @@ class FlashcardNotifier extends _$FlashcardNotifier {
 
     switch (item) {
       case FlashcardWordItem():
-        await ref.read(savedWordDaoProvider).updatePracticeStats(
-              word: item.dbKey,
-              studyMs: studyMs,
-            );
+        await ref
+            .read(savedWordDaoProvider)
+            .updatePracticeStats(word: item.dbKey, studyMs: studyMs);
       case FlashcardPhraseItem():
-        await ref.read(savedSenseGroupDaoProvider).updatePracticeStats(
-              phraseText: item.dbKey,
-            );
+        await ref
+            .read(savedSenseGroupDaoProvider)
+            .updatePracticeStats(phraseText: item.dbKey);
     }
   }
 
@@ -656,15 +667,15 @@ class FlashcardNotifier extends _$FlashcardNotifier {
     switch (mode) {
       case FlashcardSortMode.alphabeticalAsc:
         sorted.sort(
-          (a, b) => a.displayText
-              .toLowerCase()
-              .compareTo(b.displayText.toLowerCase()),
+          (a, b) => a.displayText.toLowerCase().compareTo(
+            b.displayText.toLowerCase(),
+          ),
         );
       case FlashcardSortMode.alphabeticalDesc:
         sorted.sort(
-          (a, b) => b.displayText
-              .toLowerCase()
-              .compareTo(a.displayText.toLowerCase()),
+          (a, b) => b.displayText.toLowerCase().compareTo(
+            a.displayText.toLowerCase(),
+          ),
         );
       case FlashcardSortMode.timeAsc:
         sorted.sort((a, b) => a.createdAt.compareTo(b.createdAt));

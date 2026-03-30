@@ -202,29 +202,74 @@ class DictionaryService {
   Future<Map<String, DictEntry>> lookupAll(List<String> words) async {
     await _ensureInitialized();
     final result = <String, DictEntry>{};
+
+    // 1. 归一化，建立 normalizedWord → [原始 word] 的映射
+    final normalizedToOriginals = <String, List<String>>{};
     for (final word in words) {
       final lower = _normalizeLookupWord(word);
       if (lower.isEmpty) continue;
+      (normalizedToOriginals[lower] ??= []).add(word);
+    }
+    if (normalizedToOriginals.isEmpty) return result;
 
-      // 精确匹配
-      var entry = _queryWord(lower);
-      if (entry != null) {
-        result[word] = entry;
-        continue;
+    // 2. 批量精确匹配（单次 SQL IN 查询）
+    final allNormalized = normalizedToOriginals.keys.toList();
+    final found = _queryWords(allNormalized);
+    for (final MapEntry(key: lower, value: entry) in found.entries) {
+      for (final original in normalizedToOriginals[lower]!) {
+        result[original] = entry;
       }
+    }
 
-      // 词形还原 fallback
+    // 3. 对未命中的词做词形还原 fallback（逐个查询）
+    final missed = allNormalized.where((w) => !found.containsKey(w)).toList();
+    for (final lower in missed) {
       final lemmas = _lemmatizer.lemmas(lower);
+      DictEntry? entry;
       for (final lemma in lemmas) {
         for (final form in lemma.lemmas) {
           if (form == lower) continue;
           entry = _queryWord(form);
-          if (entry != null) {
-            result[word] = entry;
-            break;
-          }
+          if (entry != null) break;
         }
-        if (result.containsKey(word)) break;
+        if (entry != null) break;
+      }
+      if (entry != null) {
+        for (final original in normalizedToOriginals[lower]!) {
+          result[original] = entry;
+        }
+      }
+    }
+    return result;
+  }
+
+  /// 批量查询多个单词（单次 SQL），返回 normalizedWord → DictEntry
+  Map<String, DictEntry> _queryWords(List<String> words) {
+    if (words.isEmpty) return {};
+    final result = <String, DictEntry>{};
+
+    // SQLite 变量上限通常 999，分批查询
+    const batchSize = 500;
+    for (var i = 0; i < words.length; i += batchSize) {
+      final batch = words.sublist(
+        i,
+        i + batchSize > words.length ? words.length : i + batchSize,
+      );
+      final placeholders = List.filled(batch.length, '?').join(',');
+      final rows = _db!.select(
+        'SELECT word, phonetic, translation, collins, tag '
+        'FROM words WHERE word IN ($placeholders) COLLATE NOCASE',
+        batch,
+      );
+      for (final row in rows) {
+        final word = (row['word'] as String).toLowerCase();
+        result[word] = DictEntry.fromRow(
+          word: row['word'] as String,
+          phonetic: row['phonetic'] as String,
+          translation: row['translation'] as String?,
+          collins: (row['collins'] as int?) ?? 0,
+          tag: row['tag'] as String?,
+        );
       }
     }
     return result;

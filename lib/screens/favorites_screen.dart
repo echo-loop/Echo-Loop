@@ -91,7 +91,10 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen> {
                 ],
                 selected: {_currentView},
                 onSelectionChanged: (selected) {
+                  debugPrint('[PERF] tab 切换: ${selected.first}');
+                  final sw = Stopwatch()..start();
                   setState(() => _currentView = selected.first);
+                  debugPrint('[PERF] setState 完成: ${sw.elapsedMilliseconds}ms');
                 },
                 style: SegmentedButton.styleFrom(
                   textStyle: theme.textTheme.bodyMedium?.copyWith(
@@ -199,13 +202,23 @@ class _FloatingSentenceReviewButton extends ConsumerWidget {
         context,
       )!.bookmarkReviewStartCount(validBookmarks.length),
       onPressed: () {
+        final sw = Stopwatch()..start();
         final provider = ref.read(bookmarkReviewProvider.notifier);
         final audioItemDao = ref.read(audioItemDaoProvider);
+        debugPrint(
+          '[PERF] bookmark review read providers: ${sw.elapsedMilliseconds}ms',
+        );
         provider.initialize(
           allBookmarks,
           getAudioItemById: (id) => audioItemDao.getById(id),
         );
+        debugPrint(
+          '[PERF] bookmark review initialize: ${sw.elapsedMilliseconds}ms',
+        );
         context.push(AppRoutes.bookmarkReview);
+        debugPrint(
+          '[PERF] context.push bookmarkReview: ${sw.elapsedMilliseconds}ms',
+        );
       },
     );
   }
@@ -231,14 +244,24 @@ class _FloatingFlashcardButton extends ConsumerWidget {
       icon: Icons.style_outlined,
       label: '${l10n.flashcardStartQuiz} ($totalCount)',
       onPressed: () {
+        final sw = Stopwatch()..start();
         // 构建 FlashcardItem 列表，按 createdAt 倒序
         final items = <FlashcardItem>[
           for (final w in words) FlashcardWordItem(savedWord: w),
           for (final p in phrases) FlashcardPhraseItem(savedPhrase: p),
         ]..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+        debugPrint(
+          '[PERF] 构建 FlashcardItem 列表: ${sw.elapsedMilliseconds}ms (${items.length} items)',
+        );
 
         ref.read(flashcardNotifierProvider.notifier).initialize(items);
+        debugPrint(
+          '[PERF] flashcard initialize 已调用: ${sw.elapsedMilliseconds}ms',
+        );
         context.push(AppRoutes.flashcard);
+        debugPrint(
+          '[PERF] context.push flashcard: ${sw.elapsedMilliseconds}ms',
+        );
       },
     );
   }
@@ -776,14 +799,14 @@ class _WordsViewState extends ConsumerState<_WordsView> {
         final item = items[index];
         return switch (item) {
           _VocabularyWord(word: final w) => _SavedWordTile(
-              key: ValueKey('w_${w.id}'),
-              savedWord: w,
-              dictEntry: _dictMap[w.word],
-            ),
+            key: ValueKey('w_${w.id}'),
+            savedWord: w,
+            dictEntry: _dictMap[w.word],
+          ),
           _VocabularyPhrase(phrase: final p) => _SavedPhraseTile(
-              key: ValueKey('p_${p.id}'),
-              savedPhrase: p,
-            ),
+            key: ValueKey('p_${p.id}'),
+            savedPhrase: p,
+          ),
         };
       },
     );
