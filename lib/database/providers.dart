@@ -10,6 +10,7 @@ import 'daos/stage_completion_dao.dart';
 import 'daos/tag_dao.dart';
 import 'daos/sentence_ai_cache_dao.dart';
 import 'daos/saved_word_dao.dart';
+import 'daos/saved_sense_group_dao.dart';
 import 'daos/learned_word_form_dao.dart';
 import 'daos/daily_study_record_dao.dart';
 import 'daos/daily_stage_study_record_dao.dart';
@@ -149,6 +150,11 @@ final sentenceAiCacheDaoProvider = Provider<SentenceAiCacheDao>((ref) {
 /// SavedWord DAO Provider
 final savedWordDaoProvider = Provider<SavedWordDao>((ref) {
   return ref.watch(appDatabaseProvider).savedWordDao;
+});
+
+/// SavedSenseGroup DAO Provider
+final savedSenseGroupDaoProvider = Provider<SavedSenseGroupDao>((ref) {
+  return ref.watch(appDatabaseProvider).savedSenseGroupDao;
 });
 
 /// LearnedWordForm DAO Provider

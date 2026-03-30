@@ -7146,6 +7146,936 @@ class SavedWordsCompanion extends UpdateCompanion<SavedWord> {
   }
 }
 
+class $SavedSenseGroupsTable extends SavedSenseGroups
+    with TableInfo<$SavedSenseGroupsTable, SavedSenseGroup> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $SavedSenseGroupsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _phraseTextMeta = const VerificationMeta(
+    'phraseText',
+  );
+  @override
+  late final GeneratedColumn<String> phraseText = GeneratedColumn<String>(
+    'phrase_text',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways('UNIQUE'),
+  );
+  static const VerificationMeta _displayTextMeta = const VerificationMeta(
+    'displayText',
+  );
+  @override
+  late final GeneratedColumn<String> displayText = GeneratedColumn<String>(
+    'display_text',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _audioItemIdMeta = const VerificationMeta(
+    'audioItemId',
+  );
+  @override
+  late final GeneratedColumn<String> audioItemId = GeneratedColumn<String>(
+    'audio_item_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES audio_items (id) ON DELETE SET NULL',
+    ),
+  );
+  static const VerificationMeta _sentenceIndexMeta = const VerificationMeta(
+    'sentenceIndex',
+  );
+  @override
+  late final GeneratedColumn<int> sentenceIndex = GeneratedColumn<int>(
+    'sentence_index',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _sentenceTextMeta = const VerificationMeta(
+    'sentenceText',
+  );
+  @override
+  late final GeneratedColumn<String> sentenceText = GeneratedColumn<String>(
+    'sentence_text',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _sentenceStartMsMeta = const VerificationMeta(
+    'sentenceStartMs',
+  );
+  @override
+  late final GeneratedColumn<int> sentenceStartMs = GeneratedColumn<int>(
+    'sentence_start_ms',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _sentenceEndMsMeta = const VerificationMeta(
+    'sentenceEndMs',
+  );
+  @override
+  late final GeneratedColumn<int> sentenceEndMs = GeneratedColumn<int>(
+    'sentence_end_ms',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _groupStartMsMeta = const VerificationMeta(
+    'groupStartMs',
+  );
+  @override
+  late final GeneratedColumn<int> groupStartMs = GeneratedColumn<int>(
+    'group_start_ms',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _groupEndMsMeta = const VerificationMeta(
+    'groupEndMs',
+  );
+  @override
+  late final GeneratedColumn<int> groupEndMs = GeneratedColumn<int>(
+    'group_end_ms',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _practiceCountMeta = const VerificationMeta(
+    'practiceCount',
+  );
+  @override
+  late final GeneratedColumn<int> practiceCount = GeneratedColumn<int>(
+    'practice_count',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _deletedAtMeta = const VerificationMeta(
+    'deletedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> deletedAt = GeneratedColumn<DateTime>(
+    'deleted_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _syncStatusMeta = const VerificationMeta(
+    'syncStatus',
+  );
+  @override
+  late final GeneratedColumn<int> syncStatus = GeneratedColumn<int>(
+    'sync_status',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    phraseText,
+    displayText,
+    audioItemId,
+    sentenceIndex,
+    sentenceText,
+    sentenceStartMs,
+    sentenceEndMs,
+    groupStartMs,
+    groupEndMs,
+    practiceCount,
+    createdAt,
+    updatedAt,
+    deletedAt,
+    syncStatus,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'saved_sense_groups';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<SavedSenseGroup> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('phrase_text')) {
+      context.handle(
+        _phraseTextMeta,
+        phraseText.isAcceptableOrUnknown(data['phrase_text']!, _phraseTextMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_phraseTextMeta);
+    }
+    if (data.containsKey('display_text')) {
+      context.handle(
+        _displayTextMeta,
+        displayText.isAcceptableOrUnknown(
+          data['display_text']!,
+          _displayTextMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_displayTextMeta);
+    }
+    if (data.containsKey('audio_item_id')) {
+      context.handle(
+        _audioItemIdMeta,
+        audioItemId.isAcceptableOrUnknown(
+          data['audio_item_id']!,
+          _audioItemIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('sentence_index')) {
+      context.handle(
+        _sentenceIndexMeta,
+        sentenceIndex.isAcceptableOrUnknown(
+          data['sentence_index']!,
+          _sentenceIndexMeta,
+        ),
+      );
+    }
+    if (data.containsKey('sentence_text')) {
+      context.handle(
+        _sentenceTextMeta,
+        sentenceText.isAcceptableOrUnknown(
+          data['sentence_text']!,
+          _sentenceTextMeta,
+        ),
+      );
+    }
+    if (data.containsKey('sentence_start_ms')) {
+      context.handle(
+        _sentenceStartMsMeta,
+        sentenceStartMs.isAcceptableOrUnknown(
+          data['sentence_start_ms']!,
+          _sentenceStartMsMeta,
+        ),
+      );
+    }
+    if (data.containsKey('sentence_end_ms')) {
+      context.handle(
+        _sentenceEndMsMeta,
+        sentenceEndMs.isAcceptableOrUnknown(
+          data['sentence_end_ms']!,
+          _sentenceEndMsMeta,
+        ),
+      );
+    }
+    if (data.containsKey('group_start_ms')) {
+      context.handle(
+        _groupStartMsMeta,
+        groupStartMs.isAcceptableOrUnknown(
+          data['group_start_ms']!,
+          _groupStartMsMeta,
+        ),
+      );
+    }
+    if (data.containsKey('group_end_ms')) {
+      context.handle(
+        _groupEndMsMeta,
+        groupEndMs.isAcceptableOrUnknown(
+          data['group_end_ms']!,
+          _groupEndMsMeta,
+        ),
+      );
+    }
+    if (data.containsKey('practice_count')) {
+      context.handle(
+        _practiceCountMeta,
+        practiceCount.isAcceptableOrUnknown(
+          data['practice_count']!,
+          _practiceCountMeta,
+        ),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    if (data.containsKey('deleted_at')) {
+      context.handle(
+        _deletedAtMeta,
+        deletedAt.isAcceptableOrUnknown(data['deleted_at']!, _deletedAtMeta),
+      );
+    }
+    if (data.containsKey('sync_status')) {
+      context.handle(
+        _syncStatusMeta,
+        syncStatus.isAcceptableOrUnknown(data['sync_status']!, _syncStatusMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  SavedSenseGroup map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return SavedSenseGroup(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      phraseText: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}phrase_text'],
+      )!,
+      displayText: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}display_text'],
+      )!,
+      audioItemId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}audio_item_id'],
+      ),
+      sentenceIndex: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}sentence_index'],
+      ),
+      sentenceText: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}sentence_text'],
+      ),
+      sentenceStartMs: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}sentence_start_ms'],
+      ),
+      sentenceEndMs: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}sentence_end_ms'],
+      ),
+      groupStartMs: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}group_start_ms'],
+      ),
+      groupEndMs: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}group_end_ms'],
+      ),
+      practiceCount: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}practice_count'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
+      deletedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}deleted_at'],
+      ),
+      syncStatus: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}sync_status'],
+      )!,
+    );
+  }
+
+  @override
+  $SavedSenseGroupsTable createAlias(String alias) {
+    return $SavedSenseGroupsTable(attachedDatabase, alias);
+  }
+}
+
+class SavedSenseGroup extends DataClass implements Insertable<SavedSenseGroup> {
+  /// 自增主键
+  final int id;
+
+  /// 意群文本（归一化：小写 + trim + 去句末标点，保留撇号），全局唯一
+  final String phraseText;
+
+  /// 意群原始文本（保留大小写，用于展示）
+  final String displayText;
+
+  /// 来源音频 ID，FK → audio_items，音频删除时置空
+  final String? audioItemId;
+
+  /// 来源句子索引
+  final int? sentenceIndex;
+
+  /// 来源句子文本（冗余存储，闪卡复习时展示上下文）
+  final String? sentenceText;
+
+  /// 来源句子起始时间（毫秒）
+  final int? sentenceStartMs;
+
+  /// 来源句子结束时间（毫秒）
+  final int? sentenceEndMs;
+
+  /// 意群精确起始时间（毫秒），用于收藏页直接播放意群片段
+  final int? groupStartMs;
+
+  /// 意群精确结束时间（毫秒）
+  final int? groupEndMs;
+
+  /// 练习次数
+  final int practiceCount;
+
+  /// 收藏时间
+  final DateTime createdAt;
+
+  /// 最后修改时间
+  final DateTime updatedAt;
+
+  /// 软删除标记
+  final DateTime? deletedAt;
+
+  /// 同步状态（预留）
+  final int syncStatus;
+  const SavedSenseGroup({
+    required this.id,
+    required this.phraseText,
+    required this.displayText,
+    this.audioItemId,
+    this.sentenceIndex,
+    this.sentenceText,
+    this.sentenceStartMs,
+    this.sentenceEndMs,
+    this.groupStartMs,
+    this.groupEndMs,
+    required this.practiceCount,
+    required this.createdAt,
+    required this.updatedAt,
+    this.deletedAt,
+    required this.syncStatus,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['phrase_text'] = Variable<String>(phraseText);
+    map['display_text'] = Variable<String>(displayText);
+    if (!nullToAbsent || audioItemId != null) {
+      map['audio_item_id'] = Variable<String>(audioItemId);
+    }
+    if (!nullToAbsent || sentenceIndex != null) {
+      map['sentence_index'] = Variable<int>(sentenceIndex);
+    }
+    if (!nullToAbsent || sentenceText != null) {
+      map['sentence_text'] = Variable<String>(sentenceText);
+    }
+    if (!nullToAbsent || sentenceStartMs != null) {
+      map['sentence_start_ms'] = Variable<int>(sentenceStartMs);
+    }
+    if (!nullToAbsent || sentenceEndMs != null) {
+      map['sentence_end_ms'] = Variable<int>(sentenceEndMs);
+    }
+    if (!nullToAbsent || groupStartMs != null) {
+      map['group_start_ms'] = Variable<int>(groupStartMs);
+    }
+    if (!nullToAbsent || groupEndMs != null) {
+      map['group_end_ms'] = Variable<int>(groupEndMs);
+    }
+    map['practice_count'] = Variable<int>(practiceCount);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    if (!nullToAbsent || deletedAt != null) {
+      map['deleted_at'] = Variable<DateTime>(deletedAt);
+    }
+    map['sync_status'] = Variable<int>(syncStatus);
+    return map;
+  }
+
+  SavedSenseGroupsCompanion toCompanion(bool nullToAbsent) {
+    return SavedSenseGroupsCompanion(
+      id: Value(id),
+      phraseText: Value(phraseText),
+      displayText: Value(displayText),
+      audioItemId: audioItemId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(audioItemId),
+      sentenceIndex: sentenceIndex == null && nullToAbsent
+          ? const Value.absent()
+          : Value(sentenceIndex),
+      sentenceText: sentenceText == null && nullToAbsent
+          ? const Value.absent()
+          : Value(sentenceText),
+      sentenceStartMs: sentenceStartMs == null && nullToAbsent
+          ? const Value.absent()
+          : Value(sentenceStartMs),
+      sentenceEndMs: sentenceEndMs == null && nullToAbsent
+          ? const Value.absent()
+          : Value(sentenceEndMs),
+      groupStartMs: groupStartMs == null && nullToAbsent
+          ? const Value.absent()
+          : Value(groupStartMs),
+      groupEndMs: groupEndMs == null && nullToAbsent
+          ? const Value.absent()
+          : Value(groupEndMs),
+      practiceCount: Value(practiceCount),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+      deletedAt: deletedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(deletedAt),
+      syncStatus: Value(syncStatus),
+    );
+  }
+
+  factory SavedSenseGroup.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return SavedSenseGroup(
+      id: serializer.fromJson<int>(json['id']),
+      phraseText: serializer.fromJson<String>(json['phraseText']),
+      displayText: serializer.fromJson<String>(json['displayText']),
+      audioItemId: serializer.fromJson<String?>(json['audioItemId']),
+      sentenceIndex: serializer.fromJson<int?>(json['sentenceIndex']),
+      sentenceText: serializer.fromJson<String?>(json['sentenceText']),
+      sentenceStartMs: serializer.fromJson<int?>(json['sentenceStartMs']),
+      sentenceEndMs: serializer.fromJson<int?>(json['sentenceEndMs']),
+      groupStartMs: serializer.fromJson<int?>(json['groupStartMs']),
+      groupEndMs: serializer.fromJson<int?>(json['groupEndMs']),
+      practiceCount: serializer.fromJson<int>(json['practiceCount']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+      deletedAt: serializer.fromJson<DateTime?>(json['deletedAt']),
+      syncStatus: serializer.fromJson<int>(json['syncStatus']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'phraseText': serializer.toJson<String>(phraseText),
+      'displayText': serializer.toJson<String>(displayText),
+      'audioItemId': serializer.toJson<String?>(audioItemId),
+      'sentenceIndex': serializer.toJson<int?>(sentenceIndex),
+      'sentenceText': serializer.toJson<String?>(sentenceText),
+      'sentenceStartMs': serializer.toJson<int?>(sentenceStartMs),
+      'sentenceEndMs': serializer.toJson<int?>(sentenceEndMs),
+      'groupStartMs': serializer.toJson<int?>(groupStartMs),
+      'groupEndMs': serializer.toJson<int?>(groupEndMs),
+      'practiceCount': serializer.toJson<int>(practiceCount),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+      'deletedAt': serializer.toJson<DateTime?>(deletedAt),
+      'syncStatus': serializer.toJson<int>(syncStatus),
+    };
+  }
+
+  SavedSenseGroup copyWith({
+    int? id,
+    String? phraseText,
+    String? displayText,
+    Value<String?> audioItemId = const Value.absent(),
+    Value<int?> sentenceIndex = const Value.absent(),
+    Value<String?> sentenceText = const Value.absent(),
+    Value<int?> sentenceStartMs = const Value.absent(),
+    Value<int?> sentenceEndMs = const Value.absent(),
+    Value<int?> groupStartMs = const Value.absent(),
+    Value<int?> groupEndMs = const Value.absent(),
+    int? practiceCount,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+    Value<DateTime?> deletedAt = const Value.absent(),
+    int? syncStatus,
+  }) => SavedSenseGroup(
+    id: id ?? this.id,
+    phraseText: phraseText ?? this.phraseText,
+    displayText: displayText ?? this.displayText,
+    audioItemId: audioItemId.present ? audioItemId.value : this.audioItemId,
+    sentenceIndex: sentenceIndex.present
+        ? sentenceIndex.value
+        : this.sentenceIndex,
+    sentenceText: sentenceText.present ? sentenceText.value : this.sentenceText,
+    sentenceStartMs: sentenceStartMs.present
+        ? sentenceStartMs.value
+        : this.sentenceStartMs,
+    sentenceEndMs: sentenceEndMs.present
+        ? sentenceEndMs.value
+        : this.sentenceEndMs,
+    groupStartMs: groupStartMs.present ? groupStartMs.value : this.groupStartMs,
+    groupEndMs: groupEndMs.present ? groupEndMs.value : this.groupEndMs,
+    practiceCount: practiceCount ?? this.practiceCount,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+    deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
+    syncStatus: syncStatus ?? this.syncStatus,
+  );
+  SavedSenseGroup copyWithCompanion(SavedSenseGroupsCompanion data) {
+    return SavedSenseGroup(
+      id: data.id.present ? data.id.value : this.id,
+      phraseText: data.phraseText.present
+          ? data.phraseText.value
+          : this.phraseText,
+      displayText: data.displayText.present
+          ? data.displayText.value
+          : this.displayText,
+      audioItemId: data.audioItemId.present
+          ? data.audioItemId.value
+          : this.audioItemId,
+      sentenceIndex: data.sentenceIndex.present
+          ? data.sentenceIndex.value
+          : this.sentenceIndex,
+      sentenceText: data.sentenceText.present
+          ? data.sentenceText.value
+          : this.sentenceText,
+      sentenceStartMs: data.sentenceStartMs.present
+          ? data.sentenceStartMs.value
+          : this.sentenceStartMs,
+      sentenceEndMs: data.sentenceEndMs.present
+          ? data.sentenceEndMs.value
+          : this.sentenceEndMs,
+      groupStartMs: data.groupStartMs.present
+          ? data.groupStartMs.value
+          : this.groupStartMs,
+      groupEndMs: data.groupEndMs.present
+          ? data.groupEndMs.value
+          : this.groupEndMs,
+      practiceCount: data.practiceCount.present
+          ? data.practiceCount.value
+          : this.practiceCount,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
+      syncStatus: data.syncStatus.present
+          ? data.syncStatus.value
+          : this.syncStatus,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SavedSenseGroup(')
+          ..write('id: $id, ')
+          ..write('phraseText: $phraseText, ')
+          ..write('displayText: $displayText, ')
+          ..write('audioItemId: $audioItemId, ')
+          ..write('sentenceIndex: $sentenceIndex, ')
+          ..write('sentenceText: $sentenceText, ')
+          ..write('sentenceStartMs: $sentenceStartMs, ')
+          ..write('sentenceEndMs: $sentenceEndMs, ')
+          ..write('groupStartMs: $groupStartMs, ')
+          ..write('groupEndMs: $groupEndMs, ')
+          ..write('practiceCount: $practiceCount, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deletedAt: $deletedAt, ')
+          ..write('syncStatus: $syncStatus')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    phraseText,
+    displayText,
+    audioItemId,
+    sentenceIndex,
+    sentenceText,
+    sentenceStartMs,
+    sentenceEndMs,
+    groupStartMs,
+    groupEndMs,
+    practiceCount,
+    createdAt,
+    updatedAt,
+    deletedAt,
+    syncStatus,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is SavedSenseGroup &&
+          other.id == this.id &&
+          other.phraseText == this.phraseText &&
+          other.displayText == this.displayText &&
+          other.audioItemId == this.audioItemId &&
+          other.sentenceIndex == this.sentenceIndex &&
+          other.sentenceText == this.sentenceText &&
+          other.sentenceStartMs == this.sentenceStartMs &&
+          other.sentenceEndMs == this.sentenceEndMs &&
+          other.groupStartMs == this.groupStartMs &&
+          other.groupEndMs == this.groupEndMs &&
+          other.practiceCount == this.practiceCount &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt &&
+          other.deletedAt == this.deletedAt &&
+          other.syncStatus == this.syncStatus);
+}
+
+class SavedSenseGroupsCompanion extends UpdateCompanion<SavedSenseGroup> {
+  final Value<int> id;
+  final Value<String> phraseText;
+  final Value<String> displayText;
+  final Value<String?> audioItemId;
+  final Value<int?> sentenceIndex;
+  final Value<String?> sentenceText;
+  final Value<int?> sentenceStartMs;
+  final Value<int?> sentenceEndMs;
+  final Value<int?> groupStartMs;
+  final Value<int?> groupEndMs;
+  final Value<int> practiceCount;
+  final Value<DateTime> createdAt;
+  final Value<DateTime> updatedAt;
+  final Value<DateTime?> deletedAt;
+  final Value<int> syncStatus;
+  const SavedSenseGroupsCompanion({
+    this.id = const Value.absent(),
+    this.phraseText = const Value.absent(),
+    this.displayText = const Value.absent(),
+    this.audioItemId = const Value.absent(),
+    this.sentenceIndex = const Value.absent(),
+    this.sentenceText = const Value.absent(),
+    this.sentenceStartMs = const Value.absent(),
+    this.sentenceEndMs = const Value.absent(),
+    this.groupStartMs = const Value.absent(),
+    this.groupEndMs = const Value.absent(),
+    this.practiceCount = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.deletedAt = const Value.absent(),
+    this.syncStatus = const Value.absent(),
+  });
+  SavedSenseGroupsCompanion.insert({
+    this.id = const Value.absent(),
+    required String phraseText,
+    required String displayText,
+    this.audioItemId = const Value.absent(),
+    this.sentenceIndex = const Value.absent(),
+    this.sentenceText = const Value.absent(),
+    this.sentenceStartMs = const Value.absent(),
+    this.sentenceEndMs = const Value.absent(),
+    this.groupStartMs = const Value.absent(),
+    this.groupEndMs = const Value.absent(),
+    this.practiceCount = const Value.absent(),
+    required DateTime createdAt,
+    required DateTime updatedAt,
+    this.deletedAt = const Value.absent(),
+    this.syncStatus = const Value.absent(),
+  }) : phraseText = Value(phraseText),
+       displayText = Value(displayText),
+       createdAt = Value(createdAt),
+       updatedAt = Value(updatedAt);
+  static Insertable<SavedSenseGroup> custom({
+    Expression<int>? id,
+    Expression<String>? phraseText,
+    Expression<String>? displayText,
+    Expression<String>? audioItemId,
+    Expression<int>? sentenceIndex,
+    Expression<String>? sentenceText,
+    Expression<int>? sentenceStartMs,
+    Expression<int>? sentenceEndMs,
+    Expression<int>? groupStartMs,
+    Expression<int>? groupEndMs,
+    Expression<int>? practiceCount,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
+    Expression<DateTime>? deletedAt,
+    Expression<int>? syncStatus,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (phraseText != null) 'phrase_text': phraseText,
+      if (displayText != null) 'display_text': displayText,
+      if (audioItemId != null) 'audio_item_id': audioItemId,
+      if (sentenceIndex != null) 'sentence_index': sentenceIndex,
+      if (sentenceText != null) 'sentence_text': sentenceText,
+      if (sentenceStartMs != null) 'sentence_start_ms': sentenceStartMs,
+      if (sentenceEndMs != null) 'sentence_end_ms': sentenceEndMs,
+      if (groupStartMs != null) 'group_start_ms': groupStartMs,
+      if (groupEndMs != null) 'group_end_ms': groupEndMs,
+      if (practiceCount != null) 'practice_count': practiceCount,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (deletedAt != null) 'deleted_at': deletedAt,
+      if (syncStatus != null) 'sync_status': syncStatus,
+    });
+  }
+
+  SavedSenseGroupsCompanion copyWith({
+    Value<int>? id,
+    Value<String>? phraseText,
+    Value<String>? displayText,
+    Value<String?>? audioItemId,
+    Value<int?>? sentenceIndex,
+    Value<String?>? sentenceText,
+    Value<int?>? sentenceStartMs,
+    Value<int?>? sentenceEndMs,
+    Value<int?>? groupStartMs,
+    Value<int?>? groupEndMs,
+    Value<int>? practiceCount,
+    Value<DateTime>? createdAt,
+    Value<DateTime>? updatedAt,
+    Value<DateTime?>? deletedAt,
+    Value<int>? syncStatus,
+  }) {
+    return SavedSenseGroupsCompanion(
+      id: id ?? this.id,
+      phraseText: phraseText ?? this.phraseText,
+      displayText: displayText ?? this.displayText,
+      audioItemId: audioItemId ?? this.audioItemId,
+      sentenceIndex: sentenceIndex ?? this.sentenceIndex,
+      sentenceText: sentenceText ?? this.sentenceText,
+      sentenceStartMs: sentenceStartMs ?? this.sentenceStartMs,
+      sentenceEndMs: sentenceEndMs ?? this.sentenceEndMs,
+      groupStartMs: groupStartMs ?? this.groupStartMs,
+      groupEndMs: groupEndMs ?? this.groupEndMs,
+      practiceCount: practiceCount ?? this.practiceCount,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      deletedAt: deletedAt ?? this.deletedAt,
+      syncStatus: syncStatus ?? this.syncStatus,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (phraseText.present) {
+      map['phrase_text'] = Variable<String>(phraseText.value);
+    }
+    if (displayText.present) {
+      map['display_text'] = Variable<String>(displayText.value);
+    }
+    if (audioItemId.present) {
+      map['audio_item_id'] = Variable<String>(audioItemId.value);
+    }
+    if (sentenceIndex.present) {
+      map['sentence_index'] = Variable<int>(sentenceIndex.value);
+    }
+    if (sentenceText.present) {
+      map['sentence_text'] = Variable<String>(sentenceText.value);
+    }
+    if (sentenceStartMs.present) {
+      map['sentence_start_ms'] = Variable<int>(sentenceStartMs.value);
+    }
+    if (sentenceEndMs.present) {
+      map['sentence_end_ms'] = Variable<int>(sentenceEndMs.value);
+    }
+    if (groupStartMs.present) {
+      map['group_start_ms'] = Variable<int>(groupStartMs.value);
+    }
+    if (groupEndMs.present) {
+      map['group_end_ms'] = Variable<int>(groupEndMs.value);
+    }
+    if (practiceCount.present) {
+      map['practice_count'] = Variable<int>(practiceCount.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (deletedAt.present) {
+      map['deleted_at'] = Variable<DateTime>(deletedAt.value);
+    }
+    if (syncStatus.present) {
+      map['sync_status'] = Variable<int>(syncStatus.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SavedSenseGroupsCompanion(')
+          ..write('id: $id, ')
+          ..write('phraseText: $phraseText, ')
+          ..write('displayText: $displayText, ')
+          ..write('audioItemId: $audioItemId, ')
+          ..write('sentenceIndex: $sentenceIndex, ')
+          ..write('sentenceText: $sentenceText, ')
+          ..write('sentenceStartMs: $sentenceStartMs, ')
+          ..write('sentenceEndMs: $sentenceEndMs, ')
+          ..write('groupStartMs: $groupStartMs, ')
+          ..write('groupEndMs: $groupEndMs, ')
+          ..write('practiceCount: $practiceCount, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deletedAt: $deletedAt, ')
+          ..write('syncStatus: $syncStatus')
+          ..write(')'))
+        .toString();
+  }
+}
+
 class $LearnedWordFormsTable extends LearnedWordForms
     with TableInfo<$LearnedWordFormsTable, LearnedWordForm> {
   @override
@@ -8348,6 +9278,9 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     this,
   );
   late final $SavedWordsTable savedWords = $SavedWordsTable(this);
+  late final $SavedSenseGroupsTable savedSenseGroups = $SavedSenseGroupsTable(
+    this,
+  );
   late final $LearnedWordFormsTable learnedWordForms = $LearnedWordFormsTable(
     this,
   );
@@ -8372,6 +9305,9 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     this as AppDatabase,
   );
   late final SavedWordDao savedWordDao = SavedWordDao(this as AppDatabase);
+  late final SavedSenseGroupDao savedSenseGroupDao = SavedSenseGroupDao(
+    this as AppDatabase,
+  );
   late final LearnedWordFormDao learnedWordFormDao = LearnedWordFormDao(
     this as AppDatabase,
   );
@@ -8396,6 +9332,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     audioItemTags,
     sentenceAiCache,
     savedWords,
+    savedSenseGroups,
     learnedWordForms,
     dailyStudyRecords,
     dailyStageStudyRecords,
@@ -8464,6 +9401,13 @@ abstract class _$AppDatabase extends GeneratedDatabase {
         limitUpdateKind: UpdateKind.delete,
       ),
       result: [TableUpdate('saved_words', kind: UpdateKind.update)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'audio_items',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('saved_sense_groups', kind: UpdateKind.update)],
     ),
   ]);
 }
@@ -8667,6 +9611,29 @@ final class $$AudioItemsTableReferences
     ).filter((f) => f.audioItemId.id.sqlEquals($_itemColumn<String>('id')!));
 
     final cache = $_typedResult.readTableOrNull(_savedWordsRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<$SavedSenseGroupsTable, List<SavedSenseGroup>>
+  _savedSenseGroupsRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.savedSenseGroups,
+    aliasName: $_aliasNameGenerator(
+      db.audioItems.id,
+      db.savedSenseGroups.audioItemId,
+    ),
+  );
+
+  $$SavedSenseGroupsTableProcessedTableManager get savedSenseGroupsRefs {
+    final manager = $$SavedSenseGroupsTableTableManager(
+      $_db,
+      $_db.savedSenseGroups,
+    ).filter((f) => f.audioItemId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(
+      _savedSenseGroupsRefsTable($_db),
+    );
     return ProcessedTableManager(
       manager.$state.copyWith(prefetchedData: cache),
     );
@@ -8928,6 +9895,31 @@ class $$AudioItemsTableFilterComposer
           }) => $$SavedWordsTableFilterComposer(
             $db: $db,
             $table: $db.savedWords,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> savedSenseGroupsRefs(
+    Expression<bool> Function($$SavedSenseGroupsTableFilterComposer f) f,
+  ) {
+    final $$SavedSenseGroupsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.savedSenseGroups,
+      getReferencedColumn: (t) => t.audioItemId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SavedSenseGroupsTableFilterComposer(
+            $db: $db,
+            $table: $db.savedSenseGroups,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -9277,6 +10269,31 @@ class $$AudioItemsTableAnnotationComposer
     );
     return f(composer);
   }
+
+  Expression<T> savedSenseGroupsRefs<T extends Object>(
+    Expression<T> Function($$SavedSenseGroupsTableAnnotationComposer a) f,
+  ) {
+    final $$SavedSenseGroupsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.savedSenseGroups,
+      getReferencedColumn: (t) => t.audioItemId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SavedSenseGroupsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.savedSenseGroups,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
 }
 
 class $$AudioItemsTableTableManager
@@ -9300,6 +10317,7 @@ class $$AudioItemsTableTableManager
             bool stageCompletionsRefs,
             bool audioItemTagsRefs,
             bool savedWordsRefs,
+            bool savedSenseGroupsRefs,
           })
         > {
   $$AudioItemsTableTableManager(_$AppDatabase db, $AudioItemsTable table)
@@ -9406,6 +10424,7 @@ class $$AudioItemsTableTableManager
                 stageCompletionsRefs = false,
                 audioItemTagsRefs = false,
                 savedWordsRefs = false,
+                savedSenseGroupsRefs = false,
               }) {
                 return PrefetchHooks(
                   db: db,
@@ -9417,6 +10436,7 @@ class $$AudioItemsTableTableManager
                     if (stageCompletionsRefs) db.stageCompletions,
                     if (audioItemTagsRefs) db.audioItemTags,
                     if (savedWordsRefs) db.savedWords,
+                    if (savedSenseGroupsRefs) db.savedSenseGroups,
                   ],
                   addJoins: null,
                   getPrefetchedDataCallback: (items) async {
@@ -9568,6 +10588,27 @@ class $$AudioItemsTableTableManager
                               ),
                           typedResults: items,
                         ),
+                      if (savedSenseGroupsRefs)
+                        await $_getPrefetchedData<
+                          AudioItem,
+                          $AudioItemsTable,
+                          SavedSenseGroup
+                        >(
+                          currentTable: table,
+                          referencedTable: $$AudioItemsTableReferences
+                              ._savedSenseGroupsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$AudioItemsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).savedSenseGroupsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.audioItemId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
                     ];
                   },
                 );
@@ -9596,6 +10637,7 @@ typedef $$AudioItemsTableProcessedTableManager =
         bool stageCompletionsRefs,
         bool audioItemTagsRefs,
         bool savedWordsRefs,
+        bool savedSenseGroupsRefs,
       })
     >;
 typedef $$CollectionsTableCreateCompanionBuilder =
@@ -13714,6 +14756,538 @@ typedef $$SavedWordsTableProcessedTableManager =
       SavedWord,
       PrefetchHooks Function({bool audioItemId})
     >;
+typedef $$SavedSenseGroupsTableCreateCompanionBuilder =
+    SavedSenseGroupsCompanion Function({
+      Value<int> id,
+      required String phraseText,
+      required String displayText,
+      Value<String?> audioItemId,
+      Value<int?> sentenceIndex,
+      Value<String?> sentenceText,
+      Value<int?> sentenceStartMs,
+      Value<int?> sentenceEndMs,
+      Value<int?> groupStartMs,
+      Value<int?> groupEndMs,
+      Value<int> practiceCount,
+      required DateTime createdAt,
+      required DateTime updatedAt,
+      Value<DateTime?> deletedAt,
+      Value<int> syncStatus,
+    });
+typedef $$SavedSenseGroupsTableUpdateCompanionBuilder =
+    SavedSenseGroupsCompanion Function({
+      Value<int> id,
+      Value<String> phraseText,
+      Value<String> displayText,
+      Value<String?> audioItemId,
+      Value<int?> sentenceIndex,
+      Value<String?> sentenceText,
+      Value<int?> sentenceStartMs,
+      Value<int?> sentenceEndMs,
+      Value<int?> groupStartMs,
+      Value<int?> groupEndMs,
+      Value<int> practiceCount,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+      Value<DateTime?> deletedAt,
+      Value<int> syncStatus,
+    });
+
+final class $$SavedSenseGroupsTableReferences
+    extends
+        BaseReferences<_$AppDatabase, $SavedSenseGroupsTable, SavedSenseGroup> {
+  $$SavedSenseGroupsTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $AudioItemsTable _audioItemIdTable(_$AppDatabase db) =>
+      db.audioItems.createAlias(
+        $_aliasNameGenerator(db.savedSenseGroups.audioItemId, db.audioItems.id),
+      );
+
+  $$AudioItemsTableProcessedTableManager? get audioItemId {
+    final $_column = $_itemColumn<String>('audio_item_id');
+    if ($_column == null) return null;
+    final manager = $$AudioItemsTableTableManager(
+      $_db,
+      $_db.audioItems,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_audioItemIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$SavedSenseGroupsTableFilterComposer
+    extends Composer<_$AppDatabase, $SavedSenseGroupsTable> {
+  $$SavedSenseGroupsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get phraseText => $composableBuilder(
+    column: $table.phraseText,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get displayText => $composableBuilder(
+    column: $table.displayText,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get sentenceIndex => $composableBuilder(
+    column: $table.sentenceIndex,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get sentenceText => $composableBuilder(
+    column: $table.sentenceText,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get sentenceStartMs => $composableBuilder(
+    column: $table.sentenceStartMs,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get sentenceEndMs => $composableBuilder(
+    column: $table.sentenceEndMs,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get groupStartMs => $composableBuilder(
+    column: $table.groupStartMs,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get groupEndMs => $composableBuilder(
+    column: $table.groupEndMs,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get practiceCount => $composableBuilder(
+    column: $table.practiceCount,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get syncStatus => $composableBuilder(
+    column: $table.syncStatus,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$AudioItemsTableFilterComposer get audioItemId {
+    final $$AudioItemsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.audioItemId,
+      referencedTable: $db.audioItems,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$AudioItemsTableFilterComposer(
+            $db: $db,
+            $table: $db.audioItems,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$SavedSenseGroupsTableOrderingComposer
+    extends Composer<_$AppDatabase, $SavedSenseGroupsTable> {
+  $$SavedSenseGroupsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get phraseText => $composableBuilder(
+    column: $table.phraseText,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get displayText => $composableBuilder(
+    column: $table.displayText,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get sentenceIndex => $composableBuilder(
+    column: $table.sentenceIndex,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get sentenceText => $composableBuilder(
+    column: $table.sentenceText,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get sentenceStartMs => $composableBuilder(
+    column: $table.sentenceStartMs,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get sentenceEndMs => $composableBuilder(
+    column: $table.sentenceEndMs,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get groupStartMs => $composableBuilder(
+    column: $table.groupStartMs,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get groupEndMs => $composableBuilder(
+    column: $table.groupEndMs,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get practiceCount => $composableBuilder(
+    column: $table.practiceCount,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get syncStatus => $composableBuilder(
+    column: $table.syncStatus,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$AudioItemsTableOrderingComposer get audioItemId {
+    final $$AudioItemsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.audioItemId,
+      referencedTable: $db.audioItems,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$AudioItemsTableOrderingComposer(
+            $db: $db,
+            $table: $db.audioItems,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$SavedSenseGroupsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $SavedSenseGroupsTable> {
+  $$SavedSenseGroupsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get phraseText => $composableBuilder(
+    column: $table.phraseText,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get displayText => $composableBuilder(
+    column: $table.displayText,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get sentenceIndex => $composableBuilder(
+    column: $table.sentenceIndex,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get sentenceText => $composableBuilder(
+    column: $table.sentenceText,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get sentenceStartMs => $composableBuilder(
+    column: $table.sentenceStartMs,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get sentenceEndMs => $composableBuilder(
+    column: $table.sentenceEndMs,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get groupStartMs => $composableBuilder(
+    column: $table.groupStartMs,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get groupEndMs => $composableBuilder(
+    column: $table.groupEndMs,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get practiceCount => $composableBuilder(
+    column: $table.practiceCount,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get deletedAt =>
+      $composableBuilder(column: $table.deletedAt, builder: (column) => column);
+
+  GeneratedColumn<int> get syncStatus => $composableBuilder(
+    column: $table.syncStatus,
+    builder: (column) => column,
+  );
+
+  $$AudioItemsTableAnnotationComposer get audioItemId {
+    final $$AudioItemsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.audioItemId,
+      referencedTable: $db.audioItems,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$AudioItemsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.audioItems,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$SavedSenseGroupsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $SavedSenseGroupsTable,
+          SavedSenseGroup,
+          $$SavedSenseGroupsTableFilterComposer,
+          $$SavedSenseGroupsTableOrderingComposer,
+          $$SavedSenseGroupsTableAnnotationComposer,
+          $$SavedSenseGroupsTableCreateCompanionBuilder,
+          $$SavedSenseGroupsTableUpdateCompanionBuilder,
+          (SavedSenseGroup, $$SavedSenseGroupsTableReferences),
+          SavedSenseGroup,
+          PrefetchHooks Function({bool audioItemId})
+        > {
+  $$SavedSenseGroupsTableTableManager(
+    _$AppDatabase db,
+    $SavedSenseGroupsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$SavedSenseGroupsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$SavedSenseGroupsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$SavedSenseGroupsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<String> phraseText = const Value.absent(),
+                Value<String> displayText = const Value.absent(),
+                Value<String?> audioItemId = const Value.absent(),
+                Value<int?> sentenceIndex = const Value.absent(),
+                Value<String?> sentenceText = const Value.absent(),
+                Value<int?> sentenceStartMs = const Value.absent(),
+                Value<int?> sentenceEndMs = const Value.absent(),
+                Value<int?> groupStartMs = const Value.absent(),
+                Value<int?> groupEndMs = const Value.absent(),
+                Value<int> practiceCount = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<DateTime?> deletedAt = const Value.absent(),
+                Value<int> syncStatus = const Value.absent(),
+              }) => SavedSenseGroupsCompanion(
+                id: id,
+                phraseText: phraseText,
+                displayText: displayText,
+                audioItemId: audioItemId,
+                sentenceIndex: sentenceIndex,
+                sentenceText: sentenceText,
+                sentenceStartMs: sentenceStartMs,
+                sentenceEndMs: sentenceEndMs,
+                groupStartMs: groupStartMs,
+                groupEndMs: groupEndMs,
+                practiceCount: practiceCount,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                deletedAt: deletedAt,
+                syncStatus: syncStatus,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required String phraseText,
+                required String displayText,
+                Value<String?> audioItemId = const Value.absent(),
+                Value<int?> sentenceIndex = const Value.absent(),
+                Value<String?> sentenceText = const Value.absent(),
+                Value<int?> sentenceStartMs = const Value.absent(),
+                Value<int?> sentenceEndMs = const Value.absent(),
+                Value<int?> groupStartMs = const Value.absent(),
+                Value<int?> groupEndMs = const Value.absent(),
+                Value<int> practiceCount = const Value.absent(),
+                required DateTime createdAt,
+                required DateTime updatedAt,
+                Value<DateTime?> deletedAt = const Value.absent(),
+                Value<int> syncStatus = const Value.absent(),
+              }) => SavedSenseGroupsCompanion.insert(
+                id: id,
+                phraseText: phraseText,
+                displayText: displayText,
+                audioItemId: audioItemId,
+                sentenceIndex: sentenceIndex,
+                sentenceText: sentenceText,
+                sentenceStartMs: sentenceStartMs,
+                sentenceEndMs: sentenceEndMs,
+                groupStartMs: groupStartMs,
+                groupEndMs: groupEndMs,
+                practiceCount: practiceCount,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                deletedAt: deletedAt,
+                syncStatus: syncStatus,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$SavedSenseGroupsTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({audioItemId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (audioItemId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.audioItemId,
+                                referencedTable:
+                                    $$SavedSenseGroupsTableReferences
+                                        ._audioItemIdTable(db),
+                                referencedColumn:
+                                    $$SavedSenseGroupsTableReferences
+                                        ._audioItemIdTable(db)
+                                        .id,
+                              )
+                              as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$SavedSenseGroupsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $SavedSenseGroupsTable,
+      SavedSenseGroup,
+      $$SavedSenseGroupsTableFilterComposer,
+      $$SavedSenseGroupsTableOrderingComposer,
+      $$SavedSenseGroupsTableAnnotationComposer,
+      $$SavedSenseGroupsTableCreateCompanionBuilder,
+      $$SavedSenseGroupsTableUpdateCompanionBuilder,
+      (SavedSenseGroup, $$SavedSenseGroupsTableReferences),
+      SavedSenseGroup,
+      PrefetchHooks Function({bool audioItemId})
+    >;
 typedef $$LearnedWordFormsTableCreateCompanionBuilder =
     LearnedWordFormsCompanion Function({
       Value<int> id,
@@ -14397,6 +15971,8 @@ class $AppDatabaseManager {
       $$SentenceAiCacheTableTableManager(_db, _db.sentenceAiCache);
   $$SavedWordsTableTableManager get savedWords =>
       $$SavedWordsTableTableManager(_db, _db.savedWords);
+  $$SavedSenseGroupsTableTableManager get savedSenseGroups =>
+      $$SavedSenseGroupsTableTableManager(_db, _db.savedSenseGroups);
   $$LearnedWordFormsTableTableManager get learnedWordForms =>
       $$LearnedWordFormsTableTableManager(_db, _db.learnedWordForms);
   $$DailyStudyRecordsTableTableManager get dailyStudyRecords =>

@@ -17,6 +17,7 @@ import 'tables/tags.dart';
 import 'tables/audio_item_tags.dart';
 import 'tables/sentence_ai_cache.dart';
 import 'tables/saved_words.dart';
+import 'tables/saved_sense_groups.dart';
 import 'tables/learned_word_forms.dart';
 import 'tables/daily_study_records.dart';
 import 'tables/daily_stage_study_records.dart';
@@ -30,6 +31,7 @@ import 'daos/stage_completion_dao.dart';
 import 'daos/tag_dao.dart';
 import 'daos/sentence_ai_cache_dao.dart';
 import 'daos/saved_word_dao.dart';
+import 'daos/saved_sense_group_dao.dart';
 import 'daos/learned_word_form_dao.dart';
 import 'daos/daily_study_record_dao.dart';
 import 'daos/daily_stage_study_record_dao.dart';
@@ -54,6 +56,7 @@ part 'app_database.g.dart';
     AudioItemTags,
     SentenceAiCache,
     SavedWords,
+    SavedSenseGroups,
     LearnedWordForms,
     DailyStudyRecords,
     DailyStageStudyRecords,
@@ -68,6 +71,7 @@ part 'app_database.g.dart';
     TagDao,
     SentenceAiCacheDao,
     SavedWordDao,
+    SavedSenseGroupDao,
     LearnedWordFormDao,
     DailyStudyRecordDao,
     DailyStageStudyRecordDao,
@@ -77,7 +81,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase(super.e);
 
   /// 当前 schema 版本（静态访问，用于导入前版本检查）
-  static const currentSchemaVersion = 25;
+  static const currentSchemaVersion = 26;
 
   @override
   int get schemaVersion => currentSchemaVersion;
@@ -259,6 +263,10 @@ class AppDatabase extends _$AppDatabase {
           await customStatement(
             'DROP TABLE IF EXISTS word_timestamp_cache',
           );
+        }
+        // v25→v26：新建 saved_sense_groups 表
+        if (from < 26) {
+          await m.createTable(savedSenseGroups);
         }
         // v12→v13：audio_items 新增 transcript_source, audio_sha256, transcript_language 列
         if (from < 13) {

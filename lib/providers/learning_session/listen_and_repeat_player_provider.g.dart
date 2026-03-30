@@ -7,7 +7,7 @@ part of 'listen_and_repeat_player_provider.dart';
 // **************************************************************************
 
 String _$listenAndRepeatPlayerHash() =>
-    r'ec83770235c262c871d4ad9706f68e34b43e4ed0';
+    r'ad9b60de5b501a288acd1bff4b010975f63fa773';
 
 /// 跟读专用播放器 Provider
 ///
