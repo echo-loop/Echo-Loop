@@ -70,6 +70,7 @@ dependencies:
   archive: ^4.0.4
   share_plus: ^10.1.4
   table_calendar: ^3.2.0
+  timeago: ^3.7.1
 
 dev_dependencies:
   flutter_test:

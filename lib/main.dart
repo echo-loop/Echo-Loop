@@ -11,6 +11,7 @@ import 'package:audio_session/audio_session.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'l10n/app_localizations.dart';
+import 'utils/time_format.dart';
 import 'database/app_database.dart';
 import 'database/providers.dart';
 import 'database/migration/sp_to_drift_migration.dart';
@@ -63,6 +64,7 @@ Future<void> _migrateDbFileNames() async {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  initTimeago();
 
   final packageInfo = await PackageInfo.fromPlatform();
 
