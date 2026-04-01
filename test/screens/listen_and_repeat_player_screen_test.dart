@@ -22,7 +22,7 @@ import 'package:fluency/providers/sentence_ai_provider.dart';
 import 'package:fluency/database/daos/sentence_ai_cache_dao.dart';
 import 'package:fluency/services/sentence_ai_api_client.dart';
 import 'package:fluency/services/speech_practice_platform.dart';
-import 'package:fluency/widgets/listen_and_repeat/speech_record_button.dart';
+import 'package:fluency/widgets/common/recording_button.dart';
 import 'package:fluency/theme/app_theme.dart';
 
 import '../helpers/mock_providers.dart';
@@ -365,7 +365,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.byType(SpeechRecordButton), findsNothing);
+      expect(find.byType(RecordingButton), findsNothing);
     });
 
     testWidgets('轮到用户说时自动开始录音并显示录音按钮', (tester) async {
@@ -379,12 +379,12 @@ void main() {
           ),
         ),
       );
-      // 使用 pump 而非 pumpAndSettle，因为 SpeechRecordButton 有循环脉冲动画
+      // 使用 pump 而非 pumpAndSettle，因为 RecordingButton 有循环脉冲动画
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
 
       // awaitingSpeech 阶段录音已激活，显示 mic 图标（红色背景）
-      expect(find.byType(SpeechRecordButton), findsOneWidget);
+      expect(find.byType(RecordingButton), findsOneWidget);
       expect(find.byIcon(Icons.mic_rounded), findsOneWidget);
     });
 
@@ -404,7 +404,7 @@ void main() {
 
       // 停顿中，RetellRecordingController 自动开始录音，
       // 映射为 speaking → 显示 "Recording..." 和录音按钮
-      expect(find.byType(SpeechRecordButton), findsOneWidget);
+      expect(find.byType(RecordingButton), findsOneWidget);
       expect(find.byIcon(Icons.mic_rounded), findsOneWidget);
     });
 

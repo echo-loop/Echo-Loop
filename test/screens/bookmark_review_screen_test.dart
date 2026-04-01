@@ -24,8 +24,7 @@ import 'package:fluency/providers/listen_and_repeat_turn_controller_provider.dar
 import 'package:fluency/services/sentence_ai_api_client.dart';
 import 'package:fluency/theme/app_theme.dart';
 import 'package:fluency/widgets/practice/sentence_annotation_card.dart';
-import 'package:fluency/widgets/listen_and_repeat/speech_practice_turn_panel.dart';
-import 'package:fluency/widgets/listen_and_repeat/speech_record_button.dart';
+import 'package:fluency/widgets/common/recording_button.dart';
 
 import '../helpers/mock_providers.dart';
 
@@ -492,8 +491,7 @@ void main() {
       await tester.pump();
 
       // 跟读留白期显示录音面板（含录音按钮）
-      expect(find.byType(SpeechPracticeTurnPanel), findsOneWidget);
-      expect(find.byType(SpeechRecordButton), findsOneWidget);
+      expect(find.byType(RecordingButton), findsOneWidget);
     });
   });
 
