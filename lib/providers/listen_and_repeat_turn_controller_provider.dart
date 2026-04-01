@@ -52,7 +52,6 @@ enum ListenAndRepeatTurnPhase {
   speaking,
   processing,
   reviewCountdown,
-  waitingForUser,
 }
 
 /// 跟读回合状态
@@ -87,9 +86,7 @@ class ListenAndRepeatTurnState {
     this.permissions = const SpeechPracticePermissionState(),
   });
 
-  bool get isActive =>
-      phase != ListenAndRepeatTurnPhase.idle &&
-      phase != ListenAndRepeatTurnPhase.waitingForUser;
+  bool get isActive => phase != ListenAndRepeatTurnPhase.idle;
 
   /// 是否正在录制指定 promptId
   bool isRecordingPrompt(String id) =>
@@ -609,7 +606,7 @@ class ShadowingRecordingController extends Notifier<ListenAndRepeatTurnState> {
 
   // ── 等待开口计时器 ──
 
-  /// 60s 内未检测到语音 → 取消录音，进入 waitingForUser。
+  /// 60s 内未检测到语音 → 取消录音，回到 idle。
   void _scheduleAwaitingSpeechTimer(String promptId) {
     _awaitingSpeechTimer?.cancel();
     _awaitingSpeechTimer = Timer(_awaitingSpeechTimeout, () async {
@@ -619,10 +616,9 @@ class ShadowingRecordingController extends Notifier<ListenAndRepeatTurnState> {
       }
       AppLogger.log(
         'ShadowRec',
-        '⏰ ${_awaitingSpeechTimeout.inSeconds}s 未检测到语音 → waitingForUser',
+        '⏰ ${_awaitingSpeechTimeout.inSeconds}s 未检测到语音 → idle',
       );
       await cancelActiveRecording();
-      state = state.copyWith(phase: ListenAndRepeatTurnPhase.waitingForUser);
     });
   }
 
@@ -727,7 +723,7 @@ class ShadowingRecordingController extends Notifier<ListenAndRepeatTurnState> {
   void _handleAppLifecycleChange(AppLifecycleState appState) {
     if (appState == AppLifecycleState.paused ||
         appState == AppLifecycleState.hidden) {
-      AppLogger.log('ShadowRec', 'App 进入后台 → waitingForUser');
+      AppLogger.log('ShadowRec', 'App 进入后台 → idle');
       _cancelAllTimers();
       _isStopping = false;
       _hasDetectedSpeech = false;
@@ -738,7 +734,7 @@ class ShadowingRecordingController extends Notifier<ListenAndRepeatTurnState> {
       unawaited(_recordingService.cancelRecording());
       // 保留 currentAttempt（评级 badge）和 permissions
       state = ListenAndRepeatTurnState(
-        phase: ListenAndRepeatTurnPhase.waitingForUser,
+        phase: ListenAndRepeatTurnPhase.idle,
         permissions: state.permissions,
         currentAttempt: state.currentAttempt,
       );

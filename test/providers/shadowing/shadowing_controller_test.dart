@@ -120,69 +120,47 @@ void main() {
     });
   });
 
-  group('手动暂停/恢复', () {
-    test('pause → Interrupted(manualPause)', () async {
+  group('等待用户操作 (WaitingForUser)', () {
+    test('enterWaitingForUser → WaitingForUser', () async {
       await controller.startSession(
         sentences: createTestSentences(count: 3),
         config: _testConfig(),
       );
 
-      // 当前应在 Recording
       expect(readState().phase, isA<ShadowingRecording>());
 
-      controller.pause();
+      controller.enterWaitingForUser();
 
-      expect(readState().phase, isA<Interrupted>());
-      final interrupted = readState().phase as Interrupted;
-      expect(interrupted.reason, InterruptReason.manualPause);
-      expect(interrupted.phaseBeforeInterrupt, isA<ShadowingRecording>());
+      expect(readState().phase, isA<WaitingForUser>());
     });
 
-    test('Idle 状态 pause 无效', () async {
-      // 初始 Idle
+    test('Idle 状态 enterWaitingForUser 无效', () async {
       expect(readState().phase, isA<Idle>());
-      controller.pause();
-      expect(readState().phase, isA<Idle>()); // 不变
+      controller.enterWaitingForUser();
+      expect(readState().phase, isA<Idle>());
     });
 
-    test('重复 pause 无效', () async {
+    test('重复 enterWaitingForUser 无效', () async {
       await controller.startSession(
         sentences: createTestSentences(count: 3),
         config: _testConfig(),
       );
-      controller.pause();
-      final firstInterrupt = readState().phase;
+      controller.enterWaitingForUser();
+      expect(readState().phase, isA<WaitingForUser>());
 
-      controller.pause(); // 再 pause
-      expect(readState().phase, firstInterrupt); // 不变
-    });
-  });
-
-  group('外部打断（查词典/设置）', () {
-    test('openLookup → Interrupted(lookupWord)', () async {
-      await controller.startSession(
-        sentences: createTestSentences(count: 3),
-        config: _testConfig(),
-      );
-
-      controller.openLookup();
-
-      expect(readState().phase, isA<Interrupted>());
-      final interrupted = readState().phase as Interrupted;
-      expect(interrupted.reason, InterruptReason.lookupWord);
+      controller.enterWaitingForUser();
+      expect(readState().phase, isA<WaitingForUser>());
     });
 
-    test('openSettings → Interrupted(settings)', () async {
+    test('onUserInteraction → WaitingForUser', () async {
       await controller.startSession(
         sentences: createTestSentences(count: 3),
         config: _testConfig(),
       );
 
-      controller.openSettings();
+      controller.onUserInteraction();
 
-      expect(readState().phase, isA<Interrupted>());
-      final interrupted = readState().phase as Interrupted;
-      expect(interrupted.reason, InterruptReason.settings);
+      expect(readState().phase, isA<WaitingForUser>());
     });
   });
 
@@ -257,14 +235,14 @@ void main() {
   });
 
   group('手动模式', () {
-    test('手动模式下播放完成后进入 WaitingInterval（不自动录音）', () async {
+    test('手动模式下播放完成后进入 WaitingForUser（不自动录音）', () async {
       await controller.startSession(
         sentences: createTestSentences(count: 3),
         config: _testConfig(isManualMode: true),
       );
 
-      // 手动模式：播放完成后进入 WaitingInterval，等用户手动操作
-      expect(readState().phase, isA<WaitingInterval>());
+      // 手动模式：播放完成后进入 WaitingForUser，等用户手动操作
+      expect(readState().phase, isA<WaitingForUser>());
     });
   });
 

@@ -140,8 +140,10 @@ class _ListenAndRepeatPlayerScreenState
   Future<void> _handleRecordTap() async {
     final ctrlState = ref.read(shadowingControllerProvider);
     if (ctrlState.phase is! WaitingInterval &&
-        ctrlState.phase is! ShadowingRecording)
+        ctrlState.phase is! WaitingForUser &&
+        ctrlState.phase is! ShadowingRecording) {
       return;
+    }
 
     final ctrl = ref.read(shadowingControllerProvider.notifier);
     final recState = ref.read(shadowingRecordingControllerProvider);
@@ -179,7 +181,7 @@ class _ListenAndRepeatPlayerScreenState
   Future<void> _handleExit() async {
     _isExiting = true;
     final ctrl = ref.read(shadowingControllerProvider.notifier);
-    ctrl.pause();
+    ctrl.enterWaitingForUser();
     if (!mounted) return;
 
     final session = ref.read(learningSessionProvider);
@@ -373,7 +375,9 @@ class _ListenAndRepeatPlayerScreenState
   ///
   /// 包含 WaitingInterval（录音前/后）和 ShadowingRecording（录音中）。
   bool _isInPauseState(ShadowingPhase phase) {
-    return phase is WaitingInterval || phase is ShadowingRecording;
+    return phase is WaitingInterval ||
+        phase is WaitingForUser ||
+        phase is ShadowingRecording;
   }
 
   /// 判断是否应显示倒计时芯片
@@ -469,9 +473,9 @@ class _ListenAndRepeatPlayerScreenState
                 .clearRecording();
             ctrl.replayCurrentSentence();
           } else if (isPlaying) {
-            ctrl.pause();
+            ctrl.enterWaitingForUser();
           } else {
-            ctrl.resume();
+            ctrl.replayCurrentSentence();
           }
         },
         onPrevious: () {
@@ -553,14 +557,14 @@ class _ListenAndRepeatPlayerScreenState
                                   highlightedSegments:
                                       currentAttempt?.referenceSegments,
                                   onStopMainPlayer: () {
-                                    ctrl.openLookup();
+                                    ctrl.onUserInteraction();
                                   },
                                   onToolbarButtonTapped: () {
                                     AppLogger.log(
                                       'ShadowScreen',
                                       '工具栏点击: 打断流程',
                                     );
-                                    ctrl.openLookup();
+                                    ctrl.onUserInteraction();
                                   },
                                 ),
                               ),
@@ -759,9 +763,9 @@ class _ListenAndRepeatPlayerScreenState
                                 .clearRecording();
                             ctrl.replayCurrentSentence();
                           } else if (isPlaying) {
-                            ctrl.pause();
+                            ctrl.enterWaitingForUser();
                           } else {
-                            ctrl.resume();
+                            ctrl.replayCurrentSentence();
                           }
                         },
                       ),

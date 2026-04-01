@@ -459,7 +459,7 @@ void main() {
       });
     });
 
-    test('60s 未开口 → 进入 waitingForUser', () async {
+    test('60s 未开口 → 取消录音回到 idle', () async {
       final backend = _FakeSpeechPracticeBackend(autoEmitFinal: false);
       final container = ProviderContainer(
         overrides: [speechPracticeBackendProvider.overrideWithValue(backend)],
@@ -485,10 +485,8 @@ void main() {
         ListenAndRepeatTurnPhase.awaitingSpeech,
       );
 
-      // 模拟超时行为：直接取消并设置 waitingForUser
+      // 模拟超时行为：取消录音回到 idle
       await controller.cancelActiveRecording();
-      // cancelActiveRecording 只会设 idle，需要验证计时器最终会走到 waitingForUser
-      // 这里直接验证 cancelActiveRecording 能正常工作
       expect(
         container.read(shadowingRecordingControllerProvider).phase,
         ListenAndRepeatTurnPhase.idle,

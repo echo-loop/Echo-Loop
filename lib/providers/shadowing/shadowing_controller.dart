@@ -133,50 +133,19 @@ class ShadowingController extends _$ShadowingController {
     await _playCurrentSentence();
   }
 
-  /// 手动暂停（恢复时继续剩余倒计时间）
-  void pause() {
+  /// 进入等待用户操作状态
+  ///
+  /// 停止所有资源（播放/录音/倒计时），进入 WaitingForUser。
+  /// 用户做任何操作（录音/播放/切句）后自动恢复正常流程。
+  void enterWaitingForUser() {
     final phase = state.phase;
-    if (phase is Interrupted) return;
-    if (phase is Idle || phase is SessionCompleted) return;
+    if (phase is WaitingForUser || phase is Idle || phase is SessionCompleted) {
+      return;
+    }
 
     _stopAllResources();
-    state = state.copyWith(
-      phase: Interrupted(
-        reason: InterruptReason.manualPause,
-        phaseBeforeInterrupt: phase,
-      ),
-    );
-    AppLogger.log('Shadowing', '暂停: 从 ${phase.runtimeType}');
-  }
-
-  /// 恢复（从暂停/打断中恢复）
-  Future<void> resume() async {
-    final phase = state.phase;
-    if (phase is! Interrupted) return;
-
-    final reason = phase.reason;
-    final previousPhase = phase.phaseBeforeInterrupt;
-    final keepRemaining = reason == InterruptReason.manualPause;
-
-    AppLogger.log(
-      'Shadowing',
-      '恢复: 回到 ${previousPhase.runtimeType}, 原因=$reason',
-    );
-
-    switch (previousPhase) {
-      case PlayingPrompt():
-        await _playCurrentSentence();
-      case ShadowingRecording():
-        // 录音被打断后不恢复录音，进入 WaitingInterval
-        await _startInterval(resetFull: !keepRemaining);
-      case WaitingInterval():
-        await _startInterval(resetFull: !keepRemaining);
-      case ReviewingRecording():
-        // 回放被打断后不恢复回放，进入 WaitingInterval
-        await _startInterval(resetFull: !keepRemaining);
-      default:
-        state = state.copyWith(phase: const Idle());
-    }
+    state = state.copyWith(phase: const WaitingForUser());
+    AppLogger.log('Shadowing', '→ WaitingForUser (从 ${phase.runtimeType})');
   }
 
   /// 下一句（原子重置）
@@ -191,16 +160,16 @@ class ShadowingController extends _$ShadowingController {
     await _jumpToSentence(state.sentenceIndex - 1);
   }
 
-  /// 手动开始录音（手动模式下用户点击录音按钮）
+  /// 手动开始录音
   ///
-  /// 只在 WaitingInterval 阶段允许开始录音。
+  /// 在 WaitingInterval 或 WaitingForUser 阶段允许开始录音。
   void startManualRecording() {
-    AppLogger.log(
-      'Shadowing',
-      'startManualRecording: phase=${state.phase.runtimeType}',
-    );
-    if (state.phase is! WaitingInterval) {
-      AppLogger.log('Shadowing', '⏭ 跳过: 不在 WaitingInterval');
+    final phase = state.phase;
+    if (phase is! WaitingInterval && phase is! WaitingForUser) {
+      AppLogger.log(
+        'Shadowing',
+        'startManualRecording 跳过: phase=${phase.runtimeType}',
+      );
       return;
     }
     _startRecording();
@@ -224,7 +193,7 @@ class ShadowingController extends _$ShadowingController {
       // 没检测到语音 → 取消录音，回到等待状态
       AppLogger.log('Shadowing', '手动停止录音: 无语音 → 取消');
       await recController.cancelActiveRecording();
-      state = state.copyWith(phase: const WaitingInterval());
+      state = state.copyWith(phase: const WaitingForUser());
       return;
     }
 
@@ -239,8 +208,9 @@ class ShadowingController extends _$ShadowingController {
     if (path == null || path.isEmpty) return;
 
     final phase = state.phase;
-    // 只允许在 WaitingInterval 或录音完成后（idle 可能短暂出现）播放
-    if (phase is! WaitingInterval && phase is! Idle) return;
+    if (phase is! WaitingInterval &&
+        phase is! WaitingForUser &&
+        phase is! Idle) return;
 
     // 如果在倒计时中，取消倒计时
     if (phase is WaitingInterval) {
@@ -260,28 +230,16 @@ class ShadowingController extends _$ShadowingController {
     // _playbackSub 会触发 _onReviewPlaybackFinished
   }
 
-  /// 查词典（打断，恢复后重置 T）
-  void openLookup() {
-    _interrupt(InterruptReason.lookupWord);
+  /// 用户打开弹窗（查词典/设置等）→ 进入等待用户状态
+  void onUserInteraction() {
+    enterWaitingForUser();
   }
 
-  /// 关闭词典
-  Future<void> closeLookup() async {
-    await resume();
-  }
-
-  /// 打开设置（打断，恢复后重置 T）
-  void openSettings() {
-    _interrupt(InterruptReason.settings);
-  }
-
-  /// 关闭设置
-  Future<void> closeSettings() async {
-    // 设置可能改变了 isManualMode
+  /// 用户关闭设置弹窗 → 同步设置变更
+  void onSettingsClosed() {
     ref
         .read(shadowingRecordingControllerProvider.notifier)
         .setManualMode(_config.isManualMode());
-    await resume();
   }
 
   /// 快进倒计时（10 倍速）
@@ -450,13 +408,12 @@ class ShadowingController extends _$ShadowingController {
       _onRecordingFinished(token, attempt.filePath, attempt.score);
     }
 
-    // 录音超时/取消（→ waitingForUser 或 → idle 无结果）→ 回到等待状态
+    // 录音取消/超时（→ idle 无结果）→ 等待用户操作
     if (state.phase is ShadowingRecording &&
-        (next.phase == ListenAndRepeatTurnPhase.waitingForUser ||
-            (next.phase == ListenAndRepeatTurnPhase.idle &&
-                next.currentAttempt == null))) {
-      AppLogger.log('Shadowing', '录音取消/超时 → WaitingInterval');
-      state = state.copyWith(phase: const WaitingInterval());
+        next.phase == ListenAndRepeatTurnPhase.idle &&
+        next.currentAttempt == null) {
+      AppLogger.log('Shadowing', '录音取消/超时 → WaitingForUser');
+      state = state.copyWith(phase: const WaitingForUser());
     }
   }
 
@@ -472,7 +429,7 @@ class ShadowingController extends _$ShadowingController {
 
     if (_config.isManualMode()) {
       // 手动模式：不自动录音，等用户手动操作
-      state = state.copyWith(phase: const WaitingInterval());
+      state = state.copyWith(phase: const WaitingForUser());
       return;
     }
 
@@ -497,7 +454,7 @@ class ShadowingController extends _$ShadowingController {
       // 先改 phase，再 clear，避免 clearRecording 触发 _onRecordingStateChanged 时
       // state.phase 还是 ShadowingRecording 导致二次触发
       state = state.copyWith(
-        phase: const WaitingInterval(),
+        phase: const WaitingForUser(),
         recordingPath: null,
         recordingScore: null,
       );
@@ -505,10 +462,10 @@ class ShadowingController extends _$ShadowingController {
       return;
     }
 
-    // 手动模式：停在 WaitingInterval，等用户操作
+    // 手动模式：等用户操作
     if (_config.isManualMode()) {
       AppLogger.log('Shadowing', '→ 手动模式，等待用户操作');
-      state = state.copyWith(phase: const WaitingInterval());
+      state = state.copyWith(phase: const WaitingForUser());
       return;
     }
 
@@ -523,7 +480,7 @@ class ShadowingController extends _$ShadowingController {
     AppLogger.log('Shadowing', '回放结束 → WaitingInterval');
 
     if (_config.isManualMode()) {
-      state = state.copyWith(phase: const WaitingInterval());
+      state = state.copyWith(phase: const WaitingForUser());
       return;
     }
 
@@ -690,19 +647,6 @@ class ShadowingController extends _$ShadowingController {
     _playbackService.stop();
   }
 
-  /// 打断当前流程
-  void _interrupt(InterruptReason reason) {
-    final phase = state.phase;
-    if (phase is Interrupted || phase is Idle || phase is SessionCompleted) {
-      return;
-    }
-
-    _stopAllResources();
-    state = state.copyWith(
-      phase: Interrupted(reason: reason, phaseBeforeInterrupt: phase),
-    );
-    AppLogger.log('Shadowing', '打断: $reason, 从 ${phase.runtimeType}');
-  }
 
   /// 当前句子
   Sentence? get _currentSentence =>

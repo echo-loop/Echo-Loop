@@ -39,15 +39,13 @@ class WaitingInterval extends ShadowingPhase {
   const WaitingInterval();
 }
 
-/// 被打断（查词典、改设置、手动暂停等）
-class Interrupted extends ShadowingPhase {
-  /// 打断原因
-  final InterruptReason reason;
-
-  /// 打断前所在的阶段（恢复时回到这个阶段）
-  final ShadowingPhase phaseBeforeInterrupt;
-
-  const Interrupted({required this.reason, required this.phaseBeforeInterrupt});
+/// 等待用户操作
+///
+/// 录音失败/超时需要重试、用户点了翻译/解析/查词、打开设置弹窗等场景。
+/// 不自动推进，等用户主动操作（录音/播放/切句）后恢复自动流程。
+/// 与 [WaitingInterval] 的区别：没有倒计时。
+class WaitingForUser extends ShadowingPhase {
+  const WaitingForUser();
 }
 
 /// 当前句子所有遍数完成（短暂过渡，自动推进到下一句或完成）
@@ -60,14 +58,3 @@ class SessionCompleted extends ShadowingPhase {
   const SessionCompleted();
 }
 
-/// 打断原因
-enum InterruptReason {
-  /// 用户手动暂停（恢复后继续剩余倒计时间）
-  manualPause,
-
-  /// 查词典（恢复后重置完整 T 秒）
-  lookupWord,
-
-  /// 打开设置（恢复后重置完整 T 秒）
-  settings,
-}

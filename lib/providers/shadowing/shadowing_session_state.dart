@@ -98,11 +98,11 @@ class ShadowingSessionState {
   /// 是否为最后一遍
   bool get isLastRepeat => repeatIndex >= totalRepeats - 1;
 
-  /// 是否在倒计时中（WaitingInterval 且未被打断）
+  /// 是否在倒计时中
   bool get isCountingDown => phase is WaitingInterval;
 
-  /// 是否被打断
-  bool get isInterrupted => phase is Interrupted;
+  /// 是否在等待用户操作
+  bool get isWaitingForUser => phase is WaitingForUser;
 
   /// 是否已完成
   bool get isCompleted =>

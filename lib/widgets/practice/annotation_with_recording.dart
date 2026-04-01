@@ -208,8 +208,7 @@ class AnnotationWithRecording extends StatelessWidget {
               builder: (context) {
                 final mode = isRecordingCurrent
                     ? switch (turnState.phase) {
-                        ListenAndRepeatTurnPhase.idle ||
-                        ListenAndRepeatTurnPhase.waitingForUser =>
+                        ListenAndRepeatTurnPhase.idle =>
                           RecordingButtonMode.idle,
                         ListenAndRepeatTurnPhase.awaitingSpeech ||
                         ListenAndRepeatTurnPhase.speaking =>
