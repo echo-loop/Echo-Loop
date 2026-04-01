@@ -14,7 +14,7 @@ import 'groups/collection_tests.dart';
 import 'groups/learning_plan_tests.dart';
 import 'groups/blind_listen_tests.dart';
 import 'groups/intensive_listen_tests.dart';
-import 'groups/listen_and_repeat_tests.dart';
+import 'groups/shadowing_tests.dart';
 import 'groups/learning_flow_tests.dart';
 import 'groups/audio_star_tests.dart';
 import 'groups/tag_tests.dart';
@@ -39,7 +39,7 @@ void main() {
   learningPlanTests();
   blindListenTests();
   intensiveListenTests();
-  listenAndRepeatTests();
+  shadowingTests();
   learningFlowTests();
   statsDisplayTests();
   retellTests();

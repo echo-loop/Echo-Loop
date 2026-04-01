@@ -9,7 +9,7 @@ import '../../l10n/app_localizations.dart';
 import '../../theme/app_theme.dart';
 
 /// 显示跟读简报底部弹窗
-Future<void> showListenAndRepeatBriefingSheet({
+Future<void> showShadowingBriefingSheet({
   required BuildContext context,
   required int difficultCount,
   required int playCount,
@@ -22,7 +22,7 @@ Future<void> showListenAndRepeatBriefingSheet({
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
     ),
-    builder: (context) => ListenAndRepeatBriefingSheet(
+    builder: (context) => ShadowingBriefingSheet(
       difficultCount: difficultCount,
       playCount: playCount,
       estimatedDuration: estimatedDuration,
@@ -32,7 +32,7 @@ Future<void> showListenAndRepeatBriefingSheet({
 }
 
 /// 跟读简报弹窗内容
-class ListenAndRepeatBriefingSheet extends StatelessWidget {
+class ShadowingBriefingSheet extends StatelessWidget {
   /// 难句总数
   final int difficultCount;
 
@@ -45,7 +45,7 @@ class ListenAndRepeatBriefingSheet extends StatelessWidget {
   /// 开始练习回调
   final VoidCallback onStartPractice;
 
-  const ListenAndRepeatBriefingSheet({
+  const ShadowingBriefingSheet({
     super.key,
     required this.difficultCount,
     required this.playCount,

@@ -25,7 +25,7 @@ import '../study_stats_provider.dart';
 import '../../services/app_logger.dart';
 import '../audio_engine/audio_engine_provider.dart';
 import '../learning_progress_provider.dart';
-import '../listen_and_repeat_turn_controller_provider.dart';
+import '../shadowing/shadowing_recording_controller.dart';
 import '../retell_recording_controller_provider.dart';
 import '../listening_practice/listening_practice_provider.dart';
 import 'blind_listen_player_provider.dart';

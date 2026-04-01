@@ -22,7 +22,7 @@ import '../audio_engine/audio_engine_provider.dart';
 import '../learning_progress_provider.dart';
 import '../learning_session/countdown_controller.dart';
 import '../learning_session/learning_session_provider.dart';
-import '../listen_and_repeat_turn_controller_provider.dart';
+import 'shadowing_recording_controller.dart';
 import '../listening_practice/bookmark_manager.dart';
 import 'shadowing_phase.dart';
 import 'shadowing_session_state.dart';
@@ -394,14 +394,14 @@ class ShadowingController extends _$ShadowingController {
 
   /// 录音控制器状态变化回调
   void _onRecordingStateChanged(
-    ListenAndRepeatTurnState? prev,
-    ListenAndRepeatTurnState next,
+    ShadowingRecordingState? prev,
+    ShadowingRecordingState next,
   ) {
     if (prev == null) return;
 
     // 评估完成（processing → idle，有结果）→ 推进流程
-    if (prev.phase == ListenAndRepeatTurnPhase.processing &&
-        next.phase == ListenAndRepeatTurnPhase.idle &&
+    if (prev.phase == ShadowingRecordingPhase.processing &&
+        next.phase == ShadowingRecordingPhase.idle &&
         next.currentAttempt != null) {
       final token = state.flowToken;
       final attempt = next.currentAttempt!;
@@ -410,7 +410,7 @@ class ShadowingController extends _$ShadowingController {
 
     // 录音取消/超时（→ idle 无结果）→ 等待用户操作
     if (state.phase is ShadowingRecording &&
-        next.phase == ListenAndRepeatTurnPhase.idle &&
+        next.phase == ShadowingRecordingPhase.idle &&
         next.currentAttempt == null) {
       AppLogger.log('Shadowing', '录音取消/超时 → WaitingForUser');
       state = state.copyWith(phase: const WaitingForUser());

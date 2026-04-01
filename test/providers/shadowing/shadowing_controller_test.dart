@@ -14,7 +14,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:fluency/models/audio_engine_state.dart';
 import 'package:fluency/models/sentence.dart';
 import 'package:fluency/providers/audio_engine/audio_engine_provider.dart';
-import 'package:fluency/providers/listen_and_repeat_turn_controller_provider.dart';
+import 'package:fluency/providers/shadowing/shadowing_recording_controller.dart';
 import 'package:fluency/providers/shadowing/shadowing_controller.dart';
 import 'package:fluency/providers/shadowing/shadowing_phase.dart';
 import 'package:fluency/providers/shadowing/shadowing_session_state.dart';

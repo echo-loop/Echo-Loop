@@ -21,7 +21,7 @@ import 'package:fluency/database/app_database.dart' show Bookmark;
 import 'package:fluency/database/providers.dart';
 import 'package:fluency/providers/sentence_ai_provider.dart';
 import 'package:fluency/providers/speech_practice_session_provider.dart';
-import 'package:fluency/providers/listen_and_repeat_turn_controller_provider.dart';
+import 'package:fluency/providers/shadowing/shadowing_recording_controller.dart';
 import 'package:fluency/services/sentence_ai_api_client.dart';
 import 'package:fluency/theme/app_theme.dart';
 import 'package:fluency/widgets/practice/sentence_annotation_card.dart';
@@ -97,7 +97,7 @@ void main() {
     Locale locale = const Locale('en'),
     ReviewDifficultPracticeState? playerState,
     LearningSessionState? sessionState,
-    ListenAndRepeatTurnPhase turnPhase = ListenAndRepeatTurnPhase.idle,
+    ShadowingRecordingPhase turnPhase = ShadowingRecordingPhase.idle,
     TestReviewDifficultPractice Function(
       ReviewDifficultPracticeState initialState,
       List<Sentence> sentences,
@@ -483,7 +483,7 @@ void main() {
             pauseRemaining: const Duration(seconds: 5),
             pauseDuration: const Duration(seconds: 8),
           ),
-          turnPhase: ListenAndRepeatTurnPhase.awaitingSpeech,
+          turnPhase: ShadowingRecordingPhase.awaitingSpeech,
         ),
       );
       await tester.pump();

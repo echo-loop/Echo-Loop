@@ -20,7 +20,7 @@ import '../screens/learning_plan_screen.dart';
 import '../screens/player_screen.dart';
 import '../screens/blind_listen_player_screen.dart';
 import '../screens/intensive_listen_player_screen.dart';
-import '../screens/listen_and_repeat_player_screen.dart';
+import '../screens/shadowing_player_screen.dart';
 import '../screens/retell_player_screen.dart';
 import '../screens/review_difficult_practice_screen.dart';
 import '../screens/bookmark_review_screen.dart';
@@ -70,7 +70,7 @@ abstract class AppRoutes {
       : '/audio/$audioId/intensive-listen';
 
   /// 跟读播放器页路径
-  static String listenAndRepeatPlayer(String? collectionId, String audioId) =>
+  static String shadowingPlayer(String? collectionId, String audioId) =>
       collectionId != null
       ? '/collections/$collectionId/$audioId/listen-and-repeat'
       : '/audio/$audioId/listen-and-repeat';
@@ -237,7 +237,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) {
           final audioId = state.pathParameters['audioId']!;
-          return ListenAndRepeatPlayerScreen(
+          return ShadowingPlayerScreen(
             collectionId: null,
             audioItemId: audioId,
           );
@@ -313,7 +313,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) {
           final collectionId = state.pathParameters['collectionId']!;
           final audioId = state.pathParameters['audioId']!;
-          return ListenAndRepeatPlayerScreen(
+          return ShadowingPlayerScreen(
             collectionId: collectionId,
             audioItemId: audioId,
           );

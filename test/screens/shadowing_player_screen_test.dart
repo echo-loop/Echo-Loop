@@ -12,7 +12,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:fluency/l10n/app_localizations.dart';
-import 'package:fluency/screens/listen_and_repeat_player_screen.dart';
+import 'package:fluency/screens/shadowing_player_screen.dart';
 import 'package:fluency/providers/listening_practice/listening_practice_provider.dart';
 import 'package:fluency/providers/audio_engine/audio_engine_provider.dart';
 import 'package:fluency/providers/learning_progress_provider.dart';
@@ -136,7 +136,7 @@ void main() {
   // TODO: createPlayerState / createTestWidget 依赖旧 ListenAndRepeatPlayer，
   // 需要基于新播放器重写。
 
-  group('ListenAndRepeatPlayerScreen', () {
+  group('ShadowingPlayerScreen', () {
     testWidgets('显示跟读 AppBar 标题', skip: true, // 需要基于新播放器重写
     (tester) async {
     });

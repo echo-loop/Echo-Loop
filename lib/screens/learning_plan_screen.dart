@@ -28,7 +28,7 @@ import '../utils/keyword_extraction.dart';
 import '../utils/paragraph_grouping.dart';
 import '../widgets/blind_listen_paragraph_sheet.dart';
 import '../widgets/intensive_listen/intensive_listen_briefing_sheet.dart';
-import '../widgets/listen_and_repeat/listen_and_repeat_briefing_sheet.dart';
+import '../widgets/shadowing/shadowing_briefing_sheet.dart';
 import '../providers/learning_session/retell_player_provider.dart';
 import '../widgets/retell/retell_briefing_sheet.dart';
 import '../widgets/review/review_briefing_sheet.dart';
@@ -606,7 +606,7 @@ class _LearningPlanScreenState extends ConsumerState<LearningPlanScreen> {
     );
     final repeatEstimate = difficultDuration * playCount * 2;
 
-    showListenAndRepeatBriefingSheet(
+    showShadowingBriefingSheet(
       context: context,
       difficultCount: difficultIndices.length,
       playCount: playCount,
@@ -617,7 +617,7 @@ class _LearningPlanScreenState extends ConsumerState<LearningPlanScreen> {
             .enterListenAndRepeatMode(widget.audioItemId, lpState.sentences);
         if (!context.mounted) return;
         context.push(
-          AppRoutes.listenAndRepeatPlayer(
+          AppRoutes.shadowingPlayer(
             widget.collectionId,
             widget.audioItemId,
           ),
@@ -1330,7 +1330,7 @@ class _FirstStudySection extends ConsumerWidget {
           isFreePlay: true,
         );
     if (context.mounted) {
-      context.push(AppRoutes.listenAndRepeatPlayer(collectionId, audioItemId));
+      context.push(AppRoutes.shadowingPlayer(collectionId, audioItemId));
     }
   }
 

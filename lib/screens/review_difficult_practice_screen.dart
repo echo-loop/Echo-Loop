@@ -27,7 +27,7 @@ import '../providers/learning_progress_provider.dart';
 import '../providers/learning_session/learning_session_provider.dart';
 import '../providers/learning_session/review_difficult_practice_provider.dart';
 import '../providers/listening_practice/bookmark_manager.dart';
-import '../providers/listen_and_repeat_turn_controller_provider.dart';
+import '../providers/shadowing/shadowing_recording_controller.dart';
 import '../services/app_logger.dart';
 import '../services/audio_playback_service.dart';
 import '../utils/wakelock_mixin.dart';
@@ -498,8 +498,8 @@ class _ReviewDifficultPracticeScreenState
         controller.setManualMode(next.isManualMode);
         if (next.isManualMode) {
           final recState = ref.read(shadowingRecordingControllerProvider);
-          if (recState.phase == ListenAndRepeatTurnPhase.awaitingSpeech ||
-              recState.phase == ListenAndRepeatTurnPhase.speaking) {
+          if (recState.phase == ShadowingRecordingPhase.awaitingSpeech ||
+              recState.phase == ShadowingRecordingPhase.speaking) {
             controller.cancelActiveRecording();
           }
         }
@@ -507,12 +507,12 @@ class _ReviewDifficultPracticeScreenState
     });
 
     // 评估完成 → 启动 review countdown（仅跟读模式）
-    ref.listen<ListenAndRepeatTurnState>(shadowingRecordingControllerProvider, (
+    ref.listen<ShadowingRecordingState>(shadowingRecordingControllerProvider, (
       prev,
       next,
     ) {
-      if (prev?.phase == ListenAndRepeatTurnPhase.processing &&
-          next.phase == ListenAndRepeatTurnPhase.idle &&
+      if (prev?.phase == ShadowingRecordingPhase.processing &&
+          next.phase == ShadowingRecordingPhase.idle &&
           next.currentAttempt != null) {
         final latestState = ref.read(reviewDifficultPracticeProvider);
         if (latestState.isPauseBetweenPlays &&
@@ -548,7 +548,7 @@ class _ReviewDifficultPracticeScreenState
         playerState.isPauseBetweenPlays &&
         currentSentence != null &&
         !playerState.isManualMode &&
-        turnState.phase == ListenAndRepeatTurnPhase.idle &&
+        turnState.phase == ShadowingRecordingPhase.idle &&
         !playerState.isPostEvalCountdown) {
       final promptId = currentPromptId;
       final referenceText = currentSentence.text;
@@ -556,7 +556,7 @@ class _ReviewDifficultPracticeScreenState
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
         final latestRecState = ref.read(shadowingRecordingControllerProvider);
-        if (latestRecState.phase != ListenAndRepeatTurnPhase.idle) return;
+        if (latestRecState.phase != ShadowingRecordingPhase.idle) return;
         final latestPlayer = ref.read(reviewDifficultPracticeProvider);
         if (!latestPlayer.isAnnotationMode ||
             !latestPlayer.isPauseBetweenPlays ||

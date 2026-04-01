@@ -36,7 +36,7 @@ import '../study_stats_provider.dart';
 import 'countdown_controller.dart';
 import 'review_difficult_practice_provider.dart';
 import 'sentence_playback_engine.dart';
-import '../listen_and_repeat_turn_controller_provider.dart';
+import '../shadowing/shadowing_recording_controller.dart';
 
 part 'bookmark_review_provider.g.dart';
 

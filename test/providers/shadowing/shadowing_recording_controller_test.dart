@@ -4,7 +4,7 @@ import 'package:fake_async/fake_async.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fluency/models/speech_practice_models.dart';
-import 'package:fluency/providers/listen_and_repeat_turn_controller_provider.dart';
+import 'package:fluency/providers/shadowing/shadowing_recording_controller.dart';
 import 'package:fluency/providers/speech_practice_session_provider.dart';
 import 'package:fluency/services/speech_practice_platform.dart';
 
@@ -246,7 +246,7 @@ void main() {
       await Future<void>.delayed(const Duration(milliseconds: 20));
 
       final turnState = container.read(shadowingRecordingControllerProvider);
-      expect(turnState.phase, ListenAndRepeatTurnPhase.processing);
+      expect(turnState.phase, ShadowingRecordingPhase.processing);
     });
 
     test('部分匹配（尾部 0 命中）时 5s 静音才停止', () async {
@@ -277,7 +277,7 @@ void main() {
 
       expect(
         container.read(shadowingRecordingControllerProvider).phase,
-        ListenAndRepeatTurnPhase.speaking,
+        ShadowingRecordingPhase.speaking,
       );
 
       // 5s 静音才触发（尾部 0 命中 → 5s 阈值）
@@ -286,7 +286,7 @@ void main() {
 
       expect(
         container.read(shadowingRecordingControllerProvider).phase,
-        ListenAndRepeatTurnPhase.processing,
+        ShadowingRecordingPhase.processing,
       );
     });
 
@@ -317,7 +317,7 @@ void main() {
       await Future<void>.delayed(const Duration(milliseconds: 20));
       expect(
         container.read(shadowingRecordingControllerProvider).phase,
-        ListenAndRepeatTurnPhase.speaking,
+        ShadowingRecordingPhase.speaking,
       );
 
       // 5s 触发兜底
@@ -325,7 +325,7 @@ void main() {
       await Future<void>.delayed(const Duration(milliseconds: 20));
       expect(
         container.read(shadowingRecordingControllerProvider).phase,
-        ListenAndRepeatTurnPhase.processing,
+        ShadowingRecordingPhase.processing,
       );
     });
 
@@ -353,7 +353,7 @@ void main() {
 
         expect(
           container.read(shadowingRecordingControllerProvider).phase,
-          ListenAndRepeatTurnPhase.speaking,
+          ShadowingRecordingPhase.speaking,
         );
 
         // 完全匹配 → 阈值 1s，等 1s 后停滞计时器触发
@@ -361,7 +361,7 @@ void main() {
 
         expect(
           container.read(shadowingRecordingControllerProvider).phase,
-          ListenAndRepeatTurnPhase.processing,
+          ShadowingRecordingPhase.processing,
         );
 
         backend.dispose();
@@ -395,14 +395,14 @@ void main() {
         async.elapse(const Duration(seconds: 4));
         expect(
           container.read(shadowingRecordingControllerProvider).phase,
-          ListenAndRepeatTurnPhase.speaking,
+          ShadowingRecordingPhase.speaking,
         );
 
         // 5s 后停滞计时器触发
         async.elapse(const Duration(seconds: 1));
         expect(
           container.read(shadowingRecordingControllerProvider).phase,
-          ListenAndRepeatTurnPhase.processing,
+          ShadowingRecordingPhase.processing,
         );
 
         backend.dispose();
@@ -435,7 +435,7 @@ void main() {
         async.elapse(const Duration(seconds: 4));
         expect(
           container.read(shadowingRecordingControllerProvider).phase,
-          ListenAndRepeatTurnPhase.speaking,
+          ShadowingRecordingPhase.speaking,
         );
         backend.emitPartial('Anyhow I noticed');
         async.flushMicrotasks();
@@ -444,14 +444,14 @@ void main() {
         async.elapse(const Duration(seconds: 4));
         expect(
           container.read(shadowingRecordingControllerProvider).phase,
-          ListenAndRepeatTurnPhase.speaking,
+          ShadowingRecordingPhase.speaking,
         );
 
         // 再过 1s（共 5s 无更新）→ 触发
         async.elapse(const Duration(seconds: 1));
         expect(
           container.read(shadowingRecordingControllerProvider).phase,
-          ListenAndRepeatTurnPhase.processing,
+          ShadowingRecordingPhase.processing,
         );
 
         backend.dispose();
@@ -482,14 +482,14 @@ void main() {
 
       expect(
         container.read(shadowingRecordingControllerProvider).phase,
-        ListenAndRepeatTurnPhase.awaitingSpeech,
+        ShadowingRecordingPhase.awaitingSpeech,
       );
 
       // 模拟超时行为：取消录音回到 idle
       await controller.cancelActiveRecording();
       expect(
         container.read(shadowingRecordingControllerProvider).phase,
-        ListenAndRepeatTurnPhase.idle,
+        ShadowingRecordingPhase.idle,
       );
     });
 
@@ -511,7 +511,7 @@ void main() {
 
         expect(
           container.read(shadowingRecordingControllerProvider).phase,
-          ListenAndRepeatTurnPhase.awaitingSpeech,
+          ShadowingRecordingPhase.awaitingSpeech,
         );
 
         // 只发送 partialTranscript，不发送 speechStarted（模拟压低声音）
@@ -520,7 +520,7 @@ void main() {
 
         expect(
           container.read(shadowingRecordingControllerProvider).phase,
-          ListenAndRepeatTurnPhase.speaking,
+          ShadowingRecordingPhase.speaking,
         );
 
         backend.dispose();
@@ -552,12 +552,12 @@ void main() {
         // 29s 时仍在录音
         async.elapse(const Duration(seconds: 29));
         final midState = container.read(shadowingRecordingControllerProvider);
-        expect(midState.phase, ListenAndRepeatTurnPhase.speaking);
+        expect(midState.phase, ShadowingRecordingPhase.speaking);
 
         // 30s 时触发最大时长兜底
         async.elapse(const Duration(seconds: 1));
         final finalState = container.read(shadowingRecordingControllerProvider);
-        expect(finalState.phase, ListenAndRepeatTurnPhase.processing);
+        expect(finalState.phase, ShadowingRecordingPhase.processing);
 
         backend.dispose();
         container.dispose();
@@ -592,14 +592,14 @@ void main() {
 
         expect(
           container.read(shadowingRecordingControllerProvider).phase,
-          ListenAndRepeatTurnPhase.speaking,
+          ShadowingRecordingPhase.speaking,
         );
 
         // 手动模式兜底上限：max(300s, 5 × 30s) = 300s
         async.elapse(const Duration(seconds: 300));
         expect(
           container.read(shadowingRecordingControllerProvider).phase,
-          ListenAndRepeatTurnPhase.processing,
+          ShadowingRecordingPhase.processing,
         );
 
         backend.dispose();

@@ -1,6 +1,6 @@
 /// 复述录音控制器 provider。
 ///
-/// 独立于跟读的 [ListenAndRepeatTurnController]，专为复述场景设计。
+/// 独立于跟读的 [ShadowingRecordingController]，专为复述场景设计。
 /// 使用 [RecordingService] 管理录音生命周期，录音结束后自动释放麦克风。
 /// 评估由控制器直接调用 [SpeechTranscriptMatcher]。
 ///

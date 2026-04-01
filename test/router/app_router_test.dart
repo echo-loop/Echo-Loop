@@ -91,7 +91,7 @@ void main() {
         '/audio/audio-2/intensive-listen',
       );
       expect(
-        AppRoutes.listenAndRepeatPlayer(null, 'audio-2'),
+        AppRoutes.shadowingPlayer(null, 'audio-2'),
         '/audio/audio-2/listen-and-repeat',
       );
       expect(AppRoutes.retellPlayer(null, 'audio-2'), '/audio/audio-2/retell');

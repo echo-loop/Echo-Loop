@@ -15,13 +15,13 @@ import 'package:fluency/database/enums.dart';
 import 'package:fluency/providers/learning_progress_provider.dart';
 import 'package:fluency/providers/learning_session/learning_session_provider.dart';
 import 'package:fluency/router/app_router.dart';
-import 'package:fluency/screens/listen_and_repeat_player_screen.dart';
+import 'package:fluency/screens/shadowing_player_screen.dart';
 import 'package:fluency/widgets/practice/sentence_annotation_card.dart';
 
 import '../helpers/test_notifiers.dart';
 
 /// 跟读播放器集成测试
-void listenAndRepeatTests() {
+void shadowingTests() {
   group('流程 8：跟读播放器', () {
     /// 导航到跟读播放器的辅助方法
     ///
@@ -166,7 +166,7 @@ void listenAndRepeatTests() {
       await tester.pumpAndSettle();
 
       // 验证跟读页面已退出
-      expect(find.byType(ListenAndRepeatPlayerScreen), findsNothing);
+      expect(find.byType(ShadowingPlayerScreen), findsNothing);
 
       // 验证断点已保存
       final context = tester.element(find.byType(FluencyApp));

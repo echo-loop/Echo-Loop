@@ -22,13 +22,13 @@ import 'dart:async';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../models/speech_practice_models.dart';
-import '../services/app_logger.dart';
-import '../services/recording_service.dart';
-import '../services/speech_completion_detector.dart';
-import '../services/speech_practice_platform.dart';
-import '../services/study_event_recorder.dart';
-import 'speech_practice_session_provider.dart';
+import '../../models/speech_practice_models.dart';
+import '../../services/app_logger.dart';
+import '../../services/recording_service.dart';
+import '../../services/speech_completion_detector.dart';
+import '../../services/speech_practice_platform.dart';
+import '../../services/study_event_recorder.dart';
+import '../speech_practice_session_provider.dart';
 
 /// 等待开口最大时长
 const _awaitingSpeechTimeout = Duration(seconds: 60);
@@ -46,7 +46,7 @@ const _manualModeInitialMax = Duration(seconds: 300);
 const _manualModeMultiplier = 5;
 
 /// 跟读回合阶段
-enum ListenAndRepeatTurnPhase {
+enum ShadowingRecordingPhase {
   idle,
   awaitingSpeech,
   speaking,
@@ -55,8 +55,8 @@ enum ListenAndRepeatTurnPhase {
 }
 
 /// 跟读回合状态
-class ListenAndRepeatTurnState {
-  final ListenAndRepeatTurnPhase phase;
+class ShadowingRecordingState {
+  final ShadowingRecordingPhase phase;
   final String? promptId;
   final String? referenceText;
 
@@ -75,8 +75,8 @@ class ListenAndRepeatTurnState {
   /// 权限状态
   final SpeechPracticePermissionState permissions;
 
-  const ListenAndRepeatTurnState({
-    this.phase = ListenAndRepeatTurnPhase.idle,
+  const ShadowingRecordingState({
+    this.phase = ShadowingRecordingPhase.idle,
     this.promptId,
     this.referenceText,
     this.currentAttempt,
@@ -86,16 +86,16 @@ class ListenAndRepeatTurnState {
     this.permissions = const SpeechPracticePermissionState(),
   });
 
-  bool get isActive => phase != ListenAndRepeatTurnPhase.idle;
+  bool get isActive => phase != ShadowingRecordingPhase.idle;
 
   /// 是否正在录制指定 promptId
   bool isRecordingPrompt(String id) =>
       promptId == id &&
-      (phase == ListenAndRepeatTurnPhase.awaitingSpeech ||
-          phase == ListenAndRepeatTurnPhase.speaking);
+      (phase == ShadowingRecordingPhase.awaitingSpeech ||
+          phase == ShadowingRecordingPhase.speaking);
 
-  ListenAndRepeatTurnState copyWith({
-    ListenAndRepeatTurnPhase? phase,
+  ShadowingRecordingState copyWith({
+    ShadowingRecordingPhase? phase,
     String? promptId,
     bool clearPromptId = false,
     String? referenceText,
@@ -108,7 +108,7 @@ class ListenAndRepeatTurnState {
     Duration? silenceDuration,
     SpeechPracticePermissionState? permissions,
   }) {
-    return ListenAndRepeatTurnState(
+    return ShadowingRecordingState(
       phase: phase ?? this.phase,
       promptId: clearPromptId ? null : (promptId ?? this.promptId),
       referenceText: clearReferenceText
@@ -197,7 +197,7 @@ final speechPracticeCompletionHeuristicProvider =
 
 /// 跟读录音控制器 provider
 final shadowingRecordingControllerProvider =
-    NotifierProvider<ShadowingRecordingController, ListenAndRepeatTurnState>(
+    NotifierProvider<ShadowingRecordingController, ShadowingRecordingState>(
       ShadowingRecordingController.new,
     );
 
@@ -210,7 +210,7 @@ final shadowingRecordingControllerProvider =
 /// - 状态机含 awaitingSpeech / speaking 两个子阶段
 /// - 静音检测用 [SpeechPracticeCompletionHeuristic]（句子级启发式）
 /// - 评估仅用覆盖率，不使用 embedding 相似度
-class ShadowingRecordingController extends Notifier<ListenAndRepeatTurnState> {
+class ShadowingRecordingController extends Notifier<ShadowingRecordingState> {
   // ── 服务 ──
   late RecordingService _recordingService;
   StreamSubscription<SpeechPracticeEvent>? _eventSub;
@@ -234,7 +234,7 @@ class ShadowingRecordingController extends Notifier<ListenAndRepeatTurnState> {
   Duration _maxRecordingDuration = _defaultMaxRecordingDuration;
 
   @override
-  ListenAndRepeatTurnState build() {
+  ShadowingRecordingState build() {
     final backend = ref.read(speechPracticeBackendProvider);
     _recordingService = RecordingService(backend);
 
@@ -247,7 +247,7 @@ class ShadowingRecordingController extends Notifier<ListenAndRepeatTurnState> {
       _eventSub?.cancel();
       _recordingService.dispose();
     });
-    return const ListenAndRepeatTurnState();
+    return const ShadowingRecordingState();
   }
 
   // ========== 配置方法 ==========
@@ -295,8 +295,8 @@ class ShadowingRecordingController extends Notifier<ListenAndRepeatTurnState> {
     AppLogger.log('ShadowRec', '┌ startRecording (manual=$_isManualMode)');
     AppLogger.log('ShadowRec', '│ promptId=$promptId');
 
-    state = ListenAndRepeatTurnState(
-      phase: ListenAndRepeatTurnPhase.awaitingSpeech,
+    state = ShadowingRecordingState(
+      phase: ShadowingRecordingPhase.awaitingSpeech,
       promptId: promptId,
       referenceText: referenceText,
       permissions: state.permissions,
@@ -311,7 +311,7 @@ class ShadowingRecordingController extends Notifier<ListenAndRepeatTurnState> {
     } on SpeechPracticePlatformException catch (error) {
       AppLogger.log('ShadowRec', '└ 录音启动失败: ${error.code} → idle');
       state = state.copyWith(
-        phase: ListenAndRepeatTurnPhase.idle,
+        phase: ShadowingRecordingPhase.idle,
         currentAttempt: SpeechPracticeAttempt(promptId: promptId).copyWith(
           status: _statusFromError(error.code),
           errorMessage: error.message,
@@ -364,7 +364,7 @@ class ShadowingRecordingController extends Notifier<ListenAndRepeatTurnState> {
     await _recordingService.cancelRecording();
 
     state = state.copyWith(
-      phase: ListenAndRepeatTurnPhase.idle,
+      phase: ShadowingRecordingPhase.idle,
       clearLiveTranscript: true,
       hasDetectedSpeech: false,
       silenceDuration: Duration.zero,
@@ -384,7 +384,7 @@ class ShadowingRecordingController extends Notifier<ListenAndRepeatTurnState> {
     _eventSub = null;
     // 先读取文件路径，再立即重置状态（避免 await 延迟状态重置导致自动录音触发失败）
     final filePath = state.currentAttempt?.filePath;
-    state = ListenAndRepeatTurnState(permissions: state.permissions);
+    state = ShadowingRecordingState(permissions: state.permissions);
     // 异步删除录音临时文件（fire-and-forget）
     if (filePath != null && filePath.isNotEmpty) {
       unawaited(_recordingService.deleteRecording(filePath));
@@ -430,7 +430,7 @@ class ShadowingRecordingController extends Notifier<ListenAndRepeatTurnState> {
       );
       AppLogger.log('ShadowRec', '✗ 录音失败: ${result.errorCode}');
       state = state.copyWith(
-        phase: ListenAndRepeatTurnPhase.idle,
+        phase: ShadowingRecordingPhase.idle,
         currentAttempt: attempt,
         clearLiveTranscript: true,
         hasDetectedSpeech: false,
@@ -466,7 +466,7 @@ class ShadowingRecordingController extends Notifier<ListenAndRepeatTurnState> {
     );
 
     state = state.copyWith(
-      phase: ListenAndRepeatTurnPhase.idle,
+      phase: ShadowingRecordingPhase.idle,
       currentAttempt: attempt,
       clearLiveTranscript: true,
       hasDetectedSpeech: false,
@@ -477,7 +477,7 @@ class ShadowingRecordingController extends Notifier<ListenAndRepeatTurnState> {
   void _enterProcessing(String promptId) {
     if (state.promptId != promptId) return;
     _cancelAllTimers();
-    state = state.copyWith(phase: ListenAndRepeatTurnPhase.processing);
+    state = state.copyWith(phase: ShadowingRecordingPhase.processing);
   }
 
   // ── 事件处理 ──
@@ -486,8 +486,8 @@ class ShadowingRecordingController extends Notifier<ListenAndRepeatTurnState> {
     final promptId = state.promptId;
     if (promptId == null || event.promptId != promptId) return;
     if (_isStopping) return;
-    if (state.phase != ListenAndRepeatTurnPhase.awaitingSpeech &&
-        state.phase != ListenAndRepeatTurnPhase.speaking) {
+    if (state.phase != ShadowingRecordingPhase.awaitingSpeech &&
+        state.phase != ShadowingRecordingPhase.speaking) {
       return;
     }
 
@@ -611,7 +611,7 @@ class ShadowingRecordingController extends Notifier<ListenAndRepeatTurnState> {
     _awaitingSpeechTimer?.cancel();
     _awaitingSpeechTimer = Timer(_awaitingSpeechTimeout, () async {
       if (state.promptId != promptId ||
-          state.phase != ListenAndRepeatTurnPhase.awaitingSpeech) {
+          state.phase != ShadowingRecordingPhase.awaitingSpeech) {
         return;
       }
       AppLogger.log(
@@ -629,9 +629,9 @@ class ShadowingRecordingController extends Notifier<ListenAndRepeatTurnState> {
     _awaitingSpeechTimer = null;
 
     // awaitingSpeech → speaking
-    if (state.phase == ListenAndRepeatTurnPhase.awaitingSpeech) {
+    if (state.phase == ShadowingRecordingPhase.awaitingSpeech) {
       AppLogger.log('ShadowRec', '🎤 检测到语音 → speaking');
-      state = state.copyWith(phase: ListenAndRepeatTurnPhase.speaking);
+      state = state.copyWith(phase: ShadowingRecordingPhase.speaking);
     }
 
     final effectiveMaxDuration = _isManualMode
@@ -669,7 +669,7 @@ class ShadowingRecordingController extends Notifier<ListenAndRepeatTurnState> {
     );
     _transcriptStaleTimer = Timer(threshold, () {
       if (state.promptId != promptId || _isStopping) return;
-      if (state.phase != ListenAndRepeatTurnPhase.speaking) return;
+      if (state.phase != ShadowingRecordingPhase.speaking) return;
       _stopForEvaluation(
         promptId: promptId,
         reason: '转录停滞 ${threshold.inMilliseconds}ms',
@@ -692,8 +692,8 @@ class ShadowingRecordingController extends Notifier<ListenAndRepeatTurnState> {
     _maxDurationTimer?.cancel();
     _maxDurationTimer = Timer(maxDuration, () {
       if (state.promptId != promptId) return;
-      if (state.phase == ListenAndRepeatTurnPhase.awaitingSpeech ||
-          state.phase == ListenAndRepeatTurnPhase.speaking) {
+      if (state.phase == ShadowingRecordingPhase.awaitingSpeech ||
+          state.phase == ShadowingRecordingPhase.speaking) {
         AppLogger.log('ShadowRec', '⏰ 最大录音时长 ${maxDuration.inSeconds}s');
         _stopForEvaluation(promptId: promptId, reason: '最大录音时长');
       }
@@ -733,8 +733,8 @@ class ShadowingRecordingController extends Notifier<ListenAndRepeatTurnState> {
       _eventSub = null;
       unawaited(_recordingService.cancelRecording());
       // 保留 currentAttempt（评级 badge）和 permissions
-      state = ListenAndRepeatTurnState(
-        phase: ListenAndRepeatTurnPhase.idle,
+      state = ShadowingRecordingState(
+        phase: ShadowingRecordingPhase.idle,
         permissions: state.permissions,
         currentAttempt: state.currentAttempt,
       );

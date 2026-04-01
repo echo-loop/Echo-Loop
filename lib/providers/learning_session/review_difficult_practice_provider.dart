@@ -25,7 +25,7 @@ import '../audio_engine/audio_engine_provider.dart';
 import '../learned_vocabulary_tracker_provider.dart';
 import '../../services/app_logger.dart';
 import '../learning_progress_provider.dart';
-import '../listen_and_repeat_turn_controller_provider.dart';
+import '../shadowing/shadowing_recording_controller.dart';
 import 'countdown_controller.dart';
 import 'learning_session_provider.dart';
 import 'sentence_playback_engine.dart';
