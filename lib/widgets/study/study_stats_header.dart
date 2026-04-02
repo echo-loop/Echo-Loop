@@ -125,77 +125,82 @@ class _TodayCard extends StatelessWidget {
             ),
             const SizedBox(height: 10),
             // 第二行：听 / 说 / 词汇 三列（clamp 防御脏数据）
-            Builder(builder: (context) {
-              final clampedInput = math.min(
-                stats.todayInputSeconds,
-                stats.todaySeconds,
-              );
-              final clampedOutput = math.min(
-                stats.todayOutputSeconds,
-                stats.todaySeconds,
-              );
-              if (clampedInput != stats.todayInputSeconds ||
-                  clampedOutput != stats.todayOutputSeconds) {
-                debugPrint(
-                  '⚠️ 今日卡片 clamp: input ${stats.todayInputSeconds}→$clampedInput, '
-                  'output ${stats.todayOutputSeconds}→$clampedOutput, '
-                  'total ${stats.todaySeconds}',
+            Builder(
+              builder: (context) {
+                final clampedInput = math.min(
+                  stats.todayInputSeconds,
+                  stats.todaySeconds,
                 );
-              }
-              return Row(
-              children: [
-                Expanded(
-                  flex: 3,
-                  child: _ListenSpeakItem(
-                    icon: Icons.headphones_outlined,
-                    iconColor: kInputColor,
-                    timeText: _formatTimeShort(clampedInput),
-                    wordText:
-                        '${_formatWordCount(stats.todayInputWords)}${l10n.localeName == 'zh' ? '词' : 'w'}',
-                    onTap: () => showDayStageBreakdownSheet(
-                      context: context,
-                      date: today,
-                      studyTimeService: studyTimeService,
-                      mode: StageBreakdownMode.input,
+                final clampedOutput = math.min(
+                  stats.todayOutputSeconds,
+                  stats.todaySeconds,
+                );
+                if (clampedInput != stats.todayInputSeconds ||
+                    clampedOutput != stats.todayOutputSeconds) {
+                  debugPrint(
+                    '⚠️ 今日卡片 clamp: input ${stats.todayInputSeconds}→$clampedInput, '
+                    'output ${stats.todayOutputSeconds}→$clampedOutput, '
+                    'total ${stats.todaySeconds}',
+                  );
+                }
+                return Row(
+                  children: [
+                    Expanded(
+                      flex: 3,
+                      child: _ListenSpeakItem(
+                        icon: Icons.headphones_outlined,
+                        iconColor: kInputColor,
+                        timeText: _formatTimeShort(clampedInput),
+                        wordText:
+                            '${_formatWordCount(stats.todayInputWords)}${l10n.localeName == 'zh' ? '词' : 'w'}',
+                        onTap: () => showDayStageBreakdownSheet(
+                          context: context,
+                          date: today,
+                          studyTimeService: studyTimeService,
+                          mode: StageBreakdownMode.input,
+                        ),
+                      ),
                     ),
-                  ),
-                ),
-                Container(
-                  width: 1,
-                  height: 24,
-                  color: theme.colorScheme.outlineVariant.withValues(alpha: 0.4),
-                ),
-                Expanded(
-                  flex: 3,
-                  child: _ListenSpeakItem(
-                    icon: Icons.mic_outlined,
-                    iconColor: kOutputColor,
-                    timeText: _formatTimeShort(clampedOutput),
-                    wordText:
-                        '${_formatWordCount(stats.todayOutputWords)}${l10n.localeName == 'zh' ? '词' : 'w'}',
-                    onTap: () => showDayStageBreakdownSheet(
-                      context: context,
-                      date: today,
-                      studyTimeService: studyTimeService,
-                      mode: StageBreakdownMode.output,
+                    Container(
+                      width: 1,
+                      height: 24,
+                      color: theme.colorScheme.outlineVariant.withValues(
+                        alpha: 0.4,
+                      ),
                     ),
-                  ),
-                ),
-                Container(
-                  width: 1,
-                  height: 24,
-                  color: theme.colorScheme.outlineVariant.withValues(alpha: 0.4),
-                ),
-                Expanded(
-                  flex: 2,
-                  child: _VocabItem(
-                    todayNew: stats.todayNewWordForms,
-                    onTap: () => showLearnedWordFormsSheet(context: context),
-                  ),
-                ),
-              ],
-            );
-            }),
+                    Expanded(
+                      flex: 2,
+                      child: _ListenSpeakItem(
+                        icon: Icons.mic_outlined,
+                        iconColor: kOutputColor,
+                        timeText: _formatTimeShort(clampedOutput),
+                        onTap: () => showDayStageBreakdownSheet(
+                          context: context,
+                          date: today,
+                          studyTimeService: studyTimeService,
+                          mode: StageBreakdownMode.output,
+                        ),
+                      ),
+                    ),
+                    Container(
+                      width: 1,
+                      height: 24,
+                      color: theme.colorScheme.outlineVariant.withValues(
+                        alpha: 0.4,
+                      ),
+                    ),
+                    Expanded(
+                      flex: 2,
+                      child: _VocabItem(
+                        todayNew: stats.todayNewWordForms,
+                        onTap: () =>
+                            showLearnedWordFormsSheet(context: context),
+                      ),
+                    ),
+                  ],
+                );
+              },
+            ),
           ],
         ),
       ),
@@ -210,14 +215,14 @@ class _ListenSpeakItem extends StatelessWidget {
   final IconData icon;
   final Color iconColor;
   final String timeText;
-  final String wordText;
+  final String? wordText;
   final VoidCallback? onTap;
 
   const _ListenSpeakItem({
     required this.icon,
     required this.iconColor,
     required this.timeText,
-    required this.wordText,
+    this.wordText,
     this.onTap,
   });
 
@@ -243,20 +248,26 @@ class _ListenSpeakItem extends StatelessWidget {
                 color: theme.colorScheme.onSurface,
               ),
             ),
-            Text(
-              ' · ',
-              style: baseStyle.copyWith(
-                fontSize: 10,
-                color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
+            if (wordText != null) ...[
+              Text(
+                ' · ',
+                style: baseStyle.copyWith(
+                  fontSize: 10,
+                  color: theme.colorScheme.onSurfaceVariant.withValues(
+                    alpha: 0.5,
+                  ),
+                ),
               ),
-            ),
-            Text(
-              wordText,
-              style: baseStyle.copyWith(
-                fontSize: 10,
-                color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
+              Text(
+                wordText!,
+                style: baseStyle.copyWith(
+                  fontSize: 10,
+                  color: theme.colorScheme.onSurfaceVariant.withValues(
+                    alpha: 0.5,
+                  ),
+                ),
               ),
-            ),
+            ],
           ],
         ),
       ),
@@ -363,8 +374,7 @@ class _WeeklyBarChartState extends State<_WeeklyBarChart> {
     final l10n = AppLocalizations.of(context)!;
 
     // 柱高基于 totalSeconds（而非 input+output），避免重叠计时导致柱高虚高
-    final maxSeconds =
-        widget.dailyTotalSeconds.reduce((a, b) => a > b ? a : b);
+    final maxSeconds = widget.dailyTotalSeconds.reduce((a, b) => a > b ? a : b);
     const maxBarHeight = 56.0;
 
     // 计算最近 7 天的星期标签
@@ -376,12 +386,7 @@ class _WeeklyBarChartState extends State<_WeeklyBarChart> {
 
     return Card(
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(
-          AppSpacing.m,
-          12,
-          AppSpacing.m,
-          12,
-        ),
+        padding: const EdgeInsets.fromLTRB(AppSpacing.m, 12, AppSpacing.m, 12),
         child: Column(
           children: [
             // 标题行：本周累计
@@ -411,17 +416,21 @@ class _WeeklyBarChartState extends State<_WeeklyBarChart> {
                 final isToday = i == 6;
                 final totalSec = widget.dailyTotalSeconds[i];
                 final ratio = maxSeconds > 0 ? totalSec / maxSeconds : 0.0;
-                final barHeight =
-                    (ratio * maxBarHeight).clamp(3.0, maxBarHeight);
+                final barHeight = (ratio * maxBarHeight).clamp(
+                  3.0,
+                  maxBarHeight,
+                );
 
                 // Clamp input/output 防御历史脏数据
-                final hasBreakdown = widget.dailyInputSeconds[i] > 0 ||
+                final hasBreakdown =
+                    widget.dailyInputSeconds[i] > 0 ||
                     widget.dailyOutputSeconds[i] > 0;
                 final rawInput = hasBreakdown
                     ? widget.dailyInputSeconds[i]
                     : widget.dailyTotalSeconds[i];
-                final rawOutput =
-                    hasBreakdown ? widget.dailyOutputSeconds[i] : 0;
+                final rawOutput = hasBreakdown
+                    ? widget.dailyOutputSeconds[i]
+                    : 0;
                 var inputSec = math.min(rawInput, totalSec);
                 var outputSec = math.min(rawOutput, totalSec);
                 // input+output 超过 total 时按比例缩放
@@ -432,14 +441,10 @@ class _WeeklyBarChartState extends State<_WeeklyBarChart> {
                   outputSec = (outputSec * scale).round();
                 }
                 // 三段比例：听 / 说 / 其它
-                final otherSec =
-                    math.max(0, totalSec - inputSec - outputSec);
-                final inputRatio =
-                    totalSec > 0 ? inputSec / totalSec : 1.0;
-                final outputRatio =
-                    totalSec > 0 ? outputSec / totalSec : 0.0;
-                final otherRatio =
-                    totalSec > 0 ? otherSec / totalSec : 0.0;
+                final otherSec = math.max(0, totalSec - inputSec - outputSec);
+                final inputRatio = totalSec > 0 ? inputSec / totalSec : 1.0;
+                final outputRatio = totalSec > 0 ? outputSec / totalSec : 0.0;
+                final otherRatio = totalSec > 0 ? otherSec / totalSec : 0.0;
 
                 // 点击高亮效果
                 final isHighlighted = _highlightIndex == i;
@@ -485,8 +490,9 @@ class _WeeklyBarChartState extends State<_WeeklyBarChart> {
                             weekdayLabels[i],
                             style: theme.textTheme.labelSmall?.copyWith(
                               fontSize: 10,
-                              fontWeight:
-                                  isToday ? FontWeight.bold : FontWeight.normal,
+                              fontWeight: isToday
+                                  ? FontWeight.bold
+                                  : FontWeight.normal,
                               color: isToday
                                   ? theme.colorScheme.primary
                                   : theme.colorScheme.onSurfaceVariant,
@@ -660,8 +666,22 @@ class CefrRecommendationTable extends StatelessWidget {
     //   高级: 听力 18min, 口语 12min, 日总 30min
     final levels = [
       CefrLevel('A1–A2', isZh ? '初级' : 'Beginner', '12', '8', '5,000', '1,700'),
-      CefrLevel('B1–B2', isZh ? '中级' : 'Intermediate', '15', '10', '5,500', '3,500'),
-      CefrLevel('C1–C2', isZh ? '高级' : 'Advanced', '18', '12', '6,000', '5,000'),
+      CefrLevel(
+        'B1–B2',
+        isZh ? '中级' : 'Intermediate',
+        '15',
+        '10',
+        '5,500',
+        '3,500',
+      ),
+      CefrLevel(
+        'C1–C2',
+        isZh ? '高级' : 'Advanced',
+        '18',
+        '12',
+        '6,000',
+        '5,000',
+      ),
     ];
 
     final listenHeader = isZh ? '听力（输入）' : 'Listening (input)';
