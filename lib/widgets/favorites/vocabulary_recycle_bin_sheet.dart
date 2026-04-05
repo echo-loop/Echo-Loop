@@ -212,7 +212,6 @@ class _VocabularyRecycleBinSheetState
                     vertical: AppSpacing.s,
                   ),
                   child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Expanded(
                         child: Text(
