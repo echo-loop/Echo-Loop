@@ -137,8 +137,6 @@ class _SentenceRecycleBinSheetState
                           children: [
                             Text(
                               item.bookmark.sentenceText,
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
                               style: theme.textTheme.bodyMedium,
                             ),
                             const SizedBox(height: 4),

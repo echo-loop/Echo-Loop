@@ -28,31 +28,31 @@ class _ZhCnMessages implements timeago.LookupMessages {
   @override
   String prefixFromNow() => '';
   @override
-  String suffixAgo() => '前';
+  String suffixAgo() => '';
   @override
-  String suffixFromNow() => '后';
+  String suffixFromNow() => '';
   @override
   String lessThanOneMinute(int seconds) => '刚刚';
   @override
-  String aboutAMinute(int minutes) => '1分钟';
+  String aboutAMinute(int minutes) => '1分钟前';
   @override
-  String minutes(int minutes) => '$minutes分钟';
+  String minutes(int minutes) => '$minutes分钟前';
   @override
-  String aboutAnHour(int minutes) => '1小时';
+  String aboutAnHour(int minutes) => '1小时前';
   @override
-  String hours(int hours) => '$hours小时';
+  String hours(int hours) => '$hours小时前';
   @override
-  String aDay(int hours) => '1天';
+  String aDay(int hours) => '1天前';
   @override
-  String days(int days) => '$days天';
+  String days(int days) => '$days天前';
   @override
-  String aboutAMonth(int days) => '1个月';
+  String aboutAMonth(int days) => '1个月前';
   @override
-  String months(int months) => '$months个月';
+  String months(int months) => '$months个月前';
   @override
-  String aboutAYear(int year) => '1年';
+  String aboutAYear(int year) => '1年前';
   @override
-  String years(int years) => '$years年';
+  String years(int years) => '$years年前';
   @override
   String wordSeparator() => '';
 }
