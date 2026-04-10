@@ -22,6 +22,17 @@
 - [x] 图标 star → push_pin（30° 倾斜、size 20、pinned 红色 `AppTheme.pinColor`）
 - [x] 国际化：星标 → 置顶
 - [x] 测试：provider 排序 6 项 + collection 排序 4 项 + sortAudioItems 单测 8 项
+- [x] 音频列表项、合集列表项与合集网格卡片统一移除外露 pin，改为菜单内 pin/unpin，置顶态改为淡背景色标记
+
+  **完成时间**: 2026-04-10
+
+---
+
+## 已完成：共享跟读权限错误文案窄屏截断修复
+
+- [x] `RepeatPracticePanel` 在 `permissionDenied` / error 态切换到加高状态槽位，允许英文错误文案双行居中显示
+- [x] 保持正常录音/倒计时态原有固定高度，不影响共享跟读中间区的稳定布局
+- [x] 新增 `repeat_practice_panel_test.dart`，覆盖英文权限文案在窄屏下完整显示且“Go to Settings”按钮仍可见
 
   **完成时间**: 2026-04-10
 

@@ -25,7 +25,7 @@ import 'recording_button.dart' show RecordingButton, RecordingButtonMode;
 import 'speech_rating_badge.dart';
 import 'status_label.dart';
 
-/// 状态文字槽位高度
+/// 正常状态文字槽位高度
 const double _kStatusSlotHeight = 20;
 
 /// 槽位间距
@@ -40,6 +40,13 @@ const double _kBottomGap = 16;
 /// 固定总高度：状态文字(20) + 间距(8) + 按钮行(56) + 底部间距(16) = 100
 const double kTurnAreaHeight =
     _kStatusSlotHeight + _kSlotGap + _kButtonRowHeight + _kBottomGap;
+
+/// 权限/错误文案允许双行，避免英文提示在窄屏被截断。
+const double _kErrorStatusSlotHeight = 40;
+
+/// 权限引导模式总高度：错误文案(40) + 间距(8) + 按钮行(56) + 底部间距(16) = 120
+const double _kErrorTurnAreaHeight =
+    _kErrorStatusSlotHeight + _kSlotGap + _kButtonRowHeight + _kBottomGap;
 
 /// 练习页面共享的中间操作区
 class RepeatPracticePanel extends StatelessWidget {
@@ -128,16 +135,22 @@ class RepeatPracticePanel extends StatelessWidget {
     final hasStatus = statusText != null;
     final hasBadge = currentAttempt != null && currentAttempt!.score != null;
     final hasFF = onFastForward != null;
+    final statusSlotHeight = _usesExpandedStatusSlot
+        ? _kErrorStatusSlotHeight
+        : _kStatusSlotHeight;
+    final panelHeight = _usesExpandedStatusSlot
+        ? _kErrorTurnAreaHeight
+        : kTurnAreaHeight;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: AppSpacing.l),
       child: SizedBox(
-        height: kTurnAreaHeight,
+        height: panelHeight,
         child: Column(
           children: [
             // 状态文字槽位（固定高度，AnimatedOpacity 控制显隐）
             SizedBox(
-              height: _kStatusSlotHeight,
+              height: statusSlotHeight,
               child: Center(
                 child: AnimatedOpacity(
                   opacity: hasStatus ? 1.0 : 0.0,
@@ -290,25 +303,45 @@ class RepeatPracticePanel extends StatelessWidget {
   bool get _isPermissionDenied =>
       currentAttempt?.status == SpeechPracticeAttemptStatus.permissionDenied;
 
+  /// 权限拒绝/错误文案允许更高的状态槽位。
+  bool get _usesExpandedStatusSlot =>
+      _isPermissionDenied || currentAttempt?.errorMessage != null;
+
   /// 状态文字（录音提示 / 错误信息）
   Widget? _buildStatusText(BuildContext context) {
     if (!isInPause || isProcessing) return null;
 
     // 权限被拒绝：使用国际化文案
     if (_isPermissionDenied) {
-      return StatusLabel(
-        text: l10n.listenAndRepeatRecognitionPermissionDenied,
-        color: Theme.of(context).colorScheme.error,
-        bold: true,
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8),
+        child: Text(
+          l10n.listenAndRepeatRecognitionPermissionDenied,
+          textAlign: TextAlign.center,
+          maxLines: 2,
+          overflow: TextOverflow.visible,
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+            color: Theme.of(context).colorScheme.error,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
       );
     }
 
-    final hasError = currentAttempt?.errorMessage != null;
-    if (hasError) {
-      return StatusLabel(
-        text: currentAttempt!.errorMessage,
-        color: Theme.of(context).colorScheme.error,
-        bold: true,
+    final errorMessage = currentAttempt?.errorMessage;
+    if (errorMessage != null) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8),
+        child: Text(
+          errorMessage,
+          textAlign: TextAlign.center,
+          maxLines: 2,
+          overflow: TextOverflow.visible,
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+            color: Theme.of(context).colorScheme.error,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
       );
     }
 
