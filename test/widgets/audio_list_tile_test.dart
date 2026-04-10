@@ -30,7 +30,7 @@ class _AudioListTileWrapper extends ConsumerWidget {
 }
 
 void main() {
-  group('AudioListTile 星标功能', () {
+  group('AudioListTile 置顶菜单', () {
     final baseItem = createTestAudioItem(id: 'star-1', name: 'Star Audio');
 
     Widget buildTile(AudioLibraryState libraryState) {
@@ -57,46 +57,39 @@ void main() {
       );
     }
 
-    testWidgets('未置顶时显示 push_pin_outlined 图标', (tester) async {
+    testWidgets('右侧仅显示一个菜单按钮', (tester) async {
       await tester.pumpWidget(
         buildTile(AudioLibraryState(audioItems: [baseItem])),
       );
       await tester.pumpAndSettle();
 
-      expect(find.byIcon(Icons.push_pin_outlined), findsOneWidget);
+      expect(
+        find.byKey(const Key('audio_list_tile_menu_hit_area')),
+        findsOneWidget,
+      );
+      expect(find.byIcon(Icons.push_pin_outlined), findsNothing);
       expect(find.byIcon(Icons.push_pin), findsNothing);
     });
 
-    testWidgets('已置顶时显示 push_pin 图标', (tester) async {
+    testWidgets('已置顶时使用淡背景色标记', (tester) async {
       final pinnedItem = baseItem.copyWith(isPinned: true);
       await tester.pumpWidget(
         buildTile(AudioLibraryState(audioItems: [pinnedItem])),
       );
       await tester.pumpAndSettle();
 
-      expect(find.byIcon(Icons.push_pin), findsOneWidget);
-      expect(find.byIcon(Icons.push_pin_outlined), findsNothing);
+      final card = tester.widget<Card>(find.byType(Card).first);
+      expect(card.color, isNotNull);
     });
 
-    testWidgets('未置顶时图钉图标为灰色', (tester) async {
+    testWidgets('未置顶时卡片保持默认背景', (tester) async {
       await tester.pumpWidget(
         buildTile(AudioLibraryState(audioItems: [baseItem])),
       );
       await tester.pumpAndSettle();
 
-      final icon = tester.widget<Icon>(find.byIcon(Icons.push_pin_outlined));
-      expect(icon.color, isNot(AppTheme.bookmarkColor));
-    });
-
-    testWidgets('已置顶时图钉图标使用 primary 色', (tester) async {
-      final pinnedItem = baseItem.copyWith(isPinned: true);
-      await tester.pumpWidget(
-        buildTile(AudioLibraryState(audioItems: [pinnedItem])),
-      );
-      await tester.pumpAndSettle();
-
-      final icon = tester.widget<Icon>(find.byIcon(Icons.push_pin));
-      expect(icon.color, isNotNull);
+      final card = tester.widget<Card>(find.byType(Card).first);
+      expect(card.color, isNull);
     });
 
     testWidgets('已置顶时 leading 音频图标颜色不受置顶影响（显示进度状态）', (tester) async {
@@ -112,37 +105,35 @@ void main() {
       expect(audioIcon.color, isNot(AppTheme.bookmarkColor));
     });
 
-    testWidgets('点击置顶按钮触发 togglePin 并更新图标', (tester) async {
+    testWidgets('菜单内点击置顶触发 togglePin 并更新背景', (tester) async {
       await tester.pumpWidget(
         buildCompactTile(AudioLibraryState(audioItems: [baseItem])),
       );
       await tester.pumpAndSettle();
 
-      // 点击置顶按钮
-      await tester.tap(find.byIcon(Icons.push_pin_outlined));
+      await tester.tap(find.byKey(const Key('audio_list_tile_menu_hit_area')));
+      await tester.pumpAndSettle();
+      expect(find.text('Pin to Top'), findsOneWidget);
+
+      await tester.tap(find.text('Pin to Top'));
       await tester.pumpAndSettle();
 
-      // 验证切换成功 — 图标变为实心图钉
-      expect(find.byIcon(Icons.push_pin), findsOneWidget);
-      expect(find.byIcon(Icons.push_pin_outlined), findsNothing);
+      final card = tester.widget<Card>(find.byType(Card).first);
+      expect(card.color, isNotNull);
     });
 
-    testWidgets('右侧按钮贴近 item 上下边缘，增大可触达区域', (tester) async {
+    testWidgets('菜单首项根据状态显示 pin 或 unpin', (tester) async {
       await tester.pumpWidget(
-        buildCompactTile(AudioLibraryState(audioItems: [baseItem])),
+        buildTile(
+          AudioLibraryState(audioItems: [baseItem.copyWith(isPinned: true)]),
+        ),
       );
       await tester.pumpAndSettle();
 
-      final cardRect = tester.getRect(find.byType(Card).first);
-      final pinRect = tester.getRect(
-        find.byKey(const Key('audio_list_tile_pin_hit_area')),
-      );
-      final menuRect = tester.getRect(
-        find.byKey(const Key('audio_list_tile_menu_hit_area')),
-      );
+      await tester.tap(find.byKey(const Key('audio_list_tile_menu_hit_area')));
+      await tester.pumpAndSettle();
 
-      expect(pinRect.top - cardRect.top, lessThanOrEqualTo(4));
-      expect(cardRect.bottom - menuRect.bottom, lessThanOrEqualTo(4));
+      expect(find.text('Unpin'), findsOneWidget);
     });
   });
 
@@ -185,7 +176,7 @@ void main() {
 
       expect(find.text('Last'), findsNothing);
       expect(find.text('上次'), findsNothing);
-      expect(find.byIcon(Icons.push_pin_outlined), findsOneWidget);
+      expect(find.byIcon(Icons.push_pin_outlined), findsNothing);
       expect(find.byType(PopupMenuButton<String>), findsOneWidget);
     });
   });

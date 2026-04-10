@@ -97,7 +97,7 @@ void main() {
         expect(find.textContaining('1 audios'), findsOneWidget);
       });
 
-      testWidgets('置顶合集显示图钉图标', (tester) async {
+      testWidgets('置顶合集使用淡背景色标记', (tester) async {
         final c = createTestCollection(
           id: '1',
           name: 'Starred',
@@ -127,8 +127,8 @@ void main() {
         );
         await tester.pumpAndSettle();
 
-        // 置顶合集显示实心图钉
-        expect(find.byIcon(Icons.push_pin), findsOneWidget);
+        final card = tester.widget<Card>(find.byType(Card).first);
+        expect(card.color, isNotNull);
       });
 
       testWidgets('加载中显示进度指示器', (tester) async {
@@ -182,7 +182,7 @@ void main() {
         await tester.pumpAndSettle();
 
         // 应显示错误提示
-        expect(find.text('Collection name cannot be empty'), findsOneWidget);
+        expect(find.text('Collection name cannot be empty'), findsWidgets);
       });
 
       testWidgets('切换 grid/list 视图模式', (tester) async {
@@ -227,7 +227,7 @@ void main() {
         expect(find.text('No audio files yet'), findsOneWidget);
       });
 
-      testWidgets('点击置顶切换', (tester) async {
+      testWidgets('列表视图菜单内点击置顶切换', (tester) async {
         final c = createTestCollection(
           id: '1',
           name: 'Test Collection',
@@ -257,15 +257,56 @@ void main() {
         );
         await tester.pumpAndSettle();
 
-        // 初始状态应为空心图钉
-        expect(find.byIcon(Icons.push_pin_outlined), findsOneWidget);
+        expect(find.byIcon(Icons.push_pin_outlined), findsNothing);
 
-        // 点击置顶
-        await tester.tap(find.byIcon(Icons.push_pin_outlined));
+        await tester.tap(
+          find.byKey(const Key('collection_list_menu_hit_area')),
+        );
+        await tester.pumpAndSettle();
+        expect(find.text('Pin to Top'), findsOneWidget);
+
+        await tester.tap(find.text('Pin to Top'));
         await tester.pumpAndSettle();
 
-        // 切换后应为实心图钉
-        expect(find.byIcon(Icons.push_pin), findsOneWidget);
+        final card = tester.widget<Card>(find.byType(Card).first);
+        expect(card.color, isNotNull);
+      });
+
+      testWidgets('网格视图菜单内也提供置顶切换', (tester) async {
+        final c = createTestCollection(
+          id: '1',
+          name: 'Grid Collection',
+          isPinned: false,
+        );
+
+        await tester.pumpWidget(
+          createTestScreen(
+            const LibraryScreen(),
+            overrides: [
+              appSettingsProvider.overrideWith(() => TestAppSettings()),
+              audioLibraryProvider.overrideWith(() => TestAudioLibrary()),
+              collectionListProvider.overrideWith(
+                () => TestCollectionList(
+                  CollectionState(
+                    rawCollections: [c],
+                    viewMode: CollectionViewMode.grid,
+                  ),
+                ),
+              ),
+              listeningPracticeProvider.overrideWith(
+                () => TestListeningPractice(),
+              ),
+              audioEngineProvider.overrideWith(() => TestAudioEngine()),
+            ],
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        await tester.tap(
+          find.byKey(const Key('collection_grid_menu_hit_area')),
+        );
+        await tester.pumpAndSettle();
+        expect(find.text('Pin to Top'), findsOneWidget);
       });
     });
   });

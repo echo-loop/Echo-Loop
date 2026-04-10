@@ -40,8 +40,7 @@ import 'manage_subtitles_sheet.dart';
 /// - 显示合集标签 chips 和"管理合集"菜单
 /// - 导航到 audioLearningPlan(audioId)
 class AudioListTile extends ConsumerWidget {
-  static const double _kTrailingButtonSize = 28;
-  static const Key _kPinHitAreaKey = Key('audio_list_tile_pin_hit_area');
+  static const double _kTrailingButtonSize = 60;
   static const Key _kMenuHitAreaKey = Key('audio_list_tile_menu_hit_area');
 
   /// 音频项数据
@@ -75,6 +74,9 @@ class AudioListTile extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context)!;
     final theme = Theme.of(context);
+    final pinnedHighlightColor = theme.colorScheme.primary.withValues(
+      alpha: 0.06,
+    );
 
     // 精确订阅学习进度
     final progress = ref.watch(
@@ -112,6 +114,8 @@ class AudioListTile extends ConsumerWidget {
           margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
           color: isCurrentlyPlaying
               ? theme.colorScheme.primaryContainer.withValues(alpha: 0.3)
+              : audioItem.isPinned
+              ? pinnedHighlightColor
               : null,
           child: InkWell(
             borderRadius: BorderRadius.circular(12),
@@ -123,8 +127,8 @@ class AudioListTile extends ConsumerWidget {
                   Expanded(
                     child: Padding(
                       padding: isDesktop
-                          ? const EdgeInsets.fromLTRB(20, 8, 8, 8)
-                          : const EdgeInsets.fromLTRB(16, 8, 8, 8),
+                          ? const EdgeInsets.fromLTRB(20, 8, 0, 8)
+                          : const EdgeInsets.fromLTRB(16, 8, 0, 8),
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
@@ -161,10 +165,7 @@ class AudioListTile extends ConsumerWidget {
                       ),
                     ),
                   ),
-                  Padding(
-                    padding: EdgeInsets.only(right: isDesktop ? 8 : 4),
-                    child: _buildTrailing(context, ref, l10n, theme),
-                  ),
+                  _buildTrailing(context, ref, l10n, theme),
                 ],
               ),
             ),
@@ -339,44 +340,7 @@ class AudioListTile extends ConsumerWidget {
     );
   }
 
-  /// 构建置顶按钮图标
-  Widget _buildPinIcon(ThemeData theme) {
-    return Transform.rotate(
-      angle: 0.52, // ≈30° 倾斜
-      child: Icon(
-        audioItem.isPinned ? Icons.push_pin : Icons.push_pin_outlined,
-        size: 16,
-        color: audioItem.isPinned
-            ? AppTheme.pinColor
-            : theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
-      ),
-    );
-  }
-
-  /// 构建置顶按钮
-  Widget _buildPinButton(
-    WidgetRef ref,
-    AppLocalizations l10n,
-    ThemeData theme,
-  ) {
-    return SizedBox.expand(
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          key: _kPinHitAreaKey,
-          onTap: () {
-            ref.read(audioLibraryProvider.notifier).togglePin(audioItem.id);
-          },
-          child: Tooltip(
-            message: audioItem.isPinned ? l10n.unpinAudio : l10n.pinAudio,
-            child: Center(child: _buildPinIcon(theme)),
-          ),
-        ),
-      ),
-    );
-  }
-
-  /// 构建 trailing 区域（置顶上 + 菜单下，纵向紧凑排列）
+  /// 构建 trailing 区域（单一菜单按钮，居中显示）
   Widget _buildTrailing(
     BuildContext context,
     WidgetRef ref,
@@ -385,12 +349,7 @@ class AudioListTile extends ConsumerWidget {
   ) {
     return SizedBox(
       width: _kTrailingButtonSize,
-      child: Column(
-        children: [
-          Expanded(child: _buildPinButton(ref, l10n, theme)),
-          Expanded(child: _buildPopupMenu(context, ref, l10n, theme)),
-        ],
-      ),
+      child: _buildPopupMenu(context, ref, l10n, theme),
     );
   }
 
@@ -400,6 +359,29 @@ class AudioListTile extends ConsumerWidget {
       Icons.more_horiz,
       size: 18,
       color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
+    );
+  }
+
+  /// 构建菜单内图钉图标，保持与旧设计一致的倾斜角度。
+  Widget _buildPinnedMenuIcon({required bool isPinned}) {
+    return Transform.rotate(
+      angle: 0.52,
+      child: Icon(
+        isPinned ? Icons.push_pin : Icons.push_pin_outlined,
+        size: 20,
+        color: isPinned ? AppTheme.pinColor : null,
+      ),
+    );
+  }
+
+  /// 构建菜单项行，避免英文文案在窄菜单中溢出。
+  Widget _buildMenuItemRow(Widget icon, String label) {
+    return Row(
+      children: [
+        icon,
+        const SizedBox(width: 8),
+        Expanded(child: Text(label, overflow: TextOverflow.ellipsis)),
+      ],
     );
   }
 
@@ -424,84 +406,72 @@ class AudioListTile extends ConsumerWidget {
         child: Center(child: _buildMenuIcon(theme)),
         itemBuilder: (context) => [
           PopupMenuItem(
+            value: 'togglePin',
+            child: _buildMenuItemRow(
+              _buildPinnedMenuIcon(isPinned: audioItem.isPinned),
+              audioItem.isPinned ? l10n.unpinAudio : l10n.pinAudio,
+            ),
+          ),
+          PopupMenuItem(
             value: 'rename',
-            child: Row(
-              children: [
-                const Icon(Icons.edit, size: 20),
-                const SizedBox(width: 8),
-                Text(l10n.renameAudio),
-              ],
+            child: _buildMenuItemRow(
+              const Icon(Icons.edit, size: 20),
+              l10n.renameAudio,
             ),
           ),
           PopupMenuItem(
             value: 'manageSubtitles',
-            child: Row(
-              children: [
-                const Icon(Icons.subtitles_outlined, size: 20),
-                const SizedBox(width: 8),
-                Text(l10n.manageSubtitles),
-              ],
+            child: _buildMenuItemRow(
+              const Icon(Icons.subtitles_outlined, size: 20),
+              l10n.manageSubtitles,
             ),
           ),
           PopupMenuItem(
             value: 'manage',
-            child: Row(
-              children: [
-                const Icon(Icons.folder_outlined, size: 20),
-                const SizedBox(width: 8),
-                Text(l10n.manageCollections),
-              ],
+            child: _buildMenuItemRow(
+              const Icon(Icons.folder_outlined, size: 20),
+              l10n.manageCollections,
             ),
           ),
           PopupMenuItem(
             value: 'manageTags',
-            child: Row(
-              children: [
-                const Icon(Icons.label_outline, size: 20),
-                const SizedBox(width: 8),
-                Text(l10n.manageTags),
-              ],
+            child: _buildMenuItemRow(
+              const Icon(Icons.label_outline, size: 20),
+              l10n.manageTags,
             ),
           ),
           PopupMenuItem(
             value: 'export',
-            child: Row(
-              children: [
-                const Icon(Icons.ios_share, size: 20),
-                const SizedBox(width: 8),
-                Text(l10n.exportAudio),
-              ],
+            child: _buildMenuItemRow(
+              const Icon(Icons.ios_share, size: 20),
+              l10n.exportAudio,
             ),
           ),
           // 仅在有学习进度时显示重置选项
           if (hasProgress)
             PopupMenuItem(
               value: 'resetProgress',
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.restart_alt,
-                    size: 20,
-                    color: theme.colorScheme.error,
-                  ),
-                  const SizedBox(width: 8),
-                  Text(l10n.resetLearningProgress),
-                ],
+              child: _buildMenuItemRow(
+                Icon(
+                  Icons.restart_alt,
+                  size: 20,
+                  color: theme.colorScheme.error,
+                ),
+                l10n.resetLearningProgress,
               ),
             ),
           PopupMenuItem(
             value: 'delete',
-            child: Row(
-              children: [
-                Icon(Icons.delete, size: 20, color: theme.colorScheme.error),
-                const SizedBox(width: 8),
-                Text(l10n.delete),
-              ],
+            child: _buildMenuItemRow(
+              Icon(Icons.delete, size: 20, color: theme.colorScheme.error),
+              l10n.delete,
             ),
           ),
         ],
         onSelected: (value) {
-          if (value == 'rename') {
+          if (value == 'togglePin') {
+            ref.read(audioLibraryProvider.notifier).togglePin(audioItem.id);
+          } else if (value == 'rename') {
             _showRenameDialog(context, ref);
           } else if (value == 'manageSubtitles') {
             _showManageSubtitlesSheet(context);

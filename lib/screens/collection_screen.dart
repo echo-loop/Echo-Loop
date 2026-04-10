@@ -194,11 +194,18 @@ class _CollectionGridTile extends ConsumerWidget {
 
   const _CollectionGridTile({required this.collection});
 
+  static const Key _kGridMenuHitAreaKey = Key('collection_grid_menu_hit_area');
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context)!;
     final collectionState = ref.watch(collectionListProvider);
+    final theme = Theme.of(context);
+    final pinnedHighlightColor = theme.colorScheme.primary.withValues(
+      alpha: 0.06,
+    );
     return Card(
+      color: collection.isPinned ? pinnedHighlightColor : null,
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: () => _openCollection(context),
@@ -206,72 +213,62 @@ class _CollectionGridTile extends ConsumerWidget {
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
           child: Column(
             children: [
-              // 顶部操作栏：星标 + 更多
+              // 顶部操作栏：仅保留居中的更多菜单，pin 收进菜单内
               Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                mainAxisAlignment: MainAxisAlignment.end,
                 children: [
                   SizedBox(
-                    width: 32,
+                    width: 36,
                     height: 32,
-                    child: IconButton(
+                    child: PopupMenuButton<String>(
+                      key: _kGridMenuHitAreaKey,
                       padding: EdgeInsets.zero,
-                      iconSize: 16,
-                      icon: Transform.rotate(
-                        angle: 0.52,
+                      child: Center(
                         child: Icon(
-                          collection.isPinned
-                              ? Icons.push_pin
-                              : Icons.push_pin_outlined,
-                          color: collection.isPinned
-                              ? AppTheme.pinColor
-                              : Theme.of(context).colorScheme.onSurfaceVariant
-                                    .withValues(alpha: 0.5),
+                          Icons.more_horiz,
+                          size: 18,
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
                         ),
                       ),
-                      onPressed: () {
-                        ref
-                            .read(collectionListProvider.notifier)
-                            .togglePin(collection.id);
-                      },
-                    ),
-                  ),
-                  SizedBox(
-                    width: 32,
-                    height: 32,
-                    child: PopupMenuButton(
-                      padding: EdgeInsets.zero,
-                      iconSize: 18,
-                      iconColor: Theme.of(
-                        context,
-                      ).colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
                       itemBuilder: (context) => [
                         PopupMenuItem(
+                          value: 'togglePin',
+                          child: _buildCollectionMenuItemRow(
+                            _buildCollectionPinIcon(
+                              isPinned: collection.isPinned,
+                            ),
+                            collection.isPinned
+                                ? l10n.unpinCollection
+                                : l10n.pinCollection,
+                          ),
+                        ),
+                        PopupMenuItem(
                           value: 'rename',
-                          child: Row(
-                            children: [
-                              const Icon(Icons.edit, size: 18),
-                              const SizedBox(width: 8),
-                              Text(l10n.renameCollection),
-                            ],
+                          child: _buildCollectionMenuItemRow(
+                            const Icon(Icons.edit, size: 18),
+                            l10n.renameCollection,
                           ),
                         ),
                         PopupMenuItem(
                           value: 'delete',
-                          child: Row(
-                            children: [
-                              Icon(
-                                Icons.delete,
-                                size: 18,
-                                color: Theme.of(context).colorScheme.error,
-                              ),
-                              const SizedBox(width: 8),
-                              Text(l10n.delete),
-                            ],
+                          child: _buildCollectionMenuItemRow(
+                            Icon(
+                              Icons.delete,
+                              size: 18,
+                              color: Theme.of(context).colorScheme.error,
+                            ),
+                            l10n.delete,
                           ),
                         ),
                       ],
                       onSelected: (value) {
-                        if (value == 'rename') {
+                        if (value == 'togglePin') {
+                          ref
+                              .read(collectionListProvider.notifier)
+                              .togglePin(collection.id);
+                        } else if (value == 'rename') {
                           _showRenameCollectionDialog(context, ref, collection);
                         } else if (value == 'delete') {
                           _showDeleteConfirmDialog(context, ref, collection);
@@ -318,102 +315,144 @@ class _CollectionGridTile extends ConsumerWidget {
   }
 }
 
+Widget _buildCollectionMenuItemRow(Widget icon, String label) {
+  return Row(
+    children: [
+      icon,
+      const SizedBox(width: 8),
+      Expanded(child: Text(label, overflow: TextOverflow.ellipsis)),
+    ],
+  );
+}
+
+Widget _buildCollectionPinIcon({required bool isPinned}) {
+  return Transform.rotate(
+    angle: 0.52,
+    child: Icon(
+      isPinned ? Icons.push_pin : Icons.push_pin_outlined,
+      size: 18,
+      color: isPinned ? AppTheme.pinColor : null,
+    ),
+  );
+}
+
 /// 列表项
 class _CollectionListTile extends ConsumerWidget {
   final Collection collection;
 
   const _CollectionListTile({required this.collection});
 
+  static const Key _kListMenuHitAreaKey = Key('collection_list_menu_hit_area');
+  static const double _kTrailingMenuWidth = 60;
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context)!;
     final collectionState = ref.watch(collectionListProvider);
+    final theme = Theme.of(context);
+    final pinnedHighlightColor = theme.colorScheme.primary.withValues(
+      alpha: 0.06,
+    );
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
-      child: ListTile(
-        leading: Icon(
-          Icons.folder,
-          color: Theme.of(context).colorScheme.onPrimaryContainer,
-        ),
-        title: Text(
-          collection.name,
-          style: const TextStyle(fontWeight: FontWeight.w500),
-        ),
-        subtitle: Text(
-          '${l10n.audioCount(collectionState.getAudioCount(collection.id))} · ${l10n.addedOn(_formatDate(collection.createdDate))}',
-          style: Theme.of(context).textTheme.bodySmall,
-          overflow: TextOverflow.ellipsis,
-        ),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            SizedBox(
-              width: 36,
-              child: IconButton(
-                icon: Transform.rotate(
-                  angle: 0.52,
-                  child: Icon(
-                    collection.isPinned
-                        ? Icons.push_pin
-                        : Icons.push_pin_outlined,
-                    color: collection.isPinned
-                        ? AppTheme.pinColor
-                        : Theme.of(
-                            context,
-                          ).colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
-                    size: 16,
+      color: collection.isPinned ? pinnedHighlightColor : null,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: () => _openCollection(context),
+        child: IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 10, 0, 10),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.folder,
+                        color: theme.colorScheme.onPrimaryContainer,
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              collection.name,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              '${l10n.audioCount(collectionState.getAudioCount(collection.id))} · ${l10n.addedOn(_formatDate(collection.createdDate))}',
+                              style: theme.textTheme.bodySmall,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                padding: EdgeInsets.zero,
-                onPressed: () {
-                  ref
-                      .read(collectionListProvider.notifier)
-                      .togglePin(collection.id);
-                },
               ),
-            ),
-            SizedBox(
-              width: 36,
-              child: PopupMenuButton(
-                padding: EdgeInsets.zero,
-                iconSize: 18,
-                iconColor: Theme.of(
-                  context,
-                ).colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
-                itemBuilder: (context) => [
-                  PopupMenuItem(
-                    value: 'rename',
-                    child: Row(
-                      children: [
+              SizedBox(
+                width: _kTrailingMenuWidth,
+                child: PopupMenuButton<String>(
+                  key: _kListMenuHitAreaKey,
+                  padding: EdgeInsets.zero,
+                  child: Center(
+                    child: Icon(
+                      Icons.more_horiz,
+                      size: 18,
+                      color: theme.colorScheme.onSurfaceVariant.withValues(
+                        alpha: 0.5,
+                      ),
+                    ),
+                  ),
+                  itemBuilder: (context) => [
+                    PopupMenuItem(
+                      value: 'togglePin',
+                      child: _buildCollectionMenuItemRow(
+                        _buildCollectionPinIcon(isPinned: collection.isPinned),
+                        collection.isPinned
+                            ? l10n.unpinCollection
+                            : l10n.pinCollection,
+                      ),
+                    ),
+                    PopupMenuItem(
+                      value: 'rename',
+                      child: _buildCollectionMenuItemRow(
                         const Icon(Icons.edit),
-                        const SizedBox(width: 8),
-                        Text(l10n.renameCollection),
-                      ],
+                        l10n.renameCollection,
+                      ),
                     ),
-                  ),
-                  PopupMenuItem(
-                    value: 'delete',
-                    child: Row(
-                      children: [
-                        Icon(Icons.delete, color: Theme.of(context).colorScheme.error),
-                        const SizedBox(width: 8),
-                        Text(l10n.delete),
-                      ],
+                    PopupMenuItem(
+                      value: 'delete',
+                      child: _buildCollectionMenuItemRow(
+                        Icon(Icons.delete, color: theme.colorScheme.error),
+                        l10n.delete,
+                      ),
                     ),
-                  ),
-                ],
-                onSelected: (value) {
-                  if (value == 'rename') {
-                    _showRenameCollectionDialog(context, ref, collection);
-                  } else if (value == 'delete') {
-                    _showDeleteConfirmDialog(context, ref, collection);
-                  }
-                },
+                  ],
+                  onSelected: (value) {
+                    if (value == 'togglePin') {
+                      ref
+                          .read(collectionListProvider.notifier)
+                          .togglePin(collection.id);
+                    } else if (value == 'rename') {
+                      _showRenameCollectionDialog(context, ref, collection);
+                    } else if (value == 'delete') {
+                      _showDeleteConfirmDialog(context, ref, collection);
+                    }
+                  },
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
-        onTap: () => _openCollection(context),
       ),
     );
   }
