@@ -4,7 +4,7 @@
 /// 和 whisper.cpp（Whisper GGML）都实现此接口，上层不感知具体引擎差异。
 library;
 
-import 'dart:io' show Platform;
+import 'dart:io';
 
 /// ASR 模型类型。
 enum AsrModelType {
