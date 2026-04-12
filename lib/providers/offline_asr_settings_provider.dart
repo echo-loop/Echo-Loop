@@ -389,7 +389,20 @@ class OfflineAsrSettingsNotifier extends Notifier<OfflineAsrSettingsState> {
   /// 切到 platform 时不影响已下载的模型文件。
   Future<void> setBackend(AsrBackend backend) async {
     if (state.backend == backend) return;
-    state = state.copyWith(backend: backend);
+
+    // 切离 offline 时取消正在进行的下载
+    if (state.backend == AsrBackend.offline && state.isDownloading) {
+      _downloadCancelToken?.cancel();
+      _downloadCancelToken = null;
+      state = state.copyWith(
+        backend: backend,
+        downloadStatus: AsrModelDownloadStatus.notDownloaded,
+        downloadProgress: 0,
+        clearErrorMessage: true,
+      );
+    } else {
+      state = state.copyWith(backend: backend);
+    }
     await _persistBackend(backend);
 
     final modelId = state.recommendedModel.id;
