@@ -88,20 +88,6 @@ class _AsrSettingsScreenState extends ConsumerState<AsrSettingsScreen> {
             _buildOfflineModelCard(context, l10n, state, theme),
           ],
 
-          // 删除按钮（关闭状态 + 有本地文件）
-          if (state.canDelete) ...[
-            const SizedBox(height: 16),
-            Center(
-              child: TextButton.icon(
-                onPressed: () => _confirmDelete(context, ref, l10n, state),
-                icon: const Icon(Icons.delete_outline, color: Colors.red),
-                label: Text(
-                  l10n.deleteModelAction,
-                  style: const TextStyle(color: Colors.red),
-                ),
-              ),
-            ),
-          ],
         ],
       ),
     );
@@ -287,37 +273,6 @@ class _AsrSettingsScreenState extends ConsumerState<AsrSettingsScreen> {
             onPressed: () {
               Navigator.of(ctx).pop();
               ref.read(offlineAsrSettingsProvider.notifier).disableAndDelete();
-            },
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: Text(l10n.deleteModelAction),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _confirmDelete(
-    BuildContext context,
-    WidgetRef ref,
-    AppLocalizations l10n,
-    OfflineAsrSettingsState state,
-  ) {
-    showDialog<void>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(l10n.deleteModelConfirmTitle),
-        content: Text(
-          l10n.deleteModelConfirmMessage(_formatBytes(state.localSizeBytes)),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: Text(MaterialLocalizations.of(ctx).cancelButtonLabel),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.of(ctx).pop();
-              ref.read(offlineAsrSettingsProvider.notifier).deleteModel();
             },
             style: TextButton.styleFrom(foregroundColor: Colors.red),
             child: Text(l10n.deleteModelAction),
