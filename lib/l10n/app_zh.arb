@@ -938,6 +938,12 @@
 
   "activityCalendar": "学习日历",
   "noActivityThisMonth": "本月暂无学习记录",
+  "monthlySummaryTitle": "{month}月统计",
+  "@monthlySummaryTitle": {
+    "placeholders": {
+      "month": { "type": "String" }
+    }
+  },
   "monthlyTotal": "总计",
   "monthlyActiveDays": "学习天数",
   "monthlyAvgPerDay": "日均",

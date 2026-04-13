@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
 import '../../l10n/app_localizations.dart';
 import '../../providers/monthly_study_records_provider.dart';
@@ -32,11 +33,27 @@ class MonthlySummaryCard extends StatelessWidget {
 
     final stats = _computeStats();
 
+    // 月份标题：中文用 "4月统计"，英文用 "Apr Stats"
+    final isZh = l10n.localeName == 'zh';
+    final monthLabel = isZh
+        ? l10n.monthlySummaryTitle('$month')
+        : l10n.monthlySummaryTitle(
+            DateFormat.MMM().format(DateTime(year, month)),
+          );
+
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(AppSpacing.m),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            Text(
+              monthLabel,
+              style: theme.textTheme.titleSmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: AppSpacing.s),
             Row(
               children: [
                 Expanded(
@@ -108,8 +125,9 @@ class MonthlySummaryCard extends StatelessWidget {
       if (record.hasActivity) activeDays++;
     }
 
-    final avgSecondsPerDay =
-        activeDays > 0 ? (totalSeconds / activeDays).round() : 0;
+    final avgSecondsPerDay = activeDays > 0
+        ? (totalSeconds / activeDays).round()
+        : 0;
 
     // 计算当月最长连续天数
     int bestStreak = 0;

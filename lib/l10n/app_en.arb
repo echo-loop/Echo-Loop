@@ -1256,6 +1256,12 @@
 
   "activityCalendar": "Activity Calendar",
   "noActivityThisMonth": "No learning activity this month",
+  "monthlySummaryTitle": "{month} Stats",
+  "@monthlySummaryTitle": {
+    "placeholders": {
+      "month": { "type": "String" }
+    }
+  },
   "monthlyTotal": "Total",
   "monthlyActiveDays": "Active days",
   "monthlyAvgPerDay": "Avg/day",

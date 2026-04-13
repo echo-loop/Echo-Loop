@@ -4208,6 +4208,12 @@ abstract class AppLocalizations {
   /// **'No learning activity this month'**
   String get noActivityThisMonth;
 
+  /// No description provided for @monthlySummaryTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'{month} Stats'**
+  String monthlySummaryTitle(String month);
+
   /// No description provided for @monthlyTotal.
   ///
   /// In en, this message translates to:

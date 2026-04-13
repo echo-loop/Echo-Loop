@@ -2350,6 +2350,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get noActivityThisMonth => 'No learning activity this month';
 
   @override
+  String monthlySummaryTitle(String month) {
+    return '$month Stats';
+  }
+
+  @override
   String get monthlyTotal => 'Total';
 
   @override
