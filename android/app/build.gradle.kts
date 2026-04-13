@@ -38,6 +38,11 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+
+        // 只打包 arm64，排除 x86_64 和 armeabi-v7a，减小 APK 约 45MB
+        ndk {
+            abiFilters += "arm64-v8a"
+        }
     }
 
     signingConfigs {
