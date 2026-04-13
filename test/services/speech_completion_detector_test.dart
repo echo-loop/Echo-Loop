@@ -365,4 +365,133 @@ void main() {
       );
     });
   });
+
+  group('computeRetellDynamicFallback', () {
+    // 基准：referenceDuration = 10s, speedFactor = 1.3 → adjustedDuration = 13s
+
+    const ref10s = Duration(seconds: 10);
+
+    test('referenceDuration <= 0 → 返回 defaultFallback (20s)', () {
+      expect(
+        computeRetellDynamicFallback(
+          voicedDuration: const Duration(seconds: 15),
+          referenceDuration: Duration.zero,
+        ),
+        const Duration(seconds: 20),
+      );
+    });
+
+    test('matchRate < 0.8 → 返回 defaultFallback (20s)', () {
+      expect(
+        computeRetellDynamicFallback(
+          voicedDuration: const Duration(seconds: 15),
+          referenceDuration: ref10s,
+          matchRate: 0.5,
+        ),
+        const Duration(seconds: 20),
+      );
+    });
+
+    test('matchRate = null（无转录）+ ratio >= 0.95 → 3s', () {
+      // voiced = 12.35s, adjusted = 13s → ratio = 0.95
+      expect(
+        computeRetellDynamicFallback(
+          voicedDuration: const Duration(milliseconds: 12350),
+          referenceDuration: ref10s,
+        ),
+        const Duration(seconds: 3),
+      );
+    });
+
+    test('matchRate = null + ratio >= 0.90 → 6s', () {
+      // voiced = 11.7s, adjusted = 13s → ratio = 0.90
+      expect(
+        computeRetellDynamicFallback(
+          voicedDuration: const Duration(milliseconds: 11700),
+          referenceDuration: ref10s,
+        ),
+        const Duration(seconds: 6),
+      );
+    });
+
+    test('matchRate = null + ratio >= 0.85 → 10s', () {
+      // voiced = 11.05s, adjusted = 13s → ratio = 0.85
+      expect(
+        computeRetellDynamicFallback(
+          voicedDuration: const Duration(milliseconds: 11050),
+          referenceDuration: ref10s,
+        ),
+        const Duration(seconds: 10),
+      );
+    });
+
+    test('matchRate = null + ratio >= 0.80 → 15s', () {
+      // voiced = 10.4s, adjusted = 13s → ratio = 0.80
+      expect(
+        computeRetellDynamicFallback(
+          voicedDuration: const Duration(milliseconds: 10400),
+          referenceDuration: ref10s,
+        ),
+        const Duration(seconds: 15),
+      );
+    });
+
+    test('matchRate = null + ratio >= 0.75 → 20s', () {
+      // voiced = 9.75s, adjusted = 13s → ratio = 0.75
+      expect(
+        computeRetellDynamicFallback(
+          voicedDuration: const Duration(milliseconds: 9750),
+          referenceDuration: ref10s,
+        ),
+        const Duration(seconds: 20),
+      );
+    });
+
+    test('matchRate = null + ratio < 0.75 → defaultFallback (20s)', () {
+      // voiced = 9s, adjusted = 13s → ratio ≈ 0.692
+      expect(
+        computeRetellDynamicFallback(
+          voicedDuration: const Duration(seconds: 9),
+          referenceDuration: ref10s,
+        ),
+        const Duration(seconds: 20),
+      );
+    });
+
+    test('matchRate >= 0.8 时动态兜底生效', () {
+      // voiced = 12.35s, adjusted = 13s → ratio = 0.95, matchRate = 0.8 → 3s
+      expect(
+        computeRetellDynamicFallback(
+          voicedDuration: const Duration(milliseconds: 12350),
+          referenceDuration: ref10s,
+          matchRate: 0.8,
+        ),
+        const Duration(seconds: 3),
+      );
+    });
+
+    test('matchRate = 0.79 时即使 ratio 很高也返回 defaultFallback', () {
+      expect(
+        computeRetellDynamicFallback(
+          voicedDuration: const Duration(seconds: 20),
+          referenceDuration: ref10s,
+          matchRate: 0.79,
+        ),
+        const Duration(seconds: 20),
+      );
+    });
+
+    test('speedFactor 自定义', () {
+      // ref = 10s, speedFactor = 1.0 → adjusted = 10s
+      // voiced = 10s → ratio = 1.0 → 3s
+      expect(
+        computeRetellDynamicFallback(
+          voicedDuration: const Duration(seconds: 10),
+          referenceDuration: ref10s,
+          speedFactor: 1.0,
+        ),
+        const Duration(seconds: 3),
+      );
+    });
+  });
 }

@@ -330,6 +330,37 @@ Duration computeDynamicFallback({
   return defaultFallback;
 }
 
+// ========== 复述专用动态兜底 ==========
+
+/// 根据有声时长与原句时长的比例计算复述场景的动态兜底阈值。
+///
+/// 与 [computeDynamicFallback] 类似，但阈值更长，适配复述场景：
+/// 用户需要回忆内容，停顿更长属于正常行为。
+///
+/// - [speedFactor]：语速补偿系数，默认 1.3（复述通常比原音慢 30%）。
+/// - [matchRate]：文本匹配率（0-1），低于 0.8 时不缩短兜底。
+///   传 null 表示无转录（ASR 关闭），此时仅凭有声比例计算。
+Duration computeRetellDynamicFallback({
+  required Duration voicedDuration,
+  required Duration referenceDuration,
+  double? matchRate,
+  double speedFactor = 1.3,
+  Duration defaultFallback = const Duration(seconds: 20),
+}) {
+  if (referenceDuration <= Duration.zero) return defaultFallback;
+  if (matchRate != null && matchRate < 0.8) return defaultFallback;
+
+  final adjustedMs = referenceDuration.inMilliseconds * speedFactor;
+  final ratio = voicedDuration.inMilliseconds / adjustedMs;
+
+  if (ratio >= 0.95) return const Duration(seconds: 3);
+  if (ratio >= 0.90) return const Duration(seconds: 6);
+  if (ratio >= 0.85) return const Duration(seconds: 10);
+  if (ratio >= 0.80) return const Duration(seconds: 15);
+  if (ratio >= 0.75) return const Duration(seconds: 20);
+  return defaultFallback;
+}
+
 // ========== 内部工具函数 ==========
 
 final RegExp _englishWordPattern = RegExp(r"[A-Za-z]+(?:'[A-Za-z]+)?");
