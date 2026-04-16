@@ -68,6 +68,7 @@ dependencies:
   firebase_core: ^4.5.0
   firebase_analytics: ^12.1.3
   umeng_common_sdk: ^1.3.0
+  posthog_flutter: ^5.23.1
   archive: ^4.0.4
   share_plus: ^10.1.4
   table_calendar: ^3.2.0

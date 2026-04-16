@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1064671521089",
+    "project_id": "echo-loop-20260310",
+    "storage_bucket": "echo-loop-20260310.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1064671521089:android:7c9f327c5181b692d719c0",
+        "android_client_info": {
+          "package_name": "app.echoloop"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA4Iu9w-2d52shEIbI12UpLjh_i7qDlc_A"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

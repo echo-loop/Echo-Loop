@@ -125,12 +125,10 @@ void main() async {
     unawaited(_triggerNetworkPermission());
   }
 
-  // 初始化 Firebase（Android 暂未配置，跳过）
-  if (!Platform.isAndroid) {
-    await Firebase.initializeApp(
-      options: DefaultFirebaseOptions.currentPlatform,
-    );
-  }
+  // 初始化 Firebase
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
 
   // 初始化用户 ID（SecureStorage 持久化，卸载重装可恢复）
   final userId = await initUserIdService(prefs);

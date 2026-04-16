@@ -61,8 +61,7 @@ Future<AnalyticsService> initAnalyticsService(
 
   // 非 Debug 模式下，根据通道选择控制 Firebase 采集开关
   // 选择友盟时关闭 Firebase 采集，避免 SDK 残留行为产生噪音
-  // Android 暂未配置 Firebase，跳过
-  if (!kDebugMode && !Platform.isAndroid) {
+  if (!kDebugMode && !Platform.isMacOS) {
     await FirebaseAnalytics.instance
         .setAnalyticsCollectionEnabled(channel is FirebaseChannel);
   }
@@ -103,10 +102,9 @@ Future<bool> _resolveIsMainlandChina(SharedPreferences prefs) async {
 AnalyticsChannel _createChannel(bool isChina) {
   if (kDebugMode) return LogOnlyChannel();
 
-  // Android 暂未配置 Firebase，使用友盟或日志通道
   if (Platform.isAndroid) {
     if (isChina && UmengChannel.isConfigured) return UmengChannel();
-    return LogOnlyChannel();
+    return FirebaseChannel();
   }
 
   if (!Platform.isMacOS && isChina && UmengChannel.isConfigured) {
