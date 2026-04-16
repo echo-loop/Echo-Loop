@@ -12,14 +12,17 @@ import '../analytics_channel.dart';
 
 /// PostHog 分析上报通道
 class PostHogChannel implements AnalyticsChannel {
-  static const _apiKey = String.fromEnvironment('POSTHOG_API_KEY');
+  static const _apiKey = String.fromEnvironment(
+    'POSTHOG_API_KEY',
+    defaultValue: 'phc_s2ZWTJV3n57Tcz16OYZailIJroIUJhWEXmHMothJ5MZ',
+  );
   static const _host = String.fromEnvironment(
     'POSTHOG_HOST',
     defaultValue: 'https://us.i.posthog.com',
   );
 
-  /// API Key 非空时视为已配置
-  static bool get isConfigured => _apiKey.isNotEmpty;
+  /// 始终已配置（内置默认 API Key）
+  static bool get isConfigured => true;
 
   @override
   String get name => 'PostHog';
