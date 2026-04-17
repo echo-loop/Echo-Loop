@@ -4568,6 +4568,18 @@ abstract class AppLocalizations {
   /// **'Tap here to follow the learning plan step by step. Echo Loop will guide you and remind you to review at the right time.'**
   String get guidePlanStartLearningDescription;
 
+  /// No description provided for @guideMainShellVisitLibraryTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Start from Library'**
+  String get guideMainShellVisitLibraryTitle;
+
+  /// No description provided for @guideMainShellVisitLibraryDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap here to learn how to use this app.'**
+  String get guideMainShellVisitLibraryDescription;
+
   /// No description provided for @guideStudyTasksOverviewTitle.
   ///
   /// In en, this message translates to:

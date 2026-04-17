@@ -1370,6 +1370,8 @@
   "guidePlanFreePlayDescription": "A flexible, all-in-one audio player for free practice. Learn at your own pace.",
   "guidePlanStartLearningTitle": "Follow the plan",
   "guidePlanStartLearningDescription": "Tap here to follow the learning plan step by step. Echo Loop will guide you and remind you to review at the right time.",
+  "guideMainShellVisitLibraryTitle": "Start from Library",
+  "guideMainShellVisitLibraryDescription": "Tap here to learn how to use this app.",
   "guideStudyTasksOverviewTitle": "Your study tasks",
   "guideStudyTasksOverviewDescription": "This area includes new audio to learn, due reviews, completed tasks, and more. Echo Loop will pace your learning for you.",
   "guideStudyStatsHeaderTitle": "Today at a glance",

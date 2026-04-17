@@ -67,6 +67,15 @@ void main() async {
   final prefs = await SharedPreferences.getInstance();
   final isDemoMode = prefs.getBool('demo_mode') ?? false;
 
+  // 首次启动检测：哨兵 key `first_launch_done` 不存在即视为首次启动，
+  // 立即写入 true。后续所有启动都会读到该 key = true，即非首启。
+  // 注意：该机制从此版本引入，老用户升级时哨兵同样缺失，会被当作首启。
+  // 需要业务层额外用数据是否为空等 gate 兜底区分升级用户。
+  final isFirstLaunch = !(prefs.getBool('first_launch_done') ?? false);
+  if (isFirstLaunch) {
+    await prefs.setBool('first_launch_done', true);
+  }
+
   // 初始化数据库（演示模式使用独立数据库文件）
   final dbFileName = isDemoMode ? 'echo_loop_demo.db' : 'echo_loop.db';
   final database = AppDatabase(openConnectionWithName(dbFileName));
@@ -174,6 +183,7 @@ void main() async {
     ProviderScope(
       overrides: [
         packageInfoProvider.overrideWithValue(packageInfo),
+        isFirstLaunchProvider.overrideWithValue(isFirstLaunch),
         if (recommendedAsrModel != null)
           recommendedAsrModelProvider.overrideWithValue(recommendedAsrModel),
         if (initialOfflineAsrSettingsState != null)

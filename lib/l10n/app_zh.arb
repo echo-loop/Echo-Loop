@@ -1004,6 +1004,8 @@
   "guidePlanFreePlayDescription": "这是一个全能的、灵活的音频播放器，适合自由练习，你可以按照自己的节奏学习。",
   "guidePlanStartLearningTitle": "按计划学习",
   "guidePlanStartLearningDescription": "点击这里即可按照学习计划逐步学习。Echo Loop 会自动引导你学习，并及时提醒你复习。",
+  "guideMainShellVisitLibraryTitle": "从资源库开始",
+  "guideMainShellVisitLibraryDescription": "点击这里，了解如何使用本 App。",
   "guideStudyTasksOverviewTitle": "这里是你的学习任务",
   "guideStudyTasksOverviewDescription": "包括待学习的新音频、到期的复习任务和已完成的任务等。Echo Loop 会自动帮你安排学习节奏。",
   "guideStudyStatsHeaderTitle": "今日学习统计",

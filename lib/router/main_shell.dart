@@ -25,8 +25,10 @@ import '../providers/tag_provider.dart';
 import '../providers/time_provider.dart';
 import '../services/review_reminder_service.dart';
 import '../services/review_reminder_time_calculator.dart';
+import '../providers/new_user_guide_provider.dart';
 import '../theme/app_theme.dart';
 import '../widgets/app_update_dialog.dart';
+import '../widgets/guide_flow.dart';
 
 /// 主导航壳组件 — 包含 NavigationRail / NavigationBar + 内容区域
 class MainShell extends ConsumerStatefulWidget {
@@ -46,6 +48,9 @@ class _MainShellState extends ConsumerState<MainShell> {
   ProviderSubscription<AppUpdateState>? _appUpdateSubscription;
   ProviderSubscription<ReminderSettings>? _reminderSettingsSubscription;
   late final AppLifecycleListener _lifecycleListener;
+
+  /// 资源库 tab 图标的引导 target key；在整个 shell 生命周期内保持稳定。
+  final GlobalKey _keyLibraryNav = GlobalKey();
 
   @override
   void initState() {
@@ -247,11 +252,46 @@ class _MainShellState extends ConsumerState<MainShell> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
+
+    // ----- 新手引导 flow：仅首次安装首次启动时在学习 tab 提示去资源库 -----
+    // 触发条件（全部满足才显示）：
+    //   1. 当前在学习 tab（默认落地位置）；
+    //   2. `first_launch_done` 哨兵未曾设置过（本次启动属于首次启动）；
+    //   3. 学习进度加载完毕且为空。
+    // 说明：
+    //   - 哨兵（2）保证"以后版本的新安装识别准确"；
+    //   - 学习进度 gate（3）为本次引入哨兵机制前已存在的老用户兜底——他们
+    //     升级后哨兵同样缺失，会被误判为首启，需要靠"已有学习进度"排除。
+    //     不用资源库是否为空来判断：Examples 合集在首启时会被预装入库，
+    //     `audioItems` 对新老用户都不为空，无法区分。学习进度只有用户真正
+    //     学习过才会生成，天然可区分。
+    //   - GuideRegistry 的 seen 持久化继续保证"看过一次就不再出现"。
+    final isFirstLaunch = ref.watch(isFirstLaunchProvider);
+    final progress = ref.watch(learningProgressNotifierProvider);
+    final hasNoProgress =
+        !progress.isLoading && progress.progressMap.isEmpty;
+    final isFreshInstall = isFirstLaunch && hasNoProgress;
+    final stepLibraryNav = GuideStep(
+      key: _keyLibraryNav,
+      title: l10n.guideMainShellVisitLibraryTitle,
+      description: l10n.guideMainShellVisitLibraryDescription,
+    );
+    final flows = <GuideFlow>[
+      GuideFlow(
+        flowId: GuideFlowIds.mainShellVisitLibrary,
+        shouldRun:
+            widget.navigationShell.currentIndex == 1 && isFreshInstall,
+        steps: [stepLibraryNav],
+      ),
+    ];
+
     return LayoutBuilder(
       builder: (context, constraints) {
         final isWideScreen = constraints.maxWidth > 600;
 
-        return Scaffold(
+        return GuideFlowSequenceHost(
+          flows: flows,
+          child: Scaffold(
           body: Row(
             children: [
               if (isWideScreen)
@@ -261,7 +301,10 @@ class _MainShellState extends ConsumerState<MainShell> {
                   onDestinationSelected: _onTabSelected,
                   destinations: [
                     NavigationRailDestination(
-                      icon: const Icon(Icons.library_music_outlined),
+                      icon: GuideTarget(
+                        step: stepLibraryNav,
+                        child: const Icon(Icons.library_music_outlined),
+                      ),
                       selectedIcon: const Icon(
                         Icons.library_music,
                         color: AppTheme.navActiveColor,
@@ -305,7 +348,10 @@ class _MainShellState extends ConsumerState<MainShell> {
                   labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
                   destinations: [
                     NavigationDestination(
-                      icon: const Icon(Icons.library_music_outlined),
+                      icon: GuideTarget(
+                        step: stepLibraryNav,
+                        child: const Icon(Icons.library_music_outlined),
+                      ),
                       selectedIcon: const Icon(
                         Icons.library_music,
                         color: AppTheme.navActiveColor,
@@ -338,6 +384,7 @@ class _MainShellState extends ConsumerState<MainShell> {
                     ),
                   ],
                 ),
+          ),
         );
       },
     );

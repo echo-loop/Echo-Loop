@@ -2563,6 +2563,13 @@ class AppLocalizationsEn extends AppLocalizations {
       'Tap here to follow the learning plan step by step. Echo Loop will guide you and remind you to review at the right time.';
 
   @override
+  String get guideMainShellVisitLibraryTitle => 'Start from Library';
+
+  @override
+  String get guideMainShellVisitLibraryDescription =>
+      'Tap here to learn how to use this app.';
+
+  @override
   String get guideStudyTasksOverviewTitle => 'Your study tasks';
 
   @override

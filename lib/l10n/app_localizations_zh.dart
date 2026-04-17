@@ -2485,6 +2485,12 @@ class AppLocalizationsZh extends AppLocalizations {
       '点击这里即可按照学习计划逐步学习。Echo Loop 会自动引导你学习，并及时提醒你复习。';
 
   @override
+  String get guideMainShellVisitLibraryTitle => '从资源库开始';
+
+  @override
+  String get guideMainShellVisitLibraryDescription => '点击这里，了解如何使用本 App。';
+
+  @override
   String get guideStudyTasksOverviewTitle => '这里是你的学习任务';
 
   @override

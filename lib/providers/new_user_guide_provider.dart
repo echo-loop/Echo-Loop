@@ -54,6 +54,16 @@ final guideRegistryProvider = Provider<GuideRegistry>((ref) {
   return GuideRegistry();
 });
 
+/// 是否"首次启动"。
+///
+/// 在 `main()` 启动时读取 SharedPreferences 的 `first_launch_done` 哨兵 key：
+/// 不存在即为首次启动，随即写入 true。后续启动该 key 已存在，值为 false。
+/// 通过 `ProviderScope` 的 `overrides` 注入实际值，未 override 时抛出以便
+/// 尽早发现 wiring 缺失。
+final isFirstLaunchProvider = Provider<bool>((ref) {
+  throw UnimplementedError('isFirstLaunchProvider must be overridden in main()');
+});
+
 /// 当前版本的新用户引导 flow id。
 ///
 /// [active] 是当前真正被 screen 使用的 flow id。
@@ -61,6 +71,7 @@ final guideRegistryProvider = Provider<GuideRegistry>((ref) {
 /// 没有任何 screen 仍在引用，新增 flow 时不要往里加。
 /// [all] 用于设置页"重置引导"一键清空，合并 active + legacy。
 abstract final class GuideFlowIds {
+  static const mainShellVisitLibrary = 'main_shell_visit_library';
   static const libraryCreateCollection = 'library_create_collection';
   static const libraryCollectionList = 'library_collection_list';
   static const collectionDetailUpload = 'collection_detail_upload';
@@ -77,6 +88,7 @@ abstract final class GuideFlowIds {
   static const sentenceAnnotationTour = 'sentence_annotation_tour';
 
   static const active = [
+    mainShellVisitLibrary,
     libraryCreateCollection,
     libraryCollectionList,
     collectionDetailUpload,
