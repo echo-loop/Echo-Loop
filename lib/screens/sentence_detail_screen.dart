@@ -69,11 +69,12 @@ class _SentenceDetailScreenState extends ConsumerState<SentenceDetailScreen> {
   bool _isTogglingBookmark = false;
 
   /// 缓存 engine 引用，dispose 时 ref 已不可用
-  late final _engine = ref.read(audioEngineProvider.notifier);
+  late final AudioEngine _engine;
 
   @override
   void initState() {
     super.initState();
+    _engine = ref.read(audioEngineProvider.notifier);
     _loadBookmarkStatus();
   }
 
