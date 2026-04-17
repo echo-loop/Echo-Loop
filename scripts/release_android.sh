@@ -15,11 +15,12 @@ fail() {
 
 usage() {
   cat <<'EOF'
-Usage: scripts/release_android.sh [--no-upload] [--skip-build] [-h|--help]
+Usage: scripts/release_android.sh [--flavor <dev|prod>] [--no-upload] [--skip-build] [-h|--help]
 
 Build a release APK and upload it to Cloudflare R2.
 
 Options:
+  --flavor <f>  Product flavor: dev or prod (default: prod).
   --no-upload   Skip uploading the APK to R2.
   --skip-build  Skip the build step (use existing APK in build/release/).
   -h, --help    Show this help.
@@ -41,15 +42,19 @@ EOF
 # --- 参数解析 ---
 DO_UPLOAD=true
 SKIP_BUILD=false
+FLAVOR="prod"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
+    --flavor)     FLAVOR="${2:-}"; shift 2 ;;
     --no-upload)  DO_UPLOAD=false; shift ;;
     --skip-build) SKIP_BUILD=true; shift ;;
     -h|--help)    usage; exit 0 ;;
     *)            fail "Unknown option: $1. Use -h for help." ;;
   esac
 done
+
+[[ "$FLAVOR" == "dev" || "$FLAVOR" == "prod" ]] || fail "Invalid --flavor: $FLAVOR (expected dev|prod)"
 
 # --- 环境检查 ---
 if [[ -z "${ANDROID_HOME:-}" ]]; then
@@ -78,6 +83,7 @@ APK_PATH="build/release/$APK_NAME"
 
 log "Version: $VERSION"
 log "Architecture: $ARCH"
+log "Flavor: $FLAVOR"
 log "API base URL: $API_BASE_URL"
 log "Output: $APK_PATH"
 
@@ -95,10 +101,11 @@ if [[ "$SKIP_BUILD" == false ]]; then
   [[ -n "${POSTHOG_API_KEY:-}" ]] && DART_DEFINES+=("--dart-define=POSTHOG_API_KEY=${POSTHOG_API_KEY}")
 
   flutter build apk --release \
+    --flavor "$FLAVOR" \
     --target-platform android-arm64 \
     "${DART_DEFINES[@]}"
 
-  SRC="build/app/outputs/flutter-apk/app-release.apk"
+  SRC="build/app/outputs/flutter-apk/app-${FLAVOR}-release.apk"
   [[ -f "$SRC" ]] || fail "APK not found at $SRC"
 
   mkdir -p build/release
