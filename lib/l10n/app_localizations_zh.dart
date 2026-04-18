@@ -2485,6 +2485,9 @@ class AppLocalizationsZh extends AppLocalizations {
       '点击这里即可按照学习计划逐步学习。Echo Loop 会自动引导你学习，并及时提醒你复习。';
 
   @override
+  String get learningProgressLoadFailed => '学习进度加载失败，请稍后重试';
+
+  @override
   String get guideMainShellVisitLibraryTitle => '从资源库开始';
 
   @override

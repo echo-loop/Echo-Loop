@@ -63,7 +63,26 @@ class _MainShellState extends ConsumerState<MainShell> {
         ref.read(audioLibraryProvider.notifier).backfillDurations();
         ref.read(audioLibraryProvider.notifier).backfillTranscriptStats();
       });
-      await ref.read(learningProgressNotifierProvider.notifier).loadAll();
+      // 学习进度加载失败时给用户 snackbar 反馈，而不是默默吞掉；
+      // isLoading 已在 notifier 内部重置，状态不会卡死。
+      try {
+        await ref.read(learningProgressNotifierProvider.notifier).loadAll();
+      } catch (_) {
+        if (!mounted) return;
+        final l10n = AppLocalizations.of(context)!;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(l10n.learningProgressLoadFailed),
+            action: SnackBarAction(
+              label: l10n.retry,
+              onPressed: () => ref
+                  .read(learningProgressNotifierProvider.notifier)
+                  .loadAll()
+                  .catchError((_) {/* 重试失败不再嵌套提示 */}),
+            ),
+          ),
+        );
+      }
 
       // 启动时调度收藏复习提醒 + per-audio 提醒
       await _syncSavedReviewReminder();

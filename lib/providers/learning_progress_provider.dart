@@ -7,6 +7,7 @@ import '../database/enums.dart';
 import '../database/providers.dart';
 import '../database/app_database.dart' as db;
 import '../models/learning_progress.dart';
+import '../services/app_logger.dart';
 import 'time_provider.dart';
 
 part 'learning_progress_provider.g.dart';
@@ -45,21 +46,34 @@ class LearningProgressState {
 class LearningProgressNotifier extends _$LearningProgressNotifier {
   @override
   LearningProgressState build() {
-    return const LearningProgressState();
+    // 初始态标记为 loading：用于区分"尚未加载"与"加载完为空"。
+    // loadAll() 读完 DB 后会把 isLoading 置回 false，此后才可用于判断
+    // "用户真的没有学习进度"（例如新装首启的引导 gate）。
+    return const LearningProgressState(isLoading: true);
   }
 
   /// 启动时加载所有学习进度
+  ///
+  /// 失败时会：
+  ///   1. 记录日志；
+  ///   2. 把 `isLoading` 重置为 false，避免永久卡在加载态；
+  ///   3. rethrow，让上层调用方（有 BuildContext）负责给用户反馈（snackbar 等）。
   Future<void> loadAll() async {
     state = state.copyWith(isLoading: true);
-    final dao = ref.read(learningProgressDaoProvider);
-    final rows = await dao.getAll();
+    try {
+      final dao = ref.read(learningProgressDaoProvider);
+      final rows = await dao.getAll();
 
-    final map = <String, LearningProgress>{};
-    for (final row in rows) {
-      map[row.audioItemId] = _fromDbRow(row);
+      final map = <String, LearningProgress>{
+        for (final row in rows) row.audioItemId: _fromDbRow(row),
+      };
+
+      state = LearningProgressState(progressMap: map, isLoading: false);
+    } catch (e, st) {
+      AppLogger.log('LearningProgress', 'loadAll failed: $e\n$st');
+      state = state.copyWith(isLoading: false);
+      rethrow;
     }
-
-    state = LearningProgressState(progressMap: map, isLoading: false);
   }
 
   /// O(1) 查找指定音频的学习进度

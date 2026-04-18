@@ -4568,6 +4568,12 @@ abstract class AppLocalizations {
   /// **'Tap here to follow the learning plan step by step. Echo Loop will guide you and remind you to review at the right time.'**
   String get guidePlanStartLearningDescription;
 
+  /// No description provided for @learningProgressLoadFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to load learning progress. Please try again later.'**
+  String get learningProgressLoadFailed;
+
   /// No description provided for @guideMainShellVisitLibraryTitle.
   ///
   /// In en, this message translates to:

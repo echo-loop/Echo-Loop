@@ -2563,6 +2563,10 @@ class AppLocalizationsEn extends AppLocalizations {
       'Tap here to follow the learning plan step by step. Echo Loop will guide you and remind you to review at the right time.';
 
   @override
+  String get learningProgressLoadFailed =>
+      'Failed to load learning progress. Please try again later.';
+
+  @override
   String get guideMainShellVisitLibraryTitle => 'Start from Library';
 
   @override
