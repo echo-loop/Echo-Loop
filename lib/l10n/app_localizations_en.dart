@@ -9,7 +9,7 @@ class AppLocalizationsEn extends AppLocalizations {
   AppLocalizationsEn([String locale = 'en']) : super(locale);
 
   @override
-  String get appTitle => 'Fluency';
+  String get appTitle => 'Echo Loop';
 
   @override
   String get practiceControlModeAuto => 'Auto';

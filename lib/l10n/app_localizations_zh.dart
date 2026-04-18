@@ -9,7 +9,7 @@ class AppLocalizationsZh extends AppLocalizations {
   AppLocalizationsZh([String locale = 'zh']) : super(locale);
 
   @override
-  String get appTitle => 'Fluency';
+  String get appTitle => 'Echo Loop';
 
   @override
   String get practiceControlModeAuto => '自动';

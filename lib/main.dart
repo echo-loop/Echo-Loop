@@ -261,7 +261,7 @@ class _FluencyAppState extends ConsumerState<FluencyApp> {
     final router = ref.watch(appRouterProvider);
 
     return MaterialApp.router(
-      title: 'Fluency',
+      title: 'Echo Loop',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light(),
       darkTheme: AppTheme.dark(),
