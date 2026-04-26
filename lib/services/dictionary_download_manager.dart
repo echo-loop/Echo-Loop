@@ -27,7 +27,7 @@ class DictionaryVersionInfo {
 class DictionaryDownloadManager {
   DictionaryDownloadManager() : _dio = Dio(
     BaseOptions(
-      connectTimeout: const Duration(seconds: 10),
+      connectTimeout: const Duration(seconds: 15),
       receiveTimeout: const Duration(minutes: 5),
     ),
   );
@@ -70,7 +70,7 @@ class DictionaryDownloadManager {
       final response = await _dio.get<Map<String, dynamic>>(
         '$apiBaseUrl/version.json',
         options: Options(
-          receiveTimeout: const Duration(seconds: 5),
+          receiveTimeout: const Duration(seconds: 30),
         ),
       );
       final data = response.data;

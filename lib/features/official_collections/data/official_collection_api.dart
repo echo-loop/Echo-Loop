@@ -32,8 +32,8 @@ class OfficialCollectionApi {
     : _dio = Dio(
         BaseOptions(
           baseUrl: baseUrl,
-          connectTimeout: const Duration(seconds: 10),
-          receiveTimeout: const Duration(seconds: 15),
+          connectTimeout: const Duration(seconds: 15),
+          receiveTimeout: const Duration(seconds: 30),
         ),
       ) {
     SharedPreferences.getInstance().then(
