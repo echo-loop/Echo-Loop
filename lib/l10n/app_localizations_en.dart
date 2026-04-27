@@ -2937,4 +2937,50 @@ class AppLocalizationsEn extends AppLocalizations {
   String silenceSkipped(int seconds) {
     return 'Skipped ${seconds}s of silence part';
   }
+
+  @override
+  String get speechPermDialogTitleRequest => 'Permissions Required';
+
+  @override
+  String get speechPermDialogTitleDenied => 'Permissions Denied';
+
+  @override
+  String get speechPermDialogTitleRestricted => 'Device Restricted';
+
+  @override
+  String get speechPermItemMic => 'Microphone';
+
+  @override
+  String get speechPermItemMicDesc =>
+      'Record your speech for pronunciation scoring';
+
+  @override
+  String get speechPermItemSpeech => 'Speech Recognition';
+
+  @override
+  String get speechPermItemSpeechDesc => 'Detect mispronounced words';
+
+  @override
+  String get speechPermStatusPending => 'Not granted';
+
+  @override
+  String get speechPermStatusDenied => 'Denied';
+
+  @override
+  String get speechPermDeniedHint =>
+      'You previously denied access. Please enable it in System Settings.';
+
+  @override
+  String get speechPermRestrictedHint =>
+      'Recording is restricted on this device by parental controls or MDM.';
+
+  @override
+  String get speechPermActionGrant => 'Grant';
+
+  @override
+  String get speechPermActionOpenSettings => 'Open Settings';
+
+  @override
+  String get speechPermUnsupportedToast =>
+      'Recording is not supported on this platform';
 }

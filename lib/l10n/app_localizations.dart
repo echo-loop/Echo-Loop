@@ -5221,6 +5221,90 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Skipped {seconds}s of silence part'**
   String silenceSkipped(int seconds);
+
+  /// No description provided for @speechPermDialogTitleRequest.
+  ///
+  /// In en, this message translates to:
+  /// **'Permissions Required'**
+  String get speechPermDialogTitleRequest;
+
+  /// No description provided for @speechPermDialogTitleDenied.
+  ///
+  /// In en, this message translates to:
+  /// **'Permissions Denied'**
+  String get speechPermDialogTitleDenied;
+
+  /// No description provided for @speechPermDialogTitleRestricted.
+  ///
+  /// In en, this message translates to:
+  /// **'Device Restricted'**
+  String get speechPermDialogTitleRestricted;
+
+  /// No description provided for @speechPermItemMic.
+  ///
+  /// In en, this message translates to:
+  /// **'Microphone'**
+  String get speechPermItemMic;
+
+  /// No description provided for @speechPermItemMicDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Record your speech for pronunciation scoring'**
+  String get speechPermItemMicDesc;
+
+  /// No description provided for @speechPermItemSpeech.
+  ///
+  /// In en, this message translates to:
+  /// **'Speech Recognition'**
+  String get speechPermItemSpeech;
+
+  /// No description provided for @speechPermItemSpeechDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Detect mispronounced words'**
+  String get speechPermItemSpeechDesc;
+
+  /// No description provided for @speechPermStatusPending.
+  ///
+  /// In en, this message translates to:
+  /// **'Not granted'**
+  String get speechPermStatusPending;
+
+  /// No description provided for @speechPermStatusDenied.
+  ///
+  /// In en, this message translates to:
+  /// **'Denied'**
+  String get speechPermStatusDenied;
+
+  /// No description provided for @speechPermDeniedHint.
+  ///
+  /// In en, this message translates to:
+  /// **'You previously denied access. Please enable it in System Settings.'**
+  String get speechPermDeniedHint;
+
+  /// No description provided for @speechPermRestrictedHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Recording is restricted on this device by parental controls or MDM.'**
+  String get speechPermRestrictedHint;
+
+  /// No description provided for @speechPermActionGrant.
+  ///
+  /// In en, this message translates to:
+  /// **'Grant'**
+  String get speechPermActionGrant;
+
+  /// No description provided for @speechPermActionOpenSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'Open Settings'**
+  String get speechPermActionOpenSettings;
+
+  /// No description provided for @speechPermUnsupportedToast.
+  ///
+  /// In en, this message translates to:
+  /// **'Recording is not supported on this platform'**
+  String get speechPermUnsupportedToast;
 }
 
 class _AppLocalizationsDelegate

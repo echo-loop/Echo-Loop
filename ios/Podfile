@@ -39,5 +39,17 @@ end
 post_install do |installer|
   installer.pods_project.targets.each do |target|
     flutter_additional_ios_build_settings(target)
+
+    # permission_handler iOS 编译开关：
+    # 没有这些宏，permission_handler_apple 不会把对应权限类型编译进二进制，
+    # request()/status 会静默失败，系统也不会登记本 App 的权限请求。
+    # 详见 https://pub.dev/packages/permission_handler#ios
+    target.build_configurations.each do |config|
+      config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] ||= [
+        '$(inherited)',
+        'PERMISSION_MICROPHONE=1',
+        'PERMISSION_SPEECH_RECOGNIZER=1',
+      ]
+    end
   end
 end

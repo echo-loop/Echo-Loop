@@ -1,7 +1,24 @@
 # Fluency 任务清单
 
-> 最后更新：2026-04-26
-> 当前焦点：启动埋点附带 4 类授权状态
+> 最后更新：2026-04-27
+> 当前焦点：跟读权限前置阻塞弹窗
+
+## 已完成：跟读权限前置阻塞弹窗
+
+把麦克风 + 平台语音识别权限检查从 `RepeatPracticePanel` 中剥离，改为入口前置阻塞弹窗。语音识别仅在 `offlineAsrSettings.enabled && backend == AsrBackend.platform` 时才请求；关闭 ASR 或选 Echo Loop AI 离线引擎时弹窗只列麦克风。
+
+### 实现
+- [x] 新建 `lib/widgets/speech_permission_dialog.dart`：暴露 `ensureSpeechReadyForSubStage(ctx, ref, subStage)` / `ensureSpeechReadyForRecording(ctx, ref)`，内部串联 subStage 过滤 → 平台支持检查 → 权限弹窗 → ASR 模型下载弹窗
+- [x] 弹窗三态：notDetermined（「授权」按钮触发系统弹窗）/ denied（「前往设置」+ AppLifecycle.resumed 自动重查）/ restricted（「设备已限制」仅返回）
+- [x] 新增 14 个 i18n key（en + zh）
+- [x] 改造 4 个录音页 initState 接入前置检查（listen_and_repeat / review_difficult_practice / bookmark_review / retell），权限拒绝则 `context.pop()`
+- [x] 改造 11 处聚合页按钮 onTap（learning_plan / favorites / study）：`ensureAsrReadyBeforeSpeechPractice` → `ensureSpeechReadyForRecording`；`ensureAsrReadyForSubStage` → `ensureSpeechReadyForSubStage`
+- [x] 清理 `RepeatPracticePanel` 中权限引导职责：删除 `_isPermissionDenied` / `_openAppSettings` / permissionDenied 专用 UI 分支；permissionDenied 兜底走通用 `errorMessage` 路径
+- [x] 测试：新增 11 个 dialog 测试（subStage 过滤 / 权限矩阵 / lifecycle 重查 / 不支持平台）+ 改写 panel 测试（permissionDenied 不再显示「前往设置」+ 兜底走 errorMessage）
+
+  **完成时间**: 2026-04-27
+
+---
 
 ## 进行中：启动埋点附带 4 类授权状态
 

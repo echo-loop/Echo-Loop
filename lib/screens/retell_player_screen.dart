@@ -37,6 +37,7 @@ import '../widgets/common/paragraph_sentence_list_card.dart';
 import '../widgets/common/paragraph_visibility_controls.dart';
 import '../widgets/retell/retell_settings_sheet.dart';
 import '../widgets/player_hotkey_scope.dart';
+import '../widgets/speech_permission_dialog.dart';
 
 /// 复述播放器页面
 class RetellPlayerScreen extends ConsumerStatefulWidget {
@@ -94,6 +95,12 @@ class _RetellPlayerScreenState extends ConsumerState<RetellPlayerScreen>
     _latestRecordingState = ref.read(retellRecordingControllerProvider);
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
+      final ok = await ensureSpeechReadyForRecording(context, ref);
+      if (!mounted) return;
+      if (!ok) {
+        if (context.canPop()) context.pop();
+        return;
+      }
       final settings = ref.read(retellPlayerProvider).settings;
       ref
           .read(retellRecordingControllerProvider.notifier)

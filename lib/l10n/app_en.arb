@@ -1526,5 +1526,19 @@
     "placeholders": {
       "seconds": {"type": "int"}
     }
-  }
+  },
+  "speechPermDialogTitleRequest": "Permissions Required",
+  "speechPermDialogTitleDenied": "Permissions Denied",
+  "speechPermDialogTitleRestricted": "Device Restricted",
+  "speechPermItemMic": "Microphone",
+  "speechPermItemMicDesc": "Record your speech for pronunciation scoring",
+  "speechPermItemSpeech": "Speech Recognition",
+  "speechPermItemSpeechDesc": "Detect mispronounced words",
+  "speechPermStatusPending": "Not granted",
+  "speechPermStatusDenied": "Denied",
+  "speechPermDeniedHint": "You previously denied access. Please enable it in System Settings.",
+  "speechPermRestrictedHint": "Recording is restricted on this device by parental controls or MDM.",
+  "speechPermActionGrant": "Grant",
+  "speechPermActionOpenSettings": "Open Settings",
+  "speechPermUnsupportedToast": "Recording is not supported on this platform"
 }

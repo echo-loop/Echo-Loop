@@ -28,7 +28,7 @@ import '../providers/saved_word_provider.dart';
 import '../services/dictionary_service.dart';
 import '../router/app_router.dart';
 import '../theme/app_theme.dart';
-import '../widgets/asr_download_prompt_dialog.dart';
+import '../widgets/speech_permission_dialog.dart';
 import '../widgets/favorites/sentence_recycle_bin_sheet.dart';
 import '../widgets/favorites/vocabulary_recycle_bin_sheet.dart';
 import '../widgets/guide_flow.dart';
@@ -355,7 +355,7 @@ class _FloatingSentenceReviewButton extends ConsumerWidget {
           Events.bookmarkReviewButtonTapped,
           {EventParams.totalSentencesCount: validBookmarks.length},
         );
-        final allowed = await ensureAsrReadyBeforeSpeechPractice(context, ref);
+        final allowed = await ensureSpeechReadyForRecording(context, ref);
         if (!allowed || !context.mounted) return;
 
         final sw = Stopwatch()..start();
@@ -572,7 +572,7 @@ class _AudioBookmarkGroup extends ConsumerWidget {
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(),
                 onPressed: () async {
-                  final allowed = await ensureAsrReadyBeforeSpeechPractice(
+                  final allowed = await ensureSpeechReadyForRecording(
                     context,
                     ref,
                   );

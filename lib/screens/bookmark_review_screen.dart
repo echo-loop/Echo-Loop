@@ -30,6 +30,7 @@ import '../providers/speech/speech_recording_controller.dart';
 import '../providers/sentence_ai_provider.dart';
 import '../utils/wakelock_mixin.dart';
 import '../widgets/dialogs/free_play_complete_dialog.dart';
+import '../widgets/speech_permission_dialog.dart';
 import '../widgets/difficult_practice/difficult_practice_settings_sheet.dart';
 import '../widgets/player_hotkey_scope.dart';
 import '../widgets/intensive_listen/word_dictionary_sheet.dart';
@@ -67,6 +68,12 @@ class _BookmarkReviewScreenState extends ConsumerState<BookmarkReviewScreen>
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
+      final ok = await ensureSpeechReadyForRecording(context, ref);
+      if (!mounted) return;
+      if (!ok) {
+        if (context.canPop()) context.pop();
+        return;
+      }
       ref.read(bookmarkReviewProvider.notifier).syncRecordingMode();
       ref.read(bookmarkReviewProvider.notifier).startPlaying();
     });

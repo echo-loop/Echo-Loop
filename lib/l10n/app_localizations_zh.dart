@@ -2835,4 +2835,46 @@ class AppLocalizationsZh extends AppLocalizations {
   String silenceSkipped(int seconds) {
     return '已跳过 $seconds 秒静音部分';
   }
+
+  @override
+  String get speechPermDialogTitleRequest => '需要授权';
+
+  @override
+  String get speechPermDialogTitleDenied => '权限已被拒绝';
+
+  @override
+  String get speechPermDialogTitleRestricted => '设备已限制';
+
+  @override
+  String get speechPermItemMic => '麦克风';
+
+  @override
+  String get speechPermItemMicDesc => '录制你的朗读用于发音评测';
+
+  @override
+  String get speechPermItemSpeech => '语音识别';
+
+  @override
+  String get speechPermItemSpeechDesc => '对比朗读内容，逐字标注错误';
+
+  @override
+  String get speechPermStatusPending => '待授权';
+
+  @override
+  String get speechPermStatusDenied => '已拒绝';
+
+  @override
+  String get speechPermDeniedHint => '你曾拒绝过权限，需要在系统设置中手动开启';
+
+  @override
+  String get speechPermRestrictedHint => '当前设备被家长控制或 MDM 限制，无法使用录音';
+
+  @override
+  String get speechPermActionGrant => '授权';
+
+  @override
+  String get speechPermActionOpenSettings => '前往设置';
+
+  @override
+  String get speechPermUnsupportedToast => '当前平台不支持录音';
 }

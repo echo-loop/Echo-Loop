@@ -21,7 +21,7 @@ import '../providers/learning_session/intensive_listen_player_provider.dart';
 import '../providers/learning_session/learning_session_provider.dart';
 import '../providers/listening_practice/bookmark_manager.dart';
 import '../theme/app_theme.dart';
-import '../widgets/asr_download_prompt_dialog.dart';
+import '../widgets/speech_permission_dialog.dart';
 import '../widgets/intensive_listen/intensive_listen_settings_sheet.dart';
 import '../providers/sentence_ai_provider.dart';
 import '../services/app_logger.dart';
@@ -271,7 +271,7 @@ class _IntensiveListenPlayerScreenState
         ?.currentSubStage;
     final canAutoStart = nextSubStage == null
         ? true
-        : await ensureAsrReadyForSubStage(context, ref, nextSubStage);
+        : await ensureSpeechReadyForSubStage(context, ref, nextSubStage);
     if (!mounted) return;
 
     final route = widget.collectionId != null

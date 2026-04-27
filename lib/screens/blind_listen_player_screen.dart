@@ -22,7 +22,7 @@ import '../providers/learning_session/blind_listen_player_provider.dart';
 import '../providers/learning_session/learning_session_provider.dart';
 import '../services/app_logger.dart';
 import '../theme/app_theme.dart';
-import '../widgets/asr_download_prompt_dialog.dart';
+import '../widgets/speech_permission_dialog.dart';
 import '../widgets/dialogs/step_complete_dialog.dart';
 import '../widgets/review/review_briefing_sheet.dart';
 import '../widgets/blind_listen_settings_sheet.dart';
@@ -262,7 +262,7 @@ class _BlindListenPlayerScreenState
         ?.currentSubStage;
     final canAutoStart = nextSubStage == null
         ? true
-        : await ensureAsrReadyForSubStage(context, ref, nextSubStage);
+        : await ensureSpeechReadyForSubStage(context, ref, nextSubStage);
     if (!mounted) return;
 
     final route = widget.collectionId != null

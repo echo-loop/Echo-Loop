@@ -13,7 +13,7 @@ library;
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../widgets/asr_download_prompt_dialog.dart';
+import '../widgets/speech_permission_dialog.dart';
 import 'package:go_router/go_router.dart';
 import '../router/app_router.dart';
 import '../database/enums.dart';
@@ -79,6 +79,12 @@ class _ListenAndRepeatPlayerScreenState
     WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
+      final ok = await ensureSpeechReadyForRecording(context, ref);
+      if (!mounted) return;
+      if (!ok) {
+        if (context.canPop()) context.pop();
+        return;
+      }
       ref.read(listenAndRepeatControllerProvider.notifier).startPlaying();
     });
     _controllerSubscription = ref.listenManual<ListenAndRepeatSessionState>(
@@ -324,7 +330,7 @@ class _ListenAndRepeatPlayerScreenState
         ?.currentSubStage;
     final canAutoStart = nextSubStage == null
         ? true
-        : await ensureAsrReadyForSubStage(context, ref, nextSubStage);
+        : await ensureSpeechReadyForSubStage(context, ref, nextSubStage);
     if (!mounted) return;
 
     final route = widget.collectionId != null

@@ -92,19 +92,43 @@ class RecordingService {
   /// 原生事件流（partial transcript / speechStarted / silenceProgress）。
   Stream<SpeechPracticeEvent> get events => _eventController.stream;
 
-  /// 确保已获取麦克风与语音识别权限。
+  /// 确保已获取所需录音权限。
+  ///
+  /// [requirePlatformSpeechRecognition]：是否要求 iOS/macOS 平台原生
+  /// `SFSpeechRecognizer` 权限。仅当用户启用 ASR 且 backend 为
+  /// `AsrBackend.platform` 时为 true；关闭 ASR / Echo Loop 离线后端时为 false。
+  /// 为 false 时只检查麦克风权限，speech recognition 状态被忽略。
   ///
   /// 每次都查询原生层获取实时权限状态，防止用户在系统设置中撤销权限后
   /// 缓存过期导致判断错误。
-  Future<bool> ensurePermissions() async {
+  Future<bool> ensurePermissions({
+    required bool requirePlatformSpeechRecognition,
+  }) async {
     if (!_backend.isSupported) return false;
 
     var perms = await _backend.getPermissionStatus();
-    if (!perms.isGranted) {
+    if (!_isCovered(
+      perms,
+      requirePlatformSpeechRecognition: requirePlatformSpeechRecognition,
+    )) {
       perms = await _backend.requestPermissions();
     }
     _permissions = perms;
-    return perms.isGranted;
+    return _isCovered(
+      perms,
+      requirePlatformSpeechRecognition: requirePlatformSpeechRecognition,
+    );
+  }
+
+  /// 判断当前权限快照是否覆盖本次录音所需。
+  bool _isCovered(
+    SpeechPracticePermissionState perms, {
+    required bool requirePlatformSpeechRecognition,
+  }) {
+    final micOk = perms.microphone == SpeechPracticePermissionStatus.granted;
+    final speechOk = !requirePlatformSpeechRecognition ||
+        perms.speech == SpeechPracticePermissionStatus.granted;
+    return micOk && speechOk;
   }
 
   /// 开始录音。
@@ -129,8 +153,12 @@ class RecordingService {
 
     try {
       // 权限检查（必须在 warmup 之前，否则 iOS/macOS 原生 warmup
-      // 会把 notDetermined 当作 denied 直接返回错误）
-      final granted = await ensurePermissions();
+      // 会把 notDetermined 当作 denied 直接返回错误）。
+      // 仅在启用平台原生 ASR（recognitionEnabled == true）时才要求
+      // speech recognition 权限；纯录音 / Echo Loop 离线 ASR 只需 mic。
+      final granted = await ensurePermissions(
+        requirePlatformSpeechRecognition: recognitionEnabled,
+      );
       if (!granted) {
         throw const SpeechPracticePlatformException(
           'permissionDenied',

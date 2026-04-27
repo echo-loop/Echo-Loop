@@ -34,7 +34,7 @@ import '../widgets/listen_and_repeat/listen_and_repeat_briefing_sheet.dart';
 import '../providers/learning_session/retell_player_provider.dart';
 import '../widgets/retell/retell_briefing_sheet.dart';
 import '../widgets/review/review_briefing_sheet.dart';
-import '../widgets/asr_download_prompt_dialog.dart';
+import '../widgets/speech_permission_dialog.dart';
 import '../widgets/guide_flow.dart';
 import '../widgets/manage_subtitles_sheet.dart';
 import '../providers/listening_practice/bookmark_manager.dart';
@@ -295,7 +295,7 @@ class _LearningPlanScreenState extends ConsumerState<LearningPlanScreen> {
   ///
   /// 先检查书签数量，无难句时自动完成并跳到下一复述子阶段。
   Future<void> _startReviewDifficultPractice(BuildContext context) async {
-    final allowed = await ensureAsrReadyBeforeSpeechPractice(context, ref);
+    final allowed = await ensureSpeechReadyForRecording(context, ref);
     if (!allowed || !context.mounted) return;
 
     final lpState = await _ensureAudioLoaded();
@@ -371,7 +371,7 @@ class _LearningPlanScreenState extends ConsumerState<LearningPlanScreen> {
     BuildContext context, {
     required bool isSummary,
   }) async {
-    final allowed = await ensureAsrReadyBeforeSpeechPractice(context, ref);
+    final allowed = await ensureSpeechReadyForRecording(context, ref);
     if (!allowed || !context.mounted) return;
 
     final lpState = await _ensureAudioLoaded();
@@ -563,7 +563,7 @@ class _LearningPlanScreenState extends ConsumerState<LearningPlanScreen> {
 
   /// 进入难句跟读
   Future<void> _startListenAndRepeat(BuildContext context) async {
-    final allowed = await ensureAsrReadyBeforeSpeechPractice(context, ref);
+    final allowed = await ensureSpeechReadyForRecording(context, ref);
     if (!allowed || !context.mounted) return;
 
     final lpState = await _ensureAudioLoaded();
@@ -650,7 +650,7 @@ class _LearningPlanScreenState extends ConsumerState<LearningPlanScreen> {
 
   /// 进入段落复述
   Future<void> _startRetelling(BuildContext context) async {
-    final allowed = await ensureAsrReadyBeforeSpeechPractice(context, ref);
+    final allowed = await ensureSpeechReadyForRecording(context, ref);
     if (!allowed || !context.mounted) return;
 
     final lpState = await _ensureAudioLoaded();
@@ -1543,7 +1543,7 @@ class _FirstStudySection extends ConsumerWidget {
     BuildContext context,
     WidgetRef ref,
   ) async {
-    final allowed = await ensureAsrReadyForSubStage(
+    final allowed = await ensureSpeechReadyForSubStage(
       context,
       ref,
       SubStageType.listenAndRepeat,
@@ -1583,7 +1583,7 @@ class _FirstStudySection extends ConsumerWidget {
     BuildContext context,
     WidgetRef ref,
   ) async {
-    final allowed = await ensureAsrReadyForSubStage(
+    final allowed = await ensureSpeechReadyForSubStage(
       context,
       ref,
       SubStageType.retell,
@@ -2050,7 +2050,7 @@ class _ReviewRoundSection extends ConsumerWidget {
     BuildContext context,
     WidgetRef ref,
   ) async {
-    final allowed = await ensureAsrReadyForSubStage(
+    final allowed = await ensureSpeechReadyForSubStage(
       context,
       ref,
       SubStageType.reviewDifficultPractice,
@@ -2080,7 +2080,7 @@ class _ReviewRoundSection extends ConsumerWidget {
     WidgetRef ref, {
     required bool isSummary,
   }) async {
-    final allowed = await ensureAsrReadyForSubStage(
+    final allowed = await ensureSpeechReadyForSubStage(
       context,
       ref,
       isSummary

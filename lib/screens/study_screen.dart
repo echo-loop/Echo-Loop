@@ -14,7 +14,7 @@ import '../providers/study_task_provider.dart';
 import '../providers/time_provider.dart';
 import '../router/app_router.dart';
 import '../theme/app_theme.dart';
-import '../widgets/asr_download_prompt_dialog.dart';
+import '../widgets/speech_permission_dialog.dart';
 import '../widgets/guide_flow.dart';
 import '../widgets/learning_progress_icon.dart';
 import '../widgets/study/study_stats_header.dart';
@@ -484,7 +484,7 @@ class _TaskCard extends ConsumerWidget {
                                 ? null
                                 : () async {
                                     final allowed =
-                                        await ensureAsrReadyForSubStage(
+                                        await ensureSpeechReadyForSubStage(
                                           context,
                                           ref,
                                           task.subStage,

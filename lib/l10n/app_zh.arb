@@ -1160,5 +1160,19 @@
     "placeholders": {
       "seconds": {"type": "int"}
     }
-  }
+  },
+  "speechPermDialogTitleRequest": "需要授权",
+  "speechPermDialogTitleDenied": "权限已被拒绝",
+  "speechPermDialogTitleRestricted": "设备已限制",
+  "speechPermItemMic": "麦克风",
+  "speechPermItemMicDesc": "录制你的朗读用于发音评测",
+  "speechPermItemSpeech": "语音识别",
+  "speechPermItemSpeechDesc": "对比朗读内容，逐字标注错误",
+  "speechPermStatusPending": "待授权",
+  "speechPermStatusDenied": "已拒绝",
+  "speechPermDeniedHint": "你曾拒绝过权限，需要在系统设置中手动开启",
+  "speechPermRestrictedHint": "当前设备被家长控制或 MDM 限制，无法使用录音",
+  "speechPermActionGrant": "授权",
+  "speechPermActionOpenSettings": "前往设置",
+  "speechPermUnsupportedToast": "当前平台不支持录音"
 }
