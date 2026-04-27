@@ -147,10 +147,17 @@ class _OnboardingSurveyScreenState
     final elapsed = DateTime.now().difference(_startedAt).inSeconds;
     await analytics.track(Events.onboardingSurveyCompleted, {
       EventParams.goal: answers.goal!,
+      if (answers.examType != null) EventParams.examType: answers.examType!,
       EventParams.dailyMinutes: answers.dailyMinutes!,
       EventParams.elapsedSeconds: elapsed,
     });
     await analytics.setUserProperty(UserProperties.englishGoal, answers.goal);
+    if (answers.examType != null) {
+      await analytics.setUserProperty(
+        UserProperties.examType,
+        answers.examType,
+      );
+    }
     await analytics.setUserProperty(
       UserProperties.dailyMinutesTarget,
       answers.dailyMinutes,

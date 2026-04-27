@@ -182,6 +182,9 @@ abstract class UserProperties {
   /// 学习目标（exam / daily / work / travel / other）
   static const englishGoal = 'english_goal';
 
+  /// 考试类型（仅 goal == exam 时设置；gaokao / cet / tem / ielts / toefl / other）
+  static const examType = 'exam_type';
+
   /// 每日学习时长（"5" / "10" / "20" / "30" / "flexible"）
   static const dailyMinutesTarget = 'daily_minutes_target';
 }
@@ -279,6 +282,9 @@ abstract class EventParams {
 
   /// Q1 学习目标
   static const goal = 'goal';
+
+  /// Q1.5 考试类型（仅 goal == exam 时上报）
+  static const examType = 'exam_type';
 
   /// Q2 每日学习时长
   static const dailyMinutes = 'daily_minutes';
