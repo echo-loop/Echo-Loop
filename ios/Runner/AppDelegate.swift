@@ -76,7 +76,9 @@ private final class IOSSpeechPracticeHandler: NSObject, FlutterStreamHandler {
     case "getPermissionStatus":
       result(permissionMap())
     case "requestPermissions":
-      requestPermissions(result: result)
+      let args = call.arguments as? [String: Any]
+      let onlyMic = (args?["onlyMic"] as? Bool) ?? false
+      requestPermissions(onlyMic: onlyMic, result: result)
     case "warmup":
       warmup(call.arguments as? [String: Any], result: result)
     case "startSession":
@@ -136,8 +138,19 @@ private final class IOSSpeechPracticeHandler: NSObject, FlutterStreamHandler {
   }
 
   /// 依次请求麦克风权限和语音识别权限（先麦克风，更符合用户直觉）。
-  private func requestPermissions(result: @escaping FlutterResult) {
-    AVAudioSession.sharedInstance().requestRecordPermission { _ in
+  ///
+  /// `onlyMic=true` 时只请求麦克风，不触发 SFSpeechRecognizer 系统弹窗——
+  /// 用户关闭 ASR / 选择 Echo Loop 离线后端时不需要平台语音识别权限，
+  /// 遵循 App Store 5.1.1 数据最小化原则。
+  private func requestPermissions(onlyMic: Bool, result: @escaping FlutterResult) {
+    AVAudioSession.sharedInstance().requestRecordPermission { [weak self] _ in
+      guard let self = self else { return }
+      if onlyMic {
+        DispatchQueue.main.async {
+          result(self.permissionMap())
+        }
+        return
+      }
       SFSpeechRecognizer.requestAuthorization { _ in
         DispatchQueue.main.async {
           result(self.permissionMap())
@@ -157,7 +170,7 @@ private final class IOSSpeechPracticeHandler: NSObject, FlutterStreamHandler {
     let speechStatus = needsSpeech ? speechPermissionStatus() : "granted"
 
     if micStatus == "notDetermined" || speechStatus == "notDetermined" {
-      requestPermissions { [weak self] _ in
+      requestPermissions(onlyMic: !needsSpeech) { [weak self] _ in
         self?.warmup(arguments, result: result)
       }
       return
@@ -310,7 +323,7 @@ private final class IOSSpeechPracticeHandler: NSObject, FlutterStreamHandler {
     let speechStatus = speechPermissionStatus()
 
     if micStatus == "notDetermined" || speechStatus == "notDetermined" {
-      requestPermissions { [weak self] _ in
+      requestPermissions(onlyMic: !recognitionEnabled) { [weak self] _ in
         self?.startSessionFull(promptId: promptId, locale: locale, result: result)
       }
       return

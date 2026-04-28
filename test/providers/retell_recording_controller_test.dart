@@ -30,7 +30,9 @@ class _FakeSpeechPracticeBackend implements SpeechPracticeBackend {
   }
 
   @override
-  Future<SpeechPracticePermissionState> requestPermissions() {
+  Future<SpeechPracticePermissionState> requestPermissions({
+    bool onlyMic = false,
+  }) {
     return getPermissionStatus();
   }
 

@@ -9,8 +9,11 @@ import 'dart:io' show Platform;
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:permission_handler/permission_handler.dart' as ph;
+import 'package:url_launcher/url_launcher.dart';
 
 import '../models/speech_practice_models.dart';
+import 'app_logger.dart';
+import 'speech_practice_platform.dart';
 
 /// 录音权限服务接口。
 abstract class SpeechPermissionService {
@@ -30,7 +33,13 @@ abstract class SpeechPermissionService {
   Future<void> openAppSettings();
 }
 
-/// 默认实现：基于 [permission_handler] 包。
+/// 默认实现：iOS / Android 走 [permission_handler]；macOS 走仓库自建的
+/// [SpeechPracticePlatform] 原生桥。
+///
+/// 为何 macOS 单独处理：`permission_handler_apple` 包 pubspec 只声明 iOS 平台，
+/// macOS engine 不会注册其插件，所有方法调用都会抛 `MissingPluginException`。
+/// 仓库已有 `MacSpeechPracticeHandler` 直接调 `AVAudioSession` /
+/// `SFSpeechRecognizer`，权限读取/请求/状态映射逻辑完整，复用即可。
 class PermissionHandlerSpeechPermissionService
     implements SpeechPermissionService {
   const PermissionHandlerSpeechPermissionService();
@@ -41,35 +50,136 @@ class PermissionHandlerSpeechPermissionService
 
   @override
   Future<SpeechPracticePermissionState> getStatus() async {
-    final mic = await ph.Permission.microphone.status;
-    final speech = await ph.Permission.speech.status;
-    return SpeechPracticePermissionState(
-      microphone: _convert(mic),
-      speech: _convert(speech),
+    if (Platform.isMacOS) {
+      return _macStatus();
+    }
+    final mic = await _safeStatus(ph.Permission.microphone, 'microphone');
+    final speech = await _safeStatus(ph.Permission.speech, 'speech');
+    AppLogger.log(
+      'SpeechPerm',
+      '● getStatus: mic=${mic.name} speech=${speech.name}',
     );
+    return SpeechPracticePermissionState(microphone: mic, speech: speech);
   }
 
   @override
   Future<SpeechPracticePermissionState> request({
     required bool onlyMic,
   }) async {
-    final permissions = <ph.Permission>[
-      ph.Permission.microphone,
-      if (!onlyMic) ph.Permission.speech,
-    ];
-    final results = await permissions.request();
-    final mic = results[ph.Permission.microphone] ?? ph.PermissionStatus.denied;
+    AppLogger.log('SpeechPerm', '┌ request onlyMic=$onlyMic');
+    if (Platform.isMacOS) {
+      return _macRequest(onlyMic: onlyMic);
+    }
+    final mic = await _safeRequest(ph.Permission.microphone, 'microphone');
     final speech = onlyMic
-        ? ph.PermissionStatus.granted
-        : (results[ph.Permission.speech] ?? ph.PermissionStatus.denied);
-    return SpeechPracticePermissionState(
-      microphone: _convert(mic),
-      speech: _convert(speech),
+        ? SpeechPracticePermissionStatus.granted
+        : await _safeRequest(ph.Permission.speech, 'speech');
+    AppLogger.log(
+      'SpeechPerm',
+      '└ request done: mic=${mic.name} speech=${speech.name}',
     );
+    return SpeechPracticePermissionState(microphone: mic, speech: speech);
   }
 
   @override
-  Future<void> openAppSettings() => ph.openAppSettings();
+  Future<void> openAppSettings() async {
+    if (Platform.isMacOS) {
+      try {
+        final ok = await launchUrl(
+          Uri.parse(
+            'x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone',
+          ),
+        );
+        AppLogger.log('SpeechPerm', '● openAppSettings macOS launchUrl ok=$ok');
+      } catch (e) {
+        AppLogger.log('SpeechPerm', '⚠ openAppSettings macOS error: $e');
+      }
+      return;
+    }
+    try {
+      final ok = await ph.openAppSettings();
+      AppLogger.log('SpeechPerm', '● openAppSettings ok=$ok');
+    } catch (e) {
+      AppLogger.log('SpeechPerm', '● openAppSettings error: $e');
+    }
+  }
+
+  // ---------- macOS：复用项目自建的 SpeechPracticePlatform 原生桥 ----------
+
+  Future<SpeechPracticePermissionState> _macStatus() async {
+    try {
+      final state = await SpeechPracticePlatform.instance.getPermissionStatus();
+      AppLogger.log(
+        'SpeechPerm',
+        '● macOS native getStatus: mic=${state.microphone.name} speech=${state.speech.name}',
+      );
+      return state;
+    } catch (e) {
+      AppLogger.log(
+        'SpeechPerm',
+        '⚠ macOS native getStatus failed: $e → notDetermined',
+      );
+      // 查询失败保守视为 notDetermined，让 dialog 走「需要授权」路径
+      // 用户点 Grant 时再次尝试触发系统弹窗
+      return const SpeechPracticePermissionState();
+    }
+  }
+
+  Future<SpeechPracticePermissionState> _macRequest({
+    required bool onlyMic,
+  }) async {
+    try {
+      final state = await SpeechPracticePlatform.instance.requestPermissions(
+        onlyMic: onlyMic,
+      );
+      AppLogger.log(
+        'SpeechPerm',
+        '└ macOS native request: mic=${state.microphone.name} speech=${state.speech.name}',
+      );
+      return state;
+    } catch (e) {
+      AppLogger.log(
+        'SpeechPerm',
+        '⚠ macOS native request failed: $e → denied',
+      );
+      // 请求失败视为 denied，dialog 切到「前往设置」入口让用户手动开启
+      return const SpeechPracticePermissionState(
+        microphone: SpeechPracticePermissionStatus.denied,
+        speech: SpeechPracticePermissionStatus.denied,
+      );
+    }
+  }
+
+  /// 单个权限的 status 查询，异常时回退为 `notDetermined` 让 dialog
+  /// 走「需要授权」分支再尝试。
+  ///
+  /// 不能映射为 granted——会让 dialog 直接放行进入页面，到真正录音瞬间再
+  /// 失败，用户只看到通用错误且没有恢复路径。映射为 notDetermined 至少
+  /// 给用户一次 request 机会；request 也失败的话由调用方降级到 denied。
+  Future<SpeechPracticePermissionStatus> _safeStatus(
+    ph.Permission p,
+    String label,
+  ) async {
+    try {
+      return _convert(await p.status);
+    } catch (e) {
+      AppLogger.log('SpeechPerm', '⚠ status($label) failed: $e → notDetermined');
+      return SpeechPracticePermissionStatus.notDetermined;
+    }
+  }
+
+  Future<SpeechPracticePermissionStatus> _safeRequest(
+    ph.Permission p,
+    String label,
+  ) async {
+    try {
+      return _convert(await p.request());
+    } catch (e) {
+      AppLogger.log('SpeechPerm', '⚠ request($label) failed: $e → denied');
+      // request 都失败说明平台不可用，引导用户去系统设置自查
+      return SpeechPracticePermissionStatus.denied;
+    }
+  }
 
   /// 把 [permission_handler] 的状态枚举映射到本项目内枚举。
   ///

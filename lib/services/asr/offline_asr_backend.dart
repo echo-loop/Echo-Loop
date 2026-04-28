@@ -47,8 +47,9 @@ class OfflineAsrBackend implements SpeechPracticeBackend {
       _platform.getPermissionStatus();
 
   @override
-  Future<SpeechPracticePermissionState> requestPermissions() =>
-      _platform.requestPermissions();
+  Future<SpeechPracticePermissionState> requestPermissions({
+    bool onlyMic = false,
+  }) => _platform.requestPermissions(onlyMic: onlyMic);
 
   @override
   Future<int> getDeviceRamBytes() => _platform.getDeviceRamBytes();

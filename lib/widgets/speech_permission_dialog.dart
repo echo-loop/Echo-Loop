@@ -17,6 +17,7 @@ import '../database/enums.dart';
 import '../l10n/app_localizations.dart';
 import '../models/speech_practice_models.dart';
 import '../providers/offline_asr_settings_provider.dart';
+import '../services/app_logger.dart';
 import '../services/speech_permission_service.dart';
 import 'asr_download_prompt_dialog.dart';
 
@@ -49,8 +50,10 @@ Future<bool> ensureSpeechReadyForRecording(
   BuildContext context,
   WidgetRef ref,
 ) async {
+  AppLogger.log('SpeechPermGate', '┌ ensureSpeechReadyForRecording');
   final service = ref.read(speechPermissionServiceProvider);
   if (!service.isSupported) {
+    AppLogger.log('SpeechPermGate', '└ unsupported platform → false');
     final messenger = ScaffoldMessenger.maybeOf(context);
     final l10n = AppLocalizations.of(context);
     if (messenger != null && l10n != null) {
@@ -62,26 +65,44 @@ Future<bool> ensureSpeechReadyForRecording(
   }
 
   final permOk = await _ensurePermissions(context, ref);
-  if (!permOk || !context.mounted) return false;
+  if (!permOk || !context.mounted) {
+    AppLogger.log(
+      'SpeechPermGate',
+      '└ permOk=$permOk mounted=${context.mounted} → false',
+    );
+    return false;
+  }
 
-  return ensureAsrReadyBeforeSpeechPractice(context, ref);
+  AppLogger.log('SpeechPermGate', '│ perm ok → check asr model');
+  final asrOk = await ensureAsrReadyBeforeSpeechPractice(context, ref);
+  AppLogger.log('SpeechPermGate', '└ asrOk=$asrOk');
+  return asrOk;
 }
 
 /// 仅检查权限（mic + 可选 speech）。
 Future<bool> _ensurePermissions(BuildContext context, WidgetRef ref) async {
   final needsSpeech = _needsPlatformSpeechPermission(ref);
   final service = ref.read(speechPermissionServiceProvider);
+  AppLogger.log('SpeechPermGate', '│ needsSpeech=$needsSpeech');
 
   final SpeechPracticePermissionState initial;
   try {
     initial = await service.getStatus();
-  } catch (_) {
+  } catch (e) {
+    AppLogger.log('SpeechPermGate', '│ getStatus threw: $e → false');
     return false;
   }
   if (!context.mounted) return false;
 
-  if (_isCovered(initial, needsSpeech: needsSpeech)) return true;
+  if (_isCovered(initial, needsSpeech: needsSpeech)) {
+    AppLogger.log('SpeechPermGate', '│ already covered → true');
+    return true;
+  }
 
+  AppLogger.log(
+    'SpeechPermGate',
+    '│ not covered (mic=${initial.microphone.name} speech=${initial.speech.name}) → show dialog',
+  );
   final result = await showDialog<bool>(
     context: context,
     barrierDismissible: false,
@@ -90,6 +111,7 @@ Future<bool> _ensurePermissions(BuildContext context, WidgetRef ref) async {
       needsSpeech: needsSpeech,
     ),
   );
+  AppLogger.log('SpeechPermGate', '│ dialog closed result=$result');
   return result ?? false;
 }
 
@@ -242,11 +264,17 @@ class _PermissionGateDialogState extends ConsumerState<_PermissionGateDialog>
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
 
-    return AlertDialog(
-      titlePadding: EdgeInsets.zero,
-      title: _DialogTitle(title: _titleFor(l10n), onClose: _onCancel),
-      content: _buildBody(context, l10n),
-      actions: _buildActions(l10n),
+    // 用 PopScope 拦住 Android 物理返回 / iOS 边缘滑动手势——
+    // 否则系统手势会让 showDialog 返回 null，上层调用方误判为「用户取消」
+    // 进而 pop 当前页面，体验突兀。用户必须显式点关闭按钮 / 主操作按钮才能离开。
+    return PopScope(
+      canPop: false,
+      child: AlertDialog(
+        titlePadding: EdgeInsets.zero,
+        title: _DialogTitle(title: _titleFor(l10n), onClose: _onCancel),
+        content: _buildBody(context, l10n),
+        actions: _buildActions(l10n),
+      ),
     );
   }
 

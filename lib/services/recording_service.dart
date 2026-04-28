@@ -111,7 +111,10 @@ class RecordingService {
       perms,
       requirePlatformSpeechRecognition: requirePlatformSpeechRecognition,
     )) {
-      perms = await _backend.requestPermissions();
+      // 不需要平台 ASR 时只请求麦克风，避免触发无关的 SFSpeechRecognizer 弹窗
+      perms = await _backend.requestPermissions(
+        onlyMic: !requirePlatformSpeechRecognition,
+      );
     }
     _permissions = perms;
     return _isCovered(

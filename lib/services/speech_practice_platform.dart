@@ -58,7 +58,10 @@ abstract class SpeechPracticeBackend {
   Future<SpeechPracticePermissionState> getPermissionStatus();
 
   /// 请求权限。
-  Future<SpeechPracticePermissionState> requestPermissions();
+  ///
+  /// `onlyMic=true` 时只请求麦克风（关闭 ASR / Echo Loop 离线后端场景），
+  /// 不触发平台原生语音识别系统弹窗，遵循最小权限原则。
+  Future<SpeechPracticePermissionState> requestPermissions({bool onlyMic = false});
 
   /// 录音识别事件流。
   Stream<SpeechPracticeEvent> get events;
@@ -137,9 +140,11 @@ class SpeechPracticePlatform implements SpeechPracticeBackend {
   }
 
   @override
-  Future<SpeechPracticePermissionState> requestPermissions() async {
+  Future<SpeechPracticePermissionState> requestPermissions({
+    bool onlyMic = false,
+  }) async {
     _ensureSupported();
-    final result = await _invokeMap('requestPermissions');
+    final result = await _invokeMap('requestPermissions', {'onlyMic': onlyMic});
     return SpeechPracticePermissionState(
       microphone: _parsePermissionStatus(result['microphoneStatus'] as String?),
       speech: _parsePermissionStatus(result['speechStatus'] as String?),
