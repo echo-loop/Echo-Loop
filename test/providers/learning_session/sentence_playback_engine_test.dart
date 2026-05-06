@@ -37,25 +37,25 @@ void main() {
       expect(result, const Duration(milliseconds: 2000));
     });
 
-    test('1001ms × 2 = 2002ms 超过最小值，返回 2002ms', () {
+    test('1001ms → 1000 + 600 = 1600ms，clamp 到 2000ms', () {
       final result = listenAndRepeatPauseCalculator(
         const Duration(milliseconds: 1001),
       );
-      expect(result, const Duration(milliseconds: 2002));
+      expect(result, const Duration(milliseconds: 2000));
     });
 
-    test('1500ms × 2 = 3000ms', () {
+    test('1500ms → 1000 + 900 = 1900ms，clamp 到 2000ms', () {
       final result = listenAndRepeatPauseCalculator(
         const Duration(milliseconds: 1500),
       );
-      expect(result, const Duration(milliseconds: 3000));
+      expect(result, const Duration(milliseconds: 2000));
     });
 
-    test('5000ms × 2 = 10000ms', () {
+    test('5000ms → 1000 + 3000 = 4000ms', () {
       final result = listenAndRepeatPauseCalculator(
         const Duration(milliseconds: 5000),
       );
-      expect(result, const Duration(milliseconds: 10000));
+      expect(result, const Duration(milliseconds: 4000));
     });
 
     test('返回值始终为 Duration 类型', () {
@@ -63,7 +63,8 @@ void main() {
         const Duration(seconds: 3),
       );
       expect(result, isA<Duration>());
-      expect(result.inMilliseconds, 6000);
+      // 3s → 1000 + 1800 = 2800ms
+      expect(result.inMilliseconds, 2800);
     });
   });
 
