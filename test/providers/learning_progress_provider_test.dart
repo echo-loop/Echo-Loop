@@ -936,24 +936,6 @@ void main() {
     });
   });
 
-  group('saveDifficultCount', () {
-    test('保存难句数快照', () async {
-      final progress = LearningProgress(
-        audioItemId: 'a1',
-        updatedAt: DateTime(2026, 3, 1),
-      );
-      final container = createContainer(
-        LearningProgressState(progressMap: {'a1': progress}),
-      );
-
-      await notifier(container).saveDifficultCount('a1', 12);
-
-      final after = readProgress(container, 'a1')!;
-      expect(after.intensiveListenDifficultCount, 12);
-      verify(() => mockDao.upsert(any())).called(1);
-    });
-  });
-
   group('deleteProgress', () {
     test('从 state 中移除', () async {
       final progress = LearningProgress(

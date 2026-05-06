@@ -40,6 +40,12 @@ class _FakeSpeechPracticeBackend implements SpeechPracticeBackend {
   Future<void> warmup({String locale = 'en-US'}) async {}
 
   @override
+  Future<int> getDeviceRamBytes() async => 0;
+
+  @override
+  Future<void> setRecognitionEnabled(bool enabled) async {}
+
+  @override
   Future<void> shutdown() async {}
 
   @override

@@ -106,7 +106,9 @@ class TestSpeechPracticePlatform implements SpeechPracticeBackend {
   }
 
   @override
-  Future<SpeechPracticePermissionState> requestPermissions() async {
+  Future<SpeechPracticePermissionState> requestPermissions({
+    bool onlyMic = false,
+  }) async {
     return permissions;
   }
 
@@ -644,18 +646,6 @@ class TestLearningProgressNotifier extends LearningProgressNotifier {
         updatedAt: DateTime.now(),
       );
     }
-    state = state.copyWith(progressMap: newMap);
-  }
-
-  Future<void> saveDifficultCount(String audioItemId, int count) async {
-    final progress = state.progressMap[audioItemId];
-    if (progress == null) return;
-
-    final newMap = Map<String, LearningProgress>.from(state.progressMap);
-    newMap[audioItemId] = progress.copyWith(
-      intensiveListenDifficultCount: count,
-      updatedAt: DateTime.now(),
-    );
     state = state.copyWith(progressMap: newMap);
   }
 

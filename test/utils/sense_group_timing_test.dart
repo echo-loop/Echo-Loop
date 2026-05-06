@@ -4,7 +4,6 @@
 library;
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:echo_loop/models/sense_group_result.dart';
 import 'package:echo_loop/models/word_timestamp.dart';
 import 'package:echo_loop/utils/sense_group_timing.dart';
 
@@ -16,11 +15,6 @@ WordTimestamp _word(String text, int startMs, int endMs) {
     endTime: Duration(milliseconds: endMs),
     confidence: 0.99,
   );
-}
-
-/// 构造 SenseGroup 的辅助方法
-SenseGroup _group(String text) {
-  return SenseGroup(text: text);
 }
 
 void main() {
@@ -35,14 +29,14 @@ void main() {
         _word('very', 400, 500),
         _word('hard', 500, 600),
       ];
-      final groups = [
-        _group('I have been'),
-        _group('working'),
-        _group('very hard'),
+      final chunks = [
+        'I have been',
+        'working',
+        'very hard',
       ];
 
       final timings = mapSenseGroupTimings(
-        groups: groups,
+        chunks: chunks,
         words: words,
         sentenceStart: Duration.zero,
         sentenceEnd: const Duration(milliseconds: 600),
@@ -67,10 +61,10 @@ void main() {
         _word('Hello', 1000, 1200),
         _word('world', 1200, 1500),
       ];
-      final groups = [_group('Hello world')];
+      final chunks = ['Hello world'];
 
       final timings = mapSenseGroupTimings(
-        groups: groups,
+        chunks: chunks,
         words: words,
         sentenceStart: const Duration(milliseconds: 1000),
         sentenceEnd: const Duration(milliseconds: 1500),
@@ -83,7 +77,7 @@ void main() {
       expect(timings[0].end, const Duration(milliseconds: 1500));
     });
 
-    test('标点差异不影响匹配（words 含标点，group 无标点）', () {
+    test('标点差异不影响匹配（words 含标点，chunk 无标点）', () {
       // 转录引擎返回带标点的词
       final words = [
         _word('Well,', 0, 200),
@@ -91,13 +85,13 @@ void main() {
         _word('think', 300, 500),
         _word('so.', 500, 700),
       ];
-      final groups = [
-        _group('Well'),
-        _group('I think so'),
+      final chunks = [
+        'Well',
+        'I think so',
       ];
 
       final timings = mapSenseGroupTimings(
-        groups: groups,
+        chunks: chunks,
         words: words,
         sentenceStart: Duration.zero,
         sentenceEnd: const Duration(milliseconds: 700),
@@ -120,13 +114,13 @@ void main() {
         _word('banana', 300, 600),
       ];
       // 意群文本与 words 完全不同，无法匹配
-      final groups = [
-        _group('completely different'),
-        _group('text here'),
+      final chunks = [
+        'completely different',
+        'text here',
       ];
 
       final timings = mapSenseGroupTimings(
-        groups: groups,
+        chunks: chunks,
         words: words,
         sentenceStart: const Duration(milliseconds: 1000),
         sentenceEnd: const Duration(milliseconds: 2000),
@@ -146,7 +140,7 @@ void main() {
       final words = [_word('hello', 0, 500)];
 
       final timings = mapSenseGroupTimings(
-        groups: [],
+        chunks: [],
         words: words,
         sentenceStart: Duration.zero,
         sentenceEnd: const Duration(milliseconds: 500),
@@ -158,10 +152,10 @@ void main() {
     });
 
     test('空 words 列表回退到 fallback', () {
-      final groups = [_group('some text'), _group('more text')];
+      final chunks = ['some text', 'more text'];
 
       final timings = mapSenseGroupTimings(
-        groups: groups,
+        chunks: chunks,
         words: [],
         sentenceStart: const Duration(milliseconds: 0),
         sentenceEnd: const Duration(milliseconds: 1000),
@@ -183,13 +177,13 @@ void main() {
         _word('sentence', 400, 500),
         _word('now', 500, 600),
       ];
-      final groups = [
-        _group('Second sentence'),
-        _group('now'),
+      final chunks = [
+        'Second sentence',
+        'now',
       ];
 
       final timings = mapSenseGroupTimings(
-        groups: groups,
+        chunks: chunks,
         words: allWords,
         sentenceStart: const Duration(milliseconds: 300),
         sentenceEnd: const Duration(milliseconds: 600),
@@ -210,13 +204,13 @@ void main() {
         _word('Quick', 200, 400),
         _word('FOX', 400, 600),
       ];
-      final groups = [
-        _group('the quick'),
-        _group('fox'),
+      final chunks = [
+        'the quick',
+        'fox',
       ];
 
       final timings = mapSenseGroupTimings(
-        groups: groups,
+        chunks: chunks,
         words: words,
         sentenceStart: Duration.zero,
         sentenceEnd: const Duration(milliseconds: 600),
@@ -234,13 +228,13 @@ void main() {
     test('fallback 按词数比例分配时间', () {
       // 构造一个无法匹配的场景
       final words = [_word('xyz', 0, 100)];
-      final groups = [
-        _group('one'),         // 1 词
-        _group('two three'),   // 2 词
+      final chunks = [
+        'one', // 1 词
+        'two three', // 2 词
       ];
 
       final timings = mapSenseGroupTimings(
-        groups: groups,
+        chunks: chunks,
         words: words,
         sentenceStart: const Duration(milliseconds: 0),
         sentenceEnd: const Duration(milliseconds: 3000),

@@ -1,123 +1,91 @@
-/// SenseGroupResult / SenseGroup 模型单元测试
+/// SenseGroupResult 模型单元测试
 ///
-/// 验证意群拆分结果的 JSON 反序列化和序列化逻辑。
+/// 验证意群拆分结果（双粒度：medium + fine）的 JSON 反序列化和序列化逻辑。
 library;
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:echo_loop/models/sense_group_result.dart';
 
 void main() {
-  group('SenseGroup', () {
-    test('fromJson 正确解析意群字段', () {
-      final json = {'text': 'in the morning', 'isCore': true};
-      final sg = SenseGroup.fromJson(json);
-
-      expect(sg.text, 'in the morning');
-      expect(sg.isCore, true);
-    });
-
-    test('toJson 正确序列化', () {
-      const sg = SenseGroup(text: 'at night', isCore: false);
-      final json = sg.toJson();
-
-      expect(json, {'text': 'at night', 'isCore': false});
-    });
-
-    test('fromJson / toJson 往返一致', () {
-      final original = {'text': 'have been working', 'isCore': true};
-      final sg = SenseGroup.fromJson(original);
-      final restored = sg.toJson();
-
-      expect(restored, original);
-    });
-
-    test('fromJson 处理空字符串', () {
-      final json = {'text': '', 'isCore': false};
-      final sg = SenseGroup.fromJson(json);
-
-      expect(sg.text, '');
-      expect(sg.isCore, false);
-    });
-
-    test('fromJson 缺少 isCore 字段时默认 false', () {
-      final json = <String, dynamic>{'text': 'only text'};
-      final sg = SenseGroup.fromJson(json);
-
-      expect(sg.text, 'only text');
-      expect(sg.isCore, false);
-    });
-
-    test('const 构造函数 isCore 默认值为 false', () {
-      const sg = SenseGroup(text: 'hello');
-      expect(sg.text, 'hello');
-      expect(sg.isCore, false);
-    });
-
-    test('const 构造函数支持指定 isCore', () {
-      const sg = SenseGroup(text: 'hello', isCore: true);
-      expect(sg.isCore, true);
-    });
-  });
-
   group('SenseGroupResult', () {
     test('fromJson 正确解析典型 API 响应', () {
       final json = {
-        'groups': [
-          {'text': 'I have been', 'isCore': false},
-          {'text': 'working hard', 'isCore': true},
-          {'text': 'since last month', 'isCore': false},
-        ],
+        'medium': ['I have been', 'working hard', 'since last month'],
+        'fine': ['I', 'have been', 'working', 'hard', 'since last month'],
       };
       final result = SenseGroupResult.fromJson(json);
 
-      expect(result.groups.length, 3);
-      expect(result.groups[0].text, 'I have been');
-      expect(result.groups[0].isCore, false);
-      expect(result.groups[1].text, 'working hard');
-      expect(result.groups[1].isCore, true);
-      expect(result.groups[2].text, 'since last month');
+      expect(result.medium.length, 3);
+      expect(result.medium[0], 'I have been');
+      expect(result.medium[1], 'working hard');
+      expect(result.medium[2], 'since last month');
+      expect(result.fine.length, 5);
     });
 
     test('fromJson 处理空意群列表', () {
-      final json = {'groups': <dynamic>[]};
-      final result = SenseGroupResult.fromJson(json);
-
-      expect(result.groups, isEmpty);
-    });
-
-    test('fromJson 处理单个意群', () {
       final json = {
-        'groups': [
-          {'text': 'Hello', 'isCore': true},
-        ],
+        'medium': <dynamic>[],
+        'fine': <dynamic>[],
       };
       final result = SenseGroupResult.fromJson(json);
 
-      expect(result.groups.length, 1);
-      expect(result.groups[0].text, 'Hello');
-      expect(result.groups[0].isCore, true);
+      expect(result.medium, isEmpty);
+      expect(result.fine, isEmpty);
     });
 
-    test('fromJson 缺少 groups 字段时抛出异常', () {
-      final json = <String, dynamic>{'other': 'value'};
-      expect(
-        () => SenseGroupResult.fromJson(json),
-        throwsA(isA<TypeError>()),
+    test('fromJson 处理缺少字段时返回空列表', () {
+      final json = <String, dynamic>{};
+      final result = SenseGroupResult.fromJson(json);
+
+      expect(result.medium, isEmpty);
+      expect(result.fine, isEmpty);
+    });
+
+    test('toJson 正确序列化', () {
+      const result = SenseGroupResult(
+        medium: ['Hello', 'World'],
+        fine: ['Hello', 'World'],
       );
+      final json = result.toJson();
+
+      expect(json['medium'], ['Hello', 'World']);
+      expect(json['fine'], ['Hello', 'World']);
     });
 
-    test('fromJson 解析含标点的意群文本', () {
-      final json = {
-        'groups': [
-          {'text': 'Well,', 'isCore': false},
-          {'text': 'I think so.', 'isCore': true},
-        ],
+    test('fromJson / toJson 往返一致', () {
+      final original = {
+        'medium': ['test medium'],
+        'fine': ['test fine'],
       };
-      final result = SenseGroupResult.fromJson(json);
+      final result = SenseGroupResult.fromJson(original);
+      final restored = result.toJson();
 
-      expect(result.groups[0].text, 'Well,');
-      expect(result.groups[1].text, 'I think so.');
-      expect(result.groups[1].isCore, true);
+      expect(restored['medium'], original['medium']);
+      expect(restored['fine'], original['fine']);
+    });
+
+    test('areBothEqual 当两种粒度相同时返回 true', () {
+      const result = SenseGroupResult(
+        medium: ['same', 'content'],
+        fine: ['same', 'content'],
+      );
+      expect(result.areBothEqual, true);
+    });
+
+    test('areBothEqual 当长度不同时返回 false', () {
+      const result = SenseGroupResult(
+        medium: ['same', 'content'],
+        fine: ['same'],
+      );
+      expect(result.areBothEqual, false);
+    });
+
+    test('areBothEqual 当内容不同时返回 false', () {
+      const result = SenseGroupResult(
+        medium: ['same', 'content'],
+        fine: ['same', 'different'],
+      );
+      expect(result.areBothEqual, false);
     });
   });
 }
