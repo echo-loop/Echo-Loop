@@ -1,4 +1,4 @@
-# Fluency 项目规划
+# Echo Loop 项目规划
 
 > 最后更新：2026-04-03
 > 当前焦点：录音+识别功能
@@ -234,7 +234,7 @@ dart run build_runner build --delete-conflicting-outputs
 
 ## 项目概述
 
-Fluency 是一款 Flutter 跨平台英语听说练习应用，通过结构化的学习流程（首次学习→间隔复习→毕业检验）帮助用户系统性地提升英语听说能力。
+Echo Loop 是一款 Flutter 跨平台英语听说练习应用，通过结构化的学习流程（首次学习→间隔复习→毕业检验）帮助用户系统性地提升英语听说能力。
 
 ---
 
@@ -354,7 +354,6 @@ integration_test/                    # 端到端集成测试（25 个测试）
 | `app_theme.dart` | ~236 | 全局主题定义，修改视觉从这里开始 |
 | `app_database.dart` | — | Drift 数据库定义（7 表 + 6 DAO + 索引） |
 | `storage_service.dart` | — | SharedPreferences（仅 PlaybackSettings） |
-| `METHOD.md` | — | 学习方法论完整设计，Milestone 2 的需求文档 |
 
 ---
 
@@ -386,7 +385,7 @@ integration_test/                    # 端到端集成测试（25 个测试）
 ### 依赖关系图
 
 ```
-FluencyApp (main.dart)
+EchoLoopApp (main.dart)
 ├── AppTheme (theme)
 ├── AppSettings Provider (主题/语言) → SharedPreferences
 ├── AudioLibrary Provider → AudioItemDao ──┐
@@ -499,8 +498,6 @@ FluencyApp (main.dart)
 ---
 
 ## 学习流程设计
-
-> 完整设计文档见 [METHOD.md](./METHOD.md)
 
 ### 核心理念
 
