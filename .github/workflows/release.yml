@@ -271,22 +271,35 @@ jobs:
           # xcodebuild 命令行 args 是全局的会污染 Pods，所以签名配置写进 Runner pbxproj 自身。
           # 仅在 CI 上下文修改，不提交。
           python3 <<'PYEOF'
-          import os
+          import os, re
           path = "ios/Runner.xcodeproj/project.pbxproj"
           profile = os.environ["IOS_PROVISIONING_PROFILE_NAME"]
           with open(path) as f:
               content = f.read()
-          replacement = (
+          # 1) CODE_SIGN_STYLE = Automatic → Manual，并注入 PROVISIONING_PROFILE_SPECIFIER
+          content = content.replace(
+              "CODE_SIGN_STYLE = Automatic;",
               f'CODE_SIGN_STYLE = Manual;\n'
-              f'\t\t\t\tPROVISIONING_PROFILE_SPECIFIER = "{profile}";\n'
-              f'\t\t\t\tCODE_SIGN_IDENTITY = "Apple Distribution";'
+              f'\t\t\t\tPROVISIONING_PROFILE_SPECIFIER = "{profile}";'
           )
-          new_content = content.replace("CODE_SIGN_STYLE = Automatic;", replacement)
-          changes = new_content.count('CODE_SIGN_STYLE = Manual')
+          # 2) SDK-specific identity 优先级最高，替换 iPhone Developer → Apple Distribution
+          content = re.sub(
+              r'"CODE_SIGN_IDENTITY\[sdk=iphoneos\*\]" = "[^"]+";',
+              '"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "Apple Distribution";',
+              content
+          )
+          # 3) 兜底：通用 CODE_SIGN_IDENTITY
+          content = re.sub(
+              r'CODE_SIGN_IDENTITY = "iPhone Developer";',
+              'CODE_SIGN_IDENTITY = "Apple Distribution";',
+              content
+          )
           with open(path, "w") as f:
-              f.write(new_content)
-          print(f"Patched {changes} CODE_SIGN_STYLE entries")
-          assert changes > 0, "No CODE_SIGN_STYLE = Automatic found in pbxproj"
+              f.write(content)
+          manual = content.count('CODE_SIGN_STYLE = Manual')
+          identity = content.count('"Apple Distribution"')
+          print(f"Patched: {manual} CODE_SIGN_STYLE entries, {identity} Apple Distribution entries")
+          assert manual > 0 and identity > 0, "Patch did not apply"
           PYEOF
 
       - name: Archive iOS app
