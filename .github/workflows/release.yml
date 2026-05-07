@@ -238,7 +238,7 @@ jobs:
           EOF
           plutil -lint "$RUNNER_TEMP/ExportOptions.plist"
 
-      - name: Build iOS IPA
+      - name: Build iOS app (no codesign)
         if: matrix.platform == 'ios'
         env:
           BUILD_NAME: ${{ steps.ver.outputs.name }}
@@ -256,11 +256,41 @@ jobs:
           if [[ -n "$POSTHOG_API_KEY" ]]; then
             DART_DEFINES+=("--dart-define=POSTHOG_API_KEY=${POSTHOG_API_KEY}")
           fi
-          flutter build ipa --release --flavor=prod \
+          # 先用 flutter 编译 dart 代码，--no-codesign 跳过签名
+          flutter build ios --release --no-codesign --flavor=prod \
             --build-name="$BUILD_NAME" \
             --build-number="$BUILD_NUMBER" \
-            --export-options-plist="$RUNNER_TEMP/ExportOptions.plist" \
             "${DART_DEFINES[@]}"
+
+      - name: Archive iOS app with manual signing
+        if: matrix.platform == 'ios'
+        env:
+          IOS_TEAM_ID: ${{ vars.IOS_TEAM_ID }}
+          IOS_PROVISIONING_PROFILE_NAME: ${{ vars.IOS_PROVISIONING_PROFILE_NAME }}
+        run: |
+          export PATH="/usr/bin:/bin:/usr/sbin:/sbin:$PATH"
+          # xcodebuild 命令行参数会覆盖 pbxproj 里的 CODE_SIGN_STYLE = Automatic
+          xcodebuild \
+            -workspace ios/Runner.xcworkspace \
+            -scheme prod \
+            -configuration Release-prod \
+            -destination 'generic/platform=iOS' \
+            -archivePath "$RUNNER_TEMP/Runner.xcarchive" \
+            archive \
+            CODE_SIGN_STYLE=Manual \
+            DEVELOPMENT_TEAM="$IOS_TEAM_ID" \
+            PROVISIONING_PROFILE_SPECIFIER="$IOS_PROVISIONING_PROFILE_NAME" \
+            CODE_SIGN_IDENTITY="Apple Distribution"
+
+      - name: Export IPA from archive
+        if: matrix.platform == 'ios'
+        run: |
+          export PATH="/usr/bin:/bin:/usr/sbin:/sbin:$PATH"
+          mkdir -p build/ios/ipa
+          xcodebuild -exportArchive \
+            -archivePath "$RUNNER_TEMP/Runner.xcarchive" \
+            -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist" \
+            -exportPath "$(pwd)/build/ios/ipa"
 
       - name: Upload IPA to App Store Connect
         if: matrix.platform == 'ios'
