@@ -117,21 +117,18 @@ flowchart LR
 <details>
 <summary><strong>间隔复习法是怎么安排的？</strong></summary>
 
-Echo Loop 把每个素材拆成 9 个间隔复习阶段。从 1 天到 28 天逐步拉长，让大脑在快要遗忘时重新触达记忆痕迹，符合艾宾浩斯遗忘曲线 + Leitner box 的复合调度。
+每段素材分成 1 次首次学习 + 7 轮间隔复习。间隔从 6 小时拉长到 28 天，让大脑在快要遗忘时重新触达记忆痕迹，符合艾宾浩斯遗忘曲线。
 
-| 阶段 | 间隔 | 任务 |
+| 阶段 | 距上次间隔 | 任务 |
 |---|---|---|
-| 第 1 阶段 | 1 天 | 全文盲听 + 难句跟读 |
-| 第 2 阶段 | 2 天 | 单句精听 + 收藏复盘 |
-| 第 3 阶段 | 4 天 | 跟读评测 + 段落复述 |
-| 第 4 阶段 | 7 天 | 闪卡 + 收藏播放 |
-| 第 5 阶段 | 11 天 | 全文盲听 + 难句跟读 |
-| 第 6 阶段 | 15 天 | 跟读评测 |
-| 第 7 阶段 | 19 天 | 闪卡 + 段落复述 |
-| 第 8 阶段 | 24 天 | 全文盲听 |
-| 第 9 阶段 | 28 天 | 通关检验：盲听 + 不看字幕跟读 + 总结复述 |
-
-> 实际间隔与任务以代码实现为准，详见 `lib/providers/listening_practice/`。
+| 首次学习 | — | 盲听 → 精听 → 跟读 → 段落复述 |
+| 首轮复习 | 6 小时后 | 难句补练 + 段落复述 |
+| 第二轮复习 | 1 天后 | 盲听 + 难句补练 + 段落复述 |
+| 第三轮复习 | 2 天后 | 盲听 + 难句补练 + 段落复述 |
+| 第四轮复习 | 4 天后 | 盲听 + 难句补练 + 段落复述 |
+| 第五轮复习 | 7 天后 | 盲听 + 难句补练 + 段落复述 |
+| 第六轮复习 | 14 天后 | 盲听 + 难句补练 + 段落复述 |
+| 第七轮复习 | 28 天后 | 盲听 + 难句补练 + 段落复述 |
 
 </details>
 
@@ -143,7 +140,7 @@ Echo Loop 把每个素材拆成 9 个间隔复习阶段。从 1 天到 28 天逐
 <table>
   <tr>
     <td align="center"><img src="assets/demo-gifs/shadowing.gif" alt="跟读评测 Demo" width="320" /><br/><sub>跟读评测：原生 ASR + 命中词高亮</sub></td>
-    <td align="center"><img src="assets/demo-gifs/srs-flashcard.gif" alt="闪卡复习 Demo" width="320" /><br/><sub>闪卡复习：9 阶段间隔自动调度</sub></td>
+    <td align="center"><img src="assets/demo-gifs/srs-flashcard.gif" alt="闪卡复习 Demo" width="320" /><br/><sub>闪卡复习：原句上下文配翻转卡片</sub></td>
   </tr>
 </table>
 
@@ -153,15 +150,16 @@ Echo Loop 把每个素材拆成 9 个间隔复习阶段。从 1 天到 28 天逐
 
 <table>
   <tr>
-    <td>
-      <p><strong>iOS</strong> &nbsp;<a href="#"><img src="https://developer.apple.com/assets/elements/badges/download-on-the-app-store.svg" alt="App Store" height="40" /></a></p>
-      <p><strong>Android</strong> &nbsp;<a href="https://github.com/echo-loop/Echo-Loop/releases"><img src="https://img.shields.io/badge/APK-下载-3DDC84?logo=android&logoColor=white&style=for-the-badge" alt="APK" /></a> <sub>从 GitHub Releases 或 <a href="#">官网</a> 下载 APK</sub></p>
-      <p><sub>🖥️ <strong>macOS</strong>：开发中，敬请期待</sub></p>
-      <p><sub>🪟 <strong>Windows</strong>：规划中</sub></p>
-      <p><sub>🌐 <strong>Web</strong>：暂无支持计划</sub></p>
+    <td valign="middle">
+      <p>
+        <a href="https://apps.apple.com/cn/app/echo-loop-%E9%AB%98%E6%95%88%E8%8B%B1%E8%AF%AD%E5%90%AC%E8%AF%B4%E8%AE%AD%E7%BB%83/id6760324074"><img src="https://developer.apple.com/assets/elements/badges/download-on-the-app-store.svg" alt="App Store" height="48" /></a>
+        &nbsp;
+        <a href="https://github.com/echo-loop/Echo-Loop/releases"><img src="https://img.shields.io/badge/Android-下载%20APK-3DDC84?logo=android&logoColor=white&style=for-the-badge" alt="Android APK" height="48" /></a>
+      </p>
+      <p><sub>桌面端：macOS 开发中 · Windows 规划中 · Web 暂无计划</sub></p>
     </td>
-    <td align="center" width="160">
-      <img src="assets/qr/app-store.png" alt="App Store 二维码" width="120" /><br/>
+    <td valign="middle" align="center" width="140">
+      <img src="assets/qr/app-store.png" alt="App Store 二维码" width="110" /><br/>
       <sub>扫码下载 iOS 版</sub>
     </td>
   </tr>
@@ -189,7 +187,7 @@ flutter run -d <macos|chrome|ios|android>
 |---|---|---|
 | AI 翻译 / 解析 / 单词深度解析 | 录音 + 识别精度持续优化 | AI 数字人陪练（口语对话伙伴） |
 | iOS/macOS 原生 ASR 跟读评测 | 跟读自动录音轮回打磨 | AI 解答助手（学习中随时提问） |
-| 9 阶段间隔复习闪卡 | macOS 桌面版打磨 | 内容社群（合集分享 / UGC 材料） |
+| 7 轮间隔复习调度（6h → 28d） | macOS 桌面版打磨 | 内容社群（合集分享 / UGC 材料） |
 | 学习数据统计与可视化 |  | 连胜激励（streak / 学习勋章） |
 |  |  | Android 原生 ASR |
 |  |  | macOS / Windows 桌面版正式发布 |
