@@ -173,6 +173,16 @@ flowchart LR
 
 ---
 
+## 🤝 参与项目
+
+- 反馈学习流程：请使用 [Learning-flow feedback](https://github.com/echo-loop/Echo-Loop/issues/new?template=learning_feedback.yml) 模板，告诉我们哪一步最卡。
+- 报告 Bug 或提功能建议：请到 [Issues](https://github.com/echo-loop/Echo-Loop/issues)。
+- 贡献代码或文档：请先阅读 [CONTRIBUTING.md](./CONTRIBUTING.md)。
+- 安全或隐私问题：请按 [SECURITY.md](./SECURITY.md) 私下报告。
+- 数据与隐私说明：见 [docs/privacy-and-data.md](./docs/privacy-and-data.md)。
+
+---
+
 ## 🗺️ Roadmap
 
 ### ✅ 1 · 核心功能
@@ -253,7 +263,7 @@ flutter analyze
 flutter test
 ```
 
-Commit 标题遵循 `PREFIX: 内容` 格式（参考 `git log` 看常用前缀，如 FEAT / FIX / DOCS / MOD / OPT / CHORE / CI / RELEASE 等）。详细贡献流程见 [CONTRIBUTING.md](#)（待补）。本项目遵循 [Contributor Covenant](https://www.contributor-covenant.org/) 行为准则。
+Commit 标题遵循 `PREFIX: 内容` 格式（参考 `git log` 看常用前缀，如 FEAT / FIX / DOCS / MOD / OPT / CHORE / CI / RELEASE 等）。详细贡献流程见 [CONTRIBUTING.md](./CONTRIBUTING.md)。本项目遵循 [Contributor Covenant](https://www.contributor-covenant.org/) 行为准则。
 
 </details>
 

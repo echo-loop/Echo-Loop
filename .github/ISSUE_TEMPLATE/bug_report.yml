@@ -1,0 +1,58 @@
+name: Bug report
+description: Report a reproducible problem in Echo Loop.
+title: "FIX: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a problem. Please avoid attaching private learning materials unless you have permission to share them.
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: What did you expect Echo Loop to do?
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: What happened instead?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Reproduction steps
+      description: List the smallest steps needed to reproduce the issue.
+      placeholder: |
+        1. Import ...
+        2. Tap ...
+        3. See ...
+    validations:
+      required: true
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Platform
+      options:
+        - iOS
+        - Android
+        - macOS
+        - Windows
+        - Linux
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: App version
+      placeholder: "Example: 1.0.10"
+  - type: textarea
+    id: logs
+    attributes:
+      label: Screenshots or logs
+      description: Add screenshots, screen recordings, or logs if they help explain the problem.
+

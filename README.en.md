@@ -173,6 +173,16 @@ Practice English alongside other committed learners: share methods, give feedbac
 
 ---
 
+## 🤝 Get involved
+
+- Share learning-flow feedback with the [Learning-flow feedback](https://github.com/echo-loop/Echo-Loop/issues/new?template=learning_feedback.yml) template.
+- Report bugs or request features in [Issues](https://github.com/echo-loop/Echo-Loop/issues).
+- Read [CONTRIBUTING.md](./CONTRIBUTING.md) before contributing code or docs.
+- Report security or privacy issues privately through [SECURITY.md](./SECURITY.md).
+- See [docs/privacy-and-data.md](./docs/privacy-and-data.md) for data-sensitive behavior notes.
+
+---
+
 ## 🗺️ Roadmap
 
 ### ✅ 1 · Core features
@@ -253,7 +263,7 @@ flutter analyze
 flutter test
 ```
 
-Commit titles follow the `PREFIX: content` format (check `git log` for common prefixes — FEAT / FIX / DOCS / MOD / OPT / CHORE / CI / RELEASE, etc.). A detailed contribution guide will live in [CONTRIBUTING.md](#) (TBD). This project follows the [Contributor Covenant](https://www.contributor-covenant.org/) code of conduct.
+Commit titles follow the `PREFIX: content` format (check `git log` for common prefixes — FEAT / FIX / DOCS / MOD / OPT / CHORE / CI / RELEASE, etc.). See [CONTRIBUTING.md](./CONTRIBUTING.md) for the detailed contribution guide. This project follows the [Contributor Covenant](https://www.contributor-covenant.org/) code of conduct.
 
 </details>
 

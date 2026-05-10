@@ -1,0 +1,47 @@
+name: Learning-flow feedback
+description: Share feedback after trying one real practice session.
+title: "FEEDBACK: "
+labels: ["feedback"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        This template is for feedback after trying Echo Loop with a real audio clip. Concrete friction is more useful than general praise.
+  - type: textarea
+    id: material
+    attributes:
+      label: Practice material
+      description: What kind of audio did you try? Do not share private content.
+      placeholder: "Example: 3-minute podcast clip, interview audio, course listening material"
+    validations:
+      required: true
+  - type: checkboxes
+    id: steps
+    attributes:
+      label: Steps you tried
+      options:
+        - label: Blind listening
+        - label: Intensive listening
+        - label: Shadowing
+        - label: Retelling
+        - label: Spaced review
+        - label: Hard-sentence review
+        - label: Flashcards
+  - type: textarea
+    id: friction
+    attributes:
+      label: Biggest friction
+      description: Where did the workflow feel confusing, slow, or too heavy?
+    validations:
+      required: true
+  - type: textarea
+    id: value
+    attributes:
+      label: Most useful part
+      description: Which step made the practice better than your normal method?
+  - type: textarea
+    id: retention
+    attributes:
+      label: Would you use it again?
+      description: What would make you open Echo Loop again tomorrow?
+

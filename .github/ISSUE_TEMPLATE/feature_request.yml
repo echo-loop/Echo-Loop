@@ -1,0 +1,43 @@
+name: Feature request
+description: Suggest a product or developer-facing improvement.
+title: "FEAT: "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What learner, teacher, or developer problem would this solve?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: Describe the smallest useful version of the feature.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: What workaround or simpler option did you consider?
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Learning flow
+        - Audio import
+        - Subtitles
+        - Shadowing evaluation
+        - Review scheduling
+        - Flashcards
+        - AI features
+        - Platform support
+        - Developer experience
+        - Documentation
+        - Other
+    validations:
+      required: true
+
