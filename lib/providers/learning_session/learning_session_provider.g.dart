@@ -6,7 +6,7 @@ part of 'learning_session_provider.dart';
 // RiverpodGenerator
 // **************************************************************************
 
-String _$learningSessionHash() => r'83ffa5b212b9d9c60bd5e014a02708c5292f5ddc';
+String _$learningSessionHash() => r'05786e7793b096be3b6fb7d2126c8ac16e401a7e';
 
 /// 学习会话 Provider
 ///

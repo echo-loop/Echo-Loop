@@ -9,10 +9,10 @@ import '../analytics/models/event_names.dart';
 import '../database/enums.dart';
 import '../database/providers.dart';
 import '../database/app_database.dart' as db;
-import '../models/learning_plan.dart';
 import '../models/learning_progress.dart';
 import '../services/app_logger.dart';
 import 'learning_plan_provider.dart';
+import 'learning_settings_provider.dart';
 import 'time_provider.dart';
 
 part 'learning_progress_provider.g.dart';
@@ -66,12 +66,13 @@ class LearningProgressState {
 class LearningProgressNotifier extends _$LearningProgressNotifier {
   @override
   LearningProgressState build() {
-    // 监听学习计划变化：plan 变化时（由 learningSettings 派生）reconcile
-    // 所有「currentSubStage 已不在 plan 内」或「currentStage planned 为空」
-    // 的进度，直接修改 currentStage / currentSubStage（不写 stage_completions、
-    // 不递增 passCount）。单向数据流：settings → plan → progress。
-    ref.listen<LearningPlan>(learningPlanProvider, (_, next) {
-      unawaited(_reconcileForSettingsChange(next));
+    // 监听设置变化：自动跳过复述 false→true 时，对所有进度跑一次自动跳过扫描。
+    // plan 现在是静态的，本身不会变；唯一的"reconcile"触发点是 autoSkipRetell。
+    ref.listen<LearningSettings>(learningSettingsProvider, (prev, next) {
+      final prevOn = prev?.autoSkipRetell ?? false;
+      if (!prevOn && next.autoSkipRetell) {
+        unawaited(_autoSkipScanAllProgress());
+      }
     });
 
     // 初始态标记为 loading：用于区分"尚未加载"与"加载完为空"。
@@ -80,74 +81,39 @@ class LearningProgressNotifier extends _$LearningProgressNotifier {
     return const LearningProgressState(isLoading: true);
   }
 
-  /// 学习计划变更时（设置切换驱动）reconcile 所有进度。
-  ///
-  /// 规则：
-  /// - 当前阶段 planned 为空 → 推进到首个 planned 非空的下一阶段
-  /// - currentSubStage 不在 plan 内（如关闭复述时正卡在 retell）→ 同上推进
-  /// - 否则不动（用户当前还在 plan 内的子步骤）
-  ///
-  /// 「跳过」≠「完成」：reconcile **不写** stage_completions、**不递增**
-  /// retellPassCount，仅直接修改 currentStage/currentSubStage。
-  Future<void> _reconcileForSettingsChange(LearningPlan plan) async {
-    final snapshot = List<LearningProgress>.from(state.progressMap.values);
-    final analytics = ref.read(analyticsServiceProvider);
-    for (final progress in snapshot) {
-      if (progress.isCompleted) continue;
-      final stage = progress.currentStage;
-      final planned = plan.subStagesFor(stage);
-      final needAdvance = planned.isEmpty || !planned.contains(progress.currentSubStage);
-      if (!needAdvance) continue;
+  /// 自动跳过复述全局开关 false→true 时，对所有进度跑一次扫描，
+  /// 把当前停在复述子阶段的位置批量推进（与用户在每条音频上手动跳过同效）。
+  Future<void> _autoSkipScanAllProgress() async {
+    final ids = state.progressMap.keys.toList(growable: false);
+    for (final id in ids) {
       try {
-        final fromStage = stage;
-        final advanced = _advanceToNextPlannedStage(progress, plan);
-        if (advanced == null) continue;
-        await _persistProgress(advanced);
-        final newMap = Map<String, LearningProgress>.from(state.progressMap);
-        newMap[advanced.audioItemId] = advanced;
-        state = state.copyWith(progressMap: newMap);
-        analytics.track(Events.retellAutoStageAdvance, {
-          EventParams.audioId: progress.audioItemId,
-          EventParams.fromStage: fromStage.name,
-          EventParams.toStage: advanced.currentStage.name,
-        });
+        await _autoSkipRetellIfEnabled(id);
       } catch (e) {
-        AppLogger.log(
-          'LearningProgress',
-          'reconcileForSettingsChange failed for ${progress.audioItemId}: $e',
-        );
+        AppLogger.log('LearningProgress', 'auto-skip scan failed for $id: $e');
       }
     }
   }
 
-  /// 推进到「首个 planned 非空的下一大阶段」，返回新 LearningProgress。
+  /// 自动跳过复述钩子：推进结束后调用，自动连续跳过复述类子阶段。
   ///
-  /// 若已到 [LearningStage.completed]，返回标记为完成的 progress。
-  /// **不写** stage_completions、**不**累加耗时、**不**清断点索引（跳过路径
-  /// 与完成路径语义分离）。
-  LearningProgress? _advanceToNextPlannedStage(
-    LearningProgress progress,
-    LearningPlan plan,
-  ) {
-    final now = DateTime.now();
-    var nextStage = LearningStage.values[progress.currentStage.index + 1];
-    while (nextStage != LearningStage.completed &&
-        plan.subStagesFor(nextStage).isEmpty) {
-      nextStage = LearningStage.values[nextStage.index + 1];
+  /// 设计：完成 / 手动跳过结束后调一次；若 [autoSkipRetell] 开启且新位置仍
+  /// 是复述类，则循环调内部 `_doSkipCore` 直到跳出复述区或进度完成。
+  /// 循环以 substage 数为上界，先写 skippedSubStageKeys 再推进位置，
+  /// 无死循环风险。
+  Future<void> _autoSkipRetellIfEnabled(String audioItemId) async {
+    final settings = ref.read(learningSettingsProvider);
+    if (!settings.autoSkipRetell) return;
+    var safety = 0;
+    while (safety++ < 100) {
+      final p = state.progressMap[audioItemId];
+      if (p == null || p.isCompleted) return;
+      if (!isRetellSubStage(p.currentSubStage)) return;
+      final ok = await _doSkipCore(audioItemId, source: 'auto');
+      if (!ok) return; // 早返回（如已 completed 该 key、review 锁等）
     }
-    final nextPlanned = plan.subStagesFor(nextStage);
-    return progress.copyWith(
-      currentStage: nextStage,
-      currentSubStage: nextPlanned.isNotEmpty
-          ? nextPlanned.first
-          : SubStageType.blindListen,
-      lastStageCompletedAt: now,
-      currentStageStartedAt: now,
-      updatedAt: now,
-      firstLearnCompletedAt:
-          progress.currentStage == LearningStage.firstLearn
-              ? now
-              : progress.firstLearnCompletedAt,
+    AppLogger.log(
+      'LearningProgress',
+      '_autoSkipRetellIfEnabled safety break for $audioItemId',
     );
   }
 
@@ -321,6 +287,13 @@ class LearningProgressNotifier extends _$LearningProgressNotifier {
     LearningProgress updated;
     bool advancedToNextStage;
 
+    // 互斥：写 completion 时清除 skippedSubStageKeys 中对应 key（若存在）。
+    // 用户先跳过、后又从自由练习真做完同一子步骤时，状态从「跳过」回收为 ✅。
+    final Set<String>? clearedSkippedKeys =
+        progress.skippedSubStageKeys.contains(completionKey)
+            ? (progress.skippedSubStageKeys.toSet()..remove(completionKey))
+            : null;
+
     if (currentIdx >= 0 && currentIdx + 1 < planned.length) {
       // 同阶段内推进子步骤
       updated = progress.copyWith(
@@ -333,6 +306,7 @@ class LearningProgressNotifier extends _$LearningProgressNotifier {
         clearShadowingSentenceIndex: clearShadowing,
         clearDifficultPracticeSentenceIndex: clearDifficult,
         clearRetellParagraphIndex: clearRetell,
+        skippedSubStageKeys: clearedSkippedKeys,
       );
       advancedToNextStage = false;
     } else {
@@ -360,6 +334,7 @@ class LearningProgressNotifier extends _$LearningProgressNotifier {
         clearShadowingSentenceIndex: clearShadowing,
         clearDifficultPracticeSentenceIndex: clearDifficult,
         clearRetellParagraphIndex: clearRetell,
+        skippedSubStageKeys: clearedSkippedKeys,
       );
       advancedToNextStage = true;
     }
@@ -387,6 +362,116 @@ class LearningProgressNotifier extends _$LearningProgressNotifier {
     final newMap = Map<String, LearningProgress>.from(state.progressMap);
     newMap[audioItemId] = updated;
     state = state.copyWith(progressMap: newMap);
+
+    // 完成后若新位置仍是复述类 + 自动跳过开启 → 连续推进
+    await _autoSkipRetellIfEnabled(audioItemId);
+  }
+
+  /// 用户跳过当前子阶段（手动按钮 / 自动跳过策略）。
+  ///
+  /// - **不**写 stage_completions
+  /// - 把 `'stage.key:subStage.key'` 加入 [LearningProgress.skippedSubStageKeys] 并持久化
+  /// - 推进 currentSubStage（同阶段下一项 / 跨阶段跳空阶段，逻辑同 [completeCurrentSubStage]）
+  /// - 清断点索引
+  /// - 互斥：若该 key 已在 completed → 早返回（理论上不会触发）
+  /// - 推进后调 [_autoSkipRetellIfEnabled]（连续吃掉相邻复述位置）
+  Future<void> skipCurrentSubStage(String audioItemId) async {
+    final ok = await _doSkipCore(audioItemId, source: 'manual');
+    if (ok) await _autoSkipRetellIfEnabled(audioItemId);
+  }
+
+  /// [skipCurrentSubStage] / [_autoSkipRetellIfEnabled] 共用的 skip 实现内核。
+  /// 返回 true 表示成功跳过并推进；false 表示因 guard（如 reviewLock / 已完成
+  /// / 已跳过该 key）早返回。
+  Future<bool> _doSkipCore(
+    String audioItemId, {
+    required String source,
+  }) async {
+    final progress = state.progressMap[audioItemId];
+    if (progress == null || progress.isCompleted) return false;
+    final checkNow = ref.read(nowProvider)();
+    if (progress.isReviewLockedAt(checkNow)) return false;
+
+    final stage = progress.currentStage;
+    final subStage = progress.currentSubStage;
+    final key = '${stage.key}:${subStage.key}';
+
+    // 互斥：已完成的子步骤不再标记为跳过
+    final completedSet = state.completionsByAudio[audioItemId] ?? const {};
+    if (completedSet.contains(key)) return false;
+
+    // 已在跳过集合且推进位置一致 → 已经处理过，幂等返回
+    if (progress.skippedSubStageKeys.contains(key)) return false;
+
+    final now = DateTime.now();
+    final plan = ref.read(learningPlanProvider);
+    final planned = plan.subStagesFor(stage);
+    final currentIdx = planned.indexOf(subStage);
+
+    // 断点清除：跳过时同样要清断点，避免残留状态指向已离开的子阶段
+    final clearBlindListen = subStage == SubStageType.blindListen;
+    final clearIntensive = subStage == SubStageType.intensiveListen;
+    final clearShadowing = subStage == SubStageType.listenAndRepeat;
+    final clearDifficult = subStage == SubStageType.reviewDifficultPractice;
+    final clearRetell = isRetellSubStage(subStage);
+
+    final newSkipped = {...progress.skippedSubStageKeys, key};
+
+    LearningProgress updated;
+    if (currentIdx >= 0 && currentIdx + 1 < planned.length) {
+      // 同阶段内推进
+      updated = progress.copyWith(
+        currentSubStage: planned[currentIdx + 1],
+        currentStageStartedAt: now,
+        updatedAt: now,
+        clearBlindListenParagraphIndex: clearBlindListen,
+        clearIntensiveListenSentenceIndex: clearIntensive,
+        clearShadowingSentenceIndex: clearShadowing,
+        clearDifficultPracticeSentenceIndex: clearDifficult,
+        clearRetellParagraphIndex: clearRetell,
+        skippedSubStageKeys: newSkipped,
+      );
+    } else {
+      // 跨阶段：跳到下一个非空 planned 阶段
+      var nextStage = LearningStage.values[stage.index + 1];
+      while (nextStage != LearningStage.completed &&
+          plan.subStagesFor(nextStage).isEmpty) {
+        nextStage = LearningStage.values[nextStage.index + 1];
+      }
+      final nextPlanned = plan.subStagesFor(nextStage);
+      updated = progress.copyWith(
+        currentStage: nextStage,
+        currentSubStage: nextPlanned.isNotEmpty
+            ? nextPlanned.first
+            : SubStageType.blindListen,
+        lastStageCompletedAt: now,
+        currentStageStartedAt: now,
+        updatedAt: now,
+        firstLearnCompletedAt: stage == LearningStage.firstLearn
+            ? now
+            : progress.firstLearnCompletedAt,
+        clearBlindListenParagraphIndex: clearBlindListen,
+        clearIntensiveListenSentenceIndex: clearIntensive,
+        clearShadowingSentenceIndex: clearShadowing,
+        clearDifficultPracticeSentenceIndex: clearDifficult,
+        clearRetellParagraphIndex: clearRetell,
+        skippedSubStageKeys: newSkipped,
+      );
+    }
+
+    await _persistProgress(updated);
+
+    final newMap = Map<String, LearningProgress>.from(state.progressMap);
+    newMap[audioItemId] = updated;
+    state = state.copyWith(progressMap: newMap);
+
+    ref.read(analyticsServiceProvider).track(Events.retellSkipped, {
+      EventParams.audioId: audioItemId,
+      EventParams.stage: stage.name,
+      EventParams.subStage: subStage.name,
+      EventParams.source: source,
+    });
+    return true;
   }
 
   /// 设置难度等级
@@ -499,6 +584,21 @@ class LearningProgressNotifier extends _$LearningProgressNotifier {
     final updated = Map<String, Set<String>>.from(state.completionsByAudio);
     updated[audioItemId] = {...currentSet, key};
     state = state.copyWith(completionsByAudio: updated);
+
+    // 互斥：若该 (stage, subStage) 之前被标记为跳过，回收为已完成。
+    // 触发场景：用户在简报弹窗点了跳过，之后从自由练习入口又做完了这一步。
+    final progress = state.progressMap[audioItemId];
+    if (progress != null && progress.skippedSubStageKeys.contains(key)) {
+      final newSkipped = progress.skippedSubStageKeys.toSet()..remove(key);
+      final updatedProgress = progress.copyWith(
+        skippedSubStageKeys: newSkipped,
+        updatedAt: DateTime.now(),
+      );
+      await _persistProgress(updatedProgress);
+      final newMap = Map<String, LearningProgress>.from(state.progressMap);
+      newMap[audioItemId] = updatedProgress;
+      state = state.copyWith(progressMap: newMap);
+    }
   }
 
   /// 删除指定音频的学习进度（音频删除时调用）
@@ -752,8 +852,19 @@ class LearningProgressNotifier extends _$LearningProgressNotifier {
         ),
         freePlayBreakpointSavedAt: Value(progress.freePlayBreakpointSavedAt),
         updatedAt: Value(progress.updatedAt),
+        skippedSubStages: Value(_encodeSkippedKeys(progress.skippedSubStageKeys)),
       ),
     );
+  }
+
+  /// 序列化跳过集合：以 ',' 拼接；空集合 → 空字符串。
+  static String _encodeSkippedKeys(Set<String> keys) =>
+      keys.isEmpty ? '' : keys.join(',');
+
+  /// 反序列化跳过集合；兼容历史 NULL / 空串。
+  static Set<String> _decodeSkippedKeys(String raw) {
+    if (raw.isEmpty) return const {};
+    return raw.split(',').where((e) => e.isNotEmpty).toSet();
   }
 
   /// 从数据库行转换为模型
@@ -793,6 +904,7 @@ class LearningProgressNotifier extends _$LearningProgressNotifier {
       newLearningBreakpointSavedAt: row.newLearningBreakpointSavedAt,
       freePlayBreakpointSavedAt: row.freePlayBreakpointSavedAt,
       updatedAt: row.updatedAt,
+      skippedSubStageKeys: _decodeSkippedKeys(row.skippedSubStages),
     );
   }
 
