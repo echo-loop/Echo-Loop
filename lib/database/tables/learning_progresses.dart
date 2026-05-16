@@ -91,6 +91,15 @@ class LearningProgresses extends Table {
   /// 最后更新时间
   DateTimeColumn get updatedAt => dateTime()();
 
+  /// 用户（或自动跳过策略）在该音频上跳过的子步骤集合
+  ///
+  /// 存储格式：逗号分隔的 `'stage.key:subStage.key'`（空字符串 = 空集合）。
+  ///
+  /// 不变量：与 `stage_completions` 中该音频的 (stage, subStage) 集合**互斥**——
+  /// 写 completion 时清除此集合中对应 key；写 skip 时若已 completed 则早返回。
+  TextColumn get skippedSubStages =>
+      text().withDefault(const Constant(''))();
+
   @override
   Set<Column> get primaryKey => {audioItemId};
 }

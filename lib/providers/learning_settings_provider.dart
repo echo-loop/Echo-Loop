@@ -1,12 +1,11 @@
 /// 学习设置 Provider
 ///
-/// 全局控制是否启用「复述（retell）」功能。默认关闭，用户可在
-/// 设置 → 学习设置 中切换；首次进入任意音频学习计划页时一次性弹窗询问。
+/// 全局控制「自动跳过复述」策略。默认关闭——复述子阶段照常参与计划；
+/// 开启后，所有推进到复述子阶段的位置都会自动调 `skipCurrentSubStage`，
+/// 与用户在简报弹窗里手动点「跳过」同效（统一通过
+/// [LearningProgress.skippedSubStageKeys] 字段承载）。
 ///
-/// 持久化分两个 SP key：
-/// - `learning_retell_enabled` (bool)：开关状态
-/// - `retell_setup_choice_at_ms` (int)：首次弹窗已展示时间戳
-///   （存在即视为已展示过，永不重弹）
+/// 持久化 SP key：`learning_auto_skip_retell` (bool)。
 ///
 /// 采用手动 Notifier 模式（不走 riverpod_generator），对齐
 /// [lib/features/onboarding_survey/providers/onboarding_survey_provider.dart]。
@@ -35,45 +34,38 @@ final initialLearningSettingsProvider = Provider<LearningSettings>((ref) {
 
 /// 学习设置 SP key 常量。
 abstract final class LearningSettingsKeys {
-  static const retellEnabled = 'learning_retell_enabled';
-  static const setupChoiceMadeAtMs = 'retell_setup_choice_at_ms';
+  static const autoSkipRetell = 'learning_auto_skip_retell';
+
+  /// 历史 SP key，启动期会被清理。
+  static const legacyRetellEnabled = 'learning_retell_enabled';
+  static const legacySetupChoiceMadeAtMs = 'retell_setup_choice_at_ms';
 }
 
 /// 学习设置不可变值对象。
 ///
-/// 当前仅一个用户偏好（[retellEnabled]）+ 一个展示状态（[setupChoiceMade]）。
-/// 未来扩展只需新增字段并在 [fromPrefsSync] / [copyWith] 中补对应处理。
+/// 当前仅一个用户偏好（[autoSkipRetell]）。未来扩展只需新增字段并在
+/// [fromPrefsSync] / [copyWith] 中补对应处理。
 class LearningSettings {
-  /// 是否启用复述练习（默认 false）。
-  final bool retellEnabled;
-
-  /// 首次进入音频学习计划页的引导弹窗是否已展示。
-  ///
-  /// 由 SP key [LearningSettingsKeys.setupChoiceMadeAtMs] 是否存在派生，
-  /// 用户答完弹窗后永久翻转为 true。
-  final bool setupChoiceMade;
+  /// 是否自动跳过复述（默认 false）。
+  final bool autoSkipRetell;
 
   const LearningSettings({
-    this.retellEnabled = false,
-    this.setupChoiceMade = false,
+    this.autoSkipRetell = false,
   });
 
   /// 同步从 [SharedPreferences] 派生当前状态，用于启动期 override 注入。
   factory LearningSettings.fromPrefsSync(SharedPreferences prefs) {
     return LearningSettings(
-      retellEnabled: prefs.getBool(LearningSettingsKeys.retellEnabled) ?? false,
-      setupChoiceMade:
-          prefs.containsKey(LearningSettingsKeys.setupChoiceMadeAtMs),
+      autoSkipRetell:
+          prefs.getBool(LearningSettingsKeys.autoSkipRetell) ?? false,
     );
   }
 
   LearningSettings copyWith({
-    bool? retellEnabled,
-    bool? setupChoiceMade,
+    bool? autoSkipRetell,
   }) {
     return LearningSettings(
-      retellEnabled: retellEnabled ?? this.retellEnabled,
-      setupChoiceMade: setupChoiceMade ?? this.setupChoiceMade,
+      autoSkipRetell: autoSkipRetell ?? this.autoSkipRetell,
     );
   }
 
@@ -82,53 +74,33 @@ class LearningSettings {
       identical(this, other) ||
       other is LearningSettings &&
           runtimeType == other.runtimeType &&
-          retellEnabled == other.retellEnabled &&
-          setupChoiceMade == other.setupChoiceMade;
+          autoSkipRetell == other.autoSkipRetell;
 
   @override
-  int get hashCode => Object.hash(retellEnabled, setupChoiceMade);
+  int get hashCode => autoSkipRetell.hashCode;
 }
 
 /// 学习设置 Notifier。
 ///
-/// 单向数据流：[setRetellEnabled] 仅写自己的 state + SP；progress 端通过
-/// `ref.listen(learningSettingsProvider)` 监听变化触发 reconcile，
-/// 不在此 Notifier 内反向 read progress notifier 避免双向耦合。
+/// 单向数据流：[setAutoSkipRetell] 仅写自己的 state + SP；progress 端通过
+/// `ref.listen(learningSettingsProvider)` 监听变化触发 reconcile（包括
+/// false→true 时对所有 progress 跑一次自动跳过扫描）。**不**在此 Notifier 内
+/// 反向 read progress notifier 避免双向耦合。
 class LearningSettingsNotifier extends Notifier<LearningSettings> {
   @override
   LearningSettings build() => ref.read(initialLearningSettingsProvider);
 
-  /// 切换 retellEnabled，写 SP + 更新 state。
+  /// 切换 autoSkipRetell，写 SP + 更新 state。
   ///
   /// 调用方负责埋点（不同 source 需要不同的 source 参数）。
-  Future<void> setRetellEnabled(bool enabled) async {
-    if (state.retellEnabled == enabled) return;
-    state = state.copyWith(retellEnabled: enabled);
+  Future<void> setAutoSkipRetell(bool enabled) async {
+    if (state.autoSkipRetell == enabled) return;
+    state = state.copyWith(autoSkipRetell: enabled);
     try {
       final prefs = ref.read(sharedPreferencesProvider);
-      await prefs.setBool(LearningSettingsKeys.retellEnabled, enabled);
+      await prefs.setBool(LearningSettingsKeys.autoSkipRetell, enabled);
     } catch (e) {
-      AppLogger.log('LearningSettings', 'setRetellEnabled 写 SP 失败: $e');
-    }
-  }
-
-  /// 标记引导弹窗已展示。
-  ///
-  /// SP key 不存在时写入时间戳；存在则跳过（幂等，不覆盖原时间戳）。
-  /// 内存 `setupChoiceMade` 翻转为 true 便于其他 watch 该字段的 UI 同步。
-  /// **不**基于内存 flag 提前返回——SP 才是权威来源，允许"删除 SP 重置"。
-  Future<void> markSetupChoiceMade() async {
-    state = state.copyWith(setupChoiceMade: true);
-    try {
-      final prefs = ref.read(sharedPreferencesProvider);
-      if (!prefs.containsKey(LearningSettingsKeys.setupChoiceMadeAtMs)) {
-        await prefs.setInt(
-          LearningSettingsKeys.setupChoiceMadeAtMs,
-          DateTime.now().millisecondsSinceEpoch,
-        );
-      }
-    } catch (e) {
-      AppLogger.log('LearningSettings', 'markSetupChoiceMade 写 SP 失败: $e');
+      AppLogger.log('LearningSettings', 'setAutoSkipRetell 写 SP 失败: $e');
     }
   }
 }
@@ -138,3 +110,22 @@ final learningSettingsProvider =
     NotifierProvider<LearningSettingsNotifier, LearningSettings>(
   LearningSettingsNotifier.new,
 );
+
+/// 启动期 best-effort 清理历史 SP key（开发期数据卫生）。
+///
+/// 老 key `learning_retell_enabled` / `retell_setup_choice_at_ms` 已不再读，
+/// 但仍可能残留在用户手机上。这里幂等地移除以避免长期垃圾。
+Future<void> cleanupLegacyLearningSettingsKeys(SharedPreferences prefs) async {
+  for (final key in [
+    LearningSettingsKeys.legacyRetellEnabled,
+    LearningSettingsKeys.legacySetupChoiceMadeAtMs,
+  ]) {
+    if (prefs.containsKey(key)) {
+      try {
+        await prefs.remove(key);
+      } catch (e) {
+        AppLogger.log('LearningSettings', 'cleanupLegacy 删 $key 失败: $e');
+      }
+    }
+  }
+}

@@ -18,7 +18,6 @@ import 'providers/package_info_provider.dart';
 import 'providers/dictionary_provider.dart';
 import 'providers/settings_provider.dart';
 import 'router/app_router.dart';
-import 'widgets/retell_decision_gate.dart';
 import 'services/bundled_example_installer.dart';
 import 'services/temp_cleanup_service.dart';
 import 'theme/app_theme.dart';
@@ -76,9 +75,10 @@ void main() async {
   // 用 `onboarding_completed_at_ms` 存在性判定，不引入冗余 bool key。
   final onboardingCompleted = OnboardingSurveyStorage.readIsCompletedSync(prefs);
 
-  // 学习设置（复述开关 + 引导弹窗状态）同步预读：plan 页 initState 中
-  // 决定是否触发首次引导弹窗，必须在启动期拿到状态避免双弹竞态。
+  // 学习设置（自动跳过复述）同步预读：plan / progress 启动期就需要拿到值。
   final initialLearningSettings = LearningSettings.fromPrefsSync(prefs);
+  // 清理历史 SP key（开发期数据卫生，幂等无副作用）。
+  await cleanupLegacyLearningSettingsKeys(prefs);
 
   // 界面语言同步预读：让首帧 MaterialApp.locale 直接拿到用户已选语言，
   // 避免"先按系统语言渲染、再 hydrate 切到用户设置"的闪烁。
@@ -339,16 +339,7 @@ class _EchoLoopAppState extends ConsumerState<EchoLoopApp>
       case OpenAudioLearningPlan(:final audioId):
         final router = ref.read(appRouterProvider);
         router.go(AppRoutes.study);
-        // 通知点击深链：跳转前等用户做出复述设置选择
-        final navContext = rootNavigatorKey.currentContext;
-        if (navContext == null) {
-          router.push(AppRoutes.audioLearningPlan(audioId));
-          return;
-        }
-        ensureRetellDecisionMade(navContext, ref).then((ok) {
-          if (!ok) return;
-          router.push(AppRoutes.audioLearningPlan(audioId));
-        });
+        router.push(AppRoutes.audioLearningPlan(audioId));
     }
   }
 

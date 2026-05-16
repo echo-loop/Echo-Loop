@@ -3466,6 +3466,18 @@ class $LearningProgressesTable extends LearningProgresses
     type: DriftSqlType.dateTime,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _skippedSubStagesMeta = const VerificationMeta(
+    'skippedSubStages',
+  );
+  @override
+  late final GeneratedColumn<String> skippedSubStages = GeneratedColumn<String>(
+    'skipped_sub_stages',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
   @override
   List<GeneratedColumn> get $columns => [
     audioItemId,
@@ -3494,6 +3506,7 @@ class $LearningProgressesTable extends LearningProgresses
     newLearningBreakpointSavedAt,
     freePlayBreakpointSavedAt,
     updatedAt,
+    skippedSubStages,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -3739,6 +3752,15 @@ class $LearningProgressesTable extends LearningProgresses
     } else if (isInserting) {
       context.missing(_updatedAtMeta);
     }
+    if (data.containsKey('skipped_sub_stages')) {
+      context.handle(
+        _skippedSubStagesMeta,
+        skippedSubStages.isAcceptableOrUnknown(
+          data['skipped_sub_stages']!,
+          _skippedSubStagesMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -3852,6 +3874,10 @@ class $LearningProgressesTable extends LearningProgresses
         DriftSqlType.dateTime,
         data['${effectivePrefix}updated_at'],
       )!,
+      skippedSubStages: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}skipped_sub_stages'],
+      )!,
     );
   }
 
@@ -3940,6 +3966,14 @@ class LearningProgressesData extends DataClass
 
   /// 最后更新时间
   final DateTime updatedAt;
+
+  /// 用户（或自动跳过策略）在该音频上跳过的子步骤集合
+  ///
+  /// 存储格式：逗号分隔的 `'stage.key:subStage.key'`（空字符串 = 空集合）。
+  ///
+  /// 不变量：与 `stage_completions` 中该音频的 (stage, subStage) 集合**互斥**——
+  /// 写 completion 时清除此集合中对应 key；写 skip 时若已 completed 则早返回。
+  final String skippedSubStages;
   const LearningProgressesData({
     required this.audioItemId,
     required this.currentStage,
@@ -3967,6 +4001,7 @@ class LearningProgressesData extends DataClass
     this.newLearningBreakpointSavedAt,
     this.freePlayBreakpointSavedAt,
     required this.updatedAt,
+    required this.skippedSubStages,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -4063,6 +4098,7 @@ class LearningProgressesData extends DataClass
       );
     }
     map['updated_at'] = Variable<DateTime>(updatedAt);
+    map['skipped_sub_stages'] = Variable<String>(skippedSubStages);
     return map;
   }
 
@@ -4143,6 +4179,7 @@ class LearningProgressesData extends DataClass
           ? const Value.absent()
           : Value(freePlayBreakpointSavedAt),
       updatedAt: Value(updatedAt),
+      skippedSubStages: Value(skippedSubStages),
     );
   }
 
@@ -4216,6 +4253,7 @@ class LearningProgressesData extends DataClass
         json['freePlayBreakpointSavedAt'],
       ),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+      skippedSubStages: serializer.fromJson<String>(json['skippedSubStages']),
     );
   }
   @override
@@ -4278,6 +4316,7 @@ class LearningProgressesData extends DataClass
         freePlayBreakpointSavedAt,
       ),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
+      'skippedSubStages': serializer.toJson<String>(skippedSubStages),
     };
   }
 
@@ -4308,6 +4347,7 @@ class LearningProgressesData extends DataClass
     Value<DateTime?> newLearningBreakpointSavedAt = const Value.absent(),
     Value<DateTime?> freePlayBreakpointSavedAt = const Value.absent(),
     DateTime? updatedAt,
+    String? skippedSubStages,
   }) => LearningProgressesData(
     audioItemId: audioItemId ?? this.audioItemId,
     currentStage: currentStage ?? this.currentStage,
@@ -4375,6 +4415,7 @@ class LearningProgressesData extends DataClass
         ? freePlayBreakpointSavedAt.value
         : this.freePlayBreakpointSavedAt,
     updatedAt: updatedAt ?? this.updatedAt,
+    skippedSubStages: skippedSubStages ?? this.skippedSubStages,
   );
   LearningProgressesData copyWithCompanion(LearningProgressesCompanion data) {
     return LearningProgressesData(
@@ -4459,6 +4500,9 @@ class LearningProgressesData extends DataClass
           ? data.freePlayBreakpointSavedAt.value
           : this.freePlayBreakpointSavedAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      skippedSubStages: data.skippedSubStages.present
+          ? data.skippedSubStages.value
+          : this.skippedSubStages,
     );
   }
 
@@ -4508,7 +4552,8 @@ class LearningProgressesData extends DataClass
             'newLearningBreakpointSavedAt: $newLearningBreakpointSavedAt, ',
           )
           ..write('freePlayBreakpointSavedAt: $freePlayBreakpointSavedAt, ')
-          ..write('updatedAt: $updatedAt')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('skippedSubStages: $skippedSubStages')
           ..write(')'))
         .toString();
   }
@@ -4541,6 +4586,7 @@ class LearningProgressesData extends DataClass
     newLearningBreakpointSavedAt,
     freePlayBreakpointSavedAt,
     updatedAt,
+    skippedSubStages,
   ]);
   @override
   bool operator ==(Object other) =>
@@ -4580,7 +4626,8 @@ class LearningProgressesData extends DataClass
           other.newLearningBreakpointSavedAt ==
               this.newLearningBreakpointSavedAt &&
           other.freePlayBreakpointSavedAt == this.freePlayBreakpointSavedAt &&
-          other.updatedAt == this.updatedAt);
+          other.updatedAt == this.updatedAt &&
+          other.skippedSubStages == this.skippedSubStages);
 }
 
 class LearningProgressesCompanion
@@ -4611,6 +4658,7 @@ class LearningProgressesCompanion
   final Value<DateTime?> newLearningBreakpointSavedAt;
   final Value<DateTime?> freePlayBreakpointSavedAt;
   final Value<DateTime> updatedAt;
+  final Value<String> skippedSubStages;
   final Value<int> rowid;
   const LearningProgressesCompanion({
     this.audioItemId = const Value.absent(),
@@ -4639,6 +4687,7 @@ class LearningProgressesCompanion
     this.newLearningBreakpointSavedAt = const Value.absent(),
     this.freePlayBreakpointSavedAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
+    this.skippedSubStages = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   LearningProgressesCompanion.insert({
@@ -4668,6 +4717,7 @@ class LearningProgressesCompanion
     this.newLearningBreakpointSavedAt = const Value.absent(),
     this.freePlayBreakpointSavedAt = const Value.absent(),
     required DateTime updatedAt,
+    this.skippedSubStages = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : audioItemId = Value(audioItemId),
        updatedAt = Value(updatedAt);
@@ -4698,6 +4748,7 @@ class LearningProgressesCompanion
     Expression<DateTime>? newLearningBreakpointSavedAt,
     Expression<DateTime>? freePlayBreakpointSavedAt,
     Expression<DateTime>? updatedAt,
+    Expression<String>? skippedSubStages,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -4750,6 +4801,7 @@ class LearningProgressesCompanion
       if (freePlayBreakpointSavedAt != null)
         'free_play_breakpoint_saved_at': freePlayBreakpointSavedAt,
       if (updatedAt != null) 'updated_at': updatedAt,
+      if (skippedSubStages != null) 'skipped_sub_stages': skippedSubStages,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -4781,6 +4833,7 @@ class LearningProgressesCompanion
     Value<DateTime?>? newLearningBreakpointSavedAt,
     Value<DateTime?>? freePlayBreakpointSavedAt,
     Value<DateTime>? updatedAt,
+    Value<String>? skippedSubStages,
     Value<int>? rowid,
   }) {
     return LearningProgressesCompanion(
@@ -4828,6 +4881,7 @@ class LearningProgressesCompanion
       freePlayBreakpointSavedAt:
           freePlayBreakpointSavedAt ?? this.freePlayBreakpointSavedAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      skippedSubStages: skippedSubStages ?? this.skippedSubStages,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -4949,6 +5003,9 @@ class LearningProgressesCompanion
     if (updatedAt.present) {
       map['updated_at'] = Variable<DateTime>(updatedAt.value);
     }
+    if (skippedSubStages.present) {
+      map['skipped_sub_stages'] = Variable<String>(skippedSubStages.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -5002,6 +5059,7 @@ class LearningProgressesCompanion
           )
           ..write('freePlayBreakpointSavedAt: $freePlayBreakpointSavedAt, ')
           ..write('updatedAt: $updatedAt, ')
+          ..write('skippedSubStages: $skippedSubStages, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -12859,6 +12917,7 @@ typedef $$LearningProgressesTableCreateCompanionBuilder =
       Value<DateTime?> newLearningBreakpointSavedAt,
       Value<DateTime?> freePlayBreakpointSavedAt,
       required DateTime updatedAt,
+      Value<String> skippedSubStages,
       Value<int> rowid,
     });
 typedef $$LearningProgressesTableUpdateCompanionBuilder =
@@ -12889,6 +12948,7 @@ typedef $$LearningProgressesTableUpdateCompanionBuilder =
       Value<DateTime?> newLearningBreakpointSavedAt,
       Value<DateTime?> freePlayBreakpointSavedAt,
       Value<DateTime> updatedAt,
+      Value<String> skippedSubStages,
       Value<int> rowid,
     });
 
@@ -13066,6 +13126,11 @@ class $$LearningProgressesTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<String> get skippedSubStages => $composableBuilder(
+    column: $table.skippedSubStages,
+    builder: (column) => ColumnFilters(column),
+  );
+
   $$AudioItemsTableFilterComposer get audioItemId {
     final $$AudioItemsTableFilterComposer composer = $composerBuilder(
       composer: this,
@@ -13225,6 +13290,11 @@ class $$LearningProgressesTableOrderingComposer
 
   ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
     column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get skippedSubStages => $composableBuilder(
+    column: $table.skippedSubStages,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -13388,6 +13458,11 @@ class $$LearningProgressesTableAnnotationComposer
   GeneratedColumn<DateTime> get updatedAt =>
       $composableBuilder(column: $table.updatedAt, builder: (column) => column);
 
+  GeneratedColumn<String> get skippedSubStages => $composableBuilder(
+    column: $table.skippedSubStages,
+    builder: (column) => column,
+  );
+
   $$AudioItemsTableAnnotationComposer get audioItemId {
     final $$AudioItemsTableAnnotationComposer composer = $composerBuilder(
       composer: this,
@@ -13479,6 +13554,7 @@ class $$LearningProgressesTableTableManager
                 Value<DateTime?> freePlayBreakpointSavedAt =
                     const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
+                Value<String> skippedSubStages = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => LearningProgressesCompanion(
                 audioItemId: audioItemId,
@@ -13510,6 +13586,7 @@ class $$LearningProgressesTableTableManager
                 newLearningBreakpointSavedAt: newLearningBreakpointSavedAt,
                 freePlayBreakpointSavedAt: freePlayBreakpointSavedAt,
                 updatedAt: updatedAt,
+                skippedSubStages: skippedSubStages,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -13548,6 +13625,7 @@ class $$LearningProgressesTableTableManager
                 Value<DateTime?> freePlayBreakpointSavedAt =
                     const Value.absent(),
                 required DateTime updatedAt,
+                Value<String> skippedSubStages = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => LearningProgressesCompanion.insert(
                 audioItemId: audioItemId,
@@ -13579,6 +13657,7 @@ class $$LearningProgressesTableTableManager
                 newLearningBreakpointSavedAt: newLearningBreakpointSavedAt,
                 freePlayBreakpointSavedAt: freePlayBreakpointSavedAt,
                 updatedAt: updatedAt,
+                skippedSubStages: skippedSubStages,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0

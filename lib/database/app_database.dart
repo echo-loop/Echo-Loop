@@ -81,7 +81,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase(super.e);
 
   /// 当前 schema 版本（静态访问，用于导入前版本检查）
-  static const currentSchemaVersion = 31;
+  static const currentSchemaVersion = 32;
 
   @override
   int get schemaVersion => currentSchemaVersion;
@@ -425,6 +425,15 @@ class AppDatabase extends _$AppDatabase {
             'ALTER TABLE audio_items ADD COLUMN word_count INTEGER NOT NULL DEFAULT 0',
           );
         }
+        // v31→v32：learning_progresses 新增 skipped_sub_stages 列
+        // 存储用户手动跳过 / 自动跳过策略产生的跳过记录，与 stage_completions 互斥。
+        if (from < 32) {
+          await _addColumnIfNotExists(
+            'learning_progresses',
+            'skipped_sub_stages',
+            "TEXT NOT NULL DEFAULT ''",
+          );
+        }
       },
     );
   }
@@ -503,6 +512,13 @@ class AppDatabase extends _$AppDatabase {
     String column,
     String definition,
   ) async {
+    // 先校验表存在；不存在直接跳过（某些 legacy 迁移路径里 learning_progresses
+    // 可能在到达本步骤前还没创建，例如从 v28 fixture 直接升级到当前版本）。
+    final tableExists = await customSelect(
+      "SELECT COUNT(*) AS cnt FROM sqlite_master WHERE type='table' AND name = '$table'",
+    ).getSingle();
+    if ((tableExists.data['cnt'] as int) == 0) return;
+
     final result = await customSelect(
       "SELECT COUNT(*) AS cnt FROM pragma_table_info('$table') WHERE name = '$column'",
     ).getSingle();

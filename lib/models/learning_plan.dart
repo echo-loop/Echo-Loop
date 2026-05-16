@@ -1,16 +1,14 @@
 /// 全局学习计划值对象
 ///
-/// 单一事实来源：每个大阶段当前实际计划做哪些子步骤。从 [LearningSettings]
-/// 派生（仅 `retellEnabled` 一个维度），UI / 推进 / reconcile / 进度计算
-/// 都只读这个对象的 API（`subStagesFor` / `includes` / `indexOf`），
-/// 不再四处判断 `retellEnabled`。
+/// 单一事实来源：每个大阶段当前实际计划做哪些子步骤。
+/// 当前为静态结构（全量 `stage.allSubStages`）——「跳过复述」等行为通过
+/// `LearningProgress.skippedSubStageKeys` 在进度侧承载，plan 不再受全局设置影响。
 ///
-/// 未来扩展（全局自定义学习流）：只需扩 [LearningSettings] 字段 +
-/// 改 [LearningPlan.fromSettings] 一处，consumer 零修改。
+/// 未来扩展（用户自定义学习计划）：扩 [LearningPlan] 构造工厂为非静态形式，
+/// consumer 仍只读 API（`subStagesFor` / `includes` / `indexOf`），零改动。
 library;
 
 import '../database/enums.dart';
-import '../providers/learning_settings_provider.dart';
 
 /// 不可变学习计划。
 class LearningPlan {
@@ -18,24 +16,17 @@ class LearningPlan {
 
   const LearningPlan(this._stages);
 
-  /// 从用户全局设置派生计划。
-  ///
-  /// 当前规则：`retellEnabled == false` 时移除所有复述类子步骤。
-  factory LearningPlan.fromSettings(LearningSettings settings) {
+  /// 标准计划：每个大阶段使用 `stage.allSubStages` 全量。
+  factory LearningPlan.standard() {
     return LearningPlan({
       for (final stage in LearningStage.values)
-        stage: stage.allSubStages
-            .where(
-              (sub) => !isRetellSubStage(sub) || settings.retellEnabled,
-            )
-            .toList(growable: false),
+        stage: List<SubStageType>.unmodifiable(stage.allSubStages),
     });
   }
 
   /// 指定大阶段的计划子步骤列表（有序）。
   ///
-  /// 该阶段无任何 planned 子步骤时返回空列表（如 [LearningStage.completed]，
-  /// 或所有子步骤都被设置过滤掉）。
+  /// 该阶段无任何 planned 子步骤时返回空列表（如 [LearningStage.completed]）。
   List<SubStageType> subStagesFor(LearningStage stage) =>
       _stages[stage] ?? const [];
 

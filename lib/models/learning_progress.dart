@@ -85,6 +85,13 @@ class LearningProgress {
   /// 最后更新时间
   final DateTime updatedAt;
 
+  /// 用户（或自动跳过策略）在该音频上跳过的子步骤集合
+  ///
+  /// 每个元素为 `'stage.key:subStage.key'`。与 `stage_completions` 互斥：
+  /// 写 completion 时该 key 会从此集合清除；写 skip 时若该 key 已 completed
+  /// 则早返回（参见 [LearningProgressNotifier.skipCurrentSubStage]）。
+  final Set<String> skippedSubStageKeys;
+
   const LearningProgress({
     required this.audioItemId,
     this.currentStage = LearningStage.firstLearn,
@@ -112,6 +119,7 @@ class LearningProgress {
     this.newLearningBreakpointSavedAt,
     this.freePlayBreakpointSavedAt,
     required this.updatedAt,
+    this.skippedSubStageKeys = const {},
   });
 
   /// 所有阶段的总子步骤数（动态计算）
@@ -209,25 +217,28 @@ class LearningProgress {
 
   /// 总完成进度（0.0 ~ 1.0）。
   ///
-  /// 分母 = 可见子步骤总数（plan 内 ∪ 已真实完成的子步骤，跨所有阶段）。
-  /// 分子 = 已真实完成的子步骤数（[completedKeys] 中存在）。
-  /// 跳过的子步骤（不在 plan 也未完成）既不计分子也不计分母。
+  /// 分母 = `inPlan ∪ isDone ∪ isUserSkipped` 的子步骤总数（跨所有阶段）。
+  /// 分子 = `isDone ∪ isUserSkipped` 的子步骤数。
+  ///
+  /// 跳过视为「已处理」占位（用户表态过、不再阻塞推进），与 completed 等价
+  /// 计入分子。否则纯跳过场景永远卡在 < 100%。
   double progressPercent(LearningPlan plan, Set<String> completedKeys) {
     if (isCompleted) return 1.0;
     int total = 0;
-    int completed = 0;
+    int handled = 0;
     for (final s in LearningStage.values) {
       for (final sub in s.allSubStages) {
         final key = '${s.key}:${sub.key}';
         final isDone = completedKeys.contains(key);
+        final isSkipped = skippedSubStageKeys.contains(key);
         final inPlan = plan.includes(s, sub);
-        if (!isDone && !inPlan) continue; // skipped
+        if (!isDone && !isSkipped && !inPlan) continue;
         total += 1;
-        if (isDone) completed += 1;
+        if (isDone || isSkipped) handled += 1;
       }
     }
     if (total == 0) return 0.0;
-    return completed / total;
+    return handled / total;
   }
 
   /// 指定阶段是否已完成
@@ -245,6 +256,14 @@ class LearningProgress {
     Set<String> completedKeys,
   ) {
     return completedKeys.contains('${stage.key}:${subStage.key}');
+  }
+
+  /// 指定子步骤是否被「跳过」（手动 / 自动均算）。
+  ///
+  /// 与 [isSubStageCompleted] 互斥：写 completion 时会同步清除此集合中对应 key。
+  /// 渲染优先级：completed > skipped > planned。
+  bool isSubStageSkipped(LearningStage stage, SubStageType subStage) {
+    return skippedSubStageKeys.contains('${stage.key}:${subStage.key}');
   }
 
   /// 指定阶段是否为当前活跃阶段
@@ -315,6 +334,7 @@ class LearningProgress {
     bool clearShadowingSentenceIndex = false,
     bool clearDifficultPracticeSentenceIndex = false,
     bool clearRetellParagraphIndex = false,
+    Set<String>? skippedSubStageKeys,
   }) {
     return LearningProgress(
       audioItemId: audioItemId ?? this.audioItemId,
@@ -378,6 +398,7 @@ class LearningProgress {
           ? null
           : (freePlayBreakpointSavedAt ?? this.freePlayBreakpointSavedAt),
       updatedAt: updatedAt ?? this.updatedAt,
+      skippedSubStageKeys: skippedSubStageKeys ?? this.skippedSubStageKeys,
     );
   }
 }

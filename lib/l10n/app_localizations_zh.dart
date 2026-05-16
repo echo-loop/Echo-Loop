@@ -2821,26 +2821,19 @@ class AppLocalizationsZh extends AppLocalizations {
   String get speakingPracticeSection => '口语练习';
 
   @override
-  String get retellEnabledToggle => '启用复述练习';
+  String get autoSkipRetellToggle => '自动跳过复述';
 
   @override
-  String get retellEnabledSubtitle => '听后用自己的话复述段落';
+  String get autoSkipRetellSubtitle => '学习计划遇到复述任务时自动跳过';
 
   @override
-  String get retellEnabledDescription => '复述是进阶训练，能快速提升口语流利度。建议在听力基础稳定后再开启。';
+  String get autoSkipRetellDescription => '开启后，复述类任务会自动标记为已跳过；你随时可以在自由练习里完成它们。';
 
   @override
-  String get retellPromptTitle => '开启复述练习？';
+  String get retellSkip => '跳过';
 
   @override
-  String get retellPromptBody =>
-      '复述是难度较大的练习方法，能快速提升口语能力。建议在有一定基础后开启。可在「设置 → 学习设置」中随时调整。';
-
-  @override
-  String get retellPromptDismiss => '暂不开启';
-
-  @override
-  String get retellPromptEnable => '现在开启';
+  String get retellSkippedSuffix => '已跳过';
 
   @override
   String get skipSilenceTitle => '自动跳过静音';

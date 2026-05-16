@@ -2922,27 +2922,21 @@ class AppLocalizationsEn extends AppLocalizations {
   String get speakingPracticeSection => 'Speaking practice';
 
   @override
-  String get retellEnabledToggle => 'Enable speaking practice';
+  String get autoSkipRetellToggle => 'Auto-skip speaking practice';
 
   @override
-  String get retellEnabledSubtitle => 'Retell paragraphs in your own words';
+  String get autoSkipRetellSubtitle =>
+      'Auto-skip speaking tasks in your learning plan';
 
   @override
-  String get retellEnabledDescription =>
-      'Speaking practice is an advanced exercise that quickly improves fluency. We recommend enabling it after your listening skills feel comfortable.';
+  String get autoSkipRetellDescription =>
+      'When enabled, speaking practice tasks are auto-marked as skipped; you can complete them anytime in free practice.';
 
   @override
-  String get retellPromptTitle => 'Enable speaking practice?';
+  String get retellSkip => 'Skip';
 
   @override
-  String get retellPromptBody =>
-      'Speaking practice is challenging but rapidly builds oral skills. We suggest enabling it once you have some foundation. Adjust anytime under Settings → Learning.';
-
-  @override
-  String get retellPromptDismiss => 'Not now';
-
-  @override
-  String get retellPromptEnable => 'Enable now';
+  String get retellSkippedSuffix => 'Skipped';
 
   @override
   String get skipSilenceTitle => 'Auto-skip Silence';

@@ -173,18 +173,13 @@ abstract class Events {
   /// 清除缓存成功
   static const cacheCleared = 'cache_cleared';
 
-  // ── 复述功能开关 ──
-  /// 首次进入音频学习计划页时的引导弹窗展示
-  static const retellIntroDialogShown = 'retell_intro_dialog_shown';
-
-  /// 用户在引导弹窗中的选择（enable / dismiss）
-  static const retellIntroDialogChoice = 'retell_intro_dialog_choice';
-
-  /// 复述开关切换（设置页或引导弹窗）
+  // ── 复述跳过 ──
+  /// 「自动跳过复述」全局开关切换（设置页）
   static const retellToggleChanged = 'retell_toggle_changed';
 
-  /// 关闭复述时静默推进大阶段（每条进度一次）
-  static const retellAutoStageAdvance = 'retell_auto_stage_advance';
+  /// 复述子阶段被跳过（手动按钮 / 自动跳过策略）
+  /// params: stage, subStage, source ∈ {'manual', 'auto'}
+  static const retellSkipped = 'retell_skipped';
 
   // ── Onboarding 问卷（首启 2 题，只采集不消费） ──
   /// 进入问卷页
