@@ -330,14 +330,32 @@ jobs:
           APP_STORE_API_KEY_ID: ${{ vars.APP_STORE_API_KEY_ID }}
           APP_STORE_API_ISSUER_ID: ${{ vars.APP_STORE_API_ISSUER_ID }}
         run: |
+          set -o pipefail
           IPA="$(find build/ios/ipa -maxdepth 1 -name '*.ipa' | head -n 1)"
           [[ -n "$IPA" ]] || { echo "No IPA produced" >&2; exit 1; }
           echo "Uploading: $IPA"
+
+          # altool 在某些失败场景（如 bundle version 重复）会打印 ERROR 但仍以 0 退出。
+          # 这里把 stdout/stderr 都收下并 tee 到日志，结束后扫描 ERROR 关键字强制失败。
+          LOG="$RUNNER_TEMP/altool-upload.log"
+          set +e
           xcrun altool --upload-app --type ios --file "$IPA" \
             --apiKey "$APP_STORE_API_KEY_ID" \
             --apiIssuer "$APP_STORE_API_ISSUER_ID" \
             --p8-file-path "$HOME/.appstoreconnect/private_keys/AuthKey_${APP_STORE_API_KEY_ID}.p8" \
-            --show-progress
+            --show-progress 2>&1 | tee "$LOG"
+          STATUS=${PIPESTATUS[0]}
+          set -e
+
+          if [[ $STATUS -ne 0 ]]; then
+            echo "::error::altool exited with status $STATUS" >&2
+            exit "$STATUS"
+          fi
+          if grep -E '^[0-9-]+ [0-9:.]+ ERROR' "$LOG" >/dev/null; then
+            echo "::error::altool reported ERROR despite exit 0 — failing step" >&2
+            grep -E '^[0-9-]+ [0-9:.]+ ERROR' "$LOG" >&2 || true
+            exit 1
+          fi
 
   publish:
     needs: release
@@ -353,10 +371,14 @@ jobs:
           name: android-apk
           path: ./artifacts
 
-      - name: Create GitHub Release
+      - name: Create GitHub Draft Release
+        # 先发草稿，避免 iOS 还在 App Store 审核时 Android 这边就显示成"已正式发布"。
+        # 等 App Store 审核通过并上线后，手动到 GitHub Releases 页面点 Publish；
+        # 或用 `gh release edit <tag> --draft=false` 转正。
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.event.inputs.tag || github.ref_name }}
           files: ./artifacts/Echo-Loop-*-arm64.apk
           generate_release_notes: true
           fail_on_unmatched_files: true
+          draft: true
