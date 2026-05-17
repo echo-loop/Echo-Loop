@@ -918,11 +918,23 @@ class _AnalysisContent extends StatelessWidget {
     );
   }
 
+  /// 删除 key 中的反引号并规范化空格。
+  ///
+  /// 服务端已有相同清洗（[apps/app/app/api/v1/ai/analyze/cleanup.ts]），
+  /// 客户端再做一遍是出于防御：
+  /// - 老 API 版本或第三方接入未走清洗逻辑
+  /// - 本地缓存的旧解析数据来自更早版本的服务端
+  /// key 在 UI 中已通过加粗高亮，再加反引号既冗余、又不会被渲染成 chip。
+  static String _cleanBulletKey(String key) {
+    return key.replaceAll('`', '').replaceAll(RegExp(r'\s+'), ' ').trim();
+  }
+
   /// 统一 bullet 条目：▸ + 可选加粗 key + ": " + value（value 含 IPA chip）
   Widget _buildBulletItem(ThemeData theme, String raw, TextStyle? body) {
     final cs = theme.colorScheme;
     final m = _keyValueRegex.firstMatch(raw);
-    final key = m?.group(1)?.trim();
+    final rawKey = m?.group(1)?.trim();
+    final key = rawKey == null ? null : _cleanBulletKey(rawKey);
     final value = m?.group(2)?.trim();
 
     final bullet = Padding(

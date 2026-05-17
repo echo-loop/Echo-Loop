@@ -485,5 +485,38 @@ void main() {
       expect(findChipText('have'), findsOneWidget);
       expect(findChipText('/əv/'), findsOneWidget);
     });
+
+    /// 把所有渲染的 RichText 的可见文本拼起来，用于检验"反引号是否还在屏上"
+    String allRenderedText() {
+      final buf = StringBuffer();
+      for (final el in find.byType(RichText).evaluate()) {
+        final rt = el.widget as RichText;
+        rt.text.visitChildren((span) {
+          if (span is TextSpan && span.text != null) {
+            buf.write(span.text);
+          }
+          return true;
+        });
+      }
+      return buf.toString();
+    }
+
+    testWidgets('客户端清洗 — key 中的反引号被剥离后再渲染', (tester) async {
+      await pumpAnalysisCard(tester, '`helped to` 的弱读：弱读为 /tə/');
+      final rendered = allRenderedText();
+      // 渲染后的 key 应不含反引号字面字符
+      expect(rendered.contains('`helped to`'), isFalse);
+      // 清洗后的 key 文本应当出现在渲染结果中
+      expect(rendered.contains('helped to 的弱读'), isTrue);
+      // value 中的 IPA chip 不受影响
+      expect(findChipText('/tə/'), findsOneWidget);
+    });
+
+    testWidgets('客户端清洗 — value 中的反引号保留（仍渲染为 chip）',
+        (tester) async {
+      await pumpAnalysisCard(tester, '词义：`run` 表示经营');
+      // value 中的 `run` 应渲染为 chip
+      expect(findChipText('run'), findsOneWidget);
+    });
   });
 }
