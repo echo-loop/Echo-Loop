@@ -38,8 +38,8 @@ void main() {
       expect(retellDefaultSeconds(LearningStage.review14), 30);
     });
 
-    test('review28 返回 60', () {
-      expect(retellDefaultSeconds(LearningStage.review28), 60);
+    test('review28 返回 30', () {
+      expect(retellDefaultSeconds(LearningStage.review28), 30);
     });
 
     test('completed 返回 10（兜底）', () {

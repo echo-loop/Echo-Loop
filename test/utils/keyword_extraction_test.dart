@@ -90,26 +90,26 @@ void main() {
       ]);
 
       // 总词数 22，全部 > 2 字符且非停用词
-      test('veryEasy 15% 选出约 15% 关键词', () {
+      test('veryEasy 20% 选出约 20% 关键词', () {
         final result = extractKeywords(
           sentences,
           ratio: KeywordRatio.veryEasy,
           random: Random(42),
         );
         final count = _totalKeywords(result);
-        // 22 * 0.15 ≈ 3 (每句最少 1 个保底，3 句故 ≥3)
-        expect(count, inInclusiveRange(3, 6));
+        // 22 * 0.20 ≈ 4
+        expect(count, inInclusiveRange(3, 7));
       });
 
-      test('easy 25% 选出约 25% 关键词', () {
+      test('easy 30% 选出约 30% 关键词', () {
         final result = extractKeywords(
           sentences,
           ratio: KeywordRatio.easy,
           random: Random(42),
         );
         final count = _totalKeywords(result);
-        // 22 * 0.25 ≈ 5–6
-        expect(count, inInclusiveRange(3, 8));
+        // 22 * 0.30 ≈ 7
+        expect(count, inInclusiveRange(4, 10));
       });
 
       test('medium 40% 选出约 40% 关键词', () {
@@ -123,10 +123,21 @@ void main() {
         expect(count, inInclusiveRange(6, 12));
       });
 
-      test('hard 60% 选出约 60% 关键词', () {
+      test('hard 50% 选出约 50% 关键词', () {
         final result = extractKeywords(
           sentences,
           ratio: KeywordRatio.hard,
+          random: Random(42),
+        );
+        final count = _totalKeywords(result);
+        // 22 * 0.5 ≈ 11
+        expect(count, inInclusiveRange(8, 14));
+      });
+
+      test('veryHard 60% 选出约 60% 关键词', () {
+        final result = extractKeywords(
+          sentences,
+          ratio: KeywordRatio.veryHard,
           random: Random(42),
         );
         final count = _totalKeywords(result);
@@ -134,15 +145,20 @@ void main() {
         expect(count, inInclusiveRange(10, 16));
       });
 
-      test('veryHard 80% 选出约 80% 关键词', () {
+      test('真实英文句高比例靠停用词补足，可见词数贴近总词×ratio', () {
+        // 模拟 UI 中实际场景：句子停用词较多，旧算法会被候选词数 clamp 住。
+        final sentences = _makeSentences([
+          'You may take notes while you are listening.', // 8 词，候选 3
+          'You will hear the passage only once.',         // 7 词，候选 2
+        ]);
         final result = extractKeywords(
           sentences,
           ratio: KeywordRatio.veryHard,
           random: Random(42),
         );
-        final count = _totalKeywords(result);
-        // 22 * 0.8 ≈ 18
-        expect(count, inInclusiveRange(14, 20));
+        // round(8 * 0.6) = 5，round(7 * 0.6) = 4
+        expect(result[0]?.length, 5);
+        expect(result[1]?.length, 4);
       });
     });
 
@@ -197,8 +213,8 @@ void main() {
         }
       });
 
-      test('targetCount 基于总词数，上限为候选词数量', () {
-        // 11 个词，其中 5 个停用词 + 6 个内容词
+      test('候选不够时用停用词补足，达到总词数 × ratio', () {
+        // 12 个词：6 个停用词 (The/and/but/or/yet/also) + 6 个内容词
         final sentences = _makeSentences([
           'The beautiful and wonderful but magnificent or spectacular yet incredible also extraordinary',
         ]);
@@ -207,10 +223,17 @@ void main() {
           ratio: KeywordRatio.veryHard,
           random: Random(42),
         );
-        // 总词数 11，ratio 80% → targetCount = round(11 * 0.8) = 9
-        // 候选词恰好 6 个，clamp 上限 6 → 选 6 个
+        // 总词数 12，ratio 60% → targetCount = round(12 * 0.6) = 7
+        // 候选 6 个 + 停用词补 1 个 = 7
         final count = _totalKeywords(result);
-        expect(count, inInclusiveRange(5, 6));
+        expect(count, 7);
+        // 所有内容词都应被选中（优先）
+        final words = tokenize(sentences[0].text);
+        final picked = result[0]!;
+        final pickedNonStopwordCount = picked
+            .where((i) => words[i].length > 2 && !isStopword(words[i]))
+            .length;
+        expect(pickedNonStopwordCount, 6);
       });
     });
   });
@@ -268,13 +291,13 @@ void main() {
     });
 
     test('percent 与 value 一致', () {
-      expect(KeywordRatio.veryEasy.percent, 15);
-      expect(KeywordRatio.veryEasy.value, closeTo(0.15, 1e-9));
-      expect(KeywordRatio.easy.percent, 25);
+      expect(KeywordRatio.veryEasy.percent, 20);
+      expect(KeywordRatio.veryEasy.value, closeTo(0.20, 1e-9));
+      expect(KeywordRatio.easy.percent, 30);
       expect(KeywordRatio.medium.percent, 40);
-      expect(KeywordRatio.hard.percent, 60);
-      expect(KeywordRatio.veryHard.percent, 80);
-      expect(KeywordRatio.veryHard.value, closeTo(0.80, 1e-9));
+      expect(KeywordRatio.hard.percent, 50);
+      expect(KeywordRatio.veryHard.percent, 60);
+      expect(KeywordRatio.veryHard.value, closeTo(0.60, 1e-9));
     });
   });
 

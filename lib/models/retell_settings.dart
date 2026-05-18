@@ -27,20 +27,20 @@ enum KeywordMethod {
 /// 5 档与音频难度 [DifficultyLevel] 一一对应：
 /// 越难的音频显示越多可见词作为提示。
 enum KeywordRatio {
-  /// 15%（对应"很轻松"难度）
-  veryEasy(15),
+  /// 20%（对应"很轻松"难度）
+  veryEasy(20),
 
-  /// 25%（对应"偏轻松"难度）
-  easy(25),
+  /// 30%（对应"偏轻松"难度）
+  easy(30),
 
   /// 40%（对应"还可以"难度）
   medium(40),
 
-  /// 60%（对应"偏难"难度）
-  hard(60),
+  /// 50%（对应"偏难"难度）
+  hard(50),
 
-  /// 80%（对应"很难"难度）
-  veryHard(80);
+  /// 60%（对应"很难"难度）
+  veryHard(60);
 
   /// 百分比（0–100）
   final int percent;
@@ -52,7 +52,7 @@ enum KeywordRatio {
 
   /// 按音频难度自动映射档位（不考虑学习阶段，作为基线档位）
   ///
-  /// veryEasy→15%, easy→25%, medium→40%, hard→60%, veryHard→80%。
+  /// veryEasy→20%, easy→30%, medium→40%, hard→50%, veryHard→60%。
   static KeywordRatio forDifficulty(DifficultyLevel level) => switch (level) {
     DifficultyLevel.veryEasy => KeywordRatio.veryEasy,
     DifficultyLevel.easy => KeywordRatio.easy,
@@ -86,7 +86,7 @@ enum KeywordRatio {
   /// - 难度高于 medium 时，曲线整体后移（hard 后移 1 stage，veryHard 后移 2）：
   ///   越难的音频越晚降到 40%
   ///
-  /// 完整映射表见 retell 设计文档；medium 列：firstLearn=80%, review2=60%,
+  /// 完整映射表见 retell 设计文档；medium 列：firstLearn=60%, review2=50%,
   /// review7=40%。
   static KeywordRatio forDifficultyAndStage(
     DifficultyLevel difficulty,
