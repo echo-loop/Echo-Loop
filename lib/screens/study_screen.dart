@@ -387,9 +387,7 @@ class _TaskCard extends ConsumerWidget {
     final isOverdue = task.isOverdue;
 
     // 获取进度数据
-    final progressMap = ref
-        .watch(learningProgressNotifierProvider)
-        .progressMap;
+    final progressMap = ref.watch(learningProgressNotifierProvider).progressMap;
     final progress = progressMap[task.audioId];
     final plan = ref.watch(learningPlanForAudioProvider(task.audioId));
     final completedKeys = ref
@@ -410,17 +408,14 @@ class _TaskCard extends ConsumerWidget {
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: () async {
-          ref.read(analyticsServiceProvider).track(
-            Events.studyTaskTapped,
-            {
-              EventParams.audioId: task.audioId,
-              EventParams.audioName: task.audioName,
-              EventParams.taskType: task.type.name.toLowerCase(),
-              EventParams.stage: task.stage.name,
-              EventParams.subStage: task.subStage.name,
-              EventParams.isOverdue: task.isOverdue ? 1 : 0,
-            },
-          );
+          ref.read(analyticsServiceProvider).track(Events.studyTaskTapped, {
+            EventParams.audioId: task.audioId,
+            EventParams.audioName: task.audioName,
+            EventParams.taskType: task.type.name.toLowerCase(),
+            EventParams.stage: task.stage.name,
+            EventParams.subStage: task.subStage.name,
+            EventParams.isOverdue: task.isOverdue ? 1 : 0,
+          });
           if (!context.mounted) return;
           context.push(AppRoutes.audioLearningPlan(task.audioId));
         },

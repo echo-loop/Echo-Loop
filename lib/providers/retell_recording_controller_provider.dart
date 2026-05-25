@@ -299,10 +299,7 @@ class RetellRecordingController extends Notifier<RetellRecordingState> {
       );
       return;
     } catch (error, stack) {
-      AppLogger.log(
-        'RetellRec',
-        '└ 录音启动未知异常: $error → idle\n$stack',
-      );
+      AppLogger.log('RetellRec', '└ 录音启动未知异常: $error → idle\n$stack');
       state = state.copyWith(
         phase: RetellRecordingPhase.idle,
         currentAttempt: SpeechPracticeAttempt(promptId: promptId).copyWith(
@@ -798,7 +795,8 @@ class RetellRecordingController extends Notifier<RetellRecordingState> {
       );
       _stopForEvaluation(
         promptId: promptId,
-        reason: '静音兜底 ${fallback.inSeconds}s '
+        reason:
+            '静音兜底 ${fallback.inSeconds}s '
             '(有声${voicedMs}ms, ref=${refMs}ms)',
       );
     }

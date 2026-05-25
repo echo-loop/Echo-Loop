@@ -76,10 +76,12 @@ Future<bool> resolveIsMainlandChina(SharedPreferences prefs) async {
 
   // 2. 无缓存：调 geo API
   try {
-    final response = await Dio(BaseOptions(
-      connectTimeout: const Duration(seconds: 2),
-      receiveTimeout: const Duration(seconds: 2),
-    )).get('$apiBaseUrl/api/v1/user/geo');
+    final response = await Dio(
+      BaseOptions(
+        connectTimeout: const Duration(seconds: 2),
+        receiveTimeout: const Duration(seconds: 2),
+      ),
+    ).get('$apiBaseUrl/api/v1/user/geo');
     final data = response.data;
     final country = data is Map ? data['country'] as String? : null;
     if (country != null && country.isNotEmpty) {

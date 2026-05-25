@@ -50,7 +50,10 @@ class _DiscoverCollectionsScreenState
     // inflight 防重入保证不会和 main.dart 启动时那次重复发请求。
     final svc = ref.read(officialCatalogServiceProvider);
     if (!svc.hasInitialized) {
-      AppLogger.log(_logTag, 'initState: catalog not initialized, triggering syncAll');
+      AppLogger.log(
+        _logTag,
+        'initState: catalog not initialized, triggering syncAll',
+      );
       unawaited(_syncCatalog());
     }
   }
@@ -70,7 +73,10 @@ class _DiscoverCollectionsScreenState
     );
   }
 
-  Widget _buildBody(List<CatalogCollection>? collections, AppLocalizations l10n) {
+  Widget _buildBody(
+    List<CatalogCollection>? collections,
+    AppLocalizations l10n,
+  ) {
     // null = catalog 未初始化 → loading
     if (collections == null) {
       return const Center(child: CircularProgressIndicator());
@@ -86,9 +92,9 @@ class _DiscoverCollectionsScreenState
             SnackBar(content: Text(l10n.discoverEmpty == '' ? '' : '已是最新')),
           );
         } else if (outcome is CatalogFailed) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(l10n.discoverLoadFailed)),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text(l10n.discoverLoadFailed)));
         }
       },
       child: collections.isEmpty
@@ -149,7 +155,10 @@ class _DiscoverCollectionsScreenState
   Future<void> _handleEnroll(CatalogCollection item) async {
     final l10n = AppLocalizations.of(context)!;
     final messenger = ScaffoldMessenger.of(context);
-    AppLogger.log(_logTag, 'tap enroll remoteId=${item.id} name="${item.name}"');
+    AppLogger.log(
+      _logTag,
+      'tap enroll remoteId=${item.id} name="${item.name}"',
+    );
     setState(() => _enrolling.add(item.id));
     try {
       final result = await ref

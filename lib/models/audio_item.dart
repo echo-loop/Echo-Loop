@@ -148,9 +148,7 @@ class AudioItem {
     return AudioItem(
       id: id ?? this.id,
       name: name ?? this.name,
-      audioPath: audioPath == _sentinel
-          ? this.audioPath
-          : audioPath as String?,
+      audioPath: audioPath == _sentinel ? this.audioPath : audioPath as String?,
       transcriptPath: transcriptPath == _sentinel
           ? this.transcriptPath
           : transcriptPath as String?,

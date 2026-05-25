@@ -164,16 +164,10 @@ class _SenseGroupTextState extends State<SenseGroupText> {
           }
         }
       },
-      onLongPressStart: (details) => TextContextMenu.show(
-        context,
-        details.globalPosition,
-        chunk.trim(),
-      ),
-      onSecondaryTapDown: (details) => TextContextMenu.show(
-        context,
-        details.globalPosition,
-        chunk.trim(),
-      ),
+      onLongPressStart: (details) =>
+          TextContextMenu.show(context, details.globalPosition, chunk.trim()),
+      onSecondaryTapDown: (details) =>
+          TextContextMenu.show(context, details.globalPosition, chunk.trim()),
       child: Container(
         key: _badgeKeys[index],
         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
@@ -182,10 +176,7 @@ class _SenseGroupTextState extends State<SenseGroupText> {
           borderRadius: BorderRadius.circular(4),
           border: border,
         ),
-        child: Text(
-          chunk.trim(),
-          style: baseStyle,
-        ),
+        child: Text(chunk.trim(), style: baseStyle),
       ),
     );
   }

@@ -106,10 +106,8 @@ Future<bool> _ensurePermissions(BuildContext context, WidgetRef ref) async {
   final result = await showDialog<bool>(
     context: context,
     barrierDismissible: false,
-    builder: (ctx) => _PermissionGateDialog(
-      initialStatus: initial,
-      needsSpeech: needsSpeech,
-    ),
+    builder: (ctx) =>
+        _PermissionGateDialog(initialStatus: initial, needsSpeech: needsSpeech),
   );
   AppLogger.log('SpeechPermGate', '│ dialog closed result=$result');
   return result ?? false;
@@ -499,4 +497,3 @@ class _DialogTitle extends StatelessWidget {
     );
   }
 }
-

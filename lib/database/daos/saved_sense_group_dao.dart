@@ -124,9 +124,9 @@ class SavedSenseGroupDao extends DatabaseAccessor<AppDatabase>
       ],
     );
     // customStatement 不会自动通知 stream watcher，手动触发
-    attachedDatabase.notifyUpdates(
-      {TableUpdate.onTable(savedSenseGroups, kind: UpdateKind.update)},
-    );
+    attachedDatabase.notifyUpdates({
+      TableUpdate.onTable(savedSenseGroups, kind: UpdateKind.update),
+    });
   }
 
   /// 清除指定音频关联的上下文信息

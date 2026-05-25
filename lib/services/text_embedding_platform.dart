@@ -46,9 +46,7 @@ class TextEmbeddingPlatform implements TextEmbeddingBackend {
 
   /// 测试时替换单例。
   @visibleForTesting
-  static TextEmbeddingPlatform replaceInstance(
-    TextEmbeddingPlatform platform,
-  ) {
+  static TextEmbeddingPlatform replaceInstance(TextEmbeddingPlatform platform) {
     final old = _instance;
     _instance = platform;
     return old;

@@ -111,8 +111,10 @@ class OfficialCatalogService {
     return dir;
   }
 
-  Future<File> _catalogFile() async => File(p.join((await _resolveDir()).path, 'catalog.json'));
-  Future<File> _metaFile() async => File(p.join((await _resolveDir()).path, 'catalog.meta.json'));
+  Future<File> _catalogFile() async =>
+      File(p.join((await _resolveDir()).path, 'catalog.json'));
+  Future<File> _metaFile() async =>
+      File(p.join((await _resolveDir()).path, 'catalog.meta.json'));
 
   /// 启动时调一次：尝试从磁盘加载已缓存的 catalog 到内存。
   /// 失败（文件不存在 / 解析错误）静默返回 null。
@@ -123,7 +125,8 @@ class OfficialCatalogService {
       if (!await metaFile.exists() || !await catalogFile.exists()) {
         return null;
       }
-      final metaJson = jsonDecode(await metaFile.readAsString()) as Map<String, dynamic>;
+      final metaJson =
+          jsonDecode(await metaFile.readAsString()) as Map<String, dynamic>;
       final body = await catalogFile.readAsString();
       final json = jsonDecode(body) as Map<String, dynamic>;
       final collections = (json['collections'] as List? ?? const [])
@@ -143,7 +146,10 @@ class OfficialCatalogService {
       );
       return snapshot;
     } catch (e) {
-      AppLogger.log(_logTag, 'loadCachedCatalog failed (treat as no cache): $e');
+      AppLogger.log(
+        _logTag,
+        'loadCachedCatalog failed (treat as no cache): $e',
+      );
       _hasInitialized = true; // 解析失败也算 init 完成；避免无限 loading
       return null;
     }

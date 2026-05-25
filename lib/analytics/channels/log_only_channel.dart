@@ -21,10 +21,8 @@ class LogOnlyChannel implements AnalyticsChannel {
 
   @override
   Future<void> logEvent(String name, Map<String, Object>? parameters) async {
-    final params = parameters?.entries
-            .map((e) => '${e.key}=${e.value}')
-            .join(', ') ??
-        '';
+    final params =
+        parameters?.entries.map((e) => '${e.key}=${e.value}').join(', ') ?? '';
     AppLogger.log(_tag, 'Event: $name${params.isEmpty ? '' : ' {$params}'}');
   }
 
@@ -40,7 +38,9 @@ class LogOnlyChannel implements AnalyticsChannel {
 
   @override
   Future<void> registerSuperProperties(Map<String, Object> properties) async {
-    final pairs = properties.entries.map((e) => '${e.key}=${e.value}').join(', ');
+    final pairs = properties.entries
+        .map((e) => '${e.key}=${e.value}')
+        .join(', ');
     AppLogger.log(_tag, 'registerSuperProperties: {$pairs}');
   }
 }

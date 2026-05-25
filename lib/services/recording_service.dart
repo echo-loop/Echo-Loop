@@ -129,7 +129,8 @@ class RecordingService {
     required bool requirePlatformSpeechRecognition,
   }) {
     final micOk = perms.microphone == SpeechPracticePermissionStatus.granted;
-    final speechOk = !requirePlatformSpeechRecognition ||
+    final speechOk =
+        !requirePlatformSpeechRecognition ||
         perms.speech == SpeechPracticePermissionStatus.granted;
     return micOk && speechOk;
   }

@@ -122,10 +122,7 @@ List<List<Sentence>> _dpSegment(
       n + 1,
       (_) => List<double>.filled(k + 1, double.infinity),
     );
-    final cut = List.generate(
-      n + 1,
-      (_) => List<int>.filled(k + 1, 0),
-    );
+    final cut = List.generate(n + 1, (_) => List<int>.filled(k + 1, 0));
 
     dp[0][0] = 0;
 

@@ -12,8 +12,9 @@ const _devOptionsKey = 'developer_options_enabled';
 /// - Debug / Profile 构建：始终开启（编译期常量 [showDeveloperOptions] = true）
 /// - Release 构建：默认关闭，可通过连续点击版本号解锁，状态持久化到 SharedPreferences
 /// - `--dart-define=SHOW_DEVELOPER_OPTIONS=true` 可在任何构建中强制开启
-final showDeveloperOptionsProvider =
-    NotifierProvider<DeveloperOptions, bool>(DeveloperOptions.new);
+final showDeveloperOptionsProvider = NotifierProvider<DeveloperOptions, bool>(
+  DeveloperOptions.new,
+);
 
 /// 开发者选项状态管理。
 class DeveloperOptions extends Notifier<bool> {

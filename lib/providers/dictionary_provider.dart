@@ -117,7 +117,10 @@ class Dictionary extends _$Dictionary {
       _checkForUpdate(nativeLanguage);
     } else {
       // 本地没有，开始下载
-      AppLogger.log('Dict', 'no local dictionary for lang=$nativeLanguage, downloading...');
+      AppLogger.log(
+        'Dict',
+        'no local dictionary for lang=$nativeLanguage, downloading...',
+      );
       await _startDownload(nativeLanguage);
     }
   }
@@ -155,8 +158,8 @@ class Dictionary extends _$Dictionary {
       AppLogger.log(
         'Dict',
         'download failed lang=$nativeLanguage '
-        'type=${e.type} message=${e.message} '
-        'url=${e.requestOptions.uri}',
+            'type=${e.type} message=${e.message} '
+            'url=${e.requestOptions.uri}',
       );
       state = state.copyWith(
         status: DictionaryStatus.failed,
@@ -178,7 +181,10 @@ class Dictionary extends _$Dictionary {
       if (!needsUpdate) return;
 
       // 需要更新，静默下载
-      AppLogger.log('Dict', 'update available for lang=$nativeLanguage, downloading...');
+      AppLogger.log(
+        'Dict',
+        'update available for lang=$nativeLanguage, downloading...',
+      );
       _cancelToken = CancelToken();
       final path = await _manager.download(
         nativeLanguage,
@@ -191,7 +197,10 @@ class Dictionary extends _$Dictionary {
       AppLogger.log('Dict', 'update complete lang=$nativeLanguage');
     } catch (e) {
       // 更新失败不影响当前已有词典的使用
-      AppLogger.log('Dict', 'update check failed lang=$nativeLanguage error=$e');
+      AppLogger.log(
+        'Dict',
+        'update check failed lang=$nativeLanguage error=$e',
+      );
     }
   }
 

@@ -52,7 +52,10 @@ class _AsrSettingsScreenState extends ConsumerState<AsrSettingsScreen> {
           // 说明文字（轻量，无背景）
           Padding(
             padding: const EdgeInsets.fromLTRB(
-              AppSpacing.s, 0, AppSpacing.s, AppSpacing.m,
+              AppSpacing.s,
+              0,
+              AppSpacing.s,
+              AppSpacing.m,
             ),
             child: Text(
               l10n.speechRecognitionDescription,
@@ -166,8 +169,8 @@ class _AsrSettingsScreenState extends ConsumerState<AsrSettingsScreen> {
             color: state.downloadStatus == AsrModelDownloadStatus.downloaded
                 ? Colors.green
                 : state.downloadStatus == AsrModelDownloadStatus.failed
-                    ? theme.colorScheme.error
-                    : theme.colorScheme.onSurfaceVariant,
+                ? theme.colorScheme.error
+                : theme.colorScheme.onSurfaceVariant,
             fontWeight: FontWeight.w500,
           ),
         ),
@@ -201,7 +204,10 @@ class _AsrSettingsScreenState extends ConsumerState<AsrSettingsScreen> {
   }
 
   /// 模型状态文字（Ready · 358 MB / Downloading 45% / 空）。
-  String _modelStatusText(AppLocalizations l10n, OfflineAsrSettingsState state) {
+  String _modelStatusText(
+    AppLocalizations l10n,
+    OfflineAsrSettingsState state,
+  ) {
     if (state.downloadStatus == AsrModelDownloadStatus.downloaded) {
       return l10n.speechModelReady(_formatBytes(state.localSizeBytes));
     }
@@ -257,9 +263,8 @@ class _AsrSettingsScreenState extends ConsumerState<AsrSettingsScreen> {
               ),
             ),
             TextButton(
-              onPressed: () => ref
-                  .read(offlineAsrSettingsProvider.notifier)
-                  .retryDownload(),
+              onPressed: () =>
+                  ref.read(offlineAsrSettingsProvider.notifier).retryDownload(),
               child: Text(l10n.retryDownload),
             ),
           ],
@@ -322,8 +327,7 @@ class _AsrSettingsScreenState extends ConsumerState<AsrSettingsScreen> {
                         value: deleteModel,
                         onChanged: (v) =>
                             setState(() => deleteModel = v ?? false),
-                        materialTapTargetSize:
-                            MaterialTapTargetSize.shrinkWrap,
+                        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                         visualDensity: VisualDensity.compact,
                       ),
                     ),
@@ -347,8 +351,7 @@ class _AsrSettingsScreenState extends ConsumerState<AsrSettingsScreen> {
             TextButton(
               onPressed: () {
                 Navigator.of(ctx).pop();
-                final notifier =
-                    ref.read(offlineAsrSettingsProvider.notifier);
+                final notifier = ref.read(offlineAsrSettingsProvider.notifier);
                 if (deleteModel) {
                   notifier.disableAndDelete();
                 } else {

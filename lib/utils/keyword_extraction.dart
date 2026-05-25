@@ -58,9 +58,10 @@ Map<int, Set<int>> extractKeywords(
     final candidateIndices = candidateSet.toList();
 
     // 按该句总词数计算目标数量，上限为总词数
-    final targetCount = (words.length * ratio.value)
-        .round()
-        .clamp(1, words.length);
+    final targetCount = (words.length * ratio.value).round().clamp(
+      1,
+      words.length,
+    );
 
     // 优先选内容词，不够则从停用词补足
     candidateIndices.shuffle(rng);

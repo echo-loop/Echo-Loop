@@ -8,15 +8,9 @@ class IntensiveAnnotationState {
   /// 当前阶段
   final IntensiveAnnotationPhase phase;
 
-  const IntensiveAnnotationState({
-    this.phase = const InspectingAnnotation(),
-  });
+  const IntensiveAnnotationState({this.phase = const InspectingAnnotation()});
 
-  IntensiveAnnotationState copyWith({
-    IntensiveAnnotationPhase? phase,
-  }) {
-    return IntensiveAnnotationState(
-      phase: phase ?? this.phase,
-    );
+  IntensiveAnnotationState copyWith({IntensiveAnnotationPhase? phase}) {
+    return IntensiveAnnotationState(phase: phase ?? this.phase);
   }
 }

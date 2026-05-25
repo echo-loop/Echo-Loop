@@ -61,8 +61,8 @@ class FlashcardWordItem extends FlashcardItem {
     required this.savedWord,
     DictEntry? dictEntry,
     bool dictLoaded = false,
-  })  : _dictEntry = dictEntry,
-        _dictLoaded = dictLoaded;
+  }) : _dictEntry = dictEntry,
+       _dictLoaded = dictLoaded;
 
   @override
   String get displayText => savedWord.word;
@@ -102,10 +102,10 @@ class FlashcardWordItem extends FlashcardItem {
 
   @override
   FlashcardWordItem withDictEntry(DictEntry? entry) => FlashcardWordItem(
-        savedWord: savedWord,
-        dictEntry: entry,
-        dictLoaded: true,
-      );
+    savedWord: savedWord,
+    dictEntry: entry,
+    dictLoaded: true,
+  );
 }
 
 /// 意群/短语闪卡项
@@ -120,8 +120,8 @@ class FlashcardPhraseItem extends FlashcardItem {
     required this.savedPhrase,
     DictEntry? dictEntry,
     bool dictLoaded = false,
-  })  : _dictEntry = dictEntry,
-        _dictLoaded = dictLoaded;
+  }) : _dictEntry = dictEntry,
+       _dictLoaded = dictLoaded;
 
   @override
   String get displayText => savedPhrase.displayText;
@@ -161,8 +161,8 @@ class FlashcardPhraseItem extends FlashcardItem {
 
   @override
   FlashcardPhraseItem withDictEntry(DictEntry? entry) => FlashcardPhraseItem(
-        savedPhrase: savedPhrase,
-        dictEntry: entry,
-        dictLoaded: true,
-      );
+    savedPhrase: savedPhrase,
+    dictEntry: entry,
+    dictLoaded: true,
+  );
 }

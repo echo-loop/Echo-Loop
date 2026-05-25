@@ -28,8 +28,8 @@ class AnalyticsService {
   AnalyticsService({
     required AnalyticsChannel channel,
     required ConsentManager consent,
-  })  : _channel = channel,
-        _consent = consent;
+  }) : _channel = channel,
+       _consent = consent;
 
   /// 当前通道名称（调试用）
   String get channelName => _channel.name;

@@ -89,8 +89,8 @@ class _AddAudioDialogState extends ConsumerState<AddAudioDialog> {
                     '${l10n.filesSelected(_pickedFiles.length)}'
                     '  ·  ${_formatFileSize(_pickedFiles.fold<int>(0, (sum, f) => sum + f.fileSize))}',
                     style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                          color: colorScheme.onSurfaceVariant,
-                        ),
+                      color: colorScheme.onSurfaceVariant,
+                    ),
                   ),
                 ),
               ConstrainedBox(
@@ -117,8 +117,9 @@ class _AddAudioDialogState extends ConsumerState<AddAudioDialog> {
               ),
               const SizedBox(height: 4),
               Text(
-                AppLocalizations.of(context)!
-                    .processingFileOf(_processedCount + 1, _pickedFiles.length),
+                AppLocalizations.of(
+                  context,
+                )!.processingFileOf(_processedCount + 1, _pickedFiles.length),
                 style: Theme.of(context).textTheme.bodySmall,
               ),
             ],
@@ -143,8 +144,9 @@ class _AddAudioDialogState extends ConsumerState<AddAudioDialog> {
             const SizedBox(width: 8),
             Expanded(
               child: FilledButton(
-                onPressed:
-                    _pickedFiles.isEmpty || _isLoading ? null : _addAudio,
+                onPressed: _pickedFiles.isEmpty || _isLoading
+                    ? null
+                    : _addAudio,
                 child: _isLoading
                     ? const SizedBox(
                         width: 16,
@@ -161,11 +163,7 @@ class _AddAudioDialogState extends ConsumerState<AddAudioDialog> {
   }
 
   /// 构建单个文件行（单行：图标 + 文件名 + 大小 + 删除）
-  Widget _buildFileRow(
-    _PickedAudio file,
-    int index,
-    ColorScheme colorScheme,
-  ) {
+  Widget _buildFileRow(_PickedAudio file, int index, ColorScheme colorScheme) {
     return Container(
       decoration: BoxDecoration(
         color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
@@ -174,11 +172,7 @@ class _AddAudioDialogState extends ConsumerState<AddAudioDialog> {
       padding: const EdgeInsets.only(left: 10, top: 4, bottom: 4, right: 4),
       child: Row(
         children: [
-          Icon(
-            Icons.audio_file_outlined,
-            size: 18,
-            color: colorScheme.primary,
-          ),
+          Icon(Icons.audio_file_outlined, size: 18, color: colorScheme.primary),
           const SizedBox(width: 6),
           Expanded(
             child: Text(
@@ -192,8 +186,8 @@ class _AddAudioDialogState extends ConsumerState<AddAudioDialog> {
               _formatFileSize(file.fileSize),
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    color: colorScheme.onSurfaceVariant,
-                  ),
+                color: colorScheme.onSurfaceVariant,
+              ),
             ),
           ),
           Expanded(
@@ -211,8 +205,8 @@ class _AddAudioDialogState extends ConsumerState<AddAudioDialog> {
                 onPressed: _isLoading
                     ? null
                     : () => setState(() {
-                          _pickedFiles = List.of(_pickedFiles)..removeAt(index);
-                        }),
+                        _pickedFiles = List.of(_pickedFiles)..removeAt(index);
+                      }),
               ),
             ),
           ),
@@ -245,15 +239,9 @@ class _AddAudioDialogState extends ConsumerState<AddAudioDialog> {
         isDense: true,
       ),
       items: [
-        DropdownMenuItem<String?>(
-          value: null,
-          child: Text(l10n.noCollection),
-        ),
+        DropdownMenuItem<String?>(value: null, child: Text(l10n.noCollection)),
         ...collections.map(
-          (c) => DropdownMenuItem<String?>(
-            value: c.id,
-            child: Text(c.name),
-          ),
+          (c) => DropdownMenuItem<String?>(value: c.id, child: Text(c.name)),
         ),
       ],
       onChanged: _isLoading

@@ -139,8 +139,8 @@ class ActivityDayCell extends StatelessWidget {
             border: isToday
                 ? Border.all(color: Colors.red, width: 1.5)
                 : isSelected
-                    ? Border.all(color: Colors.orange, width: 1.5)
-                    : null,
+                ? Border.all(color: Colors.orange, width: 1.5)
+                : null,
           ),
           alignment: Alignment.center,
           child: Text(
@@ -169,7 +169,17 @@ class ActivityDayCell extends StatelessWidget {
   }
 
   String _monthShort(int m) => const [
-        'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-        'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
-      ][m - 1];
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
+  ][m - 1];
 }

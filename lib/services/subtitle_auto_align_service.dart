@@ -428,10 +428,11 @@ class FixedThresholdSilenceStrategy implements SilenceDetectionStrategy {
       candidateEnd,
       config,
     );
-    final thresholdDb = _computeDynamicThresholdDb(frameDbfs, config.thresholdDb);
-    final silentFrames = [
-      for (final db in frameDbfs) db <= thresholdDb,
-    ];
+    final thresholdDb = _computeDynamicThresholdDb(
+      frameDbfs,
+      config.thresholdDb,
+    );
+    final silentFrames = [for (final db in frameDbfs) db <= thresholdDb];
 
     final normalized = _normalizeFlags(silentFrames, config);
     return _toSilenceIntervals(
@@ -489,11 +490,7 @@ bool _hasMeaningfulShift(double next, double original) {
   return (next - original).abs() > _epsilon;
 }
 
-bool _hasEnoughGap(
-  double endTime,
-  double startTime,
-  AutoAlignConfig config,
-) {
+bool _hasEnoughGap(double endTime, double startTime, AutoAlignConfig config) {
   return startTime - endTime + _epsilon >= config.minBoundaryGapMs / 1000;
 }
 
@@ -557,10 +554,7 @@ _GapFallback? _applyGapFallbackAdjustment(
   final endTime = currentEndTime + endShift;
   final startTime = nextStartTime - startShift;
   if (startTime - endTime + _epsilon < minGapSec) {
-    return _GapFallback(
-      endTime: currentEndTime,
-      startTime: nextStartTime,
-    );
+    return _GapFallback(endTime: currentEndTime, startTime: nextStartTime);
   }
 
   return _GapFallback(endTime: endTime, startTime: startTime);
@@ -583,14 +577,14 @@ SentenceBoundaryUpdate _safeOriginalBoundary(
 ) {
   final startWordIndex = sentence.startWordIndex;
   final endWordIndex = sentence.endWordIndex;
-  final firstWord = (startWordIndex != null &&
+  final firstWord =
+      (startWordIndex != null &&
           startWordIndex >= 0 &&
           startWordIndex < words.length)
       ? words[startWordIndex]
       : null;
-  final lastWord = (endWordIndex != null &&
-          endWordIndex >= 0 &&
-          endWordIndex < words.length)
+  final lastWord =
+      (endWordIndex != null && endWordIndex >= 0 && endWordIndex < words.length)
       ? words[endWordIndex]
       : null;
   final wordStart = firstWord == null
@@ -732,10 +726,7 @@ List<SentenceBoundaryUpdate> computeAutoAlignedSentenceBoundaries({
   for (var i = 0; i < sentences.length - 1; i++) {
     if (!_hasValidBoundaryWords(sentences[i], words) ||
         !_hasValidBoundaryWords(sentences[i + 1], words)) {
-      AppLogger.log(
-        _logTag,
-        'pair-skip-invalid left=$i right=${i + 1}',
-      );
+      AppLogger.log(_logTag, 'pair-skip-invalid left=$i right=${i + 1}');
       continue;
     }
 
@@ -785,7 +776,10 @@ List<SentenceBoundaryUpdate> computeAutoAlignedSentenceBoundaries({
         endTime: nextBoundaries[i + 1].endTime,
       );
       appliedSilenceEnd = _hasMeaningfulShift(nextEndTime, originalEndTime);
-      appliedSilenceStart = _hasMeaningfulShift(nextStartTime, originalStartTime);
+      appliedSilenceStart = _hasMeaningfulShift(
+        nextStartTime,
+        originalStartTime,
+      );
 
       AppLogger.log(
         _logTag,

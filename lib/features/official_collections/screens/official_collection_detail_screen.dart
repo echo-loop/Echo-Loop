@@ -71,15 +71,14 @@ class _OfficialCollectionDetailScreenState
 
     final localId = _findLocalIdStatic(detail.id);
     final enrolled = localId != null;
-    ref.read(analyticsServiceProvider).track(
-      Events.officialCollectionDetailViewed,
-      {
-        EventParams.remoteId: detail.id,
-        EventParams.collectionName: detail.name,
-        EventParams.audioCount: detail.audios.length,
-        EventParams.enrolled: enrolled ? 1 : 0,
-      },
-    );
+    ref
+        .read(analyticsServiceProvider)
+        .track(Events.officialCollectionDetailViewed, {
+          EventParams.remoteId: detail.id,
+          EventParams.collectionName: detail.name,
+          EventParams.audioCount: detail.audios.length,
+          EventParams.enrolled: enrolled ? 1 : 0,
+        });
     _trackedView = true;
   }
 

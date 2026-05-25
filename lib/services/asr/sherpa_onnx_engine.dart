@@ -189,7 +189,10 @@ class _TranscribeRequest {
 class _TranscribeResponse {
   final String text;
   final int inferenceTimeMs;
-  const _TranscribeResponse({required this.text, required this.inferenceTimeMs});
+  const _TranscribeResponse({
+    required this.text,
+    required this.inferenceTimeMs,
+  });
 }
 
 /// 释放请求（主线程 → Worker）。
@@ -364,13 +367,19 @@ void _handleTranscribe(
       );
       final segments = _extractSpeechWithVad(vad, samples16k);
       if (segments == null) {
-        AppLogger.log('ASREngine', 'VAD: ${beforeSec.toStringAsFixed(1)}s → 0.0s (全静音)');
+        AppLogger.log(
+          'ASREngine',
+          'VAD: ${beforeSec.toStringAsFixed(1)}s → 0.0s (全静音)',
+        );
         request.replyPort.send(
           const _TranscribeResponse(text: '', inferenceTimeMs: 0),
         );
         return;
       }
-      final totalSpeechSamples = segments.fold<int>(0, (s, seg) => s + seg.length);
+      final totalSpeechSamples = segments.fold<int>(
+        0,
+        (s, seg) => s + seg.length,
+      );
       final afterSec = totalSpeechSamples / _vadSampleRate;
       AppLogger.log(
         'ASREngine',

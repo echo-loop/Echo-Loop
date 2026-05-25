@@ -25,8 +25,9 @@ Future<String?> pickAndSaveTranscript() async {
       allowMultiple: false,
     );
   } else {
-    final initialDir =
-        !kIsWeb && Platform.isMacOS ? await _getDownloadsDirectory() : null;
+    final initialDir = !kIsWeb && Platform.isMacOS
+        ? await _getDownloadsDirectory()
+        : null;
     result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
       allowedExtensions: ['srt', 'vtt'],
@@ -83,13 +84,15 @@ Future<void> uploadTranscriptForAudio(
 
     // 更新音频项的字幕路径和统计数据
     if (!context.mounted) return;
-    ref.read(audioLibraryProvider.notifier).updateAudioItem(
-      audioItem.copyWith(
-        transcriptPath: newPath,
-        sentenceCount: stats.$1,
-        wordCount: stats.$2,
-      ),
-    );
+    ref
+        .read(audioLibraryProvider.notifier)
+        .updateAudioItem(
+          audioItem.copyWith(
+            transcriptPath: newPath,
+            sentenceCount: stats.$1,
+            wordCount: stats.$2,
+          ),
+        );
   } catch (e) {
     if (!context.mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(

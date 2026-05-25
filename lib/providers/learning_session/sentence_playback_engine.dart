@@ -47,8 +47,8 @@ class SentencePlaybackEngine {
   SentencePlaybackEngine({
     required AudioEngine Function() getEngine,
     StudyEventRecorder? recorder,
-  })  : _getEngine = getEngine,
-        _recorder = recorder;
+  }) : _getEngine = getEngine,
+       _recorder = recorder;
 
   /// 当前 sessionId（供外部查询）
   int get currentSessionId => _currentSessionId;

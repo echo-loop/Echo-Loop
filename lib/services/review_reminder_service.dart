@@ -154,14 +154,11 @@ class ReviewReminderService {
     }
   }
 
-
   /// 调度未来 15 天的收藏复习提醒（每天一个独立通知）
   ///
   /// [hasSavedContent] 为 false 时取消所有已调度的收藏复习提醒。
   /// 每次调用先 cancel 旧的 15 个，再重新调度。
-  Future<void> syncSavedReviewReminder({
-    required bool hasSavedContent,
-  }) async {
+  Future<void> syncSavedReviewReminder({required bool hasSavedContent}) async {
     if (!_supportsSystemNotification) return;
 
     await initPlugin();
@@ -306,9 +303,7 @@ class ReviewReminderService {
       _scheduledPerAudioIds.clear();
       _lastSnapshot = null;
     } on MissingPluginException {
-      debugPrint(
-        'ReviewReminderService: plugin unavailable during cancelAll',
-      );
+      debugPrint('ReviewReminderService: plugin unavailable during cancelAll');
     } catch (e) {
       debugPrint('ReviewReminderService.cancelAllPerAudioReminders error: $e');
     }
@@ -335,12 +330,16 @@ class ReviewReminderService {
   Future<void> _cancelStalePerAudioNotifications(
     List<PerAudioReminderInfo> reminders,
   ) async {
-    final newIds = {for (final r in reminders) _perAudioNotificationId(r.audioId)};
+    final newIds = {
+      for (final r in reminders) _perAudioNotificationId(r.audioId),
+    };
 
     // 查询系统中所有 pending 通知
     final pending = await _plugin.pendingNotificationRequests();
     for (final n in pending) {
-      if (n.id >= _perAudioIdMin && n.id <= _perAudioIdMax && !newIds.contains(n.id)) {
+      if (n.id >= _perAudioIdMin &&
+          n.id <= _perAudioIdMax &&
+          !newIds.contains(n.id)) {
         await _plugin.cancel(n.id);
       }
     }

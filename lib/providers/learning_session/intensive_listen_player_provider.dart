@@ -404,7 +404,8 @@ class IntensiveListenPlayer extends _$IntensiveListenPlayer {
     final sessionId = _currentSessionId;
     _annotationCountdown.cancel();
 
-    final played = Set<int>.from(state.playedSenseGroupIndices)..add(groupIndex);
+    final played = Set<int>.from(state.playedSenseGroupIndices)
+      ..add(groupIndex);
     state = state.copyWith(
       playingSenseGroupIndex: groupIndex,
       playedSenseGroupIndices: played,
@@ -626,9 +627,8 @@ class IntensiveListenPlayer extends _$IntensiveListenPlayer {
       sentences: _sentences,
       startIndex: startIndex ?? state.currentSentenceIndex,
       config: BlindPracticeFlowConfig(
-        getRepeatCount: (_) => state.settings.isManualMode
-            ? 1
-            : state.settings.repeatCount,
+        getRepeatCount: (_) =>
+            state.settings.isManualMode ? 1 : state.settings.repeatCount,
         getRepeatIntervalDuration: (sentence) =>
             calculatePauseDuration(sentence.duration, state.settings),
         getSentenceIntervalDuration: (sentence) =>
@@ -795,10 +795,7 @@ class IntensiveListenPlayer extends _$IntensiveListenPlayer {
     final sessionId = _currentSessionId;
 
     _setAnnotationPhase(
-      WaitingAnnotationInterval(
-        remaining: pauseDur,
-        total: pauseDur,
-      ),
+      WaitingAnnotationInterval(remaining: pauseDur, total: pauseDur),
     );
 
     await _annotationCountdown.start(pauseDur);

@@ -90,11 +90,7 @@ class MaskedSentenceTile extends StatelessWidget {
               if (isBookmarked)
                 Padding(
                   padding: const EdgeInsets.only(left: 4),
-                  child: Icon(
-                    Icons.bookmark,
-                    size: 14,
-                    color: Colors.amber,
-                  ),
+                  child: Icon(Icons.bookmark, size: 14, color: Colors.amber),
                 ),
             ],
           ),

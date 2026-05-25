@@ -156,7 +156,9 @@ class _WordDictionarySheetState extends ConsumerState<WordDictionarySheet> {
     final dictState = ref.watch(dictionaryProvider);
 
     // 词典下载完成后自动重新查询
-    if (dictState.status == DictionaryStatus.downloaded && _entry == null && !_notFound) {
+    if (dictState.status == DictionaryStatus.downloaded &&
+        _entry == null &&
+        !_notFound) {
       _lookup();
     }
 

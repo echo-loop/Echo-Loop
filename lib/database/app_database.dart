@@ -398,7 +398,9 @@ class AppDatabase extends _$AppDatabase {
         // 直接升到当前版本时，如果顺序反了，会在表重建时报 no such column。
         if (from < 30) {
           // 上一次失败的 TableMigration 可能留下临时拷贝表；重试前清理残留。
-          await customStatement('DROP TABLE IF EXISTS tmp_for_copy_audio_items');
+          await customStatement(
+            'DROP TABLE IF EXISTS tmp_for_copy_audio_items',
+          );
           await m.alterTable(
             // ignore: experimental_member_use
             TableMigration(
@@ -551,9 +553,7 @@ class AppDatabase extends _$AppDatabase {
       for (final row in rows) {
         final audioId = row.data['audio_item_id'] as String;
         final stage = row.data['stage'] as String;
-        touchedStages
-            .putIfAbsent(audioId, () => <String>{})
-            .add(stage);
+        touchedStages.putIfAbsent(audioId, () => <String>{}).add(stage);
       }
       AppLogger.log(
         'DB.migrate',
@@ -813,7 +813,9 @@ class AppDatabase extends _$AppDatabase {
     // 同步时按 remoteAudioId 反查 audio_items。
     // UNIQUE：防并发 syncAll 把同一个 remoteAudioId 插成两行。
     // 老版本可能已经创建了非 UNIQUE 的同名索引，这里先 DROP 再 CREATE 保证升级到 UNIQUE。
-    await customStatement('DROP INDEX IF EXISTS idx_audio_items_remote_audio_id');
+    await customStatement(
+      'DROP INDEX IF EXISTS idx_audio_items_remote_audio_id',
+    );
     await customStatement('''
       CREATE UNIQUE INDEX IF NOT EXISTS idx_audio_items_remote_audio_id
       ON audio_items(remote_audio_id)

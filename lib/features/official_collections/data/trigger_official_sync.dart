@@ -21,8 +21,9 @@ Future<CatalogRefreshOutcome?> triggerOfficialSync(
   bool force = false,
 }) async {
   try {
-    final stats =
-        await ref.read(officialSyncServiceProvider).syncAll(force: force);
+    final stats = await ref
+        .read(officialSyncServiceProvider)
+        .syncAll(force: force);
     if (stats.outcome is CatalogUpdated) {
       await ref.read(audioLibraryProvider.notifier).loadLibrary();
       await ref.read(collectionListProvider.notifier).loadCollections();

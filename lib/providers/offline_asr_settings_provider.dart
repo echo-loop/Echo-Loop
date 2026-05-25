@@ -476,8 +476,8 @@ Future<OfflineAsrSettingsState> loadInitialOfflineAsrSettingsState({
   final backend = backendName == AsrBackend.offline.name
       ? AsrBackend.offline
       : backendName == AsrBackend.platform.name
-          ? AsrBackend.platform
-          : defaultBackend;
+      ? AsrBackend.platform
+      : defaultBackend;
   final persistedDownloaded =
       prefs.getBool(_downloadCompletedKey(recommendedModel.id)) ?? false;
   final localSize = await modelManager.modelLocalSize(recommendedModel.id);

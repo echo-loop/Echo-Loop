@@ -52,7 +52,7 @@ class _PrepareLearningDialogState extends ConsumerState<PrepareLearningDialog> {
     final isFailed = progress is DownloadFailed;
     final isCurrent =
         progress is DownloadInProgress &&
-            progress.audioItemId == widget.audioItemId;
+        progress.audioItemId == widget.audioItemId;
 
     return AlertDialog(
       title: Row(
@@ -114,10 +114,12 @@ class _PrepareLearningDialogState extends ConsumerState<PrepareLearningDialog> {
             onPressed: () async {
               // Failed 不是 InProgress，start() 会直接重新启动；state 从 Failed
               // 跳到 InProgress，不会经过 Idle，所以 listen 不会误 pop dialog。
-              await ref.read(officialDownloadProvider.notifier).start(
-                audioItemId: widget.audioItemId,
-                displayName: progress.displayName,
-              );
+              await ref
+                  .read(officialDownloadProvider.notifier)
+                  .start(
+                    audioItemId: widget.audioItemId,
+                    displayName: progress.displayName,
+                  );
             },
             child: Text(l10n.retryDownload),
           ),

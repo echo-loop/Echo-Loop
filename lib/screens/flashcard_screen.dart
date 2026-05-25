@@ -169,8 +169,7 @@ class _FlashcardScreenState extends ConsumerState<FlashcardScreen>
                                   child: child,
                                 );
                               },
-                              layoutBuilder: (currentChild,
-                                  previousChildren) {
+                              layoutBuilder: (currentChild, previousChildren) {
                                 return Stack(
                                   alignment: Alignment.center,
                                   children: [
@@ -212,8 +211,8 @@ class _FlashcardScreenState extends ConsumerState<FlashcardScreen>
                     showCountdown: s.showCountdown,
                     onPrevious: s.currentIndex > 0
                         ? () => ref
-                            .read(flashcardNotifierProvider.notifier)
-                            .userPreviousCard()
+                              .read(flashcardNotifierProvider.notifier)
+                              .userPreviousCard()
                         : null,
                     onNext: () => ref
                         .read(flashcardNotifierProvider.notifier)

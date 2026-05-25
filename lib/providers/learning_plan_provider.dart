@@ -22,8 +22,10 @@ final learningPlanProvider = Provider<LearningPlan>((ref) {
 /// 按音频派生 plan。直读 `progress.planVersionsByStage` 持久化快照。
 ///
 /// progress 不存在（音频从未开始）时退化为默认 plan（kLatestPlanVersions）。
-final learningPlanForAudioProvider =
-    Provider.family<LearningPlan, String>((ref, audioItemId) {
+final learningPlanForAudioProvider = Provider.family<LearningPlan, String>((
+  ref,
+  audioItemId,
+) {
   final progressState = ref.watch(learningProgressNotifierProvider);
   final progress = progressState.progressMap[audioItemId];
   return LearningPlan.standard(

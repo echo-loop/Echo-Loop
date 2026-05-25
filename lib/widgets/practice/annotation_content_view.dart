@@ -185,11 +185,15 @@ class _AnnotationContentViewState extends ConsumerState<AnnotationContentView> {
     final ai = widget.aiNotifier;
     if (ai == null) return;
 
-    final nativeLanguage =
-        ref.read(appSettingsProvider.select((s) => s.nativeLanguage));
+    final nativeLanguage = ref.read(
+      appSettingsProvider.select((s) => s.nativeLanguage),
+    );
 
     // 预加载翻译和解析（结果通过 getCachedTranslation/getCachedAnalysis 透给 card）
-    await ai.preloadTranslationFromDb(widget.text, targetLanguage: nativeLanguage);
+    await ai.preloadTranslationFromDb(
+      widget.text,
+      targetLanguage: nativeLanguage,
+    );
     await ai.preloadAnalysisFromDb(widget.text, targetLanguage: nativeLanguage);
 
     // 预加载意群并计算时间范围
@@ -198,8 +202,9 @@ class _AnnotationContentViewState extends ConsumerState<AnnotationContentView> {
     if (!mounted || generation != _preloadGeneration) return;
 
     if (sgLoaded) {
-      final autoExpand =
-          ref.read(learningSettingsProvider).autoExpandCachedAnnotation;
+      final autoExpand = ref
+          .read(learningSettingsProvider)
+          .autoExpandCachedAnnotation;
       if (!autoExpand) return;
       final result = ai.getCachedSenseGroups(widget.text);
       if (result != null && result.medium.isNotEmpty) {
@@ -444,18 +449,19 @@ class _AnnotationContentViewState extends ConsumerState<AnnotationContentView> {
     final nativeLanguage = ref.watch(
       appSettingsProvider.select((s) => s.nativeLanguage),
     );
-    final autoExpand =
-        ref.watch(learningSettingsProvider).autoExpandCachedAnnotation;
+    final autoExpand = ref
+        .watch(learningSettingsProvider)
+        .autoExpandCachedAnnotation;
     final cachedTranslation = autoExpand
         ? ai
-            ?.getCachedTranslation(widget.text, targetLanguage: nativeLanguage)
-            ?.translation
+              ?.getCachedTranslation(
+                widget.text,
+                targetLanguage: nativeLanguage,
+              )
+              ?.translation
         : null;
     final cachedAnalysis = autoExpand
-        ? ai?.getCachedAnalysis(
-            widget.text,
-            targetLanguage: nativeLanguage,
-          )
+        ? ai?.getCachedAnalysis(widget.text, targetLanguage: nativeLanguage)
         : null;
     final cachedAnalysisText = cachedAnalysis?.toDisplayString();
 
@@ -502,79 +508,79 @@ class _AnnotationContentViewState extends ConsumerState<AnnotationContentView> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-          // 固定工具栏（监听 notifier 刷新）
-          Padding(
-            padding: const EdgeInsets.only(bottom: AppSpacing.m),
-            child: ListenableBuilder(
-              listenable: _toolbarNotifier,
-              builder: (context, _) {
-                final cardState = _cardKey.currentState;
-                if (cardState == null || !cardState.hasToolbarButtons) {
-                  return const SizedBox.shrink();
-                }
-                return cardState.buildToolbar(context);
-              },
-            ),
-          ),
-          // 可滚动内容区
-          Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.only(bottom: AppSpacing.l),
-              child: SentenceAnnotationCard(
-                key: _cardKey,
-                text: widget.text,
-                showToolbar: false,
-                onToolbarStateChanged: _toolbarNotifier.notify,
-                onRequestTranslation: ai != null
-                    ? () async {
-                        ref.read(analyticsServiceProvider).track(
-                          Events.translationRequested,
-                        );
-                        final result = await ai.getTranslation(
-                          widget.text,
-                          targetLanguage: nativeLanguage,
-                        );
-                        return result.translation;
-                      }
-                    : null,
-                onRequestAnalysis: ai != null
-                    ? () async {
-                        ref.read(analyticsServiceProvider).track(
-                          Events.analysisRequested,
-                        );
-                        final result = await ai.getAnalysis(
-                          widget.text,
-                          targetLanguage: nativeLanguage,
-                        );
-                        return result.toDisplayString();
-                      }
-                    : null,
-                cachedTranslation: cachedTranslation,
-                cachedAnalysis: cachedAnalysisText,
-                audioItemId: widget.audioItemId,
-                sentenceIndex: widget.sentenceIndex,
-                sentenceStartMs: widget.sentenceStartMs,
-                sentenceEndMs: widget.sentenceEndMs,
-                senseGroupResult: _senseGroupResult,
-                senseGroupTimings: _senseGroupTimings,
-                onSenseGroupModeChanged: _handleModeChanged,
-                playingSenseGroupIndex: _playingSenseGroupIndex,
-                playedSenseGroupIndices: _playedSenseGroupIndices,
-                onTapSenseGroup: _handleTapSenseGroup,
-                onRequestSenseGroups: _requestSenseGroups,
-                hasWordTimestamps: _wordTimestamps != null,
-                highlightedSegments: widget.highlightedSegments,
-                savedGroupTexts: savedTexts,
-                onTapGroupWithRect: _showActionBar,
-                onToolbarButtonTapped: widget.onToolbarButtonTapped,
-                sentenceGuideStep: sentenceStep,
-                senseGroupGuideStep: senseGroupStep,
-                translationGuideStep: translationStep,
-                analysisGuideStep: analysisStep,
+            // 固定工具栏（监听 notifier 刷新）
+            Padding(
+              padding: const EdgeInsets.only(bottom: AppSpacing.m),
+              child: ListenableBuilder(
+                listenable: _toolbarNotifier,
+                builder: (context, _) {
+                  final cardState = _cardKey.currentState;
+                  if (cardState == null || !cardState.hasToolbarButtons) {
+                    return const SizedBox.shrink();
+                  }
+                  return cardState.buildToolbar(context);
+                },
               ),
             ),
-          ),
-        ],
+            // 可滚动内容区
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.only(bottom: AppSpacing.l),
+                child: SentenceAnnotationCard(
+                  key: _cardKey,
+                  text: widget.text,
+                  showToolbar: false,
+                  onToolbarStateChanged: _toolbarNotifier.notify,
+                  onRequestTranslation: ai != null
+                      ? () async {
+                          ref
+                              .read(analyticsServiceProvider)
+                              .track(Events.translationRequested);
+                          final result = await ai.getTranslation(
+                            widget.text,
+                            targetLanguage: nativeLanguage,
+                          );
+                          return result.translation;
+                        }
+                      : null,
+                  onRequestAnalysis: ai != null
+                      ? () async {
+                          ref
+                              .read(analyticsServiceProvider)
+                              .track(Events.analysisRequested);
+                          final result = await ai.getAnalysis(
+                            widget.text,
+                            targetLanguage: nativeLanguage,
+                          );
+                          return result.toDisplayString();
+                        }
+                      : null,
+                  cachedTranslation: cachedTranslation,
+                  cachedAnalysis: cachedAnalysisText,
+                  audioItemId: widget.audioItemId,
+                  sentenceIndex: widget.sentenceIndex,
+                  sentenceStartMs: widget.sentenceStartMs,
+                  sentenceEndMs: widget.sentenceEndMs,
+                  senseGroupResult: _senseGroupResult,
+                  senseGroupTimings: _senseGroupTimings,
+                  onSenseGroupModeChanged: _handleModeChanged,
+                  playingSenseGroupIndex: _playingSenseGroupIndex,
+                  playedSenseGroupIndices: _playedSenseGroupIndices,
+                  onTapSenseGroup: _handleTapSenseGroup,
+                  onRequestSenseGroups: _requestSenseGroups,
+                  hasWordTimestamps: _wordTimestamps != null,
+                  highlightedSegments: widget.highlightedSegments,
+                  savedGroupTexts: savedTexts,
+                  onTapGroupWithRect: _showActionBar,
+                  onToolbarButtonTapped: widget.onToolbarButtonTapped,
+                  sentenceGuideStep: sentenceStep,
+                  senseGroupGuideStep: senseGroupStep,
+                  translationGuideStep: translationStep,
+                  analysisGuideStep: analysisStep,
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );

@@ -37,22 +37,16 @@ class _LogViewerScreenState extends State<LogViewerScreen> {
     setState(() {});
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_scrollController.hasClients) {
-        _scrollController.jumpTo(
-          _scrollController.position.maxScrollExtent,
-        );
+        _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
       }
     });
   }
 
   void _copyAll() {
-    final text =
-        AppLogger.instance.entries.map((e) => e.toString()).join('\n');
+    final text = AppLogger.instance.entries.map((e) => e.toString()).join('\n');
     Clipboard.setData(ClipboardData(text: text));
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('已复制到剪贴板'),
-        duration: Duration(seconds: 1),
-      ),
+      const SnackBar(content: Text('已复制到剪贴板'), duration: Duration(seconds: 1)),
     );
   }
 
@@ -111,7 +105,8 @@ class _LogEntryTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final timeStr = '${entry.time.hour.toString().padLeft(2, '0')}:'
+    final timeStr =
+        '${entry.time.hour.toString().padLeft(2, '0')}:'
         '${entry.time.minute.toString().padLeft(2, '0')}:'
         '${entry.time.second.toString().padLeft(2, '0')}.'
         '${entry.time.millisecond.toString().padLeft(3, '0')}';
@@ -124,7 +119,9 @@ class _LogEntryTile extends StatelessWidget {
             TextSpan(
               text: timeStr,
               style: TextStyle(
-                color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
+                color: theme.colorScheme.onSurfaceVariant.withValues(
+                  alpha: 0.6,
+                ),
                 fontSize: 11,
                 fontFamily: 'monospace',
               ),

@@ -51,9 +51,9 @@ class TagDao extends DatabaseAccessor<AppDatabase> with _$TagDaoMixin {
 
   /// 获取标签关联的所有音频 ID 列表
   Future<List<String>> getAudioIds(String tagId) async {
-    final rows =
-        await (select(audioItemTags)..where((t) => t.tagId.equals(tagId)))
-            .get();
+    final rows = await (select(
+      audioItemTags,
+    )..where((t) => t.tagId.equals(tagId))).get();
     return rows.map((r) => r.audioItemId).toList();
   }
 
@@ -78,8 +78,8 @@ class TagDao extends DatabaseAccessor<AppDatabase> with _$TagDaoMixin {
 
   /// 从所有标签中移除指定音频（当音频被删除时调用）
   Future<void> removeAudioFromAll(String audioItemId) {
-    return (delete(audioItemTags)
-          ..where((t) => t.audioItemId.equals(audioItemId)))
-        .go();
+    return (delete(
+      audioItemTags,
+    )..where((t) => t.audioItemId.equals(audioItemId))).go();
   }
 }

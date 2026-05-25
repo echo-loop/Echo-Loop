@@ -692,5 +692,4 @@ class _AsrTestScreenState extends ConsumerState<AsrTestScreen> {
     if (ms < 1000) return '${ms}ms';
     return '${(ms / 1000).toStringAsFixed(1)}s';
   }
-
 }

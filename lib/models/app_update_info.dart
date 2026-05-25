@@ -33,10 +33,14 @@ class AppUpdateInfo {
     final minimumVersion = json['minimumVersion'];
 
     if (latestVersion is! String || latestVersion.isEmpty) {
-      throw const FormatException('latestVersion is required and must be a non-empty string');
+      throw const FormatException(
+        'latestVersion is required and must be a non-empty string',
+      );
     }
     if (minimumVersion is! String || minimumVersion.isEmpty) {
-      throw const FormatException('minimumVersion is required and must be a non-empty string');
+      throw const FormatException(
+        'minimumVersion is required and must be a non-empty string',
+      );
     }
 
     return AppUpdateInfo(

@@ -143,9 +143,7 @@ class IntensiveListenBriefingSheet extends StatelessWidget {
               ),
               if (estimatedDuration != null) ...[
                 Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.s,
-                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s),
                   child: Text(
                     '·',
                     style: theme.textTheme.bodyMedium?.copyWith(

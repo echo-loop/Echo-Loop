@@ -30,13 +30,11 @@ class DailyStageStudyRecordDao extends DatabaseAccessor<AppDatabase>
   }) async {
     final dateOnly = _dateOnly(date);
     await transaction(() async {
-      final existing = await (select(dailyStageStudyRecords)
-            ..where(
-              (t) =>
-                  t.date.equals(dateOnly) &
-                  t.stage.equalsValue(stage),
-            ))
-          .getSingleOrNull();
+      final existing =
+          await (select(dailyStageStudyRecords)..where(
+                (t) => t.date.equals(dateOnly) & t.stage.equalsValue(stage),
+              ))
+              .getSingleOrNull();
 
       if (existing == null) {
         await into(dailyStageStudyRecords).insert(
@@ -49,9 +47,9 @@ class DailyStageStudyRecordDao extends DatabaseAccessor<AppDatabase>
           ),
         );
       } else {
-        await (update(dailyStageStudyRecords)
-              ..where((t) => t.id.equals(existing.id)))
-            .write(
+        await (update(
+          dailyStageStudyRecords,
+        )..where((t) => t.id.equals(existing.id))).write(
           DailyStageStudyRecordsCompanion(
             studyTimeSeconds: Value(existing.studyTimeSeconds + studyTime),
             inputTimeSeconds: Value(existing.inputTimeSeconds + inputTime),

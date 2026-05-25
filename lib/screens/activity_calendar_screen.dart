@@ -44,18 +44,14 @@ class _ActivityCalendarScreenState
     final locale = l10n.localeName;
     final isZh = locale == 'zh';
 
-    final recordsAsync = ref.watch(
-      monthlyStudyRecordsProvider(year, month),
-    );
+    final recordsAsync = ref.watch(monthlyStudyRecordsProvider(year, month));
     final statsAsync = ref.watch(studyStatsNotifierProvider);
     final service = ref.read(studyTimeServiceProvider);
 
     return Scaffold(
       appBar: AppBar(
         title: Text(l10n.activityCalendar),
-        actions: [
-          _buildStreakChip(context, statsAsync),
-        ],
+        actions: [_buildStreakChip(context, statsAsync)],
       ),
       // 点击空白处清空日期选择
       body: GestureDetector(
@@ -100,8 +96,7 @@ class _ActivityCalendarScreenState
                     child: recordsAsync.when(
                       data: (records) =>
                           _buildCalendar(records, locale, service, isZh),
-                      loading: () =>
-                          _buildCalendar({}, locale, service, isZh),
+                      loading: () => _buildCalendar({}, locale, service, isZh),
                       error: (_, __) =>
                           _buildCalendar({}, locale, service, isZh),
                     ),
@@ -188,10 +183,7 @@ class _ActivityCalendarScreenState
           );
         },
         defaultBuilder: (context, day, focusedDay) {
-          return ActivityDayCell(
-            day: day,
-            record: records[day.day],
-          );
+          return ActivityDayCell(day: day, record: records[day.day]);
         },
         todayBuilder: (context, day, focusedDay) {
           return ActivityDayCell(
@@ -211,10 +203,7 @@ class _ActivityCalendarScreenState
           );
         },
         outsideBuilder: (context, day, focusedDay) {
-          return ActivityDayCell(
-            day: day,
-            isOutside: true,
-          );
+          return ActivityDayCell(day: day, isOutside: true);
         },
       ),
     );

@@ -312,7 +312,9 @@ class LearningProgress {
   int completedFirstStudySteps(LearningPlan plan, Set<String> completedKeys) {
     int count = 0;
     for (final sub in LearningStage.firstLearn.allSubStages) {
-      if (completedKeys.contains('${LearningStage.firstLearn.key}:${sub.key}')) {
+      if (completedKeys.contains(
+        '${LearningStage.firstLearn.key}:${sub.key}',
+      )) {
         count += 1;
       }
     }

@@ -12,8 +12,7 @@ class DailyStudyRecords extends Table {
   DateTimeColumn get date => dateTime().unique()();
 
   /// 当日累计学习时长（秒）
-  IntColumn get studyTimeSeconds =>
-      integer().withDefault(const Constant(0))();
+  IntColumn get studyTimeSeconds => integer().withDefault(const Constant(0))();
 
   /// 当日输入词数（听了多少词）
   IntColumn get inputWords => integer().withDefault(const Constant(0))();
@@ -22,10 +21,8 @@ class DailyStudyRecords extends Table {
   IntColumn get outputWords => integer().withDefault(const Constant(0))();
 
   /// 当日输入时间（秒）— 音频播放时间
-  IntColumn get inputTimeSeconds =>
-      integer().withDefault(const Constant(0))();
+  IntColumn get inputTimeSeconds => integer().withDefault(const Constant(0))();
 
   /// 当日输出时间（秒）— 跟读/复述暂停时间
-  IntColumn get outputTimeSeconds =>
-      integer().withDefault(const Constant(0))();
+  IntColumn get outputTimeSeconds => integer().withDefault(const Constant(0))();
 }

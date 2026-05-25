@@ -237,8 +237,7 @@ class RepeatPracticePanel extends StatelessWidget {
                     ],
                   ),
                   // 顶层：hintText 占满整行居中显示
-                  if (hintText != null)
-                    Center(child: _buildCenterContent()),
+                  if (hintText != null) Center(child: _buildCenterContent()),
                 ],
               ),
             ),

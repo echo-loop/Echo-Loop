@@ -770,9 +770,9 @@ class _ManageSubtitlesSheetState extends ConsumerState<ManageSubtitlesSheet> {
     final fullPath = await audioItem.getFullAudioPath();
     if (fullPath == null) {
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(l10n.audioFileNotFound)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(l10n.audioFileNotFound)));
       return;
     }
     final fileSize = await File(fullPath).length();

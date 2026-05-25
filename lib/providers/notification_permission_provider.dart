@@ -27,18 +27,18 @@ const String _logTag = 'NotifPerm';
 /// 平台通知权限报告器 —— 根据运行平台返回对应实现。
 final notificationPermissionReporterProvider =
     Provider<NotificationPermissionReporter>((ref) {
-  if (kIsWeb) return const UnsupportedNotificationPermissionReporter();
-  if (Platform.isMacOS) return MacOSNotificationPermissionReporter();
-  if (Platform.isIOS) {
-    return IOSNotificationPermissionReporter();
-  }
-  if (Platform.isAndroid) {
-    return AndroidNotificationPermissionReporter(
-      FlutterLocalNotificationsPlugin(),
-    );
-  }
-  return const UnsupportedNotificationPermissionReporter();
-});
+      if (kIsWeb) return const UnsupportedNotificationPermissionReporter();
+      if (Platform.isMacOS) return MacOSNotificationPermissionReporter();
+      if (Platform.isIOS) {
+        return IOSNotificationPermissionReporter();
+      }
+      if (Platform.isAndroid) {
+        return AndroidNotificationPermissionReporter(
+          FlutterLocalNotificationsPlugin(),
+        );
+      }
+      return const UnsupportedNotificationPermissionReporter();
+    });
 
 /// pre-prompt 触发器：内部用计数器作为一次性事件流。
 class NotificationPromptTriggerNotifier extends Notifier<int>
@@ -78,10 +78,10 @@ final notificationPromptTriggerProvider =
 /// 业务入口：价值锚点调用 `maybeTriggerPrompt()` 即可。
 final notificationPermissionServiceProvider =
     Provider<NotificationPermissionService>((ref) {
-  return NotificationPermissionService(
-    prefs: ref.read(sharedPreferencesProvider),
-    analytics: ref.read(analyticsServiceProvider),
-    trigger: ref.read(notificationPromptTriggerProvider.notifier),
-    reporter: ref.read(notificationPermissionReporterProvider),
-  );
-});
+      return NotificationPermissionService(
+        prefs: ref.read(sharedPreferencesProvider),
+        analytics: ref.read(analyticsServiceProvider),
+        trigger: ref.read(notificationPromptTriggerProvider.notifier),
+        reporter: ref.read(notificationPermissionReporterProvider),
+      );
+    });

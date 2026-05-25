@@ -66,14 +66,13 @@ class OfficialEnrollment extends _$OfficialEnrollment {
           .where((c) => c.id == remoteId)
           .firstOrNull;
       if (catalogDetail != null) {
-        ref.read(analyticsServiceProvider).track(
-          Events.officialCollectionEnroll,
-          {
-            EventParams.remoteId: remoteId,
-            EventParams.collectionName: catalogDetail.name,
-            EventParams.audioCount: catalogDetail.audios.length,
-          },
-        );
+        ref
+            .read(analyticsServiceProvider)
+            .track(Events.officialCollectionEnroll, {
+              EventParams.remoteId: remoteId,
+              EventParams.collectionName: catalogDetail.name,
+              EventParams.audioCount: catalogDetail.audios.length,
+            });
       }
 
       return EnrollResult(localCollectionId: localId, createdNew: true);

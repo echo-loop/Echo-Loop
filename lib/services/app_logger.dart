@@ -21,7 +21,8 @@ class LogEntry {
 
   @override
   String toString() {
-    final t = '${time.hour.toString().padLeft(2, '0')}:'
+    final t =
+        '${time.hour.toString().padLeft(2, '0')}:'
         '${time.minute.toString().padLeft(2, '0')}:'
         '${time.second.toString().padLeft(2, '0')}.'
         '${time.millisecond.toString().padLeft(3, '0')}';
@@ -43,11 +44,7 @@ class AppLogger {
 
   /// 记录日志并 print 到控制台
   static void log(String tag, String message) {
-    final entry = LogEntry(
-      time: DateTime.now(),
-      tag: tag,
-      message: message,
-    );
+    final entry = LogEntry(time: DateTime.now(), tag: tag, message: message);
     // ignore: avoid_print
     print(entry);
     final logger = instance;

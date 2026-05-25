@@ -77,10 +77,7 @@ class OfficialSyncService {
   Future<OfficialSyncStats> syncAll({bool force = false}) {
     final existing = _inflight;
     if (existing != null) {
-      AppLogger.log(
-        'OfficialSync',
-        'syncAll reusing inflight (force=$force)',
-      );
+      AppLogger.log('OfficialSync', 'syncAll reusing inflight (force=$force)');
       return existing;
     }
     final future = _runSyncAll(force: force);
@@ -105,11 +102,9 @@ class OfficialSyncService {
 
   Future<OfficialSyncStats> _applyCatalog(CatalogSnapshot snapshot) async {
     // 拿出所有已加入的官方合集（含 deprecated 的，因为可能需要 undeprecate）
-    final locals = await (_db.select(_db.collections)
-          ..where(
-            (t) => t.source.equals('official') & t.deletedAt.isNull(),
-          ))
-        .get();
+    final locals = await (_db.select(
+      _db.collections,
+    )..where((t) => t.source.equals('official') & t.deletedAt.isNull())).get();
 
     final catalogById = {for (final c in snapshot.collections) c.id: c};
 
@@ -175,27 +170,24 @@ class OfficialSyncService {
 
   Future<void> _markDeprecated(String localCollectionId) async {
     final now = DateTime.now();
-    await (_db.update(_db.collections)
-          ..where((t) => t.id.equals(localCollectionId)))
-        .write(
-          db.CollectionsCompanion(
-            deprecatedAt: Value(now),
-            updatedAt: Value(now),
-          ),
-        );
+    await (_db.update(
+      _db.collections,
+    )..where((t) => t.id.equals(localCollectionId))).write(
+      db.CollectionsCompanion(deprecatedAt: Value(now), updatedAt: Value(now)),
+    );
   }
 
   /// 把已 deprecated 的合集恢复（catalog 中重新出现时调用）。
   Future<void> _undeprecate(String localCollectionId) async {
     final now = DateTime.now();
-    await (_db.update(_db.collections)
-          ..where((t) => t.id.equals(localCollectionId)))
-        .write(
-          db.CollectionsCompanion(
-            deprecatedAt: const Value(null),
-            updatedAt: Value(now),
-          ),
-        );
+    await (_db.update(
+      _db.collections,
+    )..where((t) => t.id.equals(localCollectionId))).write(
+      db.CollectionsCompanion(
+        deprecatedAt: const Value(null),
+        updatedAt: Value(now),
+      ),
+    );
   }
 
   /// 用一份 [CatalogCollection] 给一个本地合集做 diff（音频增删 + 元信息）。
@@ -220,8 +212,9 @@ class OfficialSyncService {
               ..where((t) => t.collectionId.equals(local.id))
               ..orderBy([(t) => OrderingTerm.asc(t.sortOrder)]))
             .get();
-    final localAudioIdsInJunction =
-        localJunctions.map((j) => j.audioItemId).toList();
+    final localAudioIdsInJunction = localJunctions
+        .map((j) => j.audioItemId)
+        .toList();
 
     // 取每条本地 audio_items（用于 remoteAudioId 反查）
     final localAudios = <String, db.AudioItem>{};
@@ -247,15 +240,15 @@ class OfficialSyncService {
         if (localByRemoteId.containsKey(a.id)) {
           // 已存在 → 检查 sortOrder 和 originalDate 是否要更新（不动 path 等已下载字段）
           final existing = localByRemoteId[a.id]!;
-          final junction = localJunctions
-              .firstWhere((j) => j.audioItemId == existing.id);
+          final junction = localJunctions.firstWhere(
+            (j) => j.audioItemId == existing.id,
+          );
           if (junction.sortOrder != a.sortOrder) {
-            await (_db.update(_db.collectionAudioItems)
-                  ..where(
-                    (t) =>
-                        t.collectionId.equals(local.id) &
-                        t.audioItemId.equals(existing.id),
-                  ))
+            await (_db.update(_db.collectionAudioItems)..where(
+                  (t) =>
+                      t.collectionId.equals(local.id) &
+                      t.audioItemId.equals(existing.id),
+                ))
                 .write(
                   db.CollectionAudioItemsCompanion(
                     sortOrder: Value(a.sortOrder),
@@ -265,17 +258,17 @@ class OfficialSyncService {
           final changedName = existing.name != a.title;
           final changedOriginalDate = existing.originalDate != a.originalDate;
           if (changedName || changedOriginalDate) {
-            await (_db.update(_db.audioItems)
-                  ..where((t) => t.id.equals(existing.id)))
-                .write(
-                  db.AudioItemsCompanion(
-                    name: changedName ? Value(a.title) : const Value.absent(),
-                    originalDate: changedOriginalDate
-                        ? Value(a.originalDate)
-                        : const Value.absent(),
-                    updatedAt: Value(DateTime.now()),
-                  ),
-                );
+            await (_db.update(
+              _db.audioItems,
+            )..where((t) => t.id.equals(existing.id))).write(
+              db.AudioItemsCompanion(
+                name: changedName ? Value(a.title) : const Value.absent(),
+                originalDate: changedOriginalDate
+                    ? Value(a.originalDate)
+                    : const Value.absent(),
+                updatedAt: Value(DateTime.now()),
+              ),
+            );
           }
           continue;
         }
@@ -297,14 +290,16 @@ class OfficialSyncService {
             updatedAt: Value(now),
           ),
         );
-        await _db.into(_db.collectionAudioItems).insertOnConflictUpdate(
-          db.CollectionAudioItemsCompanion(
-            collectionId: Value(local.id),
-            audioItemId: Value(newAudioId),
-            sortOrder: Value(a.sortOrder),
-            addedAt: Value(now),
-          ),
-        );
+        await _db
+            .into(_db.collectionAudioItems)
+            .insertOnConflictUpdate(
+              db.CollectionAudioItemsCompanion(
+                collectionId: Value(local.id),
+                audioItemId: Value(newAudioId),
+                sortOrder: Value(a.sortOrder),
+                addedAt: Value(now),
+              ),
+            );
         added++;
       }
 
@@ -313,12 +308,11 @@ class OfficialSyncService {
         if (remoteRemoteIds.contains(row.remoteAudioId)) continue;
 
         if (row.audioPath == null) {
-          await (_db.delete(_db.collectionAudioItems)
-                ..where(
-                  (t) =>
-                      t.collectionId.equals(local.id) &
-                      t.audioItemId.equals(row.id),
-                ))
+          await (_db.delete(_db.collectionAudioItems)..where(
+                (t) =>
+                    t.collectionId.equals(local.id) &
+                    t.audioItemId.equals(row.id),
+              ))
               .go();
           await _db.audioItemDao.hardDelete(row.id);
           removed++;
@@ -332,26 +326,21 @@ class OfficialSyncService {
       final changedDesc = local.description != detail.description;
       final changedCover = local.coverUrl != detail.coverUrl;
       if (changedName || changedDesc || changedCover) {
-        await (_db.update(_db.collections)
-              ..where((t) => t.id.equals(local.id)))
-            .write(
-              db.CollectionsCompanion(
-                name: Value(detail.name),
-                description: Value(detail.description),
-                coverUrl: Value(detail.coverUrl),
-                updatedAt: Value(DateTime.now()),
-              ),
-            );
+        await (_db.update(
+          _db.collections,
+        )..where((t) => t.id.equals(local.id))).write(
+          db.CollectionsCompanion(
+            name: Value(detail.name),
+            description: Value(detail.description),
+            coverUrl: Value(detail.coverUrl),
+            updatedAt: Value(DateTime.now()),
+          ),
+        );
       }
     });
 
-    return _SingleSyncResult(
-      added: added,
-      removed: removed,
-      orphan: orphan,
-    );
+    return _SingleSyncResult(added: added, removed: removed, orphan: orphan);
   }
-
 }
 
 class _SingleSyncResult {
@@ -359,11 +348,7 @@ class _SingleSyncResult {
   final int removed;
   final int orphan;
 
-  _SingleSyncResult({
-    this.added = 0,
-    this.removed = 0,
-    this.orphan = 0,
-  });
+  _SingleSyncResult({this.added = 0, this.removed = 0, this.orphan = 0});
 }
 
 @Riverpod(keepAlive: true)

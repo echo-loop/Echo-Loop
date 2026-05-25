@@ -25,12 +25,13 @@ class DictionaryVersionInfo {
 
 /// 词典下载管理器
 class DictionaryDownloadManager {
-  DictionaryDownloadManager() : _dio = Dio(
-    BaseOptions(
-      connectTimeout: const Duration(seconds: 15),
-      receiveTimeout: const Duration(minutes: 5),
-    ),
-  );
+  DictionaryDownloadManager()
+    : _dio = Dio(
+        BaseOptions(
+          connectTimeout: const Duration(seconds: 15),
+          receiveTimeout: const Duration(minutes: 5),
+        ),
+      );
 
   /// 测试用构造器
   @visibleForTesting
@@ -63,15 +64,11 @@ class DictionaryDownloadManager {
   /// 从后端 version.json 获取词典版本信息
   ///
   /// 失败时返回 null（网络错误等静默处理）。
-  Future<DictionaryVersionInfo?> fetchVersionInfo(
-    String nativeLanguage,
-  ) async {
+  Future<DictionaryVersionInfo?> fetchVersionInfo(String nativeLanguage) async {
     try {
       final response = await _dio.get<Map<String, dynamic>>(
         '$apiBaseUrl/version.json',
-        options: Options(
-          receiveTimeout: const Duration(seconds: 30),
-        ),
+        options: Options(receiveTimeout: const Duration(seconds: 30)),
       );
       final data = response.data;
       if (data == null) return null;

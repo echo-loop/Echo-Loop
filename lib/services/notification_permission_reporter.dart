@@ -187,9 +187,10 @@ class AndroidNotificationPermissionReporter
   Future<NotificationAuthorization> getAuthorizationStatus() async {
     if (!isSupported) return NotificationAuthorization.unsupported;
     try {
-      final android = _plugin.resolvePlatformSpecificImplementation<
-        AndroidFlutterLocalNotificationsPlugin
-      >();
+      final android = _plugin
+          .resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin
+          >();
       final enabled = await android?.areNotificationsEnabled();
       if (enabled == null) return NotificationAuthorization.unsupported;
       return enabled
@@ -204,9 +205,10 @@ class AndroidNotificationPermissionReporter
   Future<bool> requestAuthorization() async {
     if (!isSupported) return false;
     try {
-      final android = _plugin.resolvePlatformSpecificImplementation<
-        AndroidFlutterLocalNotificationsPlugin
-      >();
+      final android = _plugin
+          .resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin
+          >();
       return await android?.requestNotificationsPermission() ?? false;
     } catch (_) {
       return false;

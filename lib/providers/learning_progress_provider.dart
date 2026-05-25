@@ -238,7 +238,9 @@ class LearningProgressNotifier extends _$LearningProgressNotifier {
         currentStageStartedAt: Value(now),
         totalStudyDurationMs: const Value(0),
         updatedAt: Value(now),
-        planVersionsJson: Value(_encodePlanVersions(progress.planVersionsByStage)),
+        planVersionsJson: Value(
+          _encodePlanVersions(progress.planVersionsByStage),
+        ),
       ),
     );
     AppLogger.log(
@@ -294,8 +296,9 @@ class LearningProgressNotifier extends _$LearningProgressNotifier {
     // 同步更新内存完成集合（真实历史）
     final completionKey =
         '${progress.currentStage.key}:${progress.currentSubStage.key}';
-    final updatedCompletions =
-        Map<String, Set<String>>.from(state.completionsByAudio);
+    final updatedCompletions = Map<String, Set<String>>.from(
+      state.completionsByAudio,
+    );
     updatedCompletions[audioItemId] = {
       ...?updatedCompletions[audioItemId],
       completionKey,
@@ -320,8 +323,8 @@ class LearningProgressNotifier extends _$LearningProgressNotifier {
     // 用户先跳过、后又从自由练习真做完同一子步骤时，状态从「跳过」回收为 ✅。
     final Set<String>? clearedSkippedKeys =
         progress.skippedSubStageKeys.contains(completionKey)
-            ? (progress.skippedSubStageKeys.toSet()..remove(completionKey))
-            : null;
+        ? (progress.skippedSubStageKeys.toSet()..remove(completionKey))
+        : null;
 
     if (currentIdx >= 0 && currentIdx + 1 < planned.length) {
       // 同阶段内推进子步骤
@@ -420,10 +423,7 @@ class LearningProgressNotifier extends _$LearningProgressNotifier {
   /// [skipCurrentSubStage] / [_autoSkipRetellIfEnabled] 共用的 skip 实现内核。
   /// 返回 true 表示成功跳过并推进；false 表示因 guard（如 reviewLock / 已完成
   /// / 已跳过该 key）早返回。
-  Future<bool> _doSkipCore(
-    String audioItemId, {
-    required String source,
-  }) async {
+  Future<bool> _doSkipCore(String audioItemId, {required String source}) async {
     final progress = state.progressMap[audioItemId];
     if (progress == null || progress.isCompleted) return false;
     final checkNow = ref.read(nowProvider)();
@@ -552,8 +552,6 @@ class LearningProgressNotifier extends _$LearningProgressNotifier {
     newMap[audioItemId] = updated;
     state = state.copyWith(progressMap: newMap);
   }
-
-
 
   /// 精听完成时递增总遍数（+1）
   Future<void> incrementIntensiveListenPassCount(String audioItemId) async {
@@ -923,10 +921,13 @@ class LearningProgressNotifier extends _$LearningProgressNotifier {
         ),
         freePlayBreakpointSavedAt: Value(progress.freePlayBreakpointSavedAt),
         updatedAt: Value(progress.updatedAt),
-        skippedSubStages: Value(_encodeSkippedKeys(progress.skippedSubStageKeys)),
+        skippedSubStages: Value(
+          _encodeSkippedKeys(progress.skippedSubStageKeys),
+        ),
         isPaused: Value(progress.isPaused),
-        planVersionsJson:
-            Value(_encodePlanVersions(progress.planVersionsByStage)),
+        planVersionsJson: Value(
+          _encodePlanVersions(progress.planVersionsByStage),
+        ),
       ),
     );
   }
@@ -962,13 +963,13 @@ class LearningProgressNotifier extends _$LearningProgressNotifier {
     try {
       final decoded = jsonDecode(raw);
       if (decoded is! Map) {
-        AppLogger.log('LearningProgress',
-            'planVersionsJson decode: non-object value, ignoring: $raw');
+        AppLogger.log(
+          'LearningProgress',
+          'planVersionsJson decode: non-object value, ignoring: $raw',
+        );
         return const {};
       }
-      final stageByKey = {
-        for (final s in LearningStage.values) s.key: s,
-      };
+      final stageByKey = {for (final s in LearningStage.values) s.key: s};
       final result = <LearningStage, int>{};
       decoded.forEach((k, v) {
         if (k is! String || v is! int) return;
@@ -978,8 +979,10 @@ class LearningProgressNotifier extends _$LearningProgressNotifier {
       });
       return result;
     } catch (e) {
-      AppLogger.log('LearningProgress',
-          'planVersionsJson decode failed: $e, raw=$raw');
+      AppLogger.log(
+        'LearningProgress',
+        'planVersionsJson decode failed: $e, raw=$raw',
+      );
       return const {};
     }
   }

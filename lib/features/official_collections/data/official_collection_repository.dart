@@ -83,10 +83,7 @@ class OfficialCollectionRepository {
         _logTag,
         'enroll rejected: already enrolled localId=${existing.id}',
       );
-      throw AlreadyEnrolledError(
-        remoteId: remoteId,
-        localId: existing.id,
-      );
+      throw AlreadyEnrolledError(remoteId: remoteId, localId: existing.id);
     }
 
     if (!_catalog.hasInitialized) {
@@ -249,7 +246,6 @@ class OfficialCollectionRepository {
       }
     }
   }
-
 }
 
 @Riverpod(keepAlive: true)

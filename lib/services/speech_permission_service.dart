@@ -63,9 +63,7 @@ class PermissionHandlerSpeechPermissionService
   }
 
   @override
-  Future<SpeechPracticePermissionState> request({
-    required bool onlyMic,
-  }) async {
+  Future<SpeechPracticePermissionState> request({required bool onlyMic}) async {
     AppLogger.log('SpeechPerm', '┌ request onlyMic=$onlyMic');
     if (Platform.isMacOS) {
       return _macRequest(onlyMic: onlyMic);
@@ -138,10 +136,7 @@ class PermissionHandlerSpeechPermissionService
       );
       return state;
     } catch (e) {
-      AppLogger.log(
-        'SpeechPerm',
-        '⚠ macOS native request failed: $e → denied',
-      );
+      AppLogger.log('SpeechPerm', '⚠ macOS native request failed: $e → denied');
       // 请求失败视为 denied，dialog 切到「前往设置」入口让用户手动开启
       return const SpeechPracticePermissionState(
         microphone: SpeechPracticePermissionStatus.denied,
@@ -163,7 +158,10 @@ class PermissionHandlerSpeechPermissionService
     try {
       return _convert(await p.status);
     } catch (e) {
-      AppLogger.log('SpeechPerm', '⚠ status($label) failed: $e → notDetermined');
+      AppLogger.log(
+        'SpeechPerm',
+        '⚠ status($label) failed: $e → notDetermined',
+      );
       return SpeechPracticePermissionStatus.notDetermined;
     }
   }

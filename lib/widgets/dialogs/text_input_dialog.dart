@@ -133,8 +133,7 @@ class _TextInputDialogState extends State<_TextInputDialog> {
             const SizedBox(width: 8),
             Expanded(
               child: FilledButton(
-                onPressed:
-                    _controller.text.trim().isEmpty ? null : _submit,
+                onPressed: _controller.text.trim().isEmpty ? null : _submit,
                 child: Text(widget.confirmLabel),
               ),
             ),

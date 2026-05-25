@@ -30,9 +30,9 @@ class DailyStudyRecordDao extends DatabaseAccessor<AppDatabase>
   }) async {
     final dateOnly = _dateOnly(date);
     await transaction(() async {
-      final existing = await (select(dailyStudyRecords)
-            ..where((t) => t.date.equals(dateOnly)))
-          .getSingleOrNull();
+      final existing = await (select(
+        dailyStudyRecords,
+      )..where((t) => t.date.equals(dateOnly))).getSingleOrNull();
 
       if (existing == null) {
         await into(dailyStudyRecords).insert(
@@ -46,18 +46,15 @@ class DailyStudyRecordDao extends DatabaseAccessor<AppDatabase>
           ),
         );
       } else {
-        await (update(dailyStudyRecords)
-              ..where((t) => t.id.equals(existing.id)))
-            .write(
+        await (update(
+          dailyStudyRecords,
+        )..where((t) => t.id.equals(existing.id))).write(
           DailyStudyRecordsCompanion(
-            studyTimeSeconds:
-                Value(existing.studyTimeSeconds + studyTime),
+            studyTimeSeconds: Value(existing.studyTimeSeconds + studyTime),
             inputWords: Value(existing.inputWords + inputWords),
             outputWords: Value(existing.outputWords + outputWords),
-            inputTimeSeconds:
-                Value(existing.inputTimeSeconds + inputTime),
-            outputTimeSeconds:
-                Value(existing.outputTimeSeconds + outputTime),
+            inputTimeSeconds: Value(existing.inputTimeSeconds + inputTime),
+            outputTimeSeconds: Value(existing.outputTimeSeconds + outputTime),
           ),
         );
       }
@@ -69,16 +66,13 @@ class DailyStudyRecordDao extends DatabaseAccessor<AppDatabase>
   /// 不存在时返回 null。
   Future<DailyStudyRecord?> getByDate(DateTime date) {
     final dateOnly = _dateOnly(date);
-    return (select(dailyStudyRecords)
-          ..where((t) => t.date.equals(dateOnly)))
-        .getSingleOrNull();
+    return (select(
+      dailyStudyRecords,
+    )..where((t) => t.date.equals(dateOnly))).getSingleOrNull();
   }
 
   /// 获取指定日期范围内的学习记录（含 start 和 end）
-  Future<List<DailyStudyRecord>> getBetween(
-    DateTime start,
-    DateTime end,
-  ) {
+  Future<List<DailyStudyRecord>> getBetween(DateTime start, DateTime end) {
     final startOnly = _dateOnly(start);
     final endOnly = _dateOnly(end);
     return (select(dailyStudyRecords)

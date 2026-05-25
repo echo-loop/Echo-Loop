@@ -46,8 +46,7 @@ class _ExportAudioDialogContent extends StatefulWidget {
       _ExportAudioDialogContentState();
 }
 
-class _ExportAudioDialogContentState
-    extends State<_ExportAudioDialogContent> {
+class _ExportAudioDialogContentState extends State<_ExportAudioDialogContent> {
   bool _includeAudio = false;
   late bool _includeTranscript = widget.hasTranscript;
 
@@ -101,12 +100,12 @@ class _ExportAudioDialogContentState
         FilledButton(
           onPressed: _canExport
               ? () => Navigator.pop(
-                    context,
-                    ExportAudioSelection(
-                      includeAudio: _includeAudio,
-                      includeTranscript: _includeTranscript,
-                    ),
-                  )
+                  context,
+                  ExportAudioSelection(
+                    includeAudio: _includeAudio,
+                    includeTranscript: _includeTranscript,
+                  ),
+                )
               : null,
           child: Text(l10n.exportAudio),
         ),

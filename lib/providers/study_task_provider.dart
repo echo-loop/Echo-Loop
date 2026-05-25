@@ -84,8 +84,9 @@ final studyTaskProvider = Provider<List<StudyTask>>((ref) {
 
   // 只保留学习进度最深的首次学习任务（规则：同时只允许一个首次学习）
   // 优先级：子阶段更靠后 > updatedAt 更新
-  final firstStudyTasks =
-      tasks.where((t) => t.type == StudyTaskType.firstStudy).toList();
+  final firstStudyTasks = tasks
+      .where((t) => t.type == StudyTaskType.firstStudy)
+      .toList();
   if (firstStudyTasks.length > 1) {
     firstStudyTasks.sort((a, b) {
       final stageCmp = b.subStage.index.compareTo(a.subStage.index);
@@ -98,8 +99,7 @@ final studyTaskProvider = Provider<List<StudyTask>>((ref) {
     );
     activeProgresses.removeWhere(
       (p) =>
-          p.currentStage == LearningStage.firstLearn &&
-          p.audioItemId != keepId,
+          p.currentStage == LearningStage.firstLearn && p.audioItemId != keepId,
     );
   }
 
@@ -315,8 +315,7 @@ extension on AudioItem {
 /// 按完成时间倒序排列，无记录时返回空列表。
 /// 依赖 [learningProgressNotifierProvider] 实现自动刷新：
 /// 完成子步骤时 progressMap 变化 → 触发重新查询。
-final recentCompletionsProvider =
-    FutureProvider<List<RecentCompletion>>((ref) {
+final recentCompletionsProvider = FutureProvider<List<RecentCompletion>>((ref) {
   // 监听进度变化，确保完成子步骤后自动刷新
   ref.watch(learningProgressNotifierProvider.select((s) => s.progressMap));
   final dao = ref.watch(stageCompletionDaoProvider);

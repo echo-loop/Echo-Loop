@@ -35,7 +35,8 @@ final initialLearningSettingsProvider = Provider<LearningSettings>((ref) {
 /// 学习设置 SP key 常量。
 abstract final class LearningSettingsKeys {
   static const autoSkipRetell = 'learning_auto_skip_retell';
-  static const autoExpandCachedAnnotation = 'learning_auto_expand_cached_annotation';
+  static const autoExpandCachedAnnotation =
+      'learning_auto_expand_cached_annotation';
 
   /// 历史 SP key，启动期会被清理。
   static const legacyRetellEnabled = 'learning_retell_enabled';
@@ -64,7 +65,8 @@ class LearningSettings {
       autoSkipRetell:
           prefs.getBool(LearningSettingsKeys.autoSkipRetell) ?? false,
       autoExpandCachedAnnotation:
-          prefs.getBool(LearningSettingsKeys.autoExpandCachedAnnotation) ?? true,
+          prefs.getBool(LearningSettingsKeys.autoExpandCachedAnnotation) ??
+          true,
     );
   }
 
@@ -74,7 +76,8 @@ class LearningSettings {
   }) {
     return LearningSettings(
       autoSkipRetell: autoSkipRetell ?? this.autoSkipRetell,
-      autoExpandCachedAnnotation: autoExpandCachedAnnotation ?? this.autoExpandCachedAnnotation,
+      autoExpandCachedAnnotation:
+          autoExpandCachedAnnotation ?? this.autoExpandCachedAnnotation,
     );
   }
 
@@ -106,9 +109,15 @@ class LearningSettingsNotifier extends Notifier<LearningSettings> {
     state = state.copyWith(autoExpandCachedAnnotation: enabled);
     try {
       final prefs = ref.read(sharedPreferencesProvider);
-      await prefs.setBool(LearningSettingsKeys.autoExpandCachedAnnotation, enabled);
+      await prefs.setBool(
+        LearningSettingsKeys.autoExpandCachedAnnotation,
+        enabled,
+      );
     } catch (e) {
-      AppLogger.log('LearningSettings', 'setAutoExpandCachedAnnotation 写 SP 失败: $e');
+      AppLogger.log(
+        'LearningSettings',
+        'setAutoExpandCachedAnnotation 写 SP 失败: $e',
+      );
     }
   }
 
@@ -130,8 +139,8 @@ class LearningSettingsNotifier extends Notifier<LearningSettings> {
 /// 学习设置 Provider 入口。
 final learningSettingsProvider =
     NotifierProvider<LearningSettingsNotifier, LearningSettings>(
-  LearningSettingsNotifier.new,
-);
+      LearningSettingsNotifier.new,
+    );
 
 /// 启动期 best-effort 清理历史 SP key（开发期数据卫生）。
 ///

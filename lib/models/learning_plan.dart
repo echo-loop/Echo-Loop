@@ -146,8 +146,7 @@ class LearningPlan {
       subStagesFor(stage).indexOf(sub);
 
   /// 全部 planned 子步骤计数（跨所有阶段，用作进度比例分母）。
-  int get totalPlannedCount =>
-      _stages.values.fold(0, (s, l) => s + l.length);
+  int get totalPlannedCount => _stages.values.fold(0, (s, l) => s + l.length);
 
   /// 找当前阶段 plan 内 [currentSubStage] 之后的下一个 planned 子步骤。
   ///

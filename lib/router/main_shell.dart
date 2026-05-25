@@ -51,8 +51,7 @@ class MainShell extends ConsumerStatefulWidget {
 
 class _MainShellState extends ConsumerState<MainShell> {
   ProviderSubscription<int>? _pendingTaskCountSubscription;
-  ProviderSubscription<Map<String, LearningProgress>>?
-      _progressMapSubscription;
+  ProviderSubscription<Map<String, LearningProgress>>? _progressMapSubscription;
   ProviderSubscription<AppUpdateState>? _appUpdateSubscription;
   ProviderSubscription<ReminderSettings>? _reminderSettingsSubscription;
   ProviderSubscription<int>? _notificationPromptSubscription;
@@ -69,26 +68,26 @@ class _MainShellState extends ConsumerState<MainShell> {
 
     // 版本更新监听提前注册，确保首次触发 appUpdateProvider.build() → 后台检查。
     // 同一版本的重复结果不再弹窗（冷启动后用户未处理 → 回前台不反复打扰）。
-    _appUpdateSubscription = ref.listenManual<AppUpdateState>(
-      appUpdateProvider,
-      (previous, next) {
-        if (next is! AppUpdateResult || next.type == AppUpdateType.none) return;
-        if (previous is AppUpdateResult &&
-            previous.type == next.type &&
-            previous.info?.latestVersion == next.info?.latestVersion) {
-          AppLogger.log(
-            'AppUpdate',
-            'listener skipped: same version ${next.info?.latestVersion}',
-          );
-          return;
-        }
+    _appUpdateSubscription = ref.listenManual<AppUpdateState>(appUpdateProvider, (
+      previous,
+      next,
+    ) {
+      if (next is! AppUpdateResult || next.type == AppUpdateType.none) return;
+      if (previous is AppUpdateResult &&
+          previous.type == next.type &&
+          previous.info?.latestVersion == next.info?.latestVersion) {
         AppLogger.log(
           'AppUpdate',
-          'listener show dialog: ${next.info?.latestVersion} (${next.type.name})',
+          'listener skipped: same version ${next.info?.latestVersion}',
         );
-        _showUpdateDialog(next);
-      },
-    );
+        return;
+      }
+      AppLogger.log(
+        'AppUpdate',
+        'listener show dialog: ${next.info?.latestVersion} (${next.type.name})',
+      );
+      _showUpdateDialog(next);
+    });
 
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       // 启动时同步系统通知权限状态到 SP，防止已授权设备误弹 pre-prompt
@@ -110,7 +109,7 @@ class _MainShellState extends ConsumerState<MainShell> {
         AppLogger.log(
           'StartupLoad',
           'library bootstrap collections done: '
-          'stateCollections=${collectionState.rawCollections.length}',
+              'stateCollections=${collectionState.rawCollections.length}',
         );
 
         ref.read(tagListProvider.notifier).loadTags();
@@ -135,7 +134,9 @@ class _MainShellState extends ConsumerState<MainShell> {
               onPressed: () => ref
                   .read(learningProgressNotifierProvider.notifier)
                   .loadAll()
-                  .catchError((_) {/* 重试失败不再嵌套提示 */}),
+                  .catchError((_) {
+                    /* 重试失败不再嵌套提示 */
+                  }),
             ),
           ),
         );
@@ -240,7 +241,6 @@ class _MainShellState extends ConsumerState<MainShell> {
           }
         },
       );
-
     });
   }
 
@@ -268,20 +268,20 @@ class _MainShellState extends ConsumerState<MainShell> {
     }
     final completer = Completer<void>();
     late ProviderSubscription<GuideControllerState> sub;
-    sub = ref.listenManual<GuideControllerState>(
-      guideControllerProvider,
-      (previous, next) {
-        if (!next.isActive && !completer.isCompleted) {
-          sub.close();
-          _guideWaitSubscription = null;
-          AppLogger.log(
-            'NotifPerm',
-            'MainShell listener: guide finished, resuming pre-prompt',
-          );
-          completer.complete();
-        }
-      },
-    );
+    sub = ref.listenManual<GuideControllerState>(guideControllerProvider, (
+      previous,
+      next,
+    ) {
+      if (!next.isActive && !completer.isCompleted) {
+        sub.close();
+        _guideWaitSubscription = null;
+        AppLogger.log(
+          'NotifPerm',
+          'MainShell listener: guide finished, resuming pre-prompt',
+        );
+        completer.complete();
+      }
+    });
     _guideWaitSubscription = sub;
 
     // 二次检查：防止 guide 在 listenManual 注册前瞬间转为 inactive
@@ -292,7 +292,7 @@ class _MainShellState extends ConsumerState<MainShell> {
         AppLogger.log(
           'NotifPerm',
           'MainShell listener: guide already finished after listen, '
-          'resuming pre-prompt',
+              'resuming pre-prompt',
         );
         completer.complete();
       }
@@ -302,8 +302,8 @@ class _MainShellState extends ConsumerState<MainShell> {
     AppLogger.log(
       'NotifPerm',
       'MainShell listener: guide active '
-      '(${controller.activeFlowId}), '
-      'waiting via listener…',
+          '(${controller.activeFlowId}), '
+          'waiting via listener…',
     );
     return completer.future;
   }
@@ -324,7 +324,12 @@ class _MainShellState extends ConsumerState<MainShell> {
 
   /// Tab 切换埋点：StatefulShellRoute 的 Tab 切换不经过 Navigator，
   /// AnalyticsObserver 无法自动捕获，需手动上报。
-  static const _tabScreenNames = ['collections', 'study', 'favorites', 'settings'];
+  static const _tabScreenNames = [
+    'collections',
+    'study',
+    'favorites',
+    'settings',
+  ];
 
   /// 切换 tab 时调用，切到学习 tab 时刷新数据
   void _onTabSelected(int index) {
@@ -479,8 +484,7 @@ class _MainShellState extends ConsumerState<MainShell> {
     //   - GuideRegistry 的 seen 持久化继续保证"看过一次就不再出现"。
     final isFirstLaunch = ref.watch(isFirstLaunchProvider);
     final progress = ref.watch(learningProgressNotifierProvider);
-    final hasNoProgress =
-        !progress.isLoading && progress.progressMap.isEmpty;
+    final hasNoProgress = !progress.isLoading && progress.progressMap.isEmpty;
     final isFreshInstall = isFirstLaunch && hasNoProgress;
     final stepLibraryNav = GuideStep(
       key: _keyLibraryNav,
@@ -490,8 +494,7 @@ class _MainShellState extends ConsumerState<MainShell> {
     final flows = <GuideFlow>[
       GuideFlow(
         flowId: GuideFlowIds.mainShellVisitLibrary,
-        shouldRun:
-            widget.navigationShell.currentIndex == 1 && isFreshInstall,
+        shouldRun: widget.navigationShell.currentIndex == 1 && isFreshInstall,
         steps: [stepLibraryNav],
       ),
     ];
@@ -503,100 +506,111 @@ class _MainShellState extends ConsumerState<MainShell> {
         return GuideFlowSequenceHost(
           flows: flows,
           child: Scaffold(
-          body: Row(
-            children: [
-              if (isWideScreen)
-                NavigationRail(
-                  extended: constraints.maxWidth >= 800,
-                  selectedIndex: widget.navigationShell.currentIndex,
-                  onDestinationSelected: _onTabSelected,
-                  destinations: [
-                    NavigationRailDestination(
-                      icon: GuideTarget(
-                        step: stepLibraryNav,
-                        targetPadding: const EdgeInsets.fromLTRB(16, 6, 16, 36),
-                        child: const Icon(Icons.library_music_outlined),
+            body: Row(
+              children: [
+                if (isWideScreen)
+                  NavigationRail(
+                    extended: constraints.maxWidth >= 800,
+                    selectedIndex: widget.navigationShell.currentIndex,
+                    onDestinationSelected: _onTabSelected,
+                    destinations: [
+                      NavigationRailDestination(
+                        icon: GuideTarget(
+                          step: stepLibraryNav,
+                          targetPadding: const EdgeInsets.fromLTRB(
+                            16,
+                            6,
+                            16,
+                            36,
+                          ),
+                          child: const Icon(Icons.library_music_outlined),
+                        ),
+                        selectedIcon: const Icon(
+                          Icons.library_music,
+                          color: AppTheme.navActiveColor,
+                        ),
+                        label: Text(l10n.library),
                       ),
-                      selectedIcon: const Icon(
-                        Icons.library_music,
-                        color: AppTheme.navActiveColor,
+                      NavigationRailDestination(
+                        icon: const Icon(Icons.school_outlined),
+                        selectedIcon: const Icon(
+                          Icons.school,
+                          color: AppTheme.navActiveColor,
+                        ),
+                        label: Text(l10n.study),
                       ),
-                      label: Text(l10n.library),
-                    ),
-                    NavigationRailDestination(
-                      icon: const Icon(Icons.school_outlined),
-                      selectedIcon: const Icon(
-                        Icons.school,
-                        color: AppTheme.navActiveColor,
+                      NavigationRailDestination(
+                        icon: const Icon(Icons.bookmark_border),
+                        selectedIcon: const Icon(
+                          Icons.bookmark,
+                          color: AppTheme.navActiveColor,
+                        ),
+                        label: Text(l10n.favorites),
                       ),
-                      label: Text(l10n.study),
-                    ),
-                    NavigationRailDestination(
-                      icon: const Icon(Icons.bookmark_border),
-                      selectedIcon: const Icon(
-                        Icons.bookmark,
-                        color: AppTheme.navActiveColor,
+                      NavigationRailDestination(
+                        icon: const Icon(Icons.person_outline),
+                        selectedIcon: const Icon(
+                          Icons.person,
+                          color: AppTheme.navActiveColor,
+                        ),
+                        label: Text(l10n.profile),
                       ),
-                      label: Text(l10n.favorites),
-                    ),
-                    NavigationRailDestination(
-                      icon: const Icon(Icons.person_outline),
-                      selectedIcon: const Icon(
-                        Icons.person,
-                        color: AppTheme.navActiveColor,
+                    ],
+                  ),
+                Expanded(child: widget.navigationShell),
+              ],
+            ),
+            bottomNavigationBar: isWideScreen
+                ? null
+                : NavigationBar(
+                    selectedIndex: widget.navigationShell.currentIndex,
+                    onDestinationSelected: _onTabSelected,
+                    labelBehavior:
+                        NavigationDestinationLabelBehavior.alwaysShow,
+                    destinations: [
+                      NavigationDestination(
+                        icon: GuideTarget(
+                          step: stepLibraryNav,
+                          targetPadding: const EdgeInsets.fromLTRB(
+                            16,
+                            6,
+                            16,
+                            36,
+                          ),
+                          child: const Icon(Icons.library_music_outlined),
+                        ),
+                        selectedIcon: const Icon(
+                          Icons.library_music,
+                          color: AppTheme.navActiveColor,
+                        ),
+                        label: l10n.library,
                       ),
-                      label: Text(l10n.profile),
-                    ),
-                  ],
-                ),
-              Expanded(child: widget.navigationShell),
-            ],
-          ),
-          bottomNavigationBar: isWideScreen
-              ? null
-              : NavigationBar(
-                  selectedIndex: widget.navigationShell.currentIndex,
-                  onDestinationSelected: _onTabSelected,
-                  labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
-                  destinations: [
-                    NavigationDestination(
-                      icon: GuideTarget(
-                        step: stepLibraryNav,
-                        targetPadding: const EdgeInsets.fromLTRB(16, 6, 16, 36),
-                        child: const Icon(Icons.library_music_outlined),
+                      NavigationDestination(
+                        icon: const Icon(Icons.school_outlined),
+                        selectedIcon: const Icon(
+                          Icons.school,
+                          color: AppTheme.navActiveColor,
+                        ),
+                        label: l10n.study,
                       ),
-                      selectedIcon: const Icon(
-                        Icons.library_music,
-                        color: AppTheme.navActiveColor,
+                      NavigationDestination(
+                        icon: const Icon(Icons.bookmark_border),
+                        selectedIcon: const Icon(
+                          Icons.bookmark,
+                          color: AppTheme.navActiveColor,
+                        ),
+                        label: l10n.favorites,
                       ),
-                      label: l10n.library,
-                    ),
-                    NavigationDestination(
-                      icon: const Icon(Icons.school_outlined),
-                      selectedIcon: const Icon(
-                        Icons.school,
-                        color: AppTheme.navActiveColor,
+                      NavigationDestination(
+                        icon: const Icon(Icons.person_outline),
+                        selectedIcon: const Icon(
+                          Icons.person,
+                          color: AppTheme.navActiveColor,
+                        ),
+                        label: l10n.profile,
                       ),
-                      label: l10n.study,
-                    ),
-                    NavigationDestination(
-                      icon: const Icon(Icons.bookmark_border),
-                      selectedIcon: const Icon(
-                        Icons.bookmark,
-                        color: AppTheme.navActiveColor,
-                      ),
-                      label: l10n.favorites,
-                    ),
-                    NavigationDestination(
-                      icon: const Icon(Icons.person_outline),
-                      selectedIcon: const Icon(
-                        Icons.person,
-                        color: AppTheme.navActiveColor,
-                      ),
-                      label: l10n.profile,
-                    ),
-                  ],
-                ),
+                    ],
+                  ),
           ),
         );
       },

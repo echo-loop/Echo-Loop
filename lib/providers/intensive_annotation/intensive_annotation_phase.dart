@@ -19,15 +19,9 @@ class ReplayingWithSubtitle extends IntensiveAnnotationPhase {
   /// 总时长
   final Duration total;
 
-  const ReplayingWithSubtitle({
-    required this.remaining,
-    required this.total,
-  });
+  const ReplayingWithSubtitle({required this.remaining, required this.total});
 
-  ReplayingWithSubtitle copyWith({
-    Duration? remaining,
-    Duration? total,
-  }) {
+  ReplayingWithSubtitle copyWith({Duration? remaining, Duration? total}) {
     return ReplayingWithSubtitle(
       remaining: remaining ?? this.remaining,
       total: total ?? this.total,

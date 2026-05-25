@@ -26,10 +26,7 @@ class AsrModelFileSpec {
   final String path;
   final String sha256;
 
-  const AsrModelFileSpec({
-    required this.path,
-    required this.sha256,
-  });
+  const AsrModelFileSpec({required this.path, required this.sha256});
 }
 
 /// 模型文件清单：每个模型需要下载的文件及其固定校验信息。

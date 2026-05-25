@@ -73,7 +73,9 @@ void main() async {
   // Onboarding 问卷"是否已完成"同步预读：GoRouter redirect 是同步函数，
   // 必须在 main() 阶段拿到值，否则启动闪屏期间 redirect 失效。
   // 用 `onboarding_completed_at_ms` 存在性判定，不引入冗余 bool key。
-  final onboardingCompleted = OnboardingSurveyStorage.readIsCompletedSync(prefs);
+  final onboardingCompleted = OnboardingSurveyStorage.readIsCompletedSync(
+    prefs,
+  );
 
   // 学习设置（自动跳过复述）同步预读：plan / progress 启动期就需要拿到值。
   final initialLearningSettings = LearningSettings.fromPrefsSync(prefs);
@@ -214,8 +216,9 @@ void main() async {
           packageInfoProvider.overrideWithValue(packageInfo),
           isFirstLaunchProvider.overrideWithValue(isFirstLaunch),
           sharedPreferencesProvider.overrideWithValue(prefs),
-          initialOnboardingCompletedProvider
-              .overrideWithValue(onboardingCompleted),
+          initialOnboardingCompletedProvider.overrideWithValue(
+            onboardingCompleted,
+          ),
           initialLearningSettingsProvider.overrideWithValue(
             initialLearningSettings,
           ),
@@ -314,7 +317,7 @@ class _EchoLoopAppState extends ConsumerState<EchoLoopApp>
         unawaited(Posthog().flush());
       case AppLifecycleState.inactive:
       case AppLifecycleState.hidden:
-        // no-op
+      // no-op
     }
   }
 

@@ -122,10 +122,14 @@ class FlashcardSettings {
       timerMode: isLegacyData
           ? FlashcardTimerMode.smart
           : _parseTimerMode(rawTimerMode),
-      fixedTimerSeconds:
-          _parseFixedTimerSeconds(json['fixedTimerSeconds'], fallback: 5),
-      fixedTimerBackSeconds:
-          _parseFixedTimerSeconds(json['fixedTimerBackSeconds'], fallback: 10),
+      fixedTimerSeconds: _parseFixedTimerSeconds(
+        json['fixedTimerSeconds'],
+        fallback: 5,
+      ),
+      fixedTimerBackSeconds: _parseFixedTimerSeconds(
+        json['fixedTimerBackSeconds'],
+        fallback: 10,
+      ),
       sortMode: _parseSortMode(json['sortMode']),
       autoPlaySentence: json['autoPlaySentence'] is bool
           ? json['autoPlaySentence'] as bool

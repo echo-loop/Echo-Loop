@@ -25,10 +25,10 @@ class SpeechMatchContext {
     required this.referenceTokens,
     required this.transcriptTokens,
     required this.lcsPairs,
-  })  : matchedRefIndexes = lcsPairs.map((p) => p.$1).toSet(),
-        matchRate = referenceTokens.isEmpty
-            ? 0.0
-            : lcsPairs.length / referenceTokens.length;
+  }) : matchedRefIndexes = lcsPairs.map((p) => p.$1).toSet(),
+       matchRate = referenceTokens.isEmpty
+           ? 0.0
+           : lcsPairs.length / referenceTokens.length;
 
   /// 是否有有效匹配数据
   bool get hasMatch => lcsPairs.isNotEmpty;
@@ -106,9 +106,7 @@ DetectionResult detectTailMatch(
 
   final uniqueStart = tokens.length - consecutiveTail;
   if (!_isSubsequenceUnique(tokens, uniqueStart)) {
-    return DetectionResult(
-      description: 'A:尾部连续${consecutiveTail}词但非唯一',
-    );
+    return DetectionResult(description: 'A:尾部连续${consecutiveTail}词但非唯一');
   }
 
   return DetectionResult(
@@ -143,9 +141,7 @@ DetectionResult detectOverallMatchRate(
     );
   }
   if (strictPerfectOnly) {
-    return DetectionResult(
-      description: 'B:匹配率${pct}%<100%,严格模式不触发',
-    );
+    return DetectionResult(description: 'B:匹配率${pct}%<100%,严格模式不触发');
   }
   if (ctx.matchRate >= 0.95) {
     return DetectionResult(
@@ -160,9 +156,7 @@ DetectionResult detectOverallMatchRate(
     );
   }
 
-  return DetectionResult(
-    description: 'B:匹配率${pct}%<90%,未触发',
-  );
+  return DetectionResult(description: 'B:匹配率${pct}%<90%,未触发');
 }
 
 /// 检测 C：末尾 N 词命中数。
@@ -195,7 +189,8 @@ DetectionResult detectTailHitCount(SpeechMatchContext ctx, {int tailSize = 5}) {
 
   return DetectionResult(
     threshold: threshold,
-    description: 'C:尾部${effectiveTailSize}词命中$tailMatchCount→${threshold.inSeconds}s',
+    description:
+        'C:尾部${effectiveTailSize}词命中$tailMatchCount→${threshold.inSeconds}s',
   );
 }
 
@@ -226,9 +221,7 @@ DetectionResult detectNearCompletion(
   final pct = (ctx.matchRate * 100).toInt();
   if (ctx.matchRate < minMatchRate) {
     final minPct = (minMatchRate * 100).toInt();
-    return DetectionResult(
-      description: 'E:匹配率${pct}%<$minPct%,未触发',
-    );
+    return DetectionResult(description: 'E:匹配率${pct}%<$minPct%,未触发');
   }
 
   final tokens = ctx.referenceTokens;
@@ -242,8 +235,9 @@ DetectionResult detectNearCompletion(
   }
 
   // 短句兜底：末尾词数不足 [minTailHits] 时，要求全部命中。
-  final requiredHits =
-      effectiveTailSize < minTailHits ? effectiveTailSize : minTailHits;
+  final requiredHits = effectiveTailSize < minTailHits
+      ? effectiveTailSize
+      : minTailHits;
   if (tailMatchCount < requiredHits) {
     return DetectionResult(
       description:
@@ -282,8 +276,9 @@ DetectionResult detectRemainingByPosition(
   // 从 transcript 末尾枚举长度 1..min(maxSubstringLength, transcriptLen) 的子串，
   // 优先取最长的唯一匹配。
   final transcriptLen = ctx.transcriptTokens.length;
-  final maxLen =
-      maxSubstringLength < transcriptLen ? maxSubstringLength : transcriptLen;
+  final maxLen = maxSubstringLength < transcriptLen
+      ? maxSubstringLength
+      : transcriptLen;
 
   int? bestMatchEndIndex;
   int bestSubLen = 0;
@@ -291,8 +286,10 @@ DetectionResult detectRemainingByPosition(
   for (var subLen = maxLen; subLen >= 1; subLen--) {
     final start = transcriptLen - subLen;
     final substring = ctx.transcriptTokens.sublist(start);
-    final endIndex =
-        _findUniqueSubstringEndIndex(ctx.referenceTokens, substring);
+    final endIndex = _findUniqueSubstringEndIndex(
+      ctx.referenceTokens,
+      substring,
+    );
     if (endIndex != null) {
       bestMatchEndIndex = endIndex;
       bestSubLen = subLen;
@@ -306,9 +303,7 @@ DetectionResult detectRemainingByPosition(
 
   final remaining = ctx.referenceTokens.length - (bestMatchEndIndex + 1);
   if (remaining == 0) {
-    return DetectionResult(
-      description: 'D:匹配$bestSubLen词,剩余0词,不触发',
-    );
+    return DetectionResult(description: 'D:匹配$bestSubLen词,剩余0词,不触发');
   }
 
   final seconds = baseSeconds + remaining * secondsPerWord;
@@ -446,12 +441,16 @@ Duration computeRetellDynamicFallback({
   final scale = capMs / 30000; // 缩放因子，各阈值按 cap/30s 等比缩放
 
   if (referenceDuration <= Duration.zero) return Duration(milliseconds: capMs);
-  if (matchRate != null && matchRate < 0.8) return Duration(milliseconds: capMs);
+  if (matchRate != null && matchRate < 0.8)
+    return Duration(milliseconds: capMs);
 
   final refSec = referenceDuration.inMilliseconds / 1000.0;
-  final speedFactor = refSec <= 3 ? 1.0
-      : refSec <= 10 ? 1.1
-      : refSec <= 20 ? 1.2
+  final speedFactor = refSec <= 3
+      ? 1.0
+      : refSec <= 10
+      ? 1.1
+      : refSec <= 20
+      ? 1.2
       : 1.3;
   final adjustedMs = referenceDuration.inMilliseconds * speedFactor;
   final ratio = voicedDuration.inMilliseconds / adjustedMs;
@@ -532,8 +531,7 @@ List<(int, int)> _computeLcsPairs(
       if (referenceTokens[i - 1] == transcriptTokens[j - 1]) {
         dp[i][j] = dp[i - 1][j - 1] + 1;
       } else {
-        dp[i][j] =
-            dp[i - 1][j] > dp[i][j - 1] ? dp[i - 1][j] : dp[i][j - 1];
+        dp[i][j] = dp[i - 1][j] > dp[i][j - 1] ? dp[i - 1][j] : dp[i][j - 1];
       }
     }
   }

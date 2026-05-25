@@ -170,7 +170,10 @@ class _TodayCard extends StatelessWidget {
                       child: _ListenSpeakItem(
                         icon: Icons.headphones_outlined,
                         iconColor: kInputColor,
-                        timeText: _formatTimeShort(clampedInput, isZh: l10n.localeName == 'zh'),
+                        timeText: _formatTimeShort(
+                          clampedInput,
+                          isZh: l10n.localeName == 'zh',
+                        ),
                         wordText:
                             '${_formatWordCount(stats.todayInputWords)}${l10n.localeName == 'zh' ? '词' : 'w'}',
                         onTap: () => showDayStageBreakdownSheet(
@@ -193,7 +196,10 @@ class _TodayCard extends StatelessWidget {
                       child: _ListenSpeakItem(
                         icon: Icons.mic_outlined,
                         iconColor: kOutputColor,
-                        timeText: _formatTimeShort(clampedOutput, isZh: l10n.localeName == 'zh'),
+                        timeText: _formatTimeShort(
+                          clampedOutput,
+                          isZh: l10n.localeName == 'zh',
+                        ),
                         onTap: () => showDayStageBreakdownSheet(
                           context: context,
                           date: today,

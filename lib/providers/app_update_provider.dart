@@ -57,7 +57,10 @@ class AppUpdate extends _$AppUpdate {
       return;
     }
     if (state is AppUpdateChecking) {
-      AppLogger.log(_logTag, 'checkInBackground skipped: manual check in flight');
+      AppLogger.log(
+        _logTag,
+        'checkInBackground skipped: manual check in flight',
+      );
       return;
     }
     _backgroundChecking = true;
@@ -66,7 +69,10 @@ class AppUpdate extends _$AppUpdate {
       final prefs = await SharedPreferences.getInstance();
       final info = await _checker?.check();
       if (state is AppUpdateChecking) {
-        AppLogger.log(_logTag, 'checkInBackground yield: manual check took over');
+        AppLogger.log(
+          _logTag,
+          'checkInBackground yield: manual check took over',
+        );
         return;
       }
       final result = _buildResult(info: info, isManual: false, prefs: prefs);
@@ -142,10 +148,7 @@ class AppUpdate extends _$AppUpdate {
     final current = state;
     if (current is AppUpdateResult && current.info != null) {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(
-        _keyDismissedVersion,
-        current.info!.latestVersion,
-      );
+      await prefs.setString(_keyDismissedVersion, current.info!.latestVersion);
       AppLogger.log(_logTag, 'dismiss version ${current.info!.latestVersion}');
     }
     state = const AppUpdateDismissed();

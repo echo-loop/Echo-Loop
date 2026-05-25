@@ -37,44 +37,50 @@ class DemoDataSeeder {
 
     await db.transaction(() async {
       // 1. 插入合集
-      await db.into(db.collections).insert(
-        CollectionsCompanion.insert(
-          id: demoCollectionId,
-          name: 'Demo Content',
-          createdDate: now.subtract(const Duration(days: 14)),
-          updatedAt: now,
-        ),
-      );
+      await db
+          .into(db.collections)
+          .insert(
+            CollectionsCompanion.insert(
+              id: demoCollectionId,
+              name: 'Demo Content',
+              createdDate: now.subtract(const Duration(days: 14)),
+              updatedAt: now,
+            ),
+          );
 
       // 2. 插入 5 个 AudioItem + CollectionAudioItem + LearningProgress
       for (var i = 0; i < demoAudios.length; i++) {
         final audio = demoAudios[i];
         final addedDate = now.subtract(Duration(days: 14 - i * 2));
 
-        await db.into(db.audioItems).insert(
-          AudioItemsCompanion.insert(
-            id: audio.id,
-            name: audio.title,
-            audioPath: Value('demo/audio_${i + 1}.wav'),
-            transcriptPath: Value('demo/audio_${i + 1}.srt'),
-            addedDate: addedDate,
-            totalDuration: Value(audio.durationSeconds),
-            sentenceCount: Value(audio.sentenceCount),
-            wordCount: Value(audio.wordCount),
-            transcriptSource: const Value(0), // local
-            updatedAt: now,
-          ),
-        );
+        await db
+            .into(db.audioItems)
+            .insert(
+              AudioItemsCompanion.insert(
+                id: audio.id,
+                name: audio.title,
+                audioPath: Value('demo/audio_${i + 1}.wav'),
+                transcriptPath: Value('demo/audio_${i + 1}.srt'),
+                addedDate: addedDate,
+                totalDuration: Value(audio.durationSeconds),
+                sentenceCount: Value(audio.sentenceCount),
+                wordCount: Value(audio.wordCount),
+                transcriptSource: const Value(0), // local
+                updatedAt: now,
+              ),
+            );
 
         // 合集关联
-        await db.into(db.collectionAudioItems).insert(
-          CollectionAudioItemsCompanion.insert(
-            collectionId: demoCollectionId,
-            audioItemId: audio.id,
-            sortOrder: Value(i),
-            addedAt: addedDate,
-          ),
-        );
+        await db
+            .into(db.collectionAudioItems)
+            .insert(
+              CollectionAudioItemsCompanion.insert(
+                collectionId: demoCollectionId,
+                audioItemId: audio.id,
+                sortOrder: Value(i),
+                addedAt: addedDate,
+              ),
+            );
 
         // 学习进度
         final firstLearnCompleted = audio.firstLearnCompletedDaysAgo != null
@@ -108,29 +114,29 @@ class DemoDataSeeder {
             planVersions[s] = 1;
           }
         }
-        final planVersionsJson = jsonEncode(
-          {for (final e in planVersions.entries) e.key.key: e.value},
-        );
+        final planVersionsJson = jsonEncode({
+          for (final e in planVersions.entries) e.key.key: e.value,
+        });
 
-        await db.into(db.learningProgresses).insert(
-          LearningProgressesCompanion.insert(
-            audioItemId: audio.id,
-            currentStage: Value(audio.currentStage),
-            currentSubStage: Value(audio.currentSubStage),
-            difficulty: Value(audio.difficulty),
-            firstLearnCompletedAt: Value(firstLearnCompleted),
-            lastStageCompletedAt: Value(lastStageCompleted),
-            currentStageStartedAt: Value(
-              lastStageCompleted ?? addedDate,
-            ),
-            blindListenPassCount: Value(
-              audio.currentStage == 'firstLearn' ? 1 : 3,
-            ),
-            shadowingSentenceIndex: Value(audio.shadowingSentenceIndex),
-            updatedAt: now,
-            planVersionsJson: Value(planVersionsJson),
-          ),
-        );
+        await db
+            .into(db.learningProgresses)
+            .insert(
+              LearningProgressesCompanion.insert(
+                audioItemId: audio.id,
+                currentStage: Value(audio.currentStage),
+                currentSubStage: Value(audio.currentSubStage),
+                difficulty: Value(audio.difficulty),
+                firstLearnCompletedAt: Value(firstLearnCompleted),
+                lastStageCompletedAt: Value(lastStageCompleted),
+                currentStageStartedAt: Value(lastStageCompleted ?? addedDate),
+                blindListenPassCount: Value(
+                  audio.currentStage == 'firstLearn' ? 1 : 3,
+                ),
+                shadowingSentenceIndex: Value(audio.shadowingSentenceIndex),
+                updatedAt: now,
+                planVersionsJson: Value(planVersionsJson),
+              ),
+            );
       }
 
       // 3. 插入阶段完成历史
@@ -169,9 +175,9 @@ class DemoDataSeeder {
       await File(srtPath).writeAsString(demoAudios[i].toSrt());
 
       final wavPath = p.join(demoDir.path, 'audio_${i + 1}.wav');
-      await File(wavPath).writeAsBytes(
-        _buildSilentWav(demoAudios[i].durationSeconds),
-      );
+      await File(
+        wavPath,
+      ).writeAsBytes(_buildSilentWav(demoAudios[i].durationSeconds));
     }
   }
 
@@ -231,15 +237,17 @@ class DemoDataSeeder {
       final completions = generateStageCompletions(i);
       for (final (stage, subStage, daysAgo) in completions) {
         final completedAt = now.subtract(Duration(days: daysAgo));
-        await db.into(db.stageCompletions).insert(
-          StageCompletionsCompanion.insert(
-            audioItemId: demoAudios[i].id,
-            stage: stage,
-            subStage: subStage,
-            completedAt: completedAt,
-            durationMs: Value(_estimateDurationMs(subStage)),
-          ),
-        );
+        await db
+            .into(db.stageCompletions)
+            .insert(
+              StageCompletionsCompanion.insert(
+                audioItemId: demoAudios[i].id,
+                stage: stage,
+                subStage: subStage,
+                completedAt: completedAt,
+                durationMs: Value(_estimateDurationMs(subStage)),
+              ),
+            );
       }
     }
   }
@@ -250,17 +258,19 @@ class DemoDataSeeder {
       final audio = demoAudios[i];
       for (final idx in audio.bookmarkIndices) {
         final sentence = audio.sentences[idx];
-        await db.into(db.bookmarks).insert(
-          BookmarksCompanion.insert(
-            audioItemId: audio.id,
-            sentenceIndex: idx,
-            sentenceText: sentence.text,
-            startTime: sentence.startTime,
-            endTime: sentence.endTime,
-            createdAt: now.subtract(Duration(days: 10 - i)),
-            updatedAt: now,
-          ),
-        );
+        await db
+            .into(db.bookmarks)
+            .insert(
+              BookmarksCompanion.insert(
+                audioItemId: audio.id,
+                sentenceIndex: idx,
+                sentenceText: sentence.text,
+                startTime: sentence.startTime,
+                endTime: sentence.endTime,
+                createdAt: now.subtract(Duration(days: 10 - i)),
+                updatedAt: now,
+              ),
+            );
       }
     }
   }
@@ -272,24 +282,26 @@ class DemoDataSeeder {
       final audio = demoAudios[word.audioIndex];
       final sentence = audio.sentences[word.sentenceIndex];
 
-      await db.into(db.savedWords).insert(
-        SavedWordsCompanion.insert(
-          word: word.word,
-          audioItemId: Value(audio.id),
-          sentenceIndex: Value(word.sentenceIndex),
-          sentenceText: Value(sentence.text),
-          sentenceStartMs: Value((sentence.startTime * 1000).round()),
-          sentenceEndMs: Value((sentence.endTime * 1000).round()),
-          practiceCount: Value(i < 10 ? 3 : (i < 18 ? 1 : 0)),
-          totalStudyMs: Value(i < 10 ? 24000 : (i < 18 ? 8000 : 0)),
-          viewedBack: Value(i < 18),
-          lastPracticedAt: Value(
-            i < 18 ? now.subtract(Duration(days: i ~/ 3)) : null,
-          ),
-          createdAt: now.subtract(Duration(days: 12 - (i ~/ 2))),
-          updatedAt: now,
-        ),
-      );
+      await db
+          .into(db.savedWords)
+          .insert(
+            SavedWordsCompanion.insert(
+              word: word.word,
+              audioItemId: Value(audio.id),
+              sentenceIndex: Value(word.sentenceIndex),
+              sentenceText: Value(sentence.text),
+              sentenceStartMs: Value((sentence.startTime * 1000).round()),
+              sentenceEndMs: Value((sentence.endTime * 1000).round()),
+              practiceCount: Value(i < 10 ? 3 : (i < 18 ? 1 : 0)),
+              totalStudyMs: Value(i < 10 ? 24000 : (i < 18 ? 8000 : 0)),
+              viewedBack: Value(i < 18),
+              lastPracticedAt: Value(
+                i < 18 ? now.subtract(Duration(days: i ~/ 3)) : null,
+              ),
+              createdAt: now.subtract(Duration(days: 12 - (i ~/ 2))),
+              updatedAt: now,
+            ),
+          );
     }
   }
 
@@ -315,12 +327,14 @@ class DemoDataSeeder {
     final sortedWords = allWords.toList()..sort();
     for (var i = 0; i < sortedWords.length; i++) {
       final daysAgo = (i * 13 ~/ sortedWords.length); // 分散到 13 天
-      await db.into(db.learnedWordForms).insert(
-        LearnedWordFormsCompanion.insert(
-          wordForm: sortedWords[i],
-          firstLearnedAt: now.subtract(Duration(days: daysAgo)),
-        ),
-      );
+      await db
+          .into(db.learnedWordForms)
+          .insert(
+            LearnedWordFormsCompanion.insert(
+              wordForm: sortedWords[i],
+              firstLearnedAt: now.subtract(Duration(days: daysAgo)),
+            ),
+          );
     }
   }
 
@@ -331,16 +345,18 @@ class DemoDataSeeder {
     for (final (daysAgo, totalSec, inputSec, outputSec, inputW, outputW)
         in demoDailyRecords) {
       final date = today.subtract(Duration(days: daysAgo));
-      await db.into(db.dailyStudyRecords).insert(
-        DailyStudyRecordsCompanion.insert(
-          date: date,
-          studyTimeSeconds: Value(totalSec),
-          inputWords: Value(inputW),
-          outputWords: Value(outputW),
-          inputTimeSeconds: Value(inputSec),
-          outputTimeSeconds: Value(outputSec),
-        ),
-      );
+      await db
+          .into(db.dailyStudyRecords)
+          .insert(
+            DailyStudyRecordsCompanion.insert(
+              date: date,
+              studyTimeSeconds: Value(totalSec),
+              inputWords: Value(inputW),
+              outputWords: Value(outputW),
+              inputTimeSeconds: Value(inputSec),
+              outputTimeSeconds: Value(outputSec),
+            ),
+          );
     }
   }
 
@@ -353,27 +369,29 @@ class DemoDataSeeder {
       final sentenceStartMs = (sentence.startTime * 1000).round();
       final sentenceEndMs = (sentence.endTime * 1000).round();
 
-      await db.into(db.savedSenseGroups).insert(
-        SavedSenseGroupsCompanion.insert(
-          phraseText: sg.displayText.toLowerCase().trim(),
-          displayText: sg.displayText,
-          audioItemId: Value(audio.id),
-          sentenceIndex: Value(sg.sentenceIndex),
-          sentenceText: Value(sentence.text),
-          sentenceStartMs: Value(sentenceStartMs),
-          sentenceEndMs: Value(sentenceEndMs),
-          groupStartMs: Value(sentenceStartMs + sg.offsetStartMs),
-          groupEndMs: Value(sentenceStartMs + sg.offsetEndMs),
-          practiceCount: Value(i < 5 ? 3 : (i < 8 ? 1 : 0)),
-          totalStudyMs: Value(i < 5 ? 18000 : (i < 8 ? 6000 : 0)),
-          viewedBack: Value(i < 8),
-          lastPracticedAt: Value(
-            i < 8 ? now.subtract(Duration(days: i ~/ 2)) : null,
-          ),
-          createdAt: now.subtract(Duration(days: 10 - i)),
-          updatedAt: now,
-        ),
-      );
+      await db
+          .into(db.savedSenseGroups)
+          .insert(
+            SavedSenseGroupsCompanion.insert(
+              phraseText: sg.displayText.toLowerCase().trim(),
+              displayText: sg.displayText,
+              audioItemId: Value(audio.id),
+              sentenceIndex: Value(sg.sentenceIndex),
+              sentenceText: Value(sentence.text),
+              sentenceStartMs: Value(sentenceStartMs),
+              sentenceEndMs: Value(sentenceEndMs),
+              groupStartMs: Value(sentenceStartMs + sg.offsetStartMs),
+              groupEndMs: Value(sentenceStartMs + sg.offsetEndMs),
+              practiceCount: Value(i < 5 ? 3 : (i < 8 ? 1 : 0)),
+              totalStudyMs: Value(i < 5 ? 18000 : (i < 8 ? 6000 : 0)),
+              viewedBack: Value(i < 8),
+              lastPracticedAt: Value(
+                i < 8 ? now.subtract(Duration(days: i ~/ 2)) : null,
+              ),
+              createdAt: now.subtract(Duration(days: 10 - i)),
+              updatedAt: now,
+            ),
+          );
     }
   }
 
@@ -384,15 +402,17 @@ class DemoDataSeeder {
     for (final (daysAgo, stageIndex, studyTime, inputTime, outputTime)
         in demoDailyStageRecords) {
       final date = today.subtract(Duration(days: daysAgo));
-      await db.into(db.dailyStageStudyRecords).insert(
-        DailyStageStudyRecordsCompanion.insert(
-          date: date,
-          stage: StudyStage.values[stageIndex],
-          studyTimeSeconds: Value(studyTime),
-          inputTimeSeconds: Value(inputTime),
-          outputTimeSeconds: Value(outputTime),
-        ),
-      );
+      await db
+          .into(db.dailyStageStudyRecords)
+          .insert(
+            DailyStageStudyRecordsCompanion.insert(
+              date: date,
+              stage: StudyStage.values[stageIndex],
+              studyTimeSeconds: Value(studyTime),
+              inputTimeSeconds: Value(inputTime),
+              outputTimeSeconds: Value(outputTime),
+            ),
+          );
     }
   }
 

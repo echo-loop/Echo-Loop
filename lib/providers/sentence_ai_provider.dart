@@ -168,10 +168,7 @@ class SentenceAiNotifier {
   /// 同步查找 L1 解析缓存（仅内存）
   ///
   /// [targetLanguage] 不传时遍历所有语言版本（向后兼容），传入时精确匹配。
-  SentenceAnalysis? getCachedAnalysis(
-    String text, {
-    String? targetLanguage,
-  }) {
+  SentenceAnalysis? getCachedAnalysis(String text, {String? targetLanguage}) {
     final hash = hashText(text);
     if (targetLanguage != null) {
       return _analysisCache['$hash:$targetLanguage'];
@@ -197,7 +194,10 @@ class SentenceAiNotifier {
     final hash = hashText(text);
     final cacheKey = '$hash:$targetLanguage';
     if (_translationCache.containsKey(cacheKey)) return true;
-    final dbResult = await _cacheDao.getByHash(hash, 'translation:$targetLanguage');
+    final dbResult = await _cacheDao.getByHash(
+      hash,
+      'translation:$targetLanguage',
+    );
     if (dbResult != null) {
       try {
         final translation = SentenceTranslation.fromJson(
@@ -222,7 +222,10 @@ class SentenceAiNotifier {
     final hash = hashText(text);
     final cacheKey = '$hash:$targetLanguage';
     if (_analysisCache.containsKey(cacheKey)) return true;
-    final dbResult = await _cacheDao.getByHash(hash, 'analysis:$targetLanguage');
+    final dbResult = await _cacheDao.getByHash(
+      hash,
+      'analysis:$targetLanguage',
+    );
     if (dbResult != null) {
       try {
         final analysis = SentenceAnalysis.fromJson(

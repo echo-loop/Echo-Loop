@@ -187,7 +187,8 @@ class NotificationPermissionService {
     // 仅当能确认用户已决策时才写 SP：
     // - granted=true 或 reporter 返回 denied/restricted → 确认决策
     // - reporter 返回 notDetermined → 未决策（iOS 手势 dismiss），不写
-    final reallyDecided = granted ||
+    final reallyDecided =
+        granted ||
         status == NotificationAuthorization.denied ||
         status == NotificationAuthorization.restricted;
 
@@ -227,10 +228,7 @@ class NotificationPermissionService {
     try {
       status = await _reporter.getAuthorizationStatus();
     } catch (e) {
-      AppLogger.log(
-        _logTag,
-        'getCurrentState ERROR: $e (fallback canRequest)',
-      );
+      AppLogger.log(_logTag, 'getCurrentState ERROR: $e (fallback canRequest)');
       return NotificationPermissionState.canRequest;
     }
 
@@ -261,10 +259,7 @@ class NotificationPermissionService {
 
   Future<void> _persistAction(String action) async {
     await _prefs.setString(_spKeyLastAction, action);
-    await _prefs.setInt(
-      _spKeyLastShownAt,
-      now().millisecondsSinceEpoch,
-    );
+    await _prefs.setInt(_spKeyLastShownAt, now().millisecondsSinceEpoch);
   }
 
   void _trackSkipped(String reason) {

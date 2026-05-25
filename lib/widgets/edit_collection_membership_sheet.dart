@@ -33,8 +33,7 @@ class EditCollectionMembershipSheet extends ConsumerWidget {
 
     return SafeArea(
       child: Padding(
-        padding:
-            const EdgeInsets.fromLTRB(0, AppSpacing.m, 0, AppSpacing.s),
+        padding: const EdgeInsets.fromLTRB(0, AppSpacing.m, 0, AppSpacing.s),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -87,8 +86,9 @@ class EditCollectionMembershipSheet extends ConsumerWidget {
                       const Divider(height: 1),
                   itemBuilder: (context, index) {
                     final collection = collections[index];
-                    final isSelected =
-                        audioCollectionIds.contains(collection.id);
+                    final isSelected = audioCollectionIds.contains(
+                      collection.id,
+                    );
                     return CheckboxListTile(
                       contentPadding: const EdgeInsets.symmetric(
                         horizontal: AppSpacing.m,
@@ -96,14 +96,16 @@ class EditCollectionMembershipSheet extends ConsumerWidget {
                       title: Text(collection.name),
                       value: isSelected,
                       onChanged: (value) {
-                        final notifier =
-                            ref.read(collectionListProvider.notifier);
+                        final notifier = ref.read(
+                          collectionListProvider.notifier,
+                        );
                         if (value == true) {
-                          notifier.addAudioToCollection(
-                              collection.id, audioId);
+                          notifier.addAudioToCollection(collection.id, audioId);
                         } else {
                           notifier.removeAudioFromCollection(
-                              collection.id, audioId);
+                            collection.id,
+                            audioId,
+                          );
                         }
                       },
                     );

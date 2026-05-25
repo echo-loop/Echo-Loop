@@ -30,9 +30,7 @@ class AudioContent {
       audioUrl: json['audioUrl'] as String,
       srt: json['srt'] as String,
       wordTimestamps: rawWords
-          .map(
-            (e) => WordTimestamp.fromJson(e as Map<String, dynamic>),
-          )
+          .map((e) => WordTimestamp.fromJson(e as Map<String, dynamic>))
           .toList(),
     );
   }

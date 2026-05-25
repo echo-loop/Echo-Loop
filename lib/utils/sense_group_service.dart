@@ -62,7 +62,7 @@ class SenseGroupService {
   ///
   /// 返回拆分结果和对应的时间范围。有词级时间戳时精确计算，否则按词数均分。
   Future<(SenseGroupResult result, List<SenseGroupTiming> timings)>
-      requestSenseGroups({
+  requestSenseGroups({
     required String text,
     required SentenceAiNotifier ai,
     required int sentenceStartMs,

@@ -122,9 +122,7 @@ class TranscriptResult {
         .toList();
     final wordsList = json['words'] != null
         ? (json['words'] as List)
-              .map(
-                (w) => WordTimestamp.fromJson(w as Map<String, dynamic>),
-              )
+              .map((w) => WordTimestamp.fromJson(w as Map<String, dynamic>))
               .toList()
         : null;
     return TranscriptResult(

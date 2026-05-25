@@ -34,8 +34,7 @@ class ReminderSettingsScreen extends ConsumerStatefulWidget {
       _ReminderSettingsScreenState();
 }
 
-class _ReminderSettingsScreenState
-    extends ConsumerState<ReminderSettingsScreen>
+class _ReminderSettingsScreenState extends ConsumerState<ReminderSettingsScreen>
     with WidgetsBindingObserver {
   /// 当前通知权限状态；null 表示未读取 / 不支持平台。
   ///
@@ -73,9 +72,7 @@ class _ReminderSettingsScreenState
   /// 当前平台是否原生支持通知。Web / Linux 上不显示 banner（永远点不掉无意义）。
   bool get _platformSupportsNotification {
     if (kIsWeb) return false;
-    return Platform.isIOS ||
-        Platform.isAndroid ||
-        Platform.isMacOS;
+    return Platform.isIOS || Platform.isAndroid || Platform.isMacOS;
   }
 
   /// 读取系统通知权限。用户从系统设置回来时（AppLifecycle.resumed）也调一次。
@@ -91,10 +88,7 @@ class _ReminderSettingsScreenState
       final s = await ref
           .read(notificationPermissionServiceProvider)
           .getCurrentState();
-      AppLogger.log(
-        'NotifPerm',
-        'settings: _refreshStatus -> ${s.name}',
-      );
+      AppLogger.log('NotifPerm', 'settings: _refreshStatus -> ${s.name}');
       if (!mounted) return;
       setState(() => _notificationState = s);
     } catch (e) {
@@ -128,10 +122,9 @@ class _ReminderSettingsScreenState
 
   Future<void> _onOpenSystemSettings() async {
     AppLogger.log('NotifPerm', 'settings: open-system-settings tapped');
-    ref.read(analyticsServiceProvider).track(
-      Events.notificationSettingsOpenTapped,
-      const {},
-    );
+    ref
+        .read(analyticsServiceProvider)
+        .track(Events.notificationSettingsOpenTapped, const {});
     final reporter = ref.read(notificationPermissionReporterProvider);
     await reporter.openSettings();
     AppLogger.log('NotifPerm', 'settings: openSettings done');
@@ -320,9 +313,7 @@ class _NotificationStatusBanner extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    final accent = tone == _BannerTone.error
-        ? colorScheme.error
-        : _kWarnAccent;
+    final accent = tone == _BannerTone.error ? colorScheme.error : _kWarnAccent;
     return Card(
       color: accent.withValues(alpha: 0.08),
       elevation: 0,

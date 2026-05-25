@@ -202,8 +202,7 @@ class SentenceAnnotationCardState extends State<SentenceAnnotationCard> {
       _translationExpanded = true;
       _translationActivated = true;
     }
-    if (widget.cachedAnalysis != null &&
-        widget.cachedAnalysis!.isNotEmpty) {
+    if (widget.cachedAnalysis != null && widget.cachedAnalysis!.isNotEmpty) {
       _analysisContent = widget.cachedAnalysis;
       _analysisState = ContentLoadState.loaded;
       _analysisExpanded = true;
@@ -237,7 +236,8 @@ class SentenceAnnotationCardState extends State<SentenceAnnotationCard> {
     }
     // 缓存内容变化时自动展示或收折
     if (widget.cachedTranslation != oldWidget.cachedTranslation) {
-      final hasContent = widget.cachedTranslation != null &&
+      final hasContent =
+          widget.cachedTranslation != null &&
           widget.cachedTranslation!.isNotEmpty;
       _translationContent = widget.cachedTranslation;
       if (hasContent) {
@@ -254,8 +254,8 @@ class SentenceAnnotationCardState extends State<SentenceAnnotationCard> {
       });
     }
     if (widget.cachedAnalysis != oldWidget.cachedAnalysis) {
-      final hasContent = widget.cachedAnalysis != null &&
-          widget.cachedAnalysis!.isNotEmpty;
+      final hasContent =
+          widget.cachedAnalysis != null && widget.cachedAnalysis!.isNotEmpty;
       _analysisContent = widget.cachedAnalysis;
       if (hasContent) {
         _analysisState = ContentLoadState.loaded;
@@ -632,7 +632,9 @@ class SentenceAnnotationCardState extends State<SentenceAnnotationCard> {
       children: [
         Expanded(child: _wrapGuide(widget.analysisGuideStep, analysisBtn)),
         const SizedBox(width: AppSpacing.s),
-        Expanded(child: _wrapGuide(widget.translationGuideStep, translationBtn)),
+        Expanded(
+          child: _wrapGuide(widget.translationGuideStep, translationBtn),
+        ),
         const SizedBox(width: AppSpacing.s),
         Expanded(child: _wrapGuide(widget.senseGroupGuideStep, senseGroupBtn)),
       ],
@@ -820,7 +822,6 @@ class SentenceAnnotationCardState extends State<SentenceAnnotationCard> {
       ),
     );
   }
-
 }
 
 /// 解析内容结构化展示
@@ -875,7 +876,9 @@ class _AnalysisContent extends StatelessWidget {
     // 仅渲染对应字段非空的段落
     final visible = [
       for (final s in sections)
-        if (s.fieldIndex < fields.length && fields[s.fieldIndex].trim().isNotEmpty) s,
+        if (s.fieldIndex < fields.length &&
+            fields[s.fieldIndex].trim().isNotEmpty)
+          s,
     ];
 
     return Column(
@@ -1000,7 +1003,10 @@ class _AnalysisContent extends StatelessWidget {
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
-      children: [bullet, Expanded(child: content)],
+      children: [
+        bullet,
+        Expanded(child: content),
+      ],
     );
   }
 
@@ -1017,35 +1023,39 @@ class _AnalysisContent extends StatelessWidget {
       if (codeContent != null) {
         // 反引号引用：用 primaryContainer 作为字形背后的扁平高亮色，沿文本流
         // 自然换行；不使用 WidgetSpan 盒子，避免长短语撑出强制断行。
-        spans.add(TextSpan(
-          text: codeContent,
-          style: TextStyle(
-            background: Paint()..color = cs.primaryContainer,
-            color: cs.onPrimaryContainer,
+        spans.add(
+          TextSpan(
+            text: codeContent,
+            style: TextStyle(
+              background: Paint()..color = cs.primaryContainer,
+              color: cs.onPrimaryContainer,
+            ),
           ),
-        ));
+        );
       } else {
         // IPA 音标：保留 chip 盒子（monospace），但用中性灰色背景，不喧宾夺主
-        spans.add(WidgetSpan(
-          alignment: PlaceholderAlignment.middle,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-            decoration: BoxDecoration(
-              color: cs.surfaceContainerHighest,
-              borderRadius: BorderRadius.circular(4),
-            ),
-            child: Text(
-              m.group(2)!,
-              style: TextStyle(
-                fontFamily: 'monospace',
-                fontFamilyFallback: const ['Menlo', 'Courier'],
-                fontSize: (body?.fontSize ?? 13) - 1,
-                color: cs.onSurface,
-                height: 1.2,
+        spans.add(
+          WidgetSpan(
+            alignment: PlaceholderAlignment.middle,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+              decoration: BoxDecoration(
+                color: cs.surfaceContainerHighest,
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: Text(
+                m.group(2)!,
+                style: TextStyle(
+                  fontFamily: 'monospace',
+                  fontFamilyFallback: const ['Menlo', 'Courier'],
+                  fontSize: (body?.fontSize ?? 13) - 1,
+                  color: cs.onSurface,
+                  height: 1.2,
+                ),
               ),
             ),
           ),
-        ));
+        );
       }
       last = m.end;
     }

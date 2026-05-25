@@ -54,9 +54,9 @@ class _PreferencesViewerScreenState extends State<PreferencesViewerScreen> {
     final text = _entries.map((e) => '${e.key}: ${e.display}').join('\n');
     await Clipboard.setData(ClipboardData(text: text));
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('已复制全部偏好设置到剪贴板')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('已复制全部偏好设置到剪贴板')));
   }
 
   /// 过滤当前快照，忽略大小写匹配 key 或 value。
@@ -64,9 +64,11 @@ class _PreferencesViewerScreenState extends State<PreferencesViewerScreen> {
     if (_query.isEmpty) return _entries;
     final q = _query.toLowerCase();
     return _entries
-        .where((e) =>
-            e.key.toLowerCase().contains(q) ||
-            e.display.toLowerCase().contains(q))
+        .where(
+          (e) =>
+              e.key.toLowerCase().contains(q) ||
+              e.display.toLowerCase().contains(q),
+        )
         .toList();
   }
 
@@ -110,9 +112,9 @@ class _PreferencesViewerScreenState extends State<PreferencesViewerScreen> {
     setState(() {
       _entries = _entries.where((e) => e.key != key).toList();
     });
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('已删除 $key')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text('已删除 $key')));
   }
 
   @override
@@ -163,37 +165,36 @@ class _PreferencesViewerScreenState extends State<PreferencesViewerScreen> {
             child: _loading
                 ? const Center(child: CircularProgressIndicator())
                 : filtered.isEmpty
-                    ? Center(
-                        child: Text(
-                          _entries.isEmpty ? '无偏好设置' : '无匹配项',
-                          style: Theme.of(context).textTheme.bodyMedium,
+                ? Center(
+                    child: Text(
+                      _entries.isEmpty ? '无偏好设置' : '无匹配项',
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
+                  )
+                : ListView.separated(
+                    itemCount: filtered.length,
+                    separatorBuilder: (_, __) => const Divider(height: 1),
+                    itemBuilder: (context, index) {
+                      final entry = filtered[index];
+                      final theme = Theme.of(context);
+                      return Dismissible(
+                        key: ValueKey('pref-${entry.key}'),
+                        direction: DismissDirection.endToStart,
+                        background: Container(
+                          color: theme.colorScheme.error,
+                          alignment: Alignment.centerRight,
+                          padding: const EdgeInsets.symmetric(horizontal: 24),
+                          child: Icon(
+                            Icons.delete,
+                            color: theme.colorScheme.onError,
+                          ),
                         ),
-                      )
-                    : ListView.separated(
-                        itemCount: filtered.length,
-                        separatorBuilder: (_, __) => const Divider(height: 1),
-                        itemBuilder: (context, index) {
-                          final entry = filtered[index];
-                          final theme = Theme.of(context);
-                          return Dismissible(
-                            key: ValueKey('pref-${entry.key}'),
-                            direction: DismissDirection.endToStart,
-                            background: Container(
-                              color: theme.colorScheme.error,
-                              alignment: Alignment.centerRight,
-                              padding:
-                                  const EdgeInsets.symmetric(horizontal: 24),
-                              child: Icon(
-                                Icons.delete,
-                                color: theme.colorScheme.onError,
-                              ),
-                            ),
-                            confirmDismiss: (_) => _confirmDelete(entry.key),
-                            onDismissed: (_) => _deleteKey(entry.key),
-                            child: _PrefTile(entry: entry),
-                          );
-                        },
-                      ),
+                        confirmDismiss: (_) => _confirmDelete(entry.key),
+                        onDismissed: (_) => _deleteKey(entry.key),
+                        child: _PrefTile(entry: entry),
+                      );
+                    },
+                  ),
           ),
         ],
       ),
@@ -211,10 +212,7 @@ class _PrefTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return ListTile(
-      title: Text(
-        entry.key,
-        style: theme.textTheme.titleSmall,
-      ),
+      title: Text(entry.key, style: theme.textTheme.titleSmall),
       subtitle: Padding(
         padding: const EdgeInsets.only(top: 4),
         child: Text(
@@ -236,9 +234,9 @@ class _PrefTile extends StatelessWidget {
           ClipboardData(text: '${entry.key}: ${entry.display}'),
         );
         if (!context.mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('已复制 ${entry.key}')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('已复制 ${entry.key}')));
       },
     );
   }
@@ -292,7 +290,7 @@ String? _tryPrettyJson(String raw) {
   if (trimmed.isEmpty) return null;
   final first = trimmed.codeUnitAt(0);
   // 只处理对象和数组开头，避免误把普通字符串（如 "zh"）当成 JSON。
-  if (first != 0x7B /* { */ && first != 0x5B /* [ */) return null;
+  if (first != 0x7B /* { */ && first != 0x5B /* [ */ ) return null;
   try {
     final decoded = jsonDecode(trimmed);
     return const JsonEncoder.withIndent('  ').convert(decoded);

@@ -29,8 +29,7 @@ class EditTagMembershipSheet extends ConsumerWidget {
 
     return SafeArea(
       child: Padding(
-        padding:
-            const EdgeInsets.fromLTRB(0, AppSpacing.m, 0, AppSpacing.s),
+        padding: const EdgeInsets.fromLTRB(0, AppSpacing.m, 0, AppSpacing.s),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -233,8 +232,11 @@ class EditTagMembershipSheet extends ConsumerWidget {
                               : null,
                         ),
                         child: isChosen
-                            ? const Icon(Icons.check,
-                                size: 18, color: Colors.white)
+                            ? const Icon(
+                                Icons.check,
+                                size: 18,
+                                color: Colors.white,
+                              )
                             : null,
                       ),
                     );
@@ -258,7 +260,11 @@ class EditTagMembershipSheet extends ConsumerWidget {
                       onPressed: isEmpty
                           ? null
                           : () => _createAndAssign(
-                              ctx, ref, controller, selectedColor),
+                              ctx,
+                              ref,
+                              controller,
+                              selectedColor,
+                            ),
                       child: Text(l10n.add),
                     ),
                   ),

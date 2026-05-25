@@ -119,9 +119,9 @@ class _AppUpdateDialogContent extends StatelessWidget {
   void _copyLink(BuildContext context, AppLocalizations l10n) {
     if (downloadUrl == null) return;
     Clipboard.setData(ClipboardData(text: downloadUrl!));
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(l10n.linkCopied)),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(l10n.linkCopied)));
   }
 }
 
@@ -150,7 +150,8 @@ class _ReleaseNotesText extends StatelessWidget {
     final isBullet = trimmed.startsWith('- ') || trimmed.startsWith('* ');
 
     if (isBullet) {
-      final dotColor = DefaultTextStyle.of(context).style.color ??
+      final dotColor =
+          DefaultTextStyle.of(context).style.color ??
           Theme.of(context).colorScheme.onSurface;
       return Padding(
         padding: EdgeInsets.only(top: padTop),

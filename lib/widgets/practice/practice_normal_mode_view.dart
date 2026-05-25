@@ -123,12 +123,11 @@ class PracticeNormalModeView extends StatelessWidget {
                     child: isTextRevealed && sentenceText != null
                         ? GestureDetector(
                             onTap: () {}, // 拦截文字区域点击，不冒泡到偷看切换
-                            onLongPressStart: (details) =>
-                                TextContextMenu.show(
-                                  context,
-                                  details.globalPosition,
-                                  sentenceText!,
-                                ),
+                            onLongPressStart: (details) => TextContextMenu.show(
+                              context,
+                              details.globalPosition,
+                              sentenceText!,
+                            ),
                             onSecondaryTapDown: (details) =>
                                 TextContextMenu.show(
                                   context,
@@ -138,15 +137,18 @@ class PracticeNormalModeView extends StatelessWidget {
                             child: onWordTap != null
                                 ? _TappableText(
                                     text: sentenceText!,
-                                    style: theme.textTheme.bodyLarge
-                                            ?.copyWith(height: 1.6) ??
+                                    style:
+                                        theme.textTheme.bodyLarge?.copyWith(
+                                          height: 1.6,
+                                        ) ??
                                         const TextStyle(),
                                     onWordTap: onWordTap!,
                                   )
                                 : Text(
                                     sentenceText!,
-                                    style: theme.textTheme.bodyLarge
-                                        ?.copyWith(height: 1.6),
+                                    style: theme.textTheme.bodyLarge?.copyWith(
+                                      height: 1.6,
+                                    ),
                                   ),
                           )
                         : const _HiddenTextPlaceholder(),

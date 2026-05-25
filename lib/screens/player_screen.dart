@@ -432,11 +432,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
     );
   }
 
-  void _showContextMenu(
-    BuildContext context,
-    Offset position,
-    String text,
-  ) {
+  void _showContextMenu(BuildContext context, Offset position, String text) {
     TextContextMenu.show(context, position, text);
   }
 

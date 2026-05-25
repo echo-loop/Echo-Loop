@@ -49,10 +49,9 @@ String matchNativeLanguage(Locale systemLocale) {
   final codes = supportedNativeLanguages.keys.toList();
 
   // 精确匹配：languageCode + countryCode
-  final systemTag =
-      systemLocale.countryCode != null
-          ? '${systemLocale.languageCode}-${systemLocale.countryCode}'
-          : systemLocale.languageCode;
+  final systemTag = systemLocale.countryCode != null
+      ? '${systemLocale.languageCode}-${systemLocale.countryCode}'
+      : systemLocale.languageCode;
   if (supportedNativeLanguages.containsKey(systemTag)) return systemTag;
 
   // languageCode 模糊匹配
@@ -283,8 +282,8 @@ class AppSettings extends _$AppSettings {
     final tag = locale == null
         ? 'system'
         : locale.countryCode != null
-            ? '${locale.languageCode}-${locale.countryCode}'
-            : locale.languageCode;
+        ? '${locale.languageCode}-${locale.countryCode}'
+        : locale.languageCode;
     await prefs.setString(_localeKey, tag);
   }
 

@@ -33,11 +33,7 @@ class SenseGroupActionBar extends StatelessWidget {
         color: bgColor,
         borderRadius: BorderRadius.circular(6),
         boxShadow: const [
-          BoxShadow(
-            color: Colors.black26,
-            blurRadius: 4,
-            offset: Offset(0, 2),
-          ),
+          BoxShadow(color: Colors.black26, blurRadius: 4, offset: Offset(0, 2)),
         ],
       ),
       child: Material(

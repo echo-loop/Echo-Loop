@@ -49,9 +49,7 @@ List<SenseGroupTiming> mapSenseGroupTimings({
     final groupTokens = _tokenize(chunk);
     if (groupTokens.isEmpty) {
       // 空意群，使用前一个意群的结束时间作为起始
-      final prevEnd = timings.isNotEmpty
-          ? timings.last.end
-          : sentenceStart;
+      final prevEnd = timings.isNotEmpty ? timings.last.end : sentenceStart;
       timings.add(SenseGroupTiming(start: prevEnd, end: prevEnd));
       continue;
     }
@@ -69,13 +67,17 @@ List<SenseGroupTiming> mapSenseGroupTimings({
     }
 
     // 从 matchStart 开始，匹配整个意群的词数
-    final matchEnd = (matchStart + groupTokens.length - 1)
-        .clamp(0, sentenceWords.length - 1);
+    final matchEnd = (matchStart + groupTokens.length - 1).clamp(
+      0,
+      sentenceWords.length - 1,
+    );
 
-    timings.add(SenseGroupTiming(
-      start: sentenceWords[matchStart].startTime,
-      end: sentenceWords[matchEnd].endTime,
-    ));
+    timings.add(
+      SenseGroupTiming(
+        start: sentenceWords[matchStart].startTime,
+        end: sentenceWords[matchEnd].endTime,
+      ),
+    );
 
     wordCursor = matchEnd + 1;
   }

@@ -61,7 +61,9 @@ final guideRegistryProvider = Provider<GuideRegistry>((ref) {
 /// 通过 `ProviderScope` 的 `overrides` 注入实际值，未 override 时抛出以便
 /// 尽早发现 wiring 缺失。
 final isFirstLaunchProvider = Provider<bool>((ref) {
-  throw UnimplementedError('isFirstLaunchProvider must be overridden in main()');
+  throw UnimplementedError(
+    'isFirstLaunchProvider must be overridden in main()',
+  );
 });
 
 /// 当前版本的新用户引导 flow id。

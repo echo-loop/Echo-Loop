@@ -61,7 +61,9 @@ abstract class SpeechPracticeBackend {
   ///
   /// `onlyMic=true` 时只请求麦克风（关闭 ASR / Echo Loop 离线后端场景），
   /// 不触发平台原生语音识别系统弹窗，遵循最小权限原则。
-  Future<SpeechPracticePermissionState> requestPermissions({bool onlyMic = false});
+  Future<SpeechPracticePermissionState> requestPermissions({
+    bool onlyMic = false,
+  });
 
   /// 录音识别事件流。
   Stream<SpeechPracticeEvent> get events;

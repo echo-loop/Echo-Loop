@@ -115,25 +115,28 @@ class _DirectoryScreenState extends State<_DirectoryScreen> {
     if (!widget.directory.existsSync()) return [];
 
     final entries = <_FileEntry>[];
-    await for (final entity
-        in widget.directory.list(followLinks: false)) {
+    await for (final entity in widget.directory.list(followLinks: false)) {
       final name = p.basename(entity.path);
       if (entity is Directory) {
         final size = await calculateDirectorySize(entity);
-        entries.add(_FileEntry(
-          name: name,
-          path: entity.path,
-          isDirectory: true,
-          sizeBytes: size,
-        ));
+        entries.add(
+          _FileEntry(
+            name: name,
+            path: entity.path,
+            isDirectory: true,
+            sizeBytes: size,
+          ),
+        );
       } else if (entity is File) {
         final size = await entity.length();
-        entries.add(_FileEntry(
-          name: name,
-          path: entity.path,
-          isDirectory: false,
-          sizeBytes: size,
-        ));
+        entries.add(
+          _FileEntry(
+            name: name,
+            path: entity.path,
+            isDirectory: false,
+            sizeBytes: size,
+          ),
+        );
       }
     }
 
@@ -181,13 +184,13 @@ class _DirectoryScreenState extends State<_DirectoryScreen> {
                 ),
                 onTap: entry.isDirectory
                     ? () => Navigator.of(context).push(
-                          MaterialPageRoute<void>(
-                            builder: (_) => _DirectoryScreen(
-                              title: entry.name,
-                              directory: Directory(entry.path),
-                            ),
+                        MaterialPageRoute<void>(
+                          builder: (_) => _DirectoryScreen(
+                            title: entry.name,
+                            directory: Directory(entry.path),
                           ),
-                        )
+                        ),
+                      )
                     : null,
               );
             },

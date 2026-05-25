@@ -61,14 +61,15 @@ class StageCompletionDao extends DatabaseAccessor<AppDatabase>
   ///
   /// 用于"最近完成"区段，JOIN audio_items 获取音频名称。
   Future<List<RecentCompletion>> getRecentCompletions(DateTime since) async {
-    final query = select(stageCompletions).join([
-      innerJoin(
-        audioItems,
-        audioItems.id.equalsExp(stageCompletions.audioItemId),
-      ),
-    ])
-      ..where(stageCompletions.completedAt.isBiggerOrEqualValue(since))
-      ..orderBy([OrderingTerm.desc(stageCompletions.completedAt)]);
+    final query =
+        select(stageCompletions).join([
+            innerJoin(
+              audioItems,
+              audioItems.id.equalsExp(stageCompletions.audioItemId),
+            ),
+          ])
+          ..where(stageCompletions.completedAt.isBiggerOrEqualValue(since))
+          ..orderBy([OrderingTerm.desc(stageCompletions.completedAt)]);
 
     final rows = await query.get();
     return rows.map((row) {

@@ -171,8 +171,9 @@ final dailyStudyRecordDaoProvider = Provider<DailyStudyRecordDao>((ref) {
 });
 
 /// DailyStageStudyRecord DAO Provider
-final dailyStageStudyRecordDaoProvider =
-    Provider<DailyStageStudyRecordDao>((ref) {
+final dailyStageStudyRecordDaoProvider = Provider<DailyStageStudyRecordDao>((
+  ref,
+) {
   return ref.watch(appDatabaseProvider).dailyStageStudyRecordDao;
 });
 

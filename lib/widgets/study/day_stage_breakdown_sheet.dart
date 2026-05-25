@@ -251,42 +251,42 @@ class DayStageBreakdownSheet extends StatelessWidget {
   }
 
   String _weekdayChinese(int wd) => switch (wd) {
-        1 => '周一',
-        2 => '周二',
-        3 => '周三',
-        4 => '周四',
-        5 => '周五',
-        6 => '周六',
-        7 => '周日',
-        _ => '',
-      };
+    1 => '周一',
+    2 => '周二',
+    3 => '周三',
+    4 => '周四',
+    5 => '周五',
+    6 => '周六',
+    7 => '周日',
+    _ => '',
+  };
 
   String _weekdayEnglish(int wd) => switch (wd) {
-        1 => 'Monday',
-        2 => 'Tuesday',
-        3 => 'Wednesday',
-        4 => 'Thursday',
-        5 => 'Friday',
-        6 => 'Saturday',
-        7 => 'Sunday',
-        _ => '',
-      };
+    1 => 'Monday',
+    2 => 'Tuesday',
+    3 => 'Wednesday',
+    4 => 'Thursday',
+    5 => 'Friday',
+    6 => 'Saturday',
+    7 => 'Sunday',
+    _ => '',
+  };
 
   String _monthEnglish(int m) => switch (m) {
-        1 => 'Jan',
-        2 => 'Feb',
-        3 => 'Mar',
-        4 => 'Apr',
-        5 => 'May',
-        6 => 'Jun',
-        7 => 'Jul',
-        8 => 'Aug',
-        9 => 'Sep',
-        10 => 'Oct',
-        11 => 'Nov',
-        12 => 'Dec',
-        _ => '',
-      };
+    1 => 'Jan',
+    2 => 'Feb',
+    3 => 'Mar',
+    4 => 'Apr',
+    5 => 'May',
+    6 => 'Jun',
+    7 => 'Jul',
+    8 => 'Aug',
+    9 => 'Sep',
+    10 => 'Oct',
+    11 => 'Nov',
+    12 => 'Dec',
+    _ => '',
+  };
 }
 
 /// 阶段列表中单行
@@ -331,10 +331,7 @@ class _StageRow extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  name,
-                  style: theme.textTheme.bodyMedium,
-                ),
+                Text(name, style: theme.textTheme.bodyMedium),
                 // 总览模式下显示听/说副行
                 if (mode == StageBreakdownMode.total &&
                     (clampedInput > 0 || clampedOutput > 0))
@@ -361,25 +358,25 @@ class _StageRow extends StatelessWidget {
 
 /// 阶段对应的 Material 图标
 IconData _stageIcon(StudyStage stage) => switch (stage) {
-      StudyStage.blindListen => Icons.headphones,
-      StudyStage.intensiveListen => Icons.hearing,
-      StudyStage.listenAndRepeat => Icons.record_voice_over,
-      StudyStage.retell => Icons.chat_bubble_outline,
-      StudyStage.reviewDifficultPractice => Icons.fitness_center,
-      StudyStage.bookmarkReview => Icons.bookmark,
-      StudyStage.flashcard => Icons.style,
-    };
+  StudyStage.blindListen => Icons.headphones,
+  StudyStage.intensiveListen => Icons.hearing,
+  StudyStage.listenAndRepeat => Icons.record_voice_over,
+  StudyStage.retell => Icons.chat_bubble_outline,
+  StudyStage.reviewDifficultPractice => Icons.fitness_center,
+  StudyStage.bookmarkReview => Icons.bookmark,
+  StudyStage.flashcard => Icons.style,
+};
 
 /// 阶段对应的 i18n 名称
 String _stageName(StudyStage stage, AppLocalizations l10n) => switch (stage) {
-      StudyStage.blindListen => l10n.stageBlindListen,
-      StudyStage.intensiveListen => l10n.stageIntensiveListen,
-      StudyStage.listenAndRepeat => l10n.stageListenAndRepeat,
-      StudyStage.retell => l10n.stageRetell,
-      StudyStage.reviewDifficultPractice => l10n.stageReviewDifficultPractice,
-      StudyStage.bookmarkReview => l10n.stageBookmarkReview,
-      StudyStage.flashcard => l10n.stageFlashcard,
-    };
+  StudyStage.blindListen => l10n.stageBlindListen,
+  StudyStage.intensiveListen => l10n.stageIntensiveListen,
+  StudyStage.listenAndRepeat => l10n.stageListenAndRepeat,
+  StudyStage.retell => l10n.stageRetell,
+  StudyStage.reviewDifficultPractice => l10n.stageReviewDifficultPractice,
+  StudyStage.bookmarkReview => l10n.stageBookmarkReview,
+  StudyStage.flashcard => l10n.stageFlashcard,
+};
 
 /// 格式化时长显示
 ///

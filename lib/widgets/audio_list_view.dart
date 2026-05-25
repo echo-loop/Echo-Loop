@@ -122,7 +122,8 @@ class _AudioListViewState extends ConsumerState<AudioListView> {
 
     // 受控模式（overrideSortType 非 null）下不再 watch provider，避免全局排序
     // 变化把官方合集详情页的独立 sort state 误刷。
-    final AudioSortType sortType = widget.overrideSortType ??
+    final AudioSortType sortType =
+        widget.overrideSortType ??
         ref.watch(audioListSettingsProvider).sortType;
 
     // 排序

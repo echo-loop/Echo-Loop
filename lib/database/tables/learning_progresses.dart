@@ -105,8 +105,7 @@ class LearningProgresses extends Table {
   ///
   /// 不变量：与 `stage_completions` 中该音频的 (stage, subStage) 集合**互斥**——
   /// 写 completion 时清除此集合中对应 key；写 skip 时若已 completed 则早返回。
-  TextColumn get skippedSubStages =>
-      text().withDefault(const Constant(''))();
+  TextColumn get skippedSubStages => text().withDefault(const Constant(''))();
 
   /// 是否暂停学习（true 表示该音频不参与复习调度，可由用户随时恢复）
   BoolColumn get isPaused => boolean().withDefault(const Constant(false))();
@@ -130,8 +129,7 @@ class LearningProgresses extends Table {
   ///   （未碰过的轮次用新版；碰过的轮次锁旧版保留体验）
   ///
   /// 派生函数：`LearningPlan.standard(stagePlanVersions: ...)`。
-  TextColumn get planVersionsJson =>
-      text().withDefault(const Constant('{}'))();
+  TextColumn get planVersionsJson => text().withDefault(const Constant('{}'))();
 
   @override
   Set<Column> get primaryKey => {audioItemId};

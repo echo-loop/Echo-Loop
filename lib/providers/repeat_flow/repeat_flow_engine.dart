@@ -380,9 +380,7 @@ class RepeatFlowEngine {
     if (phase is! WaitingInterval) return;
     if (!_countdown.isActive) return;
     final speed = _countdown.fastForward();
-    _updateState(
-      _state.copyWith(phase: phase.copyWith(speed: speed)),
-    );
+    _updateState(_state.copyWith(phase: phase.copyWith(speed: speed)));
     AppLogger.log(logTag, '倒计时快进 ${speed.toStringAsFixed(1)}x');
   }
 

@@ -76,8 +76,9 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen> {
     // ----- 新手引导 flow 声明 -----
     // 句子列表描述中嵌入真实的哑铃图标，让用户更易辨识 tap 目标
     const iconPlaceholder = '{ICON}';
-    final sentencesListDescRaw = l10n
-        .guideFavoritesSentencesListDescription(iconPlaceholder);
+    final sentencesListDescRaw = l10n.guideFavoritesSentencesListDescription(
+      iconPlaceholder,
+    );
     final sentencesListDescParts = sentencesListDescRaw.split(iconPlaceholder);
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final tooltipDescColor = isDark
@@ -256,8 +257,7 @@ class _SentencesView extends ConsumerStatefulWidget {
 
 class _SentencesViewState extends ConsumerState<_SentencesView> {
   /// 首个分组卡片的展开控制器：引导激活时自动展开
-  final ExpansibleController _firstGroupController =
-      ExpansibleController();
+  final ExpansibleController _firstGroupController = ExpansibleController();
 
   @override
   void initState() {
@@ -404,10 +404,9 @@ class _FloatingFlashcardButton extends ConsumerWidget {
       guideStep: guideStep,
       label: '${l10n.flashcardStartQuiz} ($totalCount)',
       onPressed: () {
-        ref.read(analyticsServiceProvider).track(
-          Events.flashcardButtonTapped,
-          {EventParams.totalCards: totalCount},
-        );
+        ref.read(analyticsServiceProvider).track(Events.flashcardButtonTapped, {
+          EventParams.totalCards: totalCount,
+        });
         final sw = Stopwatch()..start();
         // 构建 FlashcardItem 列表，按 createdAt 倒序
         final items = <FlashcardItem>[
@@ -789,8 +788,7 @@ class _WordsViewState extends ConsumerState<_WordsView> {
   List<String> _lastWordKeys = [];
 
   /// 首个词汇卡片的展开控制器：引导激活时自动展开
-  final ExpansibleController _firstItemController =
-      ExpansibleController();
+  final ExpansibleController _firstItemController = ExpansibleController();
 
   @override
   void initState() {

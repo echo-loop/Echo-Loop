@@ -27,7 +27,9 @@ Future<bool?> showFreePlayCompleteDialog({
   String? replayLabel,
   String? doneLabel,
 }) {
-  debugPrint('[FreePlayDialog] showFreePlayCompleteDialog called, title=$title');
+  debugPrint(
+    '[FreePlayDialog] showFreePlayCompleteDialog called, title=$title',
+  );
   return showDialog<bool>(
     context: context,
     useRootNavigator: true,
@@ -71,9 +73,13 @@ Future<void> handleFreePlayComplete({
     replayLabel: replayLabel,
     doneLabel: doneLabel,
   );
-  debugPrint('[FreePlayDialog] showDialog returned, result=$result, mounted=${context.mounted}');
+  debugPrint(
+    '[FreePlayDialog] showDialog returned, result=$result, mounted=${context.mounted}',
+  );
   if (!context.mounted || result == null) {
-    debugPrint('[FreePlayDialog] early return: mounted=${context.mounted}, result=$result');
+    debugPrint(
+      '[FreePlayDialog] early return: mounted=${context.mounted}, result=$result',
+    );
     return;
   }
   if (result == false) {
@@ -126,7 +132,10 @@ class FreePlayCompleteDialog extends StatelessWidget {
           // 主体内容
           Padding(
             padding: const EdgeInsets.fromLTRB(
-              AppSpacing.l, AppSpacing.l, AppSpacing.l, AppSpacing.m,
+              AppSpacing.l,
+              AppSpacing.l,
+              AppSpacing.l,
+              AppSpacing.m,
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -141,10 +150,7 @@ class FreePlayCompleteDialog extends StatelessWidget {
                     ),
                     const SizedBox(width: AppSpacing.s),
                     Flexible(
-                      child: Text(
-                        title,
-                        style: theme.textTheme.titleLarge,
-                      ),
+                      child: Text(title, style: theme.textTheme.titleLarge),
                     ),
                   ],
                 ),

@@ -174,14 +174,13 @@ class SpeechPracticeCompletionHeuristic {
     );
 
     // 计算动态兜底阈值
-    final fallback =
-        (voicedDuration != null && referenceDuration != null)
-            ? computeDynamicFallback(
-                voicedDuration: voicedDuration,
-                referenceDuration: referenceDuration,
-                matchRate: ctx.matchRate,
-              )
-            : _defaultSilenceThreshold;
+    final fallback = (voicedDuration != null && referenceDuration != null)
+        ? computeDynamicFallback(
+            voicedDuration: voicedDuration,
+            referenceDuration: referenceDuration,
+            matchRate: ctx.matchRate,
+          )
+        : _defaultSilenceThreshold;
 
     if (!ctx.hasMatch) {
       return DetectionResult(
@@ -532,7 +531,9 @@ class SpeechRecordingController extends Notifier<SpeechRecordingState> {
     _enterProcessing(promptId);
 
     // ── 阶段 3：等待转录结果 ──
-    final result = await _recordingService.waitForTranscript(filePath: filePath);
+    final result = await _recordingService.waitForTranscript(
+      filePath: filePath,
+    );
     AppLogger.log(
       'SpeechRec',
       '│ transcript filePath=${filePath} '
@@ -828,7 +829,8 @@ class SpeechRecordingController extends Notifier<SpeechRecordingState> {
           : '';
       _stopForEvaluation(
         promptId: promptId,
-        reason: '静音兜底 ${fallback.inSeconds}s '
+        reason:
+            '静音兜底 ${fallback.inSeconds}s '
             '(有声${_voicedDuration.inMilliseconds}ms, '
             'ref=${refDur?.inMilliseconds ?? 0}ms$ratioDesc)',
       );

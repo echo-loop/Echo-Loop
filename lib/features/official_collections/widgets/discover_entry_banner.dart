@@ -32,7 +32,8 @@ class DiscoverEntryBanner extends ConsumerWidget {
         child: Material(
           color: theme.colorScheme.primaryContainer,
           child: InkWell(
-            onTap: onTap ??
+            onTap:
+                onTap ??
                 () {
                   // 仅 onTap 时点查一次 enrolled 数量，作为 analytics 维度上报，
                   // 不再驱动文案切换，所以不进入 watch 路径。
@@ -48,10 +49,7 @@ class DiscoverEntryBanner extends ConsumerWidget {
                   context.push('/discover');
                 },
             child: Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 10,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
               child: Row(
                 children: [
                   Icon(

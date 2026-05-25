@@ -184,8 +184,7 @@ class TagList extends _$TagList {
     String audioId,
     Set<String> targetTagIds,
   ) async {
-    final currentTags =
-        state.audioToTagsMap[audioId]?.toSet() ?? <String>{};
+    final currentTags = state.audioToTagsMap[audioId]?.toSet() ?? <String>{};
     final toAdd = targetTagIds.difference(currentTags);
     final toRemove = currentTags.difference(targetTagIds);
 

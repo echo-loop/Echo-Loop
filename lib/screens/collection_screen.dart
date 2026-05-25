@@ -476,9 +476,7 @@ void _showRemoveOfficialConfirmDialog(
   );
 
   if (confirmed == true) {
-    await ref
-        .read(officialEnrollmentProvider.notifier)
-        .remove(collection.id);
+    await ref.read(officialEnrollmentProvider.notifier).remove(collection.id);
   }
 }
 

@@ -734,9 +734,7 @@ class ListeningPractice extends _$ListeningPractice {
     // 价值锚点：只在「添加收藏」时尝试触发通知权限 pre-prompt
     if (!isRemoving) {
       unawaited(
-        ref
-            .read(notificationPermissionServiceProvider)
-            .maybeTriggerPrompt(),
+        ref.read(notificationPermissionServiceProvider).maybeTriggerPrompt(),
       );
     }
 
