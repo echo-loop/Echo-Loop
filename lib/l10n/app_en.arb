@@ -1546,6 +1546,8 @@
   "autoSkipRetellToggle": "Auto-skip speaking practice",
   "autoSkipRetellSubtitle": "Auto-skip speaking tasks in your learning plan",
   "autoSkipRetellDescription": "When enabled, speaking practice tasks are auto-marked as skipped; you can complete them anytime in free practice.",
+  "autoExpandCachedAnnotationToggle": "Auto-expand Analysis",
+  "autoExpandCachedAnnotationSubtitle": "Auto-show cached translation, analysis and sense groups",
   "retellSkip": "Skip",
   "retellSkippedSuffix": "Skipped",
   "skipSilenceTitle": "Auto-skip Silence",

@@ -3010,6 +3010,13 @@ class AppLocalizationsEn extends AppLocalizations {
       'When enabled, speaking practice tasks are auto-marked as skipped; you can complete them anytime in free practice.';
 
   @override
+  String get autoExpandCachedAnnotationToggle => 'Auto-expand Analysis';
+
+  @override
+  String get autoExpandCachedAnnotationSubtitle =>
+      'Auto-show cached translation, analysis and sense groups';
+
+  @override
   String get retellSkip => 'Skip';
 
   @override

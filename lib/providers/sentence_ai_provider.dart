@@ -187,6 +187,79 @@ class SentenceAiNotifier {
     return _senseGroupCache[hashText(text)];
   }
 
+  /// 从 L2 SQLite 预加载翻译到 L1 内存（不调用 L3 API）
+  ///
+  /// 返回 true 表示 L1 或 L2 命中，false 表示无缓存。
+  Future<bool> preloadTranslationFromDb(
+    String text, {
+    required String targetLanguage,
+  }) async {
+    final hash = hashText(text);
+    final cacheKey = '$hash:$targetLanguage';
+    if (_translationCache.containsKey(cacheKey)) return true;
+    final dbResult = await _cacheDao.getByHash(hash, 'translation:$targetLanguage');
+    if (dbResult != null) {
+      try {
+        final translation = SentenceTranslation.fromJson(
+          jsonDecode(dbResult) as Map<String, dynamic>,
+        );
+        _translationCache[cacheKey] = translation;
+        return true;
+      } catch (_) {
+        // JSON 损坏，跳过
+      }
+    }
+    return false;
+  }
+
+  /// 从 L2 SQLite 预加载解析到 L1 内存（不调用 L3 API）
+  ///
+  /// 返回 true 表示 L1 或 L2 命中，false 表示无缓存。
+  Future<bool> preloadAnalysisFromDb(
+    String text, {
+    required String targetLanguage,
+  }) async {
+    final hash = hashText(text);
+    final cacheKey = '$hash:$targetLanguage';
+    if (_analysisCache.containsKey(cacheKey)) return true;
+    final dbResult = await _cacheDao.getByHash(hash, 'analysis:$targetLanguage');
+    if (dbResult != null) {
+      try {
+        final analysis = SentenceAnalysis.fromJson(
+          jsonDecode(dbResult) as Map<String, dynamic>,
+        );
+        _analysisCache[cacheKey] = analysis;
+        return true;
+      } catch (_) {
+        // JSON 损坏，跳过
+      }
+    }
+    return false;
+  }
+
+  /// 从 L2 SQLite 预加载意群到 L1 内存（不调用 L3 API）
+  ///
+  /// 返回 true 表示 L1 或 L2 命中，false 表示无缓存。
+  Future<bool> preloadSenseGroupsFromDb(String text) async {
+    final hash = hashText(text);
+    if (_senseGroupCache.containsKey(hash)) return true;
+    final dbResult = await _cacheDao.getByHash(hash, 'sense_groups');
+    if (dbResult != null) {
+      try {
+        final result = SenseGroupResult.fromJson(
+          jsonDecode(dbResult) as Map<String, dynamic>,
+        );
+        if (result.medium.isNotEmpty) {
+          _senseGroupCache[hash] = result;
+          return true;
+        }
+      } catch (_) {
+        // JSON 损坏，跳过
+      }
+    }
+    return false;
+  }
+
   /// 清除内存缓存
   void clearMemoryCache() {
     _translationCache.clear();

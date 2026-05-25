@@ -19,6 +19,7 @@ import '../../models/sense_group_result.dart';
 import '../../models/speech_practice_models.dart';
 import '../../models/word_timestamp.dart';
 import '../../providers/audio_engine/audio_engine_provider.dart';
+import '../../providers/learning_settings_provider.dart';
 import '../../providers/sentence_ai_provider.dart';
 import '../../providers/settings_provider.dart';
 import '../../providers/saved_sense_group_provider.dart';
@@ -124,10 +125,14 @@ class _AnnotationContentViewState extends ConsumerState<AnnotationContentView> {
   int? _actionBarGroupIndex;
   Timer? _actionBarTimer;
 
+  /// 缓存预加载 generation counter（防竞态）
+  int _preloadGeneration = 0;
+
   @override
   void initState() {
     super.initState();
     _fetchWordTimestamps();
+    _preloadCache();
   }
 
   @override
@@ -145,6 +150,7 @@ class _AnnotationContentViewState extends ConsumerState<AnnotationContentView> {
       _cardKey = GlobalKey<SentenceAnnotationCardState>();
       _resetSenseGroups();
       _dismissActionBar();
+      _preloadCache();
     }
     // 音频切换时重新加载词级时间戳
     if (widget.audioItemId != oldWidget.audioItemId) {
@@ -167,6 +173,50 @@ class _AnnotationContentViewState extends ConsumerState<AnnotationContentView> {
     if (mounted && widget.audioItemId == audioItemId) {
       setState(() => _wordTimestamps = words);
     }
+  }
+
+  /// 从本地缓存预加载翻译/解析/意群数据
+  ///
+  /// 只查 L2 SQLite 并写入 L1 内存，不调用 L3 API。
+  /// 始终执行预加载（开销可忽略），由 [LearningSettings.autoExpandCachedAnnotation]
+  /// 在 build() 中控制是否将缓存数据透传给 card。
+  Future<void> _preloadCache() async {
+    final generation = ++_preloadGeneration;
+    final ai = widget.aiNotifier;
+    if (ai == null) return;
+
+    final nativeLanguage =
+        ref.read(appSettingsProvider.select((s) => s.nativeLanguage));
+
+    // 预加载翻译和解析（结果通过 getCachedTranslation/getCachedAnalysis 透给 card）
+    await ai.preloadTranslationFromDb(widget.text, targetLanguage: nativeLanguage);
+    await ai.preloadAnalysisFromDb(widget.text, targetLanguage: nativeLanguage);
+
+    // 预加载意群并计算时间范围
+    final sgLoaded = await ai.preloadSenseGroupsFromDb(widget.text);
+
+    if (!mounted || generation != _preloadGeneration) return;
+
+    if (sgLoaded) {
+      final autoExpand =
+          ref.read(learningSettingsProvider).autoExpandCachedAnnotation;
+      if (!autoExpand) return;
+      final result = ai.getCachedSenseGroups(widget.text);
+      if (result != null && result.medium.isNotEmpty) {
+        final timings = _sgService.computeTimings(
+          chunks: result.medium,
+          wordTimestamps: _wordTimestamps ?? const [],
+          sentenceStartMs: widget.sentenceStartMs ?? 0,
+          sentenceEndMs: widget.sentenceEndMs ?? 0,
+        );
+        _senseGroupResult = result;
+        _senseGroupTimings = timings;
+        _activeChunks = result.medium;
+        widget.onTimingsChanged?.call(timings);
+      }
+    }
+
+    setState(() {});
   }
 
   /// 请求 AI 拆分意群（作为 onRequestSenseGroups 传给 card）
@@ -394,13 +444,19 @@ class _AnnotationContentViewState extends ConsumerState<AnnotationContentView> {
     final nativeLanguage = ref.watch(
       appSettingsProvider.select((s) => s.nativeLanguage),
     );
-    final cachedTranslation = ai
-        ?.getCachedTranslation(widget.text, targetLanguage: nativeLanguage)
-        ?.translation;
-    final cachedAnalysis = ai?.getCachedAnalysis(
-      widget.text,
-      targetLanguage: nativeLanguage,
-    );
+    final autoExpand =
+        ref.watch(learningSettingsProvider).autoExpandCachedAnnotation;
+    final cachedTranslation = autoExpand
+        ? ai
+            ?.getCachedTranslation(widget.text, targetLanguage: nativeLanguage)
+            ?.translation
+        : null;
+    final cachedAnalysis = autoExpand
+        ? ai?.getCachedAnalysis(
+            widget.text,
+            targetLanguage: nativeLanguage,
+          )
+        : null;
     final cachedAnalysisText = cachedAnalysis?.toDisplayString();
 
     // 局部 watch 已收藏意群文本集合，避免全局重建

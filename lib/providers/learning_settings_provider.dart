@@ -35,6 +35,7 @@ final initialLearningSettingsProvider = Provider<LearningSettings>((ref) {
 /// 学习设置 SP key 常量。
 abstract final class LearningSettingsKeys {
   static const autoSkipRetell = 'learning_auto_skip_retell';
+  static const autoExpandCachedAnnotation = 'learning_auto_expand_cached_annotation';
 
   /// 历史 SP key，启动期会被清理。
   static const legacyRetellEnabled = 'learning_retell_enabled';
@@ -49,8 +50,12 @@ class LearningSettings {
   /// 是否自动跳过复述（默认 false）。
   final bool autoSkipRetell;
 
+  /// 是否自动展开缓存的解析/翻译/意群（默认 true）。
+  final bool autoExpandCachedAnnotation;
+
   const LearningSettings({
     this.autoSkipRetell = false,
+    this.autoExpandCachedAnnotation = true,
   });
 
   /// 同步从 [SharedPreferences] 派生当前状态，用于启动期 override 注入。
@@ -58,14 +63,18 @@ class LearningSettings {
     return LearningSettings(
       autoSkipRetell:
           prefs.getBool(LearningSettingsKeys.autoSkipRetell) ?? false,
+      autoExpandCachedAnnotation:
+          prefs.getBool(LearningSettingsKeys.autoExpandCachedAnnotation) ?? true,
     );
   }
 
   LearningSettings copyWith({
     bool? autoSkipRetell,
+    bool? autoExpandCachedAnnotation,
   }) {
     return LearningSettings(
       autoSkipRetell: autoSkipRetell ?? this.autoSkipRetell,
+      autoExpandCachedAnnotation: autoExpandCachedAnnotation ?? this.autoExpandCachedAnnotation,
     );
   }
 
@@ -74,10 +83,11 @@ class LearningSettings {
       identical(this, other) ||
       other is LearningSettings &&
           runtimeType == other.runtimeType &&
-          autoSkipRetell == other.autoSkipRetell;
+          autoSkipRetell == other.autoSkipRetell &&
+          autoExpandCachedAnnotation == other.autoExpandCachedAnnotation;
 
   @override
-  int get hashCode => autoSkipRetell.hashCode;
+  int get hashCode => Object.hash(autoSkipRetell, autoExpandCachedAnnotation);
 }
 
 /// 学习设置 Notifier。
@@ -89,6 +99,18 @@ class LearningSettings {
 class LearningSettingsNotifier extends Notifier<LearningSettings> {
   @override
   LearningSettings build() => ref.read(initialLearningSettingsProvider);
+
+  /// 切换 autoExpandCachedAnnotation，写 SP + 更新 state。
+  Future<void> setAutoExpandCachedAnnotation(bool enabled) async {
+    if (state.autoExpandCachedAnnotation == enabled) return;
+    state = state.copyWith(autoExpandCachedAnnotation: enabled);
+    try {
+      final prefs = ref.read(sharedPreferencesProvider);
+      await prefs.setBool(LearningSettingsKeys.autoExpandCachedAnnotation, enabled);
+    } catch (e) {
+      AppLogger.log('LearningSettings', 'setAutoExpandCachedAnnotation 写 SP 失败: $e');
+    }
+  }
 
   /// 切换 autoSkipRetell，写 SP + 更新 state。
   ///

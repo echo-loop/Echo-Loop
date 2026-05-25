@@ -77,6 +77,32 @@ class LearningSettingsScreen extends ConsumerWidget {
             ),
           ),
           _DescriptionText(text: l10n.autoSkipRetellDescription),
+          const SizedBox(height: AppSpacing.m),
+          Card(
+            child: SwitchListTile(
+              secondary: Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: colorScheme.primary.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(
+                  Icons.auto_awesome,
+                  size: 20,
+                  color: colorScheme.primary,
+                ),
+              ),
+              title: Text(l10n.autoExpandCachedAnnotationToggle),
+              subtitle: Text(l10n.autoExpandCachedAnnotationSubtitle),
+              value: settings.autoExpandCachedAnnotation,
+              onChanged: (value) async {
+                await ref
+                    .read(learningSettingsProvider.notifier)
+                    .setAutoExpandCachedAnnotation(value);
+              },
+            ),
+          ),
         ],
       ),
     );

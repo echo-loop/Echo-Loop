@@ -1180,6 +1180,8 @@
   "autoSkipRetellToggle": "自动跳过复述",
   "autoSkipRetellSubtitle": "学习计划遇到复述任务时自动跳过",
   "autoSkipRetellDescription": "开启后，复述类任务会自动标记为已跳过；你随时可以在自由练习里完成它们。",
+  "autoExpandCachedAnnotationToggle": "自动展开句子讲解",
+  "autoExpandCachedAnnotationSubtitle": "自动展示查看过的翻译、解析和意群",
   "retellSkip": "跳过",
   "retellSkippedSuffix": "已跳过",
   "skipSilenceTitle": "自动跳过静音",

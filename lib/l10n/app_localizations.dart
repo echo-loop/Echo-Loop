@@ -5348,6 +5348,18 @@ abstract class AppLocalizations {
   /// **'When enabled, speaking practice tasks are auto-marked as skipped; you can complete them anytime in free practice.'**
   String get autoSkipRetellDescription;
 
+  /// No description provided for @autoExpandCachedAnnotationToggle.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto-expand Analysis'**
+  String get autoExpandCachedAnnotationToggle;
+
+  /// No description provided for @autoExpandCachedAnnotationSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto-show cached translation, analysis and sense groups'**
+  String get autoExpandCachedAnnotationSubtitle;
+
   /// No description provided for @retellSkip.
   ///
   /// In en, this message translates to:

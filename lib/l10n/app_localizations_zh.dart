@@ -2899,6 +2899,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get autoSkipRetellDescription => '开启后，复述类任务会自动标记为已跳过；你随时可以在自由练习里完成它们。';
 
   @override
+  String get autoExpandCachedAnnotationToggle => '自动展开句子讲解';
+
+  @override
+  String get autoExpandCachedAnnotationSubtitle => '自动展示查看过的翻译、解析和意群';
+
+  @override
   String get retellSkip => '跳过';
 
   @override

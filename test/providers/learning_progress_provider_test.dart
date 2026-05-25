@@ -51,6 +51,12 @@ class _TestLearningSettingsNotifier extends Notifier<LearningSettings>
     if (state.autoSkipRetell == enabled) return;
     state = state.copyWith(autoSkipRetell: enabled);
   }
+
+  @override
+  Future<void> setAutoExpandCachedAnnotation(bool enabled) async {
+    if (state.autoExpandCachedAnnotation == enabled) return;
+    state = state.copyWith(autoExpandCachedAnnotation: enabled);
+  }
 }
 
 void main() {

@@ -194,12 +194,20 @@ class SentenceAnnotationCardState extends State<SentenceAnnotationCard> {
         widget.senseGroupResult!.medium.isNotEmpty) {
       _senseGroupMode = SenseGroupMode.medium;
     }
-    // 预存缓存内容（用户点击按钮时可立即显示，但不自动展开）
-    if (widget.cachedTranslation != null) {
+    // 预存缓存内容（有缓存时自动展开，无需用户点击按钮）
+    if (widget.cachedTranslation != null &&
+        widget.cachedTranslation!.isNotEmpty) {
       _translationContent = widget.cachedTranslation;
+      _translationState = ContentLoadState.loaded;
+      _translationExpanded = true;
+      _translationActivated = true;
     }
-    if (widget.cachedAnalysis != null) {
+    if (widget.cachedAnalysis != null &&
+        widget.cachedAnalysis!.isNotEmpty) {
       _analysisContent = widget.cachedAnalysis;
+      _analysisState = ContentLoadState.loaded;
+      _analysisExpanded = true;
+      _analysisActivated = true;
     }
     // 首帧构建后通知外部工具栏刷新（解决 GlobalKey 时序问题）
     if (widget.onToolbarStateChanged != null) {
@@ -227,21 +235,40 @@ class SentenceAnnotationCardState extends State<SentenceAnnotationCard> {
         }
       });
     }
-    // 母语切换：缓存内容变化时重置已展示的翻译/解析
+    // 缓存内容变化时自动展示或收折
     if (widget.cachedTranslation != oldWidget.cachedTranslation) {
+      final hasContent = widget.cachedTranslation != null &&
+          widget.cachedTranslation!.isNotEmpty;
       _translationContent = widget.cachedTranslation;
-      if (_translationContent == null && _translationExpanded) {
+      if (hasContent) {
+        _translationState = ContentLoadState.loaded;
+        _translationExpanded = true;
+        _translationActivated = true;
+      } else if (_translationContent == null && _translationExpanded) {
         _translationExpanded = false;
         _translationState = ContentLoadState.idle;
         _translationActivated = false;
       }
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _notifyToolbar();
+      });
     }
     if (widget.cachedAnalysis != oldWidget.cachedAnalysis) {
+      final hasContent = widget.cachedAnalysis != null &&
+          widget.cachedAnalysis!.isNotEmpty;
       _analysisContent = widget.cachedAnalysis;
-      if (_analysisContent == null && _analysisExpanded) {
+      if (hasContent) {
+        _analysisState = ContentLoadState.loaded;
+        _analysisExpanded = true;
+        _analysisActivated = true;
+      } else if (_analysisContent == null && _analysisExpanded) {
         _analysisExpanded = false;
         _analysisState = ContentLoadState.idle;
+        _analysisActivated = false;
       }
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _notifyToolbar();
+      });
     }
     // 意群数据变化时通知工具栏刷新
     if (widget.senseGroupResult != oldWidget.senseGroupResult) {
