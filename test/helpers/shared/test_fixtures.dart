@@ -98,6 +98,7 @@ LearningProgress createTestLearningProgress({
   DateTime? newLearningBreakpointSavedAt,
   DateTime? freePlayBreakpointSavedAt,
   DateTime? updatedAt,
+  Map<LearningStage, int>? planVersionsByStage,
 }) {
   return LearningProgress(
     audioItemId: audioItemId,
@@ -116,5 +117,6 @@ LearningProgress createTestLearningProgress({
     newLearningBreakpointSavedAt: newLearningBreakpointSavedAt,
     freePlayBreakpointSavedAt: freePlayBreakpointSavedAt,
     updatedAt: updatedAt ?? DateTime(2026, 1, 1),
+    planVersionsByStage: planVersionsByStage ?? const {},
   );
 }

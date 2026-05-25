@@ -27,13 +27,13 @@ void blindListenTests() {
   group('流程 5：盲听播放器', () {
     /// 导航到盲听播放器的辅助方法
     Future<void> navigateToBlindListen(WidgetTester tester) async {
-      await tester.pumpAndSettle();
+      await safeSettle(tester);
       final context = tester.element(find.byType(EchoLoopApp));
       final container = ProviderScope.containerOf(context);
       container.read(appRouterProvider).push(
         '/collections/test-collection-1/test-audio-1/blind-listen',
       );
-      await tester.pumpAndSettle();
+      await safeSettle(tester);
     }
 
     /// 获取 ProviderContainer 辅助方法
@@ -69,7 +69,7 @@ void blindListenTests() {
 
       // 点击暂停（通过 GestureDetector 包裹的圆形按钮）
       await tester.tap(find.byIcon(Icons.pause_rounded));
-      await tester.pumpAndSettle();
+      await safeSettle(tester);
 
       // 验证变为 play_arrow_rounded
       expect(find.byIcon(Icons.play_arrow_rounded), findsOneWidget);
@@ -77,7 +77,7 @@ void blindListenTests() {
 
       // 再点击恢复播放
       await tester.tap(find.byIcon(Icons.play_arrow_rounded));
-      await tester.pumpAndSettle();
+      await safeSettle(tester);
 
       // 验证变回 pause_rounded
       expect(find.byIcon(Icons.pause_rounded), findsOneWidget);
@@ -99,7 +99,7 @@ void blindListenTests() {
         pauseRemaining: const Duration(seconds: 3),
         pauseDuration: const Duration(seconds: 5),
       ));
-      await tester.pumpAndSettle();
+      await safeSettle(tester);
 
       // 验证倒计时芯片出现（CountdownChip 在 isPauseCountdown=true 时渲染）
       expect(find.byType(CountdownChip), findsOneWidget);
@@ -120,7 +120,7 @@ void blindListenTests() {
         blindListenPassCount: 2,
         targetBlindListenPasses: 2,
       ));
-      await tester.pumpAndSettle();
+      await safeSettle(tester);
 
       // 通过 blindListenPlayer 状态变化触发完成回调：
       // ref.listen 检查：最后一段 + 之前活跃 + 现在空闲
@@ -139,7 +139,7 @@ void blindListenTests() {
         isPlaying: false,
         stepFinished: true,
       ));
-      await tester.pumpAndSettle();
+      await safeSettle(tester);
 
       // 验证完成对话框弹出
       expect(find.byType(StepCompleteDialog), findsOneWidget);
@@ -186,8 +186,8 @@ void blindListenTests() {
       ));
       await _pumpUi(tester, 800);
 
-      // 选择 "Okay"（medium）难度
-      await tester.tap(find.text('Okay'));
+      // 选择 "Medium" 难度（原 "Okay" 已重命名为 5 档，取中间档）
+      await tester.tap(find.text('Medium'));
       await _pumpUi(tester, 600);
 
       // 点击"Done"返回计划
@@ -217,30 +217,30 @@ void blindListenTests() {
       final player =
           container.read(blindListenPlayerProvider.notifier) as TestBlindListenPlayer;
       player.setState(player.state.copyWith(isPlaying: true));
-      await tester.pumpAndSettle();
+      await safeSettle(tester);
 
       // 点击返回按钮
       final backButton = find.byIcon(Icons.close);
       await tester.tap(backButton);
-      await tester.pumpAndSettle();
+      await safeSettle(tester);
 
       // 验证确认对话框弹出
       expect(find.text('Exit Listening?'), findsOneWidget);
 
       // 点击"Cancel"不退出
       await tester.tap(find.text('Cancel'));
-      await tester.pumpAndSettle();
+      await safeSettle(tester);
 
       // 验证仍在盲听页面
       expect(find.byType(BlindListenPlayerScreen), findsOneWidget);
 
       // 再次点击返回
       await tester.tap(backButton);
-      await tester.pumpAndSettle();
+      await safeSettle(tester);
 
       // 点击"Exit"确认退出
       await tester.tap(find.text('Exit'));
-      await tester.pumpAndSettle();
+      await safeSettle(tester, timeout: const Duration(seconds: 10));
 
       // 验证盲听页面已退出
       expect(find.byType(BlindListenPlayerScreen), findsNothing);
