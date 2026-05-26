@@ -16,6 +16,7 @@ import '../database/enums.dart';
 import '../utils/wakelock_mixin.dart';
 import '../database/providers.dart';
 import '../l10n/app_localizations.dart';
+import '../providers/audio_engine/audio_engine_provider.dart';
 import '../providers/learning_plan_provider.dart';
 import '../providers/learning_progress_provider.dart';
 import '../providers/learning_session/intensive_listen_player_provider.dart';
@@ -86,6 +87,15 @@ class _IntensiveListenPlayerScreenState
           ref.read(learningSessionProvider.notifier).pauseStudyTimer();
           shortenIdleTimeout(5);
           unawaited(_handleCompleted());
+        }
+        // 设置面板拖动播放速度时即时生效：把新速度推给 AudioEngine，
+        // 不必等下一次播放前的 setSpeed。
+        if (next.settings.playbackSpeed != prev.settings.playbackSpeed) {
+          unawaited(
+            ref
+                .read(audioEngineProvider.notifier)
+                .setSpeed(next.settings.playbackSpeed),
+          );
         }
       },
     );
@@ -737,6 +747,9 @@ class _IntensiveListenPlayerScreenState
                                 ? 1
                                 : playerState.settings.repeatCount,
                           ),
+                          statusSuffixText: _formatSpeed(
+                            playerState.settings.playbackSpeed,
+                          ),
                           l10n: l10n,
                           theme: theme,
                         ),
@@ -862,6 +875,15 @@ extension on _IntensiveListenPlayerScreenState {
     }
     unawaited(player.resume());
   }
+}
+
+/// 统一显示速度标签：整数速度显示为 1x，0.05 步进保留必要小数。
+String _formatSpeed(double speed) {
+  if (speed == speed.roundToDouble()) return '${speed.toInt()}x';
+  if ((speed * 10).roundToDouble() == speed * 10) {
+    return '${speed.toStringAsFixed(1)}x';
+  }
+  return '${speed.toStringAsFixed(2)}x';
 }
 
 /// 判断子步骤是否有专用播放器页面

@@ -301,7 +301,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Auto · Round 1/1'), findsOneWidget);
+      expect(find.text('Auto · Round 1/1 · 1x'), findsOneWidget);
     });
 
     testWidgets('自定义遍数正确显示', (tester) async {
@@ -315,7 +315,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Auto · Round 2/3'), findsOneWidget);
+      expect(find.text('Auto · Round 2/3 · 1x'), findsOneWidget);
     });
 
     testWidgets('详情模式显示继续按钮', (tester) async {
