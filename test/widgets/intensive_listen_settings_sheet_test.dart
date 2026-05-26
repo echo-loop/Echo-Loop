@@ -115,8 +115,8 @@ void main() {
       await tester.tap(find.text('固定间隔'));
       await tester.pumpAndSettle();
 
-      // 固定间隔模式使用 Slider，右侧显示当前秒数（默认 5s）
-      expect(find.byType(Slider), findsOneWidget);
+      // 固定间隔模式有停顿 Slider + 播放速度 Slider，右侧显示当前秒数（默认 5s）
+      expect(find.byType(Slider), findsNWidgets(2));
       expect(find.text('5s'), findsOneWidget);
     });
 
