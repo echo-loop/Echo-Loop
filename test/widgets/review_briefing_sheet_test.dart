@@ -16,7 +16,7 @@ void main() {
                 context: context,
                 stage: LearningStage.review2,
                 subStage: SubStageType.reviewDifficultPractice,
-                onStartPractice: (_) {},
+                onStartPractice: (_, _) {},
               );
             },
             child: const Text('Open'),
@@ -43,7 +43,7 @@ void main() {
                 stage: LearningStage.firstLearn,
                 subStage: SubStageType.reviewDifficultPractice,
                 defaultPlaybackSpeed: 0.75,
-                onStartPractice: (_) {},
+                onStartPractice: (_, _) {},
               );
             },
             child: const Text('Open'),
@@ -69,7 +69,7 @@ void main() {
                 context: context,
                 stage: LearningStage.review2,
                 subStage: SubStageType.reviewDifficultPractice,
-                onStartPractice: (speed) {
+                onStartPractice: (speed, _) {
                   selectedSpeed = speed;
                 },
               );

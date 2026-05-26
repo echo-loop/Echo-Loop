@@ -92,11 +92,14 @@ class ListenAndRepeatController extends _$ListenAndRepeatController
   /// 初始化跟读任务（从 DB 读数据 + 启动学习计时 + 准备会话）
   ///
   /// [playbackSpeed] 入口 briefing 中用户选择的初始播放速度，默认 1.0x。
+  /// [pauseMultiplier] 入口 briefing 中选择的句间停顿；-1.0 = 自动（smart 模式），
+  ///   其余正数走 multiplier 模式。
   Future<void> initialize({
     required String audioItemId,
     required List<Sentence> allSentences,
     required bool isFreePlay,
     double playbackSpeed = 1.0,
+    double pauseMultiplier = -1.0,
   }) async {
     _isFreePlay = isFreePlay;
 
@@ -125,10 +128,14 @@ class ListenAndRepeatController extends _$ListenAndRepeatController
       progress.difficulty.value,
     );
 
-    // 初始化设置（含入口选择的播放速度）
+    // 初始化设置（含入口选择的播放速度 + 句间停顿）
     ref
         .read(listenAndRepeatSettingsProvider.notifier)
-        .initialize(repeatCount: targetPlayCount, playbackSpeed: playbackSpeed);
+        .initialize(
+          repeatCount: targetPlayCount,
+          playbackSpeed: playbackSpeed,
+          pauseMultiplier: pauseMultiplier,
+        );
 
     // 学习任务通用初始化（计时、LP、音频、analytics、recorder 注入）
     await initStudyTask(

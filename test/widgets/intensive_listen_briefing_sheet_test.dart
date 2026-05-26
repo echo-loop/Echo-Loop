@@ -14,7 +14,7 @@ void main() {
               showIntensiveListenBriefingSheet(
                 context: context,
                 sentenceCount: 10,
-                onStartPractice: (_) {},
+                onStartPractice: (_, _) {},
               );
             },
             child: const Text('Open'),
@@ -49,7 +49,7 @@ void main() {
                 context: context,
                 sentenceCount: 10,
                 defaultPlaybackSpeed: 0.85,
-                onStartPractice: (_) {},
+                onStartPractice: (_, _) {},
               );
             },
             child: const Text('Open'),
@@ -74,7 +74,7 @@ void main() {
               showIntensiveListenBriefingSheet(
                 context: context,
                 sentenceCount: 10,
-                onStartPractice: (speed) {
+                onStartPractice: (speed, _) {
                   selectedSpeed = speed;
                 },
               );
@@ -96,5 +96,72 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(selectedSpeed, 1.5);
+  });
+
+  testWidgets('句间停顿默认为「自动」(-1.0)，点击开始练习时回传', (tester) async {
+    double? selectedPause;
+    await tester.pumpWidget(
+      createTestApp(
+        Builder(
+          builder: (context) => ElevatedButton(
+            onPressed: () {
+              showIntensiveListenBriefingSheet(
+                context: context,
+                sentenceCount: 10,
+                onStartPractice: (_, pause) {
+                  selectedPause = pause;
+                },
+              );
+            },
+            child: const Text('Open'),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Open'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Pause between sentences'), findsOneWidget);
+    expect(find.text('Auto'), findsOneWidget);
+
+    await tester.tap(find.text('Start Practice'));
+    await tester.pumpAndSettle();
+
+    expect(selectedPause, -1.0);
+  });
+
+  testWidgets('选择 3x 后回传 3.0', (tester) async {
+    double? selectedPause;
+    await tester.pumpWidget(
+      createTestApp(
+        Builder(
+          builder: (context) => ElevatedButton(
+            onPressed: () {
+              showIntensiveListenBriefingSheet(
+                context: context,
+                sentenceCount: 10,
+                onStartPractice: (_, pause) {
+                  selectedPause = pause;
+                },
+              );
+            },
+            child: const Text('Open'),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Open'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Auto'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('3x').last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Start Practice'));
+    await tester.pumpAndSettle();
+
+    expect(selectedPause, 3.0);
   });
 }

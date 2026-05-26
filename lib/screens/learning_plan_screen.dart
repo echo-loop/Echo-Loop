@@ -221,12 +221,13 @@ class _LearningPlanScreenState extends ConsumerState<LearningPlanScreen> {
         progress.difficulty,
         progress.currentStage,
       ),
-      onStartPractice: (playbackSpeed) {
+      onStartPractice: (playbackSpeed, pauseMultiplier) {
         switch (subStage) {
           case SubStageType.reviewDifficultPractice:
             _startReviewDifficultPractice(
               context,
               playbackSpeed: playbackSpeed,
+              pauseMultiplier: pauseMultiplier,
             );
           case SubStageType.reviewRetellSummary:
             _startReviewRetell(
@@ -333,6 +334,7 @@ class _LearningPlanScreenState extends ConsumerState<LearningPlanScreen> {
   Future<void> _startReviewDifficultPractice(
     BuildContext context, {
     double playbackSpeed = 1.0,
+    double pauseMultiplier = -1.0,
   }) async {
     final allowed = await ensureSpeechReadyForRecording(context, ref);
     if (!allowed || !context.mounted) return;
@@ -379,6 +381,7 @@ class _LearningPlanScreenState extends ConsumerState<LearningPlanScreen> {
           widget.audioItemId,
           lpState.sentences,
           playbackSpeed: playbackSpeed,
+          pauseMultiplier: pauseMultiplier,
         );
     if (!context.mounted) return;
     context.push(
@@ -616,13 +619,14 @@ class _LearningPlanScreenState extends ConsumerState<LearningPlanScreen> {
       sentenceCount: lpState.sentences.length,
       estimatedDuration: intensiveEstimate,
       defaultPlaybackSpeed: 1.0,
-      onStartPractice: (playbackSpeed) async {
+      onStartPractice: (playbackSpeed, pauseMultiplier) async {
         await ref
             .read(learningSessionProvider.notifier)
             .enterIntensiveListenMode(
               widget.audioItemId,
               lpState.sentences,
               playbackSpeed: playbackSpeed,
+              pauseMultiplier: pauseMultiplier,
             );
         if (!context.mounted) return;
         context.push(
@@ -709,7 +713,7 @@ class _LearningPlanScreenState extends ConsumerState<LearningPlanScreen> {
               LearningStage.firstLearn,
             )
           : 1.0,
-      onStartPractice: (playbackSpeed) async {
+      onStartPractice: (playbackSpeed, pauseMultiplier) async {
         await ref
             .read(listenAndRepeatControllerProvider.notifier)
             .initialize(
@@ -717,6 +721,7 @@ class _LearningPlanScreenState extends ConsumerState<LearningPlanScreen> {
               allSentences: lpState.sentences,
               isFreePlay: false,
               playbackSpeed: playbackSpeed,
+              pauseMultiplier: pauseMultiplier,
             );
         if (!context.mounted) return;
         context.push(
@@ -1777,7 +1782,7 @@ class _FirstStudySection extends ConsumerWidget {
       sentenceCount: lpState.sentences.length,
       estimatedDuration: intensiveEstimate,
       defaultPlaybackSpeed: 1.0,
-      onStartPractice: (playbackSpeed) async {
+      onStartPractice: (playbackSpeed, pauseMultiplier) async {
         await ref
             .read(learningSessionProvider.notifier)
             .enterIntensiveListenMode(
@@ -1785,6 +1790,7 @@ class _FirstStudySection extends ConsumerWidget {
               lpState.sentences,
               isFreePlay: true,
               playbackSpeed: playbackSpeed,
+              pauseMultiplier: pauseMultiplier,
             );
         if (context.mounted) {
           context.push(
@@ -1853,7 +1859,7 @@ class _FirstStudySection extends ConsumerWidget {
               LearningStage.firstLearn,
             )
           : 1.0,
-      onStartPractice: (playbackSpeed) async {
+      onStartPractice: (playbackSpeed, pauseMultiplier) async {
         await ref
             .read(listenAndRepeatControllerProvider.notifier)
             .initialize(
@@ -1861,6 +1867,7 @@ class _FirstStudySection extends ConsumerWidget {
               allSentences: lpState.sentences,
               isFreePlay: true,
               playbackSpeed: playbackSpeed,
+              pauseMultiplier: pauseMultiplier,
             );
         if (context.mounted) {
           context.push(
@@ -2422,7 +2429,7 @@ class _ReviewRoundSection extends ConsumerWidget {
       subStage: SubStageType.reviewDifficultPractice,
       estimatedDuration: estimated,
       defaultPlaybackSpeed: defaultSpeed,
-      onStartPractice: (playbackSpeed) async {
+      onStartPractice: (playbackSpeed, pauseMultiplier) async {
         await ref
             .read(learningSessionProvider.notifier)
             .enterReviewDifficultPracticeMode(
@@ -2430,6 +2437,7 @@ class _ReviewRoundSection extends ConsumerWidget {
               lpState.sentences,
               isFreePlay: true,
               playbackSpeed: playbackSpeed,
+              pauseMultiplier: pauseMultiplier,
             );
         if (context.mounted) {
           context.push(

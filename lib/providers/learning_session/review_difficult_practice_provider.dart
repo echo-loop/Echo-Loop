@@ -15,6 +15,7 @@ import '../../analytics/audio_event_params.dart';
 import '../../analytics/models/event_names.dart';
 import '../../database/providers.dart';
 import '../../models/difficult_practice_settings.dart';
+import '../../models/intensive_listen_settings.dart' show PauseMode;
 import '../../models/sentence.dart';
 import '../../models/study_stage.dart';
 import '../../services/learned_vocabulary_tracker.dart';
@@ -242,10 +243,13 @@ class ReviewDifficultPractice extends _$ReviewDifficultPractice {
   /// 初始化
   ///
   /// [playbackSpeed] 入口 briefing 中用户选择的初始播放速度，默认 1.0x。
+  /// [pauseMultiplier] 入口 briefing 中选择的句间停顿；-1.0 = 自动（smart 模式），
+  ///   其余正数走 multiplier 模式。
   void initialize(
     List<Sentence> sentences, {
     int startIndex = 0,
     double playbackSpeed = 1.0,
+    double pauseMultiplier = -1.0,
   }) {
     _engine.cleanup();
     _blindEngine.dispose();
@@ -258,10 +262,19 @@ class ReviewDifficultPractice extends _$ReviewDifficultPractice {
         ? 0
         : startIndex.clamp(0, _sentences.length - 1);
 
+    // pauseMultiplier < 0 → 走 smart 模式（model 默认）；否则切到 multiplier 模式。
+    final initialSettings = pauseMultiplier < 0
+        ? DifficultPracticeSettings(playbackSpeed: playbackSpeed)
+        : DifficultPracticeSettings(
+            playbackSpeed: playbackSpeed,
+            pauseMode: PauseMode.multiplier,
+            pauseMultiplier: pauseMultiplier,
+          );
+
     state = ReviewDifficultPracticeState(
       currentSentenceIndex: validIndex,
       totalSentences: _sentences.length,
-      settings: DifficultPracticeSettings(playbackSpeed: playbackSpeed),
+      settings: initialSettings,
     );
     _prepareBlindFlow(startIndex: validIndex);
     ref.read(analyticsServiceProvider).track(Events.difficultPracticeStart, {

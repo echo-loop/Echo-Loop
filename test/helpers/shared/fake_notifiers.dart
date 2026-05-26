@@ -777,6 +777,7 @@ class FakeLearningSession extends LearningSession {
     List<Sentence> sentences, {
     bool isFreePlay = false,
     double playbackSpeed = 1.0,
+    double pauseMultiplier = -1.0,
   }) async {
     state = state.copyWith(
       learningMode: LearningMode.intensiveListen,
@@ -805,6 +806,7 @@ class FakeLearningSession extends LearningSession {
     List<Sentence> allSentences, {
     bool isFreePlay = false,
     double playbackSpeed = 1.0,
+    double pauseMultiplier = -1.0,
   }) async {
     state = state.copyWith(
       learningMode: LearningMode.reviewDifficultPractice,
@@ -924,6 +926,7 @@ class FakeIntensiveListenPlayer extends IntensiveListenPlayer {
     List<Sentence> sentences, {
     int startIndex = 0,
     double playbackSpeed = 1.0,
+    double pauseMultiplier = -1.0,
   }) async {
     testSentences = List.of(sentences);
     state = IntensiveListenState(
@@ -1397,6 +1400,7 @@ class FakeReviewDifficultPractice extends ReviewDifficultPractice {
     List<Sentence> sentences, {
     int startIndex = 0,
     double playbackSpeed = 1.0,
+    double pauseMultiplier = -1.0,
   }) {
     testSentences = List.of(sentences);
     final validIndex = testSentences.isEmpty

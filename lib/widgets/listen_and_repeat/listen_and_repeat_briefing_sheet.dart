@@ -12,14 +12,16 @@ import '../../theme/app_theme.dart';
 /// 显示跟读简报底部弹窗
 ///
 /// [defaultPlaybackSpeed] 默认播放速度（按难度+轮次映射），用户可在弹窗里改。
-/// [onStartPractice] 点击"开始练习"时回调，参数为用户最终选定的速度。
+/// [onStartPractice] 点击"开始练习"时回调，参数为用户最终选定的速度
+///   以及句间停顿倍数（-1.0 = 自动/smart 模式，>0 = multiplier 模式）。
 Future<void> showListenAndRepeatBriefingSheet({
   required BuildContext context,
   required int difficultCount,
   required int playCount,
   Duration? estimatedDuration,
   double defaultPlaybackSpeed = 1.0,
-  required void Function(double playbackSpeed) onStartPractice,
+  required void Function(double playbackSpeed, double pauseMultiplier)
+  onStartPractice,
 }) {
   return showModalBottomSheet(
     context: context,
@@ -51,8 +53,11 @@ class ListenAndRepeatBriefingSheet extends StatefulWidget {
   /// 默认播放速度
   final double defaultPlaybackSpeed;
 
-  /// 开始练习回调（带回最终选定的速度）
-  final void Function(double playbackSpeed) onStartPractice;
+  /// 开始练习回调（带回最终选定的速度 + 句间停顿倍数）
+  ///
+  /// pauseMultiplier: -1.0 = 自动（smart 模式），>0 = multiplier 模式倍数。
+  final void Function(double playbackSpeed, double pauseMultiplier)
+  onStartPractice;
 
   const ListenAndRepeatBriefingSheet({
     super.key,
@@ -68,9 +73,13 @@ class ListenAndRepeatBriefingSheet extends StatefulWidget {
       _ListenAndRepeatBriefingSheetState();
 }
 
+/// 句间停顿下拉选项：-1.0 = 自动（smart 模式），其余为段长倍数。
+const List<double> _kPauseMultiplierOptions = [-1.0, 1.0, 2.0, 3.0, 4.0, 5.0];
+
 class _ListenAndRepeatBriefingSheetState
     extends State<ListenAndRepeatBriefingSheet> {
   late double _playbackSpeed = widget.defaultPlaybackSpeed;
+  double _pauseMultiplier = -1.0;
 
   /// 格式化预估时长
   String _formatEstimatedDuration(AppLocalizations l10n, Duration duration) {
@@ -157,6 +166,45 @@ class _ListenAndRepeatBriefingSheetState
                 ),
               ],
             ),
+          ),
+          const SizedBox(height: AppSpacing.m),
+
+          // 句间停顿（自动 / 1x-5x 段长倍数）
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                l10n.intensiveListenPauseLabel,
+                style: theme.textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              SizedBox(
+                width: 80,
+                child: DropdownButton<double>(
+                  value: _pauseMultiplier,
+                  isExpanded: true,
+                  isDense: true,
+                  elevation: 0,
+                  underline: const SizedBox.shrink(),
+                  items: _kPauseMultiplierOptions
+                      .map(
+                        (value) => DropdownMenuItem(
+                          value: value,
+                          child: Text(
+                            value < 0
+                                ? l10n.intensiveListenPauseSmart
+                                : '${value.toInt()}x',
+                          ),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: (v) {
+                    if (v != null) setState(() => _pauseMultiplier = v);
+                  },
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: AppSpacing.m),
 
@@ -256,7 +304,7 @@ class _ListenAndRepeatBriefingSheetState
             child: FilledButton.icon(
               onPressed: () {
                 Navigator.of(context).pop();
-                widget.onStartPractice(_playbackSpeed);
+                widget.onStartPractice(_playbackSpeed, _pauseMultiplier);
               },
               icon: const Icon(Icons.play_arrow),
               label: Text(l10n.startPractice),

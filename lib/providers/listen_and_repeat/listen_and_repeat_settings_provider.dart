@@ -21,11 +21,24 @@ class ListenAndRepeatSettings extends _$ListenAndRepeatSettings {
     state = newSettings;
   }
 
-  /// 用指定遍数 + 入口播放速度初始化
-  void initialize({required int repeatCount, double playbackSpeed = 1.0}) {
-    state = IntensiveListenSettings(
-      repeatCount: repeatCount,
-      playbackSpeed: playbackSpeed,
-    );
+  /// 用指定遍数 + 入口播放速度 + 入口句间停顿初始化
+  ///
+  /// [pauseMultiplier] -1.0 = 自动（smart 模式），其余正数走 multiplier 模式。
+  void initialize({
+    required int repeatCount,
+    double playbackSpeed = 1.0,
+    double pauseMultiplier = -1.0,
+  }) {
+    state = pauseMultiplier < 0
+        ? IntensiveListenSettings(
+            repeatCount: repeatCount,
+            playbackSpeed: playbackSpeed,
+          )
+        : IntensiveListenSettings(
+            repeatCount: repeatCount,
+            playbackSpeed: playbackSpeed,
+            pauseMode: PauseMode.multiplier,
+            pauseMultiplier: pauseMultiplier,
+          );
   }
 }

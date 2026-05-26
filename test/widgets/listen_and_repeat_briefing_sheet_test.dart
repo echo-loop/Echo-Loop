@@ -15,7 +15,7 @@ void main() {
                 context: context,
                 difficultCount: 5,
                 playCount: 3,
-                onStartPractice: (_) {},
+                onStartPractice: (_, _) {},
               );
             },
             child: const Text('Open'),
@@ -51,7 +51,7 @@ void main() {
                 difficultCount: 5,
                 playCount: 3,
                 defaultPlaybackSpeed: 0.85,
-                onStartPractice: (_) {},
+                onStartPractice: (_, _) {},
               );
             },
             child: const Text('Open'),
@@ -77,7 +77,7 @@ void main() {
                 context: context,
                 difficultCount: 5,
                 playCount: 3,
-                onStartPractice: (speed) {
+                onStartPractice: (speed, _) {
                   selectedSpeed = speed;
                 },
               );

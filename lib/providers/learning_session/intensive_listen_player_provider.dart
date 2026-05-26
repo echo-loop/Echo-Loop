@@ -220,6 +220,7 @@ class IntensiveListenPlayer extends _$IntensiveListenPlayer {
     List<Sentence> sentences, {
     int startIndex = 0,
     double playbackSpeed = 1.0,
+    double pauseMultiplier = -1.0,
   }) async {
     _blindEngine.dispose();
     _blindEngine = _createBlindEngine();
@@ -234,11 +235,20 @@ class IntensiveListenPlayer extends _$IntensiveListenPlayer {
         if (s.isBookmarked) i,
     };
 
+    // pauseMultiplier < 0 → 走 smart 模式（model 默认）；否则切到 multiplier 模式。
+    final initialSettings = pauseMultiplier < 0
+        ? IntensiveListenSettings(playbackSpeed: playbackSpeed)
+        : IntensiveListenSettings(
+            playbackSpeed: playbackSpeed,
+            pauseMode: PauseMode.multiplier,
+            pauseMultiplier: pauseMultiplier,
+          );
+
     state = IntensiveListenState(
       currentSentenceIndex: safeIndex,
       totalSentences: _sentences.length,
       difficultSentences: preBookmarked,
-      settings: IntensiveListenSettings(playbackSpeed: playbackSpeed),
+      settings: initialSettings,
     );
     _prepareBlindFlow(startIndex: safeIndex);
     ref.read(analyticsServiceProvider).track(Events.intensiveListenStart, {

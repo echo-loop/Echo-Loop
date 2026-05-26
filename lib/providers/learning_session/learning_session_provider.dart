@@ -463,6 +463,7 @@ class LearningSession extends _$LearningSession {
     List<Sentence> sentences, {
     bool isFreePlay = false,
     double playbackSpeed = 1.0,
+    double pauseMultiplier = -1.0,
   }) async {
     _startStudyTimer();
     final practice = ref.read(listeningPracticeProvider.notifier);
@@ -508,6 +509,7 @@ class LearningSession extends _$LearningSession {
       sentences,
       startIndex: startIndex,
       playbackSpeed: playbackSpeed,
+      pauseMultiplier: pauseMultiplier,
     );
     _trackSessionStart();
   }
@@ -674,6 +676,7 @@ class LearningSession extends _$LearningSession {
     List<Sentence> allSentences, {
     bool isFreePlay = false,
     double playbackSpeed = 1.0,
+    double pauseMultiplier = -1.0,
   }) async {
     _startStudyTimer();
     final practice = ref.read(listeningPracticeProvider.notifier);
@@ -723,12 +726,13 @@ class LearningSession extends _$LearningSession {
           : null,
     );
 
-    // 初始化难句补练播放器（传入断点索引 + 入口选择的播放速度）
+    // 初始化难句补练播放器（传入断点索引 + 入口选择的播放速度 + 句间停顿）
     final player = ref.read(reviewDifficultPracticeProvider.notifier);
     player.initialize(
       difficultSentences,
       startIndex: startIndex,
       playbackSpeed: playbackSpeed,
+      pauseMultiplier: pauseMultiplier,
     );
     _trackSessionStart();
   }
