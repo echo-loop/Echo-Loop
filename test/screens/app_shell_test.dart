@@ -109,13 +109,16 @@ void main() {
       final container = ProviderScope.containerOf(context);
       expect(container.read(learningSettingsProvider).autoSkipRetell, isFalse);
 
-      // 切换开关（false → true）
-      await tester.tap(find.byType(SwitchListTile));
+      // 找到 "Auto-skip speaking practice" 的 SwitchListTile 并切换
+      final autoSkipSwitch = find.byWidgetPredicate(
+        (w) => w is SwitchListTile && w.title is Text && (w.title as Text).data == 'Auto-skip speaking practice',
+      );
+      await tester.tap(autoSkipSwitch);
       await tester.pump(const Duration(milliseconds: 300));
       expect(container.read(learningSettingsProvider).autoSkipRetell, isTrue);
 
       // 再切回（true → false）
-      await tester.tap(find.byType(SwitchListTile));
+      await tester.tap(autoSkipSwitch);
       await tester.pump(const Duration(milliseconds: 300));
       expect(container.read(learningSettingsProvider).autoSkipRetell, isFalse);
 

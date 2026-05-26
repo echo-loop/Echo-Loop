@@ -115,7 +115,7 @@ void main() {
       expect(find.text('这是翻译结果'), findsOneWidget);
     });
 
-    testWidgets('cachedTranslation 初始折叠，点击后立即显示且不触发请求', (tester) async {
+    testWidgets('cachedTranslation 初始自动展开，不触发请求', (tester) async {
       var requested = false;
 
       await tester.pumpWidget(
@@ -132,12 +132,7 @@ void main() {
       );
 
       await tester.pumpAndSettle();
-      // 初始应折叠，不自动展开
-      expect(find.text('已缓存的翻译'), findsNothing);
-
-      // 点击翻译按钮后立即显示缓存内容
-      await tester.tap(find.text('Translate'));
-      await tester.pumpAndSettle();
+      // 初始自动展开缓存
       expect(find.text('已缓存的翻译'), findsOneWidget);
       expect(requested, isFalse);
     });
@@ -220,7 +215,7 @@ void main() {
       expect(find.text('用法结果'), findsOneWidget);
     });
 
-    testWidgets('cachedAnalysis 初始折叠，点击后立即显示', (tester) async {
+    testWidgets('cachedAnalysis 初始自动展开', (tester) async {
       await tester.pumpWidget(
         createTestApp(
           SentenceAnnotationCard(
@@ -232,12 +227,7 @@ void main() {
       );
 
       await tester.pumpAndSettle();
-      // 初始应折叠
-      expect(find.text('语法分析'), findsNothing);
-
-      // 点击解析按钮后立即显示缓存内容
-      await tester.tap(find.text('Analysis'));
-      await tester.pumpAndSettle();
+      // 初始自动展开缓存
       expect(find.text('语法分析'), findsOneWidget);
       expect(find.text('词汇分析'), findsOneWidget);
       expect(find.text('用法分析'), findsOneWidget);
@@ -271,7 +261,7 @@ void main() {
       expect(find.text('用法OK'), findsOneWidget);
     });
 
-    testWidgets('翻译和解析缓存初始折叠，分别点击后展开', (tester) async {
+    testWidgets('翻译和解析缓存初始自动展开', (tester) async {
       await tester.pumpWidget(
         createTestApp(
           SentenceAnnotationCard(
@@ -285,18 +275,8 @@ void main() {
       );
 
       await tester.pumpAndSettle();
-      // 初始均折叠
-      expect(find.text('缓存翻译'), findsNothing);
-      expect(find.text('缓存语法'), findsNothing);
-
-      // 点击翻译按钮
-      await tester.tap(find.text('Translate'));
-      await tester.pumpAndSettle();
+      // 初始自动展开
       expect(find.text('缓存翻译'), findsOneWidget);
-
-      // 点击解析按钮
-      await tester.tap(find.text('Analysis'));
-      await tester.pumpAndSettle();
       expect(find.text('缓存语法'), findsOneWidget);
       expect(find.text('缓存词汇'), findsOneWidget);
       expect(find.text('缓存用法'), findsOneWidget);
@@ -432,7 +412,7 @@ void main() {
       (w) => w is Text && w.style?.fontFamily == 'monospace',
     );
 
-    /// 用给定的 grammar 段构造一个已缓存的解析卡，并展开解析面板
+    /// 用给定的 grammar 段构造一个已缓存的解析卡（缓存自动展开）
     Future<void> pumpAnalysisCard(WidgetTester tester, String grammar) async {
       final analysis = '$grammar${sep}vocab${sep}listen';
       await tester.pumpWidget(
@@ -445,8 +425,7 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Analysis'));
-      await tester.pumpAndSettle();
+      // cachedAnalysis 在 initState 中自动展开，无需额外点击
     }
 
     testWidgets('IPA 识别 — 含音节分界点', (tester) async {

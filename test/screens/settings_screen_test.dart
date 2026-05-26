@@ -98,6 +98,12 @@ void main() {
         expect(find.text('Terms of Service'), findsOneWidget);
         expect(find.text('Privacy Policy'), findsOneWidget);
         expect(find.text('Write Feedback'), findsOneWidget);
+        // 版本标签在页面底部，需要滚动到可见
+        await tester.scrollUntilVisible(
+          find.textContaining('Version'),
+          200,
+        );
+        await tester.pumpAndSettle();
         expect(find.text('Version 1.0.0 (Debug)'), findsOneWidget);
       });
 

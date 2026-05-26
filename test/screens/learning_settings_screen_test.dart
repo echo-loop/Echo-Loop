@@ -50,9 +50,11 @@ void main() {
     await tester.pumpWidget(await buildApp());
     await tester.pumpAndSettle();
 
-    final switchTile = tester.widget<SwitchListTile>(
-      find.byType(SwitchListTile),
+    // 找到 "Auto-skip" label 所在的 SwitchListTile
+    final autoSkipFinder = find.byWidgetPredicate(
+      (w) => w is SwitchListTile && w.title is Text && (w.title as Text).data == 'Auto-skip speaking practice',
     );
+    final switchTile = tester.widget<SwitchListTile>(autoSkipFinder);
     expect(switchTile.value, isFalse);
     expect(find.textContaining('Auto-skip'), findsWidgets);
   });
@@ -61,12 +63,14 @@ void main() {
     await tester.pumpWidget(await buildApp());
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byType(SwitchListTile));
+    // 找到 "Auto-skip Retell" 的 SwitchListTile 并点击
+    final autoSkipFinder = find.byWidgetPredicate(
+      (w) => w is SwitchListTile && w.title is Text && (w.title as Text).data == 'Auto-skip speaking practice',
+    );
+    await tester.tap(autoSkipFinder);
     await tester.pumpAndSettle();
 
-    final switchTile = tester.widget<SwitchListTile>(
-      find.byType(SwitchListTile),
-    );
+    final switchTile = tester.widget<SwitchListTile>(autoSkipFinder);
     expect(switchTile.value, isTrue);
 
     final prefs = await SharedPreferences.getInstance();
@@ -77,9 +81,11 @@ void main() {
     await tester.pumpWidget(await buildApp(autoSkipRetell: true));
     await tester.pumpAndSettle();
 
-    final switchTile = tester.widget<SwitchListTile>(
-      find.byType(SwitchListTile),
+    // 找到 "Auto-skip Retell" 的 SwitchListTile
+    final autoSkipFinder = find.byWidgetPredicate(
+      (w) => w is SwitchListTile && w.title is Text && (w.title as Text).data == 'Auto-skip speaking practice',
     );
+    final switchTile = tester.widget<SwitchListTile>(autoSkipFinder);
     expect(switchTile.value, isTrue);
   });
 }

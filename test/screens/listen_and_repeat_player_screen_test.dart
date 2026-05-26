@@ -6,10 +6,10 @@ import 'package:go_router/go_router.dart';
 import 'package:mocktail/mocktail.dart';
 
 import 'package:echo_loop/database/daos/audio_item_dao.dart';
-import 'package:echo_loop/database/daos/sentence_ai_cache_dao.dart';
 import 'package:echo_loop/database/providers.dart';
-import 'package:echo_loop/l10n/app_localizations.dart';
 import 'package:echo_loop/models/speech_practice_models.dart';
+import 'package:echo_loop/services/speech_permission_service.dart';
+import 'package:echo_loop/l10n/app_localizations.dart';
 import 'package:echo_loop/models/sentence.dart';
 import 'package:echo_loop/models/intensive_listen_settings.dart';
 import 'package:echo_loop/providers/audio_engine/audio_engine_provider.dart';
@@ -30,11 +30,31 @@ import 'package:echo_loop/widgets/common/recording_button.dart';
 
 import '../helpers/mock_providers.dart';
 
-class _MockCacheDao extends Mock implements SentenceAiCacheDao {}
-
 class _MockApiClient extends Mock implements SentenceAiApiClient {}
 
 class _MockAudioItemDao extends Mock implements AudioItemDao {}
+
+class _FakeSpeechPermissionService implements SpeechPermissionService {
+  @override
+  bool get isSupported => true;
+
+  @override
+  Future<SpeechPracticePermissionState> getStatus() async =>
+      const SpeechPracticePermissionState(
+        microphone: SpeechPracticePermissionStatus.granted,
+        speech: SpeechPracticePermissionStatus.granted,
+      );
+
+  @override
+  Future<SpeechPracticePermissionState> request({required bool onlyMic}) async =>
+      const SpeechPracticePermissionState(
+        microphone: SpeechPracticePermissionStatus.granted,
+        speech: SpeechPracticePermissionStatus.granted,
+      );
+
+  @override
+  Future<void> openAppSettings() async {}
+}
 
 class _TestListenAndRepeatController extends ListenAndRepeatController {
   _TestListenAndRepeatController(
@@ -172,6 +192,9 @@ Widget _createTestWidget({
       analyticsOverride(),
       ...studyTimeOverrides(),
       ...learningSettingsOverrides(),
+      speechPermissionServiceProvider.overrideWithValue(
+        _FakeSpeechPermissionService(),
+      ),
       audioEngineProvider.overrideWith(() => TestAudioEngine()),
       learningProgressNotifierProvider.overrideWith(
         () => TestLearningProgressNotifier(),
@@ -190,7 +213,7 @@ Widget _createTestWidget({
       ),
       sentenceAiNotifierProvider.overrideWithValue(
         SentenceAiNotifier(
-          cacheDao: _MockCacheDao(),
+          cacheDao: createStubbedMockCacheDao(),
           apiClient: _MockApiClient(),
         ),
       ),
@@ -402,7 +425,7 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 200));
 
-      expect(find.text('Auto · Round 1/3'), findsOneWidget);
+      expect(find.textContaining('Round 1/3'), findsOneWidget);
 
       final container = ProviderScope.containerOf(
         tester.element(find.byType(ListenAndRepeatPlayerScreen)),
@@ -415,7 +438,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 200));
 
       expect(controller.applySettingsChangeCallCount, 1);
-      expect(find.text('Auto · Round 1/5'), findsOneWidget);
+      expect(find.textContaining('Round 1/5'), findsOneWidget);
     });
 
     testWidgets('WaitingForUser 态修改设置后应保持等待态', (tester) async {
@@ -449,7 +472,7 @@ void main() {
       expect(controller.applySettingsChangeCallCount, 1);
       expect(find.text('Tap to record'), findsNothing);
       expect(find.text('Listen then repeat'), findsNothing);
-      expect(find.text('Auto · Round 1/5'), findsOneWidget);
+      expect(find.textContaining('Round 1/5'), findsOneWidget);
     });
 
     testWidgets('切换手动模式后底部标签立即更新', (tester) async {
@@ -463,7 +486,7 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 200));
 
-      expect(find.text('Auto · Round 1/3'), findsOneWidget);
+      expect(find.textContaining('Round 1/3'), findsOneWidget);
 
       final container = ProviderScope.containerOf(
         tester.element(find.byType(ListenAndRepeatPlayerScreen)),

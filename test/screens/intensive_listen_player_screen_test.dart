@@ -18,15 +18,13 @@ import 'package:echo_loop/providers/sentence_ai_provider.dart';
 import 'package:echo_loop/database/app_database.dart' show AudioItem, Bookmark;
 import 'package:echo_loop/database/daos/audio_item_dao.dart';
 import 'package:echo_loop/database/daos/bookmark_dao.dart';
-import 'package:echo_loop/database/daos/sentence_ai_cache_dao.dart';
+
 import 'package:echo_loop/database/providers.dart';
 import 'package:echo_loop/services/sentence_ai_api_client.dart';
 import 'package:echo_loop/theme/app_theme.dart';
 import 'package:echo_loop/widgets/practice/sentence_annotation_card.dart';
 
 import '../helpers/mock_providers.dart';
-
-class _MockCacheDao extends Mock implements SentenceAiCacheDao {}
 
 class _MockApiClient extends Mock implements SentenceAiApiClient {}
 
@@ -237,7 +235,7 @@ void main() {
         audioItemDaoProvider.overrideWithValue(_TestAudioItemDao()),
         sentenceAiNotifierProvider.overrideWithValue(
           SentenceAiNotifier(
-            cacheDao: _MockCacheDao(),
+            cacheDao: createStubbedMockCacheDao(),
             apiClient: _MockApiClient(),
           ),
         ),

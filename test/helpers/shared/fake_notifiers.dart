@@ -776,6 +776,7 @@ class FakeLearningSession extends LearningSession {
     String audioItemId,
     List<Sentence> sentences, {
     bool isFreePlay = false,
+    double playbackSpeed = 1.0,
   }) async {
     state = state.copyWith(
       learningMode: LearningMode.intensiveListen,
@@ -879,6 +880,9 @@ class FakeBlindListenPlayer extends BlindListenPlayer {
   }
 
   @override
+  Future<void> initializeBookmarks(String audioItemId) async {}
+
+  @override
   void disposePlayer() {
     state = const BlindListenPlayerState();
   }
@@ -919,6 +923,7 @@ class FakeIntensiveListenPlayer extends IntensiveListenPlayer {
   Future<void> initialize(
     List<Sentence> sentences, {
     int startIndex = 0,
+    double playbackSpeed = 1.0,
   }) async {
     testSentences = List.of(sentences);
     state = IntensiveListenState(

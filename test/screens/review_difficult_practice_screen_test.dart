@@ -20,7 +20,7 @@ import 'package:echo_loop/providers/repeat_flow/repeat_flow_state.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:echo_loop/database/daos/audio_item_dao.dart';
 import 'package:echo_loop/database/daos/bookmark_dao.dart';
-import 'package:echo_loop/database/daos/sentence_ai_cache_dao.dart';
+
 import 'package:echo_loop/database/app_database.dart' show Bookmark;
 import 'package:echo_loop/database/providers.dart';
 import 'package:echo_loop/providers/sentence_ai_provider.dart';
@@ -33,8 +33,6 @@ import 'package:echo_loop/widgets/practice/practice_normal_mode_view.dart';
 import 'package:echo_loop/widgets/common/recording_button.dart';
 
 import '../helpers/mock_providers.dart';
-
-class _MockCacheDao extends Mock implements SentenceAiCacheDao {}
 
 class _MockApiClient extends Mock implements SentenceAiApiClient {}
 
@@ -254,7 +252,7 @@ void main() {
         ),
         sentenceAiNotifierProvider.overrideWithValue(
           SentenceAiNotifier(
-            cacheDao: _MockCacheDao(),
+            cacheDao: createStubbedMockCacheDao(),
             apiClient: _MockApiClient(),
           ),
         ),

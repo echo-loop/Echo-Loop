@@ -36,6 +36,7 @@ import 'package:echo_loop/services/notification_permission_service.dart';
 import 'package:echo_loop/services/study_event_recorder.dart';
 import 'package:echo_loop/services/study_time_service.dart';
 import 'package:echo_loop/services/transcription_api_client.dart';
+import 'package:echo_loop/database/daos/sentence_ai_cache_dao.dart';
 
 // 共享替身
 import 'shared/fake_notifiers.dart';
@@ -465,4 +466,20 @@ Override offlineAsrOverride({
       ),
     ),
   );
+}
+
+// ============================================================
+// Stubbed Mock Helpers
+// ============================================================
+
+class _StubbedMockCacheDao extends Mock implements SentenceAiCacheDao {}
+
+/// 创建已 stub getByHash 的 SentenceAiCacheDao mock
+///
+/// getByHash 返回 Future.value(null)（无缓存命中）。
+/// 其他方法按需在调用方额外 stub。
+SentenceAiCacheDao createStubbedMockCacheDao() {
+  final mock = _StubbedMockCacheDao();
+  when(() => mock.getByHash(any(), any())).thenAnswer((_) async => null);
+  return mock;
 }
