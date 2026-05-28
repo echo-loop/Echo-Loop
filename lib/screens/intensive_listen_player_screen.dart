@@ -628,7 +628,6 @@ class _IntensiveListenPlayerScreenState
                                 );
                               },
                             ),
-                            alwaysShowToggleButton: false,
                             isDifficult: playerState.difficultSentences
                                 .contains(playerState.currentSentenceIndex),
                             onPeekToggle: () {

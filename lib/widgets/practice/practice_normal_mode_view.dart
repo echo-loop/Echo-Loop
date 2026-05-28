@@ -243,7 +243,14 @@ class PracticeNormalModeView extends StatelessWidget {
           fontWeight: FontWeight.w500,
         ),
       ),
-      child: Text(l10n.practiceAddMark),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.bookmark_add_outlined, size: 18),
+          const SizedBox(width: 6),
+          Text(l10n.practiceAddMark),
+        ],
+      ),
     );
   }
 
