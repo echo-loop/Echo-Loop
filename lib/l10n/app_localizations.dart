@@ -4886,6 +4886,18 @@ abstract class AppLocalizations {
   /// **'Tap here when a sentence is hard to follow. It will be auto-marked as difficult and you\'ll enter single-sentence analysis mode.'**
   String get guideIntensiveListenCantUnderstandDescription;
 
+  /// No description provided for @guideIntensiveListenAnnotationContinueDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Once you understand this sentence, tap Continue to move on to the next one.'**
+  String get guideIntensiveListenAnnotationContinueDescription;
+
+  /// No description provided for @guideIntensiveListenAnnotationPlayDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap the play button to play the current sentence.'**
+  String get guideIntensiveListenAnnotationPlayDescription;
+
   /// No description provided for @guideSentenceTileNumberDescription.
   ///
   /// In en, this message translates to:

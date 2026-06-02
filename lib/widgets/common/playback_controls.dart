@@ -7,6 +7,7 @@ library;
 
 import 'package:flutter/material.dart';
 import '../../theme/app_theme.dart';
+import '../guide_flow.dart';
 import 'tappable_wrapper.dart';
 
 /// 播放控制栏：[上一个] [播放/暂停] [下一个/完成]
@@ -31,6 +32,9 @@ class PlaybackControls extends StatelessWidget {
   /// 下一个回调
   final VoidCallback? onNext;
 
+  /// 可选：中间按钮的新手引导步骤，提供时会用 [GuideTarget] 包裹中间按钮
+  final GuideStep? centerGuideStep;
+
   const PlaybackControls({
     super.key,
     required this.canGoPrev,
@@ -39,11 +43,43 @@ class PlaybackControls extends StatelessWidget {
     this.onCenter,
     this.onPrevious,
     this.onNext,
+    this.centerGuideStep,
   });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+
+    final centerButton = TappableWrapper(
+      onTap: onCenter,
+      feedbackType: TapFeedback.scale,
+      scaleDown: 0.92,
+      child: Container(
+        width: controlButtonSize,
+        height: controlButtonSize,
+        decoration: BoxDecoration(
+          color: theme.colorScheme.primary,
+          shape: BoxShape.circle,
+          boxShadow: [
+            BoxShadow(
+              color: theme.colorScheme.primary.withValues(alpha: 0.15),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Icon(
+          centerIcon,
+          size: 28,
+          color: theme.colorScheme.onPrimary,
+        ),
+      ),
+    );
+
+    final centerStep = centerGuideStep;
+    final centerWidget = centerStep != null
+        ? GuideTarget(step: centerStep, child: centerButton)
+        : centerButton;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: AppSpacing.l),
@@ -57,31 +93,7 @@ class PlaybackControls extends StatelessWidget {
           ),
           const SizedBox(width: 48),
 
-          TappableWrapper(
-            onTap: onCenter,
-            feedbackType: TapFeedback.scale,
-            scaleDown: 0.92,
-            child: Container(
-              width: controlButtonSize,
-              height: controlButtonSize,
-              decoration: BoxDecoration(
-                color: theme.colorScheme.primary,
-                shape: BoxShape.circle,
-                boxShadow: [
-                  BoxShadow(
-                    color: theme.colorScheme.primary.withValues(alpha: 0.15),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: Icon(
-                centerIcon,
-                size: 28,
-                color: theme.colorScheme.onPrimary,
-              ),
-            ),
-          ),
+          centerWidget,
           const SizedBox(width: 48),
 
           PlaybackNavButton(

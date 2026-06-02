@@ -89,6 +89,8 @@ abstract final class GuideFlowIds {
   static const favoritesVocabularyReview = 'favorites_vocabulary_review';
   static const intensiveListenCantUnderstand =
       'intensive_listen_cant_understand';
+  static const intensiveListenAnnotationActions =
+      'intensive_listen_annotation_actions';
   static const sentenceAnnotationTour = 'sentence_annotation_tour';
   static const sentenceTileTour = 'sentence_tile_tour';
 
@@ -108,6 +110,7 @@ abstract final class GuideFlowIds {
     favoritesSentencesReview,
     favoritesVocabularyReview,
     intensiveListenCantUnderstand,
+    intensiveListenAnnotationActions,
     sentenceAnnotationTour,
     sentenceTileTour,
   ];

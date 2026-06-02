@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 
 import '../../l10n/app_localizations.dart';
 import '../../theme/app_theme.dart';
+import '../guide_flow.dart';
 import '../practice/practice_play_count_label.dart';
 import 'playback_controls.dart';
 
@@ -45,6 +46,9 @@ class PracticePlaybackFooter extends StatelessWidget {
   /// 主题
   final ThemeData theme;
 
+  /// 可选：中间播放/暂停按钮的新手引导步骤
+  final GuideStep? centerGuideStep;
+
   const PracticePlaybackFooter({
     super.key,
     required this.canGoPrev,
@@ -58,6 +62,7 @@ class PracticePlaybackFooter extends StatelessWidget {
     this.statusSuffixText,
     required this.l10n,
     required this.theme,
+    this.centerGuideStep,
   });
 
   @override
@@ -78,6 +83,7 @@ class PracticePlaybackFooter extends StatelessWidget {
             onPrevious: onPrevious,
             onNext: onNext,
             onCenter: onCenter,
+            centerGuideStep: centerGuideStep,
           ),
           const SizedBox(height: AppSpacing.s),
           PracticePlayCountLabel(

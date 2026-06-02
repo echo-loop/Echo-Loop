@@ -1089,6 +1089,8 @@
   "guideFavoritesVocabularyListDescription": "这里是你收藏的单词和意群。展开后可查看释义，也可以收听它们在原句中的发音。",
   "guideFavoritesFlashcardDescription": "点击这里进入闪卡模式，复习所有收藏的词汇。通过看单词、听原句，可以更高效地巩固记忆。",
   "guideIntensiveListenCantUnderstandDescription": "遇到听不懂的句子时点这里，会自动标记为难句并进入单句解析模式。",
+  "guideIntensiveListenAnnotationContinueDescription": "搞懂这句后点「继续」进入下一句。",
+  "guideIntensiveListenAnnotationPlayDescription": "点击播放按钮，播放当前句。",
   "guideSentenceTileNumberDescription": "点击编号从这句开始播放。",
   "guideSentenceTileBodyDescription": "点击句子查看讲解。",
   "guideSentenceAnnotationSentenceDescription": "点击任意单词可查看词典；长按句子可复制文字。",

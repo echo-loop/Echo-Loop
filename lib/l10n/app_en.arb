@@ -1455,6 +1455,8 @@
   "guideFavoritesVocabularyListDescription": "Your saved words and phrases. Expand a card to see definitions and hear how they sound in the original sentences.",
   "guideFavoritesFlashcardDescription": "Tap here to enter flashcard mode and review every saved word. Seeing the word and hearing it in context makes memory stick.",
   "guideIntensiveListenCantUnderstandDescription": "Tap here when a sentence is hard to follow. It will be auto-marked as difficult and you'll enter single-sentence analysis mode.",
+  "guideIntensiveListenAnnotationContinueDescription": "Once you understand this sentence, tap Continue to move on to the next one.",
+  "guideIntensiveListenAnnotationPlayDescription": "Tap the play button to play the current sentence.",
   "guideSentenceTileNumberDescription": "Tap the number to play from this sentence.",
   "guideSentenceTileBodyDescription": "Tap the sentence to view the explanation.",
   "guideSentenceAnnotationSentenceDescription": "Tap any word to open the dictionary; long-press the sentence to copy the text.",

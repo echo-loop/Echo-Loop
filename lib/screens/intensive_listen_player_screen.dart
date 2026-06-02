@@ -74,6 +74,12 @@ class _IntensiveListenPlayerScreenState
   /// 新手引导：「听不太懂」按钮 Showcase key（随 State 生命周期存在）
   final GlobalKey _guideCantUnderstandKey = GlobalKey();
 
+  /// 新手引导：标注页「继续」按钮 Showcase key
+  final GlobalKey _guideAnnotationContinueKey = GlobalKey();
+
+  /// 新手引导：标注页底部「播放」按钮 Showcase key
+  final GlobalKey _guideAnnotationPlayKey = GlobalKey();
+
   ProviderSubscription<IntensiveListenState>? _playerSubscription;
 
   @override
@@ -499,12 +505,26 @@ class _IntensiveListenPlayerScreenState
       key: _guideCantUnderstandKey,
       description: l10n.guideIntensiveListenCantUnderstandDescription,
     );
+    // 标注模式下「继续 + 播放」两步引导：仅在两个按钮同时在屏时启动
+    final annotationContinueStep = GuideStep(
+      key: _guideAnnotationContinueKey,
+      description: l10n.guideIntensiveListenAnnotationContinueDescription,
+    );
+    final annotationPlayStep = GuideStep(
+      key: _guideAnnotationPlayKey,
+      description: l10n.guideIntensiveListenAnnotationPlayDescription,
+    );
     final guideFlows = <GuideFlow>[
       GuideFlow(
         flowId: GuideFlowIds.intensiveListenCantUnderstand,
         shouldRun:
             !playerState.isAnnotationMode && !playerState.isAnnotationReplay,
         steps: [cantUnderstandStep],
+      ),
+      GuideFlow(
+        flowId: GuideFlowIds.intensiveListenAnnotationActions,
+        shouldRun: _showContinueButton(playerState),
+        steps: [annotationPlayStep, annotationContinueStep],
       ),
     ];
 
@@ -678,11 +698,14 @@ class _IntensiveListenPlayerScreenState
                               right: AppSpacing.l,
                               bottom: AppSpacing.m,
                             ),
-                            child: SizedBox(
-                              width: double.infinity,
-                              child: FilledButton(
-                                onPressed: () => player.exitAnnotationMode(),
-                                child: Text(l10n.intensiveListenContinue),
+                            child: GuideTarget(
+                              step: annotationContinueStep,
+                              child: SizedBox(
+                                width: double.infinity,
+                                child: FilledButton(
+                                  onPressed: () => player.exitAnnotationMode(),
+                                  child: Text(l10n.intensiveListenContinue),
+                                ),
                               ),
                             ),
                           ),
@@ -758,6 +781,11 @@ class _IntensiveListenPlayerScreenState
                           ),
                           l10n: l10n,
                           theme: theme,
+                          // 仅在「继续」按钮也在屏时把 play 引导步骤挂到底部，
+                          // 与新增 guide flow 的 shouldRun 条件保持一致。
+                          centerGuideStep: _showContinueButton(playerState)
+                              ? annotationPlayStep
+                              : null,
                         ),
                       ],
                     ),
