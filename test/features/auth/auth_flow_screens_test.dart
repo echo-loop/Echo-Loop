@@ -212,6 +212,40 @@ void main() {
     expect(find.text('Google identity token is missing.'), findsNothing);
   });
 
+  testWidgets('Google 服务版本过低时显示明确设备文案', (tester) async {
+    final router = _authRouter(
+      isAppleSignInSupported: false,
+      isGoogleSignInSupported: true,
+      onGoogleSignIn: () async {
+        throw const GoogleSignInException(
+          code: GoogleSignInExceptionCode.providerConfigurationError,
+          description:
+              'getCredentialAsync no provider dependencies found - please '
+              'ensure the desired provider dependencies are added',
+        );
+      },
+    );
+
+    await tester.pumpWidget(_app(router));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Continue with Google'));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text(
+        'Google services are outdated. Please update and try again.',
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.text(
+        'Google sign-in is unavailable on this device. Use an email code instead.',
+      ),
+      findsNothing,
+    );
+  });
+
   testWidgets('用户取消 Google 登录不显示错误提示', (tester) async {
     final router = _authRouter(
       isAppleSignInSupported: false,

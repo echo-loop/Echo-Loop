@@ -10,6 +10,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../l10n/app_localizations.dart';
 import '../../../router/app_router.dart';
+import '../../../services/app_logger.dart';
 import '../../../theme/app_theme.dart';
 import '../auth_form_utils.dart';
 import '../google_services_availability.dart';
@@ -106,11 +107,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   Future<void> _resolveGoogleSignInAvailability() async {
     final override = widget.isGoogleSignInSupportedOverride;
     if (override != null) {
+      AppLogger.log('AuthGMS', 'login override availability=$override');
       setState(() => _isGoogleSignInAvailable = override);
       return;
     }
 
     if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) {
+      AppLogger.log(
+        'AuthGMS',
+        'login availability skipped platform=$defaultTargetPlatform web=$kIsWeb',
+      );
       setState(() => _isGoogleSignInAvailable = false);
       return;
     }
@@ -118,6 +124,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     final isAvailable = await const MethodChannelGoogleServicesAvailability()
         .isAvailable();
     if (!mounted) return;
+    AppLogger.log('AuthGMS', 'login showGoogle=$isAvailable');
     setState(() => _isGoogleSignInAvailable = isAvailable);
   }
 
@@ -126,6 +133,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     if (error is AuthException &&
         error.message == 'Supabase auth is not configured.') {
       return l10n.authUnavailable;
+    }
+    if (_isGooglePlayServicesOutdated(error)) {
+      return l10n.authGoogleServicesOutdated;
     }
     if (_isGoogleSignInUnavailable(error)) {
       return l10n.authGoogleUnavailable;
@@ -141,6 +151,21 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   bool _isCanceledGoogleSignIn(Object error) {
     return error is GoogleSignInException &&
         error.code == GoogleSignInExceptionCode.canceled;
+  }
+
+  /// 识别 Google Play services 版本过低导致的 native Google 登录失败。
+  ///
+  /// 华为/出境易等环境可能能检测到 GMS 存在，但点击登录时才由
+  /// Credential Manager 暴露 provider 依赖不可用错误；这里将该类错误
+  /// 映射为明确的设备服务版本文案，而不是泛化成配置问题。
+  bool _isGooglePlayServicesOutdated(Object error) {
+    if (error is! GoogleSignInException) return false;
+
+    final description = error.description?.toLowerCase() ?? '';
+    return error.code == GoogleSignInExceptionCode.providerConfigurationError &&
+        (description.contains('service_version_update_required') ||
+            description.contains('out of date') ||
+            description.contains('no provider dependencies found'));
   }
 
   bool _isGoogleSignInUnavailable(Object error) {
@@ -203,7 +228,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       context.go(AppRoutes.settings);
     } catch (error) {
       if (!mounted) return;
-      if (_isCanceledGoogleSignIn(error)) return;
+      if (_isCanceledGoogleSignIn(error)) {
+        AppLogger.log('AuthGoogle', 'login canceled by user');
+        return;
+      }
+      AppLogger.log('AuthGoogle', 'login failed error=$error');
       ScaffoldMessenger.of(context)
         ..clearSnackBars()
         ..showSnackBar(

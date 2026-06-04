@@ -1633,6 +1633,7 @@
   "authContinueWithGoogle": "Continue with Google",
   "authProviderComingSoon": "Coming soon",
   "authGoogleUnavailable": "Google sign-in is unavailable on this device. Use an email code instead.",
+  "authGoogleServicesOutdated": "Google services are outdated. Please update and try again.",
   "authPasswordlessHint": "No password needed. We will email you a one-time code.",
   "authEmailTitle": "Email sign in",
   "authEmailOtpTitle": "Continue with email",

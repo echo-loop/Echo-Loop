@@ -3097,6 +3097,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get authGoogleUnavailable => '当前设备无法使用 Google 登录，请改用邮箱验证码登录。';
 
   @override
+  String get authGoogleServicesOutdated => '当前设备的 Google 服务版本过低，暂不可用。';
+
+  @override
   String get authPasswordlessHint => '无需密码，我们会向你的邮箱发送一次性验证码。';
 
   @override

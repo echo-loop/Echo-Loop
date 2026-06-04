@@ -2,6 +2,7 @@ package app.echoloop
 
 import com.google.android.gms.common.ConnectionResult
 import com.google.android.gms.common.GoogleApiAvailability
+import android.util.Log
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
@@ -13,6 +14,7 @@ class MainActivity : FlutterActivity() {
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+        Log.i("AuthGMS", "register google services availability channel")
         googleServicesChannel = MethodChannel(
             flutterEngine.dartExecutor.binaryMessenger,
             "top.echo-loop/google_services",
@@ -51,6 +53,19 @@ class MainActivity : FlutterActivity() {
 
     private fun isGooglePlayServicesAvailable(): Boolean {
         val status = GoogleApiAvailability.getInstance().isGooglePlayServicesAvailable(this)
-        return status == ConnectionResult.SUCCESS
+        val available = status == ConnectionResult.SUCCESS
+        Log.i("AuthGMS", "Google Play services status=${statusName(status)}($status) available=$available")
+        return available
+    }
+
+    private fun statusName(status: Int): String {
+        return when (status) {
+            ConnectionResult.SUCCESS -> "SUCCESS"
+            ConnectionResult.SERVICE_MISSING -> "SERVICE_MISSING"
+            ConnectionResult.SERVICE_VERSION_UPDATE_REQUIRED -> "SERVICE_VERSION_UPDATE_REQUIRED"
+            ConnectionResult.SERVICE_DISABLED -> "SERVICE_DISABLED"
+            ConnectionResult.SERVICE_INVALID -> "SERVICE_INVALID"
+            else -> "UNKNOWN"
+        }
     }
 }

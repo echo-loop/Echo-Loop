@@ -5726,6 +5726,12 @@ abstract class AppLocalizations {
   /// **'Google sign-in is unavailable on this device. Use an email code instead.'**
   String get authGoogleUnavailable;
 
+  /// No description provided for @authGoogleServicesOutdated.
+  ///
+  /// In en, this message translates to:
+  /// **'Google services are outdated. Please update and try again.'**
+  String get authGoogleServicesOutdated;
+
   /// No description provided for @authPasswordlessHint.
   ///
   /// In en, this message translates to:

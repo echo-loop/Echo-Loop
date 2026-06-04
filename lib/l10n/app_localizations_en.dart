@@ -3220,6 +3220,10 @@ class AppLocalizationsEn extends AppLocalizations {
       'Google sign-in is unavailable on this device. Use an email code instead.';
 
   @override
+  String get authGoogleServicesOutdated =>
+      'Google services are outdated. Please update and try again.';
+
+  @override
   String get authPasswordlessHint =>
       'No password needed. We will email you a one-time code.';
 

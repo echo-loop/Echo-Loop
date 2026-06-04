@@ -1267,6 +1267,7 @@
   "authContinueWithGoogle": "使用 Google 继续",
   "authProviderComingSoon": "即将支持",
   "authGoogleUnavailable": "当前设备无法使用 Google 登录，请改用邮箱验证码登录。",
+  "authGoogleServicesOutdated": "当前设备的 Google 服务版本过低，暂不可用。",
   "authPasswordlessHint": "无需密码，我们会向你的邮箱发送一次性验证码。",
   "authEmailTitle": "邮箱登录",
   "authEmailOtpTitle": "继续使用邮箱",

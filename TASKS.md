@@ -1,7 +1,33 @@
 # Echo Loop 任务清单
 
 > 最后更新：2026-06-04
-> 当前焦点：Apple 登录审查修复（已完成）
+> 当前焦点：Android Google 账号登录与 GMS 门控（已完成）
+
+## 已完成：Android Google 账号登录与 GMS 门控
+
+在邮箱 OTP 和 Apple 登录基础上补齐 Android Google 账号登录。实现采用 Google native ID token flow：App 通过 `google_sign_in` 获取 Google ID token / access token，再交给 Supabase `signInWithIdToken(provider: google)` 建立 Supabase session；不新增自建后端 API，不使用 redirect OAuth deep link 流。同时在 Android 登录页前置检测 Google Play services，可用才展示 Google 登录入口，不可用时只保留邮箱验证码兜底。
+
+### 实现
+- [x] 新增 `google_sign_in` 依赖，并显式补充 Android app 模块 `play-services-base` 编译依赖
+- [x] 新增 Google 登录凭证获取接口，生产环境使用 `GoogleSignIn.instance.initialize(serverClientId: GOOGLE_WEB_CLIENT_ID)` + `authenticate()` + `authorizationClient` 获取 token，测试可注入替身
+- [x] `AuthRepository` / `AuthController` 新增 `signInWithGoogle`，登录成功后复用现有 PostHog/Supabase 身份同步链路
+- [x] `SupabaseAuthRepository.signInWithGoogle` 使用 Google `idToken` + `accessToken` 调用 Supabase `signInWithIdToken(provider: google)`
+- [x] Android `MainActivity` 新增 `top.echo-loop/google_services` MethodChannel，通过 `GoogleApiAvailability` 检测 Google Play services 是否可用
+- [x] 登录页 Android 仅在 GMS 可用时展示 Google 入口；检测失败、非 Android 或 GMS 不可用时隐藏入口，邮箱 OTP 始终保留
+- [x] Google 登录取消时不显示错误；配置缺失、token 缺失或 Google 服务不可用时提示改用邮箱验证码
+- [x] 华为/出境易等设备点击 Google 登录后若暴露 GMS 版本过低/provider 依赖缺失，显示 `Google services are outdated. Please update and try again.`
+
+### 验证
+- [x] `flutter pub add google_sign_in:^7.2.0`
+- [x] `flutter gen-l10n`
+- [x] `flutter analyze lib/features/auth test/features/auth android/app/src/main/kotlin/app/echoloop/MainActivity.kt`：No issues found
+- [x] `flutter test test/features/auth/auth_providers_test.dart test/features/auth/auth_flow_screens_test.dart test/features/auth/google_services_availability_test.dart`：49 tests passed
+- [x] `flutter build apk --debug --flavor dev`：成功生成 `build/app/outputs/flutter-apk/app-dev-debug.apk`
+- [x] `flutter analyze lib/features/auth/screens/login_screen.dart test/features/auth/auth_flow_screens_test.dart`：No issues found
+- [x] `flutter test test/features/auth/auth_flow_screens_test.dart`：27 tests passed
+- [x] `scripts/check.sh`：全量 `flutter analyze` 通过（仅仓库既有 warning/info）；全量 `flutter test` 2428 tests passed，11 skip；用户中断时已进入 macOS integration 构建阶段，未见与本次 Google 登录改动相关失败
+
+**完成时间**: 2026-06-04 19:14 +0800
 
 ## 已完成：Apple 登录审查修复
 

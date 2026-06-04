@@ -97,11 +97,26 @@ class SupabaseAuthRepository implements AuthRepository {
   @override
   Future<AuthResponse> signInWithGoogle() async {
     final credential = await _googleCredentialsProvider.getCredentials();
-    return _auth.signInWithIdToken(
-      provider: OAuthProvider.google,
-      idToken: credential.idToken,
-      accessToken: credential.accessToken,
-    );
+    try {
+      AppLogger.log('AuthGoogle', 'Supabase signInWithIdToken start');
+      final response = await _auth.signInWithIdToken(
+        provider: OAuthProvider.google,
+        idToken: credential.idToken,
+        accessToken: credential.accessToken,
+      );
+      AppLogger.log(
+        'AuthGoogle',
+        'Supabase signInWithIdToken success userId=${response.user?.id}',
+      );
+      return response;
+    } on AuthException catch (error) {
+      AppLogger.log(
+        'AuthGoogle',
+        'Supabase signInWithIdToken failed message=${error.message} '
+            'status=${error.statusCode} code=${error.code}',
+      );
+      rethrow;
+    }
   }
 
   @override
