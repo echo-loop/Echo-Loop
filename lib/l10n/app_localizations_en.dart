@@ -2789,6 +2789,18 @@ class AppLocalizationsEn extends AppLocalizations {
       'Tap the sentence to view the explanation.';
 
   @override
+  String get guideSubtitleEditorBoundaryHandleDescription =>
+      'Drag the red or green handles on the waveform to adjust the current sentence\'s start and end time.';
+
+  @override
+  String get guideSubtitleEditorSentencePlayDescription =>
+      'Tap the play button on the left to play this sentence.';
+
+  @override
+  String get guideSubtitleEditorSentenceMenuDescription =>
+      'Tap the menu on the right to merge or delete this sentence.';
+
+  @override
   String get guideSentenceAnnotationSentenceDescription =>
       'Tap any word to open the dictionary; long-press the sentence to copy the text.';
 

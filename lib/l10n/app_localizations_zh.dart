@@ -2693,6 +2693,16 @@ class AppLocalizationsZh extends AppLocalizations {
   String get guideSentenceTileBodyDescription => '点击句子查看讲解。';
 
   @override
+  String get guideSubtitleEditorBoundaryHandleDescription =>
+      '拖动波形图上的红绿手柄，可以调整当前句子的起止时间。';
+
+  @override
+  String get guideSubtitleEditorSentencePlayDescription => '点击左侧播放按钮，可以播放这一句。';
+
+  @override
+  String get guideSubtitleEditorSentenceMenuDescription => '点击右侧菜单，可以合并或删除这一句。';
+
+  @override
   String get guideSentenceAnnotationSentenceDescription =>
       '点击任意单词可查看词典；长按句子可复制文字。';
 

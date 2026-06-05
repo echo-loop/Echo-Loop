@@ -78,6 +78,16 @@ void main() {
     return container.read(subtitleEditorControllerProvider(audioItem));
   }
 
+  test('load 默认选中第一句，让波形边界手柄立即显示', () async {
+    final notifier = controller();
+    await notifier.load();
+
+    expect(state().selectedSentenceIndex, 0);
+    expect(state().selectedSentence, sentences.first);
+    expect(state().playbackPosition, sentences.first.startTime);
+    expect(state().selectionEpoch, 0);
+  });
+
   test('togglePlaybackFromPlayhead 从红线播放到音频末尾', () async {
     final notifier = controller();
     await notifier.load();
@@ -277,8 +287,9 @@ void main() {
 
   test('adjustSelectedSentenceBoundary 无选中句时不动 state', () async {
     final notifier = controller();
+    sentences.clear();
     await notifier.load();
-    // load 后默认无选中句。
+    // 空字幕没有默认选中句。
     final before = state().sentences;
 
     notifier.adjustSelectedSentenceBoundary(

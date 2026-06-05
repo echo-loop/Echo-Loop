@@ -1,7 +1,27 @@
 # Echo Loop 任务清单
 
-> 最后更新：2026-06-05
-> 当前焦点：字幕编辑器句子播放按钮去圆圈化（已完成）
+> 最后更新：2026-06-06
+> 当前焦点：字幕编辑器句子操作引导（已完成）
+
+## 已完成：字幕编辑器句子操作引导
+
+在字幕编辑页接入已有 `GuideFlow` 新手引导机制，提示用户理解句子行和波形上的关键操作：左侧播放按钮可播放当前句，右侧菜单可合并/删除当前句，波形图上的红绿手柄可调整当前句子的起止时间。
+
+### 实现
+- [x] 新增 `subtitle_editor_sentence_actions` 引导 flow id，并纳入全局可重置引导列表
+- [x] 字幕编辑页加载非空字幕后默认选中第一句，让波形红绿边界手柄进入页面即显示
+- [x] 引导顺序调整为：左侧播放按钮 → 右侧菜单 → 波形红绿手柄
+- [x] 新增中英文引导文案，并重新生成 l10n 代码
+- [x] 更新字幕编辑器 controller/widget 测试，覆盖默认选中第一句和引导顺序
+
+### 验证
+- [x] `flutter gen-l10n`
+- [x] `dart format lib/features/subtitle_editor/subtitle_editor_controller.dart lib/features/subtitle_editor/subtitle_simple_editor_screen.dart lib/providers/new_user_guide_provider.dart test/features/subtitle_editor/subtitle_editor_controller_test.dart test/features/subtitle_editor/subtitle_waveform_view_test.dart`
+- [x] `flutter analyze lib/features/subtitle_editor/subtitle_editor_controller.dart lib/features/subtitle_editor/subtitle_simple_editor_screen.dart lib/providers/new_user_guide_provider.dart test/features/subtitle_editor/subtitle_editor_controller_test.dart test/features/subtitle_editor/subtitle_waveform_view_test.dart`：No issues found
+- [x] `flutter test test/features/subtitle_editor/subtitle_editor_controller_test.dart test/features/subtitle_editor/subtitle_waveform_view_test.dart`：37 tests passed
+- [x] `scripts/check.sh`：全量 `flutter analyze` 通过（仅仓库既有 warning/info）；全量 `flutter test` 2510 tests passed，11 skip；macOS integration 中 `native_audio_decoder_integration_test.dart` 通过，`asr_engine_test.dart` / `app_test.dart` 失败在本地 App debug connection 启动失败（`The log reader stopped unexpectedly, or never started`），与本次字幕编辑引导改动无关
+
+**完成时间**: 2026-06-06 00:18 +0800
 
 ## 已完成：字幕编辑器句子播放按钮去圆圈化
 

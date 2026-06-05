@@ -197,6 +197,10 @@ class SubtitleEditorController extends StateNotifier<SubtitleEditorState> {
         isLoading: false,
         totalDuration: duration,
         sentences: sentences,
+        selectedSentenceIndex: sentences.isEmpty ? null : 0,
+        playbackPosition: sentences.isEmpty
+            ? Duration.zero
+            : sentences.first.startTime,
       );
       unawaited(_loadWaveform());
     } catch (e) {

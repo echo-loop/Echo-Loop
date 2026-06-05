@@ -93,6 +93,8 @@ abstract final class GuideFlowIds {
       'intensive_listen_annotation_actions';
   static const sentenceAnnotationTour = 'sentence_annotation_tour';
   static const sentenceTileTour = 'sentence_tile_tour';
+  static const subtitleEditorSentenceActions =
+      'subtitle_editor_sentence_actions';
 
   static const active = [
     mainShellVisitLibrary,
@@ -113,6 +115,7 @@ abstract final class GuideFlowIds {
     intensiveListenAnnotationActions,
     sentenceAnnotationTour,
     sentenceTileTour,
+    subtitleEditorSentenceActions,
   ];
 
   static const legacy = [

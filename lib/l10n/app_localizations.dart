@@ -4946,6 +4946,24 @@ abstract class AppLocalizations {
   /// **'Tap the sentence to view the explanation.'**
   String get guideSentenceTileBodyDescription;
 
+  /// No description provided for @guideSubtitleEditorBoundaryHandleDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Drag the red or green handles on the waveform to adjust the current sentence\'s start and end time.'**
+  String get guideSubtitleEditorBoundaryHandleDescription;
+
+  /// No description provided for @guideSubtitleEditorSentencePlayDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap the play button on the left to play this sentence.'**
+  String get guideSubtitleEditorSentencePlayDescription;
+
+  /// No description provided for @guideSubtitleEditorSentenceMenuDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap the menu on the right to merge or delete this sentence.'**
+  String get guideSubtitleEditorSentenceMenuDescription;
+
   /// No description provided for @guideSentenceAnnotationSentenceDescription.
   ///
   /// In en, this message translates to:

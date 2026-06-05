@@ -7,11 +7,13 @@ import 'package:echo_loop/models/audio_engine_state.dart';
 import 'package:echo_loop/models/audio_item.dart';
 import 'package:echo_loop/models/sentence.dart';
 import 'package:echo_loop/providers/audio_engine/audio_engine_provider.dart';
+import 'package:echo_loop/widgets/guide_flow.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:just_audio/just_audio.dart' as ja;
 import 'package:just_waveform/just_waveform.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../helpers/mock_providers.dart';
 import '../../helpers/test_app.dart';
@@ -427,6 +429,12 @@ void main() {
   });
 
   group('SubtitleSimpleEditorScreen', () {
+    setUp(() {
+      SharedPreferences.setMockInitialValues({
+        'guide_v1_subtitle_editor_sentence_actions_seen': true,
+      });
+    });
+
     testWidgets('句子行显示完整起止时间和句长', (tester) async {
       final audioEngine = _ScreenTestAudioEngine(
         duration: const Duration(seconds: 10),
@@ -486,6 +494,37 @@ void main() {
       expect(find.text('0.5x'), findsOneWidget);
       expect(find.text('1.5x'), findsOneWidget);
       expect(find.text('2.0x'), findsOneWidget);
+
+      audioEngine.disposeController();
+    });
+
+    testWidgets('波形和首句左右操作区挂载字幕编辑引导', (tester) async {
+      final audioEngine = _ScreenTestAudioEngine(
+        duration: const Duration(seconds: 10),
+        sentences: _sentences(),
+      );
+
+      await tester.pumpWidget(
+        createTestScreen(
+          SubtitleSimpleEditorScreen(audioItem: createTestAudioItem()),
+          overrides: [audioEngineProvider.overrideWith(() => audioEngine)],
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      final descriptions = tester
+          .widget<GuideFlowSequenceHost>(find.byType(GuideFlowSequenceHost))
+          .flows
+          .single
+          .steps
+          .map((step) => step.description)
+          .toList();
+      expect(descriptions, [
+        'Tap the play button on the left to play this sentence.',
+        'Tap the menu on the right to merge or delete this sentence.',
+        "Drag the red or green handles on the waveform to adjust the current sentence's start and end time.",
+      ]);
 
       audioEngine.disposeController();
     });

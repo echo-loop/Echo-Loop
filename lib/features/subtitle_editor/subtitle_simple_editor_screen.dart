@@ -7,7 +7,9 @@ import 'package:go_router/go_router.dart';
 import '../../l10n/app_localizations.dart';
 import '../../models/audio_item.dart';
 import '../../models/sentence.dart';
+import '../../providers/new_user_guide_provider.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/guide_flow.dart';
 import 'subtitle_editor_controller.dart';
 import 'subtitle_waveform_view.dart';
 
@@ -23,6 +25,16 @@ class SubtitleSimpleEditorScreen extends ConsumerStatefulWidget {
 
 class _SubtitleSimpleEditorScreenState
     extends ConsumerState<SubtitleSimpleEditorScreen> {
+  final GlobalKey _guideSentencePlayKey = GlobalKey(
+    debugLabel: 'subtitleEditorSentencePlay',
+  );
+  final GlobalKey _guideSentenceMenuKey = GlobalKey(
+    debugLabel: 'subtitleEditorSentenceMenu',
+  );
+  final GlobalKey _guideBoundaryHandleKey = GlobalKey(
+    debugLabel: 'subtitleEditorBoundaryHandle',
+  );
+
   @override
   void initState() {
     super.initState();
@@ -54,95 +66,123 @@ class _SubtitleSimpleEditorScreenState
       });
     }
 
-    return PopScope(
-      canPop: !state.isDirty,
-      onPopInvokedWithResult: (didPop, _) async {
-        if (didPop) return;
-        final discard = await _confirmDiscard(context, l10n);
-        if (discard == true && context.mounted) {
-          context.pop();
-        }
-      },
-      child: Scaffold(
-        appBar: AppBar(
-          title: Text(l10n.editSubtitles),
-          actions: [
-            Padding(
-              padding: const EdgeInsets.only(right: AppSpacing.s),
-              child: FilledButton.tonal(
-                // AppBar 内收紧默认主题的大 padding，保持紧凑
-                style: FilledButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.m,
-                    vertical: AppSpacing.s,
-                  ),
-                  minimumSize: const Size(0, 36),
-                  visualDensity: VisualDensity.compact,
-                ),
-                onPressed: !state.isDirty || state.isSaving
-                    ? null
-                    : () => unawaited(_save(context, controller, l10n)),
-                child: state.isSaving
-                    ? const SizedBox.square(
-                        dimension: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : Text(l10n.save),
-              ),
-            ),
-          ],
-        ),
-        body: state.isLoading
-            ? const Center(child: CircularProgressIndicator())
-            : state.errorMessage != null
-            ? _EditorError(message: state.errorMessage!)
-            : Column(
-                children: [
-                  SubtitleWaveformView(
-                    waveform: state.waveform,
-                    extractionProgress: state.waveformProgress,
-                    duration: state.totalDuration,
-                    sentences: state.sentences,
-                    activeSentence: state.selectedSentence,
-                    selectedIndex: state.selectedSentenceIndex,
-                    selectionEpoch: state.selectionEpoch,
-                    playbackPosition: state.playbackPosition,
-                    isPlaying:
-                        state.isPlaying &&
-                        state.playbackMode ==
-                            SubtitleEditorPlaybackMode.sentence,
-                    zoomScale: state.waveformZoomScale,
-                    onZoomChanged: controller.setWaveformZoomScale,
-                    onScrub: controller.scrubTo,
-                    onScrubEnd: (position) =>
-                        unawaited(controller.finishScrub(position)),
-                    onAdjustBoundary: controller.adjustSentenceBoundary,
-                    onAdjustEnd: () {},
-                  ),
-                  _WaveformControls(
-                    zoomScale: state.waveformZoomScale,
-                    maxZoomScale: state.maxWaveformZoomScale,
-                    playbackSpeed: state.playbackSpeed,
-                    onZoomChanged: controller.setWaveformZoomScale,
-                    onSpeedChanged: (speed) =>
-                        unawaited(controller.setPlaybackSpeed(speed)),
-                  ),
-                  Expanded(
-                    child: _SentenceList(
-                      sentences: state.sentences,
-                      selectedIndex: state.selectedSentenceIndex,
-                      playingIndex: state.playingSentenceIndex,
-                      onPlay: (index) =>
-                          unawaited(controller.playSentence(index)),
-                      onStop: () => unawaited(controller.stopPlayback()),
-                      onSelect: controller.selectSentence,
-                      onMergeNext: controller.mergeWithNext,
-                      onDelete: (index) =>
-                          _deleteSentence(context, controller, l10n, index),
+    final sentencePlayStep = GuideStep(
+      key: _guideSentencePlayKey,
+      description: l10n.guideSubtitleEditorSentencePlayDescription,
+    );
+    final sentenceMenuStep = GuideStep(
+      key: _guideSentenceMenuKey,
+      description: l10n.guideSubtitleEditorSentenceMenuDescription,
+    );
+    final boundaryHandleStep = GuideStep(
+      key: _guideBoundaryHandleKey,
+      description: l10n.guideSubtitleEditorBoundaryHandleDescription,
+    );
+    final guideFlows = [
+      GuideFlow(
+        flowId: GuideFlowIds.subtitleEditorSentenceActions,
+        shouldRun: state.sentences.isNotEmpty,
+        steps: [sentencePlayStep, sentenceMenuStep, boundaryHandleStep],
+      ),
+    ];
+
+    return GuideFlowSequenceHost(
+      flows: guideFlows,
+      child: PopScope(
+        canPop: !state.isDirty,
+        onPopInvokedWithResult: (didPop, _) async {
+          if (didPop) return;
+          final discard = await _confirmDiscard(context, l10n);
+          if (discard == true && context.mounted) {
+            context.pop();
+          }
+        },
+        child: Scaffold(
+          appBar: AppBar(
+            title: Text(l10n.editSubtitles),
+            actions: [
+              Padding(
+                padding: const EdgeInsets.only(right: AppSpacing.s),
+                child: FilledButton.tonal(
+                  // AppBar 内收紧默认主题的大 padding，保持紧凑
+                  style: FilledButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.m,
+                      vertical: AppSpacing.s,
                     ),
+                    minimumSize: const Size(0, 36),
+                    visualDensity: VisualDensity.compact,
                   ),
-                ],
+                  onPressed: !state.isDirty || state.isSaving
+                      ? null
+                      : () => unawaited(_save(context, controller, l10n)),
+                  child: state.isSaving
+                      ? const SizedBox.square(
+                          dimension: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : Text(l10n.save),
+                ),
               ),
+            ],
+          ),
+          body: state.isLoading
+              ? const Center(child: CircularProgressIndicator())
+              : state.errorMessage != null
+              ? _EditorError(message: state.errorMessage!)
+              : Column(
+                  children: [
+                    GuideTarget(
+                      step: boundaryHandleStep,
+                      child: SubtitleWaveformView(
+                        waveform: state.waveform,
+                        extractionProgress: state.waveformProgress,
+                        duration: state.totalDuration,
+                        sentences: state.sentences,
+                        activeSentence: state.selectedSentence,
+                        selectedIndex: state.selectedSentenceIndex,
+                        selectionEpoch: state.selectionEpoch,
+                        playbackPosition: state.playbackPosition,
+                        isPlaying:
+                            state.isPlaying &&
+                            state.playbackMode ==
+                                SubtitleEditorPlaybackMode.sentence,
+                        zoomScale: state.waveformZoomScale,
+                        onZoomChanged: controller.setWaveformZoomScale,
+                        onScrub: controller.scrubTo,
+                        onScrubEnd: (position) =>
+                            unawaited(controller.finishScrub(position)),
+                        onAdjustBoundary: controller.adjustSentenceBoundary,
+                        onAdjustEnd: () {},
+                      ),
+                    ),
+                    _WaveformControls(
+                      zoomScale: state.waveformZoomScale,
+                      maxZoomScale: state.maxWaveformZoomScale,
+                      playbackSpeed: state.playbackSpeed,
+                      onZoomChanged: controller.setWaveformZoomScale,
+                      onSpeedChanged: (speed) =>
+                          unawaited(controller.setPlaybackSpeed(speed)),
+                    ),
+                    Expanded(
+                      child: _SentenceList(
+                        sentences: state.sentences,
+                        selectedIndex: state.selectedSentenceIndex,
+                        playingIndex: state.playingSentenceIndex,
+                        onPlay: (index) =>
+                            unawaited(controller.playSentence(index)),
+                        onStop: () => unawaited(controller.stopPlayback()),
+                        onSelect: controller.selectSentence,
+                        onMergeNext: controller.mergeWithNext,
+                        onDelete: (index) =>
+                            _deleteSentence(context, controller, l10n, index),
+                        firstPlayGuideStep: sentencePlayStep,
+                        firstMenuGuideStep: sentenceMenuStep,
+                      ),
+                    ),
+                  ],
+                ),
+        ),
       ),
     );
   }
@@ -394,6 +434,8 @@ class _SentenceList extends StatefulWidget {
   final void Function(int index) onSelect;
   final void Function(int index) onMergeNext;
   final void Function(int index) onDelete;
+  final GuideStep? firstPlayGuideStep;
+  final GuideStep? firstMenuGuideStep;
 
   const _SentenceList({
     required this.sentences,
@@ -404,6 +446,8 @@ class _SentenceList extends StatefulWidget {
     required this.onSelect,
     required this.onMergeNext,
     required this.onDelete,
+    this.firstPlayGuideStep,
+    this.firstMenuGuideStep,
   });
 
   @override
@@ -477,6 +521,70 @@ class _SentenceListState extends State<_SentenceList> {
         final rowColor = isSelected || isPlaying
             ? theme.colorScheme.primaryContainer.withValues(alpha: .35)
             : Colors.transparent;
+        final playAction = SizedBox(
+          width: _kPlayActionWidth,
+          child: Tooltip(
+            message: isPlaying ? l10n.stopPlayback : l10n.playSentence,
+            child: InkWell(
+              key: ValueKey('subtitle-sentence-play-$index'),
+              onTap: isPlaying ? widget.onStop : () => widget.onPlay(index),
+              child: Center(
+                child: Icon(
+                  isPlaying ? Icons.stop_rounded : Icons.play_arrow_rounded,
+                  // 播放中用 primary 实色单点强调，区别于「仅选中定位」的行底高亮
+                  color: isPlaying ? theme.colorScheme.primary : null,
+                ),
+              ),
+            ),
+          ),
+        );
+        final menuAction = SizedBox(
+          width: _kMenuActionWidth,
+          child: PopupMenuButton<_SentenceAction>(
+            padding: EdgeInsets.zero,
+            tooltip: MaterialLocalizations.of(context).showMenuTooltip,
+            child: Center(
+              child: Icon(
+                Icons.more_horiz,
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+            itemBuilder: (context) => [
+              PopupMenuItem(
+                value: _SentenceAction.mergeNext,
+                enabled: index < widget.sentences.length - 1,
+                child: _MenuRow(
+                  icon: Icons.call_merge,
+                  label: l10n.mergeWithNextSentence,
+                ),
+              ),
+              PopupMenuItem(
+                value: _SentenceAction.delete,
+                enabled: widget.sentences.length > 1,
+                child: _MenuRow(
+                  icon: Icons.delete_outline,
+                  label: l10n.deleteSentence,
+                  color: theme.colorScheme.error,
+                ),
+              ),
+            ],
+            onSelected: (action) {
+              switch (action) {
+                case _SentenceAction.mergeNext:
+                  widget.onMergeNext(index);
+                case _SentenceAction.delete:
+                  widget.onDelete(index);
+              }
+            },
+          ),
+        );
+        // 新手引导只挂在第一句，用户能立即理解每行左右两侧的操作分区。
+        final guidedPlayAction = index == 0 && widget.firstPlayGuideStep != null
+            ? GuideTarget(step: widget.firstPlayGuideStep!, child: playAction)
+            : playAction;
+        final guidedMenuAction = index == 0 && widget.firstMenuGuideStep != null
+            ? GuideTarget(step: widget.firstMenuGuideStep!, child: menuAction)
+            : menuAction;
         return KeyedSubtree(
           key: _rowKeys[index],
           child: Material(
@@ -485,29 +593,7 @@ class _SentenceListState extends State<_SentenceList> {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  SizedBox(
-                    width: _kPlayActionWidth,
-                    child: Tooltip(
-                      message: isPlaying
-                          ? l10n.stopPlayback
-                          : l10n.playSentence,
-                      child: InkWell(
-                        key: ValueKey('subtitle-sentence-play-$index'),
-                        onTap: isPlaying
-                            ? widget.onStop
-                            : () => widget.onPlay(index),
-                        child: Center(
-                          child: Icon(
-                            isPlaying
-                                ? Icons.stop_rounded
-                                : Icons.play_arrow_rounded,
-                            // 播放中用 primary 实色单点强调，区别于「仅选中定位」的行底高亮
-                            color: isPlaying ? theme.colorScheme.primary : null,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
+                  guidedPlayAction,
                   Expanded(
                     child: InkWell(
                       onTap: () => widget.onSelect(index),
@@ -540,48 +626,7 @@ class _SentenceListState extends State<_SentenceList> {
                       ),
                     ),
                   ),
-                  SizedBox(
-                    width: _kMenuActionWidth,
-                    child: PopupMenuButton<_SentenceAction>(
-                      padding: EdgeInsets.zero,
-                      tooltip: MaterialLocalizations.of(
-                        context,
-                      ).showMenuTooltip,
-                      child: Center(
-                        child: Icon(
-                          Icons.more_horiz,
-                          color: theme.colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                      itemBuilder: (context) => [
-                        PopupMenuItem(
-                          value: _SentenceAction.mergeNext,
-                          enabled: index < widget.sentences.length - 1,
-                          child: _MenuRow(
-                            icon: Icons.call_merge,
-                            label: l10n.mergeWithNextSentence,
-                          ),
-                        ),
-                        PopupMenuItem(
-                          value: _SentenceAction.delete,
-                          enabled: widget.sentences.length > 1,
-                          child: _MenuRow(
-                            icon: Icons.delete_outline,
-                            label: l10n.deleteSentence,
-                            color: theme.colorScheme.error,
-                          ),
-                        ),
-                      ],
-                      onSelected: (action) {
-                        switch (action) {
-                          case _SentenceAction.mergeNext:
-                            widget.onMergeNext(index);
-                          case _SentenceAction.delete:
-                            widget.onDelete(index);
-                        }
-                      },
-                    ),
-                  ),
+                  guidedMenuAction,
                 ],
               ),
             ),
