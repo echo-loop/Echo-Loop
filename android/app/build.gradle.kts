@@ -67,15 +67,14 @@ android {
     }
 
     buildTypes {
-        release {
-            signingConfig = signingConfigs.getByName("release")
-        }
+        release {}
     }
 
     // 与 iOS 的 dev / prod scheme 保持一致：
     // dev  -> app.echoloop.dev  / "Echo Loop Dev"
     // prod -> app.echoloop      / "Echo Loop"
-    // google-services.json 需同时包含这两个 package_name 的 client 条目。
+    // 这里按 flavor 固定签名：dev 使用 debug 证书，prod 使用 release 证书。
+    // 这样同一个 package 的 debug / release 会保持同一把签名，便于 Google 登录配置。
     flavorDimensions += "env"
     productFlavors {
         create("dev") {
@@ -86,6 +85,20 @@ android {
         create("prod") {
             dimension = "env"
             resValue("string", "app_name", "Echo Loop")
+        }
+    }
+}
+
+androidComponents {
+    onVariants(selector().all()) { variant ->
+        if (variant.name.startsWith("prod")) {
+            variant.signingConfig.setConfig(
+                android.signingConfigs.getByName("release"),
+            )
+        } else if (variant.name.startsWith("dev")) {
+            variant.signingConfig.setConfig(
+                android.signingConfigs.getByName("debug"),
+            )
         }
     }
 }
