@@ -99,6 +99,9 @@ class SubtitleWaveformView extends StatefulWidget {
   /// 边界把手命中半径（逻辑像素）。
   static const double boundaryHitRadius = 8;
 
+  /// 边界把手底部贴住时间轴上沿，避免边界细线在把手下方露头。
+  static const double boundaryHandleAxisGap = 0;
+
   /// 区分「轻点定位」与「拖动平移」的位移阈值（逻辑像素）。
   static const double tapSlop = 8;
 
@@ -452,8 +455,9 @@ class _SubtitleWaveformViewState extends State<SubtitleWaveformView> {
     }
     final metrics = _metrics;
     if (metrics == null) return;
-    final localX = event.localPosition.dx;
-    final hits = _hitTestBoundaries(localX, metrics, _renderOffset);
+    final localPosition = event.localPosition;
+    final localX = localPosition.dx;
+    final hits = _hitTestBoundaries(localPosition, metrics, _renderOffset);
     if (hits.isNotEmpty) {
       if (hits.length == 1) {
         // 唯一命中：标记为拖动目标，但按下时不移动边界，
@@ -597,22 +601,37 @@ class _SubtitleWaveformViewState extends State<SubtitleWaveformView> {
     ];
   }
 
-  /// 命中测试：返回落在命中半径内的所有边界，按距离升序（screen-x 比较）。
+  /// 命中测试：返回落在底部把手命中区域内的所有边界，按距离升序。
   List<({int index, BoundaryEdge edge})> _hitTestBoundaries(
-    double localX,
+    Offset localPosition,
     WaveformMetrics metrics,
     double offset,
   ) {
     const radius = SubtitleWaveformView.boundaryHitRadius;
     final hits = <({({int index, BoundaryEdge edge}) c, double d})>[];
+    final bottom = context.size?.height;
+    if (bottom == null) return const [];
+    final handleBottom =
+        bottom -
+        SubtitleWaveformView.axisHeight -
+        SubtitleWaveformView.boundaryHandleAxisGap;
     for (final candidate in _boundaryCandidates()) {
       final sentence = widget.sentences[candidate.index];
       final time = candidate.edge == BoundaryEdge.start
           ? sentence.startTime
           : sentence.endTime;
       final x = metrics.screenX(time, offset);
-      final distance = (localX - x).abs();
-      if (distance <= radius) hits.add((c: candidate, d: distance));
+      final isSecondary = candidate.index != widget.selectedIndex;
+      final width = isSecondary ? 7.0 : 10.0;
+      final height = isSecondary ? 10.0 : 14.0;
+      final rect = Rect.fromCenter(
+        center: Offset(x, handleBottom - height / 2),
+        width: width,
+        height: height,
+      ).inflate(radius);
+      if (rect.contains(localPosition)) {
+        hits.add((c: candidate, d: (localPosition.dx - x).abs()));
+      }
     }
     hits.sort((a, b) => a.d.compareTo(b.d));
     return [for (final hit in hits) hit.c];
@@ -934,10 +953,11 @@ class _WaveformLayerPainter extends CustomPainter {
       ..style = PaintingStyle.fill;
     final width = secondary ? 7.0 : 10.0;
     final height = secondary ? 10.0 : 14.0;
+    final handleBottom = bottom - SubtitleWaveformView.boundaryHandleAxisGap;
     canvas.drawRRect(
       RRect.fromRectAndRadius(
         Rect.fromCenter(
-          center: Offset(x, top + height / 2),
+          center: Offset(x, handleBottom - height / 2),
           width: width,
           height: height,
         ),

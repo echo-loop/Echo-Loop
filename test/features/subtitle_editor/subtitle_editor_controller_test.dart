@@ -341,12 +341,12 @@ void main() {
 
   test('setWaveformZoomScale 限制缩放范围（1.0 ~ 按音频长度）', () async {
     final notifier = controller();
-    await notifier.load(); // totalDuration = 12s → maxZoom = 12 / 4 = 3.0
+    await notifier.load(); // totalDuration = 12s → maxZoom = 12 / 2 = 6.0
 
-    expect(state().maxWaveformZoomScale, 3.0);
+    expect(state().maxWaveformZoomScale, 6.0);
 
     notifier.setWaveformZoomScale(10);
-    expect(state().waveformZoomScale, 3.0);
+    expect(state().waveformZoomScale, 6.0);
 
     notifier.setWaveformZoomScale(0.2);
     expect(state().waveformZoomScale, 1.0);
@@ -354,7 +354,7 @@ void main() {
 
   test('initZoomForViewport 按可视区宽度设置初始缩放（每厘米约 1 秒）', () async {
     final notifier = controller();
-    await notifier.load(); // totalDuration = 12s → maxZoom = 3.0
+    await notifier.load(); // totalDuration = 12s → maxZoom = 6.0
 
     // 1 厘米 ≈ 62.992 逻辑像素；scale = 62.992 * 12 / 360 ≈ 2.1。
     notifier.initZoomForViewport(360);
@@ -379,11 +379,11 @@ void main() {
 
   test('initZoomForViewport 超长音频缩放被 max 截断', () async {
     final notifier = controller();
-    await notifier.load(); // maxZoom = 3.0
+    await notifier.load(); // maxZoom = 6.0
 
     // 极窄可视区会算出超大 scale，应被 maxWaveformZoomScale 截断。
     notifier.initZoomForViewport(50);
-    expect(state().waveformZoomScale, 3.0);
+    expect(state().waveformZoomScale, 6.0);
   });
 
   test('sentenceCountChanged：调边界为 false，删除/合并为 true', () async {

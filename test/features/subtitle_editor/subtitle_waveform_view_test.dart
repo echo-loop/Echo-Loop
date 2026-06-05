@@ -135,10 +135,15 @@ void main() {
       final rect = tester.getRect(find.byType(SubtitleWaveformView));
       // zoom==1 不滚动，screen-x == content-x。结束边界 8s：16 + 768*0.8 = 630.4。
       final endX = rect.left + 630;
-      final gesture = await tester.startGesture(Offset(endX, rect.top + 8));
+      final handleY =
+          rect.bottom -
+          SubtitleWaveformView.axisHeight -
+          SubtitleWaveformView.boundaryHandleAxisGap -
+          7;
+      final gesture = await tester.startGesture(Offset(endX, handleY));
       await tester.pump();
       // 向左拖到 ≈6.3s。
-      await gesture.moveTo(Offset(rect.left + 500, rect.top + 8));
+      await gesture.moveTo(Offset(rect.left + 500, handleY));
       await tester.pump();
       await gesture.up();
       await tester.pump();
@@ -153,6 +158,47 @@ void main() {
       expect(adjusts.last.$3, lessThan(const Duration(seconds: 8)));
       expect(adjusts.last.$3, greaterThan(const Duration(seconds: 4)));
       expect(adjustEnded, isTrue);
+    });
+
+    testWidgets('顶部边界线不可误触发把手拖动', (tester) async {
+      await tester.binding.setSurfaceSize(const Size(800, 240));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      final adjusts = <(int, BoundaryEdge, Duration)>[];
+      final sentences = _sentences();
+      await tester.pumpWidget(
+        createTestApp(
+          SubtitleWaveformView(
+            waveform: _waveform(),
+            extractionProgress: 1,
+            duration: const Duration(seconds: 10),
+            sentences: sentences,
+            activeSentence: sentences[1], // [4s, 8s]
+            selectedIndex: 1,
+            selectionEpoch: 0,
+            playbackPosition: Duration.zero,
+            isPlaying: false,
+            zoomScale: 1,
+            onZoomChanged: (_) {},
+            onScrub: (_) {},
+            onScrubEnd: (_) {},
+            onAdjustBoundary: (index, edge, target) =>
+                adjusts.add((index, edge, target)),
+            onAdjustEnd: () {},
+          ),
+        ),
+      );
+
+      final rect = tester.getRect(find.byType(SubtitleWaveformView));
+      final endX = rect.left + 630;
+      final gesture = await tester.startGesture(Offset(endX, rect.top + 8));
+      await tester.pump();
+      await gesture.moveTo(Offset(rect.left + 500, rect.top + 8));
+      await tester.pump();
+      await gesture.up();
+      await tester.pump();
+
+      expect(adjusts, isEmpty);
     });
 
     testWidgets('播放时让播放头红线钉在视口中线（近首尾退化为扫过）', (tester) async {

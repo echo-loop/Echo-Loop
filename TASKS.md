@@ -1,7 +1,25 @@
 # Echo Loop 任务清单
 
 > 最后更新：2026-06-05
-> 当前焦点：字幕编辑器句子 item 三栏布局（已完成）
+> 当前焦点：字幕编辑器波形边界手柄与最大缩放（已完成）
+
+## 已完成：字幕编辑器波形边界手柄与最大缩放
+
+将字幕编辑页波形里的起止边界把手从波形顶部移动到波形下部，并让把手底部贴住底部时间轴线，避免把手与顶部句子文本抢空间；同时把最大缩放从约每屏 4 秒提升到约每屏 2 秒，方便更精细地调整句子边界。
+
+### 实现
+- [x] 边界把手绘制位置改为底部贴住时间轴线，边界竖线仍贯穿波形用于定位
+- [x] 边界把手 hit-test 与底部视觉位置对齐，顶部边界线不再误触发拖动
+- [x] 波形最大缩放上限改为按约 2 秒可见窗口计算
+- [x] 更新波形把手交互测试与缩放上限测试
+
+### 验证
+- [x] `dart format lib/features/subtitle_editor/subtitle_waveform_view.dart lib/features/subtitle_editor/subtitle_editor_controller.dart test/features/subtitle_editor/subtitle_waveform_view_test.dart test/features/subtitle_editor/subtitle_editor_controller_test.dart`
+- [x] `flutter analyze lib/features/subtitle_editor test/features/subtitle_editor`：No issues found
+- [x] `flutter test test/features/subtitle_editor/`：48 tests passed
+- [x] `scripts/check.sh`：已执行，全量 `flutter analyze` 通过（仅仓库既有 warning/info）；全量 `flutter test` 执行到 1293+ tests、4 skip 时未见失败，工具会话结束前未返回最终 integration/build 结果
+
+**完成时间**: 2026-06-05 22:52 +0800
 
 ## 已完成：字幕编辑器句子 item 三栏布局
 

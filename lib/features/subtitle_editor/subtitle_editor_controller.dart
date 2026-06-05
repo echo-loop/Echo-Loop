@@ -82,12 +82,12 @@ class SubtitleEditorState {
   }
 
   /// 最大放大时屏幕内约可见的秒数；据此让长音频也能放大到看清一句话。
-  static const double _minVisibleSeconds = 4.0;
+  static const double _minVisibleSeconds = 2.0;
 
   /// 波形最大放大倍数。
   ///
   /// `1.0` 表示不缩放（整段音频铺满屏宽）；放大到上限时屏幕内约可见
-  /// [_minVisibleSeconds] 秒，足够看清一句话。音频越长上限越大；
+  /// [_minVisibleSeconds] 秒，足够精细调整句子边界。音频越长上限越大；
   /// 短于该秒数的音频无需放大，返回 `1.0`。
   double get maxWaveformZoomScale {
     final seconds = (totalDuration?.inMilliseconds ?? 0) / 1000;
