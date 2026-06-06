@@ -95,4 +95,55 @@ class AudioItemDao extends DatabaseAccessor<AppDatabase>
       AudioItemsCompanion(wordTimestampsJson: Value(json)),
     );
   }
+
+  /// 获取指定音频的字幕内容（完整 SRT 文本）。
+  ///
+  /// 独立查询，避免列表加载时读取大字段。
+  Future<String?> getTranscriptSrt(String audioItemId) async {
+    final query = select(audioItems)..where((t) => t.id.equals(audioItemId));
+    final row = await query.getSingleOrNull();
+    return row?.transcriptSrt;
+  }
+
+  /// 更新字幕内容（独立更新，不影响其他字段）。
+  Future<void> updateTranscriptSrt(String audioItemId, String? srt) {
+    return (update(audioItems)..where((t) => t.id.equals(audioItemId))).write(
+      AudioItemsCompanion(transcriptSrt: Value(srt)),
+    );
+  }
+
+  /// 查询需要 backfill 字幕内容的行：有遗留文件路径但 transcript_srt 列为空。
+  ///
+  /// 启动时全量 backfill 用，从这些行的 [transcriptPath] 文件读入 SRT。
+  /// 列填满后返回空，后续启动为 no-op。
+  Future<List<AudioItem>> getRowsNeedingSrtBackfill() {
+    return (select(audioItems)..where(
+          (t) =>
+              t.transcriptSrt.isNull() &
+              t.transcriptPath.isNotNull() &
+              t.transcriptPath.isNotValue(''),
+        ))
+        .get();
+  }
+
+  /// 原子保存字幕内容：SRT + 词级时间戳，单事务写入两个大字段。
+  ///
+  /// 供 AI 转录、编辑保存等「字幕内容整体落库」场景使用，避免分两次写入中途崩溃
+  /// 出现 SRT 与词级时间戳不一致。[wordTimestampsJson] 为 null 表示同时清空词级
+  /// 时间戳（如编辑后无词级数据）。句/词计数、来源、路径等模型列由
+  /// `audioLibraryProvider.updateAudioItem` 单独写入（与本方法列不相交）。
+  Future<void> saveTranscriptContent(
+    String audioItemId, {
+    required String srt,
+    required String? wordTimestampsJson,
+  }) {
+    return transaction(() async {
+      await (update(audioItems)..where((t) => t.id.equals(audioItemId))).write(
+        AudioItemsCompanion(
+          transcriptSrt: Value(srt),
+          wordTimestampsJson: Value(wordTimestampsJson),
+        ),
+      );
+    });
+  }
 }

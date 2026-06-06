@@ -52,6 +52,13 @@ class AudioItems extends Table {
   /// 词级时间戳 JSON（AI 转录时由后端返回，与字幕一起管理）
   TextColumn get wordTimestampsJson => text().nullable()();
 
+  /// 字幕内容（完整 SRT 文本）。
+  ///
+  /// DB 成为字幕的唯一真相源后，本列保存整段 SRT。NULL 表示无字幕，或旧行尚未
+  /// backfill（由启动时全量 backfill 从 [transcriptPath] 指向的文件读入）。
+  /// 大字段，与 [wordTimestampsJson] 一样不进列表查询，仅按需读写。
+  TextColumn get transcriptSrt => text().nullable()();
+
   /// 同步状态：0=synced, 1=pendingUpload, 2=pendingDelete
   IntColumn get syncStatus => integer().withDefault(const Constant(0))();
 

@@ -1,7 +1,37 @@
 # Echo Loop 任务清单
 
 > 最后更新：2026-06-06
-> 当前焦点：字幕编辑器句子操作引导（已完成）
+> 当前焦点：字幕存储从文件迁移到数据库 Phase 1（已完成）
+
+## 已完成：字幕存储从文件迁移到数据库（Phase 1：DB 成为唯一真相源）
+
+字幕内容从 `transcripts/*.srt` 文件迁移到 DB `audio_items.transcript_srt` 列，DB 成为字幕内容唯一真相源；本次靠启动全量 backfill 把迁移正确性做到位，仅推迟不可逆的删文件 + drop 列到后续任务。
+
+### 实现
+- [x] `audio_items` 新增 `transcript_srt` 列（schema v35→v36，仅加列）+ 重新生成 drift 代码
+- [x] DAO 新增 `getTranscriptSrt`/`updateTranscriptSrt`/`saveTranscriptContent`（事务）/`getRowsNeedingSrtBackfill`
+- [x] `SubtitleParser.parseSubtitleString`/`parseSubtitleStrictString`；`getTranscriptStatsFromSrt`；`pickTranscriptContent`
+- [x] `hasTranscript` 改以 `transcriptSource` 为准；`getFullTranscriptPath` 与之解耦（DB-only 行返回 null 不崩溃）
+- [x] 读路径 `loadTranscript` 改为读 DB 列 + 文件防御兜底回填
+- [x] 写路径全部改为写列、`transcriptPath=null`：AI 转录 / 官方下载+更新 / 本地上传（两入口）/ 字幕编辑 / demo / 删除清列
+- [x] 启动一次性全量 backfill `backfillTranscriptSrt`（自终止、无 flag）+ `backfillTranscriptStats` 改为列优先、修复 path 空断言崩溃
+- [x] 导出路径 DB-only 行从列落临时 SRT 打包；SP→Drift 旧迁移补 `transcriptSource`
+- [x] 删除死代码：`pickAndSaveTranscript`/`_saveFileToSandbox`/`TranscriptionFileOps.saveSrt`/`getStats`
+
+### 测试
+- [x] 新增：parser 字符串解析、`getTranscriptStatsFromSrt`、DAO 三方法 + backfill 查询、v35→v36 迁移、全量 backfill、`getFullTranscriptPath` 空安全、模型 `hasTranscript` 新语义
+- [x] 更新：transcription/official/manage/editor/demo 测试断言 DB 列；`FakeAudioItemDao` 支持字幕内容存储；`createTestAudioItem` 按 path 推导 source
+
+### 验证
+- [x] `dart run build_runner build --delete-conflicting-outputs`
+- [x] `flutter analyze`：无 error（仅仓库既有 warning/info）
+- [x] `flutter test`：2528 passed，11 skip
+- [ ] `flutter test integration_test -d macos`：未运行（本地 app_test debug connection 既有问题，与本改动无关）
+
+### 后续任务（下个版本，单独提）
+- [ ] 删 `transcripts/` SRT 文件 + drop `audio_items.transcript_path` 列（table-recreate）+ 移除 `loadTranscript`/`getFullTranscriptPath`/`backfillTranscriptStats` 的文件回退分支
+
+**完成时间**: 2026-06-06
 
 ## 已完成：字幕编辑器句子操作引导
 

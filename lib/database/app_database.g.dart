@@ -177,6 +177,17 @@ class $AudioItemsTable extends AudioItems
         type: DriftSqlType.string,
         requiredDuringInsert: false,
       );
+  static const VerificationMeta _transcriptSrtMeta = const VerificationMeta(
+    'transcriptSrt',
+  );
+  @override
+  late final GeneratedColumn<String> transcriptSrt = GeneratedColumn<String>(
+    'transcript_srt',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _syncStatusMeta = const VerificationMeta(
     'syncStatus',
   );
@@ -228,6 +239,7 @@ class $AudioItemsTable extends AudioItems
     updatedAt,
     deletedAt,
     wordTimestampsJson,
+    transcriptSrt,
     syncStatus,
     remoteAudioId,
     originalDate,
@@ -360,6 +372,15 @@ class $AudioItemsTable extends AudioItems
         ),
       );
     }
+    if (data.containsKey('transcript_srt')) {
+      context.handle(
+        _transcriptSrtMeta,
+        transcriptSrt.isAcceptableOrUnknown(
+          data['transcript_srt']!,
+          _transcriptSrtMeta,
+        ),
+      );
+    }
     if (data.containsKey('sync_status')) {
       context.handle(
         _syncStatusMeta,
@@ -453,6 +474,10 @@ class $AudioItemsTable extends AudioItems
         DriftSqlType.string,
         data['${effectivePrefix}word_timestamps_json'],
       ),
+      transcriptSrt: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}transcript_srt'],
+      ),
       syncStatus: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}sync_status'],
@@ -525,6 +550,13 @@ class AudioItem extends DataClass implements Insertable<AudioItem> {
   /// 词级时间戳 JSON（AI 转录时由后端返回，与字幕一起管理）
   final String? wordTimestampsJson;
 
+  /// 字幕内容（完整 SRT 文本）。
+  ///
+  /// DB 成为字幕的唯一真相源后，本列保存整段 SRT。NULL 表示无字幕，或旧行尚未
+  /// backfill（由启动时全量 backfill 从 [transcriptPath] 指向的文件读入）。
+  /// 大字段，与 [wordTimestampsJson] 一样不进列表查询，仅按需读写。
+  final String? transcriptSrt;
+
   /// 同步状态：0=synced, 1=pendingUpload, 2=pendingDelete
   final int syncStatus;
 
@@ -551,6 +583,7 @@ class AudioItem extends DataClass implements Insertable<AudioItem> {
     required this.updatedAt,
     this.deletedAt,
     this.wordTimestampsJson,
+    this.transcriptSrt,
     required this.syncStatus,
     this.remoteAudioId,
     this.originalDate,
@@ -586,6 +619,9 @@ class AudioItem extends DataClass implements Insertable<AudioItem> {
     }
     if (!nullToAbsent || wordTimestampsJson != null) {
       map['word_timestamps_json'] = Variable<String>(wordTimestampsJson);
+    }
+    if (!nullToAbsent || transcriptSrt != null) {
+      map['transcript_srt'] = Variable<String>(transcriptSrt);
     }
     map['sync_status'] = Variable<int>(syncStatus);
     if (!nullToAbsent || remoteAudioId != null) {
@@ -628,6 +664,9 @@ class AudioItem extends DataClass implements Insertable<AudioItem> {
       wordTimestampsJson: wordTimestampsJson == null && nullToAbsent
           ? const Value.absent()
           : Value(wordTimestampsJson),
+      transcriptSrt: transcriptSrt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(transcriptSrt),
       syncStatus: Value(syncStatus),
       remoteAudioId: remoteAudioId == null && nullToAbsent
           ? const Value.absent()
@@ -663,6 +702,7 @@ class AudioItem extends DataClass implements Insertable<AudioItem> {
       wordTimestampsJson: serializer.fromJson<String?>(
         json['wordTimestampsJson'],
       ),
+      transcriptSrt: serializer.fromJson<String?>(json['transcriptSrt']),
       syncStatus: serializer.fromJson<int>(json['syncStatus']),
       remoteAudioId: serializer.fromJson<String?>(json['remoteAudioId']),
       originalDate: serializer.fromJson<DateTime?>(json['originalDate']),
@@ -687,6 +727,7 @@ class AudioItem extends DataClass implements Insertable<AudioItem> {
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
       'deletedAt': serializer.toJson<DateTime?>(deletedAt),
       'wordTimestampsJson': serializer.toJson<String?>(wordTimestampsJson),
+      'transcriptSrt': serializer.toJson<String?>(transcriptSrt),
       'syncStatus': serializer.toJson<int>(syncStatus),
       'remoteAudioId': serializer.toJson<String?>(remoteAudioId),
       'originalDate': serializer.toJson<DateTime?>(originalDate),
@@ -709,6 +750,7 @@ class AudioItem extends DataClass implements Insertable<AudioItem> {
     DateTime? updatedAt,
     Value<DateTime?> deletedAt = const Value.absent(),
     Value<String?> wordTimestampsJson = const Value.absent(),
+    Value<String?> transcriptSrt = const Value.absent(),
     int? syncStatus,
     Value<String?> remoteAudioId = const Value.absent(),
     Value<DateTime?> originalDate = const Value.absent(),
@@ -736,6 +778,9 @@ class AudioItem extends DataClass implements Insertable<AudioItem> {
     wordTimestampsJson: wordTimestampsJson.present
         ? wordTimestampsJson.value
         : this.wordTimestampsJson,
+    transcriptSrt: transcriptSrt.present
+        ? transcriptSrt.value
+        : this.transcriptSrt,
     syncStatus: syncStatus ?? this.syncStatus,
     remoteAudioId: remoteAudioId.present
         ? remoteAudioId.value
@@ -773,6 +818,9 @@ class AudioItem extends DataClass implements Insertable<AudioItem> {
       wordTimestampsJson: data.wordTimestampsJson.present
           ? data.wordTimestampsJson.value
           : this.wordTimestampsJson,
+      transcriptSrt: data.transcriptSrt.present
+          ? data.transcriptSrt.value
+          : this.transcriptSrt,
       syncStatus: data.syncStatus.present
           ? data.syncStatus.value
           : this.syncStatus,
@@ -803,6 +851,7 @@ class AudioItem extends DataClass implements Insertable<AudioItem> {
           ..write('updatedAt: $updatedAt, ')
           ..write('deletedAt: $deletedAt, ')
           ..write('wordTimestampsJson: $wordTimestampsJson, ')
+          ..write('transcriptSrt: $transcriptSrt, ')
           ..write('syncStatus: $syncStatus, ')
           ..write('remoteAudioId: $remoteAudioId, ')
           ..write('originalDate: $originalDate')
@@ -827,6 +876,7 @@ class AudioItem extends DataClass implements Insertable<AudioItem> {
     updatedAt,
     deletedAt,
     wordTimestampsJson,
+    transcriptSrt,
     syncStatus,
     remoteAudioId,
     originalDate,
@@ -850,6 +900,7 @@ class AudioItem extends DataClass implements Insertable<AudioItem> {
           other.updatedAt == this.updatedAt &&
           other.deletedAt == this.deletedAt &&
           other.wordTimestampsJson == this.wordTimestampsJson &&
+          other.transcriptSrt == this.transcriptSrt &&
           other.syncStatus == this.syncStatus &&
           other.remoteAudioId == this.remoteAudioId &&
           other.originalDate == this.originalDate);
@@ -871,6 +922,7 @@ class AudioItemsCompanion extends UpdateCompanion<AudioItem> {
   final Value<DateTime> updatedAt;
   final Value<DateTime?> deletedAt;
   final Value<String?> wordTimestampsJson;
+  final Value<String?> transcriptSrt;
   final Value<int> syncStatus;
   final Value<String?> remoteAudioId;
   final Value<DateTime?> originalDate;
@@ -891,6 +943,7 @@ class AudioItemsCompanion extends UpdateCompanion<AudioItem> {
     this.updatedAt = const Value.absent(),
     this.deletedAt = const Value.absent(),
     this.wordTimestampsJson = const Value.absent(),
+    this.transcriptSrt = const Value.absent(),
     this.syncStatus = const Value.absent(),
     this.remoteAudioId = const Value.absent(),
     this.originalDate = const Value.absent(),
@@ -912,6 +965,7 @@ class AudioItemsCompanion extends UpdateCompanion<AudioItem> {
     required DateTime updatedAt,
     this.deletedAt = const Value.absent(),
     this.wordTimestampsJson = const Value.absent(),
+    this.transcriptSrt = const Value.absent(),
     this.syncStatus = const Value.absent(),
     this.remoteAudioId = const Value.absent(),
     this.originalDate = const Value.absent(),
@@ -936,6 +990,7 @@ class AudioItemsCompanion extends UpdateCompanion<AudioItem> {
     Expression<DateTime>? updatedAt,
     Expression<DateTime>? deletedAt,
     Expression<String>? wordTimestampsJson,
+    Expression<String>? transcriptSrt,
     Expression<int>? syncStatus,
     Expression<String>? remoteAudioId,
     Expression<DateTime>? originalDate,
@@ -958,6 +1013,7 @@ class AudioItemsCompanion extends UpdateCompanion<AudioItem> {
       if (deletedAt != null) 'deleted_at': deletedAt,
       if (wordTimestampsJson != null)
         'word_timestamps_json': wordTimestampsJson,
+      if (transcriptSrt != null) 'transcript_srt': transcriptSrt,
       if (syncStatus != null) 'sync_status': syncStatus,
       if (remoteAudioId != null) 'remote_audio_id': remoteAudioId,
       if (originalDate != null) 'original_date': originalDate,
@@ -981,6 +1037,7 @@ class AudioItemsCompanion extends UpdateCompanion<AudioItem> {
     Value<DateTime>? updatedAt,
     Value<DateTime?>? deletedAt,
     Value<String?>? wordTimestampsJson,
+    Value<String?>? transcriptSrt,
     Value<int>? syncStatus,
     Value<String?>? remoteAudioId,
     Value<DateTime?>? originalDate,
@@ -1002,6 +1059,7 @@ class AudioItemsCompanion extends UpdateCompanion<AudioItem> {
       updatedAt: updatedAt ?? this.updatedAt,
       deletedAt: deletedAt ?? this.deletedAt,
       wordTimestampsJson: wordTimestampsJson ?? this.wordTimestampsJson,
+      transcriptSrt: transcriptSrt ?? this.transcriptSrt,
       syncStatus: syncStatus ?? this.syncStatus,
       remoteAudioId: remoteAudioId ?? this.remoteAudioId,
       originalDate: originalDate ?? this.originalDate,
@@ -1057,6 +1115,9 @@ class AudioItemsCompanion extends UpdateCompanion<AudioItem> {
     if (wordTimestampsJson.present) {
       map['word_timestamps_json'] = Variable<String>(wordTimestampsJson.value);
     }
+    if (transcriptSrt.present) {
+      map['transcript_srt'] = Variable<String>(transcriptSrt.value);
+    }
     if (syncStatus.present) {
       map['sync_status'] = Variable<int>(syncStatus.value);
     }
@@ -1090,6 +1151,7 @@ class AudioItemsCompanion extends UpdateCompanion<AudioItem> {
           ..write('updatedAt: $updatedAt, ')
           ..write('deletedAt: $deletedAt, ')
           ..write('wordTimestampsJson: $wordTimestampsJson, ')
+          ..write('transcriptSrt: $transcriptSrt, ')
           ..write('syncStatus: $syncStatus, ')
           ..write('remoteAudioId: $remoteAudioId, ')
           ..write('originalDate: $originalDate, ')
@@ -10164,6 +10226,7 @@ typedef $$AudioItemsTableCreateCompanionBuilder =
       required DateTime updatedAt,
       Value<DateTime?> deletedAt,
       Value<String?> wordTimestampsJson,
+      Value<String?> transcriptSrt,
       Value<int> syncStatus,
       Value<String?> remoteAudioId,
       Value<DateTime?> originalDate,
@@ -10186,6 +10249,7 @@ typedef $$AudioItemsTableUpdateCompanionBuilder =
       Value<DateTime> updatedAt,
       Value<DateTime?> deletedAt,
       Value<String?> wordTimestampsJson,
+      Value<String?> transcriptSrt,
       Value<int> syncStatus,
       Value<String?> remoteAudioId,
       Value<DateTime?> originalDate,
@@ -10460,6 +10524,11 @@ class $$AudioItemsTableFilterComposer
 
   ColumnFilters<String> get wordTimestampsJson => $composableBuilder(
     column: $table.wordTimestampsJson,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get transcriptSrt => $composableBuilder(
+    column: $table.transcriptSrt,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -10763,6 +10832,11 @@ class $$AudioItemsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get transcriptSrt => $composableBuilder(
+    column: $table.transcriptSrt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<int> get syncStatus => $composableBuilder(
     column: $table.syncStatus,
     builder: (column) => ColumnOrderings(column),
@@ -10844,6 +10918,11 @@ class $$AudioItemsTableAnnotationComposer
 
   GeneratedColumn<String> get wordTimestampsJson => $composableBuilder(
     column: $table.wordTimestampsJson,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get transcriptSrt => $composableBuilder(
+    column: $table.transcriptSrt,
     builder: (column) => column,
   );
 
@@ -11117,6 +11196,7 @@ class $$AudioItemsTableTableManager
                 Value<DateTime> updatedAt = const Value.absent(),
                 Value<DateTime?> deletedAt = const Value.absent(),
                 Value<String?> wordTimestampsJson = const Value.absent(),
+                Value<String?> transcriptSrt = const Value.absent(),
                 Value<int> syncStatus = const Value.absent(),
                 Value<String?> remoteAudioId = const Value.absent(),
                 Value<DateTime?> originalDate = const Value.absent(),
@@ -11137,6 +11217,7 @@ class $$AudioItemsTableTableManager
                 updatedAt: updatedAt,
                 deletedAt: deletedAt,
                 wordTimestampsJson: wordTimestampsJson,
+                transcriptSrt: transcriptSrt,
                 syncStatus: syncStatus,
                 remoteAudioId: remoteAudioId,
                 originalDate: originalDate,
@@ -11159,6 +11240,7 @@ class $$AudioItemsTableTableManager
                 required DateTime updatedAt,
                 Value<DateTime?> deletedAt = const Value.absent(),
                 Value<String?> wordTimestampsJson = const Value.absent(),
+                Value<String?> transcriptSrt = const Value.absent(),
                 Value<int> syncStatus = const Value.absent(),
                 Value<String?> remoteAudioId = const Value.absent(),
                 Value<DateTime?> originalDate = const Value.absent(),
@@ -11179,6 +11261,7 @@ class $$AudioItemsTableTableManager
                 updatedAt: updatedAt,
                 deletedAt: deletedAt,
                 wordTimestampsJson: wordTimestampsJson,
+                transcriptSrt: transcriptSrt,
                 syncStatus: syncStatus,
                 remoteAudioId: remoteAudioId,
                 originalDate: originalDate,

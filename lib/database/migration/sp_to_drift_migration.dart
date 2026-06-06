@@ -103,6 +103,13 @@ class SpToDriftMigration {
             name: Value(item.name),
             audioPath: Value(item.audioPath),
             transcriptPath: Value(item.transcriptPath),
+            // 有字幕文件的旧行须设 transcriptSource，否则字幕内容入库后 hasTranscript
+            // （以 source 为准）会判为无字幕，导致字幕加载不出。SP 时代均为本地字幕。
+            transcriptSource: Value(
+              (item.transcriptPath != null && item.transcriptPath!.isNotEmpty)
+                  ? model.TranscriptSource.local.index
+                  : null,
+            ),
             addedDate: Value(item.addedDate),
             totalDuration: Value(item.totalDuration),
             isPinned: Value(item.isPinned),
@@ -177,10 +184,10 @@ class SpToDriftMigration {
 
       if (indices.isEmpty) continue;
 
-      // 尝试从字幕文件获取句子信息
+      // 尝试从字幕文件获取句子信息（SP 时代字幕均为文件，按路径判断）
       Map<int, model.Sentence> sentenceMap = {};
-      if (item.hasTranscript &&
-          item.transcriptPath != null &&
+      if (item.transcriptPath != null &&
+          item.transcriptPath!.isNotEmpty &&
           _subtitleLoader != null) {
         try {
           final sentences = await _subtitleLoader(item.transcriptPath!);

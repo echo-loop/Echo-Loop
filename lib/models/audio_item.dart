@@ -75,9 +75,11 @@ class AudioItem {
   /// 音频文件是否已就绪（在本地可播）。
   bool get isAudioReady => audioPath != null && audioPath!.isNotEmpty;
 
-  /// 字幕文件是否已在本地可用。
-  bool get hasTranscript =>
-      transcriptPath != null && transcriptPath!.isNotEmpty;
+  /// 是否有字幕。
+  ///
+  /// 字幕内容入库后，以 [transcriptSource] 是否有值为准（内容存 DB 列，不再依赖
+  /// 文件路径）。所有创建点设置 source、删除时清空。
+  bool get hasTranscript => transcriptSource != null;
 
   /// 获取音频文件的完整路径；未就绪时返回 null。
   Future<String?> getFullAudioPath() async {
@@ -86,9 +88,12 @@ class AudioItem {
     return path.join(dataDir.path, audioPath!);
   }
 
-  /// 获取字幕文件的完整路径
+  /// 获取遗留字幕文件的完整路径；无文件路径时返回 null。
+  ///
+  /// 字幕内容入库后，新行 [transcriptPath] 为 null（内容在 DB 列），此处返回 null。
+  /// 仅旧行/迁移漏网时指向遗留文件，供 backfill、删除清理、导出兜底使用。
   Future<String?> getFullTranscriptPath() async {
-    if (!hasTranscript) return null;
+    if (transcriptPath == null || transcriptPath!.isEmpty) return null;
     final dataDir = await getAppDataDirectory();
     return path.join(dataDir.path, transcriptPath!);
   }
