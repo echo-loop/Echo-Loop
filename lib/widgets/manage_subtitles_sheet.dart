@@ -890,17 +890,22 @@ class _ManageSubtitlesSheetState extends ConsumerState<ManageSubtitlesSheet> {
     }
 
     try {
-      final newPath = await pickAndSaveTranscript();
-      if (newPath == null) return;
+      final content = await pickTranscriptContent();
+      if (content == null) return;
 
-      final stats = await getTranscriptStats(newPath);
+      final stats = await getTranscriptStatsFromSrt(content);
+
+      // 字幕内容入 DB 列；transcriptPath 置 null（不再复制到沙盒）
+      await ref
+          .read(audioItemDaoProvider)
+          .updateTranscriptSrt(audioItem.id, content);
 
       if (!context.mounted) return;
       ref
           .read(audioLibraryProvider.notifier)
           .updateAudioItem(
             audioItem.copyWith(
-              transcriptPath: newPath,
+              transcriptPath: null,
               sentenceCount: stats.$1,
               wordCount: stats.$2,
               transcriptSource: TranscriptSource.local,
@@ -1117,10 +1122,10 @@ class _ManageSubtitlesSheetState extends ConsumerState<ManageSubtitlesSheet> {
     // 删除后端 transcript 会影响所有共用同一音频的用户。
     // 用户重新转录时，后端 upsert 会覆盖旧记录，无需手动删除。
 
-    // 3. 清除词级时间戳
-    await ref
-        .read(audioItemDaoProvider)
-        .updateWordTimestamps(audioItem.id, null);
+    // 3. 清除字幕内容列与词级时间戳
+    final audioDao = ref.read(audioItemDaoProvider);
+    await audioDao.updateTranscriptSrt(audioItem.id, null);
+    await audioDao.updateWordTimestamps(audioItem.id, null);
 
     // 4. 更新本地数据库：清除字幕相关字段
     ref
@@ -1146,6 +1151,8 @@ class _ManageSubtitlesSheetState extends ConsumerState<ManageSubtitlesSheet> {
         .deleteProgress(audioItem.id);
 
     // 7. 清除 listeningPracticeProvider 中缓存的句子数据
+    // 字幕内容入库后 transcriptPath 恒为 null，loadAudio 去重守卫（比较 id +
+    // transcriptPath）无法察觉变化，必须强制重载才能让 keepAlive 的 LP 丢弃旧句子。
     final practiceState = ref.read(listeningPracticeProvider);
     if (practiceState.currentAudioItem?.id == audioItem.id) {
       ref
@@ -1158,6 +1165,7 @@ class _ManageSubtitlesSheetState extends ConsumerState<ManageSubtitlesSheet> {
               sentenceCount: 0,
               wordCount: 0,
             ),
+            forceTranscriptReload: true,
           );
     }
   }

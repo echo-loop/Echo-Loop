@@ -2,21 +2,26 @@
 //
 // 提供字幕文件选择、保存到沙盒、覆盖确认等公共方法，
 // 供音频列表项菜单和合集详情页共用。
+import 'dart:convert';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:subtitle/subtitle.dart' show SubtitleType;
 import 'package:universal_io/io.dart';
-import 'app_data_dir.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:path/path.dart' as path;
+import '../database/providers.dart';
 import '../models/audio_item.dart';
 import '../providers/audio_library_provider.dart';
 import '../l10n/app_localizations.dart';
 import '../services/subtitle_parser.dart';
 import 'transcript_stats.dart';
 
-/// 选择并保存字幕文件到沙盒，返回相对路径。用户取消返回 null。
-Future<String?> pickAndSaveTranscript() async {
+/// 选择字幕文件并返回其原始字符串内容（不复制到沙盒）。用户取消返回 null。
+///
+/// 字幕内容入库后的上传入口：选文件 → 严格校验 → 直接返回内容，由调用方写入
+/// DB 列。校验失败抛 [SubtitleParseException]。
+Future<String?> pickTranscriptContent() async {
   final FilePickerResult? result;
 
   if (!kIsWeb && Platform.isIOS) {
@@ -40,29 +45,38 @@ Future<String?> pickAndSaveTranscript() async {
   if (result == null || result.files.isEmpty) return null;
 
   final file = result.files.single;
+  final ext = _extensionOf(file.name).toLowerCase();
+  if (ext != 'srt' && ext != 'vtt') {
+    throw SubtitleParseException(SubtitleParseErrorKind.unsupportedFormat, ext);
+  }
+  final type = ext == 'vtt' ? SubtitleType.vtt : SubtitleType.srt;
 
-  // 落沙盒前先严格校验，失败时直接抛 SubtitleParseException 由上层处理；
-  // 这样不会污染已存在的同名字幕，也不会留下垃圾文件。
+  // 读取内容：优先文件路径，其次 bytes / readStream（web）。
+  final String content;
   if (file.path != null) {
-    await SubtitleParser.parseSubtitleStrict(file.path!);
-    return _saveFileToSandbox(file, 'transcripts');
+    content = await File(file.path!).readAsString();
+  } else if (file.bytes != null) {
+    content = utf8.decode(file.bytes!, allowMalformed: true);
+  } else if (file.readStream != null) {
+    final bytes = <int>[];
+    await for (final chunk in file.readStream!) {
+      bytes.addAll(chunk);
+    }
+    content = utf8.decode(bytes, allowMalformed: true);
+  } else {
+    throw Exception('Unable to access picked file');
   }
 
-  // 仅 bytes / stream 的场景（基本只在 web）：先落沙盒再校验，失败时清理。
-  final savedRel = await _saveFileToSandbox(file, 'transcripts');
-  try {
-    final dataDir = await getAppDataDirectory();
-    final savedFull = path.join(dataDir.path, savedRel);
-    await SubtitleParser.parseSubtitleStrict(savedFull);
-    return savedRel;
-  } catch (_) {
-    final dataDir = await getAppDataDirectory();
-    final savedFull = path.join(dataDir.path, savedRel);
-    try {
-      await File(savedFull).delete();
-    } catch (_) {}
-    rethrow;
-  }
+  // 严格校验内容（失败抛 SubtitleParseException）。
+  await SubtitleParser.parseSubtitleStrictString(content, type: type);
+  return content;
+}
+
+/// 提取文件名扩展名（不含点）。
+String _extensionOf(String name) {
+  final lastDot = name.lastIndexOf('.');
+  if (lastDot < 0 || lastDot == name.length - 1) return '';
+  return name.substring(lastDot + 1);
 }
 
 /// 为音频上传字幕（含已有字幕覆盖确认）
@@ -99,28 +113,34 @@ Future<void> uploadTranscriptForAudio(
 
   // 选择字幕文件
   try {
-    final newPath = await pickAndSaveTranscript();
-    if (newPath == null) return;
+    final content = await pickTranscriptContent();
+    if (content == null) return;
 
     // 统计字幕句子数和单词数
-    final stats = await getTranscriptStats(newPath);
+    final stats = await getTranscriptStatsFromSrt(content);
 
-    // 更新音频项的字幕路径和统计数据
+    // 字幕内容入 DB 列；transcriptPath 置 null
+    await ref
+        .read(audioItemDaoProvider)
+        .updateTranscriptSrt(audioItem.id, content);
+
+    // 更新音频项的统计数据与来源
     if (!context.mounted) return;
     ref
         .read(audioLibraryProvider.notifier)
         .updateAudioItem(
           audioItem.copyWith(
-            transcriptPath: newPath,
+            transcriptPath: null,
             sentenceCount: stats.$1,
             wordCount: stats.$2,
+            transcriptSource: TranscriptSource.local,
           ),
         );
   } on SubtitleParseException catch (e) {
     if (!context.mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(subtitleParseErrorMessage(l10n, e))),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(subtitleParseErrorMessage(l10n, e))));
   } catch (e) {
     if (!context.mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
@@ -153,33 +173,4 @@ Future<String?> _getDownloadsDirectory() async {
   } catch (_) {
     return null;
   }
-}
-
-/// 保存文件到应用沙盒，返回相对于数据目录的相对路径
-Future<String> _saveFileToSandbox(PlatformFile file, String subdir) async {
-  final dataDir = await getAppDataDirectory();
-  final dir = Directory(path.join(dataDir.path, subdir));
-  if (!await dir.exists()) {
-    await dir.create(recursive: true);
-  }
-
-  final baseName = file.name.isNotEmpty
-      ? file.name
-      : (file.path != null ? path.basename(file.path!) : 'file');
-  final destPath = path.join(dir.path, baseName);
-
-  // 字幕上传场景始终覆盖已有文件
-  if (file.path != null) {
-    await File(file.path!).copy(destPath);
-  } else if (file.bytes != null) {
-    await File(destPath).writeAsBytes(file.bytes!);
-  } else if (file.readStream != null) {
-    final out = File(destPath).openWrite();
-    await file.readStream!.pipe(out);
-    await out.close();
-  } else {
-    throw Exception('Unable to access picked file');
-  }
-
-  return path.join(subdir, baseName);
 }

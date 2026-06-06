@@ -6,7 +6,7 @@ part of 'audio_engine_provider.dart';
 // RiverpodGenerator
 // **************************************************************************
 
-String _$audioEngineHash() => r'50dbda3976ecc5203b535eed14bfb2144503fa0c';
+String _$audioEngineHash() => r'b50e8fe215c96c36e6242e9d25a3175f7ca7ff3a';
 
 /// See also [AudioEngine].
 @ProviderFor(AudioEngine)

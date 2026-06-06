@@ -60,7 +60,8 @@ class DemoDataSeeder {
                 id: audio.id,
                 name: audio.title,
                 audioPath: Value('demo/audio_${i + 1}.wav'),
-                transcriptPath: Value('demo/audio_${i + 1}.srt'),
+                // 字幕内容入 DB 列，transcriptPath 留空
+                transcriptSrt: Value(audio.toSrt()),
                 addedDate: addedDate,
                 totalDuration: Value(audio.durationSeconds),
                 sentenceCount: Value(audio.sentenceCount),
@@ -171,9 +172,7 @@ class DemoDataSeeder {
     }
 
     for (var i = 0; i < demoAudios.length; i++) {
-      final srtPath = p.join(demoDir.path, 'audio_${i + 1}.srt');
-      await File(srtPath).writeAsString(demoAudios[i].toSrt());
-
+      // 字幕内容存 DB transcript_srt 列，不再写 SRT 文件；仅需音频文件。
       final wavPath = p.join(demoDir.path, 'audio_${i + 1}.wav');
       await File(
         wavPath,

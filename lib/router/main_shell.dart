@@ -114,6 +114,8 @@ class _MainShellState extends ConsumerState<MainShell> {
 
         ref.read(tagListProvider.notifier).loadTags();
         ref.read(audioLibraryProvider.notifier).backfillDurations();
+        // 先把旧字幕文件内容 backfill 进 DB 列，再补统计（统计优先读列）。
+        await ref.read(audioLibraryProvider.notifier).backfillTranscriptSrt();
         ref.read(audioLibraryProvider.notifier).backfillTranscriptStats();
       } catch (e, st) {
         AppLogger.log('StartupLoad', 'library bootstrap failed: $e');

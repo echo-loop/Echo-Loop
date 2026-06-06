@@ -295,13 +295,55 @@ class AudioLibrary extends _$AudioLibrary {
     }
   }
 
+  /// 全量 backfill 字幕内容 — 把旧行的 SRT 文件读入 transcript_srt 列。
+  ///
+  /// 字幕内容入库后的一次性迁移：列填满后该查询返回空、后续启动为 no-op，
+  /// 也能自愈漏网行。文件缺失/读失败的行保持 NULL，下次启动重试。
+  Future<void> backfillTranscriptSrt() async {
+    final dao = ref.read(audioItemDaoProvider);
+    final rows = await dao.getRowsNeedingSrtBackfill();
+    if (rows.isEmpty) return;
+    int filled = 0;
+    for (final row in rows) {
+      try {
+        final relativePath = row.transcriptPath;
+        if (relativePath == null || relativePath.isEmpty) continue;
+        final dataDir = await getAppDataDirectory();
+        final file = File('${dataDir.path}/$relativePath');
+        if (!await file.exists()) continue;
+        final content = await file.readAsString();
+        if (content.isEmpty) continue;
+        await dao.updateTranscriptSrt(row.id, content);
+        filled++;
+      } catch (e) {
+        AppLogger.log('AudioLib', 'backfillTranscriptSrt 跳过 ${row.id}: $e');
+      }
+    }
+    AppLogger.log(
+      'AudioLib',
+      'backfillTranscriptSrt done: rows=${rows.length}, filled=$filled',
+    );
+  }
+
   /// 补填字幕统计 — 对有字幕但 sentenceCount == 0 的音频逐个统计并持久化
   Future<void> backfillTranscriptStats() async {
     final missing = state.audioItems
         .where((item) => item.hasTranscript && item.sentenceCount == 0)
         .toList();
+    if (missing.isEmpty) return;
+    final dao = ref.read(audioItemDaoProvider);
     for (final item in missing) {
-      final stats = await getTranscriptStats(item.transcriptPath!);
+      // 优先用 DB 列内容算统计；列空时回退遗留文件路径。
+      final srt = await dao.getTranscriptSrt(item.id);
+      final (int, int) stats;
+      if (srt != null && srt.isNotEmpty) {
+        stats = await getTranscriptStatsFromSrt(srt);
+      } else if (item.transcriptPath != null &&
+          item.transcriptPath!.isNotEmpty) {
+        stats = await getTranscriptStats(item.transcriptPath!);
+      } else {
+        continue;
+      }
       if (stats.$1 > 0) {
         updateAudioItem(
           item.copyWith(sentenceCount: stats.$1, wordCount: stats.$2),

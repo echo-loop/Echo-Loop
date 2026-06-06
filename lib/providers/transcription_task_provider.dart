@@ -39,14 +39,6 @@ class TranscriptionFileOps {
   /// 获取文件大小
   Future<int> getFileSize(String filePath) => File(filePath).length();
 
-  /// 保存 SRT 文件，返回相对路径
-  Future<String> saveSrt(String audioId, String srtContent) =>
-      saveSrtFile(audioId, srtContent);
-
-  /// 获取 SRT 统计 (sentenceCount, wordCount)
-  Future<(int, int)> getStats(String srtFullPath) =>
-      getTranscriptStats(srtFullPath);
-
   /// 获取应用数据目录
   Future<Directory> getDataDir() => getAppDataDirectory();
 }
@@ -344,7 +336,7 @@ class TranscriptionTaskManager extends _$TranscriptionTaskManager {
     _updateState(audioItem.id, const TranscriptionFailed(message: 'timeout'));
   }
 
-  /// 保存转录结果到本地 SRT 文件并更新 AudioItem
+  /// 保存转录结果到 DB（transcript_srt 列）并更新 AudioItem
   Future<void> _saveTranscriptAndFinish(
     AudioItem audioItem,
     TranscriptResult transcript,
@@ -358,25 +350,34 @@ class TranscriptionTaskManager extends _$TranscriptionTaskManager {
       return;
     }
 
-    final fileOps = ref.read(transcriptionFileOpsProvider);
     final alignedSentences = await _alignSentencesIfPossible(
       audioItem,
       transcript,
     );
     final srtContent = generateSrtContent(alignedSentences);
-    final relativePath = await fileOps.saveSrt(audioItem.id, srtContent);
+    final stats = await getTranscriptStatsFromSrt(srtContent);
 
-    // 获取 SRT 统计
-    final docDir = await fileOps.getDataDir();
-    final srtFullPath = p.join(docDir.path, relativePath);
-    final stats = await fileOps.getStats(srtFullPath);
+    // 字幕内容 + 词级时间戳原子写入 DB（transcript_srt 列成为唯一真相源）
+    final wordsJson = (transcript.words != null && transcript.words!.isNotEmpty)
+        ? encodeWordTimestamps(transcript.words!)
+        : null;
+    try {
+      final audioDao = ref.read(audioItemDaoProvider);
+      await audioDao.saveTranscriptContent(
+        audioItem.id,
+        srt: srtContent,
+        wordTimestampsJson: wordsJson,
+      );
+    } catch (e) {
+      debugPrint('保存字幕内容失败: $e');
+    }
 
-    // 更新 AudioItem
+    // 更新 AudioItem 模型列（transcriptPath 置 null，内容在 DB 列）
     ref
         .read(audioLibraryProvider.notifier)
         .updateAudioItem(
           audioItem.copyWith(
-            transcriptPath: relativePath,
+            transcriptPath: null,
             transcriptSource: TranscriptSource.ai,
             transcriptLanguage: language,
             audioSha256: sha256,
@@ -384,19 +385,6 @@ class TranscriptionTaskManager extends _$TranscriptionTaskManager {
             wordCount: stats.$2,
           ),
         );
-
-    // 保存词级时间戳到 audio_items 表（非阻塞，失败不影响主流程）
-    if (transcript.words != null && transcript.words!.isNotEmpty) {
-      try {
-        final audioDao = ref.read(audioItemDaoProvider);
-        await audioDao.updateWordTimestamps(
-          audioItem.id,
-          encodeWordTimestamps(transcript.words!),
-        );
-      } catch (e) {
-        debugPrint('保存词级时间戳失败: $e');
-      }
-    }
 
     _updateState(audioItem.id, const TranscriptionCompleted());
     _cancelTokens.remove(audioItem.id);

@@ -477,22 +477,16 @@ class SubtitleEditorController extends StateNotifier<SubtitleEditorState> {
       await stopPlayback();
 
       final item = state.audioItem;
-      final fullTranscriptPath = await item.getFullTranscriptPath();
-      if (fullTranscriptPath == null) {
-        throw StateError('Transcript file is not available');
-      }
 
       final srt = _generateSrt(state.sentences);
-      final target = File(fullTranscriptPath);
-      final tmp = File('$fullTranscriptPath.tmp');
-      await tmp.writeAsString(srt);
-      await tmp.rename(target.path);
 
       // 词级时间戳同步（仅 AI 转录有词级数据）：按最终句子边界对齐边界词，
-      // 丢弃被删除区间的词。无词级数据（本地字幕）则跳过。
+      // 丢弃被删除区间的词。无词级数据（本地字幕）则保留原词级列不动。
+      final dao = _ref.read(audioItemDaoProvider);
       int? syncedWordCount;
+      String? syncedWordsJson;
+      bool updateWords = false;
       if (item.transcriptSource == TranscriptSource.ai) {
-        final dao = _ref.read(audioItemDaoProvider);
         final json = await dao.getWordTimestamps(item.id);
         final words = json == null ? null : decodeWordTimestamps(json);
         if (words != null && words.isNotEmpty) {
@@ -500,9 +494,21 @@ class SubtitleEditorController extends StateNotifier<SubtitleEditorState> {
             state.sentences,
             words,
           );
-          await dao.updateWordTimestamps(item.id, encodeWordTimestamps(synced));
+          syncedWordsJson = encodeWordTimestamps(synced);
           syncedWordCount = synced.length;
+          updateWords = true;
         }
+      }
+
+      // 字幕内容（+ 同步后的词级时间戳）原子写入 DB 列。
+      if (updateWords) {
+        await dao.saveTranscriptContent(
+          item.id,
+          srt: srt,
+          wordTimestampsJson: syncedWordsJson,
+        );
+      } else {
+        await dao.updateTranscriptSrt(item.id, srt);
       }
 
       final wordCount =
@@ -512,6 +518,7 @@ class SubtitleEditorController extends StateNotifier<SubtitleEditorState> {
             (sum, sentence) => sum + _countWords(sentence.text),
           );
       final updatedItem = item.copyWith(
+        transcriptPath: null,
         sentenceCount: state.sentences.length,
         wordCount: wordCount,
       );
@@ -531,10 +538,10 @@ class SubtitleEditorController extends StateNotifier<SubtitleEditorState> {
 
       final practiceState = _ref.read(listeningPracticeProvider);
       if (practiceState.currentAudioItem?.id == item.id) {
-        // 字幕保存是原地改写同名 SRT 文件，id 和 transcriptPath 都不变。
+        // 字幕保存只改 DB transcript_srt 列，id / transcriptPath 不变（都为 null）。
         // loadAudio 的去重守卫只比较 id + transcriptPath，不带 force 会命中守卫
         // 直接跳过重新解析，使 keepAlive 的 LP 保留旧句子（自由练习/盲听显示陈旧
-        // 拆分版本）。必须强制重载以绕过守卫。
+        // 拆分版本）。必须强制重载以绕过守卫，从 DB 列读到最新内容。
         await _ref
             .read(listeningPracticeProvider.notifier)
             .loadAudio(updatedItem, forceTranscriptReload: true);

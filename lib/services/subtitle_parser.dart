@@ -36,11 +36,25 @@ class SubtitleParser {
       }
 
       final content = await file.readAsString();
+      return parseSubtitleString(content, type: _getSubtitleType(filePath));
+    } catch (e) {
+      print('Error parsing subtitle: $e');
+      return [];
+    }
+  }
+
+  /// 解析字幕字符串内容，失败时静默返回空列表。
+  ///
+  /// 字幕内容入库后的主解析入口（DB 列存的是整段 SRT 文本）。
+  /// [type] 默认按 SRT 解析。
+  static Future<List<Sentence>> parseSubtitleString(
+    String content, {
+    SubtitleType type = SubtitleType.srt,
+  }) async {
+    try {
+      if (content.isEmpty) return [];
       final controller = SubtitleController(
-        provider: SubtitleProvider.fromString(
-          data: content,
-          type: _getSubtitleType(filePath),
-        ),
+        provider: SubtitleProvider.fromString(data: content, type: type),
       );
 
       await controller.initial();
@@ -74,8 +88,8 @@ class SubtitleParser {
       );
     }
 
-    // 2. 读文件 + 调用解析器
-    final List<Subtitle> subtitles;
+    // 2. 读文件
+    final String content;
     try {
       final file = File(filePath);
       if (!await file.exists()) {
@@ -84,15 +98,7 @@ class SubtitleParser {
           'file not found',
         );
       }
-      final content = await file.readAsString();
-      final controller = SubtitleController(
-        provider: SubtitleProvider.fromString(
-          data: content,
-          type: ext == 'vtt' ? SubtitleType.vtt : SubtitleType.srt,
-        ),
-      );
-      await controller.initial();
-      subtitles = controller.subtitles;
+      content = await file.readAsString();
     } on SubtitleParseException {
       rethrow;
     } catch (e) {
@@ -102,7 +108,35 @@ class SubtitleParser {
       );
     }
 
-    // 3. 空内容
+    // 3. 按内容严格解析
+    return parseSubtitleStrictString(
+      content,
+      type: ext == 'vtt' ? SubtitleType.vtt : SubtitleType.srt,
+    );
+  }
+
+  /// 严格解析字幕字符串，区分内容错误、空内容两种失败（不含扩展名校验）。
+  ///
+  /// 供「字幕内容已在内存中」的上传校验场景使用（如 web bytes、DB 内容）。
+  /// 校验失败抛 [SubtitleParseException]。
+  static Future<List<Sentence>> parseSubtitleStrictString(
+    String content, {
+    SubtitleType type = SubtitleType.srt,
+  }) async {
+    final List<Subtitle> subtitles;
+    try {
+      final controller = SubtitleController(
+        provider: SubtitleProvider.fromString(data: content, type: type),
+      );
+      await controller.initial();
+      subtitles = controller.subtitles;
+    } catch (e) {
+      throw SubtitleParseException(
+        SubtitleParseErrorKind.formatInvalid,
+        e.toString(),
+      );
+    }
+
     if (subtitles.isEmpty) {
       throw const SubtitleParseException(SubtitleParseErrorKind.empty);
     }

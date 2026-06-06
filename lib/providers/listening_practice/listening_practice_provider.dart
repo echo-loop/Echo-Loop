@@ -166,10 +166,15 @@ class ListeningPractice extends _$ListeningPractice {
   }) async {
     state = state.copyWith(autoScrollEnabled: true);
 
-    // 同一音频且字幕未变化时跳过
+    // 同一音频且字幕未变化时跳过。
+    // 字幕内容入库后 transcriptPath 恒为 null，无法再作为「字幕是否变化」的信号；
+    // 故同时比较 transcriptSource，以捕捉「新增字幕(null→source)/删除字幕(source→null)」。
+    // 内容被原地编辑（source 不变）的场景由调用方显式传 forceTranscriptReload 处理。
     if (!forceTranscriptReload &&
         state.currentAudioItem?.id == audioItem.id &&
-        state.currentAudioItem?.transcriptPath == audioItem.transcriptPath) {
+        state.currentAudioItem?.transcriptPath == audioItem.transcriptPath &&
+        state.currentAudioItem?.transcriptSource ==
+            audioItem.transcriptSource) {
       // 如果当前正在加载，等待加载完成（而不是直接跳过）
       if (_loadingCompleter != null && !_loadingCompleter!.isCompleted) {
         return _loadingCompleter!.future;

@@ -12,6 +12,8 @@ import '../models/audio_item.dart';
 import '../utils/time_format.dart';
 import '../models/learning_progress.dart';
 import '../models/tag.dart';
+import '../database/providers.dart';
+import '../utils/app_data_dir.dart';
 import '../providers/audio_library_provider.dart';
 import '../providers/collection_provider.dart';
 import '../providers/learning_progress_provider.dart';
@@ -870,17 +872,45 @@ class AudioListTile extends ConsumerWidget {
         }
         return;
       }
-      final transcriptPath = await audioItem.getFullTranscriptPath();
+      // 字幕内容存 DB 列：导出需要文件，故把列内容落临时 SRT 供打包。
+      // 旧行（transcriptPath 非 null）仍直接用遗留文件。
+      String? transcriptPath = await audioItem.getFullTranscriptPath();
+      File? tempTranscriptFile;
+      if (selection.includeTranscript && transcriptPath == null) {
+        final srt = await ref
+            .read(audioItemDaoProvider)
+            .getTranscriptSrt(audioItem.id);
+        if (srt != null && srt.isNotEmpty) {
+          final dataDir = await getAppDataDirectory();
+          final tmpDir = Directory(p.join(dataDir.path, 'tmp', 'export'));
+          await tmpDir.create(recursive: true);
+          tempTranscriptFile = File(
+            p.join(tmpDir.path, '${audioItem.id}_export.srt'),
+          );
+          await tempTranscriptFile.writeAsString(srt);
+          transcriptPath = tempTranscriptFile.path;
+        }
+      }
 
       // 3. 调用导出服务生成临时文件
       final service = AudioExportService();
-      final exportPath = await service.exportAudioItem(
-        displayName: audioItem.name,
-        audioPath: audioPath,
-        transcriptPath: transcriptPath,
-        includeAudio: selection.includeAudio,
-        includeTranscript: selection.includeTranscript,
-      );
+      final String exportPath;
+      try {
+        exportPath = await service.exportAudioItem(
+          displayName: audioItem.name,
+          audioPath: audioPath,
+          transcriptPath: transcriptPath,
+          includeAudio: selection.includeAudio,
+          includeTranscript: selection.includeTranscript,
+        );
+      } finally {
+        // 清理临时字幕文件（导出服务已把内容打包）
+        if (tempTranscriptFile != null) {
+          try {
+            await tempTranscriptFile.delete();
+          } catch (_) {}
+        }
+      }
 
       if (!context.mounted) return;
 

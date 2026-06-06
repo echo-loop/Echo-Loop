@@ -136,27 +136,14 @@ class OfficialDownload extends _$OfficialDownload {
           'srtBytes=${content.srt.length} words=${content.wordTimestamps.length}',
     );
 
-    final docDir = await getAppDataDirectory();
-    final relativeTranscriptPath =
-        (audioItem.transcriptPath != null &&
-            audioItem.transcriptPath!.isNotEmpty)
-        ? audioItem.transcriptPath!
-        : 'transcripts/official_${audioItem.id}.srt';
-    final transcriptFile = File(p.join(docDir.path, relativeTranscriptPath));
-    await transcriptFile.parent.create(recursive: true);
-    await transcriptFile.writeAsString(content.srt);
-    AppLogger.log(
-      'OfficialSubtitle',
-      'srt written path=$relativeTranscriptPath bytes=${content.srt.length}',
-    );
-
     final wordsJson = encodeWordTimestamps(content.wordTimestamps);
-    final stats = await getTranscriptStats(relativeTranscriptPath);
+    final stats = await getTranscriptStatsFromSrt(content.srt);
     await (database.update(
       database.audioItems,
     )..where((t) => t.id.equals(audioItem.id))).write(
       db.AudioItemsCompanion(
-        transcriptPath: Value(relativeTranscriptPath),
+        transcriptPath: const Value(null),
+        transcriptSrt: Value(content.srt),
         wordTimestampsJson: Value(wordsJson),
         transcriptSource: const Value(1),
         sentenceCount: Value(stats.$1),
@@ -167,6 +154,7 @@ class OfficialDownload extends _$OfficialDownload {
     AppLogger.log(
       'OfficialSubtitle',
       'db updated audioItemId=${audioItem.id} '
+          'srtBytes=${content.srt.length} '
           'wordsJsonBytes=${wordsJson.length} '
           'sentences=${stats.$1} words=${stats.$2}',
     );
@@ -270,8 +258,9 @@ class OfficialDownload extends _$OfficialDownload {
       );
       if (sid != _sessionId) return;
 
-      // 3) 写 SRT + wordTimestamps + 移动 tmp → final
-      //    audioPath / transcriptPath 此时还是 NULL（enroll 时留白），由本次下载决定。
+      // 3) 字幕内容入 DB 列 + wordTimestamps + 移动 tmp → final
+      //    audioPath 此时还是 NULL（enroll 时留白），由本次下载决定；
+      //    字幕内容存 transcript_srt 列，transcriptPath 置 null（不再落文件）。
       final sha256 = audioItem.audioSha256;
       if (sha256 == null || sha256.isEmpty) {
         throw StateError(
@@ -279,34 +268,30 @@ class OfficialDownload extends _$OfficialDownload {
         );
       }
       final relativeAudioPath = 'audios/official/$sha256.m4a';
-      final relativeTranscriptPath = 'transcripts/official_${audioItem.id}.srt';
 
       final audioFinalPath = p.join(docDir.path, relativeAudioPath);
       final audioFinalFile = File(audioFinalPath);
       await audioFinalFile.parent.create(recursive: true);
       await tmpAudioFile.rename(audioFinalPath);
 
-      final transcriptFile = File(p.join(docDir.path, relativeTranscriptPath));
-      await transcriptFile.parent.create(recursive: true);
-      await transcriptFile.writeAsString(content.srt);
-
       final wordsJson = encodeWordTimestamps(content.wordTimestamps);
 
       // 字幕统计（句数/词数）随下载一起入库，否则学习计划页要等下次启动
       // backfillTranscriptStats 才能补上。
-      // 不在此处插入 sessionId 检查：原代码约定文件落盘 + DB write 是原子块，
+      // 不在此处插入 sessionId 检查：原代码约定音频落盘 + DB write 是原子块，
       // 中途 return 会留下 DB 缺 audioPath 的孤儿文件。
-      final stats = await getTranscriptStats(relativeTranscriptPath);
+      final stats = await getTranscriptStatsFromSrt(content.srt);
 
-      // 4) 写 DB —— audioPath / transcriptPath 是「下载是否就绪」的单一真实来源，
-      //    必须在文件落盘之后写入。
+      // 4) 写 DB —— audioPath 是「下载是否就绪」的单一真实来源，
+      //    必须在音频落盘之后写入；字幕内容入 transcript_srt 列。
       final database = ref.read(appDatabaseProvider);
       await (database.update(
         database.audioItems,
       )..where((t) => t.id.equals(audioItem.id))).write(
         db.AudioItemsCompanion(
           audioPath: Value(relativeAudioPath),
-          transcriptPath: Value(relativeTranscriptPath),
+          transcriptPath: const Value(null),
+          transcriptSrt: Value(content.srt),
           wordTimestampsJson: Value(wordsJson),
           transcriptSource: const Value(1),
           sentenceCount: Value(stats.$1),
