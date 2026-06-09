@@ -3327,6 +3327,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get authOtpInvalid => 'Enter a valid 6-digit code';
 
   @override
+  String get authOtpIncorrectOrExpired =>
+      'Verification code is incorrect or expired.';
+
+  @override
   String get authEnterOtpTitle => 'Enter code';
 
   @override

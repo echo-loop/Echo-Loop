@@ -1297,6 +1297,7 @@
   "authOtpLabel": "6 位验证码",
   "authOtpRequired": "请输入 6 位验证码",
   "authOtpInvalid": "请输入有效的 6 位验证码",
+  "authOtpIncorrectOrExpired": "验证码不正确或已过期。",
   "authEnterOtpTitle": "输入验证码",
   "authOtpHelpText": "如果没有收到邮件，请检查垃圾邮件箱。",
   "authSendOtpButton": "发送验证码",

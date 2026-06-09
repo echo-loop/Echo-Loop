@@ -23,7 +23,11 @@ import '../../helpers/mock_providers.dart';
 
 class _MockAnalyticsService extends Mock implements AnalyticsService {}
 
-Widget _app(GoRouter router, {AnalyticsService? analytics}) {
+Widget _app(
+  GoRouter router, {
+  AnalyticsService? analytics,
+  Locale locale = const Locale('en'),
+}) {
   return ProviderScope(
     overrides: [
       analyticsServiceProvider.overrideWithValue(
@@ -31,7 +35,7 @@ Widget _app(GoRouter router, {AnalyticsService? analytics}) {
       ),
     ],
     child: MaterialApp.router(
-      locale: const Locale('en'),
+      locale: locale,
       supportedLocales: const [Locale('en'), Locale('zh')],
       localizationsDelegates: const [
         AppLocalizations.delegate,
@@ -587,7 +591,7 @@ void main() {
     expect(find.text('Source Page'), findsOneWidget);
   });
 
-  testWidgets('邮箱验证码校验失败后回到主登录页并提示错误', (tester) async {
+  testWidgets('邮箱验证码校验失败后停留在验证码页并提示本地化错误', (tester) async {
     final router = _authRouter(
       initialLocation: AppRoutes.study,
       onSendOtp: (_) async {},
@@ -606,10 +610,43 @@ void main() {
     await tester.enterText(_otpField(), '123456');
     await tester.pumpAndSettle();
 
-    expect(find.text('Sign in to Echo Loop'), findsOneWidget);
-    expect(find.text('Continue with Email Code'), findsOneWidget);
+    expect(find.text('Check your email'), findsOneWidget);
+    expect(find.widgetWithText(TextFormField, '6-digit code'), findsOneWidget);
+    expect(find.text('Continue with Email Code'), findsNothing);
     expect(find.text('Source Page'), findsNothing);
-    expect(find.text('Invalid verification code'), findsOneWidget);
+    expect(
+      find.text('Verification code is incorrect or expired.'),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('邮箱验证码校验失败后使用当前中文界面语言提示', (tester) async {
+    final router = _authRouter(
+      initialLocation: AppRoutes.study,
+      onSendOtp: (_) async {},
+      onVerifyOtp: (_, _) async {
+        throw const AuthException('Invalid verification code');
+      },
+    );
+
+    await tester.pumpWidget(_app(router, locale: const Locale('zh')));
+    router.push(AppRoutes.login);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('使用邮箱验证码继续'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextFormField), 'user@example.com');
+    await _tapVisible(tester, find.text('发送验证码'));
+    await tester.enterText(
+      find.widgetWithText(TextFormField, '6 位验证码'),
+      '123456',
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('请查收邮件'), findsOneWidget);
+    expect(find.widgetWithText(TextFormField, '6 位验证码'), findsOneWidget);
+    expect(find.text('使用邮箱验证码继续'), findsNothing);
+    expect(find.text('Source Page'), findsNothing);
+    expect(find.text('验证码不正确或已过期。'), findsOneWidget);
   });
 
   testWidgets('OTP 阶段返回直接离开认证页，避免页内退回邮箱态', (tester) async {

@@ -1663,6 +1663,7 @@
   "authOtpLabel": "6-digit code",
   "authOtpRequired": "Enter the 6-digit code",
   "authOtpInvalid": "Enter a valid 6-digit code",
+  "authOtpIncorrectOrExpired": "Verification code is incorrect or expired.",
   "authEnterOtpTitle": "Enter code",
   "authOtpHelpText": "Check spam if you do not see the email.",
   "authSendOtpButton": "Send Code",

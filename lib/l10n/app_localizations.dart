@@ -5906,6 +5906,12 @@ abstract class AppLocalizations {
   /// **'Enter a valid 6-digit code'**
   String get authOtpInvalid;
 
+  /// No description provided for @authOtpIncorrectOrExpired.
+  ///
+  /// In en, this message translates to:
+  /// **'Verification code is incorrect or expired.'**
+  String get authOtpIncorrectOrExpired;
+
   /// No description provided for @authEnterOtpTitle.
   ///
   /// In en, this message translates to:

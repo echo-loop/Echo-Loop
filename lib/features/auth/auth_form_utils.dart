@@ -66,7 +66,19 @@ String mapAuthExceptionMessage(AppLocalizations l10n, AuthException error) {
   if (normalized.contains('not configured')) {
     return l10n.authUnavailable;
   }
+  if (_isOtpVerificationError(normalized)) {
+    return l10n.authOtpIncorrectOrExpired;
+  }
   return error.message;
+}
+
+/// 识别 Supabase 邮箱 OTP 校验失败，避免把后端英文错误暴露给用户。
+bool _isOtpVerificationError(String normalizedMessage) {
+  return normalizedMessage.contains('invalid verification code') ||
+      normalizedMessage.contains('invalid otp') ||
+      normalizedMessage.contains('token has expired') ||
+      normalizedMessage.contains('otp expired') ||
+      normalizedMessage.contains('expired token');
 }
 
 /// 认证流程共享页面骨架。

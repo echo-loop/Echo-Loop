@@ -3,6 +3,24 @@
 > 最后更新：2026-06-09
 > 当前焦点：限制开发者时光机只能跳到未来
 
+## 已完成：邮箱验证码错误后停留在验证码页
+
+邮箱登录 OTP 校验失败时不再返回主登录页，而是继续停留在验证码输入阶段，并使用当前界面语言提示验证码不正确或已过期，避免把 Supabase 返回的英文错误直接暴露给用户。
+
+### 实现
+- [x] OTP 验证失败分支只显示错误提示，不再向主登录页回传失败结果
+- [x] 认证错误映射识别验证码错误或过期类 Supabase 异常，统一转为本地化文案
+- [x] 新增中英文文案：验证码不正确或已过期
+- [x] 补充回归测试：英文和中文界面下验证码错误均停留在 OTP 页面并显示本地化提示
+
+### 验证
+- [x] `dart format lib/features/auth/screens/email_sign_in_screen.dart lib/features/auth/auth_form_utils.dart test/features/auth/auth_flow_screens_test.dart lib/l10n/app_localizations.dart lib/l10n/app_localizations_en.dart lib/l10n/app_localizations_zh.dart`
+- [x] `flutter analyze lib/features/auth/auth_form_utils.dart lib/features/auth/screens/email_sign_in_screen.dart test/features/auth/auth_flow_screens_test.dart`：No issues found
+- [x] `flutter test test/features/auth/auth_flow_screens_test.dart`：34 passed
+- [ ] `scripts/check.sh`：`flutter analyze` 阶段通过（仅仓库既有 warning/info）；全量 `flutter test` 已运行到 1300+ 用例后按用户要求中断，不再等待全量测试
+
+**完成时间**: 2026-06-09 21:43 +0800
+
 ## 已完成：限制开发者时光机只能跳到未来
 
 开发者时光机此前允许设置到真实系统时间之前，会让应用内复习解锁时间和系统通知插件的真实时间校验出现冲突。现在时光机入口只接受真实系统时间之后的分钟级时间；已保存的过去时间会在加载时自动清除，用户选择或保存过去时间时会规整到下一分钟，避免再次出现“应用内未来、系统通知已过期”的状态。

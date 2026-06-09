@@ -201,11 +201,9 @@ class _EmailSignInScreenState extends ConsumerState<EmailSignInScreen> {
     } on AuthException catch (error) {
       if (!mounted) return;
       _showVerificationError(mapAuthExceptionMessage(l10n, error));
-      _finishAuthAttempt(AuthAttemptResult.failure);
     } catch (_) {
       if (!mounted) return;
       _showVerificationError(l10n.authUnknownError);
-      _finishAuthAttempt(AuthAttemptResult.failure);
     } finally {
       if (mounted) {
         setState(() => _isVerifyingOtp = false);

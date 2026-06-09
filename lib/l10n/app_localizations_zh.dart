@@ -3193,6 +3193,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get authOtpInvalid => '请输入有效的 6 位验证码';
 
   @override
+  String get authOtpIncorrectOrExpired => '验证码不正确或已过期。';
+
+  @override
   String get authEnterOtpTitle => '输入验证码';
 
   @override
