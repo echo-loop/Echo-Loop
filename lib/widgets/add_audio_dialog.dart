@@ -52,6 +52,8 @@ class AddAudioDialog extends ConsumerStatefulWidget {
   final bool embedded;
   final VoidCallback? onBack;
   final ValueChanged<List<AudioItem>>? onComplete;
+  final AudioImportSourceType importSourceType;
+  final bool preferDownloadsDirectory;
 
   const AddAudioDialog({
     super.key,
@@ -59,6 +61,8 @@ class AddAudioDialog extends ConsumerStatefulWidget {
     this.embedded = false,
     this.onBack,
     this.onComplete,
+    this.importSourceType = AudioImportSourceType.local,
+    this.preferDownloadsDirectory = true,
   });
 
   @override
@@ -538,7 +542,8 @@ class _AddAudioDialogState extends ConsumerState<AddAudioDialog> {
           allowMultiple: true,
         );
       } else {
-        final initialDir = !kIsWeb && Platform.isMacOS
+        final initialDir =
+            widget.preferDownloadsDirectory && !kIsWeb && Platform.isMacOS
             ? await _getDownloadsDirectory()
             : null;
         result = await FilePicker.platform.pickFiles(
@@ -674,7 +679,7 @@ class _AddAudioDialogState extends ConsumerState<AddAudioDialog> {
         input: SandboxedAudioRegistrationInput(
           name: file.name,
           relativePath: file.path,
-          importSourceType: AudioImportSourceType.local,
+          importSourceType: widget.importSourceType,
         ),
         audioLibrary: library,
         audioLibraryState: libraryState,
