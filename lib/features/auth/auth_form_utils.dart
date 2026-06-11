@@ -96,6 +96,7 @@ class AuthScaffold extends StatelessWidget {
     this.onBack,
     this.topGap,
     this.headerGap,
+    this.onLogoTap,
   });
 
   final String title;
@@ -107,6 +108,9 @@ class AuthScaffold extends StatelessWidget {
   final VoidCallback? onBack;
   final double? topGap;
   final double? headerGap;
+
+  /// 品牌 logo 点击回调（仅登录主页注入，用于隐藏的审核员入口）。
+  final VoidCallback? onLogoTap;
 
   @override
   Widget build(BuildContext context) {
@@ -176,7 +180,11 @@ class AuthScaffold extends StatelessWidget {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         SizedBox(height: resolvedTopGap),
-                        AuthBrandHeader(title: title, subtitle: subtitle),
+                        AuthBrandHeader(
+                          title: title,
+                          subtitle: subtitle,
+                          onLogoTap: onLogoTap,
+                        ),
                         SizedBox(height: resolvedHeaderGap),
                         child,
                       ],
@@ -194,28 +202,44 @@ class AuthScaffold extends StatelessWidget {
 
 /// 认证页面顶部品牌区。
 class AuthBrandHeader extends StatelessWidget {
-  const AuthBrandHeader({super.key, required this.title, this.subtitle});
+  const AuthBrandHeader({
+    super.key,
+    required this.title,
+    this.subtitle,
+    this.onLogoTap,
+  });
 
   final String title;
   final String? subtitle;
 
+  /// logo 点击回调；为 null 时 logo 不可点击，行为与原先一致。
+  final VoidCallback? onLogoTap;
+
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    Widget logo = Image.asset(
+      'assets/icon/app-icon-1024.png',
+      width: authBrandLogoSize,
+      height: authBrandLogoSize,
+      semanticLabel: 'Echo Loop',
+      filterQuality: FilterQuality.high,
+      errorBuilder: (context, error, stackTrace) => Icon(
+        Icons.graphic_eq_rounded,
+        size: 48,
+        color: colorScheme.primary,
+      ),
+    );
+    if (onLogoTap != null) {
+      logo = GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: onLogoTap,
+        child: logo,
+      );
+    }
     return Column(
       children: [
-        Image.asset(
-          'assets/icon/app-icon-1024.png',
-          width: authBrandLogoSize,
-          height: authBrandLogoSize,
-          semanticLabel: 'Echo Loop',
-          filterQuality: FilterQuality.high,
-          errorBuilder: (context, error, stackTrace) => Icon(
-            Icons.graphic_eq_rounded,
-            size: 48,
-            color: colorScheme.primary,
-          ),
-        ),
+        logo,
         const SizedBox(height: 24),
         Text(
           title,

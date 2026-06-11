@@ -15,6 +15,7 @@ import '../features/auth/screens/account_screen.dart';
 import '../features/auth/screens/check_email_screen.dart';
 import '../features/auth/screens/email_sign_in_screen.dart';
 import '../features/auth/screens/login_screen.dart';
+import '../features/auth/screens/password_sign_in_screen.dart';
 import '../features/auth/providers/auth_providers.dart';
 import '../features/official_collections/screens/discover_collections_screen.dart';
 import '../features/official_collections/screens/official_collection_detail_screen.dart';
@@ -52,6 +53,9 @@ abstract class AppRoutes {
   static const login = '/login';
   static const emailSignIn = '/login/email';
   static const checkEmail = '/login/check-email';
+
+  /// 隐藏的邮箱密码登录入口（App Store / Google Play 审核员专用）。
+  static const passwordSignIn = '/login/password';
   static const account = '/account';
 
   /// 合集详情页路径
@@ -144,7 +148,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       final isAuthRoute =
           state.uri.path == AppRoutes.login ||
           state.uri.path == AppRoutes.emailSignIn ||
-          state.uri.path == AppRoutes.checkEmail;
+          state.uri.path == AppRoutes.checkEmail ||
+          state.uri.path == AppRoutes.passwordSignIn;
       if (isAuthenticated && isAuthRoute) {
         return AppRoutes.settings;
       }
@@ -238,6 +243,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           final email = extra is String ? extra : '';
           return CheckEmailScreen(email: email);
         },
+      ),
+      GoRoute(
+        path: AppRoutes.passwordSignIn,
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) => const PasswordSignInScreen(),
       ),
       GoRoute(
         path: AppRoutes.account,

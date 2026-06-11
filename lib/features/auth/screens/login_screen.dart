@@ -37,9 +37,13 @@ class LoginScreen extends ConsumerStatefulWidget {
 }
 
 class _LoginScreenState extends ConsumerState<LoginScreen> {
+  /// 连续点击 logo 进入隐藏密码登录入口所需次数（App Store / Google Play 审核用）。
+  static const int _passwordEntryTapTarget = 5;
+
   bool _isBusy = false;
   bool? _isAppleSignInAvailable;
   bool? _isGoogleSignInAvailable;
+  int _logoTapCount = 0;
 
   bool get _isApplePlatformSupported {
     final override = widget.isAppleSignInSupportedOverride;
@@ -273,6 +277,21 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     context.go(AppRoutes.settings);
   }
 
+  /// 连续点击品牌 logo 满 [_passwordEntryTapTarget] 次后进入隐藏的密码登录页。
+  ///
+  /// 该入口仅供 App Store / Google Play 审核员使用，普通用户不可见。
+  Future<void> _handleLogoTap() async {
+    _logoTapCount += 1;
+    if (_logoTapCount < _passwordEntryTapTarget) return;
+    _logoTapCount = 0;
+    _trackLoginMethod('password');
+    final result = await context.push<AuthAttemptResult>(
+      AppRoutes.passwordSignIn,
+    );
+    if (!mounted || result == null) return;
+    _finishAuthAttempt(result);
+  }
+
   Future<void> _openEmailSignIn() async {
     _trackLoginMethod('email');
     final result = await context.push<AuthAttemptResult>(AppRoutes.emailSignIn);
@@ -306,6 +325,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       onTermsTap: () => _openPolicy('/terms'),
       onPrivacyTap: () => _openPolicy('/privacy'),
       onBack: () => _goBack(context),
+      onLogoTap: _handleLogoTap,
       topGap: 44,
       headerGap: 56,
       child: Column(

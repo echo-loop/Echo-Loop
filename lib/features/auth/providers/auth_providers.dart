@@ -32,6 +32,14 @@ abstract class AuthRepository {
 
   Future<AuthResponse> signInWithGoogle();
 
+  /// 邮箱+密码登录。
+  ///
+  /// 仅用于审核员预建账号的隐藏入口，账号在 Supabase 后台手动创建。
+  Future<AuthResponse> signInWithPassword({
+    required String email,
+    required String password,
+  });
+
   Future<void> signOut();
 }
 
@@ -113,6 +121,32 @@ class SupabaseAuthRepository implements AuthRepository {
       AppLogger.log(
         'AuthGoogle',
         'Supabase signInWithIdToken failed message=${error.message} '
+            'status=${error.statusCode} code=${error.code}',
+      );
+      rethrow;
+    }
+  }
+
+  @override
+  Future<AuthResponse> signInWithPassword({
+    required String email,
+    required String password,
+  }) async {
+    try {
+      AppLogger.log('AuthPassword', 'Supabase signInWithPassword start');
+      final response = await _auth.signInWithPassword(
+        email: email,
+        password: password,
+      );
+      AppLogger.log(
+        'AuthPassword',
+        'Supabase signInWithPassword success userId=${response.user?.id}',
+      );
+      return response;
+    } on AuthException catch (error) {
+      AppLogger.log(
+        'AuthPassword',
+        'Supabase signInWithPassword failed message=${error.message} '
             'status=${error.statusCode} code=${error.code}',
       );
       rethrow;
@@ -257,6 +291,20 @@ class AuthController {
 
   Future<void> signInWithGoogle() async {
     final response = await _repository.signInWithGoogle();
+    final user = response.user;
+    if (user != null) {
+      await _ref.read(authAnalyticsSyncProvider).syncSignedInUser(user);
+    }
+  }
+
+  Future<void> signInWithPassword({
+    required String email,
+    required String password,
+  }) async {
+    final response = await _repository.signInWithPassword(
+      email: email,
+      password: password,
+    );
     final user = response.user;
     if (user != null) {
       await _ref.read(authAnalyticsSyncProvider).syncSignedInUser(user);
