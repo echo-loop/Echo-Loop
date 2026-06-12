@@ -27,9 +27,11 @@
 
   <p>
     <a href="https://apps.apple.com/cn/app/echo-loop-%E9%AB%98%E6%95%88%E8%8B%B1%E8%AF%AD%E5%90%AC%E8%AF%B4%E8%AE%AD%E7%BB%83/id6760324074"><img src="https://developer.apple.com/assets/elements/badges/download-on-the-app-store.svg" alt="Download on the App Store" height="48" /></a>
-    <a href="https://play.google.com/store/apps/details?id=app.echoloop"><img src="assets/badges/google-play-en.png" alt="Get it on Google Play" height="48" /></a>
+    <a href="https://groups.google.com/u/0/g/echo-loop-testers/c/vzaTF9j4ys8"><img src="assets/badges/google-play-en.png" alt="Get it on Google Play" height="48" /></a>
   </p>
 </div>
+
+> 🤖 **Note for Android users**: Echo Loop for Android is currently in a Google Play closed test. The Google Play button opens the tester invitation post. Please follow the post to join the Google Group first, then join the test and install the app.
 
 > 🇨🇳 **Note for China users**: The China App Store listing is temporarily off the shelf while we complete ICP registration. Users in mainland China can still install Echo Loop with an App Store account from another region (e.g. US or Hong Kong). It will be relisted once registration is complete.
 
@@ -151,10 +153,11 @@ Each piece of material is split into 1 first-pass session + 7 spaced reviews. In
       <p>
         <a href="https://apps.apple.com/cn/app/echo-loop-%E9%AB%98%E6%95%88%E8%8B%B1%E8%AF%AD%E5%90%AC%E8%AF%B4%E8%AE%AD%E7%BB%83/id6760324074"><img src="https://developer.apple.com/assets/elements/badges/download-on-the-app-store.svg" alt="App Store" height="48" /></a>
         &nbsp;
-        <a href="https://play.google.com/store/apps/details?id=app.echoloop"><img src="assets/badges/google-play-en.png" alt="Get it on Google Play" height="48" /></a>
+        <a href="https://groups.google.com/u/0/g/echo-loop-testers/c/vzaTF9j4ys8"><img src="assets/badges/google-play-en.png" alt="Get it on Google Play" height="48" /></a>
         &nbsp;
         <a href="https://github.com/echo-loop/Echo-Loop/releases"><img src="https://img.shields.io/badge/Android-Download%20APK-3DDC84?logo=android&logoColor=white&style=for-the-badge" alt="Android APK" height="48" /></a>
       </p>
+      <p><sub>Echo Loop for Android is currently in a Google Play closed test. Click the Google Play button to open the tester invitation.</sub></p>
       <p><sub>Desktop: macOS in development · Windows planned · Web not planned</sub></p>
     </td>
     <td valign="middle" align="center" width="120">
