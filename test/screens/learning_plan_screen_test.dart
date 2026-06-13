@@ -803,7 +803,7 @@ void main() {
       addTearDown(tester.view.resetDevicePixelRatio);
 
       final longAudio = testAudioItemNoTranscript.copyWith(
-        totalDuration: 16 * 60,
+        totalDuration: 31 * 60,
       );
       await prefs.setBool('guide_v1_subtitle_sheet_transcription_seen', true);
 

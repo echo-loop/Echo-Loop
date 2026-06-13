@@ -281,7 +281,7 @@ void main() {
 
       testWidgets('AI 转录音频过长时在弹窗内显示 5 秒错误提示', (tester) async {
         final item = createTestAudioItem(
-          totalDuration: 16 * 60,
+          totalDuration: 31 * 60,
         ).copyWith(transcriptSource: TranscriptSource.local);
         await tester.pumpWidget(buildSheet(item, session: signedInSession()));
         await tester.pumpAndSettle();

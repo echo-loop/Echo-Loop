@@ -3,6 +3,18 @@
 > 最后更新：2026-06-13
 > 当前焦点：Android 结束录音闪退（离线 ASR / Silero VAD）——**仍未解决**
 
+## 已完成：修复 CI 中 AI 转录过长测试 fixture
+
+**完成时间**: 2026-06-13
+
+GitHub Actions run `27459518705` 的 `test` job 失败在两个“AI 转录音频过长”回归测试。实现中的转录上限为 30 分钟，但测试 fixture 使用 16 分钟音频，实际不会触发 `Audio too long` 预检查错误。
+
+- [x] `test/widgets/manage_subtitles_sheet_test.dart`：过长音频 fixture 从 16 分钟改为 31 分钟
+- [x] `test/screens/learning_plan_screen_test.dart`：过长音频 fixture 从 16 分钟改为 31 分钟
+- [x] `flutter analyze test/widgets/manage_subtitles_sheet_test.dart test/screens/learning_plan_screen_test.dart`：No issues found
+- [x] `flutter test test/widgets/manage_subtitles_sheet_test.dart --plain-name 'AI 转录音频过长时在弹窗内显示 5 秒错误提示'`：1 passed
+- [x] `flutter test test/screens/learning_plan_screen_test.dart --plain-name '添加字幕入口 AI 转录音频过长时显示弹窗内错误提示'`：1 passed
+
 ## 已完成：学习计划页展示疑似空音频标记
 
 **完成时间**: 2026-06-13
