@@ -287,7 +287,11 @@ class TranscriptionTaskManager extends _$TranscriptionTaskManager {
     state = Map.of(state)..[audioId] = taskState;
   }
 
-  /// 轮询任务状态（3 秒间隔，最多 5 分钟）
+  /// 轮询任务状态（指数退避：2s 起步，×1.5 增长，封顶 15s，最多 5 分钟）
+  ///
+  /// 转录任务本身耗时数十秒，固定高频轮询前期多为空查询、浪费请求。
+  /// 改用退避策略后 5 分钟内请求数从约 100 次降至约 23 次，显著减轻服务器压力；
+  /// 代价是任务完成后用户最多多等约 15s，对本就耗时的转录可接受。
   Future<void> _pollJobStatus(
     AudioItem audioItem,
     String jobId,
@@ -297,15 +301,23 @@ class TranscriptionTaskManager extends _$TranscriptionTaskManager {
     CancelToken cancelToken,
   ) async {
     final api = ref.read(transcriptionApiClientProvider);
-    const pollInterval = Duration(seconds: 3);
+    const initialInterval = Duration(seconds: 2);
+    const maxInterval = Duration(seconds: 15);
     const maxDuration = Duration(minutes: 5);
     final deadline = DateTime.now().add(maxDuration);
+    var interval = initialInterval;
 
     while (DateTime.now().isBefore(deadline)) {
       if (cancelToken.isCancelled) return;
 
-      await Future<void>.delayed(pollInterval);
+      await Future<void>.delayed(interval);
       if (cancelToken.isCancelled) return;
+
+      // 下一轮间隔 ×1.5 增长，封顶 maxInterval
+      final grown = (interval.inMilliseconds * 1.5).round();
+      interval = grown >= maxInterval.inMilliseconds
+          ? maxInterval
+          : Duration(milliseconds: grown);
 
       try {
         final status = await api.getJobStatus(jobId, accessToken: accessToken);
