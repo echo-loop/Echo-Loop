@@ -25,32 +25,57 @@ void showPodcastFeedInfoSheet(BuildContext context, Collection collection) {
   final imageUrl = meta?.imageUrl ?? collection.coverUrl;
   final lastRefreshed = collection.podcastLastRefreshedAt;
 
+  showPodcastInfoSheet(
+    context,
+    title: l10n.podcastDetails,
+    heroTitle: title,
+    heroAuthor: meta?.author,
+    heroDescription: description,
+    imageUrl: imageUrl,
+    dateText: lastRefreshed == null
+        ? null
+        : l10n.podcastLastRefreshed(_formatDateTime(lastRefreshed)),
+    links: [
+      if (_hasText(collection.podcastInputUrl))
+        PodcastInfoLink(
+          _isApplePodcastUrl(collection.podcastInputUrl!)
+              ? l10n.podcastAppleLink
+              : l10n.podcastOriginalLink,
+          collection.podcastInputUrl!,
+        ),
+      if (_hasText(meta?.feedUrl) && meta!.feedUrl != collection.podcastFeedUrl)
+        PodcastInfoLink(l10n.podcastOriginalLink, meta.feedUrl),
+      if (_hasText(collection.podcastFeedUrl))
+        PodcastInfoLink(l10n.podcastFeedUrl, collection.podcastFeedUrl!),
+    ],
+  );
+}
+
+/// 展示通用 Podcast 信息弹窗。
+///
+/// 发现页精选播客预览和本地已订阅 Podcast 合集共用同一套详情布局，
+/// 避免同一类内容在不同入口呈现不一致。
+void showPodcastInfoSheet(
+  BuildContext context, {
+  required String title,
+  required String heroTitle,
+  required List<PodcastInfoLink> links,
+  String? heroAuthor,
+  String? heroDescription,
+  String? imageUrl,
+  String? dateText,
+}) {
   showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
     builder: (ctx) => _InfoSheet(
-      title: l10n.podcastDetails,
-      heroTitle: title,
-      heroAuthor: meta?.author,
-      heroDescription: description,
+      title: title,
+      heroTitle: heroTitle,
+      heroAuthor: heroAuthor,
+      heroDescription: heroDescription,
       imageUrl: imageUrl,
-      dateText: lastRefreshed == null
-          ? null
-          : l10n.podcastLastRefreshed(_formatDateTime(lastRefreshed)),
-      links: [
-        if (_hasText(collection.podcastInputUrl))
-          _InfoLink(
-            _isApplePodcastUrl(collection.podcastInputUrl!)
-                ? l10n.podcastAppleLink
-                : l10n.podcastOriginalLink,
-            collection.podcastInputUrl!,
-          ),
-        if (_hasText(meta?.feedUrl) &&
-            meta!.feedUrl != collection.podcastFeedUrl)
-          _InfoLink(l10n.podcastOriginalLink, meta.feedUrl),
-        if (_hasText(collection.podcastFeedUrl))
-          _InfoLink(l10n.podcastFeedUrl, collection.podcastFeedUrl!),
-      ],
+      dateText: dateText,
+      links: links,
     ),
   );
 }
@@ -61,7 +86,8 @@ void showPodcastEpisodeInfoSheet(BuildContext context, AudioItem item) {
   final episodeLink = _episodeLink(item);
   // meta 行：发布日期 · 时长，二者都可能缺省。
   final metaParts = <String>[
-    if (item.originalDate != null) l10n.publishedOn(_formatDate(item.originalDate!)),
+    if (item.originalDate != null)
+      l10n.publishedOn(_formatDate(item.originalDate!)),
     if (item.totalDuration > 0)
       l10n.audioDuration(_formatDuration(item.totalDuration)),
   ];
@@ -77,9 +103,9 @@ void showPodcastEpisodeInfoSheet(BuildContext context, AudioItem item) {
       imageUrl: item.podcastImageUrl,
       links: [
         if (_hasText(episodeLink))
-          _InfoLink(l10n.podcastOriginalLink, episodeLink!),
+          PodcastInfoLink(l10n.podcastOriginalLink, episodeLink!),
         if (_hasText(item.podcastEnclosureUrl))
-          _InfoLink(l10n.podcastEnclosureUrl, item.podcastEnclosureUrl!),
+          PodcastInfoLink(l10n.podcastEnclosureUrl, item.podcastEnclosureUrl!),
       ],
     ),
   );
@@ -136,11 +162,11 @@ String _formatDuration(int totalSeconds) {
   return '${two(m)}:${two(s)}';
 }
 
-class _InfoLink {
+class PodcastInfoLink {
   final String label;
   final String url;
 
-  const _InfoLink(this.label, this.url);
+  const PodcastInfoLink(this.label, this.url);
 }
 
 class _InfoSheet extends StatelessWidget {
@@ -150,7 +176,7 @@ class _InfoSheet extends StatelessWidget {
   final String? heroDescription;
   final String? imageUrl;
   final String? dateText;
-  final List<_InfoLink> links;
+  final List<PodcastInfoLink> links;
 
   const _InfoSheet({
     required this.title,
@@ -325,7 +351,7 @@ class _PodcastArtwork extends StatelessWidget {
 }
 
 class _LinkRow extends StatelessWidget {
-  final _InfoLink link;
+  final PodcastInfoLink link;
 
   const _LinkRow({required this.link});
 
