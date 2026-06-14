@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -9,14 +10,17 @@ import '../../../l10n/app_localizations.dart';
 import '../../../providers/collection_provider.dart';
 import '../../../router/app_router.dart';
 import '../../../services/app_logger.dart';
+import '../../../services/app_network_image_cache.dart';
 import '../data/official_catalog_service.dart';
 import '../data/trigger_official_sync.dart';
 import '../models/catalog.dart';
 import '../providers/discover_collections_provider.dart';
+import '../providers/discover_podcasts_provider.dart';
 import '../providers/official_enrollment_provider.dart';
 import '../widgets/official_collection_card.dart';
 
 const _logTag = 'DiscoverScreen';
+const _podcastEntryImageUrl = 'https://i.postimg.cc/tRPzG4zX/podcast.jpg';
 
 /// 发现官方合集页。
 ///
@@ -68,18 +72,20 @@ class _DiscoverCollectionsScreenState
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final collections = ref.watch(discoverCollectionsProvider);
+    final podcasts = ref.watch(discoverPodcastsProvider);
     return Scaffold(
       appBar: AppBar(title: Text(l10n.discoverOfficialCollections)),
-      body: _buildBody(collections, l10n),
+      body: _buildBody(collections, podcasts, l10n),
     );
   }
 
   Widget _buildBody(
     List<CatalogCollection>? collections,
+    List<CatalogPodcast>? podcasts,
     AppLocalizations l10n,
   ) {
     // null = catalog 未初始化 → loading
-    if (collections == null) {
+    if (collections == null || podcasts == null) {
       return const Center(child: CircularProgressIndicator());
     }
 
@@ -98,7 +104,7 @@ class _DiscoverCollectionsScreenState
           ).showSnackBar(SnackBar(content: Text(l10n.discoverLoadFailed)));
         }
       },
-      child: collections.isEmpty
+      child: collections.isEmpty && podcasts.isEmpty
           ? ListView(
               physics: const AlwaysScrollableScrollPhysics(),
               children: [
@@ -108,11 +114,14 @@ class _DiscoverCollectionsScreenState
                 ),
               ],
             )
-          : _buildList(collections),
+          : _buildList(collections, podcasts),
     );
   }
 
-  Widget _buildList(List<CatalogCollection> items) {
+  Widget _buildList(
+    List<CatalogCollection> items,
+    List<CatalogPodcast> podcasts,
+  ) {
     final collectionState = ref.watch(collectionListProvider);
     final enrolledRemoteIds = {
       for (final c in collectionState.collections)
@@ -127,10 +136,17 @@ class _DiscoverCollectionsScreenState
       'build list: catalog=${items.length}, enrolled=${enrolledRemoteIds.length}',
     );
 
+    final hasPodcastEntry = podcasts.isNotEmpty;
     return ListView.builder(
-      itemCount: items.length,
+      itemCount: items.length + (hasPodcastEntry ? 1 : 0),
       itemBuilder: (context, index) {
-        final item = items[index];
+        if (hasPodcastEntry && index == 0) {
+          return _PodcastDiscoverEntry(
+            count: podcasts.length,
+            onTap: () => context.push(AppRoutes.discoverPodcasts),
+          );
+        }
+        final item = items[index - (hasPodcastEntry ? 1 : 0)];
         final enrolled = enrolledRemoteIds.contains(item.id);
         final enrolling = _enrolling.contains(item.id);
         return OfficialCollectionCard(
@@ -191,6 +207,95 @@ class _DiscoverCollectionsScreenState
         setState(() => _enrolling.remove(item.id));
       }
     }
+  }
+}
+
+class _PodcastDiscoverEntry extends StatelessWidget {
+  final int count;
+  final VoidCallback onTap;
+
+  const _PodcastDiscoverEntry({required this.count, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final l10n = AppLocalizations.of(context)!;
+    return Card(
+      margin: const EdgeInsets.fromLTRB(12, 10, 12, 8),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Row(
+            children: [
+              const _PodcastEntryImage(),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      l10n.discoverPodcastEntryTitle,
+                      style: theme.textTheme.titleMedium,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      l10n.discoverPodcastEntrySubtitle(count),
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Icon(
+                Icons.chevron_right,
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _PodcastEntryImage extends StatelessWidget {
+  const _PodcastEntryImage();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final placeholder = DecoratedBox(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(8),
+        color: theme.colorScheme.secondaryContainer,
+      ),
+      child: Icon(
+        Icons.podcasts_rounded,
+        color: theme.colorScheme.onSecondaryContainer,
+      ),
+    );
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(8),
+      child: SizedBox.square(
+        dimension: 56,
+        child: CachedNetworkImage(
+          imageUrl: _podcastEntryImageUrl,
+          cacheManager: AppNetworkImageCache.instance,
+          fit: BoxFit.cover,
+          placeholder: (_, __) => placeholder,
+          errorWidget: (_, __, ___) => placeholder,
+        ),
+      ),
+    );
   }
 }
 
