@@ -13,6 +13,7 @@ import '../../utils/audio_duration.dart';
 import '../../utils/audio_fingerprint.dart';
 import 'audio_import_models.dart';
 import 'audio_registration_service.dart';
+import 'audio_transcode_service.dart';
 
 typedef AudioImportProgressCallback =
     void Function(int receivedBytes, int? totalBytes);
@@ -29,13 +30,16 @@ class AudioImportService {
     Future<String> Function(String absolutePath)? computeSha256,
     Future<int> Function(String relativePath)? readDurationSeconds,
     AudioRegistrationService? registrationService,
+    AudioTranscodeService? transcodeService,
   }) : _dio = dio ?? Dio(),
        _uuid = uuid ?? const Uuid(),
        _resolveDataDir = resolveDataDir ?? getAppDataDirectory,
        _computeSha256 = computeSha256 ?? computeAudioSha256,
        _readDurationSeconds = readDurationSeconds ?? getAudioDurationSeconds,
        _registrationService =
-           registrationService ?? AudioRegistrationService(uuid: uuid);
+           registrationService ?? AudioRegistrationService(uuid: uuid),
+       _transcodeService =
+           transcodeService ?? AudioTranscodeService(uuid: uuid);
 
   final Dio _dio;
   final Uuid _uuid;
@@ -43,6 +47,7 @@ class AudioImportService {
   final Future<String> Function(String absolutePath) _computeSha256;
   final Future<int> Function(String relativePath) _readDurationSeconds;
   final AudioRegistrationService _registrationService;
+  final AudioTranscodeService _transcodeService;
 
   static const supportedExtensions = {'mp3', 'wav', 'm4a', 'aac', 'flac'};
 
@@ -79,12 +84,17 @@ class AudioImportService {
 
     final dataDir = await _resolveDataDir();
     final audioId = _uuid.v4();
-    final relativeAudioPath = await _downloadToSandbox(
+    final downloadedPath = await _downloadToTemp(
       resolved: resolved,
       audioId: audioId,
       dataDir: dataDir,
       cancelToken: cancelToken,
       onProgress: onProgress,
+    );
+    final relativeAudioPath = await _finalizeDownloadedAudio(
+      dataDir: dataDir,
+      tempRelativePath: downloadedPath,
+      requestedFileName: resolved.fileName,
     );
 
     final absoluteAudioPath = p.join(dataDir.path, relativeAudioPath);
@@ -143,12 +153,14 @@ class AudioImportService {
     }
 
     final extension =
-        _extensionFromUri(uri) ?? _extensionFromMimeType(enclosureType) ?? 'mp3';
+        _extensionFromUri(uri) ??
+        _extensionFromMimeType(enclosureType) ??
+        'mp3';
     final safeBaseName = _safeFileBaseName(_baseNameFromUri(uri, extension));
 
     final dataDir = await _resolveDataDir();
     final audioId = _uuid.v4();
-    final relativeAudioPath = await _downloadToSandbox(
+    final downloadedPath = await _downloadToTemp(
       resolved: ResolvedAudioImport(
         uri: uri,
         displayName: safeBaseName,
@@ -159,6 +171,11 @@ class AudioImportService {
       dataDir: dataDir,
       cancelToken: cancelToken,
       onProgress: onProgress,
+    );
+    final relativeAudioPath = await _finalizeDownloadedAudio(
+      dataDir: dataDir,
+      tempRelativePath: downloadedPath,
+      requestedFileName: '$safeBaseName.$extension',
     );
 
     final absoluteAudioPath = p.join(dataDir.path, relativeAudioPath);
@@ -257,7 +274,7 @@ class AudioImportService {
     );
   }
 
-  Future<String> _downloadToSandbox({
+  Future<String> _downloadToTemp({
     required ResolvedAudioImport resolved,
     required String audioId,
     required Directory dataDir,
@@ -265,13 +282,12 @@ class AudioImportService {
     required AudioImportProgressCallback? onProgress,
   }) async {
     final tmpDir = Directory(p.join(dataDir.path, 'tmp', 'audio_import'));
-    final audioDir = Directory(p.join(dataDir.path, 'audios', 'imported'));
     await tmpDir.create(recursive: true);
-    await audioDir.create(recursive: true);
 
     final tmpFile = File(p.join(tmpDir.path, '$audioId.part'));
-    final finalName = await _uniqueFileName(audioDir, resolved.fileName);
-    final finalFile = File(p.join(audioDir.path, finalName));
+    final downloadedFile = File(
+      p.join(tmpDir.path, '$audioId.${resolved.extension}'),
+    );
     try {
       await _dio.download(
         resolved.uri.toString(),
@@ -282,8 +298,8 @@ class AudioImportService {
           onProgress?.call(received, total <= 0 ? null : total);
         },
       );
-      await tmpFile.rename(finalFile.path);
-      return p.join('audios', 'imported', finalName);
+      await tmpFile.rename(downloadedFile.path);
+      return p.join('tmp', 'audio_import', p.basename(downloadedFile.path));
     } on DioException catch (e) {
       if (CancelToken.isCancel(e)) {
         throw const AudioImportException(
@@ -307,6 +323,56 @@ class AudioImportService {
         try {
           await tmpFile.delete();
         } catch (_) {}
+      }
+    }
+  }
+
+  Future<String> _finalizeDownloadedAudio({
+    required Directory dataDir,
+    required String tempRelativePath,
+    required String requestedFileName,
+  }) async {
+    final audioDir = Directory(p.join(dataDir.path, 'audios', 'imported'));
+    await audioDir.create(recursive: true);
+
+    final transcodeResult = await _transcodeService.transcodeToM4a(
+      dataDir: dataDir,
+      relativePath: tempRelativePath,
+    );
+    final sourceRelativePath = transcodeResult.relativePath;
+    final sourceFile = File(p.join(dataDir.path, sourceRelativePath));
+    final requestedBaseName = p.basenameWithoutExtension(requestedFileName);
+    final targetName = transcodeResult.transcoded
+        ? '$requestedBaseName.m4a'
+        : requestedFileName;
+    final finalName = await _uniqueFileName(audioDir, targetName);
+    final finalFile = File(p.join(audioDir.path, finalName));
+
+    await _moveAudioToFinal(sourceFile: sourceFile, finalFile: finalFile);
+    await _deleteTempAudioSibling(dataDir, tempRelativePath);
+    return p.join('audios', 'imported', finalName);
+  }
+
+  /// 将临时音频移动到正式目录；跨卷 rename 失败时回退 copy，并清理半成品。
+  Future<void> _moveAudioToFinal({
+    required File sourceFile,
+    required File finalFile,
+  }) async {
+    try {
+      await sourceFile.rename(finalFile.path);
+      return;
+    } on FileSystemException {
+      try {
+        await sourceFile.copy(finalFile.path);
+        await _deleteIfExists(sourceFile);
+        return;
+      } on FileSystemException catch (e) {
+        await _deleteIfExists(finalFile);
+        throw AudioImportException(
+          AudioImportFailureCode.storage,
+          'Failed to save audio',
+          e,
+        );
       }
     }
   }
@@ -378,5 +444,20 @@ class AudioImportService {
         .trim();
     if (replaced.isEmpty) return 'audio';
     return replaced.length > 80 ? replaced.substring(0, 80).trim() : replaced;
+  }
+
+  Future<void> _deleteTempAudioSibling(
+    Directory dataDir,
+    String tempRelativePath,
+  ) async {
+    final tempFile = File(p.join(dataDir.path, tempRelativePath));
+    await _deleteIfExists(tempFile);
+  }
+
+  Future<void> _deleteIfExists(File file) async {
+    if (!await file.exists()) return;
+    try {
+      await file.delete();
+    } catch (_) {}
   }
 }

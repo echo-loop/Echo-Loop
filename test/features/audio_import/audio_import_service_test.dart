@@ -4,6 +4,7 @@ import 'package:dio/dio.dart';
 import 'package:echo_loop/features/audio_import/audio_import_models.dart';
 import 'package:echo_loop/features/audio_import/audio_registration_service.dart';
 import 'package:echo_loop/features/audio_import/audio_import_service.dart';
+import 'package:echo_loop/features/audio_import/audio_transcode_service.dart';
 import 'package:echo_loop/models/audio_item.dart';
 import 'package:echo_loop/providers/audio_library_provider.dart';
 import 'package:echo_loop/providers/collection_provider.dart';
@@ -12,6 +13,38 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 
 class _MockDio extends Mock implements Dio {}
+
+class _FakeTranscodeService extends AudioTranscodeService {
+  _FakeTranscodeService({required this.shouldTranscode});
+
+  final bool shouldTranscode;
+
+  @override
+  Future<AudioTranscodeResult> transcodeToM4a({
+    required Directory dataDir,
+    required String relativePath,
+  }) async {
+    if (!shouldTranscode) {
+      return AudioTranscodeResult(
+        relativePath: relativePath,
+        transcoded: false,
+      );
+    }
+    final source = File('${dataDir.path}/$relativePath');
+    final targetRelativePath = relativePath.replaceAll(
+      RegExp(r'\.[^.]+$'),
+      '.m4a',
+    );
+    final target = File('${dataDir.path}/$targetRelativePath');
+    await target.create(recursive: true);
+    await target.writeAsBytes(await source.readAsBytes());
+    await source.delete();
+    return AudioTranscodeResult(
+      relativePath: targetRelativePath,
+      transcoded: true,
+    );
+  }
+}
 
 class _FakeAudioLibrary extends AudioLibrary {
   _FakeAudioLibrary([this.initialState = const AudioLibraryState()]);
@@ -221,10 +254,17 @@ void main() {
       final service = AudioImportService(
         dio: dio,
         resolveDataDir: () async => tmpDir,
-        computeSha256: (_) async => 'sha',
+        computeSha256: (path) async {
+          expect(path, endsWith('.m4a'));
+          return 'sha';
+        },
         registrationService: AudioRegistrationService(
-          readDurationSeconds: (_) async => 42,
+          readDurationSeconds: (path) async {
+            expect(path, endsWith('.m4a'));
+            return 42;
+          },
         ),
+        transcodeService: _FakeTranscodeService(shouldTranscode: true),
       );
       final container = ProviderContainer(
         overrides: [audioLibraryProvider.overrideWith(_FakeAudioLibrary.new)],
@@ -239,12 +279,52 @@ void main() {
 
       expect(item.name, 'lesson');
       expect(item.audioPath, startsWith('audios/imported/lesson'));
+      expect(item.audioPath, endsWith('.m4a'));
       expect(item.totalDuration, 42);
       expect(item.audioSha256, 'sha');
       expect(item.importSourceType, AudioImportSourceType.directUrl);
       expect(item.importSourceUrl, 'https://example.com/lesson.mp3');
       expect(container.read(audioLibraryProvider).audioItems, [item]);
       expect(await File('${tmpDir.path}/${item.audioPath}').exists(), isTrue);
+      expect(
+        await File('${tmpDir.path}/audios/imported/lesson.mp3').exists(),
+        isFalse,
+      );
+      expect(await _tmpAudioImportFiles(tmpDir), isEmpty);
+    });
+
+    test('转码失败时回退保存原始下载音频', () async {
+      final service = AudioImportService(
+        dio: dio,
+        resolveDataDir: () async => tmpDir,
+        computeSha256: (path) async {
+          expect(path, endsWith('.mp3'));
+          return 'sha-original';
+        },
+        registrationService: AudioRegistrationService(
+          readDurationSeconds: (path) async {
+            expect(path, endsWith('.mp3'));
+            return 24;
+          },
+        ),
+        transcodeService: _FakeTranscodeService(shouldTranscode: false),
+      );
+      final container = ProviderContainer(
+        overrides: [audioLibraryProvider.overrideWith(_FakeAudioLibrary.new)],
+      );
+      addTearDown(container.dispose);
+
+      final item = await service.importFromUrl(
+        url: 'https://example.com/lesson.mp3',
+        audioLibrary: container.read(audioLibraryProvider.notifier),
+        audioLibraryState: container.read(audioLibraryProvider),
+      );
+
+      expect(item.audioPath, endsWith('.mp3'));
+      expect(item.totalDuration, 24);
+      expect(item.audioSha256, 'sha-original');
+      expect(await File('${tmpDir.path}/${item.audioPath}').exists(), isTrue);
+      expect(await _tmpAudioImportFiles(tmpDir), isEmpty);
     });
 
     test('合集入口遇到同名音频时关联已有音频', () async {
@@ -289,4 +369,65 @@ void main() {
       );
     });
   });
+
+  group('AudioImportService.downloadEpisodeToSandbox', () {
+    late Directory tmpDir;
+    late _MockDio dio;
+
+    setUp(() async {
+      tmpDir = await Directory.systemTemp.createTemp('episode_download_test_');
+      dio = _MockDio();
+      when(
+        () => dio.download(
+          any(),
+          any(),
+          cancelToken: any(named: 'cancelToken'),
+          options: any(named: 'options'),
+          onReceiveProgress: any(named: 'onReceiveProgress'),
+        ),
+      ).thenAnswer((invocation) async {
+        final savePath = invocation.positionalArguments[1] as String;
+        await File(savePath).writeAsBytes([5, 6, 7, 8]);
+        return Response<void>(requestOptions: RequestOptions(path: ''));
+      });
+    });
+
+    tearDown(() async {
+      if (await tmpDir.exists()) {
+        await tmpDir.delete(recursive: true);
+      }
+    });
+
+    test('Podcast 单集下载成功后优先返回转码后的 m4a', () async {
+      final service = AudioImportService(
+        dio: dio,
+        resolveDataDir: () async => tmpDir,
+        computeSha256: (path) async {
+          expect(path, endsWith('.m4a'));
+          return 'sha-episode';
+        },
+        readDurationSeconds: (path) async {
+          expect(path, endsWith('.m4a'));
+          return 61;
+        },
+        transcodeService: _FakeTranscodeService(shouldTranscode: true),
+      );
+
+      final result = await service.downloadEpisodeToSandbox(
+        url: 'https://example.com/episode.mp3',
+        enclosureType: 'audio/mpeg',
+      );
+
+      expect(result.relativePath, endsWith('.m4a'));
+      expect(result.durationSeconds, 61);
+      expect(result.audioSha256, 'sha-episode');
+      expect(await _tmpAudioImportFiles(tmpDir), isEmpty);
+    });
+  });
+}
+
+Future<List<FileSystemEntity>> _tmpAudioImportFiles(Directory dataDir) async {
+  final dir = Directory('${dataDir.path}/tmp/audio_import');
+  if (!await dir.exists()) return const [];
+  return dir.list().toList();
 }

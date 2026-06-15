@@ -86,6 +86,7 @@ dependencies:
   sign_in_with_apple: ^7.0.1
   google_sign_in: ^7.2.0
   just_waveform: ^0.0.7
+  ffmpeg_kit_flutter_new_audio: ^2.0.0
   xml: ^6.5.0
 
 dev_dependencies:
@@ -125,6 +126,7 @@ flutter:
   assets:
     - assets/demo/
     - assets/icon/
+    - test/fixtures/audio_transcode/
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

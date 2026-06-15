@@ -17,6 +17,7 @@ import '../utils/app_data_dir.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:path/path.dart' as path;
 import '../features/audio_import/audio_registration_service.dart';
+import '../features/audio_import/audio_transcode_service.dart';
 import '../models/audio_item.dart';
 import '../providers/collection_provider.dart';
 import '../providers/audio_library_provider.dart';
@@ -621,35 +622,93 @@ class _AddAudioDialogState extends ConsumerState<AddAudioDialog> {
     String subdir,
   ) async {
     final dataDir = await getAppDataDirectory();
-    final dir = Directory(path.join(dataDir.path, subdir));
-    if (!await dir.exists()) {
-      await dir.create(recursive: true);
-    }
+    final finalDir = Directory(path.join(dataDir.path, subdir));
+    final tmpDir = Directory(path.join(dataDir.path, 'tmp', 'audio_import'));
+    await finalDir.create(recursive: true);
+    await tmpDir.create(recursive: true);
 
     final baseName = file.name.isNotEmpty
         ? file.name
         : (file.path != null ? path.basename(file.path!) : 'file');
-    final destPath = path.join(dir.path, baseName);
+    final finalPath = path.join(finalDir.path, baseName);
 
     // 如果文件已存在，直接返回相对路径
-    if (await File(destPath).exists()) {
+    if (await File(finalPath).exists()) {
       return path.join(subdir, baseName);
     }
 
-    // 文件不存在，复制到沙盒
+    final tmpName =
+        '${DateTime.now().microsecondsSinceEpoch}-${path.basename(baseName)}';
+    final tmpPath = path.join(tmpDir.path, tmpName);
+
+    // 先复制到临时目录，转码/回退决策完成后再移动到正式音频目录。
     if (file.path != null) {
-      await File(file.path!).copy(destPath);
+      await File(file.path!).copy(tmpPath);
     } else if (file.bytes != null) {
-      await File(destPath).writeAsBytes(file.bytes!);
+      await File(tmpPath).writeAsBytes(file.bytes!);
     } else if (file.readStream != null) {
-      final out = File(destPath).openWrite();
+      final out = File(tmpPath).openWrite();
       await file.readStream!.pipe(out);
       await out.close();
     } else {
       throw Exception('Unable to access picked file');
     }
 
-    return path.join(subdir, baseName);
+    final tmpRelativePath = path.join('tmp', 'audio_import', tmpName);
+    final transcodeResult = await AudioTranscodeService().transcodeToM4a(
+      dataDir: dataDir,
+      relativePath: tmpRelativePath,
+    );
+    final sourceRelativePath = transcodeResult.relativePath;
+    final sourceFile = File(path.join(dataDir.path, sourceRelativePath));
+    final requestedBase = path.basenameWithoutExtension(baseName);
+    final targetName = transcodeResult.transcoded
+        ? '$requestedBase.m4a'
+        : baseName;
+    final finalName = await _uniqueSandboxFileName(finalDir, targetName);
+    final finalFile = File(path.join(finalDir.path, finalName));
+
+    await _movePickedAudioToFinal(sourceFile: sourceFile, finalFile: finalFile);
+    await _deleteIfExists(File(tmpPath));
+
+    return path.join(subdir, finalName);
+  }
+
+  /// 将本地导入的临时音频移动到正式目录；失败时清理可能写出的半文件。
+  Future<void> _movePickedAudioToFinal({
+    required File sourceFile,
+    required File finalFile,
+  }) async {
+    try {
+      await sourceFile.rename(finalFile.path);
+      return;
+    } on FileSystemException {
+      try {
+        await sourceFile.copy(finalFile.path);
+        await _deleteIfExists(sourceFile);
+        return;
+      } on FileSystemException catch (e) {
+        await _deleteIfExists(finalFile);
+        throw Exception('Failed to save picked audio: ${e.message}');
+      }
+    }
+  }
+
+  Future<String> _uniqueSandboxFileName(Directory dir, String requested) async {
+    var candidate = requested;
+    final base = path.basenameWithoutExtension(requested);
+    final ext = path.extension(requested);
+    for (var i = 0; await File(path.join(dir.path, candidate)).exists(); i++) {
+      candidate = '$base-${DateTime.now().microsecondsSinceEpoch}-$i$ext';
+    }
+    return candidate;
+  }
+
+  Future<void> _deleteIfExists(File file) async {
+    if (!await file.exists()) return;
+    try {
+      await file.delete();
+    } catch (_) {}
   }
 
   /// 批量添加音频

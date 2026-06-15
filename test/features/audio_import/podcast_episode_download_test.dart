@@ -30,7 +30,7 @@ class _FakeEpisodeDownloadService extends AudioImportService {
     }
     onProgress?.call(50, 100); // 触发一次进度回调
     return const DownloadedAudio(
-      relativePath: 'audios/imported/episode.mp3',
+      relativePath: 'audios/imported/episode.m4a',
       durationSeconds: 321,
       audioSha256: 'sha-xyz',
     );
@@ -39,18 +39,19 @@ class _FakeEpisodeDownloadService extends AudioImportService {
 
 void main() {
   group('AudioImportController.downloadPodcastEpisode', () {
-    AudioItem podcastItem() => createTestAudioItem(
-      id: 'ep-1',
-      name: 'Episode 1',
-    ).copyWith(
-      audioPath: null,
-      totalDuration: 0,
-      podcastEpisodeGuid: 'guid-1',
-      podcastEnclosureUrl: 'https://example.com/episode.mp3',
-      podcastEnclosureType: 'audio/mpeg',
-    );
+    AudioItem podcastItem() =>
+        createTestAudioItem(id: 'ep-1', name: 'Episode 1').copyWith(
+          audioPath: null,
+          totalDuration: 0,
+          podcastEpisodeGuid: 'guid-1',
+          podcastEnclosureUrl: 'https://example.com/episode.mp3',
+          podcastEnclosureType: 'audio/mpeg',
+        );
 
-    ProviderContainer makeContainer(AudioImportService service, AudioItem item) {
+    ProviderContainer makeContainer(
+      AudioImportService service,
+      AudioItem item,
+    ) {
       return ProviderContainer(
         overrides: [
           audioImportServiceProvider.overrideWithValue(service),
@@ -76,7 +77,7 @@ void main() {
       expect(items.length, 1);
       final updated = items.single;
       expect(updated.id, 'ep-1');
-      expect(updated.audioPath, 'audios/imported/episode.mp3');
+      expect(updated.audioPath, 'audios/imported/episode.m4a');
       expect(updated.totalDuration, 321);
       expect(updated.audioSha256, 'sha-xyz');
       // podcast 元字段保留
@@ -110,8 +111,10 @@ void main() {
     });
 
     test('缺少 enclosure URL 时直接返回 false', () async {
-      final item = createTestAudioItem(id: 'ep-2', name: 'No URL')
-          .copyWith(audioPath: null, podcastEpisodeGuid: 'guid-2');
+      final item = createTestAudioItem(
+        id: 'ep-2',
+        name: 'No URL',
+      ).copyWith(audioPath: null, podcastEpisodeGuid: 'guid-2');
       final container = makeContainer(_FakeEpisodeDownloadService(), item);
       addTearDown(container.dispose);
 
