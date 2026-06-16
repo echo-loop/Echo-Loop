@@ -79,7 +79,7 @@ void main() {
       (w) =>
           w is SwitchListTile &&
           w.title is Text &&
-          (w.title as Text).data == 'Disable rating during retelling',
+          (w.title as Text).data == 'Show rating during retelling',
     );
     final ratingTile = tester.widget<SwitchListTile>(ratingFinder);
     expect(ratingTile.value, isTrue);
@@ -144,7 +144,7 @@ void main() {
       (w) =>
           w is SwitchListTile &&
           w.title is Text &&
-          (w.title as Text).data == 'Disable rating during retelling',
+          (w.title as Text).data == 'Show rating during retelling',
     );
     await tester.tap(ratingFinder);
     await tester.pumpAndSettle();
@@ -185,7 +185,7 @@ void main() {
       (w) =>
           w is SwitchListTile &&
           w.title is Text &&
-          (w.title as Text).data == 'Disable rating during retelling',
+          (w.title as Text).data == 'Show rating during retelling',
     );
     final ratingTile = tester.widget<SwitchListTile>(ratingFinder);
     expect(ratingTile.value, isTrue);
@@ -199,7 +199,7 @@ void main() {
       (w) =>
           w is SwitchListTile &&
           w.title is Text &&
-          (w.title as Text).data == 'Disable rating during retelling',
+          (w.title as Text).data == 'Show rating during retelling',
     );
     final ratingTile = tester.widget<SwitchListTile>(ratingFinder);
     expect(ratingTile.value, isFalse);
