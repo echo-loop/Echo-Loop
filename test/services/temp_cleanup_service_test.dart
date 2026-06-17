@@ -95,28 +95,64 @@ void main() {
   });
 
   group('cleanupAllTempFiles', () {
-    test('同时清理 tmp/ 和 Library/Caches', () async {
+    test('tmp/ 全量清理（任意名字文件都删）', () async {
       final tmpFile = File('${fakeTmpDir.path}/rec.caf');
       tmpFile.writeAsBytesSync(List.filled(1000, 0));
-      final cacheFile = File('${fakeCacheDir.path}/cached.dat');
-      cacheFile.writeAsBytesSync(List.filled(2000, 0));
 
       final result = await cleanupAllTempFiles();
 
-      expect(result.freedBytes, greaterThanOrEqualTo(3000));
+      expect(result.freedBytes, greaterThanOrEqualTo(1000));
       expect(tmpFile.existsSync(), false);
-      expect(cacheFile.existsSync(), false);
     });
 
-    test('递归删除子目录', () async {
-      final subDir = Directory('${fakeTmpDir.path}/echoloop_export_123')
+    test('Library/Caches 只删 app 自建导出/导入临时目录', () async {
+      final exportDir = Directory('${fakeCacheDir.path}/echoloop_export_123')
         ..createSync();
-      File('${subDir.path}/data.zip').writeAsBytesSync(List.filled(5000, 0));
+      File('${exportDir.path}/data.zip').writeAsBytesSync(List.filled(5000, 0));
+      final importDir = Directory('${fakeCacheDir.path}/echoloop_import_9')
+        ..createSync();
+      File('${importDir.path}/x.bin').writeAsBytesSync(List.filled(100, 0));
+      final audioExportDir = Directory('${fakeCacheDir.path}/audio_export_7')
+        ..createSync();
+      File(
+        '${audioExportDir.path}/a.m4a',
+      ).writeAsBytesSync(List.filled(200, 0));
 
-      final result = await cleanupAllTempFiles();
+      await cleanupAllTempFiles();
 
-      expect(result.freedBytes, greaterThanOrEqualTo(5000));
-      expect(subDir.existsSync(), false);
+      expect(exportDir.existsSync(), false);
+      expect(importDir.existsSync(), false);
+      expect(audioExportDir.existsSync(), false);
+    });
+
+    test('Library/Caches 保护系统 URLCache 与框架缓存', () async {
+      // 系统 URLCache：<bundleId>/Cache.db* 及散落的 Cache.db 文件
+      final cacheDbFile = File('${fakeCacheDir.path}/Cache.db');
+      cacheDbFile.writeAsBytesSync(List.filled(1000, 0));
+      final urlCacheDir = Directory('${fakeCacheDir.path}/top.echo-loop.dev')
+        ..createSync();
+      File(
+        '${urlCacheDir.path}/Cache.db',
+      ).writeAsBytesSync(List.filled(2000, 0));
+      File(
+        '${urlCacheDir.path}/Cache.db-wal',
+      ).writeAsBytesSync(List.filled(500, 0));
+      // 网络图片缓存（由 flutter_cache_manager API 单独清，不在文件扫描范围）
+      final imageCacheDir = Directory('${fakeCacheDir.path}/app_network_images')
+        ..createSync();
+      File(
+        '${imageCacheDir.path}/img.bin',
+      ).writeAsBytesSync(List.filled(300, 0));
+      // 随机框架缓存
+      final otherCache = File('${fakeCacheDir.path}/cached.dat');
+      otherCache.writeAsBytesSync(List.filled(400, 0));
+
+      await cleanupAllTempFiles();
+
+      expect(cacheDbFile.existsSync(), true);
+      expect(urlCacheDir.existsSync(), true);
+      expect(imageCacheDir.existsSync(), true);
+      expect(otherCache.existsSync(), true);
     });
   });
 }

@@ -9,6 +9,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:path_provider/path_provider.dart' show getTemporaryDirectory;
 import '../database/app_database.dart';
 import '../database/providers.dart';
 import '../l10n/app_localizations.dart';
@@ -35,6 +36,7 @@ import '../features/auth/providers/auth_providers.dart';
 import '../features/auth/screens/account_screen.dart';
 import '../router/app_router.dart';
 import '../features/onboarding_survey/providers/onboarding_survey_provider.dart';
+import '../services/app_network_image_cache.dart';
 import '../services/backup/backup_manifest.dart';
 import '../services/backup/backup_service.dart';
 import '../services/dictionary_download_manager.dart';
@@ -337,8 +339,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     ref.read(sentenceAiNotifierProvider).clearMemoryCache();
     ref.read(wordAiNotifierProvider).clearMemoryCache();
 
-    // 3. 清理临时目录（录音 .caf 残留、导出/导入临时文件 + Library/Caches）
+    // 3. 清理临时目录（录音 .caf 残留、Library/Caches 下 app 自建导出/导入临时目录）
     final result = await cleanupAllTempFiles();
+
+    // 3.5 清网络图片磁盘缓存（走 flutter_cache_manager API，自动清文件+索引）
+    final imageFreed = await _clearNetworkImageCache();
 
     // 4. 清理非当前语言的词典文件 + 旧版遗留 dict.db
     final settings = ref.read(appSettingsProvider);
@@ -359,6 +364,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
     final totalFreed =
         result.freedBytes +
+        imageFreed +
         dictFreed +
         orphanResult.freedBytes +
         waveformResult.freedBytes;
@@ -378,6 +384,30 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  /// 清网络图片磁盘缓存，返回释放字节数（best-effort）。
+  ///
+  /// 用 [AppNetworkImageCache] 的 `emptyCache()`（flutter_cache_manager 标准 API），
+  /// 会同时清文件和 json 索引，避免直接删文件导致索引不一致。
+  /// 字节数为清理前测量 `Library/Caches/app_network_images` 目录大小，量取失败计 0。
+  Future<int> _clearNetworkImageCache() async {
+    var freed = 0;
+    try {
+      final cachesDir = await getTemporaryDirectory();
+      final imageDir = Directory(
+        '${cachesDir.path}/${AppNetworkImageCache.cacheKey}',
+      );
+      if (await imageDir.exists()) {
+        freed = await calculateDirectorySize(imageDir);
+      }
+    } catch (_) {}
+    try {
+      await AppNetworkImageCache.instance.emptyCache();
+    } catch (_) {
+      freed = 0;
+    }
+    return freed;
   }
 
   /// 构建关于信息区域
