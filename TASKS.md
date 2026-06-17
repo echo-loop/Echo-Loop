@@ -5,10 +5,11 @@
 
 ## 已完成：修复自由播放器看完句子讲解返回后主播放按钮跳回第一句
 
-free player 点句子进讲解页 → 试听单句 → 返回 → 点主播放按钮，结果从第一句重播。根因：讲解页旁路驱动同一个 `AudioEngine`（`playRangeOnce`，会 `newSession()` 顶掉 LP 的 session），而 `ListeningPractice` 的位置/状态监听器 **不校验 session**——默认连续模式下 `_updateCurrentSentence` 把 `currentFullIndex` 改成了被试听的句子。盲听播放器的位置监听本就有 `isActiveSession` 守卫（`blind_listen_player_provider.dart:732`），free player 缺失。修复即向 LP 监听器补上同款 session 守卫。
+free player 点句子进讲解页 → 试听单句 → 返回 → 点主播放按钮，结果从第一句重播。根因：讲解页与 free player 共享同一个 `AudioEngine`，讲解页旁路驱动它（`playRangeOnce`，`newSession()` 顶掉 LP 的 session、改写 clip/position），污染了「外部播放器」状态。两处泄漏：①LP 的位置/状态监听器不校验 session，`_updateCurrentSentence` 把 `currentFullIndex` 改成被试听的句子；②`play()` 的 `isResume` 仅看引擎当前 position，会从讲解页留下的（被污染）位置续播。盲听播放器本就有 `isActiveSession` 守卫且 resume 永远按断点句重新 seek（`blind_listen_player_provider.dart`），free player 缺失——本次按同款思路补齐。
 
-- [x] `listening_practice_provider.dart`：新增 `_playbackSessionId` 字段，在 `_playContinuous`/`_playSubtitleDriven` 的 `newSession()` 后记录；`_updateCurrentSentence` 与 `_handlePlaybackCompleted` 开头加 `if (!_engine.isActiveSession(_playbackSessionId)) return;`，外来 session 的引擎事件一律忽略，与盲听播放器保持一致。
-- [x] 测试：新增 `test/providers/listening_practice/session_guard_test.dart`（外来 session 位置事件不改 `currentFullIndex` 的回归用例 + LP 自身 session 正常推进高亮的正向用例）。`flutter analyze` 改动文件 0 issue；相关 provider/screen 测试全绿。
+- [x] `audio_engine_provider.dart`：新增 `currentSessionId` getter。
+- [x] `listening_practice_provider.dart`：新增 `_playbackSessionId` 字段，`_playContinuous`/`_playSubtitleDriven` 的 `newSession()` 后记录、`pause()` 后记录引擎当前 session（使「普通暂停→续播」仍归 LP 所有）；`_updateCurrentSentence`/`_handlePlaybackCompleted` 加 `isActiveSession(_playbackSessionId)` 守卫；`play()` 的 `isResume` 增加 `isActiveSession(_playbackSessionId)` 前置——被外来 session 驱动过就不续播引擎位置，改按 `currentFullIndex` 重新定位。
+- [x] 测试：新增 `test/providers/listening_practice/session_guard_test.dart`（外来 session 位置事件不改 `currentFullIndex`、外来 session 后 `play()` 按 `currentFullIndex` 重新 seek、LP 自身 session 正常推进高亮）。`flutter analyze` 改动文件 0 issue；provider + player_screen 共 609 测试全绿。
 
   **完成时间**: 2026-06-17
 
