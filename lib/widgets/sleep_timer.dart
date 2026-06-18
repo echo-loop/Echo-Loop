@@ -37,7 +37,7 @@ class _SleepTimerButtonState extends ConsumerState<SleepTimerButton> {
   final GlobalKey _buttonKey = GlobalKey();
 
   /// 浮层宽度与屏幕安全边距。
-  static const double _popupWidth = 240;
+  static const double _popupWidth = 144;
   static const double _margin = 16;
 
   /// 构建悬浮内容：依据按钮在屏幕中的位置把浮层定位到按钮下方并对齐箭头。
@@ -115,15 +115,19 @@ class _SleepTimerButtonState extends ConsumerState<SleepTimerButton> {
         label: label,
         onTap: _portalController.toggle,
         child: ExcludeSemantics(
-          child: IconButton(
-            key: _buttonKey,
-            tooltip: l10n.sleepTimer,
-            icon: Icon(isActive ? Icons.timer : Icons.timer_outlined),
-            iconSize: 22,
-            color: isActive
-                ? colorScheme.primary
-                : colorScheme.onSurface.withValues(alpha: 0.6),
-            onPressed: _portalController.toggle,
+          // 右侧留边距，避免图标紧贴屏幕边缘
+          child: Padding(
+            padding: const EdgeInsets.only(right: AppSpacing.s),
+            child: IconButton(
+              key: _buttonKey,
+              tooltip: l10n.sleepTimer,
+              icon: Icon(isActive ? Icons.timer : Icons.timer_outlined),
+              iconSize: 22,
+              color: isActive
+                  ? colorScheme.primary
+                  : colorScheme.onSurface.withValues(alpha: 0.6),
+              onPressed: _portalController.toggle,
+            ),
           ),
         ),
       ),
@@ -164,10 +168,28 @@ class _SleepTimerPopup extends ConsumerWidget {
     final activeMinutes = timerState.remaining == null
         ? null
         : timerState.remaining!.inSeconds <= 0
-            ? null
-            : ((timerState.remaining!.inSeconds + 59) ~/ 60);
+        ? null
+        : ((timerState.remaining!.inSeconds + 59) ~/ 60);
 
     final children = <Widget>[];
+
+    // 标题头：让用户明白浮层用途，下方接一条浅色分割线
+    children.add(
+      Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.m,
+          vertical: AppSpacing.s,
+        ),
+        child: Text(
+          l10n.sleepTimer,
+          textAlign: TextAlign.center,
+          style: theme.textTheme.titleSmall?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+        ),
+      ),
+    );
+    children.add(_divider(theme));
 
     // 激活态：剩余时间 + 关闭定时
     if (timerState.isActive && timerState.remaining != null) {
@@ -219,7 +241,7 @@ class _SleepTimerPopup extends ConsumerWidget {
               ? theme.colorScheme.primary
               : theme.colorScheme.onSurface,
           trailing: selected
-              ? Icon(Icons.check, size: 20, color: theme.colorScheme.primary)
+              ? Icon(Icons.check, size: 18, color: theme.colorScheme.primary)
               : null,
           selected: selected,
           onTap: () {
@@ -252,8 +274,10 @@ class _SleepTimerPopup extends ConsumerWidget {
             width: width,
             child: Padding(
               padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
+              // stretch 让每行铺满浮层宽度，hover/选中高亮覆盖整行（内容仍居中）
               child: Column(
                 mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: children,
               ),
             ),
@@ -264,12 +288,12 @@ class _SleepTimerPopup extends ConsumerWidget {
   }
 
   Widget _divider(ThemeData theme) => Divider(
-        height: 1,
-        thickness: 1,
-        color: theme.colorScheme.outlineVariant,
-        indent: AppSpacing.m,
-        endIndent: AppSpacing.m,
-      );
+    height: 1,
+    thickness: 1,
+    color: theme.colorScheme.outlineVariant,
+    indent: AppSpacing.m,
+    endIndent: AppSpacing.m,
+  );
 }
 
 /// 浮层中的一行：整行可点，左标签 + 可选行尾图标（勾选/图标）。
@@ -307,24 +331,33 @@ class _PopupRow extends StatelessWidget {
         child: Padding(
           padding: const EdgeInsets.symmetric(
             horizontal: AppSpacing.m,
-            vertical: 12,
+            vertical: 10,
           ),
-          child: Row(
+          // 内容统一居中；行尾图标（如打勾）绝对定位到右侧，不挤偏居中的标签
+          child: Stack(
+            alignment: Alignment.center,
             children: [
-              if (icon != null) ...[
-                Icon(icon, size: 20, color: color),
-                const SizedBox(width: AppSpacing.s),
-              ],
-              Expanded(
-                child: Text(
-                  label,
-                  style: theme.textTheme.bodyLarge?.copyWith(
-                    color: color,
-                    fontWeight: selected ? FontWeight.w600 : null,
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  if (icon != null) ...[
+                    Icon(icon, size: 18, color: color),
+                    const SizedBox(width: AppSpacing.s),
+                  ],
+                  Flexible(
+                    child: Text(
+                      label,
+                      textAlign: TextAlign.center,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: color,
+                        fontWeight: selected ? FontWeight.w600 : null,
+                      ),
+                    ),
                   ),
-                ),
+                ],
               ),
-              if (trailing != null) trailing!,
+              if (trailing != null) Positioned(right: 0, child: trailing!),
             ],
           ),
         ),

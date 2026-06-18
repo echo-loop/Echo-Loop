@@ -44,6 +44,9 @@ void main() {
     await tester.tap(find.byIcon(Icons.timer_outlined));
     await tester.pumpAndSettle();
 
+    // 浮层顶部显示标题。
+    expect(find.text('Sleep timer'), findsOneWidget);
+
     for (final m in [5, 10, 15, 30, 45, 60]) {
       expect(find.text('$m min'), findsOneWidget);
     }

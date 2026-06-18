@@ -1,7 +1,23 @@
 # Echo Loop 任务清单
 
-> 最后更新：2026-06-18（Free Player 进度条重构为 gapless + 边界监听）
+> 最后更新：2026-06-18（Free Player 睡眠定时器）
 > 当前焦点：Android 结束录音闪退（离线 ASR / Silero VAD）——**仍未解决**
+
+## 已完成：Free Player 睡眠定时器（定时停止）
+
+自由播放器缺少听力/播客播放器的标准「定时停止」功能。在 AppBar 右上角新增 timer 图标按钮，点击在按钮下方弹出气泡浮层（复用「循环设置」浮层的视觉与交互骨架，箭头朝上）选择预设时长（5/10/15/30/45/60 分钟），到点自动**暂停**（可续播）。定时为**一次性**：不持久化、独立 provider、autoDispose 绑定页面生命周期，离开页面即取消、到点后清空、重进无激活态。墙钟倒计时（`clock.now()` + `Timer.periodic`，便于 fake_async 测试），防竞态用 generation token 作废旧计时。范围裁剪：不做「听完本条/当前句」自然结束选项、不做音量淡出、不做自定义分钟输入。
+
+- [x] `models/sleep_timer_state.dart`：不可变运行态 `SleepTimerState{remaining}` + 预设档常量 `sleepTimerPresets`。
+- [x] `providers/listening_practice/sleep_timer_provider.dart`：`@riverpod`(autoDispose) `SleepTimer`，`start/cancel/_tick`，到点 `ref.read(listeningPracticeProvider.notifier).pause()`；`ref.onDispose` 取消 ticker。
+- [x] `widgets/sleep_timer.dart`：`SleepTimerButton`（AppBar，OverlayPortal 定位按钮下方）+ `_SleepTimerPopup`（未激活列 6 档；激活显剩余时间 + 关闭定时 + 当前档打勾）+ `_CaretUpPainter`（朝上箭头）。
+- [x] `screens/player_screen.dart`：AppBar `actions: [SleepTimerButton()]`。
+- [x] l10n：`app_en.arb`/`app_zh.arb` 新增 sleepTimer/sleepTimerMinutes/sleepTimerRemaining/sleepTimerOff/sleepTimerA11yActive。
+- [x] 依赖：`pubspec.yaml` 直接引入 `clock`（墙钟可测）。
+- [x] 测试：`sleep_timer_provider_test`（fake_async：剩余递减、到点暂停一次、重设替换、取消不触发、dispose 取消）5 例；`sleep_timer_test`（widget：6 档渲染、点选启动收起转激活、激活态剩余/关闭/打勾、点关闭恢复）3 例。
+- [x] 验证：`flutter analyze` 改动文件 0 issue；`flutter test` 全套 2874 例通过。
+- [x] UI 打磨：图标加右边距；浮层收窄（240→144）；新增居中标题头 + 浅色分割线；选项字体收小（bodyLarge→bodyMedium）、行高/图标收紧；行内容统一居中、hover 高亮铺满整行。
+
+  **完成时间**: 2026-06-18
 
 ## 已完成：Free Player 进度条重构（gapless + 边界监听，业界标准任意 seek）
 
