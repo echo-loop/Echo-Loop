@@ -123,15 +123,38 @@ void main() {
       final viewportCenter = list.center.dy;
       final tileCenter = tile.center.dy;
       // 中部句应落在视口中段，而非贴顶。
-      expect(
-        tile.top,
-        greaterThan(list.top + 24),
-        reason: '恢复进度的中部句不应贴在顶部',
-      );
+      expect(tile.top, greaterThan(list.top + 24), reason: '恢复进度的中部句不应贴在顶部');
       expect(
         (tileCenter - viewportCenter).abs(),
         lessThan(list.height / 2),
         reason: '中部句中心应靠近视口中心',
+      );
+    });
+
+    testWidgets('初次定位：居中完成前隐藏、完成后淡入且已居中（无可见滚动）', (tester) async {
+      // 初次定位（首次进入 / 切 Tab）应在「列表不可见」时把目标句滚到中部，
+      // 用户看不到从顶部到中部的滚动；完成后才淡入显示，等同「直接显示在中间」。
+      const restored = sentenceCount ~/ 2;
+      await tester.pumpWidget(buildHost(playingIndex: restored));
+
+      double opacity() => tester
+          .widget<AnimatedOpacity>(find.byKey(kParagraphListInitialFocusKey))
+          .opacity;
+
+      // 居中完成前列表隐藏（滚动过程不可见）。
+      await tester.pump();
+      expect(opacity(), 0, reason: '居中完成前列表应隐藏，滚动过程不可见');
+
+      // 完成并淡入后：可见且目标句紧贴视口中心、不贴顶。
+      await tester.pumpAndSettle();
+      expect(opacity(), 1, reason: '居中完成后列表应淡入可见');
+      final list = viewportRect(tester);
+      final tile = tileRect(tester, restored);
+      expect(tile.top, greaterThan(list.top + 24), reason: '中部句应居中而非贴顶');
+      expect(
+        (tile.center.dy - list.center.dy).abs(),
+        lessThan(24),
+        reason: '中部句中心应紧贴视口中心',
       );
     });
 

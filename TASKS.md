@@ -1,7 +1,19 @@
 # Echo Loop 任务清单
 
-> 最后更新：2026-06-18（Free Player 睡眠定时器）
+> 最后更新：2026-06-18（Free Player 句子列表初次定位瞬时化）
 > 当前焦点：Android 结束录音闪退（离线 ASR / Silero VAD）——**仍未解决**
+
+## 已完成：Free Player 句子列表初次定位「直接显示在中间」（去除多余滚动）
+
+Free Player 句子列表在「首次进入」和「收藏 Tab 切回全文 Tab」时，当前句会从顶部滚到中部——不符合业界标准（初次定位应直接显示在中间，不发生滚动）。根因：`ParagraphSentenceListCard` 的初次定位与播放跟随共用「jumpTo 顶部 → scrollTo 居中」路径，无论动画快慢，用户都会看到目标句从顶部移动到中部。
+
+业界标准做法（避免踩坑）：在「列表不可见」时完成滚动定位，居中后再淡入，用户全程看不到滚动。关键约束：必须保持底层 `anchor=0`——`ScrollablePositionedList` 的 `initialAlignment=0.5` 会把 anchor 永久设为 0.5、破坏既有「anchor=0 + ClampingScrollPhysics 硬停」的到头/尾防回弹设计（实测 `不越界` 回归测试失败）。
+
+- [x] `widgets/common/paragraph_sentence_list_card.dart`：`initState` 用 `initialScrollIndex` 首帧把当前句渲染在顶部（anchor 仍为 0）；新增 `_centerInitialFocus`（jumpTo→scrollTo 两阶段瞬时居中，保持 anchor 0）；`build` 外层包 `AnimatedOpacity`（`_initialFocusDone` 前 opacity=0 隐藏、完成后 120ms 淡入）；`_focusPlayingSentence` 恢复原状仅负责播放中逐句跟随；新增 `@visibleForTesting kParagraphListInitialFocusKey`。
+- [x] `paragraph_sentence_list_card_test.dart`：新增「居中完成前隐藏、完成后淡入且已居中」回归测试；现有「末句贴底/首句贴顶/中部居中/不越界防回弹」4 测试不变。
+- [x] 验证：`flutter analyze` 改动文件 No issues；`flutter test paragraph_sentence_list_card_test.dart`：10 passed；`test/screens test/widgets` 仅 2 个 pre-existing 失败（`player_screen_test` 交互用例，baseline 同样失败，与本改动无关）。
+
+  **完成时间**: 2026-06-18
 
 ## 已完成：更换内置 Examples 为 6 条 CEFR 示例音频
 
