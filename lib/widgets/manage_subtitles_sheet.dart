@@ -60,7 +60,7 @@ class ManageSubtitlesSheet extends ConsumerStatefulWidget {
 
 class _ManageSubtitlesSheetState extends ConsumerState<ManageSubtitlesSheet> {
   _SubtitleAction _selectedAction = _SubtitleAction.localUpload;
-  String _selectedLanguage = 'auto';
+  String _selectedLanguage = 'en';
 
   /// 是否刚打开弹窗（用于首帧跳过残留终态的渲染）
   bool _initialClear = true;
@@ -625,7 +625,6 @@ class _ManageSubtitlesSheetState extends ConsumerState<ManageSubtitlesSheet> {
             theme: theme,
             icon: Icons.folder_open_outlined,
             title: l10n.localUpload,
-            subtitle: l10n.uploadTranscript,
             selected: _selectedAction == _SubtitleAction.localUpload,
             onTap: () =>
                 setState(() => _selectedAction = _SubtitleAction.localUpload),
@@ -663,57 +662,131 @@ class _ManageSubtitlesSheetState extends ConsumerState<ManageSubtitlesSheet> {
     ThemeData theme,
     AudioItem audioItem,
   ) {
+    final colorScheme = theme.colorScheme;
+    final currentLabel = _selectedLanguage == 'auto'
+        ? l10n.languageAutoDetect
+        : l10n.languageEnglish;
     return Padding(
-      padding: const EdgeInsets.only(top: AppSpacing.s),
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: theme.colorScheme.surfaceContainerHighest.withValues(
-            alpha: 0.5,
-          ),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              l10n.selectLanguage,
-              style: theme.textTheme.labelMedium?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
+      padding: const EdgeInsets.only(top: AppSpacing.s, left: 4, right: 4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // 单行：标签在左（带语言图标），可点击的语言胶囊靠右
+          Row(
+            children: [
+              Icon(
+                Icons.translate_rounded,
+                size: 18,
+                color: colorScheme.onSurfaceVariant,
               ),
-            ),
-            const SizedBox(height: 8),
-            SizedBox(
-              width: double.infinity,
-              child: SegmentedButton<String>(
-                showSelectedIcon: false,
-                segments: [
-                  ButtonSegment(
-                    value: 'auto',
-                    label: Text(l10n.languageAutoDetect),
+              const SizedBox(width: AppSpacing.s),
+              Expanded(
+                child: Text(
+                  l10n.selectLanguage,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: colorScheme.onSurface,
+                    fontWeight: FontWeight.w500,
                   ),
-                  ButtonSegment(value: 'en', label: Text(l10n.languageEnglish)),
-                ],
-                selected: {_selectedLanguage},
-                onSelectionChanged: (selected) {
-                  setState(() => _selectedLanguage = selected.first);
-                },
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
-            ),
+              const SizedBox(width: AppSpacing.s),
+              // 语言胶囊：填充主色调，呼应选中的 AI 转录卡片
+              PopupMenuButton<String>(
+                initialValue: _selectedLanguage,
+                tooltip: '',
+                position: PopupMenuPosition.under,
+                offset: const Offset(0, 4),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                onSelected: (value) =>
+                    setState(() => _selectedLanguage = value),
+                padding: EdgeInsets.zero,
+                itemBuilder: (context) => [
+                  _buildLanguageMenuItem('en', l10n.languageEnglish, theme),
+                  _buildLanguageMenuItem(
+                    'auto',
+                    l10n.languageAutoDetect,
+                    theme,
+                  ),
+                ],
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 10,
+                  ),
+                  decoration: BoxDecoration(
+                    color: colorScheme.primaryContainer.withValues(alpha: 0.45),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        currentLabel,
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: colorScheme.onSurface,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      Icon(
+                        Icons.unfold_more_rounded,
+                        size: 18,
+                        color: colorScheme.primary,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+          // 仅在该选项已转录时提示，混合语言不支持的提示已移除
+          if (_isAiDisabled(audioItem))
             Padding(
-              padding: const EdgeInsets.only(top: 8),
+              padding: const EdgeInsets.only(top: 6, left: 26),
               child: Text(
-                _isAiDisabled(audioItem)
-                    ? l10n.alreadyTranscribedWithOption
-                    : l10n.mixedLanguageNotSupported,
+                l10n.alreadyTranscribedWithOption,
                 style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
+                  color: colorScheme.onSurfaceVariant.withValues(alpha: 0.75),
                 ),
               ),
             ),
-          ],
-        ),
+        ],
+      ),
+    );
+  }
+
+  /// 构建语言下拉菜单项（选中项前置勾选标记）
+  PopupMenuItem<String> _buildLanguageMenuItem(
+    String value,
+    String label,
+    ThemeData theme,
+  ) {
+    final selected = _selectedLanguage == value;
+    return PopupMenuItem<String>(
+      value: value,
+      child: Row(
+        children: [
+          SizedBox(
+            width: 24,
+            child: selected
+                ? Icon(
+                    Icons.check_rounded,
+                    size: 18,
+                    color: theme.colorScheme.primary,
+                  )
+                : null,
+          ),
+          Text(
+            label,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: theme.colorScheme.onSurface,
+              fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -738,7 +811,7 @@ class _ManageSubtitlesSheetState extends ConsumerState<ManageSubtitlesSheet> {
         onTap: onTap,
         borderRadius: BorderRadius.circular(12),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
@@ -752,20 +825,20 @@ class _ManageSubtitlesSheetState extends ConsumerState<ManageSubtitlesSheet> {
             children: [
               // 图标容器
               Container(
-                width: 40,
-                height: 40,
+                width: 34,
+                height: 34,
                 decoration: BoxDecoration(
                   color: selected
                       ? colorScheme.primary.withValues(alpha: 0.12)
                       : colorScheme.surfaceContainerHighest,
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(9),
                 ),
                 child: Icon(
                   icon,
                   color: selected
                       ? colorScheme.primary
                       : colorScheme.onSurfaceVariant,
-                  size: 20,
+                  size: 18,
                 ),
               ),
               const SizedBox(width: 12),
