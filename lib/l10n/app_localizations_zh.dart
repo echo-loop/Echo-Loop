@@ -212,7 +212,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get infinite => '无限';
 
   @override
-  String get singleSentenceMode => '单句模式';
+  String get singleSentenceMode => '精听模式';
 
   @override
   String get singleSentenceModeDesc => '只展示当前播放的句子';

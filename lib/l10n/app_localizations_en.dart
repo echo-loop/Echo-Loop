@@ -213,7 +213,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get infinite => '∞';
 
   @override
-  String get singleSentenceMode => 'Single Sentence Mode';
+  String get singleSentenceMode => 'Intensive Listening';
 
   @override
   String get singleSentenceModeDesc => 'Show only current sentence';

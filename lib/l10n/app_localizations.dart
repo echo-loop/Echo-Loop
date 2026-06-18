@@ -497,7 +497,7 @@ abstract class AppLocalizations {
   /// No description provided for @singleSentenceMode.
   ///
   /// In en, this message translates to:
-  /// **'Single Sentence Mode'**
+  /// **'Intensive Listening'**
   String get singleSentenceMode;
 
   /// No description provided for @singleSentenceModeDesc.
