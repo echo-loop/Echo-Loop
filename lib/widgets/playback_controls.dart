@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/listening_practice/listening_practice_provider.dart';
@@ -274,9 +276,9 @@ class PlaybackControls extends ConsumerWidget {
 
 /// 循环设置按钮：点击在按钮上方弹出悬浮的循环设置浮层（[LoopSettingsPopup]）。
 ///
-/// 用 [OverlayPortal] + [CompositedTransformFollower] 把浮层锚定到按钮正上方
-/// （右对齐避免贴边溢出）；浮层下方铺一层透明遮罩，点击外部即关闭。
-/// 任一循环开启时图标高亮；仅单句循环开时用 repeat_one，否则用 repeat。
+/// 浮层在按钮**正上方居中**弹出、底部带指向按钮的向下箭头；浮层水平夹紧在屏幕内
+/// （左右各留 [_margin]），箭头随之平移始终对准按钮中心。浮层下方铺一层透明遮罩，
+/// 点击外部即关闭。任一循环开启时图标高亮；仅单句循环开时用 repeat_one，否则用 repeat。
 class _LoopButton extends ConsumerStatefulWidget {
   const _LoopButton();
 
@@ -286,7 +288,62 @@ class _LoopButton extends ConsumerStatefulWidget {
 
 class _LoopButtonState extends ConsumerState<_LoopButton> {
   final OverlayPortalController _portalController = OverlayPortalController();
-  final LayerLink _link = LayerLink();
+  final GlobalKey _buttonKey = GlobalKey();
+
+  /// 浮层宽度与屏幕安全边距。
+  static const double _popupWidth = 280;
+  static const double _margin = 16;
+
+  /// 构建悬浮内容：依据按钮在屏幕中的位置定位浮层并对齐箭头。
+  Widget _buildOverlay(BuildContext overlayContext) {
+    final overlayBox =
+        Overlay.of(overlayContext).context.findRenderObject() as RenderBox?;
+    final buttonBox =
+        _buttonKey.currentContext?.findRenderObject() as RenderBox?;
+    if (overlayBox == null || buttonBox == null) {
+      return const SizedBox.shrink();
+    }
+
+    final screen = overlayBox.size;
+    final buttonTopLeft = buttonBox.localToGlobal(
+      Offset.zero,
+      ancestor: overlayBox,
+    );
+    final buttonCenterX = buttonTopLeft.dx + buttonBox.size.width / 2;
+
+    final width = math.min(_popupWidth, screen.width - _margin * 2);
+    // 居中对齐按钮，再夹紧到屏幕内
+    final left = (buttonCenterX - width / 2).clamp(
+      _margin,
+      screen.width - _margin - width,
+    );
+    final caretX = buttonCenterX - left;
+    // 浮层底边到屏幕底部的距离：贴在按钮上方留 8px 间隙
+    final bottom = screen.height - buttonTopLeft.dy + 8;
+
+    return Stack(
+      children: [
+        // 透明遮罩：点击浮层外部关闭
+        Positioned.fill(
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: _portalController.hide,
+          ),
+        ),
+        Positioned(
+          left: left,
+          bottom: bottom,
+          width: width,
+          // 吸收浮层范围内的点击，避免穿透到遮罩误关闭
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: () {},
+            child: LoopSettingsPopup(width: width, caretX: caretX),
+          ),
+        ),
+      ],
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -300,41 +357,15 @@ class _LoopButtonState extends ConsumerState<_LoopButton> {
 
     return OverlayPortal(
       controller: _portalController,
-      overlayChildBuilder: (context) {
-        return Stack(
-          children: [
-            // 透明遮罩：点击浮层外部关闭
-            Positioned.fill(
-              child: GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onTap: _portalController.hide,
-              ),
-            ),
-            CompositedTransformFollower(
-              link: _link,
-              targetAnchor: Alignment.topRight,
-              followerAnchor: Alignment.bottomRight,
-              offset: const Offset(0, -8),
-              // 吸收浮层范围内的点击，避免穿透到遮罩误关闭
-              child: GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onTap: () {},
-                child: const LoopSettingsPopup(),
-              ),
-            ),
-          ],
-        );
-      },
-      child: CompositedTransformTarget(
-        link: _link,
-        child: IconButton(
-          icon: Icon(icon),
-          iconSize: 22,
-          color: isActive
-              ? Theme.of(context).colorScheme.primary
-              : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
-          onPressed: _portalController.toggle,
-        ),
+      overlayChildBuilder: _buildOverlay,
+      child: IconButton(
+        key: _buttonKey,
+        icon: Icon(icon),
+        iconSize: 22,
+        color: isActive
+            ? Theme.of(context).colorScheme.primary
+            : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+        onPressed: _portalController.toggle,
       ),
     );
   }

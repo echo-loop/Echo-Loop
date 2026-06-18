@@ -1,7 +1,18 @@
 # Echo Loop 任务清单
 
-> 最后更新：2026-06-17（free player 播放架构重构：单一事件驱动模型 + 标准 repeat 模式）
+> 最后更新：2026-06-18（循环设置浮层定位与布局优化）
 > 当前焦点：Android 结束录音闪退（离线 ASR / Silero VAD）——**仍未解决**
+
+## 已完成：循环设置浮层定位修复 + 布局优化
+
+原浮层用 `CompositedTransformFollower` 右对齐到循环按钮（宽 300），向左溢出甚至超出屏幕左边缘。按用户参考样式改为**按钮正上方居中弹出、底部带向下箭头指向按钮**的气泡，并经 ui-ux agent 优化布局。
+
+- [x] `playback_controls.dart`（`_LoopButton`）：弃用 `LayerLink`/`CompositedTransform*`，改为按钮加 `GlobalKey`，在 `overlayChildBuilder` 内读按钮相对 Overlay 的位置，用 `Positioned`（left/bottom/width）将浮层居中于按钮并**水平夹紧到屏幕内**（左右各留 16px），`caretX` = 按钮中心相对浮层左缘的偏移；`bottom` 锚定使浮层展开时向上生长、箭头始终贴按钮。
+- [x] `settings_dialog.dart`（`LoopSettingsPopup`）：删除「循环设置」标题；宽度 300→280，新增 `width`/`caretX` 参数；卡片底部用 `_CaretPainter`（CustomPaint 等腰三角，宽 16 高 8）画向下箭头；区块间分隔改 1px `outlineVariant` Divider；主开关行图标/标题随开关变色（开 primary / 关 onSurfaceVariant）且整行 `InkWell` 可点；`_LabeledSliderRow` label 宽 84→64、单行省略、值列宽 40→44；间隔值用紧凑单位 `Ns`（label 去「（秒）」），无障碍朗读保留完整「N 秒」。
+- [x] l10n：`intervalTime` 由「间隔时间（秒）」→「间隔」、「Interval (seconds)」→「Interval」。
+- [x] 测试：更新 `settings_dialog_test`/`playback_controls_test`/`player_screen_test` 改用「Whole-text loop」判定浮层开启（标题已删），断言间隔 label「Interval」与值「3s」。`flutter analyze` 改动文件 0 issue；三套测试全绿。
+
+  **完成时间**: 2026-06-18
 
 ## 已完成：循环设置弹窗（整篇 / 单句双循环独立可同时开启）
 
