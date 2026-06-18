@@ -29,17 +29,17 @@ void main() {
       expect(decoded.samples, isNotEmpty);
 
       final durationSec = decoded.samples.length / decoded.sampleRate;
-      expect(durationSec, greaterThan(50));
-      expect(durationSec, lessThan(70));
+      expect(durationSec, greaterThan(25));
+      expect(durationSec, lessThan(45));
     });
   });
 }
 
 Future<File> _materializeDemoAudio() async {
-  const assetPath = 'assets/demo/English in a Minute - On the Ball.m4a';
+  const assetPath = 'assets/demo/CEFR A1 - Book a table.m4a';
   final data = await rootBundle.load(assetPath);
   final tempDir = await Directory.systemTemp.createTemp('native-audio-decoder');
-  final file = File('${tempDir.path}/on_the_ball.m4a');
+  final file = File('${tempDir.path}/cefr_a1_book_a_table.m4a');
   await file.writeAsBytes(
     data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes),
   );

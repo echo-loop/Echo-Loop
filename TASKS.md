@@ -3,6 +3,17 @@
 > 最后更新：2026-06-18（Free Player 睡眠定时器）
 > 当前焦点：Android 结束录音闪退（离线 ASR / Silero VAD）——**仍未解决**
 
+## 已完成：更换内置 Examples 为 6 条 CEFR 示例音频
+
+内置 Examples 从单条 `English in a Minute - On the Ball` 替换为 A1/A2/B1/B2/C1/C2 六条 CEFR 示例音频。安装器改为版本化幂等安装：全新空库安装 6 条新示例；已安装旧 bundled example 的用户启动后自动删除旧记录、旧音频文件和旧音频关联数据并迁移到 6 条新示例；已有用户库但没有旧 example 的环境不自动插入示例，避免污染既有库。示例继续保持无字幕策略，引导用户通过 AI 转录生成字幕；重复安装不会覆盖新示例已生成的字幕。
+
+- [x] `bundled_example_installer.dart`：新增 v2 manifest（6 条固定 ID）和 `bundled_example_installed_version`；支持旧 `bundled-example-audio-0001` 迁移清理；显式清理旧音频的 collection/bookmark/progress/stage/playback/tag 关联与 saved word/sense group 冗余上下文；复制新 assets 并写入 `Examples` 合集。
+- [x] `bundled_example_installer_test.dart`：覆盖空库安装、最新版跳过、版本标记丢失幂等（保留已生成字幕）、旧示例迁移（含关联表/上下文清理）、非空用户库不自动插入五个分支。
+- [x] `native_audio_decoder_integration_test.dart`：demo asset 改为新的 `CEFR A1 - Book a table.m4a`，更新时长断言。
+- [x] 验证：`flutter analyze lib/services/bundled_example_installer.dart test/services/bundled_example_installer_test.dart integration_test/native_audio_decoder_integration_test.dart`：No issues found；`flutter test test/services/bundled_example_installer_test.dart`：5 passed。
+
+  **完成时间**: 2026-06-18
+
 ## 已完成：Free Player 睡眠定时器（定时停止）
 
 自由播放器缺少听力/播客播放器的标准「定时停止」功能。在 AppBar 右上角新增 timer 图标按钮，点击在按钮下方弹出气泡浮层（复用「循环设置」浮层的视觉与交互骨架，箭头朝上）选择预设时长（5/10/15/30/45/60 分钟），到点自动**暂停**（可续播）。定时为**一次性**：不持久化、独立 provider、autoDispose 绑定页面生命周期，离开页面即取消、到点后清空、重进无激活态。墙钟倒计时（`clock.now()` + `Timer.periodic`，便于 fake_async 测试），防竞态用 generation token 作废旧计时。范围裁剪：不做「听完本条/当前句」自然结束选项、不做音量淡出、不做自定义分钟输入。
