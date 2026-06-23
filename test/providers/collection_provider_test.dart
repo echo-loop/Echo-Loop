@@ -3,10 +3,50 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:echo_loop/models/collection.dart';
 import 'package:echo_loop/providers/audio_library_provider.dart';
 import 'package:echo_loop/providers/collection_provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../helpers/mock_providers.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
+  group('collectionSortTypeFromName 解析', () {
+    test('合法字符串解析为对应枚举', () {
+      expect(collectionSortTypeFromName('nameAsc'), CollectionSortType.nameAsc);
+      expect(collectionSortTypeFromName('dateAsc'), CollectionSortType.dateAsc);
+    });
+
+    test('null（未存过）回退到默认 dateDesc', () {
+      expect(collectionSortTypeFromName(null), CollectionSortType.dateDesc);
+    });
+
+    test('非法字符串回退到默认 dateDesc', () {
+      expect(
+        collectionSortTypeFromName('garbage'),
+        CollectionSortType.dateDesc,
+      );
+    });
+  });
+
+  group('CollectionList.setSortType 持久化', () {
+    test('同步更新状态并写入 prefs', () async {
+      SharedPreferences.setMockInitialValues({});
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+
+      await container
+          .read(collectionListProvider.notifier)
+          .setSortType(CollectionSortType.nameDesc);
+
+      expect(
+        container.read(collectionListProvider).sortType,
+        CollectionSortType.nameDesc,
+      );
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.getString('collection_sort_type'), 'nameDesc');
+    });
+  });
+
   group('CollectionState', () {
     final now = DateTime(2026, 1, 15);
 

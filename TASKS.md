@@ -1,7 +1,19 @@
 # Echo Loop 任务清单
 
-> 最后更新：2026-06-23（版本号升级到 1.0.19）
+> 最后更新：2026-06-23（资源库排序方式持久化）
 > 当前焦点：Android 结束录音闪退（离线 ASR / Silero VAD）——**仍未解决**
+
+## 已完成：资源库排序方式持久化
+
+资源库页面的排序方式此前仅存于 Riverpod 内存 state，App 重启后回到默认「最近创建」，用户需反复手动选择。改为持久化到 SharedPreferences，下次进入自动恢复。复用 `settings_provider.dart` 范式（常量 key + 异步 `_load` + setter 中 `await prefs.setString`），enum 以 `.name` 字符串存储、解析失败回退默认。覆盖资源库页两个排序入口：合集排序（`CollectionSortType`）与音频列表排序（`AudioSortType`，同时用于合集详情页非官方合集）。此改动不触发 riverpod 代码生成，无 `.g.dart` 变更。
+
+- [x] `collection_provider.dart`：新增 `_collectionSortTypeKey`、纯函数 `collectionSortTypeFromName`（null/非法回退 dateDesc）；`build()` 挂 fire-and-forget `_loadSortType()`（try/catch 保护，prefs 失败不影响合集加载）；`setSortType` 改 `Future<void>` 并写入 prefs。
+- [x] `audio_list_settings_provider.dart`：同上模式（保持 `@riverpod` 不改 keepAlive，autoDispose 重建后会从 prefs 重新读回）。全局菜单仅 4 项不含 `custom`，custom 永不进入持久化。
+- [x] UI 层（`CollectionSortButton`/`AudioSortButton`）无需改动，onSelected fire-and-forget。
+- [x] `fake_notifiers.dart`：`FakeCollectionList.setSortType` 签名同步改 `Future<void>`。
+- [x] 测试：两个 provider 各新增解析纯函数（合法/null/非法回退）+ `setSortType` 持久化写入用例；全量 `flutter test` 2969 通过，`flutter analyze` 改动文件 0 问题。
+
+  **完成时间**: 2026-06-23
 
 ## 已完成：版本号升级到 1.0.19
 

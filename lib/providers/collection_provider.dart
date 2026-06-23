@@ -1,5 +1,6 @@
 import 'package:drift/drift.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../analytics/analytics_providers.dart';
 import '../analytics/models/event_names.dart';
 import '../database/app_database.dart' as db;
@@ -10,7 +11,22 @@ import 'audio_library_provider.dart';
 
 part 'collection_provider.g.dart';
 
+/// 合集排序方式持久化存储键
+const _collectionSortTypeKey = 'collection_sort_type';
+
 enum CollectionSortType { nameAsc, nameDesc, dateAsc, dateDesc }
+
+/// 把持久化字符串解析为 [CollectionSortType]
+///
+/// null（未存过）或非法值统一回退到默认 [CollectionSortType.dateDesc]。
+CollectionSortType collectionSortTypeFromName(String? raw) {
+  if (raw == null) return CollectionSortType.dateDesc;
+  try {
+    return CollectionSortType.values.byName(raw);
+  } catch (_) {
+    return CollectionSortType.dateDesc;
+  }
+}
 
 class CollectionState {
   final List<Collection> rawCollections;
@@ -90,7 +106,25 @@ class CollectionState {
 class CollectionList extends _$CollectionList {
   @override
   CollectionState build() {
+    // 异步恢复持久化的排序方式（独立于合集数据加载）
+    _loadSortType();
     return const CollectionState();
+  }
+
+  /// 从 SharedPreferences 恢复上次选择的排序方式
+  ///
+  /// 非法或缺省值回退到默认 [CollectionSortType.dateDesc]。
+  Future<void> _loadSortType() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      state = state.copyWith(
+        sortType: collectionSortTypeFromName(
+          prefs.getString(_collectionSortTypeKey),
+        ),
+      );
+    } catch (_) {
+      // 读取失败（如 prefs 不可用）：保持默认排序，不影响合集加载
+    }
   }
 
   Future<void> loadCollections() async {
@@ -323,8 +357,11 @@ class CollectionList extends _$CollectionList {
     }
   }
 
-  void setSortType(CollectionSortType type) {
+  /// 设置并持久化排序方式
+  Future<void> setSortType(CollectionSortType type) async {
     state = state.copyWith(sortType: type);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_collectionSortTypeKey, type.name);
   }
 
   /// 将 Collection 模型写入 Drift 数据库

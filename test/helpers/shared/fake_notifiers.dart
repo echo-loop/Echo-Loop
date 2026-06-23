@@ -247,7 +247,7 @@ class FakeCollectionList extends CollectionList {
   }
 
   @override
-  void setSortType(CollectionSortType type) {
+  Future<void> setSortType(CollectionSortType type) async {
     state = state.copyWith(sortType: type);
   }
 
