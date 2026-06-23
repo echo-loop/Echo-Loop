@@ -9,6 +9,8 @@
 /// - 构造函数接受可选初始状态，方便测试定制
 library;
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart' as ja;
 
@@ -1757,6 +1759,13 @@ class FakeAudioEngine extends AudioEngine {
 
   set isPlaying(bool value) => playingState = value;
 
+  /// 续播判定用的处理状态；默认 `ready`，使「暂停后从精确位置续播」分支可在
+  /// 测试中走通。需要模拟「已播完/空闲」的测试可覆写。
+  ja.ProcessingState processingStateValue = ja.ProcessingState.ready;
+
+  @override
+  ja.ProcessingState get processingState => processingStateValue;
+
   @override
   Duration get currentPosition => Duration.zero;
 
@@ -1808,6 +1817,15 @@ class FakeAudioEngine extends AudioEngine {
 
   @override
   Future<void> playClipOnce(Sentence sentence, int sessionId) async {}
+
+  @override
+  Future<void> playToEnd(int sessionId) async {
+    if (!isActiveSession(sessionId)) return;
+    playingState = true;
+    // 基类不模拟自然播完：起播后挂起，由具体测试引擎覆写以驱动完成。
+    // 不立即返回，避免 `_playWholeDriven` 在「整篇循环」下空转成死循环。
+    await Completer<void>().future;
+  }
 
   @override
   Future<void> playClipWithLoops(

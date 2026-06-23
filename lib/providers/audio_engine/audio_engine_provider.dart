@@ -41,6 +41,7 @@ class AudioEngine extends _$AudioEngine {
       _audioPlayer.playerStateStream;
 
   bool get isPlaying => _audioPlayer.playing;
+  ja.ProcessingState get processingState => _audioPlayer.processingState;
   Duration get currentPosition => _audioPlayer.position;
   Duration get absoluteCurrentPosition =>
       state.clipStart + _audioPlayer.position;
@@ -267,6 +268,29 @@ class AudioEngine extends _$AudioEngine {
         await Future.delayed(interval);
       }
     }
+  }
+
+  /// 从当前播放位置播到音频自然结束（整篇连续播放用）。
+  ///
+  /// 不 setClip：清除任何残留 clip 后从引擎当前 position 播放，await 直到 just_audio
+  /// 发出 `ProcessingState.completed` 或 session 失效。每个自然结束只解析一次 await，
+  /// 因此对 just_audio 在部分平台发出的重复/滞后 `completed` 事件天然免疫——
+  /// 调用方据此做确定性的整篇循环计数，不依赖反应式事件流。
+  Future<void> playToEnd(int sessionId) async {
+    if (!isActiveSession(sessionId)) return;
+
+    await _audioPlayer.play();
+    // play() 是真正启动播放的点，并发场景下上游可能在此之前 bump session。
+    if (!isActiveSession(sessionId)) {
+      await _audioPlayer.pause();
+      return;
+    }
+
+    await _audioPlayer.playerStateStream.firstWhere(
+      (s) =>
+          !isActiveSession(sessionId) ||
+          s.processingState == ja.ProcessingState.completed,
+    );
   }
 
   // --- 区间播放（段落级） ---

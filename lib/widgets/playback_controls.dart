@@ -2,13 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/playback_settings.dart';
 import '../providers/listening_practice/listening_practice_provider.dart';
-import '../providers/audio_engine/audio_engine_provider.dart';
 import '../theme/app_theme.dart';
 import '../utils/playback_speed.dart';
 import 'common/anchored_bubble.dart';
 import 'settings_dialog.dart';
 
-String _formatPlaybackSpeedLabel(double speed) => formatPlaybackSpeedLabel(speed);
+String _formatPlaybackSpeedLabel(double speed) =>
+    formatPlaybackSpeedLabel(speed);
 
 class PlaybackControls extends ConsumerWidget {
   const PlaybackControls({super.key});
@@ -17,28 +17,15 @@ class PlaybackControls extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final playerState = ref.watch(listeningPracticeProvider);
     final controller = ref.read(listeningPracticeProvider.notifier);
-    final engineNotifier = ref.read(audioEngineProvider.notifier);
 
     return LayoutBuilder(
       builder: (context, constraints) {
         final isMobile = constraints.maxWidth < 600;
 
         if (isMobile) {
-          return _buildMobileLayout(
-            context,
-            ref,
-            playerState,
-            controller,
-            engineNotifier,
-          );
+          return _buildMobileLayout(context, ref, playerState, controller);
         } else {
-          return _buildDesktopLayout(
-            context,
-            ref,
-            playerState,
-            controller,
-            engineNotifier,
-          );
+          return _buildDesktopLayout(context, ref, playerState, controller);
         }
       },
     );
@@ -49,7 +36,6 @@ class PlaybackControls extends ConsumerWidget {
     WidgetRef ref,
     ListeningPracticeState playerState,
     ListeningPractice controller,
-    AudioEngine engineNotifier,
   ) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
@@ -109,7 +95,7 @@ class PlaybackControls extends ConsumerWidget {
                       : null,
                 ),
                 const SizedBox(width: 12),
-                _buildPlayPauseButton(context, controller, engineNotifier),
+                _buildPlayPauseButton(context, playerState, controller),
                 const SizedBox(width: 12),
                 IconButton(
                   icon: const Icon(Icons.skip_next),
@@ -131,7 +117,6 @@ class PlaybackControls extends ConsumerWidget {
     WidgetRef ref,
     ListeningPracticeState playerState,
     ListeningPractice controller,
-    AudioEngine engineNotifier,
   ) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -163,7 +148,7 @@ class PlaybackControls extends ConsumerWidget {
                 : null,
           ),
           const SizedBox(width: 6),
-          _buildPlayPauseButton(context, controller, engineNotifier),
+          _buildPlayPauseButton(context, playerState, controller),
           const SizedBox(width: 6),
           IconButton(
             icon: const Icon(Icons.skip_next),
@@ -196,10 +181,12 @@ class PlaybackControls extends ConsumerWidget {
 
   Widget _buildPlayPauseButton(
     BuildContext context,
+    ListeningPracticeState playerState,
     ListeningPractice controller,
-    AudioEngine engineNotifier,
   ) {
-    final isPlaying = engineNotifier.isPlaying;
+    // 图标读 controller 的逻辑播放态（唯一真相源），不读 just_audio 的瞬时
+    // `playing`——后者在自然播完后仍为 true，会让图标停在「暂停」。
+    final isPlaying = playerState.isPlaying;
     return Container(
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.primary,
@@ -281,10 +268,7 @@ class _SpeedButtonState extends ConsumerState<_SpeedButton> {
         ),
         child: Text(
           _formatPlaybackSpeedLabel(speed),
-          style: TextStyle(
-            fontSize: 14,
-            color: color,
-          ),
+          style: TextStyle(fontSize: 14, color: color),
         ),
       ),
     );

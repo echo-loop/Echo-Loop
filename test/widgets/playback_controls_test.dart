@@ -33,7 +33,10 @@ void main() {
             overrides: [
               appSettingsProvider.overrideWith(() => TestAppSettings()),
               listeningPracticeProvider.overrideWith(
-                () => TestListeningPractice(),
+                // 图标读 LP 的逻辑播放态（唯一真相源），不读引擎瞬时 playing。
+                () => TestListeningPractice(
+                  const ListeningPracticeState(isPlaying: true),
+                ),
               ),
               audioEngineProvider.overrideWith(
                 () => TestAudioEngine(isPlaying: true),

@@ -26,10 +26,12 @@ part 'listening_practice_provider.g.dart';
 
 /// 自由练习播放器的状态与业务编排。
 ///
-/// 播放推进采用单一的「事件驱动」模型：底层 [AudioEngine]（多个功能共享的
-/// 单实例 just_audio）只在「一句/整段播放完成」时回调 [_onPlayerStateChanged]，
-/// 由纯函数 [decideNext] 决定下一步（重播 / 进下一句 / 回卷 / 停止）。
-/// 不再有跨多次 await 持有状态的长协程，避免索引乱跳。
+/// 播放推进采用统一的「确定性 await-完成循环」模型：无论整篇连续播放
+/// （[_playWholeDriven]）还是单句循环/收藏跳播（[_playSentenceDriven]），都在
+/// 协程里 `await` 引擎播放一遍（[AudioEngine.playToEnd] / [AudioEngine.playClipOnce]）
+/// 后，用纯函数 [decideNext] / [shouldLoopWhole] 决定下一步（重播 / 进下一句 /
+/// 回卷 / 停止）。计数与循环不依赖反应式的 `completed` 事件流，从根上避免 just_audio
+/// 重复/滞后 `completed` 事件导致的多计数与提前停止。
 ///
 /// 真相源是 [ListeningPracticeState.currentFullIndex] /
 /// [ListeningPracticeState.currentBookmarkIndex]，只在以下入口被修改：
@@ -37,7 +39,6 @@ part 'listening_practice_provider.g.dart';
 @Riverpod(keepAlive: true)
 class ListeningPractice extends _$ListeningPractice {
   StreamSubscription? _positionSub;
-  StreamSubscription? _playerStateSub;
 
   /// 追踪正在进行的音频加载，避免重复调用时跳过未完成的加载
   Completer<void>? _loadingCompleter;
@@ -66,9 +67,6 @@ class ListeningPractice extends _$ListeningPractice {
   /// 录“下一次自然句边界/clip 完成后再交接模型”，由位置流或 completed 事件在安
   /// 全时机接管。
   bool _pendingPlaybackModeHandoff = false;
-
-  /// 整篇 gapless 自然播完后的处理闸门，防止 just_audio completed 事件重复触发。
-  bool _handlingWholeCompletion = false;
 
   /// 当前播放列表已自然播完，等待用户再次点击主播放按钮时从列表开头重播。
   ///
@@ -103,21 +101,17 @@ class ListeningPractice extends _$ListeningPractice {
     // defer listener setup to after first build
     Future.microtask(() {
       _positionSub = _engine.absolutePositionStream.listen(_onPositionChanged);
-      _playerStateSub = _engine.playerStateStream.listen(_onPlayerStateChanged);
     });
   }
 
   void _disposeListeners() {
     _positionSub?.cancel();
-    _playerStateSub?.cancel();
   }
 
   /// 暂停 stream 监听（学习模式期间调用，避免 LP 接管共享引擎）。
   void suspendListeners() {
     _positionSub?.cancel();
-    _playerStateSub?.cancel();
     _positionSub = null;
-    _playerStateSub = null;
   }
 
   /// 恢复 stream 监听（退出学习模式时调用）
@@ -224,69 +218,144 @@ class ListeningPractice extends _$ListeningPractice {
     return false;
   }
 
-  void _onPlayerStateChanged(ja.PlayerState playerState) {
-    if (playerState.processingState == ja.ProcessingState.completed &&
-        !_activeSentenceDrivenPlayback &&
-        _engine.isActiveSession(_playbackSessionId) &&
-        !_handlingWholeCompletion) {
-      _handlingWholeCompletion = true;
-      final gen = ++_playbackGen;
-      final sid = _playbackSessionId;
-      unawaited(
-        _advanceWholeCompletion(gen, sid).whenComplete(() {
-          if (gen == _playbackGen) {
-            _handlingWholeCompletion = false;
-          }
-        }),
-      );
-    }
-    // 触发 isPlaying 变化的重建
-    state = state.copyWith();
-  }
-
-  /// gapless 整篇自然完成后的推进。
+  /// 设置逻辑播放态——播放/暂停按钮图标的唯一真相源。
   ///
-  /// 仅整篇连续播放走这里；句级 clip 播放完成由 `_playSentenceDriven` 自己推进。
-  Future<void> _advanceWholeCompletion(int gen, int sid) async {
-    await _engine.pauseKeepSession();
-    if (gen != _playbackGen || !_engine.isActiveSession(sid)) return;
-
-    final s = state.settings;
-    _wholeLoopsDone += 1;
-
-    if (!shouldLoopWhole(s.loopWhole, s.wholeLoopCount, _wholeLoopsDone)) {
-      _awaitingReplayFromStart = true;
-      await _engine.stop();
-      return;
-    }
-
-    await _delayInterval(s.wholeInterval);
-    if (gen != _playbackGen || !_engine.isActiveSession(sid)) return;
-
-    _sentenceRepeatsDone = 0;
-    await _resumeAt(0);
+  /// 由 controller 在所有起播/暂停/停止/自然播完入口显式调用，不读 just_audio
+  /// 的 `AudioPlayer.playing`（后者在自然播完后仍为 true，会让图标误显「暂停」）。
+  void _setLogicalPlaying(bool playing) {
+    if (state.isPlaying == playing) return;
+    state = state.copyWith(isPlaying: playing);
   }
 
-  /// 从播放列表第 [pos] 条起播（gapless）：更新真相源 index + 监听句，seek 到句首后播放。
-  Future<void> _resumeAt(int pos) async {
+  /// 启动整篇连续播放的确定性循环（gapless）。
+  ///
+  /// [startPos] 非空：把真相源对齐到该句并 seek 到句首后起播（全新起播 / 模型交接）；
+  /// 为空：从引擎当前精确位置继续（暂停后续播，保留已完成遍数）。
+  /// [resetCounters] 为 true 时清零整篇/单句计数（全新起播）。
+  Future<void> _startWholeDriven({
+    int? startPos,
+    required bool resetCounters,
+  }) async {
     final playable = _playable;
-    if (pos < 0 || pos >= playable.length) return;
-    final target = playable[pos];
-    if (state.playlistMode == PlaylistMode.bookmarks) {
-      state = state.copyWith(
-        currentBookmarkIndex: target.index,
-        lastPlayedBookmarkIndex: target.index,
-      );
-    } else {
-      state = state.copyWith(
-        currentFullIndex: target.index,
-        lastPlayedFullIndex: target.index,
-      );
+    if (playable.isEmpty) return;
+
+    final gen = ++_playbackGen;
+    _awaitingReplayFromStart = false;
+    _activeSentenceDrivenPlayback = false;
+    _pendingPlaybackModeHandoff = false;
+    if (resetCounters) {
+      _wholeLoopsDone = 0;
+      _sentenceRepeatsDone = 0;
     }
-    await _engine.seek(target.startTime);
-    await _engine.play();
-    // seek 后再保存，使持久化的位置落在新句首而非上一句句尾。
-    _autoSaveProgress();
+    _playbackSessionId = _engine.newSession();
+    await _engine.clearClip();
+
+    if (startPos != null) {
+      if (startPos < 0 || startPos >= playable.length) return;
+      final target = playable[startPos];
+      if (state.playlistMode == PlaylistMode.bookmarks) {
+        state = state.copyWith(
+          currentBookmarkIndex: target.index,
+          lastPlayedBookmarkIndex: target.index,
+        );
+      } else {
+        state = state.copyWith(
+          currentFullIndex: target.index,
+          lastPlayedFullIndex: target.index,
+        );
+      }
+      await _engine.seek(target.startTime);
+      // seek 后保存，使持久化位置落在新句首而非上一句句尾。
+      _autoSaveProgress();
+    }
+
+    _setLogicalPlaying(true);
+    final s = state.settings;
+    AppLogger.log(
+      'Player',
+      '▶ 整篇起播 gen=$gen sid=$_playbackSessionId '
+          'loopWhole=${s.loopWhole} count=${s.wholeLoopCount} '
+          'loopsDone=$_wholeLoopsDone '
+          'startPos=${startPos ?? '续播(当前位置)'} resetCounters=$resetCounters',
+    );
+    unawaited(_playWholeDriven(gen, _playbackSessionId));
+  }
+
+  /// 整篇连续播放的确定性循环。
+  ///
+  /// 每遍 `await` [AudioEngine.playToEnd] 播到自然结束，再用 [shouldLoopWhole]
+  /// 决定回卷重播还是停止；遍数在协程内自增，因此 just_audio 重复/滞后的
+  /// `completed` 事件不会造成多计数或提前停止。`loopWhole == false` 时第一遍后即
+  /// 停止，覆盖「非循环播完一次」的情形。高亮仍由 `_onPositionChanged` 跟随位置流。
+  Future<void> _playWholeDriven(int gen, int sid) async {
+    while (gen == _playbackGen && _engine.isActiveSession(sid)) {
+      await _engine.playToEnd(sid);
+      if (gen != _playbackGen || !_engine.isActiveSession(sid)) {
+        AppLogger.log(
+          'Player',
+          '⏹ 整篇本遍作废 gen=$gen(cur=$_playbackGen) '
+              'sid=$sid(active=${_engine.isActiveSession(sid)}) '
+              'loopsDone=$_wholeLoopsDone',
+        );
+        return;
+      }
+
+      _wholeLoopsDone += 1;
+      _autoSaveProgress();
+
+      final s = state.settings;
+      // 整篇循环计数：「目标 N 遍」时输出 第 done/N 遍；∞ 时输出 第 done 遍。
+      final total = s.wholeLoopCount == 0 ? '∞' : '${s.wholeLoopCount}';
+      AppLogger.log(
+        'Player',
+        '✓ 整篇播完第 $_wholeLoopsDone/$total 遍 gen=$gen '
+            'loopWhole=${s.loopWhole}',
+      );
+
+      if (!shouldLoopWhole(s.loopWhole, s.wholeLoopCount, _wholeLoopsDone)) {
+        AppLogger.log(
+          'Player',
+          '⏹ 整篇循环结束（已播满 $_wholeLoopsDone 遍）→ stop，等待用户重播',
+        );
+        _awaitingReplayFromStart = true;
+        _setLogicalPlaying(false);
+        await _engine.stop();
+        return;
+      }
+
+      await _delayInterval(s.wholeInterval);
+      if (gen != _playbackGen || !_engine.isActiveSession(sid)) {
+        AppLogger.log(
+          'Player',
+          '⏹ 整篇间隔停顿后作废 gen=$gen(cur=$_playbackGen) loopsDone=$_wholeLoopsDone',
+        );
+        return;
+      }
+
+      final playable = _playable;
+      if (playable.isEmpty) {
+        _setLogicalPlaying(false);
+        await _engine.stop();
+        return;
+      }
+
+      // 回卷到列表开头继续下一遍。
+      AppLogger.log('Player', '↻ 整篇回卷，准备播第 ${_wholeLoopsDone + 1}/$total 遍');
+      final first = playable.first;
+      if (state.playlistMode == PlaylistMode.bookmarks) {
+        state = state.copyWith(
+          currentBookmarkIndex: first.index,
+          lastPlayedBookmarkIndex: first.index,
+        );
+      } else {
+        state = state.copyWith(
+          currentFullIndex: first.index,
+          lastPlayedFullIndex: first.index,
+        );
+      }
+      await _engine.seek(first.startTime);
+      _autoSaveProgress();
+    }
   }
 
   /// 句级 clip 播放循环。
@@ -345,6 +414,7 @@ class ListeningPractice extends _$ListeningPractice {
       switch (action) {
         case StopPlayback():
           _awaitingReplayFromStart = true;
+          _setLogicalPlaying(false);
           await _engine.stop();
           return;
         case ReplayCurrent(:final pauseBefore):
@@ -397,6 +467,7 @@ class ListeningPractice extends _$ListeningPractice {
     switch (action) {
       case StopPlayback():
         _activeSentenceDrivenPlayback = false;
+        _setLogicalPlaying(false);
         await _engine.stop();
         return;
       case ReplayCurrent():
@@ -406,15 +477,13 @@ class ListeningPractice extends _$ListeningPractice {
       case GoToPosition(:final position, :final pauseBefore):
         await _delayInterval(pauseBefore);
         if (gen != _playbackGen || !_engine.isActiveSession(sid)) return;
-        _activeSentenceDrivenPlayback = false;
         if (_currentPos != null &&
             position == 0 &&
             _currentPos == _playable.length - 1) {
           _wholeLoopsDone += 1;
         }
-        _sentenceRepeatsDone = 0;
-        await _engine.clearClip();
-        await _resumeAt(position);
+        // 切回 gapless 整篇循环模型：从目标句句首起播确定性循环，保留已完成遍数。
+        await _startWholeDriven(startPos: position, resetCounters: false);
     }
   }
 
@@ -475,7 +544,6 @@ class ListeningPractice extends _$ListeningPractice {
       _wholeLoopsDone = 0;
       _playbackGen++;
       _activeSentenceDrivenPlayback = false;
-      _handlingWholeCompletion = false;
       _pendingPlaybackModeHandoff = false;
 
       state = state.copyWith(
@@ -610,6 +678,7 @@ class ListeningPractice extends _$ListeningPractice {
     if (state.currentAudioItem == null) return;
 
     if (state.sentences.isEmpty) {
+      _setLogicalPlaying(true);
       await _engine.play();
       return;
     }
@@ -627,13 +696,15 @@ class ListeningPractice extends _$ListeningPractice {
 
     if (!_usesSentenceDrivenPlayback &&
         _engine.isActiveSession(_playbackSessionId)) {
-      final ps = _engine.audioPlayer.processingState;
+      final ps = _engine.processingState;
       final resumable =
           ps != ja.ProcessingState.completed &&
           ps != ja.ProcessingState.idle &&
           _engine.currentPosition > Duration.zero;
       if (resumable) {
-        await _engine.play();
+        // 从暂停的精确位置续播：重新拉起整篇确定性循环，保留已完成遍数，
+        // 不 seek、不清零，使续播后仍能正确地播满剩余遍数。
+        await _startWholeDriven(resetCounters: false);
         return;
       }
     }
@@ -656,7 +727,10 @@ class ListeningPractice extends _$ListeningPractice {
         lastPlayedBookmarkIndex: first,
       );
     } else {
-      state = state.copyWith(currentFullIndex: first, lastPlayedFullIndex: first);
+      state = state.copyWith(
+        currentFullIndex: first,
+        lastPlayedFullIndex: first,
+      );
     }
     await _startCurrent();
   }
@@ -666,20 +740,19 @@ class ListeningPractice extends _$ListeningPractice {
     final playable = _playable;
     if (playable.isEmpty) return;
 
-    final gen = ++_playbackGen;
-    _awaitingReplayFromStart = false;
-    _activeSentenceDrivenPlayback = _usesSentenceDrivenPlayback;
-    _handlingWholeCompletion = false;
-    _pendingPlaybackModeHandoff = false;
-    _sentenceRepeatsDone = 0;
-    _wholeLoopsDone = 0;
-    _playbackSessionId = _engine.newSession();
-
     if (_usesSentenceDrivenPlayback) {
+      final gen = ++_playbackGen;
+      _awaitingReplayFromStart = false;
+      _activeSentenceDrivenPlayback = true;
+      _pendingPlaybackModeHandoff = false;
+      _sentenceRepeatsDone = 0;
+      _wholeLoopsDone = 0;
+      _playbackSessionId = _engine.newSession();
+      _setLogicalPlaying(true);
       unawaited(_playSentenceDriven(gen, _playbackSessionId));
     } else {
-      await _engine.clearClip();
-      await _resumeAt(_currentPos ?? 0);
+      // 整篇连续播放：从当前句句首起播确定性循环，清零遍数。
+      await _startWholeDriven(startPos: _currentPos ?? 0, resetCounters: true);
     }
   }
 
@@ -703,8 +776,8 @@ class ListeningPractice extends _$ListeningPractice {
     _playbackGen++;
     _awaitingReplayFromStart = false;
     _activeSentenceDrivenPlayback = false;
-    _handlingWholeCompletion = false;
     _pendingPlaybackModeHandoff = false;
+    _setLogicalPlaying(false);
     await _engine.pause();
     // 引擎 pause 会自增 session 以失效在途回调；LP 仍是这个「已暂停引擎」的拥有者，
     // 故认领当前 session，使随后的 play() 能从精确暂停位置续播。若期间被讲解页等
@@ -716,8 +789,8 @@ class ListeningPractice extends _$ListeningPractice {
     _playbackGen++;
     _awaitingReplayFromStart = false;
     _activeSentenceDrivenPlayback = false;
-    _handlingWholeCompletion = false;
     _pendingPlaybackModeHandoff = false;
+    _setLogicalPlaying(false);
     await _engine.stop();
   }
 
@@ -752,7 +825,6 @@ class ListeningPractice extends _$ListeningPractice {
     _playbackGen++;
     _awaitingReplayFromStart = false;
     _activeSentenceDrivenPlayback = false;
-    _handlingWholeCompletion = false;
     _pendingPlaybackModeHandoff = false;
 
     Duration target = absolutePosition;
@@ -806,10 +878,11 @@ class ListeningPractice extends _$ListeningPractice {
       if (_usesSentenceDrivenPlayback) {
         await _startCurrent();
       } else {
-        _playbackSessionId = _engine.newSession();
-        await _engine.play();
+        // 整篇连续播放：从落点起播确定性循环（不再裸 play，否则播完无人接管循环）。
+        await _startWholeDriven(resetCounters: false);
       }
     } else {
+      _setLogicalPlaying(false);
       _playbackSessionId = _engine.currentSessionId;
     }
   }
@@ -819,8 +892,8 @@ class ListeningPractice extends _$ListeningPractice {
     _playbackGen++;
     _awaitingReplayFromStart = false;
     _activeSentenceDrivenPlayback = false;
-    _handlingWholeCompletion = false;
     _pendingPlaybackModeHandoff = false;
+    _setLogicalPlaying(false);
     _sentenceRepeatsDone = 0;
     final pos = _currentPos;
     await _engine.clearClip();
@@ -1079,7 +1152,8 @@ class ListeningPractice extends _$ListeningPractice {
   Future<void> updateSettings(PlaybackSettings newSettings) async {
     final wasPlaying = _engine.isPlaying;
     final desiredSentenceDriven =
-        state.playlistMode == PlaylistMode.bookmarks || newSettings.loopSentence;
+        state.playlistMode == PlaylistMode.bookmarks ||
+        newSettings.loopSentence;
 
     state = state.copyWith(settings: newSettings);
     await _engine.setSpeed(newSettings.playbackSpeed);
@@ -1092,8 +1166,7 @@ class ListeningPractice extends _$ListeningPractice {
 
     // 单句循环开关切换不应打断当前播放态：播放中只记录“自然句边界后再交接模型”，
     // 暂停时仅更新设置。这样可以避免突然跳句首或在暂停态被意外拉起播放。
-    if (wasPlaying &&
-        _activeSentenceDrivenPlayback != desiredSentenceDriven) {
+    if (wasPlaying && _activeSentenceDrivenPlayback != desiredSentenceDriven) {
       _pendingPlaybackModeHandoff = true;
     }
   }

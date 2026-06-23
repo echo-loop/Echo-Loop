@@ -1,7 +1,18 @@
 # Echo Loop 任务清单
 
-> 最后更新：2026-06-22（Free Player 禁止 tab swipe，逐句精听支持左右滑动切句）
+> 最后更新：2026-06-23（修复 Free Player 整篇循环次数不准 + 播放/暂停图标错乱）
 > 当前焦点：Android 结束录音闪退（离线 ASR / Silero VAD）——**仍未解决**
+
+## 已完成：修复 Free Player 整篇循环次数不准 + 播放/暂停图标错乱
+
+整篇连续播放（gapless）此前依赖 just_audio 的 `ProcessingState.completed` 事件做反应式循环计数与重启，触发三个连带 bug：① 重复设 3 遍只播 2 遍就停（重复/滞后 completed 事件多计数）；② 播完后播放/暂停按钮仍显示「暂停」图标（按钮直接读 just_audio 的 `playing`，而它在自然播完后仍为 true）；③ 播完后点两下按钮却从最后一句开始（图标错误导致首击触发 pause，清掉了「从头重播」标志）。改为与单句循环一致的确定性 await-完成循环模型，并把图标改由 controller 的逻辑播放态驱动，从根上消除整类竞态。
+
+- [x] `audio_engine_provider.dart`：新增 `playToEnd(sessionId)` 原语（await 自然播完，免疫重复 completed 事件）；新增 `processingState` getter（解耦续播判定、可测）。
+- [x] `listening_practice_provider.dart`：新增 `_playWholeDriven` 确定性整篇循环协程 + `_startWholeDriven` 起播入口；删除反应式 `_onPlayerStateChanged`/`_advanceWholeCompletion`/`_handlingWholeCompletion` 及 playerState 订阅；暂停续播、模型交接、seek 续播均改走确定性循环。
+- [x] `listening_practice_state.dart` + UI：新增 `isPlaying` 逻辑播放态作为图标唯一真相源；`playback_controls.dart`、`player_screen.dart` 热键改读逻辑态。
+- [x] 测试：`free_player_playback_flow_test.dart` 扩展 fake engine（`playToEnd` + `emitCompleted` 贴近 just_audio）并新增 5 个用例（整篇 3 遍恰好停、重复 completed 不多计数、间隔停顿、播完图标恢复+单击从头、暂停续播保留遍数）；`playback_controls_test.dart`、共享 fake 同步更新。全量 `flutter test` 2951 通过。
+
+  **完成时间**: 2026-06-23
 
 ## 已完成：Free Player 禁止 tab swipe，逐句精听支持左右滑动切句
 

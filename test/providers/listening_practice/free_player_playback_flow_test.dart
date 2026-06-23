@@ -64,6 +64,16 @@ class _FlowAudioEngine extends TestAudioEngine {
     await completer.future;
   }
 
+  /// 整篇连续播放：起播后挂起，由 [emitCompleted]（模拟自然播完）解析。
+  @override
+  Future<void> playToEnd(int sessionId) async {
+    if (!isActiveSession(sessionId)) return;
+    await play();
+    final completer = Completer<void>();
+    _clipCompleter = completer;
+    await completer.future;
+  }
+
   @override
   Future<void> clearClip() async {
     clearClipCount += 1;
@@ -118,11 +128,15 @@ class _FlowAudioEngine extends TestAudioEngine {
     _positionController.add(value);
   }
 
+  /// 模拟一次自然播完。
+  ///
+  /// 解析当前挂起的 clip/整篇完成。`playing` 仍为 true——贴近 just_audio 在
+  /// `completed` 时 `AudioPlayer.playing` 不变的真实行为，验证逻辑不依赖该标志。
   void emitCompleted() {
     _clipCompleter?.complete();
     _clipCompleter = null;
     _playerStateController.add(
-      ja.PlayerState(false, ja.ProcessingState.completed),
+      ja.PlayerState(true, ja.ProcessingState.completed),
     );
   }
 
@@ -220,6 +234,13 @@ void main() {
     engine.emitCompleted();
     await flushBoundary();
     engine.isPlaying = true;
+  }
+
+  /// 模拟整篇 gapless 一遍自然播完（解析 [_FlowAudioEngine.playToEnd] 的挂起）。
+  /// 不强制设回 isPlaying——续播是否发生由协程的 play() 决定。
+  Future<void> completeWhole() async {
+    engine.emitCompleted();
+    await flushBoundary();
   }
 
   setUp(() async {
@@ -680,5 +701,154 @@ void main() {
     expect(container.read(listeningPracticeProvider).currentFullIndex, 0);
     expect(engine.lastSeek, Duration.zero);
     expect(engine.lastClipStart, Duration.zero);
+  });
+
+  test('整篇循环 3 遍：恰好播放 3 遍后停止（不多不少）', () async {
+    lp.seed(
+      sentences: sentences,
+      settings: const PlaybackSettings(
+        loopWhole: true,
+        wholeLoopCount: 3,
+        wholeInterval: Duration.zero,
+      ),
+    );
+
+    await start();
+    await flushBoundary();
+    expect(engine.playCount, 1, reason: '第 1 遍起播');
+    expect(container.read(listeningPracticeProvider).isPlaying, isTrue);
+
+    await completeWhole(); // 第 1 遍完成 → 回卷起播第 2 遍
+    expect(engine.playCount, 2);
+    expect(engine.stopCount, 0);
+
+    await completeWhole(); // 第 2 遍完成 → 第 3 遍
+    expect(engine.playCount, 3);
+    expect(engine.stopCount, 0);
+    expect(container.read(listeningPracticeProvider).isPlaying, isTrue);
+
+    await completeWhole(); // 第 3 遍完成 → 停止
+    expect(engine.playCount, 3, reason: '不再起播第 4 遍');
+    expect(engine.stopCount, 1);
+    expect(container.read(listeningPracticeProvider).isPlaying, isFalse);
+  });
+
+  test('整篇循环：同一遍内重复 completed 事件不会多计数提前停止', () async {
+    lp.seed(
+      sentences: sentences,
+      settings: const PlaybackSettings(
+        loopWhole: true,
+        wholeLoopCount: 3,
+        wholeInterval: Duration.zero,
+      ),
+    );
+
+    await start();
+    await flushBoundary();
+
+    // 每遍结束连发两次 completed（模拟 just_audio 重复/滞后事件）。
+    // 第二次发生在协程尚未重新挂起时，应被当作空事件忽略，不额外计数。
+    for (var i = 0; i < 3; i++) {
+      engine.emitCompleted();
+      engine.emitCompleted(); // 重复事件
+      await flushBoundary();
+    }
+
+    // 仍恰好播 3 遍后停止。
+    expect(engine.playCount, 3);
+    expect(engine.stopCount, 1);
+    expect(container.read(listeningPracticeProvider).isPlaying, isFalse);
+  });
+
+  test('整篇循环间隔：每遍之间按 wholeInterval 停顿后再回卷', () async {
+    lp.seed(
+      sentences: sentences,
+      settings: const PlaybackSettings(
+        loopWhole: true,
+        wholeLoopCount: 2,
+        wholeInterval: Duration(milliseconds: 50),
+      ),
+    );
+
+    await start();
+    await flushBoundary();
+    expect(engine.playCount, 1);
+
+    // 第 1 遍完成：先停顿 50ms，停顿期间还不应起播第 2 遍。
+    engine.emitCompleted();
+    await flushBoundary();
+    expect(engine.playCount, 1, reason: '停顿期间不起播');
+
+    await Future<void>.delayed(const Duration(milliseconds: 80));
+    expect(engine.playCount, 2, reason: '停顿结束后回卷起播第 2 遍');
+  });
+
+  test('整篇循环播完后图标恢复「播放」，单击从第 1 句重新开始', () async {
+    lp.seed(
+      sentences: sentences,
+      currentFullIndex: 0,
+      settings: const PlaybackSettings(
+        loopWhole: true,
+        wholeLoopCount: 1,
+        wholeInterval: Duration.zero,
+      ),
+    );
+
+    await start();
+    // 播放中高亮推进到末句。
+    engine.emitPosition(const Duration(milliseconds: 17600));
+    await Future<void>.delayed(Duration.zero);
+    expect(container.read(listeningPracticeProvider).currentFullIndex, 4);
+
+    await completeWhole(); // 唯一一遍完成 → 停止
+    final ended = container.read(listeningPracticeProvider);
+    expect(engine.stopCount, 1);
+    expect(ended.isPlaying, isFalse, reason: '逻辑播放态为 false → 图标显示「播放」');
+    expect(ended.currentFullIndex, 4, reason: '高亮停在末句属正常');
+
+    // 图标是「播放」，单击即 play()（不会先触发 pause）→ 从第 1 句重新开始。
+    engine.lastSeek = null;
+    await lp.play();
+    await flushBoundary();
+    expect(container.read(listeningPracticeProvider).currentFullIndex, 0);
+    expect(engine.lastSeek, Duration.zero);
+    expect(container.read(listeningPracticeProvider).isPlaying, isTrue);
+  });
+
+  test('整篇循环暂停后续播：保留已完成遍数，播满剩余遍数后停止', () async {
+    lp.seed(
+      sentences: sentences,
+      settings: const PlaybackSettings(
+        loopWhole: true,
+        wholeLoopCount: 2,
+        wholeInterval: Duration.zero,
+      ),
+    );
+
+    await start();
+    await flushBoundary();
+
+    await completeWhole(); // 第 1 遍完成，已进入第 2 遍
+    expect(engine.stopCount, 0);
+
+    // 第 2 遍播放途中暂停（位置 > 0 以走「精确位置续播」分支）。
+    engine.emitPosition(const Duration(milliseconds: 3000));
+    await Future<void>.delayed(Duration.zero);
+    await lp.pause();
+    expect(container.read(listeningPracticeProvider).isPlaying, isFalse);
+
+    // 续播：保留 wholeLoopsDone=1，再播完这一遍即应停止（不应回到 0 重新数）。
+    await lp.play();
+    await flushBoundary();
+    expect(container.read(listeningPracticeProvider).isPlaying, isTrue);
+    expect(
+      engine.position,
+      const Duration(milliseconds: 3000),
+      reason: '从暂停位置续播，不回卷句首（未重新 seek 到 0）',
+    );
+
+    await completeWhole(); // 第 2 遍完成 → 停止
+    expect(engine.stopCount, 1);
+    expect(container.read(listeningPracticeProvider).isPlaying, isFalse);
   });
 }

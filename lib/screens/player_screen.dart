@@ -99,11 +99,9 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
     final playerState = ref.watch(listeningPracticeProvider);
     final controller = ref.read(listeningPracticeProvider.notifier);
 
-    final engineNotifier = ref.read(audioEngineProvider.notifier);
-
     return LearningHotkeyScope(
       onPlayPause: () =>
-          engineNotifier.isPlaying ? controller.pause() : controller.play(),
+          playerState.isPlaying ? controller.pause() : controller.play(),
       onPrevious: () {
         if (playerState.hasSentences) controller.previousSentence();
       },
@@ -480,10 +478,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
                 transitionBuilder: (child, animation) {
                   final page = child is _SingleSentenceAnimatedPage
                       ? child
-                      : _SingleSentenceAnimatedPage(
-                          direction: 0,
-                          child: child,
-                        );
+                      : _SingleSentenceAnimatedPage(direction: 0, child: child);
                   final beginOffset = switch (page.direction) {
                     1 => const Offset(0.1, 0),
                     -1 => const Offset(-0.1, 0),
@@ -518,7 +513,8 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
                         aiNotifier: ref.read(sentenceAiNotifierProvider),
                         audioItemId: audioItem.id,
                         sentenceIndex: currentSentence.index,
-                        sentenceStartMs: currentSentence.startTime.inMilliseconds,
+                        sentenceStartMs:
+                            currentSentence.startTime.inMilliseconds,
                         sentenceEndMs: currentSentence.endTime.inMilliseconds,
                         // 意群试听与主播放共用引擎，播放前先暂停主播放
                         onStopMainPlayer: () => controller.pause(),
@@ -678,7 +674,8 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
       child: StreamBuilder<Duration>(
         stream: engineNotifier.absolutePositionStream,
         builder: (context, snapshot) {
-          final position = _seekPreviewPosition ?? snapshot.data ?? Duration.zero;
+          final position =
+              _seekPreviewPosition ?? snapshot.data ?? Duration.zero;
           final total = engine.totalDuration ?? Duration.zero;
 
           // 时间标签直接用 ProgressBar 内置的 sides 布局放在进度条两侧同一行，
