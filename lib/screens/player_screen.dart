@@ -79,6 +79,9 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
     _notifier = ref.read(listeningPracticeProvider.notifier);
     _tabController = TabController(length: 2, vsync: this);
     WidgetsBinding.instance.addPostFrameCallback((_) async {
+      // 自愈：每次进入播放页夺回锁屏控制（学习/复习任务离开时会把全局回调槽置 null），
+      // 并清除任务残留的逻辑播放态/静音保活，保证 Free Player 后台播放与锁屏不被破坏。
+      _notifier.reattachLockScreen();
       await _notifier.setPlaylistMode(PlaylistMode.full);
     });
     _tabController.addListener(() {

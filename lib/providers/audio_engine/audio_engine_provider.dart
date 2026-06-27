@@ -81,6 +81,19 @@ class AudioEngine extends _$AudioEngine {
     _handler.setSeekHandlers(onRewind: onRewind, onFastForward: onFastForward);
   }
 
+  /// 设置/清除锁屏逻辑播放态覆盖（传 null 恢复读裸 player），转发给底层 handler。
+  ///
+  /// 学习/复习任务在停顿倒计时期间保持 true，使锁屏图标显示「播放中」。
+  void setLogicalPlaying(bool? playing) {
+    _handler.setLogicalPlaying(playing);
+  }
+
+  /// 启动后台静音保活（仅 iOS 生效，见 handler），转发给底层 handler。
+  Future<void> startKeepAlive() => _handler.startKeepAlive();
+
+  /// 暂停后台静音保活，转发给底层 handler。
+  Future<void> stopKeepAlive() => _handler.stopKeepAlive();
+
   // --- 音频加载 ---
   Future<Duration?> loadAudio(
     AudioItem item,
@@ -337,11 +350,17 @@ class AudioEngine extends _$AudioEngine {
   ///
   /// [start] 区间起始时间，[end] 区间结束时间。
   /// 设置 clip 后播放，等待完成。受 sessionId 保护。
+  ///
+  /// [onClipReady] 在 clip+seek(0) 落定、`play()` 之前回调一次（session 仍有效时）。
+  /// 调用方应在此回调里才订阅 [absolutePositionStream]——此刻位置流发出的是
+  /// seek 后的新位置（rel≈0 → 绝对位置≈[start]），可避免在 setClip/seek 过渡期
+  /// 把陈旧 position 误映射成错误句子。
   Future<void> playRangeOnce(
     Duration start,
     Duration end,
-    int sessionId,
-  ) async {
+    int sessionId, {
+    void Function()? onClipReady,
+  }) async {
     AppLogger.log(
       'AudioEngine',
       '▶ playRangeOnce: range=${start.inMilliseconds}-${end.inMilliseconds}ms, '
@@ -384,6 +403,9 @@ class AudioEngine extends _$AudioEngine {
       );
       return;
     }
+
+    // clip+seek(0) 已落定，位置流此刻起发出的是新位置——通知调用方安全订阅。
+    onClipReady?.call();
 
     // play() 是真正启动音频的点，必须最后一次 check session：
     // 上游 pause / seek 在并发场景下可能在 setClip → seek(0) 期间 bump session，

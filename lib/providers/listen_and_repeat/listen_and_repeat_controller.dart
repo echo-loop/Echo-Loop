@@ -23,6 +23,7 @@ import '../../models/sentence.dart';
 import '../../models/study_stage.dart';
 import '../../services/app_logger.dart';
 import '../audio_engine/audio_engine_provider.dart';
+import '../audio_engine/foreground_audio_engine_provider.dart';
 import '../learning_progress_provider.dart';
 import '../learning_session/sentence_playback_engine.dart';
 import '../repeat_flow/repeat_flow_engine.dart';
@@ -56,7 +57,8 @@ class ListenAndRepeatController extends _$ListenAndRepeatController
     _engine = RepeatFlowEngine(
       onStateChanged: _onEngineStateChanged,
       callbacks: RepeatFlowCallbacks(
-        pauseAudio: () => ref.read(audioEngineProvider.notifier).pause(),
+        pauseAudio: () =>
+            ref.read(foregroundAudioEngineProvider.notifier).pause(),
         playSentence: _playSentence,
         startRecording: _startRecording,
         cancelRecording: _cancelRecording,
@@ -106,6 +108,10 @@ class ListenAndRepeatController extends _$ListenAndRepeatController
     LearningStage? stage,
   }) async {
     _isFreePlay = isFreePlay;
+
+    // 录音类任务用前台引擎播放原句、不上锁屏。进任务停掉媒体引擎，清除上一个媒体任务
+    // （精听/盲听/Free Player）残留的锁屏/通知栏卡片（非idle→idle → stopService）。
+    await ref.read(audioEngineProvider.notifier).stop();
 
     // 从 DB 读难句索引
     final bookmarkDao = ref.read(bookmarkDaoProvider);
@@ -409,7 +415,7 @@ class ListenAndRepeatController extends _$ListenAndRepeatController
 
   /// 播放句子
   Future<void> _playSentence(Sentence sentence, int flowToken) async {
-    final engine = ref.read(audioEngineProvider.notifier);
+    final engine = ref.read(foregroundAudioEngineProvider.notifier);
     final sessionId = engine.newSession();
     await engine.setSpeed(
       ref.read(listenAndRepeatSettingsProvider).playbackSpeed,

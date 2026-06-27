@@ -2438,12 +2438,6 @@ abstract class AppLocalizations {
   /// **'Retell Settings'**
   String get retellSettingsTitle;
 
-  /// No description provided for @retellAutoPlayRecordingSessionToggle.
-  ///
-  /// In en, this message translates to:
-  /// **'Auto-play retell recording'**
-  String get retellAutoPlayRecordingSessionToggle;
-
   /// No description provided for @retellAutoPlaybackPromptTitle.
   ///
   /// In en, this message translates to:

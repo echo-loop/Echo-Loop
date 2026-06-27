@@ -20,6 +20,7 @@ import 'package:echo_loop/database/app_database.dart';
 import 'package:echo_loop/models/audio_engine_state.dart';
 import 'package:echo_loop/models/sentence.dart';
 import 'package:echo_loop/providers/audio_engine/audio_engine_provider.dart';
+import 'package:echo_loop/providers/audio_engine/foreground_audio_engine_provider.dart';
 import 'package:echo_loop/providers/speech/speech_recording_controller.dart';
 import 'package:echo_loop/providers/listen_and_repeat/listen_and_repeat_controller.dart';
 import 'package:echo_loop/providers/listen_and_repeat/listen_and_repeat_phase.dart';
@@ -31,7 +32,7 @@ import '../../helpers/mock_providers.dart';
 class _MockBookmarkDao extends Mock implements BookmarkDao {}
 
 /// 测试用 AudioEngine — playClipOnce 即时完成
-class _InstantAudioEngine extends TestAudioEngine {
+class _InstantAudioEngine extends TestForegroundAudioEngine {
   int _sessionId = 0;
 
   _InstantAudioEngine()
@@ -55,7 +56,7 @@ class _InstantAudioEngine extends TestAudioEngine {
 }
 
 /// 测试用可控 AudioEngine
-class _ControlledAudioEngine extends TestAudioEngine {
+class _ControlledAudioEngine extends TestForegroundAudioEngine {
   int _sessionId = 0;
   Completer<void>? playCompleter;
 
@@ -104,7 +105,8 @@ void main() {
   setUp(() {
     container = ProviderContainer(
       overrides: [
-        audioEngineProvider.overrideWith(() => _InstantAudioEngine()),
+        foregroundAudioEngineProvider.overrideWith(() => _InstantAudioEngine()),
+        audioEngineProvider.overrideWith(TestAudioEngine.new),
         speechRecordingControllerProvider.overrideWith(
           TestSpeechRecordingController.new,
         ),
@@ -222,7 +224,8 @@ void main() {
       container.dispose();
       container = ProviderContainer(
         overrides: [
-          audioEngineProvider.overrideWith(() => audioEngine),
+          foregroundAudioEngineProvider.overrideWith(() => audioEngine),
+          audioEngineProvider.overrideWith(TestAudioEngine.new),
           speechRecordingControllerProvider.overrideWith(
             TestSpeechRecordingController.new,
           ),
@@ -255,7 +258,8 @@ void main() {
       container.dispose();
       container = ProviderContainer(
         overrides: [
-          audioEngineProvider.overrideWith(() => audioEngine),
+          foregroundAudioEngineProvider.overrideWith(() => audioEngine),
+          audioEngineProvider.overrideWith(TestAudioEngine.new),
           speechRecordingControllerProvider.overrideWith(
             TestSpeechRecordingController.new,
           ),
@@ -363,7 +367,8 @@ void main() {
       final controlledEngine = _ControlledAudioEngine();
       final controlledContainer = ProviderContainer(
         overrides: [
-          audioEngineProvider.overrideWith(() => controlledEngine),
+          foregroundAudioEngineProvider.overrideWith(() => controlledEngine),
+          audioEngineProvider.overrideWith(TestAudioEngine.new),
           bookmarkDaoProvider.overrideWithValue(_MockBookmarkDao()),
           speechRecordingControllerProvider.overrideWith(
             TestSpeechRecordingController.new,

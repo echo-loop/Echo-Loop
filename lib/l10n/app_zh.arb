@@ -572,7 +572,6 @@
   "retellDisplayShowAll": "全部显示",
   "retellDisplayHideAll": "全部隐藏",
   "retellSettingsTitle": "复述设置",
-  "retellAutoPlayRecordingSessionToggle": "自动播放复述录音",
   "retellAutoPlaybackPromptTitle": "复述后自动回听？",
   "retellAutoPlaybackPromptMessage": "开启后，复述后会自动播放录音，方便你及时纠正发音。你也可以随时在设置中修改。",
   "retellAutoPlaybackKeepOff": "暂不开启",

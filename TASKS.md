@@ -1,7 +1,73 @@
 # Echo Loop 任务清单
 
-> 最后更新：2026-06-26（全部学习子阶段设置改用按槽位 typed 偏好，清退 stage_settings_overrides）
+> 最后更新：2026-06-27（媒体引擎 / 前台引擎分离落地，根除 §7.7–7.11 suppress 类竞态；待真机 iOS 回归）
 > 当前焦点：Android 结束录音闪退（离线 ASR / Silero VAD）——**仍未解决**
+
+## 已完成：修复段落复述/全文盲听打开段落时句子高亮乱跳、断点被覆盖成首句
+
+打开一段时偶发：选中句乱跳后回到第一句起播（应从断点恢复处起播）。根因：`_playCurrentParagraph` 在 `playRangeOnce` 的 `seek(0)` 落定**之前**就订阅了 `absolutePositionStream`，setClip/seek 过渡期发出的陈旧 position（重载后为 0、或沿用 stop 后残留）被 `_findSentenceIndex` 误映射成错误句号 → 改高亮 + 经 `_persistCurrentSentenceIndexAsync` 把断点覆盖成首句（0 落在本段首句之前→index 0）+ 可能误触发静音跳过 seek。竞态代码自 578f8829 未变，0bfdbf76（§7.12 引擎拆分）切到 keepAlive 前台引擎后从潜在转为高频复现。
+
+- [x] 两个引擎 `playRangeOnce` 增加 `onClipReady` 回调（`foreground_audio_engine_provider.dart` / `audio_engine_provider.dart`），在 `seek(0)` 落定、`play()` 之前回调；调用方此刻才订阅位置流，从源头消除陈旧窗口。
+- [x] `retell_player_provider.dart` / `blind_listen_player_provider.dart`：订阅时机移入 `onClipReady`；监听器开头加越界丢弃（position 落在 `[首句.start, 末句.end]` 外直接 return，不改高亮/不写断点/不触发静音跳过）作兜底。
+- [x] 测试：两个 provider 各加 1 例位置流驱动回归（越界陈旧 position 不改高亮/不污染断点、段内 position 正常更新）；所有 `playRangeOnce` override 的测试同步加 `onClipReady` 形参。
+- [x] 验证：`flutter analyze` 0 error；相关测试套件全通过。
+
+  **完成时间**: 2026-06-27
+
+## 已完成：媒体引擎 / 前台引擎分离（详见 PLAN.md ADR-7）
+
+把底层播放拆成两套不共享 player 的引擎，把"是否上锁屏"从运行时 `setMediaSessionSuppressed` 开关改成"用哪个引擎"的物理属性，从源头根除 §7.7–7.11 的 suppress 类锁屏竞态。**前台引擎独立写一份**（逐方法照抄 AudioEngine 播放子集，仅把 `_handler.xxx` 换裸 `_player.xxx`）；**无需 `PlaybackEngine` 接口**（无跨边界共用的编排代码）。媒体引擎 = 精听/盲听/Free Player；前台引擎 = 跟读/复述/补练/收藏句复习/收藏词复习。行为与 commit 578f8829 一致由现有行为测试平移守护。
+
+- [x] **步骤 0**：订正 TASKS.md + PLAN.md ADR-7（ForegroundAudioEngine、无接口、5 个前台任务）。
+- [x] **步骤 1（前台引擎）**：新增 `lib/providers/audio_engine/foreground_audio_engine_provider.dart`——`@Riverpod(keepAlive: true) class ForegroundAudioEngine`，自持裸 `ja.AudioPlayer()`，**不接 `audio_service`**，逐方法照抄 `AudioEngine` 播放子集。单测 `test/providers/audio_engine/foreground_audio_engine_provider_test.dart`（6 例：session 守卫/loop/clearClip 状态/playClipOnce 过期跳过）。
+- [x] **步骤 2（改类型）**：`sentence_playback_engine.dart` 的 `getEngine` → `ForegroundAudioEngine Function()`；`study_task_controller_mixin.dart` 内部引擎引用改 `foregroundAudioEngineProvider`。
+- [x] **步骤 3（迁移 5 个前台任务）**：`listen_and_repeat_controller` / `retell_player_provider` / `review_difficult_practice_provider` / `bookmark_review_provider` / `flashcard_provider` 引擎调用点改前台引擎；删 `setMediaSessionSuppressed`；去 `StudyBackgroundPlaybackMixin` + bind/setSessionActive/unbind（补练/收藏句复习/收藏词复习）。
+- [x] **步骤 4（进任务清媒体卡片）**：`enterRetellMode`/`enterReviewDifficultPracticeMode`/`listen_and_repeat.initialize`/`bookmark_review.initialize`/`flashcard.initialize` 各调一次媒体引擎 `stop()`；`learning_session_provider._ensureAudioLoaded` 加 `foreground:` 参数，前台模式加载到前台引擎。
+- [x] **步骤 5（删 suppress 死代码）**：删 `AudioEngine.setMediaSessionSuppressed` + handler `_mediaSessionSuppressed` 字段及 `_broadcastState`/`loadFile`/duration 监听里的抑制分支（含 LOCKDBG debugPrint）。保留 keepAlive/logicalPlaying/`_mapProcessingState`(§7.7)/锁屏回调。CLAUDE.md：§7.9/§7.11 标「已被引擎拆分架构性取代」+ 新增 §7.12。
+- [x] **步骤 6（测试平移）**：`fake_notifiers.dart` 删 FakeAudioEngine 的 suppress 覆写 + 新增 `FakeForegroundAudioEngine`；`mock_providers`/`test_app` 增 `TestForegroundAudioEngine` 并在共享 harness 同时 override 前台引擎；retell/L&R/bookmark/review_difficult/sentence_playback/retell_settings_sheet 测试 override 改 `foregroundAudioEngineProvider`（断言不变）；`background_audio_handler_test` 删 §7.9/§7.11 suppress 用例组。
+- [x] **步骤 7（验证）**：`flutter analyze` 0 error（仅历史无关 warning）；`flutter test` 全通过（**3124 passed / 11 skipped / 0 failed**）。`flutter test integration_test -d macos`：macOS app **构建成功**，但本机 debug 连接无法建立（"log reader stopped"，3 个 integration 文件含无关的 asr 测试全部如此 → 环境性 launch 限制，非本次改动）。
+
+  **完成时间**: 2026-06-27
+
+> **真机 iOS 验收（硬门槛，本机/CI 测不到，待用户回归）**：① 5 个前台任务（跟读/复述/补练/收藏句复习/收藏词复习）锁屏/通知栏**无** now-playing 卡片；② 学习计划内 盲听→精听→跟读→复述 背靠背切换，媒体卡片随媒体任务正确出现、进前台任务后消失；③ 与 578f8829 功能逐项对照（跟读播原句→录音→回放→推进、复述播段→倒计时→推进、暂停续播、速度、断点恢复）；④ 录音播放（playAndRecord）与媒体引擎播放交替时 `AVAudioSession` category 不打架；⑤ 退回精听/盲听/Free Player 锁屏卡片正常恢复。
+
+## 已完成：再修难句跟读/段落复述锁屏残留（suppress(false) idle 重发，§7.11）
+
+上一轮（下方条目）gate 住了进任务的 `mediaItem.add`，但 `setMediaSessionSuppressed(false)` 仍**无条件**重发 MediaItem。录音任务退出时主 player 已停成 **idle**，此时重发经 native `setMediaItem` 贴出一张卡片，但此后 player 长期 idle、再无 `非idle→idle` 跳变 → 卡片无法被 `stopService` 清除；下一个录音任务（计划里「跟读→复述」背靠背）`suppress(true)` 广播 idle 时 `previousState` 已是 idle，不触发 stopService → 卡片继续显示。
+
+- [x] `lib/services/background_audio_handler.dart`：`setMediaSessionSuppressed(false)` 重发 MediaItem 仅在主 player **非 idle** 时进行（idle 跳过；native 保留 mediaItem，下次真正播放的 `playing:true` 广播自动回填）。
+- [x] 规则：每次 `mediaItem.add`（建卡片）必须配对一个将来必然到来的 `非idle→idle` 跳变才可清除。CLAUDE.md 新增 §7.11。
+- [x] 测试：`background_audio_handler_test.dart` 改 1 + 增 2（idle 不重发 / 非 idle 重发 / 录音→录音背靠背无残留），共 29 例通过。
+- [x] 验证：`flutter analyze` 改动文件 0 问题；`flutter test` 全通过（3128）。真机 iOS 端到端验收（计划走「跟读→复述」两任务锁屏均无卡片、退出回精听/盲听/Free Player 卡片正常恢复）待用户回归。
+
+  **完成时间**: 2026-06-27
+
+## 已完成：修复难句跟读/段落复述锁屏 now-playing 卡片仍泄漏（suppress 不彻底）
+
+强交互录音任务（难句跟读 L&R、段落复述 Retell）进任务时调 `setMediaSessionSuppressed(true)`，但锁屏 now-playing 卡片仍显示。根因：iOS 锁屏卡片由**两条独立通道**驱动——playbackState（`_broadcastState`）与 MediaItem（`mediaItem.add`→native `setMediaItem`→`MPNowPlayingInfoCenter`）。原 suppress 只挡了 playbackState；`mediaItem.add` 未受约束，进任务加载音频时 native `setMediaItem` 把卡片填回（iOS 清卡片唯一入口是 `stopService`，且 audio_service 仅在 `非idle→idle` 跳变那一次调它，`setMediaItem` 从不清卡片）。
+
+- [x] `lib/services/background_audio_handler.dart`：抑制态下 gate 两处 `mediaItem.add`（`loadFile` + 构造函数 duration 监听）；`setMediaSessionSuppressed(false)` 退任务时重发当前 MediaItem，使被 `stopService` 置 nil 的 native `nowPlayingInfo` 为后续任务恢复。
+- [x] 一处修复同时覆盖难句跟读 + 段落复述 + 未来任何 suppressed 任务；无新文件、无架构改动。
+- [x] 测试：`background_audio_handler_test.dart` 补 3 例（suppress 后 loadFile 不推 mediaItem / suppress(false) 正常设 / suppress(false) 重发 mediaItem）。
+- [x] 验证：`flutter analyze` 改动文件 0 问题；`flutter test` 全通过。真机 iOS 端到端验收（进难句跟读/段落复述锁屏无卡片、退出回精听/盲听卡片恢复、Free Player 不受影响）待用户回归。
+
+  **完成时间**: 2026-06-27
+
+## 已完成：学习/复习任务通用化后台播放 + 锁屏控制
+
+把 Free Player 的「三层后台播放 + 锁屏控制」机制通用化给盲听（分段/不分段）、逐句精听、难句补练、收藏句复习、收藏词复习（闪卡，仅音频部分）。修复盲听原有缺陷：① 音频/段落播完后锁屏播放按钮无反应；② resume/播完后图标卡在暂停；③ 分段后台只播第一段。跟读/复述等录音强交互阶段明确不接入后台。后台停顿采用**静音保活**（仅 iOS，停顿期间循环静音轨保持音频会话活跃，Dart 倒计时照常推进；Android 靠既有前台服务）。
+
+- [x] 底座 `lib/services/background_audio_handler.dart`：`setLogicalPlaying(bool?)`（逻辑播放态覆盖，默认 null=读裸 player，停顿期间锁屏仍显示播放中）+ `startKeepAlive/stopKeepAlive`（私有静音播放器循环 `assets/audio/silence_2s.m4a`，仅 iOS）。`_broadcastState` 改读 `_logicalPlaying ?? _player.playing`。
+- [x] 透传 `lib/providers/audio_engine/audio_engine_provider.dart`：`setLogicalPlaying/startKeepAlive/stopKeepAlive`。
+- [x] 共享接入层 `lib/providers/learning_session/study_background_playback_mixin.dart`：`bindLockScreen/setSessionActive/unbindLockScreen`，各任务 controller `with` 接入。
+- [x] 盲听 `blind_listen_player_provider.dart`：接入 + **删除** `_handleAppLifecycleChange` 进后台暂停倒计时（分段停滞根因）；停顿期间 `setSessionActive(true)` 保活。
+- [x] 精听/难句补练/收藏句复习：`_onBlindFlowStateChanged` 按 `BlindPlayingPrompt||BlindWaitingInterval` 维护逻辑播放态 + 保活；跟读（录音）阶段 `unbindLockScreen` 排除后台（D1）。
+- [x] 闪卡 `flashcard_provider.dart`：仅音频段（短语/例句）接入锁屏 + 切卡；单词 TTS 不纳入媒体会话；`onAppBackgrounded` 不再中断流程。
+- [x] Free Player 非回归（硬约束）：`ListeningPractice` 不迁移；新增 `reattachLockScreen()` 自愈，`PlayerScreen.initState` 每次进入夺回锁屏并清除任务残留的逻辑播放态/保活——`setLogicalPlaying` 默认 null + 保活 opt-in 保证默认零行为变更。
+- [x] 测试：handler 逻辑播放态覆盖/保活（F1）、盲听锁屏接入生命周期（bind/pause/dispose）、Free Player `reattachLockScreen` 自愈（G6）；`FakeAudioEngine` 增记录式 no-op 覆写。
+- [x] 验证：`flutter analyze` 改动文件 0 问题；`flutter test` 全通过（3117）。真机 iOS 端到端验收（E1/E2/E3、跨音频标题、录音阶段不进后台、中断同步）待用户回归。
+
+  **完成时间**: 2026-06-26
 
 ## 已完成：全部学习子阶段设置持久化改用「按槽位 typed 偏好」
 

@@ -35,6 +35,7 @@ import '../../services/study_event_recorder.dart';
 import '../../services/study_time_service.dart';
 import '../../utils/word_counter.dart';
 import '../audio_engine/audio_engine_provider.dart';
+import '../audio_engine/foreground_audio_engine_provider.dart';
 import '../blind_flow/blind_practice_flow_engine.dart';
 import '../blind_flow/blind_practice_flow_phase.dart';
 import '../blind_flow/blind_practice_flow_state.dart';
@@ -107,7 +108,8 @@ class BookmarkReview extends _$BookmarkReview {
     return BlindPracticeFlowEngine(
       onStateChanged: _onBlindFlowStateChanged,
       callbacks: BlindPracticeFlowCallbacks(
-        pauseAudio: () => ref.read(audioEngineProvider.notifier).pause(),
+        pauseAudio: () =>
+            ref.read(foregroundAudioEngineProvider.notifier).pause(),
         playSentence: _playSentenceForBlind,
       ),
       logTag: 'BookmarkBlind',
@@ -131,7 +133,7 @@ class BookmarkReview extends _$BookmarkReview {
     );
 
     _engine = SentencePlaybackEngine(
-      getEngine: () => ref.read(audioEngineProvider.notifier),
+      getEngine: () => ref.read(foregroundAudioEngineProvider.notifier),
       recorder: _recorder,
     );
     _blindEngine = _createBlindEngine();
@@ -211,6 +213,9 @@ class BookmarkReview extends _$BookmarkReview {
     List<BookmarkWithAudio> bookmarks, {
     required BookmarkReviewAudioLoader getAudioItemById,
   }) {
+    // 收藏句复习用前台引擎、不上锁屏：进任务停掉媒体引擎，清除 Free Player 等残留的
+    // 锁屏/通知栏卡片（非idle→idle → stopService）。见 ADR-7。
+    unawaited(ref.read(audioEngineProvider.notifier).stop());
     _engine.cleanup();
     _blindEngine.dispose();
     _blindEngine = _createBlindEngine();
@@ -304,7 +309,7 @@ class BookmarkReview extends _$BookmarkReview {
       state = state.copyWith(settings: newSettings);
       unawaited(
         ref
-            .read(audioEngineProvider.notifier)
+            .read(foregroundAudioEngineProvider.notifier)
             .setSpeed(newSettings.playbackSpeed),
       );
       return;
@@ -692,7 +697,8 @@ class BookmarkReview extends _$BookmarkReview {
     _repeatEngine ??= RepeatFlowEngine(
       onStateChanged: _onRepeatFlowStateChanged,
       callbacks: RepeatFlowCallbacks(
-        pauseAudio: () => ref.read(audioEngineProvider.notifier).pause(),
+        pauseAudio: () =>
+            ref.read(foregroundAudioEngineProvider.notifier).pause(),
         playSentence: _playSentenceForRepeat,
         startRecording: _startRecordingForRepeat,
         cancelRecording: _cancelRecordingForRepeat,
@@ -820,7 +826,7 @@ class BookmarkReview extends _$BookmarkReview {
   /// 如果当前 AudioEngine 加载的不是同一音频，则切换。
   /// 返回 false 表示加载失败（应跳过该句）。
   Future<bool> _ensureAudioLoaded(BookmarkSentence bookmarkSentence) async {
-    final engineState = ref.read(audioEngineProvider);
+    final engineState = ref.read(foregroundAudioEngineProvider);
     if (engineState.currentAudioId == bookmarkSentence.audioItemId) {
       return true;
     }
@@ -847,7 +853,7 @@ class BookmarkReview extends _$BookmarkReview {
         transcriptLanguage: row.transcriptLanguage,
       );
 
-      final engine = ref.read(audioEngineProvider.notifier);
+      final engine = ref.read(foregroundAudioEngineProvider.notifier);
       await engine.loadAudio(audioItem, 1.0);
       return true;
     } catch (e) {
@@ -917,6 +923,7 @@ class BookmarkReview extends _$BookmarkReview {
       isManualForSentence: sentenceChanged ? false : state.isManualForSentence,
     );
 
+    // 收藏句复习改用前台引擎、不进后台、不上锁屏（用户 2026-06-27 确认，见 ADR-7）。
     if (phase is BlindSessionCompleted) {
       _studyStopwatch.stop();
       _stopPeriodicSaveTimer();
@@ -925,7 +932,7 @@ class BookmarkReview extends _$BookmarkReview {
 
   /// 盲听播放一遍当前句。
   Future<bool> _playSentenceForBlind(Sentence sentence, int flowToken) async {
-    final engine = ref.read(audioEngineProvider.notifier);
+    final engine = ref.read(foregroundAudioEngineProvider.notifier);
     final sessionId = engine.newSession();
     await engine.setSpeed(state.settings.playbackSpeed);
     await engine.playClipOnce(sentence, sessionId);
@@ -995,7 +1002,7 @@ class BookmarkReview extends _$BookmarkReview {
       return;
     }
 
-    final engine = ref.read(audioEngineProvider.notifier);
+    final engine = ref.read(foregroundAudioEngineProvider.notifier);
     final sessionId = engine.newSession();
     await engine.setSpeed(state.settings.playbackSpeed);
     await engine.playClipOnce(sentence, sessionId);

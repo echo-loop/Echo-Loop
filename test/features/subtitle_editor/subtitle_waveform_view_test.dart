@@ -1097,8 +1097,9 @@ class _ScreenTestAudioEngine extends AudioEngine {
   Future<void> playRangeOnce(
     Duration start,
     Duration end,
-    int sessionId,
-  ) async {
+    int sessionId, {
+    void Function()? onClipReady,
+  }) async {
     playRangeOnceCallCount += 1;
     lastRangeStart = start;
     lastRangeEnd = end;

@@ -120,6 +120,13 @@ class TestAudioEngine extends FakeAudioEngine {
   }) : super(initialState: initialState, isPlaying: isPlaying);
 }
 
+class TestForegroundAudioEngine extends FakeForegroundAudioEngine {
+  TestForegroundAudioEngine({
+    AudioEngineState initialState = const AudioEngineState(),
+    bool isPlaying = false,
+  }) : super(initialState: initialState, isPlaying: isPlaying);
+}
+
 class TestFlashcardNotifier extends FakeFlashcardNotifier {}
 
 class TestDailyStudyTime extends FakeDailyStudyTime {}

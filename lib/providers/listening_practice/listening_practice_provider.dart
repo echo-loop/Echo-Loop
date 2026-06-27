@@ -224,6 +224,22 @@ class ListeningPractice extends _$ListeningPractice {
     _setupListeners();
   }
 
+  /// Free Player 重新认领锁屏控制（自愈）。
+  ///
+  /// 学习/复习任务（含 learning_session 之外的收藏句复习、闪卡）会接管全局回调槽并在
+  /// 离开时置 null。PlayerScreen 每次进入时调用此方法，使 Free Player 无条件夺回锁屏：
+  /// 已挂监听则只重注册回调，未挂则补挂监听并注册。同时清除任何任务残留的逻辑播放态
+  /// 覆盖与静音保活，保证 Free Player 回到「读裸 player.playing、不保活」的原始行为。
+  void reattachLockScreen() {
+    if (_listenersAttached) {
+      _applyLockScreenHandlers();
+    } else {
+      _setupListeners();
+    }
+    _engine.setLogicalPlaying(null);
+    unawaited(_engine.stopKeepAlive());
+  }
+
   /// 外部标注后同步书签状态（精听退出时调用）
   Future<void> syncBookmarks() async {
     if (state.currentAudioItem == null) return;

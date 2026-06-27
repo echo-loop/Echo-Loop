@@ -13,6 +13,7 @@ import 'package:echo_loop/models/bookmark_sentence.dart';
 import 'package:echo_loop/models/audio_engine_state.dart';
 import 'package:echo_loop/models/sentence.dart';
 import 'package:echo_loop/providers/audio_engine/audio_engine_provider.dart';
+import 'package:echo_loop/providers/audio_engine/foreground_audio_engine_provider.dart';
 import 'package:echo_loop/providers/blind_flow/blind_practice_flow_phase.dart';
 import 'package:echo_loop/providers/learned_vocabulary_tracker_provider.dart';
 import 'package:echo_loop/providers/learning_session/bookmark_review_provider.dart';
@@ -22,7 +23,7 @@ import 'package:echo_loop/services/learned_vocabulary_tracker.dart';
 
 import '../../helpers/mock_providers.dart';
 
-class _ReplayBookmarkAudioEngine extends TestAudioEngine {
+class _ReplayBookmarkAudioEngine extends TestForegroundAudioEngine {
   int _sessionId = 0;
 
   _ReplayBookmarkAudioEngine()
@@ -267,7 +268,10 @@ void main() {
       final container = ProviderContainer(
         overrides: [
           appDatabaseProvider.overrideWithValue(testDb),
-          audioEngineProvider.overrideWith(() => _ReplayBookmarkAudioEngine()),
+          foregroundAudioEngineProvider.overrideWith(
+            () => _ReplayBookmarkAudioEngine(),
+          ),
+          audioEngineProvider.overrideWith(TestAudioEngine.new),
           learnedVocabularyTrackerProvider.overrideWithValue(
             LearnedVocabularyTracker(
               persistWordForms: (_) async {},

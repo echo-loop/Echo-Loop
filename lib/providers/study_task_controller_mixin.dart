@@ -21,7 +21,9 @@ import '../database/providers.dart';
 import '../services/app_logger.dart';
 import '../services/learned_vocabulary_tracker.dart';
 import '../services/study_event_recorder.dart';
-import 'audio_engine/audio_engine_provider.dart';
+// 该 mixin 唯一消费者是难句跟读（录音类任务），故引擎统一用前台引擎
+// （不接 audio_service、不上锁屏）。见 PLAN.md ADR-7。
+import 'audio_engine/foreground_audio_engine_provider.dart';
 import 'daily_study_time_provider.dart';
 import 'study_stats_provider.dart';
 import 'learned_vocabulary_tracker_provider.dart';
@@ -94,7 +96,7 @@ mixin StudyTaskControllerMixin {
       vocabTracker: vocabTracker,
       stage: stage,
     );
-    ref.read(audioEngineProvider.notifier).setRecorder(_recorder);
+    ref.read(foregroundAudioEngineProvider.notifier).setRecorder(_recorder);
     ref.read(speechRecordingControllerProvider.notifier).setRecorder(_recorder);
 
     // 上报 analytics
@@ -122,7 +124,7 @@ mixin StudyTaskControllerMixin {
     await _saveStudyTime(ref);
 
     // 清除 AudioEngine clip
-    await ref.read(audioEngineProvider.notifier).clearClip();
+    await ref.read(foregroundAudioEngineProvider.notifier).clearClip();
 
     // 恢复 LP 监听 + 同步书签
     final practice = ref.read(listeningPracticeProvider.notifier);
@@ -130,7 +132,7 @@ mixin StudyTaskControllerMixin {
     practice.syncBookmarks();
 
     // 停止播放
-    await ref.read(audioEngineProvider.notifier).stop();
+    await ref.read(foregroundAudioEngineProvider.notifier).stop();
 
     // 刷新词形统计
     await _flushVocabulary(ref);
@@ -140,7 +142,7 @@ mixin StudyTaskControllerMixin {
     ref.read(studyStatsNotifierProvider.notifier).refresh();
 
     // 清理 recorder 注入
-    ref.read(audioEngineProvider.notifier).setRecorder(null);
+    ref.read(foregroundAudioEngineProvider.notifier).setRecorder(null);
     ref.read(speechRecordingControllerProvider.notifier).setRecorder(null);
     _recorder = null;
 
@@ -223,7 +225,7 @@ mixin StudyTaskControllerMixin {
 
   /// 确保音频引擎已加载目标音频
   Future<void> _ensureAudioLoaded(Ref ref, String audioItemId) async {
-    final engineState = ref.read(audioEngineProvider);
+    final engineState = ref.read(foregroundAudioEngineProvider);
     if (engineState.currentAudioId == audioItemId && !engineState.isLoading) {
       return;
     }
@@ -231,7 +233,7 @@ mixin StudyTaskControllerMixin {
     final audioItem = lp.currentAudioItem;
     if (audioItem != null && audioItem.id == audioItemId) {
       await ref
-          .read(audioEngineProvider.notifier)
+          .read(foregroundAudioEngineProvider.notifier)
           .loadAudio(audioItem, lp.settings.playbackSpeed);
     }
   }

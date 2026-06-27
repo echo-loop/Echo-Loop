@@ -23,7 +23,7 @@ import '../../models/study_stage.dart';
 import '../../services/learned_vocabulary_tracker.dart';
 import '../../services/study_event_recorder.dart';
 import '../../services/app_logger.dart';
-import '../audio_engine/audio_engine_provider.dart';
+import '../audio_engine/foreground_audio_engine_provider.dart';
 import '../blind_flow/blind_practice_flow_engine.dart';
 import '../blind_flow/blind_practice_flow_phase.dart';
 import '../blind_flow/blind_practice_flow_state.dart';
@@ -227,7 +227,8 @@ class ReviewDifficultPractice extends _$ReviewDifficultPractice {
     return BlindPracticeFlowEngine(
       onStateChanged: _onBlindFlowStateChanged,
       callbacks: BlindPracticeFlowCallbacks(
-        pauseAudio: () => ref.read(audioEngineProvider.notifier).pause(),
+        pauseAudio: () =>
+            ref.read(foregroundAudioEngineProvider.notifier).pause(),
         playSentence: _playSentenceForBlind,
       ),
       logTag: 'RDP-Blind',
@@ -249,7 +250,7 @@ class ReviewDifficultPractice extends _$ReviewDifficultPractice {
     );
 
     _engine = SentencePlaybackEngine(
-      getEngine: () => ref.read(audioEngineProvider.notifier),
+      getEngine: () => ref.read(foregroundAudioEngineProvider.notifier),
       recorder: _recorder,
     );
     _blindEngine = _createBlindEngine();
@@ -302,8 +303,8 @@ class ReviewDifficultPractice extends _$ReviewDifficultPractice {
 
     // 注入 recorder
     ref.read(speechRecordingControllerProvider.notifier).setRecorder(_recorder);
-    // 也注入到 AudioEngine（跟读模式通过 engine 直接播放时需要）
-    ref.read(audioEngineProvider.notifier).setRecorder(_recorder);
+    // 也注入到前台引擎（盲听/跟读子流程都经前台引擎播放原句，不上锁屏）。
+    ref.read(foregroundAudioEngineProvider.notifier).setRecorder(_recorder);
   }
 
   /// 更新设置并重新开始当前句
@@ -329,7 +330,7 @@ class ReviewDifficultPractice extends _$ReviewDifficultPractice {
       state = state.copyWith(settings: newSettings);
       unawaited(
         ref
-            .read(audioEngineProvider.notifier)
+            .read(foregroundAudioEngineProvider.notifier)
             .setSpeed(newSettings.playbackSpeed),
       );
       return;
@@ -627,7 +628,7 @@ class ReviewDifficultPractice extends _$ReviewDifficultPractice {
   /// 释放资源
   void disposePlayer() {
     ref.read(speechRecordingControllerProvider.notifier).setRecorder(null);
-    ref.read(audioEngineProvider.notifier).setRecorder(null);
+    ref.read(foregroundAudioEngineProvider.notifier).setRecorder(null);
     _engine.cleanup();
     _blindEngine.stopSession();
     _repeatEngine?.dispose();
@@ -660,7 +661,8 @@ class ReviewDifficultPractice extends _$ReviewDifficultPractice {
     _repeatEngine ??= RepeatFlowEngine(
       onStateChanged: _onRepeatFlowStateChanged,
       callbacks: RepeatFlowCallbacks(
-        pauseAudio: () => ref.read(audioEngineProvider.notifier).pause(),
+        pauseAudio: () =>
+            ref.read(foregroundAudioEngineProvider.notifier).pause(),
         playSentence: _playSentenceForRepeat,
         startRecording: _startRecordingForRepeat,
         cancelRecording: _cancelRecordingForRepeat,
@@ -771,7 +773,7 @@ class ReviewDifficultPractice extends _$ReviewDifficultPractice {
   // ========== 跟读引擎回调实现 ==========
 
   Future<void> _playSentenceForRepeat(Sentence sentence, int flowToken) async {
-    final engine = ref.read(audioEngineProvider.notifier);
+    final engine = ref.read(foregroundAudioEngineProvider.notifier);
     final sessionId = engine.newSession();
     await engine.setSpeed(state.settings.playbackSpeed);
     await engine.playClipOnce(sentence, sessionId);
@@ -879,6 +881,9 @@ class ReviewDifficultPractice extends _$ReviewDifficultPractice {
       isManualForSentence: sentenceChanged ? false : state.isManualForSentence,
     );
 
+    // 难句补练属录音类任务：经前台引擎播放、物理上不接系统媒体会话，故无锁屏卡片、
+    // 不进后台、不启保活（见 PLAN.md ADR-7）。
+
     if (phase is BlindSessionCompleted) {
       _trackDifficultPracticeComplete();
     }
@@ -890,7 +895,7 @@ class ReviewDifficultPractice extends _$ReviewDifficultPractice {
 
   /// 播放一遍盲听原句。
   Future<bool> _playSentenceForBlind(Sentence sentence, int flowToken) async {
-    final engine = ref.read(audioEngineProvider.notifier);
+    final engine = ref.read(foregroundAudioEngineProvider.notifier);
     final sessionId = engine.newSession();
     await engine.setSpeed(state.settings.playbackSpeed);
     await engine.playClipOnce(sentence, sessionId);

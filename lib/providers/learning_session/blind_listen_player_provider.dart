@@ -10,7 +10,7 @@
 library;
 
 import 'dart:async';
-import 'package:flutter/widgets.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../../analytics/analytics_providers.dart';
 import '../../analytics/audio_event_params.dart';
@@ -35,6 +35,7 @@ import '../notification_permission_provider.dart';
 import '../settings_provider.dart';
 import 'countdown_controller.dart';
 import 'learning_session_provider.dart';
+import 'study_background_playback_mixin.dart';
 
 part 'blind_listen_player_provider.g.dart';
 
@@ -165,7 +166,11 @@ const Duration _resumeMinParagraphDuration = Duration(seconds: 10);
 
 /// 盲听专用播放器 Provider
 @Riverpod(keepAlive: true)
-class BlindListenPlayer extends _$BlindListenPlayer {
+class BlindListenPlayer extends _$BlindListenPlayer
+    with StudyBackgroundPlaybackMixin {
+  @override
+  Ref get bgRef => ref;
+
   /// 段落列表
   List<List<Sentence>> _paragraphs = [];
 
@@ -220,26 +225,14 @@ class BlindListenPlayer extends _$BlindListenPlayer {
       stage: StudyStage.blindListen,
     );
 
-    final lifecycleListener = AppLifecycleListener(
-      onStateChange: _handleAppLifecycleChange,
-    );
+    // 不再在进后台时暂停段间倒计时：后台连续性由静音保活（StudyBackgroundPlaybackMixin
+    // 的 setSessionActive）保证，倒计时在后台照常推进，修复「分段只播第一段」。
     ref.onDispose(() {
-      lifecycleListener.dispose();
       _positionSub?.cancel();
       _invalidateCountdown();
       _silenceSkipEvents.close();
     });
     return const BlindListenPlayerState();
-  }
-
-  /// App 进入后台时暂停倒计时（音频继续播放）
-  void _handleAppLifecycleChange(AppLifecycleState appState) {
-    if (appState == AppLifecycleState.paused ||
-        appState == AppLifecycleState.hidden) {
-      if (state.isPauseCountdown) {
-        pauseCountdown();
-      }
-    }
   }
 
   /// 初始化段落播放
@@ -280,6 +273,16 @@ class BlindListenPlayer extends _$BlindListenPlayer {
       settings: settings,
       bookmarkedSentenceIndices: preBookmarked,
     );
+
+    // 锁屏控制：每任务绑定一次（上一段/下一段），整段任务期间始终可用；会话活跃度
+    // （保活 + 图标）由 setSessionActive 在播放/停顿/暂停各入口单独维护。
+    bindLockScreen(
+      onPlay: resume,
+      onPause: pause,
+      onNext: goToNextParagraph,
+      onPrevious: goToPreviousParagraph,
+    );
+
     ref.read(analyticsServiceProvider).track(Events.blindListenStart, {
       ...ref.audioEventParams(ref.read(learningSessionProvider).audioItemId),
       EventParams.passNumber: ref
@@ -349,6 +352,8 @@ class BlindListenPlayer extends _$BlindListenPlayer {
     if (snapshotIdx >= 0) {
       _resumeStartLocalSentenceIndex = snapshotIdx;
     }
+    // 暂停：停保活 + 锁屏图标转暂停；保留回调槽，使锁屏播放可续播。
+    setSessionActive(false);
     state = state.copyWith(
       isPlaying: false,
       isPauseCountdown: false,
@@ -414,11 +419,22 @@ class BlindListenPlayer extends _$BlindListenPlayer {
     unawaited(_playCurrentParagraph(startLocalIdxOverride: targetLocalIdx));
   }
 
+  /// 跳转到指定段落（0-based）：跳到该段首句，行为同 [seekToSentence]。
+  ///
+  /// 顶部进度条多段模式下按段拖动时调用。
+  Future<void> seekToParagraph(int paragraphIndex) {
+    if (paragraphIndex < 0 || paragraphIndex >= _paragraphs.length) {
+      return Future.value();
+    }
+    return seekToSentence(_paragraphs[paragraphIndex].first.index);
+  }
+
   /// 跳转到下一段
   Future<void> goToNextParagraph() async {
     // 最后一段 → 停止播放，由 screen 处理完成逻辑
     if (state.currentParagraphIndex >= state.totalParagraphs - 1) {
       await _cancelAll();
+      setSessionActive(false);
       state = state.copyWith(isPlaying: false, isPauseCountdown: false);
       return;
     }
@@ -562,6 +578,7 @@ class BlindListenPlayer extends _$BlindListenPlayer {
     _positionSub?.cancel();
     _invalidateCountdown();
     unawaited(engine.stopPlayback());
+    setSessionActive(false);
     state = state.copyWith(
       isPlaying: false,
       isPauseCountdown: false,
@@ -616,6 +633,7 @@ class BlindListenPlayer extends _$BlindListenPlayer {
       _positionSub?.cancel();
       _invalidateCountdown();
       unawaited(engine.stopPlayback());
+      setSessionActive(false);
       state = state.copyWith(
         isPlaying: false,
         isPauseCountdown: false,
@@ -666,6 +684,7 @@ class BlindListenPlayer extends _$BlindListenPlayer {
 
   /// 释放资源
   void disposePlayer() {
+    unbindLockScreen();
     _cleanup();
     _paragraphs = [];
     state = const BlindListenPlayerState();
@@ -742,15 +761,24 @@ class BlindListenPlayer extends _$BlindListenPlayer {
       stepFinished: false,
     );
 
-    _persistCurrentSentenceIndexAsync();
+    // 进入活跃会话（含随后的段间倒计时，保活全程在跑）。回调槽已在 initializeParagraphs
+    // 绑定一次，此处不再重绑。
+    setSessionActive(true);
 
-    _startPositionTracking(sentences);
+    _persistCurrentSentenceIndexAsync();
 
     final start = sentences[startLocalIdx].startTime;
     final end = sentences.last.endTime;
 
     await engine.setSpeed(state.settings.playbackSpeed);
-    await engine.playRangeOnce(start, end, sid);
+    // 订阅 position stream 实现句子高亮——必须等 clip+seek(0) 落定后才订阅，
+    // 否则 setClip/seek 过渡期的陈旧 position 会把高亮跳到错误句、污染断点。
+    await engine.playRangeOnce(
+      start,
+      end,
+      sid,
+      onClipReady: () => _startPositionTracking(sentences),
+    );
 
     if (!engine.isActiveSession(sid)) return;
 
@@ -769,6 +797,7 @@ class BlindListenPlayer extends _$BlindListenPlayer {
 
     if (_waitAfterCurrentParagraph) {
       _waitAfterCurrentParagraph = false;
+      setSessionActive(false);
       state = state.copyWith(
         hasCompletedCurrentParagraphPlayback: true,
         isPlaying: false,
@@ -784,6 +813,7 @@ class BlindListenPlayer extends _$BlindListenPlayer {
     if (state.settings.isManualMode) {
       final isLastParagraph =
           state.currentParagraphIndex >= state.totalParagraphs - 1;
+      setSessionActive(false);
       state = state.copyWith(
         hasCompletedCurrentParagraphPlayback: true,
         isPlaying: false,
@@ -805,6 +835,12 @@ class BlindListenPlayer extends _$BlindListenPlayer {
 
     _positionSub = engine.absolutePositionStream.listen((position) {
       if (!engine.isActiveSession(_sessionId)) return;
+      // 防御：clip 切换后仍可能残留一次旧 emission。落在本段范围外的 position
+      // 一律丢弃，绝不改高亮、不写断点、不触发静音跳过。
+      if (position < sentences.first.startTime ||
+          position >= sentences.last.endTime) {
+        return;
+      }
 
       final idx = _findSentenceIndex(sentences, position);
       if (idx != state.playingSentenceIndex && idx >= 0) {
@@ -903,6 +939,7 @@ class BlindListenPlayer extends _$BlindListenPlayer {
       await goToNextParagraph();
     } else {
       // 最后一段最后一遍 → 停止
+      setSessionActive(false);
       state = state.copyWith(
         isPauseCountdown: false,
         isPlaying: false,

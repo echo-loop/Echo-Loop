@@ -1146,6 +1146,27 @@ class _RetellPlayerScreenState extends ConsumerState<RetellPlayerScreen>
     final paragraphDuration = player.currentParagraphDuration;
     final keywords = player.keywordsMap;
 
+    // 顶部进度条：多段按「段落」单调驱动（不随句子/遍数回退），单段无段落
+    // 进度可言，保留原逐句行为。
+    final isMultiParagraph = state.totalParagraphs > 1;
+    final sentenceIdx = _globalSentenceIdx(
+      sentences,
+      state.playingSentenceIndex,
+    );
+    final progressCurrent = isMultiParagraph
+        ? state.currentParagraphIndex + 1
+        : sentenceIdx;
+    final progressTotal = isMultiParagraph
+        ? state.totalParagraphs
+        : player.totalSentenceCount;
+    final progressText = isMultiParagraph
+        ? l10n.retellParagraphProgress(
+            state.currentParagraphIndex + 1,
+            state.totalParagraphs,
+          )
+        : l10n.intensiveListenProgress(sentenceIdx, player.totalSentenceCount);
+    final notifier = ref.read(retellPlayerProvider.notifier);
+
     // 录音结果（从 controller state 获取）
     final currentAttempt = retellRecState.currentAttempt;
 
@@ -1193,29 +1214,18 @@ class _RetellPlayerScreenState extends ConsumerState<RetellPlayerScreen>
               title: l10n.retellTitle,
               onClose: _handleExit,
               onOpenSettings: _openSettings,
-              current: _globalSentenceIdx(
-                sentences,
-                state.playingSentenceIndex,
-              ),
-              total: player.totalSentenceCount,
-              progressText: _buildProgressText(
-                l10n,
-                sentenceCurrent: _globalSentenceIdx(
-                  sentences,
-                  state.playingSentenceIndex,
-                ),
-                sentenceTotal: player.totalSentenceCount,
-                paragraphCurrent: state.currentParagraphIndex + 1,
-                paragraphTotal: state.totalParagraphs,
-              ),
+              current: progressCurrent,
+              total: progressTotal,
+              progressText: progressText,
               durationText: _formatDurationText(
                 l10n,
                 paragraphDuration: paragraphDuration,
                 totalDuration: player.totalDuration,
                 paragraphTotal: state.totalParagraphs,
               ),
-              onSeekToIndex: (i) =>
-                  ref.read(retellPlayerProvider.notifier).seekToSentence(i),
+              onSeekToIndex: isMultiParagraph
+                  ? (p) => notifier.seekToParagraph(p)
+                  : (i) => notifier.seekToSentence(i),
               paragraphContent: ParagraphSentenceListCard(
                 sentences: sentences,
                 displayMode: state.settings.keywordMethod != KeywordMethod.off
@@ -1353,26 +1363,6 @@ String _formatDurationText(
   if (paragraphTotal <= 1) return _formatHumanDuration(l10n, totalDuration);
   return '${_formatHumanDuration(l10n, paragraphDuration)} / '
       '${_formatHumanDuration(l10n, totalDuration)}';
-}
-
-/// 进度文案：单段时只显示句子，多段时拼接段落信息
-String _buildProgressText(
-  AppLocalizations l10n, {
-  required int sentenceCurrent,
-  required int sentenceTotal,
-  required int paragraphCurrent,
-  required int paragraphTotal,
-}) {
-  final sentencePart = l10n.intensiveListenProgress(
-    sentenceCurrent,
-    sentenceTotal,
-  );
-  if (paragraphTotal <= 1) return sentencePart;
-  final paragraphPart = l10n.retellParagraphProgress(
-    paragraphCurrent,
-    paragraphTotal,
-  );
-  return '$paragraphPart · $sentencePart';
 }
 
 /// 统一显示速度标签：始终保留一位小数。

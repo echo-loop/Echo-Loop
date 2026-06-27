@@ -88,11 +88,11 @@ void main() {
   // SentencePlaybackEngine 生命周期
   // ============================================================
   group('SentencePlaybackEngine', () {
-    late TestAudioEngine testAudioEngine;
+    late TestForegroundAudioEngine testAudioEngine;
     late SentencePlaybackEngine engine;
 
     setUp(() {
-      testAudioEngine = TestAudioEngine();
+      testAudioEngine = TestForegroundAudioEngine();
       engine = SentencePlaybackEngine(getEngine: () => testAudioEngine);
     });
 

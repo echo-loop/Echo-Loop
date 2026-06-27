@@ -762,7 +762,6 @@
   "retellDisplayShowAll": "Show All",
   "retellDisplayHideAll": "Hide All",
   "retellSettingsTitle": "Retell Settings",
-  "retellAutoPlayRecordingSessionToggle": "Auto-play retell recording",
   "retellAutoPlaybackPromptTitle": "Auto-play your recording after retelling?",
   "retellAutoPlaybackPromptMessage": "When enabled, your recording plays automatically after each retell so you can fix your pronunciation right away. You can change this anytime in settings.",
   "retellAutoPlaybackKeepOff": "Not Now",

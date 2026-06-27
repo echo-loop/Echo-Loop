@@ -30,8 +30,9 @@ class _TestAudioEngine extends TestAudioEngine {
   Future<void> playRangeOnce(
     Duration start,
     Duration end,
-    int sessionId,
-  ) async {
+    int sessionId, {
+    void Function()? onClipReady,
+  }) async {
     if (!isActiveSession(sessionId)) return;
     await Future<void>.delayed(const Duration(milliseconds: 10));
   }
@@ -48,8 +49,9 @@ class _DelayedAudioEngine extends _TestAudioEngine {
   Future<void> playRangeOnce(
     Duration start,
     Duration end,
-    int sessionId,
-  ) async {
+    int sessionId, {
+    void Function()? onClipReady,
+  }) async {
     if (!isActiveSession(sessionId)) return;
     await Future<void>.delayed(const Duration(milliseconds: 20));
   }

@@ -33,8 +33,9 @@ class _FakeEditorAudioEngine extends FakeAudioEngine {
   Future<void> playRangeOnce(
     Duration start,
     Duration end,
-    int sessionId,
-  ) async {}
+    int sessionId, {
+    void Function()? onClipReady,
+  }) async {}
 
   @override
   Future<void> playClipOnce(Sentence sentence, int sessionId) async {}

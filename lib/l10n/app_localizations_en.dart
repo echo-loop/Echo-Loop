@@ -1352,10 +1352,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get retellSettingsTitle => 'Retell Settings';
 
   @override
-  String get retellAutoPlayRecordingSessionToggle =>
-      'Auto-play retell recording';
-
-  @override
   String get retellAutoPlaybackPromptTitle =>
       'Auto-play your recording after retelling?';
 

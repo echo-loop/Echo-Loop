@@ -496,6 +496,25 @@ EchoLoopApp (main.dart)
 
 **迁移**：SP → Drift 一次性迁移在首次启动时自动执行，单事务保证原子性。旧 SP 数据不删除，迁移标记 `drift_migration_v1_complete` 防止重复执行。
 
+### ADR-7: 媒体引擎与前台引擎分离（媒体会话绑定结构化，取代运行时 suppress）
+
+**决策**：把底层播放拆成两套**不共享 player** 的引擎：
+
+- **媒体引擎** = 现有 `AudioEngine` → `echoLoopAudioHandler._player`，接入 `audio_service`，带锁屏/后台/静音保活/逻辑播放态。服务于 **Free Player / 逐句精听 / 全文盲听**（以及学习自动推进）——这些任务确实需要后台 + 锁屏。
+- **前台引擎** = 新增 `ForegroundAudioEngine`，自持一个**裸 `ja.AudioPlayer`，从不注册到 `audio_service`**。服务于 **难句跟读 / 段落复述 / 难句补练 / 收藏句复习 / 收藏词复习(闪卡)**——它们只在前台播放原句/原段，物理上碰不到 `MPNowPlayingInfoCenter`/前台通知。（用户 2026-06-27 明确：收藏句复习、收藏词复习都不要后台/锁屏。）
+
+**原因**：§7.7–7.11 全部 bug 同源——"是否上锁屏"现在是一个运行时开关 `setMediaSessionSuppressed`，它要和系统两条独立通道（playbackState + MediaItem）以及跨 session 的事件时序打地鼓。把"是否绑定媒体会话"变成 **player 的物理属性**（用哪个引擎）而非 flag，从源头消除整类竞态：前台引擎不接 `audio_service`，不可能弹卡片，suppress 整套逻辑（§7.9/§7.11 的时序对齐）连根删除，§7.7 简化。
+
+**结构**（按 2026-06-27 决定）：**前台引擎独立写一份**，不抽共享 ClipPlayer 实现，逐方法照抄 `AudioEngine` 播放子集、仅把 `_handler.xxx` 换成裸 `_player.xxx`（符合 CLAUDE.md「先重复后抽象」）。**不需要 `PlaybackEngine` 接口**——探查确认不存在"被媒体任务与前台任务按同一引擎类型共用"的编排代码：`SentencePlaybackEngine` 仅被补练 + 收藏句复习构造（均前台）、`StudyTaskControllerMixin` 仅被 listen_and_repeat（前台）`with`、`RepeatFlowEngine` 经回调注入不持引擎字段。故 `SentencePlaybackEngine.getEngine` 与 mixin 的引擎引用直接改成 `ForegroundAudioEngine` 即可，调用点改 `foregroundAudioEngineProvider`。
+
+**任务切换**：学习计划里 `盲听(媒体引擎) → 跟读(前台引擎)` 背靠背时，进前台任务要把**媒体引擎 `stop()`**（产生 `非idle→idle` 跳变 → audio_service 调 `stopService` 清掉锁屏卡片），取代旧的"suppress 共享 player"。这是个明确的状态转换，比 suppress 干净。
+
+**行为保证**：前台引擎逐方法照抄 AudioEngine 播放子集，配合现有行为测试平移（override 改 `foregroundAudioEngineProvider`、断言不变），保证 难句跟读/段落复述等的**播放/录音功能行为与 commit 578f8829 一致**；锁屏卡片不再出现是有意改进。
+
+**风险**：iOS `AVAudioSession` 进程级共享，两个 `just_audio` player + 录音器对 category（playAndRecord）的争用本机/CI 测不到，**必须真机验证**（同 §7.10 后台行为）。
+
+**影响**：删 `AudioEngine.setMediaSessionSuppressed` 及 handler 中 `_mediaSessionSuppressed` 相关分支；5 个前台任务改注入前台引擎、删 suppress/bind/保活/mixin、进任务改 stop 媒体引擎。
+
 ---
 
 ## 学习流程设计

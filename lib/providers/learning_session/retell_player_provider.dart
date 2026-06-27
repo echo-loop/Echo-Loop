@@ -27,7 +27,7 @@ import '../../services/silence_skip_detector.dart';
 import '../../services/study_event_recorder.dart';
 import '../../utils/keyword_extraction.dart';
 import '../../utils/word_counter.dart';
-import '../audio_engine/audio_engine_provider.dart';
+import '../audio_engine/foreground_audio_engine_provider.dart';
 import '../listening_practice/bookmark_manager.dart';
 import '../learned_vocabulary_tracker_provider.dart';
 import '../learning_settings_provider.dart';
@@ -280,7 +280,7 @@ class RetellPlayer extends _$RetellPlayer {
       );
 
       // 停止段落音频播放
-      final engine = ref.read(audioEngineProvider.notifier);
+      final engine = ref.read(foregroundAudioEngineProvider.notifier);
       _sessionId = engine.newSession();
       _positionSub?.cancel();
       engine.stopPlayback();
@@ -574,7 +574,7 @@ class RetellPlayer extends _$RetellPlayer {
   Future<void> pause() async {
     // 先快照，避免 stopPlayback 期间异步事件污染 playingSentenceIndex
     final snapshotIdx = state.playingSentenceIndex;
-    final engine = ref.read(audioEngineProvider.notifier);
+    final engine = ref.read(foregroundAudioEngineProvider.notifier);
     _sessionId = engine.newSession();
     _positionSub?.cancel();
     _invalidateRetellCountdown();
@@ -651,6 +651,16 @@ class RetellPlayer extends _$RetellPlayer {
     // 不 await _playCurrentParagraph：seekToSentence 调用方需要立即解锁 guard 接受
     // 下一次点击。后续 _playCurrentParagraph 内部用 session id 兜底并发竞态。
     unawaited(_playCurrentParagraph(startLocalIdxOverride: targetLocalIdx));
+  }
+
+  /// 跳转到指定段落（0-based）：跳到该段首句，行为同 [seekToSentence]。
+  ///
+  /// 顶部进度条多段模式下按段拖动时调用。
+  Future<void> seekToParagraph(int paragraphIndex) {
+    if (paragraphIndex < 0 || paragraphIndex >= _paragraphs.length) {
+      return Future.value();
+    }
+    return seekToSentence(_paragraphs[paragraphIndex].first.index);
   }
 
   /// 跳转到下一段
@@ -783,7 +793,7 @@ class RetellPlayer extends _$RetellPlayer {
     }
 
     _waitAfterCurrentParagraph = false;
-    final engine = ref.read(audioEngineProvider.notifier);
+    final engine = ref.read(foregroundAudioEngineProvider.notifier);
     _sessionId = engine.newSession();
     _positionSub?.cancel();
     _invalidateRetellCountdown();
@@ -855,7 +865,7 @@ class RetellPlayer extends _$RetellPlayer {
     if (speedChanged) {
       unawaited(
         ref
-            .read(audioEngineProvider.notifier)
+            .read(foregroundAudioEngineProvider.notifier)
             .setSpeed(newSettings.playbackSpeed),
       );
     }
@@ -870,7 +880,7 @@ class RetellPlayer extends _$RetellPlayer {
     // 自动↔手动切换时，停在当前段落，取消一切异步操作
     if (modeChanged) {
       _invalidateRetellCountdown();
-      final engine = ref.read(audioEngineProvider.notifier);
+      final engine = ref.read(foregroundAudioEngineProvider.notifier);
       _sessionId = engine.newSession();
       unawaited(engine.stopPlayback());
       state = state.copyWith(
@@ -948,7 +958,7 @@ class RetellPlayer extends _$RetellPlayer {
       _resumeStartLocalSentenceIndex = 0; // 只用一次
     }
 
-    final engine = ref.read(audioEngineProvider.notifier);
+    final engine = ref.read(foregroundAudioEngineProvider.notifier);
     _sessionId = engine.newSession();
     final sid = _sessionId; // 捕获局部变量
 
@@ -967,14 +977,18 @@ class RetellPlayer extends _$RetellPlayer {
     );
     _persistCurrentSentenceIndexAsync();
 
-    // 订阅 position stream 实现句子高亮
-    _startPositionTracking(sentences);
-
     final start = sentences[startLocalIdx].startTime;
     final end = sentences.last.endTime;
 
     await engine.setSpeed(state.settings.playbackSpeed);
-    await engine.playRangeOnce(start, end, sid);
+    // 订阅 position stream 实现句子高亮——必须等 clip+seek(0) 落定后才订阅，
+    // 否则 setClip/seek 过渡期的陈旧 position 会把高亮跳到错误句、污染断点。
+    await engine.playRangeOnce(
+      start,
+      end,
+      sid,
+      onClipReady: () => _startPositionTracking(sentences),
+    );
 
     // 播放完成后进入复述阶段（用局部变量检查）
     final sessionStillActive = engine.isActiveSession(sid);
@@ -1021,11 +1035,17 @@ class RetellPlayer extends _$RetellPlayer {
   void _startPositionTracking(List<Sentence> sentences) {
     _positionSub?.cancel();
     _lastSkippedSilenceKey = null; // 新段落，清空去重指针
-    final engine = ref.read(audioEngineProvider.notifier);
+    final engine = ref.read(foregroundAudioEngineProvider.notifier);
 
     _positionSub = engine.absolutePositionStream.listen((position) {
       if (!engine.isActiveSession(_sessionId)) return;
       if (state.phase != RetellPhase.listening) return;
+      // 防御：clip 切换后仍可能残留一次旧 emission。落在本段范围外的 position
+      // 一律丢弃，绝不改高亮、不写断点、不触发静音跳过。
+      if (position < sentences.first.startTime ||
+          position >= sentences.last.endTime) {
+        return;
+      }
 
       final idx = _findSentenceIndex(sentences, position);
       if (idx != state.playingSentenceIndex && idx >= 0) {
@@ -1057,7 +1077,9 @@ class RetellPlayer extends _$RetellPlayer {
 
     _lastSkippedSilenceKey = result.dedupKey;
     unawaited(
-      ref.read(audioEngineProvider.notifier).seekToAbsolute(result.skipTo),
+      ref
+          .read(foregroundAudioEngineProvider.notifier)
+          .seekToAbsolute(result.skipTo),
     );
 
     if (result.gapDuration.inSeconds > 5) {
@@ -1169,7 +1191,7 @@ class RetellPlayer extends _$RetellPlayer {
   /// 这里必须等待底层 stop 完成，避免在切段时与下一次 setClip
   /// 并发触发 just_audio 的 "Loading interrupted"。
   Future<void> _cancelAll() async {
-    final engine = ref.read(audioEngineProvider.notifier);
+    final engine = ref.read(foregroundAudioEngineProvider.notifier);
     _sessionId = engine.newSession();
     _positionSub?.cancel();
     _invalidateRetellCountdown();

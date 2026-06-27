@@ -35,6 +35,23 @@ class EchoLoopAudioHandler extends BaseAudioHandler with SeekHandler {
   StreamSubscription<AudioInterruptionEvent>? _interruptionSub;
   StreamSubscription<void>? _becomingNoisySub;
 
+  /// 逻辑播放态覆盖。非 null 时锁屏图标/播放态广播读它而非裸 [_player.playing]。
+  ///
+  /// 学习/复习任务在「句间/段间停顿倒计时」期间主 player 处于 paused，但锁屏应显示
+  /// 「播放中」（配合 [startKeepAlive] 的静音保活）。任务在起播/续播时置 true、
+  /// 暂停/停止/完成时置 false；离开页面置 null 恢复读裸值（Free Player 维持原行为）。
+  bool? _logicalPlaying;
+
+  /// 锁屏/系统媒体会话采用的有效播放态：有覆盖用覆盖，否则读裸 player。
+  bool get _effectivePlaying => _logicalPlaying ?? _player.playing;
+
+  /// 后台静音保活播放器。停顿（静音）期间循环播放打包的静音轨，使 iOS 音频会话
+  /// 保持活跃、isolate 不被挂起，让 Dart 倒计时定时器在后台照常推进。
+  ///
+  /// 不接入 audio_service 媒体会话（锁屏只反映主 [_player]）；仅 iOS 需要，
+  /// Android 靠前台服务（androidStopForegroundOnPause:false）保活。
+  ja.AudioPlayer? _silencePlayer;
+
   /// 锁屏/通知栏封面图（app 图标缓存为本地文件后的 file:// URI）。
   /// 由 [prepareArtwork] 启动时填充，[loadFile] 构造 MediaItem 时使用。
   Uri? _artworkUri;
@@ -105,6 +122,48 @@ class EchoLoopAudioHandler extends BaseAudioHandler with SeekHandler {
   }) {
     _onPlayCommand = onPlay;
     _onPauseCommand = onPause;
+  }
+
+  /// 设置/清除逻辑播放态覆盖（见 [_logicalPlaying]）。
+  ///
+  /// 传 null 恢复读裸 [_player.playing]。赋值后立即广播，使锁屏图标即时同步。
+  void setLogicalPlaying(bool? playing) {
+    _logicalPlaying = playing;
+    _broadcastState();
+  }
+
+  /// 启动后台静音保活（仅 iOS / 非 Web）。幂等：已在播则不重复启动。
+  ///
+  /// 懒加载静音轨并循环播放。**音量必须为 1.0**：资源本身是无声内容，听不到声音，
+  /// 但只有「会话持续渲染音频」才能让 iOS 不挂起 app、Dart 倒计时定时器在后台照常
+  /// 推进，从而支持「整个会话锁屏后自动跑完」。
+  ///
+  /// 历史坑：曾用 `setVolume(0)` —— iOS 把「零输出」视作「未在播放」仍会挂起 app，
+  /// 停顿期定时器冻结 → 锁屏后不推进（表现为「锁屏后暂停」）。
+  Future<void> startKeepAlive() async {
+    if (kIsWeb || !Platform.isIOS) return;
+    try {
+      final player = _silencePlayer ??= ja.AudioPlayer();
+      if (player.audioSource == null) {
+        await player.setAsset('assets/audio/silence_2s.m4a');
+        await player.setLoopMode(ja.LoopMode.one);
+        await player.setVolume(1.0);
+      }
+      if (!player.playing) {
+        await player.play();
+      }
+    } catch (_) {
+      // 保活失败：后台连续性退化，但不影响前台与主播放。
+    }
+  }
+
+  /// 暂停静音保活（不 dispose，便于复用）。
+  Future<void> stopKeepAlive() async {
+    final player = _silencePlayer;
+    if (player == null) return;
+    try {
+      if (player.playing) await player.pause();
+    } catch (_) {}
   }
 
   /// 注册/清空后退、前进 N 秒回调（传 null 清空）。
@@ -242,7 +301,11 @@ class EchoLoopAudioHandler extends BaseAudioHandler with SeekHandler {
   @override
   Future<void> stop() async {
     await _player.stop();
-    setMediaControls(playing: false);
+    // just_audio stop 后 processingState=idle，但不保证发出 playbackEvent 触发
+    // 广播；显式广播一次，确保 audio_service 收到 idle → 调 stopService 清掉
+    // 锁屏/通知栏媒体控制（与 seek/setClip/loadFile 末尾显式广播一致）。否则
+    // 退出播放页面（精听/盲听 exitLearningMode → stop）后锁屏控制会残留。
+    _broadcastState();
     return super.stop();
   }
 
@@ -285,11 +348,12 @@ class EchoLoopAudioHandler extends BaseAudioHandler with SeekHandler {
     await _durationSub?.cancel();
     await _interruptionSub?.cancel();
     await _becomingNoisySub?.cancel();
+    await _silencePlayer?.dispose();
     await _player.dispose();
   }
 
   void _broadcastState() {
-    setMediaControls(playing: _player.playing);
+    setMediaControls(playing: _effectivePlaying);
     playbackState.add(
       PlaybackState(
         controls: _controls,
@@ -306,7 +370,7 @@ class EchoLoopAudioHandler extends BaseAudioHandler with SeekHandler {
         },
         androidCompactActionIndices: _compactActionIndices,
         processingState: _mapProcessingState(_player.processingState),
-        playing: _player.playing,
+        playing: _effectivePlaying,
         updatePosition: _player.position,
         bufferedPosition: _player.bufferedPosition,
         speed: _player.speed,

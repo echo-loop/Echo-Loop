@@ -112,24 +112,6 @@ class _RetellSettingsSheet extends ConsumerWidget {
               ],
               const SizedBox(height: AppSpacing.l),
 
-              // ── 自动播放复述录音 ──
-              SwitchListTile.adaptive(
-                contentPadding: EdgeInsets.zero,
-                secondary: const Icon(Icons.record_voice_over),
-                title: Text(l10n.retellAutoPlayRecordingSessionToggle),
-                value: settings.autoPlayRecordingAfterCompletion,
-                onChanged: (value) {
-                  ref
-                      .read(retellPlayerProvider.notifier)
-                      .updateSettings(
-                        settings.copyWith(
-                          autoPlayRecordingAfterCompletion: value,
-                        ),
-                      );
-                },
-              ),
-              const SizedBox(height: AppSpacing.l),
-
               // ── 播放速度 ──
               _buildPlaybackSpeedSection(l10n, theme, settings, ref),
               const SizedBox(height: AppSpacing.l),

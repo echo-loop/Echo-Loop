@@ -29,6 +29,7 @@ import '../learned_vocabulary_tracker_provider.dart';
 import '../study_stats_provider.dart';
 import '../../services/app_logger.dart';
 import '../audio_engine/audio_engine_provider.dart';
+import '../audio_engine/foreground_audio_engine_provider.dart';
 import '../learning_progress_provider.dart';
 import '../retell_prefs_provider.dart';
 import '../../models/stage_settings_overrides.dart';
@@ -602,7 +603,9 @@ class LearningSession extends _$LearningSession {
 
     // 暂停 LP 的 stream 监听
     practice.suspendListeners();
-    await _ensureAudioLoaded(audioItemId);
+    // 跟读为录音类任务，用前台引擎（此 enter 方法已废弃，跟读改走
+    // ListenAndRepeatController.initialize；保留以对齐前台引擎语义）。
+    await _ensureAudioLoaded(audioItemId, foreground: true);
 
     _logEnterMode(
       'enterListenAndRepeatMode',
@@ -667,7 +670,11 @@ class LearningSession extends _$LearningSession {
 
     // 暂停 LP 的 stream 监听
     practice.suspendListeners();
-    await _ensureAudioLoaded(audioItemId);
+    // 录音类任务（复述）用前台引擎播放、不上锁屏：① 停掉媒体引擎，清除上一个媒体任务
+    // （盲听/精听）残留在锁屏/通知栏的 now-playing 卡片（非idle→idle 跳变 → stopService）；
+    // ② 音频加载到**前台引擎**（foreground:true），物理上不碰系统媒体会话。见 ADR-7。
+    await ref.read(audioEngineProvider.notifier).stop();
+    await _ensureAudioLoaded(audioItemId, foreground: true);
 
     final retellSentences = paragraphs.expand((p) => p).toList();
     _logEnterMode(
@@ -757,7 +764,9 @@ class LearningSession extends _$LearningSession {
 
     // 暂停 LP 的 stream 监听
     practice.suspendListeners();
-    await _ensureAudioLoaded(audioItemId);
+    // 录音类任务（难句补练）用前台引擎、不上锁屏：先停媒体引擎清残留卡片，再加载到前台引擎。
+    await ref.read(audioEngineProvider.notifier).stop();
+    await _ensureAudioLoaded(audioItemId, foreground: true);
 
     _logEnterMode(
       'enterReviewDifficultPracticeMode',
@@ -890,16 +899,33 @@ class LearningSession extends _$LearningSession {
   /// 收藏页、单词卡等页面可能将不同音频加载到全局引擎，
   /// 导致引擎持有的音频与当前学习目标不一致。
   /// 进入任何学习模式前调用此方法，检测不匹配时主动重新加载。
-  Future<void> _ensureAudioLoaded(String audioItemId) async {
-    final engine = ref.read(audioEngineProvider);
-    if (engine.currentAudioId == audioItemId && !engine.isLoading) return;
-
-    // 引擎音频不匹配 → 通过 LP 获取 audioItem，直接重新加载到引擎
+  ///
+  /// [foreground] 为 true 时加载到前台引擎（录音类任务：复述/补练，不上锁屏），
+  /// 否则加载到媒体引擎（盲听/精听，需后台+锁屏）。见 PLAN.md ADR-7。
+  Future<void> _ensureAudioLoaded(
+    String audioItemId, {
+    bool foreground = false,
+  }) async {
     final lp = ref.read(listeningPracticeProvider);
     final audioItem = lp.currentAudioItem;
+
+    if (foreground) {
+      final engine = ref.read(foregroundAudioEngineProvider);
+      if (engine.currentAudioId == audioItemId && !engine.isLoading) return;
+      if (audioItem != null && audioItem.id == audioItemId) {
+        await ref
+            .read(foregroundAudioEngineProvider.notifier)
+            .loadAudio(audioItem, lp.settings.playbackSpeed);
+      }
+      return;
+    }
+
+    final engine = ref.read(audioEngineProvider);
+    if (engine.currentAudioId == audioItemId && !engine.isLoading) return;
     if (audioItem != null && audioItem.id == audioItemId) {
-      final engineNotifier = ref.read(audioEngineProvider.notifier);
-      await engineNotifier.loadAudio(audioItem, lp.settings.playbackSpeed);
+      await ref
+          .read(audioEngineProvider.notifier)
+          .loadAudio(audioItem, lp.settings.playbackSpeed);
     }
   }
 }

@@ -178,6 +178,52 @@ void main() {
     });
   });
 
+  group('逻辑播放态覆盖（锁屏图标真相源）', () {
+    test('setLogicalPlaying(true) 使广播 playing=true 且图标为暂停（即便裸 player 未播放）', () {
+      when(() => player.playing).thenReturn(false);
+
+      handler.setLogicalPlaying(true);
+
+      final state = handler.playbackState.value;
+      // 停顿倒计时期间裸 player 已暂停，但锁屏必须显示「播放中」。
+      expect(state.playing, isTrue);
+      expect(state.controls.contains(MediaControl.pause), isTrue);
+      expect(state.controls.contains(MediaControl.play), isFalse);
+    });
+
+    test('setLogicalPlaying(false) 覆盖裸 playing=true（修复图标卡暂停的反面）', () {
+      when(() => player.playing).thenReturn(true);
+
+      handler.setLogicalPlaying(false);
+
+      final state = handler.playbackState.value;
+      expect(state.playing, isFalse);
+      expect(state.controls.contains(MediaControl.play), isTrue);
+    });
+
+    test('setLogicalPlaying(null) 恢复读裸 player.playing（Free Player 行为不变）', () {
+      when(() => player.playing).thenReturn(true);
+      handler.setLogicalPlaying(true);
+
+      handler.setLogicalPlaying(null);
+      // 覆盖清除后读裸值：当前裸 playing=true。
+      expect(handler.playbackState.value.playing, isTrue);
+
+      // 裸值变 false 后，下一次广播应反映 false。
+      when(() => player.playing).thenReturn(false);
+      handler.setSkipHandlers(onPrevious: null, onNext: null); // 触发广播
+      expect(handler.playbackState.value.playing, isFalse);
+    });
+  });
+
+  group('静音保活（非 iOS 测试环境为 no-op，不抛异常）', () {
+    test('startKeepAlive/stopKeepAlive 在测试环境安全调用', () async {
+      // 测试运行于 host（非 iOS），startKeepAlive 直接 return，不创建播放器、不抛异常。
+      await handler.startKeepAlive();
+      await handler.stopKeepAlive();
+    });
+  });
+
   group('play/pause 命令路由', () {
     test('未注册时 play/pause 直接驱动底层播放器', () async {
       await handler.play();
@@ -212,6 +258,22 @@ void main() {
 
       verify(() => player.play()).called(1);
       verify(() => player.pause()).called(1);
+    });
+  });
+
+  group('stop 广播（退出播放页面清锁屏控制）', () {
+    test('stop() 显式广播 idle，使 audio_service 调 stopService 清锁屏控制', () async {
+      when(() => player.stop()).thenAnswer((_) async {});
+      // stop 后 just_audio 进入 idle。
+      when(() => player.processingState).thenReturn(ja.ProcessingState.idle);
+      when(() => player.playing).thenReturn(false);
+
+      await handler.stop();
+
+      final state = handler.playbackState.value;
+      // 关键：必须广播 idle，否则 audio_service 不触发 stopService、锁屏控制残留。
+      expect(state.processingState, AudioProcessingState.idle);
+      expect(state.playing, isFalse);
     });
   });
 }

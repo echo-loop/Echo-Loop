@@ -287,6 +287,27 @@ void main() {
     await engine.closeStreams();
   });
 
+  test('reattachLockScreen 自愈：夺回锁屏回调并清除任务残留的逻辑播放态/保活', () async {
+    lp.seed(sentences: sentences, settings: const PlaybackSettings());
+    await flushBoundary();
+
+    // 模拟某学习/复习任务接管后离开：置空回调 + 残留逻辑播放态覆盖 + 保活在跑。
+    engine.setTransportHandlers(onPlay: null, onPause: null);
+    engine.setSkipHandlers(onPrevious: null, onNext: null);
+    engine.setLogicalPlaying(true);
+    final stopKeepAliveBefore = engine.stopKeepAliveCount;
+
+    lp.reattachLockScreen();
+    await flushBoundary();
+
+    // Free Player 夺回播放/暂停 + 切句回调（有字幕 → 注册上一句/下一句）。
+    expect(engine.lastOnPlay, isNotNull);
+    expect(engine.lastOnNext, isNotNull);
+    // 清除任务残留：逻辑播放态恢复 null（handler 回退读裸 player）、保活被停。
+    expect(engine.logicalPlaying, isNull);
+    expect(engine.stopKeepAliveCount, greaterThan(stopKeepAliveBefore));
+  });
+
   test('普通连续播放按 position 更新高亮且不使用 clip', () async {
     lp.seed(sentences: sentences, settings: const PlaybackSettings());
 

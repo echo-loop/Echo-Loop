@@ -6,6 +6,7 @@ library;
 
 import 'dart:async';
 
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../analytics/analytics_providers.dart';
@@ -30,6 +31,7 @@ import '../intensive_listen_prefs_provider.dart';
 import '../learning_progress_provider.dart';
 import 'countdown_controller.dart';
 import 'learning_session_provider.dart';
+import 'study_background_playback_mixin.dart';
 
 part 'intensive_listen_player_provider.g.dart';
 
@@ -173,7 +175,11 @@ class IntensiveListenState {
 }
 
 @Riverpod(keepAlive: true)
-class IntensiveListenPlayer extends _$IntensiveListenPlayer {
+class IntensiveListenPlayer extends _$IntensiveListenPlayer
+    with StudyBackgroundPlaybackMixin {
+  @override
+  Ref get bgRef => ref;
+
   List<Sentence> _sentences = [];
   late StudyEventRecorder _recorder;
   late BlindPracticeFlowEngine _blindEngine;
@@ -250,6 +256,17 @@ class IntensiveListenPlayer extends _$IntensiveListenPlayer {
       settings: settings,
     );
     _prepareBlindFlow(startIndex: safeIndex);
+
+    // 锁屏控制：每任务绑定一次（回调为稳定的 notifier 方法），整段任务期间锁屏
+    // 上一句/下一句始终可用；避免「按活跃 phase 条件 bind」在等待/切换瞬间留下
+    // 空窗导致切句失灵。会话活跃度（保活 + 图标）由 setSessionActive 单独维护。
+    bindLockScreen(
+      onPlay: resume,
+      onPause: pause,
+      onNext: goToNext,
+      onPrevious: goToPrevious,
+    );
+
     ref.read(analyticsServiceProvider).track(Events.intensiveListenStart, {
       ...ref.audioEventParams(ref.read(learningSessionProvider).audioItemId),
       EventParams.totalSentences: _sentences.length,
@@ -655,6 +672,7 @@ class IntensiveListenPlayer extends _$IntensiveListenPlayer {
   }
 
   void disposePlayer() {
+    unbindLockScreen();
     _blindEngine.stopSession();
     _cleanupAnnotationSession();
     _sentences = [];
@@ -723,6 +741,11 @@ class IntensiveListenPlayer extends _$IntensiveListenPlayer {
       playingSenseGroupIndex: null,
       playedSenseGroupIndices: const {},
     );
+
+    // 会话活跃度：播放中或停顿倒计时即活跃 → 保活（iOS 静音轨）+ 锁屏图标显示「播放中」；
+    // 等待用户/完成时不活跃 → 停保活、图标转暂停。回调槽已在 initialize 绑定一次，此处不再动。
+    final active = phase is BlindPlayingPrompt || phase is BlindWaitingInterval;
+    setSessionActive(active);
 
     if (phase is BlindWaitingForUser && _refreshBlindConfigWhenWaiting) {
       _refreshBlindConfigWhenWaiting = false;

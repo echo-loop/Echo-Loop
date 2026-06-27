@@ -1310,9 +1310,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get retellSettingsTitle => '复述设置';
 
   @override
-  String get retellAutoPlayRecordingSessionToggle => '自动播放复述录音';
-
-  @override
   String get retellAutoPlaybackPromptTitle => '复述后自动回听？';
 
   @override

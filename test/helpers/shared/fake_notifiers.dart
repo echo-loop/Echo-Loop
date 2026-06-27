@@ -58,6 +58,7 @@ import 'package:echo_loop/models/sentence.dart';
 import 'package:echo_loop/models/study_stage.dart';
 import 'package:echo_loop/models/tag.dart';
 import 'package:echo_loop/providers/audio_engine/audio_engine_provider.dart';
+import 'package:echo_loop/providers/audio_engine/foreground_audio_engine_provider.dart';
 import 'package:echo_loop/providers/audio_library_provider.dart';
 import 'package:echo_loop/providers/collection_provider.dart';
 import 'package:echo_loop/providers/daily_study_time_provider.dart';
@@ -1820,23 +1821,55 @@ class FakeAudioEngine extends AudioEngine {
   @override
   Future<void> clearClip() async {}
 
+  // ---- 锁屏控制 / 后台保活：记录最近一次注册，供后台播放接入测试断言 ----
+  Future<void> Function()? lastOnPlay;
+  Future<void> Function()? lastOnPause;
+  Future<void> Function()? lastOnNext;
+  Future<void> Function()? lastOnPrevious;
+
+  /// 逻辑播放态覆盖的最近值（null = 已恢复读裸 player）。
+  bool? logicalPlaying;
+  int startKeepAliveCount = 0;
+  int stopKeepAliveCount = 0;
+
   @override
   void setSkipHandlers({
     Future<void> Function()? onPrevious,
     Future<void> Function()? onNext,
-  }) {}
+  }) {
+    lastOnPrevious = onPrevious;
+    lastOnNext = onNext;
+  }
 
   @override
   void setTransportHandlers({
     Future<void> Function()? onPlay,
     Future<void> Function()? onPause,
-  }) {}
+  }) {
+    lastOnPlay = onPlay;
+    lastOnPause = onPause;
+  }
 
   @override
   void setSeekHandlers({
     Future<void> Function()? onRewind,
     Future<void> Function()? onFastForward,
   }) {}
+
+  @override
+  void setLogicalPlaying(bool? playing) {
+    logicalPlaying = playing;
+  }
+
+  @override
+  Future<void> startKeepAlive() async {
+    startKeepAliveCount += 1;
+  }
+
+  @override
+  Future<void> stopKeepAlive() async {
+    stopKeepAliveCount += 1;
+  }
 
   @override
   Future<void> playClipOnce(Sentence sentence, int sessionId) async {}
@@ -1857,6 +1890,135 @@ class FakeAudioEngine extends AudioEngine {
     required int loopCount,
     required Duration interval,
   }) async {}
+
+  /// 设置总时长（测试辅助方法）
+  void setTotalDuration(Duration duration) {
+    state = state.copyWith(totalDuration: duration);
+  }
+}
+
+// ========== FakeForegroundAudioEngine ==========
+
+/// 测试用 ForegroundAudioEngine — 不依赖 just_audio、从不触达 audio_service。
+///
+/// 镜像 [FakeAudioEngine] 的 no-op/记录式实现，但只含前台引擎的播放子集
+/// （无 suppress/logicalPlaying/keepAlive/锁屏回调）。录音/复习类任务测试
+/// override `foregroundAudioEngineProvider` 时用它。
+class FakeForegroundAudioEngine extends ForegroundAudioEngine {
+  final AudioEngineState engineInitialState;
+  bool playingState;
+  double playbackSpeed = 1.0;
+
+  FakeForegroundAudioEngine({
+    AudioEngineState initialState = const AudioEngineState(),
+    bool isPlaying = false,
+  }) : engineInitialState = initialState,
+       playingState = isPlaying;
+
+  @override
+  AudioEngineState build() => engineInitialState;
+
+  @override
+  bool get isPlaying => playingState;
+
+  set isPlaying(bool value) => playingState = value;
+
+  ja.ProcessingState processingStateValue = ja.ProcessingState.ready;
+
+  @override
+  ja.ProcessingState get processingState => processingStateValue;
+
+  @override
+  Duration get currentPosition => Duration.zero;
+
+  @override
+  Duration get absoluteCurrentPosition => Duration.zero;
+
+  @override
+  Stream<Duration> get absolutePositionStream => Stream.value(Duration.zero);
+
+  @override
+  Stream<ja.PlayerState> get playerStateStream => const Stream.empty();
+
+  @override
+  Future<void> play() async {
+    playingState = true;
+  }
+
+  @override
+  Future<void> pause() async {
+    playingState = false;
+  }
+
+  @override
+  Future<void> pauseKeepSession() async {
+    playingState = false;
+  }
+
+  @override
+  Future<void> stop() async {
+    playingState = false;
+  }
+
+  @override
+  Future<void> stopPlayback() async {
+    playingState = false;
+  }
+
+  @override
+  Future<void> seek(Duration pos) async {}
+
+  @override
+  Future<void> seekToAbsolute(Duration absolute) async {}
+
+  @override
+  Future<void> setSpeed(double speed) async {
+    playbackSpeed = speed;
+  }
+
+  @override
+  int newSession() => 0;
+
+  @override
+  bool isActiveSession(int id) => true;
+
+  @override
+  Future<void> setClip(Duration start, Duration end) async {}
+
+  @override
+  Future<void> clearClip() async {}
+
+  @override
+  Future<void> playClipOnce(Sentence sentence, int sessionId) async {}
+
+  @override
+  Future<void> playRangeOnce(
+    Duration start,
+    Duration end,
+    int sessionId, {
+    void Function()? onClipReady,
+  }) async {}
+
+  @override
+  Future<void> playClipWithLoops(
+    Sentence sentence,
+    int sessionId, {
+    required int loopCount,
+    required Duration interval,
+  }) async {}
+
+  @override
+  Future<Duration?> loadAudio(
+    AudioItem item,
+    double speed, {
+    String? subtitle,
+  }) async {
+    state = state.copyWith(currentAudioId: item.id);
+    return Duration.zero;
+  }
+
+  @override
+  Future<List<Sentence>> loadTranscript(AudioItem audioItem) async => [];
 
   /// 设置总时长（测试辅助方法）
   void setTotalDuration(Duration duration) {

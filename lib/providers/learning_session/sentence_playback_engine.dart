@@ -13,7 +13,7 @@ library;
 import 'dart:async';
 import '../../models/sentence.dart';
 import '../../services/study_event_recorder.dart';
-import '../audio_engine/audio_engine_provider.dart';
+import '../audio_engine/foreground_audio_engine_provider.dart';
 import 'countdown_controller.dart';
 
 /// 停顿时长计算器函数签名
@@ -30,8 +30,8 @@ typedef PauseCalculator = Duration Function(Duration sentenceDuration);
 /// 可选注入 [StudyEventRecorder]，每次 playClipOnce 成功后
 /// 自动调用 [StudyEventRecorder.onSentencePlayed] 记录听力统计。
 class SentencePlaybackEngine {
-  /// 获取 AudioEngine 实例的工厂函数
-  final AudioEngine Function() _getEngine;
+  /// 获取前台引擎实例的工厂函数（录音/复习类任务用前台引擎，不上锁屏）
+  final ForegroundAudioEngine Function() _getEngine;
 
   /// 学习事件记录器（可选）
   ///
@@ -45,7 +45,7 @@ class SentencePlaybackEngine {
   int _currentSessionId = -1;
 
   SentencePlaybackEngine({
-    required AudioEngine Function() getEngine,
+    required ForegroundAudioEngine Function() getEngine,
     StudyEventRecorder? recorder,
   }) : _getEngine = getEngine,
        _recorder = recorder;

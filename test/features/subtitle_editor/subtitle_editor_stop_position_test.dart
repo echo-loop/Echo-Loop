@@ -148,8 +148,9 @@ class _StopResetEngine extends AudioEngine {
   Future<void> playRangeOnce(
     Duration start,
     Duration end,
-    int sessionId,
-  ) async {
+    int sessionId, {
+    void Function()? onClipReady,
+  }) async {
     _clipStart = start;
     final c = Completer<void>();
     _completers.add(c);

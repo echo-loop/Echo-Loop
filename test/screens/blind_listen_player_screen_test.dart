@@ -24,6 +24,7 @@ import 'package:echo_loop/services/notification_permission_service.dart';
 import 'package:echo_loop/theme/app_theme.dart';
 import 'package:echo_loop/widgets/common/masked_sentence_tile.dart';
 import 'package:echo_loop/widgets/common/playback_controls.dart';
+import 'package:echo_loop/widgets/practice/practice_progress_section.dart';
 
 import '../helpers/mock_providers.dart';
 
@@ -205,7 +206,8 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.byType(LinearProgressIndicator), findsOneWidget);
+      // 多段模式进度条按段落驱动，且可拖动跳段（共享骨架的进度区域）
+      expect(find.byType(PracticeProgressSection), findsOneWidget);
       expect(find.text('Try to recall what you just heard'), findsOneWidget);
       expect(find.byType(PlaybackControls), findsOneWidget);
     });

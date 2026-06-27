@@ -545,6 +545,26 @@ class _BlindListenPlayerScreenState
     final sentences = player.currentParagraphSentences;
     final paragraphDuration = player.currentParagraphDuration;
 
+    // 顶部进度条：多段按「段落」单调驱动（不随句子/遍数回退），单段无段落
+    // 进度可言，保留原逐句行为。
+    final isMultiParagraph = playerState.totalParagraphs > 1;
+    final sentenceIdx = _globalSentenceIdx(
+      sentences,
+      playerState.playingSentenceIndex,
+    );
+    final progressCurrent = isMultiParagraph
+        ? playerState.currentParagraphIndex + 1
+        : sentenceIdx;
+    final progressTotal = isMultiParagraph
+        ? playerState.totalParagraphs
+        : player.totalSentenceCount;
+    final progressText = isMultiParagraph
+        ? l10n.retellParagraphProgress(
+            playerState.currentParagraphIndex + 1,
+            playerState.totalParagraphs,
+          )
+        : l10n.intensiveListenProgress(sentenceIdx, player.totalSentenceCount);
+
     // 新手引导：编号→开播、文本→讲解。统一挂在第 1 句（idx=0），首项最显眼。
     const guideTargetLocalIdx = 0;
     final numberStep = GuideStep(
@@ -596,29 +616,22 @@ class _BlindListenPlayerScreenState
             title: l10n.blindListenAppBarTitle,
             onClose: _handleExit,
             onOpenSettings: _openSettings,
-            current: _globalSentenceIdx(
-              sentences,
-              playerState.playingSentenceIndex,
-            ),
-            total: player.totalSentenceCount,
-            progressText: _buildProgressText(
-              l10n,
-              sentenceCurrent: _globalSentenceIdx(
-                sentences,
-                playerState.playingSentenceIndex,
-              ),
-              sentenceTotal: player.totalSentenceCount,
-              paragraphCurrent: playerState.currentParagraphIndex + 1,
-              paragraphTotal: playerState.totalParagraphs,
-            ),
+            current: progressCurrent,
+            total: progressTotal,
+            progressText: progressText,
             durationText: _formatDurationText(
               l10n,
               paragraphDuration: paragraphDuration,
               totalDuration: player.totalDuration,
               paragraphTotal: playerState.totalParagraphs,
             ),
-            onSeekToIndex: (i) =>
-                ref.read(blindListenPlayerProvider.notifier).seekToSentence(i),
+            onSeekToIndex: isMultiParagraph
+                ? (p) => ref
+                      .read(blindListenPlayerProvider.notifier)
+                      .seekToParagraph(p)
+                : (i) => ref
+                      .read(blindListenPlayerProvider.notifier)
+                      .seekToSentence(i),
             paragraphContent: ParagraphSentenceListCard(
               sentences: sentences,
               displayMode:
@@ -840,26 +853,6 @@ String _formatDurationText(
   if (paragraphTotal <= 1) return _formatHumanDuration(l10n, totalDuration);
   return '${_formatHumanDuration(l10n, paragraphDuration)} / '
       '${_formatHumanDuration(l10n, totalDuration)}';
-}
-
-/// 进度文案：单段时只显示句子，多段时拼接段落信息
-String _buildProgressText(
-  AppLocalizations l10n, {
-  required int sentenceCurrent,
-  required int sentenceTotal,
-  required int paragraphCurrent,
-  required int paragraphTotal,
-}) {
-  final sentencePart = l10n.intensiveListenProgress(
-    sentenceCurrent,
-    sentenceTotal,
-  );
-  if (paragraphTotal <= 1) return sentencePart;
-  final paragraphPart = l10n.retellParagraphProgress(
-    paragraphCurrent,
-    paragraphTotal,
-  );
-  return '$paragraphPart · $sentencePart';
 }
 
 /// 统一显示速度标签：始终保留一位小数。

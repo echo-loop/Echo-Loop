@@ -135,6 +135,8 @@ flutter:
     # 目录内其余文件（app-icon-1024-rounded 仅构建期生成 launcher icon、
     # ic_stat_logo 仅作 Android 通知图标源文件）不进包，避免 iOS 等平台白带。
     - assets/icon/app-icon-1024.png
+    # 后台静音保活轨：停顿期间循环播放以保持 iOS 音频会话活跃（见 background_audio_handler）
+    - assets/audio/silence_2s.m4a
     - test/fixtures/audio_transcode/
 
   # An image asset can refer to one or more resolution-specific "variants", see

@@ -35,6 +35,7 @@ import 'package:echo_loop/providers/collection_provider.dart';
 import 'package:echo_loop/providers/tag_provider.dart';
 import 'package:echo_loop/providers/listening_practice/listening_practice_provider.dart';
 import 'package:echo_loop/providers/audio_engine/audio_engine_provider.dart';
+import 'package:echo_loop/providers/audio_engine/foreground_audio_engine_provider.dart';
 import 'package:echo_loop/providers/learning_progress_provider.dart';
 import 'package:echo_loop/providers/learning_session/learning_session_provider.dart';
 import 'package:echo_loop/providers/learning_session/blind_listen_player_provider.dart';
@@ -75,6 +76,9 @@ Widget createTestApp(
     tagListProvider.overrideWith(() => TestTagList()),
     listeningPracticeProvider.overrideWith(() => TestListeningPractice()),
     audioEngineProvider.overrideWith(() => TestAudioEngine()),
+    foregroundAudioEngineProvider.overrideWith(
+      () => TestForegroundAudioEngine(),
+    ),
     learningProgressNotifierProvider.overrideWith(
       () => TestLearningProgressNotifier(),
     ),
@@ -129,6 +133,9 @@ Widget createTestScreen(
     tagListProvider.overrideWith(() => TestTagList()),
     listeningPracticeProvider.overrideWith(() => TestListeningPractice()),
     audioEngineProvider.overrideWith(() => TestAudioEngine()),
+    foregroundAudioEngineProvider.overrideWith(
+      () => TestForegroundAudioEngine(),
+    ),
   ];
 
   // 合并自定义 overrides
@@ -206,6 +213,9 @@ Future<void> pumpFullApp(
         tagListProvider.overrideWith(() => TestTagList()),
         listeningPracticeProvider.overrideWith(() => TestListeningPractice()),
         audioEngineProvider.overrideWith(() => TestAudioEngine()),
+        foregroundAudioEngineProvider.overrideWith(
+          () => TestForegroundAudioEngine(),
+        ),
         learningProgressNotifierProvider.overrideWith(
           () => TestLearningProgressNotifier(),
         ),
@@ -315,6 +325,13 @@ Future<void> pumpFullAppWithAudio(
       ),
       audioEngineProvider.overrideWith(
         () => TestAudioEngine(
+          initialState: const AudioEngineState(
+            totalDuration: Duration(seconds: 25),
+          ),
+        ),
+      ),
+      foregroundAudioEngineProvider.overrideWith(
+        () => TestForegroundAudioEngine(
           initialState: const AudioEngineState(
             totalDuration: Duration(seconds: 25),
           ),

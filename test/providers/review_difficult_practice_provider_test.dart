@@ -9,7 +9,7 @@ import 'package:echo_loop/models/audio_engine_state.dart';
 import 'package:echo_loop/models/intensive_listen_settings.dart';
 import 'package:echo_loop/models/learning_progress.dart';
 import 'package:echo_loop/models/sentence.dart';
-import 'package:echo_loop/providers/audio_engine/audio_engine_provider.dart';
+import 'package:echo_loop/providers/audio_engine/foreground_audio_engine_provider.dart';
 import 'package:echo_loop/providers/blind_flow/blind_practice_flow_phase.dart';
 import 'package:echo_loop/providers/learning_progress_provider.dart';
 import 'package:echo_loop/providers/learning_session/learning_session_provider.dart';
@@ -19,7 +19,7 @@ import 'package:echo_loop/providers/speech/speech_recording_controller.dart';
 
 import '../helpers/mock_providers.dart';
 
-class _ReplayTestAudioEngine extends TestAudioEngine {
+class _ReplayTestAudioEngine extends TestForegroundAudioEngine {
   int _sessionId = 0;
 
   _ReplayTestAudioEngine()
@@ -42,7 +42,7 @@ class _ReplayTestAudioEngine extends TestAudioEngine {
   }
 }
 
-class _SlowBlindAudioEngine extends TestAudioEngine {
+class _SlowBlindAudioEngine extends TestForegroundAudioEngine {
   int _sessionId = 0;
 
   _SlowBlindAudioEngine()
@@ -124,7 +124,9 @@ void main() {
       );
       final container = ProviderContainer(
         overrides: [
-          audioEngineProvider.overrideWith(() => _ReplayTestAudioEngine()),
+          foregroundAudioEngineProvider.overrideWith(
+            () => _ReplayTestAudioEngine(),
+          ),
           learningProgressNotifierProvider.overrideWith(() => progressNotifier),
           learningSessionProvider.overrideWith(
             () => _PassiveLearningSession(
@@ -166,7 +168,9 @@ void main() {
     test('跟读模式 WaitingForUser 态修改设置后保持等待', () async {
       final container = ProviderContainer(
         overrides: [
-          audioEngineProvider.overrideWith(() => _ReplayTestAudioEngine()),
+          foregroundAudioEngineProvider.overrideWith(
+            () => _ReplayTestAudioEngine(),
+          ),
           learningProgressNotifierProvider.overrideWith(
             () => _RecordingLearningProgressNotifier(
               const LearningProgressState(),
@@ -225,7 +229,9 @@ void main() {
     test('盲听模式进入 WaitingForUser 后修改设置保持等待', () async {
       final container = ProviderContainer(
         overrides: [
-          audioEngineProvider.overrideWith(() => _ReplayTestAudioEngine()),
+          foregroundAudioEngineProvider.overrideWith(
+            () => _ReplayTestAudioEngine(),
+          ),
           learningProgressNotifierProvider.overrideWith(
             () => _RecordingLearningProgressNotifier(
               const LearningProgressState(),
@@ -281,7 +287,9 @@ void main() {
     test('盲听播放中进入 WaitingForUser 时，允许当前句自然播完', () async {
       final container = ProviderContainer(
         overrides: [
-          audioEngineProvider.overrideWith(() => _SlowBlindAudioEngine()),
+          foregroundAudioEngineProvider.overrideWith(
+            () => _SlowBlindAudioEngine(),
+          ),
           learningProgressNotifierProvider.overrideWith(
             () => _RecordingLearningProgressNotifier(
               const LearningProgressState(),
@@ -331,7 +339,9 @@ void main() {
     test('dispose 后重新 initialize，盲听仍可再次播放', () async {
       final container = ProviderContainer(
         overrides: [
-          audioEngineProvider.overrideWith(() => _SlowBlindAudioEngine()),
+          foregroundAudioEngineProvider.overrideWith(
+            () => _SlowBlindAudioEngine(),
+          ),
           learningProgressNotifierProvider.overrideWith(
             () => _RecordingLearningProgressNotifier(
               const LearningProgressState(),
@@ -396,7 +406,9 @@ void main() {
       );
       final container = ProviderContainer(
         overrides: [
-          audioEngineProvider.overrideWith(() => _ReplayTestAudioEngine()),
+          foregroundAudioEngineProvider.overrideWith(
+            () => _ReplayTestAudioEngine(),
+          ),
           learningProgressNotifierProvider.overrideWith(() => progressNotifier),
           learningSessionProvider.overrideWith(
             () => _PassiveLearningSession(
@@ -453,7 +465,7 @@ void main() {
       final audioEngine = _SlowBlindAudioEngine();
       final container = ProviderContainer(
         overrides: [
-          audioEngineProvider.overrideWith(() => audioEngine),
+          foregroundAudioEngineProvider.overrideWith(() => audioEngine),
           learningProgressNotifierProvider.overrideWith(
             () => _RecordingLearningProgressNotifier(
               const LearningProgressState(),
@@ -526,7 +538,9 @@ void main() {
 
     ProviderContainer buildContainer() => ProviderContainer(
       overrides: [
-        audioEngineProvider.overrideWith(() => _ReplayTestAudioEngine()),
+        foregroundAudioEngineProvider.overrideWith(
+          () => _ReplayTestAudioEngine(),
+        ),
         learningProgressNotifierProvider.overrideWith(
           () => _RecordingLearningProgressNotifier(
             const LearningProgressState(progressMap: {}),

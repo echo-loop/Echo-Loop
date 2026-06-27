@@ -27,6 +27,7 @@ import '../../models/flashcard_item.dart';
 import '../../models/flashcard_settings.dart';
 import '../../models/study_stage.dart';
 import '../../providers/audio_engine/audio_engine_provider.dart';
+import '../../providers/audio_engine/foreground_audio_engine_provider.dart';
 import '../../services/app_logger.dart';
 import '../../services/dictionary_service.dart';
 import '../../services/study_time_service.dart';
@@ -198,6 +199,9 @@ class FlashcardNotifier extends _$FlashcardNotifier {
   /// 初始化 Flashcard 会话
   Future<void> initialize(List<FlashcardItem> items) async {
     final sw = Stopwatch()..start();
+    // 收藏词复习用前台引擎、不上锁屏：进任务停掉媒体引擎，清除 Free Player 等残留的
+    // 锁屏/通知栏卡片（非idle→idle → stopService）。见 ADR-7。
+    unawaited(ref.read(audioEngineProvider.notifier).stop());
     _engine.dispose();
 
     // 加载持久化设置
@@ -488,9 +492,11 @@ class FlashcardNotifier extends _$FlashcardNotifier {
   }
 
   /// App 切到后台
+  ///
+  /// 仅暂停学习计时；不再中断流程——例句/短语音频段由静音保活在后台继续播放并经锁屏
+  /// 控制（仅音频部分接入后台，单词 TTS 后台可能不发声）。前台行为不变。
   void onAppBackgrounded() {
     _studyStopwatch.stop();
-    _engine.enterWaitingForUser(FlashcardWaitingReason.appBackgrounded);
   }
 
   /// 切换当前卡片的收藏状态（不影响 phase）
@@ -623,6 +629,8 @@ class FlashcardNotifier extends _$FlashcardNotifier {
       isShowingBack: engineState.isShowingBack,
       isSentencePlaying: engineState.isSentencePlaying,
     );
+
+    // 收藏词复习改用前台引擎、不进后台、不上锁屏（用户 2026-06-27 确认，见 ADR-7）。
   }
 
   /// 构建引擎回调
@@ -737,8 +745,8 @@ class FlashcardNotifier extends _$FlashcardNotifier {
     }
 
     try {
-      final engine = ref.read(audioEngineProvider.notifier);
-      final engineState = ref.read(audioEngineProvider);
+      final engine = ref.read(foregroundAudioEngineProvider.notifier);
+      final engineState = ref.read(foregroundAudioEngineProvider);
 
       final dao = ref.read(audioItemDaoProvider);
       final row = await dao.getById(item.audioItemId!);
@@ -850,8 +858,8 @@ class FlashcardNotifier extends _$FlashcardNotifier {
     }
 
     try {
-      final engine = ref.read(audioEngineProvider.notifier);
-      final engineState = ref.read(audioEngineProvider);
+      final engine = ref.read(foregroundAudioEngineProvider.notifier);
+      final engineState = ref.read(foregroundAudioEngineProvider);
 
       final dao = ref.read(audioItemDaoProvider);
       final row = await dao.getById(phrase.audioItemId!);
@@ -912,13 +920,13 @@ class FlashcardNotifier extends _$FlashcardNotifier {
   /// 停止所有播放（TTS + 音频引擎）
   Future<void> _stopAllPlayback() async {
     await TtsService.instance.stop();
-    await ref.read(audioEngineProvider.notifier).stop();
+    await ref.read(foregroundAudioEngineProvider.notifier).stop();
   }
 
   /// 开始监听 AudioEngine playerState，追踪输入时间
   void _startInputTimeTracking() {
     _inputTimePlayerStateSub?.cancel();
-    final engine = ref.read(audioEngineProvider.notifier);
+    final engine = ref.read(foregroundAudioEngineProvider.notifier);
     _inputTimePlayerStateSub = engine.playerStateStream.listen((playerState) {
       if (playerState.playing) {
         if (!_inputStopwatch.isRunning) _inputStopwatch.start();

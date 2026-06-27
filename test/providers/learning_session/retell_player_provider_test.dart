@@ -11,15 +11,16 @@ import 'package:echo_loop/models/intensive_listen_settings.dart'
 import 'package:echo_loop/models/learning_progress.dart';
 import 'package:echo_loop/models/retell_settings.dart';
 import 'package:echo_loop/models/sentence.dart';
-import 'package:echo_loop/providers/audio_engine/audio_engine_provider.dart';
+import 'package:echo_loop/providers/audio_engine/foreground_audio_engine_provider.dart';
 import 'package:echo_loop/providers/learning_progress_provider.dart';
+import 'package:echo_loop/providers/settings_provider.dart';
 import 'package:echo_loop/providers/learning_session/learning_session_provider.dart';
 import 'package:echo_loop/providers/learning_session/retell_player_provider.dart';
 
 import '../../helpers/mock_providers.dart';
 
 /// 可控测试引擎：用于验证 stopPlayback 与下一次 playRangeOnce 的时序。
-class SequencedTestAudioEngine extends AudioEngine {
+class SequencedTestAudioEngine extends ForegroundAudioEngine {
   final Completer<void> _stopCompleter = Completer<void>();
   int _sessionId = 0;
 
@@ -64,8 +65,9 @@ class SequencedTestAudioEngine extends AudioEngine {
   Future<void> playRangeOnce(
     Duration start,
     Duration end,
-    int sessionId,
-  ) async {
+    int sessionId, {
+    void Function()? onClipReady,
+  }) async {
     playRangeOnceCallCount += 1;
     if (!_stopCompleter.isCompleted) {
       playCalledBeforeStopCompleted = true;
@@ -143,7 +145,7 @@ class _PassiveLearningSession extends TestLearningSession {
 /// 用于复现“倒计时中切段”问题：
 /// - 段落播放立即完成，进入复述倒计时
 /// - stopPlayback 延迟完成，给已取消倒计时的过期回调制造竞态窗口
-class CountdownNavigationTestAudioEngine extends AudioEngine {
+class CountdownNavigationTestAudioEngine extends ForegroundAudioEngine {
   final Completer<void> _stopCompleter = Completer<void>();
   int _sessionId = 0;
 
@@ -175,8 +177,9 @@ class CountdownNavigationTestAudioEngine extends AudioEngine {
   Future<void> playRangeOnce(
     Duration start,
     Duration end,
-    int sessionId,
-  ) async {}
+    int sessionId, {
+    void Function()? onClipReady,
+  }) async {}
 
   @override
   Future<void> setSpeed(double speed) async {}
@@ -194,7 +197,7 @@ class CountdownNavigationTestAudioEngine extends AudioEngine {
 }
 
 /// playRange 立刻返回并失效 session，避免 RetellPlayer 自动进入 retelling phase。
-class _SeekTestAudioEngine extends AudioEngine {
+class _SeekTestAudioEngine extends ForegroundAudioEngine {
   int _sessionId = 0;
   Duration? lastPlayStart;
 
@@ -226,8 +229,9 @@ class _SeekTestAudioEngine extends AudioEngine {
   Future<void> playRangeOnce(
     Duration start,
     Duration end,
-    int sessionId,
-  ) async {
+    int sessionId, {
+    void Function()? onClipReady,
+  }) async {
     lastPlayStart = start;
     // 立刻失效 session：RetellPlayer 进入 sessionStillActive=false 的 return 分支，
     // 不会自动推进到 retelling phase，state 停在 listening。
@@ -241,7 +245,7 @@ class _SeekTestAudioEngine extends AudioEngine {
   Future<void> stopPlayback() async {}
 }
 
-class DelayedRetellTestAudioEngine extends AudioEngine {
+class DelayedRetellTestAudioEngine extends ForegroundAudioEngine {
   int _sessionId = 0;
 
   @override
@@ -272,8 +276,9 @@ class DelayedRetellTestAudioEngine extends AudioEngine {
   Future<void> playRangeOnce(
     Duration start,
     Duration end,
-    int sessionId,
-  ) async {
+    int sessionId, {
+    void Function()? onClipReady,
+  }) async {
     if (!isActiveSession(sessionId)) return;
     await Future<void>.delayed(const Duration(milliseconds: 20));
   }
@@ -283,6 +288,76 @@ class DelayedRetellTestAudioEngine extends AudioEngine {
 
   @override
   Future<void> stopPlayback() async {}
+}
+
+/// 位置流驱动测试引擎：`playRangeOnce` 在 `onClipReady` 时通知调用方订阅位置流，
+/// 随后挂起（保持 session 活跃 / listening 阶段），由测试用 [emitPosition] 手动推位置。
+/// 用于验证「clip 落定前后的陈旧/越界 position 被丢弃」。
+class PositionDrivenTestAudioEngine extends ForegroundAudioEngine {
+  int _sessionId = 0;
+  final StreamController<Duration> _posController =
+      StreamController<Duration>.broadcast();
+  final Completer<void> _playGate = Completer<void>();
+  Duration? lastPlayStart;
+
+  @override
+  AudioEngineState build() => const AudioEngineState();
+
+  @override
+  Stream<Duration> get absolutePositionStream => _posController.stream;
+
+  @override
+  Stream<ja.PlayerState> get playerStateStream => const Stream.empty();
+
+  @override
+  bool get isPlaying => true;
+
+  @override
+  Duration get currentPosition => Duration.zero;
+
+  @override
+  int newSession() {
+    _sessionId += 1;
+    return _sessionId;
+  }
+
+  @override
+  bool isActiveSession(int id) => id == _sessionId;
+
+  @override
+  Future<void> setSpeed(double speed) async {}
+
+  @override
+  Future<void> stopPlayback() async {}
+
+  @override
+  Future<void> playRangeOnce(
+    Duration start,
+    Duration end,
+    int sessionId, {
+    void Function()? onClipReady,
+  }) async {
+    lastPlayStart = start;
+    onClipReady?.call(); // 模拟 clip+seek(0) 落定后通知调用方订阅
+    await _playGate.future; // 挂住，保持 session 活跃 / listening 阶段
+  }
+
+  /// 推一个位置事件并让监听器有机会处理。
+  Future<void> emitPosition(Duration position) async {
+    _posController.add(position);
+    await Future<void>.delayed(Duration.zero);
+  }
+
+  /// 使当前 session 失效——放行 gate 后 `_playCurrentParagraph` 走
+  /// `sessionStillActive == false` 的 early return，不再触发后续阶段逻辑。
+  void invalidateSession() {
+    _sessionId += 1;
+  }
+
+  void release() {
+    if (!_playGate.isCompleted) _playGate.complete();
+    if (!_posController.isClosed) _posController.close();
+  }
 }
 
 void main() {
@@ -313,7 +388,7 @@ void main() {
       engine = SequencedTestAudioEngine();
       container = ProviderContainer(
         overrides: [
-          audioEngineProvider.overrideWith(() => engine),
+          foregroundAudioEngineProvider.overrideWith(() => engine),
           learningSessionProvider.overrideWith(TestLearningSession.new),
           analyticsOverride(),
           ...learningSettingsOverrides(),
@@ -363,7 +438,7 @@ void main() {
     test('等待态挂起时，当前段播完后进入 waiting for user', () async {
       final delayedContainer = ProviderContainer(
         overrides: [
-          audioEngineProvider.overrideWith(
+          foregroundAudioEngineProvider.overrideWith(
             () => DelayedRetellTestAudioEngine(),
           ),
           learningSessionProvider.overrideWith(TestLearningSession.new),
@@ -405,7 +480,9 @@ void main() {
     test('无限重复时完成一遍后继续当前段', () async {
       final container = ProviderContainer(
         overrides: [
-          audioEngineProvider.overrideWith(() => SequencedTestAudioEngine()),
+          foregroundAudioEngineProvider.overrideWith(
+            () => SequencedTestAudioEngine(),
+          ),
           learningSessionProvider.overrideWith(_PassiveLearningSession.new),
           analyticsOverride(),
           ...learningSettingsOverrides(),
@@ -448,7 +525,9 @@ void main() {
       );
       final saveContainer = ProviderContainer(
         overrides: [
-          audioEngineProvider.overrideWith(() => SequencedTestAudioEngine()),
+          foregroundAudioEngineProvider.overrideWith(
+            () => SequencedTestAudioEngine(),
+          ),
           learningSessionProvider.overrideWith(
             () => TestLearningSession(
               const LearningSessionState(
@@ -499,7 +578,9 @@ void main() {
       );
       final saveContainer = ProviderContainer(
         overrides: [
-          audioEngineProvider.overrideWith(() => SequencedTestAudioEngine()),
+          foregroundAudioEngineProvider.overrideWith(
+            () => SequencedTestAudioEngine(),
+          ),
           learningSessionProvider.overrideWith(
             () => TestLearningSession(
               const LearningSessionState(
@@ -535,11 +616,105 @@ void main() {
       expect(progressNotifier.savedIndices, contains(5));
     });
 
+    test('打开段落：clip 落定后吐出的越界陈旧 position 被丢弃，不改高亮、不污染断点', () async {
+      final progressNotifier = _RecordingLearningProgressNotifier(
+        LearningProgressState(
+          progressMap: {
+            'audio-1': LearningProgress(
+              audioItemId: 'audio-1',
+              currentStage: LearningStage.firstLearn,
+              currentSubStage: SubStageType.retell,
+              updatedAt: DateTime(2026, 3, 11),
+            ),
+          },
+        ),
+      );
+      final posEngine = PositionDrivenTestAudioEngine();
+      final posContainer = ProviderContainer(
+        overrides: [
+          foregroundAudioEngineProvider.overrideWith(() => posEngine),
+          learningSessionProvider.overrideWith(
+            () => TestLearningSession(
+              const LearningSessionState(
+                learningMode: LearningMode.retell,
+                audioItemId: 'audio-1',
+              ),
+            ),
+          ),
+          learningProgressNotifierProvider.overrideWith(() => progressNotifier),
+          // 静音跳过会读 appSettingsProvider；用测试实现避免触发 SharedPreferences 加载
+          appSettingsProvider.overrideWith(() => TestAppSettings()),
+          analyticsOverride(),
+          ...learningSettingsOverrides(),
+          ...studyTimeOverrides(),
+        ],
+      );
+      addTearDown(() {
+        posEngine.release();
+        posContainer.dispose();
+      });
+
+      final posNotifier = posContainer.read(retellPlayerProvider.notifier);
+      // 单段、起点在音频中部（30s 起）、时长 12s（>10s 触发断点偏移）
+      final para = [
+        Sentence(
+          index: 0,
+          text: 's0',
+          startTime: const Duration(seconds: 30),
+          endTime: const Duration(seconds: 33),
+        ),
+        Sentence(
+          index: 1,
+          text: 's1',
+          startTime: const Duration(seconds: 33),
+          endTime: const Duration(seconds: 36),
+        ),
+        Sentence(
+          index: 2,
+          text: 's2',
+          startTime: const Duration(seconds: 36),
+          endTime: const Duration(seconds: 39),
+        ),
+        Sentence(
+          index: 3,
+          text: 's3',
+          startTime: const Duration(seconds: 39),
+          endTime: const Duration(seconds: 42),
+        ),
+      ];
+      // 断点恢复到第 3 句（全局 index 2）
+      posNotifier.initialize([para], startSentenceIndex: 2);
+
+      final playing = posNotifier.startPlaying(); // 挂在 playGate，session 保持活跃
+      await Future<void>.delayed(Duration.zero);
+
+      // 起播即从断点句（local 2）开始，并持久化 index 2
+      expect(posContainer.read(retellPlayerProvider).playingSentenceIndex, 2);
+      expect(posEngine.lastPlayStart, const Duration(seconds: 36));
+      expect(progressNotifier.savedIndices, [2]);
+
+      // 模拟「player 在 0」吐出的陈旧越界 position（< 本段首句 30s）
+      await posEngine.emitPosition(Duration.zero);
+      // 高亮不变、未追加持久化（断点没被覆盖成首句）
+      expect(posContainer.read(retellPlayerProvider).playingSentenceIndex, 2);
+      expect(progressNotifier.savedIndices, [2]);
+
+      // 段内 position（落在第 4 句 39-42s）正常推进高亮 + 持久化
+      await posEngine.emitPosition(const Duration(seconds: 40));
+      expect(posContainer.read(retellPlayerProvider).playingSentenceIndex, 3);
+      expect(progressNotifier.savedIndices, [2, 3]);
+
+      // 收尾：失效 session 后放行，让 startPlaying 干净返回
+      posEngine.invalidateSession();
+      posEngine.release();
+      await playing;
+    });
+
     test('复述倒计时中点击上一段会正确进入上一段，不会停留在当前段', () async {
       final countdownEngine = CountdownNavigationTestAudioEngine();
       final countdownContainer = ProviderContainer(
         overrides: [
-          audioEngineProvider.overrideWith(() => countdownEngine),
+          foregroundAudioEngineProvider.overrideWith(() => countdownEngine),
           learningSessionProvider.overrideWith(
             () => _PassiveLearningSession(
               const LearningSessionState(
@@ -620,7 +795,7 @@ void main() {
         final countdownEngine = CountdownNavigationTestAudioEngine();
         final testContainer = ProviderContainer(
           overrides: [
-            audioEngineProvider.overrideWith(() => countdownEngine),
+            foregroundAudioEngineProvider.overrideWith(() => countdownEngine),
             learningSessionProvider.overrideWith(
               () => _PassiveLearningSession(
                 const LearningSessionState(
@@ -698,7 +873,7 @@ void main() {
       final countdownEngine = CountdownNavigationTestAudioEngine();
       final testContainer = ProviderContainer(
         overrides: [
-          audioEngineProvider.overrideWith(() => countdownEngine),
+          foregroundAudioEngineProvider.overrideWith(() => countdownEngine),
           learningSessionProvider.overrideWith(
             () => _PassiveLearningSession(
               const LearningSessionState(
@@ -752,7 +927,7 @@ void main() {
       final countdownEngine = CountdownNavigationTestAudioEngine();
       final countdownContainer = ProviderContainer(
         overrides: [
-          audioEngineProvider.overrideWith(() => countdownEngine),
+          foregroundAudioEngineProvider.overrideWith(() => countdownEngine),
           learningSessionProvider.overrideWith(
             () => _PassiveLearningSession(
               const LearningSessionState(
@@ -861,7 +1036,7 @@ void main() {
     test('同段 seek 保留 displayMode（如用户已切 showAll）', () async {
       final container = ProviderContainer(
         overrides: [
-          audioEngineProvider.overrideWith(_SeekTestAudioEngine.new),
+          foregroundAudioEngineProvider.overrideWith(_SeekTestAudioEngine.new),
           learningSessionProvider.overrideWith(
             () => _PassiveLearningSession(
               const LearningSessionState(
@@ -901,7 +1076,7 @@ void main() {
     test('跨段 seek 重置 displayMode 和 userOverrodeDisplayMode', () async {
       final container = ProviderContainer(
         overrides: [
-          audioEngineProvider.overrideWith(_SeekTestAudioEngine.new),
+          foregroundAudioEngineProvider.overrideWith(_SeekTestAudioEngine.new),
           learningSessionProvider.overrideWith(
             () => _PassiveLearningSession(
               const LearningSessionState(
@@ -939,10 +1114,56 @@ void main() {
       expect(state.userOverrodeDisplayMode, false);
     });
 
+    test('seekToParagraph 跳到目标段首句，越界则不动', () async {
+      final container = ProviderContainer(
+        overrides: [
+          foregroundAudioEngineProvider.overrideWith(_SeekTestAudioEngine.new),
+          learningSessionProvider.overrideWith(
+            () => _PassiveLearningSession(
+              const LearningSessionState(
+                learningMode: LearningMode.retell,
+                audioItemId: 'audio-1',
+              ),
+            ),
+          ),
+          learningProgressNotifierProvider.overrideWith(
+            _InMemoryLearningProgressNotifier.new,
+          ),
+          analyticsOverride(),
+          ...learningSettingsOverrides(),
+          ...studyTimeOverrides(),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      final notifier = container.read(retellPlayerProvider.notifier);
+      final paragraphs = buildParagraphs(
+        paragraphCount: 3,
+        sentencesPerParagraph: 4,
+      );
+      notifier.initialize(paragraphs);
+
+      // 跳到第 3 段（index=2）→ 落在该段，listening phase
+      await notifier.seekToParagraph(2);
+      await Future<void>.delayed(const Duration(milliseconds: 30));
+      expect(container.read(retellPlayerProvider).currentParagraphIndex, 2);
+      expect(container.read(retellPlayerProvider).phase, RetellPhase.listening);
+
+      // 越界（>= 段数）不改变当前段
+      await notifier.seekToParagraph(5);
+      await Future<void>.delayed(const Duration(milliseconds: 30));
+      expect(container.read(retellPlayerProvider).currentParagraphIndex, 2);
+
+      // 负索引不改变当前段
+      await notifier.seekToParagraph(-1);
+      await Future<void>.delayed(const Duration(milliseconds: 30));
+      expect(container.read(retellPlayerProvider).currentParagraphIndex, 2);
+    });
+
     test('retelling phase 中 seek 强制切回 listening + 清等待态', () async {
       final container = ProviderContainer(
         overrides: [
-          audioEngineProvider.overrideWith(_SeekTestAudioEngine.new),
+          foregroundAudioEngineProvider.overrideWith(_SeekTestAudioEngine.new),
           learningSessionProvider.overrideWith(
             () => _PassiveLearningSession(
               const LearningSessionState(
@@ -1017,7 +1238,7 @@ void main() {
     test('pause → goToNextParagraph 下一段从段首开播（不污染）', () async {
       final container = ProviderContainer(
         overrides: [
-          audioEngineProvider.overrideWith(_SeekTestAudioEngine.new),
+          foregroundAudioEngineProvider.overrideWith(_SeekTestAudioEngine.new),
           learningSessionProvider.overrideWith(
             () => _PassiveLearningSession(
               const LearningSessionState(
