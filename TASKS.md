@@ -1,7 +1,29 @@
 # Echo Loop 任务清单
 
-> 最后更新：2026-06-30（收藏词汇页 TTS 预热）
+> 最后更新：2026-06-30（修复 TTS 音色重播播放态）
 > 当前焦点：Android 结束录音闪退（离线 ASR / Silero VAD）——**仍未解决**
+
+## 已完成：修复 TTS 音色连续重播时小喇叭提前消失
+
+语音设置页点击某个音色试听时，第一次点击会显示小喇叭；同一音色再次点击重播时，小喇叭会在新播放仍进行中提前消失。根因是播放态只用 `speakingKey` 判断归属，同一 key 连续发起两次播放时，第一次请求完成后会误清第二次请求的 UI 状态。
+
+- [x] `tts_controller_provider.dart`：新增 `_speakingToken` 发音 UI 代际；`speak` / `previewVoice` / `previewPiperVoice` / `previewAccent` / `stop` 均递增或校验 token，旧请求完成时不能清掉新请求的小喇叭。
+- [x] 测试：`tts_controller_preview_test.dart` 补同一 `speakingKey` 连续发音回归，确认旧请求完成时第二次播放态仍保留；同时为该测试文件补 fake TTS cache DAO 与 fake cache path，避免依赖真实数据库。
+- [x] 验证：`flutter analyze lib/providers/tts/tts_controller_provider.dart test/providers/tts/tts_controller_preview_test.dart` 0 问题；`flutter test test/providers/tts/tts_controller_preview_test.dart` 16 passed。
+
+  **完成时间**: 2026-06-30
+
+## 已完成：修复 Echo Loop/Balanced TTS 回退系统语音与缓存串音
+
+iOS 上选中 Echo Loop Speech（Balanced/Piper 或 Advanced/Kokoro）后，部分发音仍播出 Apple 系统语音。根因有两层：① 控制器在本地模型未就绪时会把有效引擎降级为平台 TTS；② 协调器的 `speakWith`/`prewarm` 虽传入目标引擎与配置，但实际 `_ensureEngine` 仍按全局 desired 引擎建/复用，可能用平台引擎产物写入 Echo Loop/Piper 的 cache key。
+
+- [x] `tts_controller_provider.dart`：`effectiveTtsEngine` 改为始终尊重用户选择；选中 Echo Loop/Balanced 但模型未下载、下载中或失败时只后台触发下载，不再回退系统语音。配置保留本地引擎 `voiceName/modelTag`，确保后续合成进入正确缓存桶。
+- [x] `tts_coordinator.dart`：`_ensureEngine` 改为接收本次目标 `kind/config`；`speakWith`、`prewarm`、`prewarmCurrent` 与普通 `speak` 均用本次真实目标引擎合成，避免 cache key 与实际合成引擎不一致。补齐 in-flight 构建后目标引擎不一致时的重新检查。
+- [x] 测试：更新门控测试覆盖 Echo Loop/Piper 未就绪不回退平台；新增协调器回归，覆盖当前为平台引擎时显式 Echo Loop/Piper 试听/预热会切到目标本地引擎并按目标引擎入库。
+- [x] 验证：`flutter analyze` 改动文件 0 问题；`flutter test test/providers/tts/tts_controller_gating_test.dart test/services/tts/tts_coordinator_test.dart` 33 passed。
+- [x] 注：本次按用户选择不做旧 TTS 缓存自动失效；已污染缓存可能仍需用户手动清缓存或等待过期。
+
+  **完成时间**: 2026-06-30
 
 ## 已完成：统一 Free Player / 全文盲听停顿期上一键语义
 

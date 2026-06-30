@@ -134,7 +134,7 @@ class TtsCoordinator {
     _desiredConfig = config;
     if (_engine != null) {
       try {
-        await _ensureEngine();
+        await _ensureEngine(kind, config);
       } catch (e) {
         AppLogger.log('TtsCoordinator', 'configure 热更新失败: $e');
       }
@@ -145,16 +145,18 @@ class TtsCoordinator {
   ///
   /// 构建/重建走 [_ensuring] in-flight 守卫：并发调用复用同一次构建，杜绝
   /// `_engine==null` 窗口内重复 `_factory`+`initialize`（重复 worker isolate 泄漏）。
-  Future<TtsEngine?> _ensureEngine() async {
-    final kind = _desiredKind;
-    final config = _desiredConfig;
-    if (kind == null || config == null) return null;
-
+  Future<TtsEngine?> _ensureEngine(
+    TtsEngineKind kind,
+    TtsSpeechConfig config,
+  ) async {
     if (_engine == null || _engineKind != kind) {
       // 已有在途构建：等它完成后按需热更新配置再返回。
       final inFlight = _ensuring;
       if (inFlight != null) {
         await inFlight;
+        if (_engine == null || _engineKind != kind) {
+          return _ensureEngine(kind, config);
+        }
       } else {
         final future = _buildEngine(kind, config);
         _ensuring = future;
@@ -243,7 +245,7 @@ class TtsCoordinator {
   }) async {
     if (text.trim().isEmpty) return null;
     final swEnsure = Stopwatch()..start();
-    final engine = await _ensureEngine();
+    final engine = await _ensureEngine(kind, config);
     swEnsure.stop();
     if (engine == null) return null;
 
@@ -344,7 +346,7 @@ class TtsCoordinator {
   }) async {
     if (text.trim().isEmpty) return false;
     // 先确保引擎就绪（与渲染共用一次构建），再抢占。
-    final engine = await _ensureEngine();
+    final engine = await _ensureEngine(kind, config);
     if (engine == null) return false;
 
     // 抢占语义只作用于**播放**：递增代际，并立即停止上一段播放（player.stop 只动

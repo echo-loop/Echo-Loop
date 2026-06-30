@@ -1,7 +1,17 @@
+import 'dart:async';
+import 'dart:io';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+// ignore: depend_on_referenced_packages
+import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
+// ignore: depend_on_referenced_packages
+import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:echo_loop/database/app_database.dart' show TtsCacheData;
+import 'package:echo_loop/database/daos/tts_cache_dao.dart';
+import 'package:echo_loop/database/providers.dart';
 import 'package:echo_loop/providers/tts/kokoro_model_provider.dart';
 import 'package:echo_loop/providers/tts/piper_model_provider.dart';
 import 'package:echo_loop/providers/tts/tts_controller_provider.dart';
@@ -65,6 +75,52 @@ class _NoopEngine implements TtsEngine {
   Future<void> dispose() async {}
 }
 
+class _GateEngine implements TtsEngine {
+  final List<Completer<void>> gates = [];
+
+  @override
+  Future<void> initialize() async {}
+  @override
+  Future<void> applyConfig(TtsSpeechConfig config) async {}
+  @override
+  Future<TtsSynthesisResult?> synthesize(
+    String text, {
+    required String outputDir,
+    required String baseName,
+    TtsSpeechConfig? config,
+  }) async {
+    final gate = Completer<void>();
+    gates.add(gate);
+    await gate.future;
+    return null;
+  }
+
+  @override
+  Future<bool> speakLive(String text) async => false;
+  @override
+  Future<void> stop() async {}
+  @override
+  Future<void> dispose() async {}
+}
+
+class _FakeTtsCacheDao implements TtsCacheDao {
+  @override
+  Future<TtsCacheData?> getByKey(String cacheKey, {Duration? slideTtl}) async =>
+      null;
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => Future<void>.value();
+}
+
+class _FakePathProvider extends PathProviderPlatform
+    with MockPlatformInterfaceMixin {
+  _FakePathProvider(this.rootPath);
+  final String rootPath;
+
+  @override
+  Future<String?> getApplicationCachePath() async => rootPath;
+}
+
 KokoroModelsState _ready() => const KokoroModelsState({
   KokoroModelVariant.fp32: KokoroModelState(
     downloadStatus: AsrModelDownloadStatus.downloaded,
@@ -74,6 +130,19 @@ KokoroModelsState _ready() => const KokoroModelsState({
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+
+  late _FakeTtsCacheDao dao;
+  late Directory tmpDir;
+
+  setUp(() {
+    dao = _FakeTtsCacheDao();
+    tmpDir = Directory.systemTemp.createTempSync('tts_preview_test');
+    PathProviderPlatform.instance = _FakePathProvider(tmpDir.path);
+  });
+
+  tearDown(() {
+    if (tmpDir.existsSync()) tmpDir.deleteSync(recursive: true);
+  });
 
   ProviderContainer makeContainer({
     required TtsSettings settings,
@@ -89,6 +158,7 @@ void main() {
           () => _FixedPiperNotifier(piperModels ?? PiperModelsState.initial()),
         ),
         ttsEngineFactoryProvider.overrideWithValue(factory.make),
+        ttsCacheDaoProvider.overrideWithValue(dao),
       ],
     );
   }
@@ -123,6 +193,49 @@ void main() {
 
       await future;
       // 未被抢占 → 完成后复位。
+      expect(c.read(ttsControllerProvider).speakingKey, isNull);
+    });
+
+    test('同一 speakingKey 连续发音时，旧请求完成不清掉新请求的小喇叭', () async {
+      SharedPreferences.setMockInitialValues({});
+      final engine = _GateEngine();
+      final c = ProviderContainer(
+        overrides: [
+          initialTtsSettingsProvider.overrideWithValue(
+            const TtsSettings(engine: TtsEngineKind.echoLoop),
+          ),
+          kokoroModelProvider.overrideWith(
+            () => _FixedKokoroNotifier(_ready()),
+          ),
+          piperModelProvider.overrideWith(
+            () => _FixedPiperNotifier(PiperModelsState.initial()),
+          ),
+          ttsEngineFactoryProvider.overrideWithValue((_) => engine),
+          ttsCacheDaoProvider.overrideWithValue(dao),
+        ],
+      );
+      addTearDown(c.dispose);
+
+      final notifier = c.read(ttsControllerProvider.notifier);
+      await Future<void>(() {}); // 等首次 configure 落定
+      final first = notifier.speak('first text', key: 'same_voice');
+      await pumpEventQueue();
+      expect(engine.gates, hasLength(1));
+
+      final second = notifier.speak('second text', key: 'same_voice');
+      await pumpEventQueue();
+      // 第二个用户发音已抢占 UI 状态，但合成任务要等第一个释放后才入队执行。
+      expect(engine.gates, hasLength(1));
+      expect(c.read(ttsControllerProvider).speakingKey, 'same_voice');
+
+      engine.gates[0].complete();
+      await pumpEventQueue();
+      expect(engine.gates, hasLength(2));
+      await first;
+      expect(c.read(ttsControllerProvider).speakingKey, 'same_voice');
+
+      engine.gates[1].complete();
+      await second;
       expect(c.read(ttsControllerProvider).speakingKey, isNull);
     });
   });

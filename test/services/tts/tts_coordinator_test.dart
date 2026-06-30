@@ -17,6 +17,24 @@ class MockTtsPlayer extends Mock implements TtsPlayer {}
 
 const _config = TtsSpeechConfig(languageTag: 'en-US');
 
+void _stubEngine(MockTtsEngine engine, {String filePath = '/tmp/out.wav'}) {
+  when(() => engine.initialize()).thenAnswer((_) async {});
+  when(() => engine.applyConfig(any())).thenAnswer((_) async {});
+  when(() => engine.stop()).thenAnswer((_) async {});
+  when(() => engine.dispose()).thenAnswer((_) async {});
+  when(() => engine.speakLive(any())).thenAnswer((_) async => true);
+  when(
+    () => engine.synthesize(
+      any(),
+      outputDir: any(named: 'outputDir'),
+      baseName: any(named: 'baseName'),
+      config: any(named: 'config'),
+    ),
+  ).thenAnswer(
+    (_) async => TtsSynthesisResult(filePath: filePath, format: 'wav'),
+  );
+}
+
 void main() {
   setUpAll(() {
     registerFallbackValue(_config);
@@ -330,6 +348,44 @@ void main() {
       verify(() => player.playFileToEnd('/tmp/out.wav')).called(1);
     });
 
+    test('当前为平台引擎时，speakWith Echo Loop 会切到 Echo Loop 引擎合成', () async {
+      final platformEngine = MockTtsEngine();
+      final echoEngine = MockTtsEngine();
+      _stubEngine(platformEngine, filePath: '/tmp/platform.wav');
+      _stubEngine(echoEngine, filePath: '/tmp/echo.wav');
+      final c = TtsCoordinator(
+        factory: (kind) =>
+            kind == TtsEngineKind.platform ? platformEngine : echoEngine,
+        cacheStore: store,
+        player: player,
+      );
+
+      await c.configure(TtsEngineKind.platform, _config);
+      await c.speak('platform-first');
+      clearInteractions(player);
+
+      final ok = await c.speakWith('hi', TtsEngineKind.echoLoop, previewConfig);
+
+      expect(ok, isTrue);
+      verify(
+        () => echoEngine.synthesize(
+          'hi',
+          outputDir: any(named: 'outputDir'),
+          baseName: any(named: 'baseName'),
+          config: previewConfig,
+        ),
+      ).called(1);
+      verifyNever(
+        () => platformEngine.synthesize(
+          'hi',
+          outputDir: any(named: 'outputDir'),
+          baseName: any(named: 'baseName'),
+          config: any(named: 'config'),
+        ),
+      );
+      verify(() => player.playFileToEnd('/tmp/echo.wav')).called(1);
+    });
+
     test('合成期间被新发音抢占 → 不播放', () async {
       final synthStarted = Completer<void>();
       final release = Completer<void>();
@@ -382,6 +438,58 @@ void main() {
           engine: TtsEngineKind.echoLoop,
           voiceId: any(named: 'voiceId'),
           languageCode: any(named: 'languageCode'),
+          speed: any(named: 'speed'),
+          result: any(named: 'result'),
+        ),
+      ).called(1);
+      verifyNever(() => player.playFileToEnd(any()));
+    });
+
+    test('当前为平台引擎时，prewarm Piper 会切到 Piper 引擎合成入库', () async {
+      const piperConfig = TtsSpeechConfig(
+        languageTag: 'en-US',
+        voiceName: 'piper_kristin',
+      );
+      final platformEngine = MockTtsEngine();
+      final piperEngine = MockTtsEngine();
+      _stubEngine(platformEngine, filePath: '/tmp/platform.wav');
+      _stubEngine(piperEngine, filePath: '/tmp/piper.wav');
+      final c = TtsCoordinator(
+        factory: (kind) =>
+            kind == TtsEngineKind.platform ? platformEngine : piperEngine,
+        cacheStore: store,
+        player: player,
+      );
+
+      await c.configure(TtsEngineKind.platform, _config);
+      await c.speak('platform-first');
+      clearInteractions(player);
+
+      await c.prewarm('hello', TtsEngineKind.piper, piperConfig);
+
+      verify(
+        () => piperEngine.synthesize(
+          'hello',
+          outputDir: any(named: 'outputDir'),
+          baseName: any(named: 'baseName'),
+          config: piperConfig,
+        ),
+      ).called(1);
+      verifyNever(
+        () => platformEngine.synthesize(
+          'hello',
+          outputDir: any(named: 'outputDir'),
+          baseName: any(named: 'baseName'),
+          config: any(named: 'config'),
+        ),
+      );
+      verify(
+        () => store.store(
+          cacheKey: any(named: 'cacheKey'),
+          text: 'hello',
+          engine: TtsEngineKind.piper,
+          voiceId: 'piper_kristin',
+          languageCode: 'en-US',
           speed: any(named: 'speed'),
           result: any(named: 'result'),
         ),

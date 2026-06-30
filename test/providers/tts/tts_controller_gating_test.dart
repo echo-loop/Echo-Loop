@@ -46,14 +46,14 @@ void main() {
       );
     });
 
-    test('选 Echo Loop 但未就绪 → 降级平台', () {
+    test('选 Echo Loop 但未就绪 → 仍使用 Echo Loop，不回退平台', () {
       expect(
         effectiveTtsEngine(
           TtsEngineKind.echoLoop,
           kokoroReady: false,
           piperReady: true,
         ),
-        TtsEngineKind.platform,
+        TtsEngineKind.echoLoop,
       );
     });
 
@@ -68,14 +68,14 @@ void main() {
       );
     });
 
-    test('选 Piper 但未就绪 → 降级平台', () {
+    test('选 Piper 但未就绪 → 仍使用 Piper，不回退平台', () {
       expect(
         effectiveTtsEngine(
           TtsEngineKind.piper,
           kokoroReady: true,
           piperReady: false,
         ),
-        TtsEngineKind.platform,
+        TtsEngineKind.piper,
       );
     });
 

@@ -51,9 +51,8 @@ final ttsEngineFactoryProvider = Provider<TtsEngineFactory>((ref) {
         // 模型按音色惰性解析：合成时按传入的 voiceId 取对应音色管理器的路径，
         // worker 据 voiceId 决定是否重建 OfflineTts（换音色=换模型）。
         return PiperTtsEngine(
-          resolvePaths: (voiceId) => ref
-              .read(piperModelManagerProvider(voiceId))
-              .piperConfigPaths(),
+          resolvePaths: (voiceId) =>
+              ref.read(piperModelManagerProvider(voiceId)).piperConfigPaths(),
         );
     }
   };
@@ -96,19 +95,15 @@ TtsSpeechConfig ttsPiperVoicePreviewConfig(PiperVoice voice) {
   );
 }
 
-/// 计算有效引擎：选中的本地引擎（Echo Loop / Piper）模型未就绪时降级为平台 TTS，
-/// 就绪后才真正用所选引擎。其余情况按用户选择。
+/// 计算有效引擎：始终尊重用户选择。
+///
+/// 本地引擎模型未就绪时只触发下载，不回退系统语音。用户需要兜底时应主动选择
+/// 平台 TTS，避免选中 Echo Loop/Balanced 时听到 Apple/System 语音。
 TtsEngineKind effectiveTtsEngine(
   TtsEngineKind selected, {
   required bool kokoroReady,
   required bool piperReady,
 }) {
-  if (selected == TtsEngineKind.echoLoop && !kokoroReady) {
-    return TtsEngineKind.platform;
-  }
-  if (selected == TtsEngineKind.piper && !piperReady) {
-    return TtsEngineKind.platform;
-  }
   return selected;
 }
 
@@ -150,6 +145,10 @@ class TtsController extends Notifier<TtsControllerState> {
   /// 导致谁也跑不完。批次结束（正常/异常/取消）置回 null。
   String? _prewarmSignature;
 
+  /// 发音 UI 状态代际。仅比较 speakingKey 无法区分「同一音色连续重播」的新旧调用，
+  /// 旧调用完成时会误清掉新调用的小喇叭；每次发音/停止递增以精确归属复位权。
+  int _speakingToken = 0;
+
   @override
   TtsControllerState build() {
     // DAO 惰性解析：渲染发音按钮不连库，首次发音时才触碰数据库。
@@ -176,15 +175,14 @@ class TtsController extends Notifier<TtsControllerState> {
     return const TtsControllerState();
   }
 
-  /// 重算有效引擎：选中 Echo Loop 但模型未就绪时降级为平台 TTS（发音不中断），
-  /// 就绪后自动切回 Echo Loop。
+  /// 重算有效引擎：尊重用户选择；本地模型未就绪只后台触发下载，不回退平台 TTS。
   void _reconfigure() {
     final settings = ref.read(ttsSettingsProvider);
     final kokoroReady = ref.read(kokoroReadyProvider);
     final piperReady = ref.read(piperReadyProvider);
     // 后台自愈：选中本地引擎但模型未就绪（含 App 启动恢复、下载失败后）时，
-    // fire-and-forget 触发下载（幂等：下载中/已就绪自动跳过）。期间下方降级平台
-    // TTS 兜底，发音不中断；模型就绪后对应 ready provider 翻转触发本方法切回。
+    // fire-and-forget 触发下载（幂等：下载中/已就绪自动跳过）。发音仍保持用户
+    // 选择的本地引擎；失败则静默返回，不用系统语音兜底。
     if (settings.engine == TtsEngineKind.echoLoop && !kokoroReady) {
       unawaited(
         ref
@@ -219,7 +217,8 @@ class TtsController extends Notifier<TtsControllerState> {
       unawaited(_coordinator.invalidateEngine());
     }
     _lastPiperVoice = settings.activePiperVoice;
-    // 配置须匹配「有效引擎」：降级到平台时不带本地引擎的 voiceName/modelTag。
+    // 配置须匹配用户选中的有效引擎；本地引擎即使模型未就绪也保留 voiceName/modelTag，
+    // 使下载完成后的后续发音直接落入正确缓存桶。
     final config = TtsSpeechConfig(
       languageTag: settings.languageTag,
       voiceName: switch (effective) {
@@ -239,6 +238,7 @@ class TtsController extends Notifier<TtsControllerState> {
   /// fire-and-forget 调用方无需 await；连续调用由协调器打断重播。
   Future<void> speak(String text, {String? key}) async {
     final k = key ?? text;
+    final token = ++_speakingToken;
     state = TtsControllerState(speakingKey: k);
     try {
       final ok = await _coordinator.speak(text);
@@ -248,7 +248,7 @@ class TtsController extends Notifier<TtsControllerState> {
       AppLogger.log('TtsController', '✗ speak 异常: $e\n$st');
     }
     // 仅当未被新发音抢占时才复位（被抢占时 speakingKey 已变）。
-    if (state.speakingKey == k) {
+    if (token == _speakingToken && state.speakingKey == k) {
       state = const TtsControllerState();
     }
   }
@@ -261,6 +261,7 @@ class TtsController extends Notifier<TtsControllerState> {
     final variant = ref.read(ttsSettingsProvider).kokoroVariant;
     final config = ttsVoicePreviewConfig(voice, variant);
     final key = ttsVoicePreviewKey(voice.id);
+    final token = ++_speakingToken;
     state = TtsControllerState(speakingKey: key);
     try {
       await _coordinator.speakWith(
@@ -272,7 +273,7 @@ class TtsController extends Notifier<TtsControllerState> {
       AppLogger.log('TtsController', '✗ previewVoice 异常: $e\n$st');
     }
     // 仅当未被新发音抢占时才复位（被抢占时 speakingKey 已变）。
-    if (state.speakingKey == key) {
+    if (token == _speakingToken && state.speakingKey == key) {
       state = const TtsControllerState();
     }
   }
@@ -285,13 +286,18 @@ class TtsController extends Notifier<TtsControllerState> {
   Future<void> previewPiperVoice(PiperVoice voice) async {
     final config = ttsPiperVoicePreviewConfig(voice);
     final key = ttsVoicePreviewKey(voice.id);
+    final token = ++_speakingToken;
     state = TtsControllerState(speakingKey: key);
     try {
-      await _coordinator.speakWith(kTtsPreviewText, TtsEngineKind.piper, config);
+      await _coordinator.speakWith(
+        kTtsPreviewText,
+        TtsEngineKind.piper,
+        config,
+      );
     } catch (e, st) {
       AppLogger.log('TtsController', '✗ previewPiperVoice 异常: $e\n$st');
     }
-    if (state.speakingKey == key) {
+    if (token == _speakingToken && state.speakingKey == key) {
       state = const TtsControllerState();
     }
   }
@@ -306,6 +312,7 @@ class TtsController extends Notifier<TtsControllerState> {
       languageTag: accent == TtsAccent.uk ? 'en-GB' : 'en-US',
     );
     final key = ttsAccentPreviewKey(accent);
+    final token = ++_speakingToken;
     state = TtsControllerState(speakingKey: key);
     try {
       await _coordinator.speakWith(
@@ -317,7 +324,7 @@ class TtsController extends Notifier<TtsControllerState> {
       AppLogger.log('TtsController', '✗ previewAccent 异常: $e\n$st');
     }
     // 仅当未被新发音抢占时才复位（被抢占时 speakingKey 已变）。
-    if (state.speakingKey == key) {
+    if (token == _speakingToken && state.speakingKey == key) {
       state = const TtsControllerState();
     }
   }
@@ -489,7 +496,11 @@ class TtsController extends Notifier<TtsControllerState> {
       if (token != _prewarmToken) return; // 已被取消/重发
       final config = ttsPiperVoicePreviewConfig(voice);
       try {
-        await _coordinator.prewarm(kTtsPreviewText, TtsEngineKind.piper, config);
+        await _coordinator.prewarm(
+          kTtsPreviewText,
+          TtsEngineKind.piper,
+          config,
+        );
         AppLogger.log('TtsController', '预热完成 ($signature)');
       } catch (e, st) {
         AppLogger.log(
@@ -546,6 +557,7 @@ class TtsController extends Notifier<TtsControllerState> {
   /// 先停协调器（实际音频），再复位状态——即便复位时遇异常（如离开页面 dispose 期
   /// 的 provider 约束），也已确保音频被停掉，不会让试听例子继续播到尾。
   Future<void> stop() async {
+    _speakingToken++;
     await _coordinator.stop();
     state = const TtsControllerState();
   }
