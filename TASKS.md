@@ -1,7 +1,17 @@
 # Echo Loop 任务清单
 
-> 最后更新：2026-06-30（修复 TTS 音色重播播放态）
+> 最后更新：2026-07-02（词典弹窗打开即预热单词本身）
 > 当前焦点：Android 结束录音闪退（离线 ASR / Silero VAD）——**仍未解决**
+
+## 已完成：词典弹窗打开即预热单词本身
+
+打开词典弹窗时，TTS 预热唯一触发点是 AI 查询返回后的 `LookupLoaded`，而 AI 释义+例句一次性非流式返回需数秒——单词本身的预热被整个 AI 请求卡住，尽管单词（`_normalizedWord`）在弹窗打开瞬间就已知。批次内单词虽排首位（`dictionarySpeakableTexts` headword first），但批次本身启动太晚。
+
+- [x] `word_dictionary_sheet.dart`：新增 `initState`，弹窗打开即 `prewarmTexts([_normalizedWord])` 立即后台预热单词本身，与 AI 查询并行。AI 返回后 `ref.listen` 照旧预热完整批次（单词+例句），headword 首位经缓存/在途去重不重复合成。
+- [x] 测试：`word_dictionary_sheet_test.dart` 补「打开弹窗即以单词本身预热（不等 AI 查询返回）」，桩控制器录制 `prewarmTexts` 入参、断言首次调用为 `[normalizedWord]`。
+- [x] 验证：`flutter analyze` 改动文件 0 问题；`flutter test test/widgets/word_dictionary_sheet_test.dart test/providers/tts/tts_controller_dict_prewarm_test.dart` 17 passed。
+
+  **完成时间**: 2026-07-02
 
 ## 已完成：修复 TTS 音色连续重播时小喇叭提前消失
 

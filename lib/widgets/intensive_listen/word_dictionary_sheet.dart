@@ -138,6 +138,15 @@ class _WordDictionarySheetState extends ConsumerState<WordDictionarySheet> {
   double get _defaultSheetHeight => MediaQuery.sizeOf(context).height * 2 / 3;
 
   @override
+  void initState() {
+    super.initState();
+    // 单词本身在弹窗打开时即已知，立即后台预热，不必等 AI 查询返回。
+    // 标题行 SpeakButton 加载前发的就是 _normalizedWord；AI 返回后
+    // prewarmTexts 的完整批次会把 headword 排首位，命中缓存/在途去重不重复合成。
+    ref.read(ttsControllerProvider.notifier).prewarmTexts([_normalizedWord]);
+  }
+
+  @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     final anim = ModalRoute.of(context)?.animation;

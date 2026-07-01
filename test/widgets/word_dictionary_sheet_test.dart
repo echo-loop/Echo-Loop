@@ -22,6 +22,10 @@ import '../helpers/mock_providers.dart';
 /// 词典设置读取的 SharedPreferences（在 setUp 注入），供 [_buildTestPage] override
 late SharedPreferences _prefs;
 
+/// 记录桩控制器每次 [TtsController.prewarmTexts] 的入参（在 setUp 清空），
+/// 供断言「打开弹窗即以单词本身预热」。
+final List<List<String>> _prewarmCalls = [];
+
 /// 桩 [TtsController]：弹窗内嵌发音按钮、查词完成会自动触发例句预热，
 /// 真实控制器会经平台 TTS 引擎/method channel 异步合成，在 widget 测试中
 /// 永不完成而拖住 pumpAndSettle（并发跑时确定性挂起）。这里把预热/发音/停止
@@ -32,7 +36,9 @@ class _StubTtsController extends TtsController {
   @override
   Future<void> speak(String text, {String? key}) async {}
   @override
-  Future<void> prewarmTexts(List<String> texts) async {}
+  Future<void> prewarmTexts(List<String> texts) async {
+    _prewarmCalls.add(texts);
+  }
   @override
   void cancelTextsPrewarm() {}
   @override
@@ -115,6 +121,7 @@ void main() {
   setUp(() async {
     SharedPreferences.setMockInitialValues({});
     _prefs = await SharedPreferences.getInstance();
+    _prewarmCalls.clear();
     db = _createTestDb();
     oldInstance = DictionaryService.replaceInstance(
       DictionaryService.withDatabase(db),
@@ -221,6 +228,23 @@ void main() {
 
     // NOTE: AI 解析功能已暂时隐藏（见 word_dictionary_sheet.dart），
     // 相关测试待功能恢复后重新添加。
+
+    testWidgets('打开弹窗即以单词本身预热（不等 AI 查询返回）', (tester) async {
+      await tester.pumpWidget(_buildTestPage('running'));
+      await tester.tap(find.text('Open'));
+      // 仅 pump 一帧：弹窗刚插入、initState 已执行，查词 microtask 尚未落定。
+      await tester.pump();
+
+      // 首次预热应为单词本身（归一化词形），先于查词完成的完整批次。
+      expect(_prewarmCalls, isNotEmpty);
+      expect(_prewarmCalls.first, ['running']);
+
+      // 查词完成后：完整批次照旧触发（本地源 running→run，headword='run'），
+      // 且作为最后发起的批次持最新 token、完整跑完，不被 initState 单词预热干扰。
+      await tester.pumpAndSettle();
+      expect(_prewarmCalls.length, greaterThanOrEqualTo(2));
+      expect(_prewarmCalls.last, ['run']);
+    });
 
     testWidgets('弹窗内容可滚动', (tester) async {
       await _openSheet(tester, 'abandon');
