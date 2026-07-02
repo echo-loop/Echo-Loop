@@ -11,8 +11,10 @@
 ///   查词 controller（autoDispose）随之释放，无跨页残留；
 /// - 面板开着时正文上盖一层**带词区域豁免的透明屏障**：点句子里的词/
 ///   拖手柄照常放行（连续查词/扩选），点其它区域先关面板并吸收该次点击
-///   （不触发下层操作）。豁免区域由可点词组件经
-///   [DictionaryPanelHostState.registerTapThroughRegion] 注册。
+///   （不触发下层操作）。豁免判定由可点词组件经
+///   [DictionaryPanelHostState.registerTapThroughHitTest] 注册**精确命中
+///   谓词**（文本 bounds + 手柄命中区），不做外扩矩形——句子紧邻的按钮/
+///   点击切换字幕等下层交互不会被误放行。
 library;
 
 import 'package:flutter/material.dart';
@@ -133,24 +135,26 @@ class DictionaryPanelHostState extends State<DictionaryPanelHost>
     duration: const Duration(milliseconds: 250),
   );
 
-  /// 屏障豁免区域（全局坐标 getter 集合）。命中任一区域的点击穿透屏障
-  /// 直达下层（点词切换查询、拖手柄扩选）；未命中则关面板并吸收点击。
-  final Set<Rect Function()> _tapThroughRegions = {};
+  /// 屏障豁免命中谓词集合（入参为全局坐标）。任一谓词命中的点击穿透
+  /// 屏障直达下层（点词切换查询、拖手柄扩选）；均未命中则关面板并吸收点击。
+  final Set<bool Function(Offset globalPosition)> _tapThroughHitTests = {};
 
-  /// 注册屏障豁免区域（可点词组件在挂载时调用，getter 在命中测试时求值）
-  void registerTapThroughRegion(Rect Function() globalRect) {
-    _tapThroughRegions.add(globalRect);
+  /// 注册屏障豁免命中谓词（可点词组件在挂载时调用，谓词在命中测试时求值）
+  void registerTapThroughHitTest(bool Function(Offset globalPosition) hitTest) {
+    _tapThroughHitTests.add(hitTest);
   }
 
-  /// 注销屏障豁免区域（组件卸载时调用，与注册的 getter 同一 tear-off）
-  void unregisterTapThroughRegion(Rect Function() globalRect) {
-    _tapThroughRegions.remove(globalRect);
+  /// 注销屏障豁免命中谓词（组件卸载时调用，与注册的谓词同一 tear-off）
+  void unregisterTapThroughHitTest(
+    bool Function(Offset globalPosition) hitTest,
+  ) {
+    _tapThroughHitTests.remove(hitTest);
   }
 
-  /// 全局坐标是否落在任一豁免区域内
+  /// 全局坐标是否命中任一豁免谓词
   bool _hitsTapThroughRegion(Offset globalPosition) {
-    for (final rect in _tapThroughRegions) {
-      if (rect().contains(globalPosition)) return true;
+    for (final hitTest in _tapThroughHitTests) {
+      if (hitTest(globalPosition)) return true;
     }
     return false;
   }

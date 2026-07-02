@@ -15,6 +15,7 @@
 - [x] 测试：新增 `dictionary_panel_test.dart`（show/切换/close/关闭按钮/activeOwner/返回键）、`sentence_word_selection_test.dart`、`selectable_sentence_text_test.dart`（点词/手柄/拖拽扩选/交叉 clamp/面板关闭清选区/评分染色）；改造 resize/switch/content 三个旧弹窗测试为面板方式；`text_normalize_test.dart`、`lookup_controller_test.dart` 补词组用例。
 - [x] 验证：`flutter analyze` 仅预存在 issue；`flutter test` 全量通过（macOS integration_test 因本机 debug connection 环境问题失败，main 基线对照同样失败，非回归）。
 - [x] 真机反馈跟进（2026-07-02）：① 手柄改业界标准形状——选区边界竖线（行高）+ Android 式水滴（缺角朝向边界），`_UnboundedHitStack` 解决手柄悬垂在文本 bounds 外不可拖；② 点句子外区域自动关面板并吸收点击（不触发盲听偷看等下层操作），实现为「带词区域豁免的透明屏障」：`SelectableSentenceText` 向宿主注册豁免 Rect getter，屏障自定义 hitTest 放行豁免区、`Listener.onPointerDown` 关面板。
+- [x] 真机反馈跟进第二轮（2026-07-02）：① 面板默认高度 1/2 → 3/5（1/2 偏低、2/3 偏高，本地源限高同步统一）；② 屏障豁免由「组件 bounds 上下外扩 36dp 的粗矩形」改为**精确命中谓词**（文本 bounds ∪ 手柄命中区，`registerTapThroughHitTest`）——修复句子上方一条带子点击被误放行（盲听误触发隐藏字幕、标注卡解析按钮被误点），点面板外关闭行为全场景一致；`_buildHandle` 与豁免判定共用 `_handleHitRect` 公式。回归测试：`selectable_sentence_text_test.dart` 新增「点句子紧邻上下控件 → 关面板并吸收」用例。
 
   **完成时间**: 2026-07-02
 

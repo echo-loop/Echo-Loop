@@ -77,6 +77,7 @@ void main() {
     String text = 'alpha beta gamma',
     List<SpeechTranscriptSegment>? segments,
     VoidCallback? onBeforeLookup,
+    Widget Function(Widget sentence)? layout,
   }) => ProviderScope(
     overrides: [
       analyticsOverride(),
@@ -105,14 +106,17 @@ void main() {
       home: Scaffold(
         body: DictionaryPanelHost(
           key: hostKey,
-          child: Align(
-            alignment: Alignment.topLeft,
-            child: SelectableSentenceText(
-              text: text,
-              highlightedSegments: segments,
-              origin: const DictionaryLookupOrigin(sentenceText: 'ctx'),
-              onBeforeLookup: onBeforeLookup,
-            ),
+          child: Builder(
+            builder: (context) {
+              final sentence = SelectableSentenceText(
+                text: text,
+                highlightedSegments: segments,
+                origin: const DictionaryLookupOrigin(sentenceText: 'ctx'),
+                onBeforeLookup: onBeforeLookup,
+              );
+              if (layout != null) return layout(sentence);
+              return Align(alignment: Alignment.topLeft, child: sentence);
+            },
           ),
         ),
       ),
@@ -200,6 +204,64 @@ void main() {
     expect(find.byKey(const Key('word_handle_start')), findsNothing);
     // 未发起新查询
     expect(source.queries, ['alpha', 'gamma']);
+  });
+
+  testWidgets('面板开着时点句子紧邻上下的下层控件：关面板并吸收，不误触发下层交互', (tester) async {
+    // 复现真机反馈：句子上方一小条区域点击触发了「隐藏字幕」、解析按钮
+    // 被误触发——旧实现豁免区是组件 bounds 上下外扩 36dp 的粗矩形。
+    var aboveTaps = 0;
+    var belowTaps = 0;
+    await tester.pumpWidget(
+      wrap(
+        layout: (sentence) => Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            GestureDetector(
+              key: const Key('above_area'),
+              behavior: HitTestBehavior.opaque,
+              onTap: () => aboveTaps++,
+              child: const SizedBox(width: 600, height: 30),
+            ),
+            sentence,
+            GestureDetector(
+              key: const Key('below_area'),
+              behavior: HitTestBehavior.opaque,
+              onTap: () => belowTaps++,
+              child: const SizedBox(width: 600, height: 30),
+            ),
+          ],
+        ),
+      ),
+    );
+    // 面板关闭时下层控件正常可点（取右侧远离手柄横坐标的点，下同）
+    final abovePoint = Offset(
+      500,
+      tester.getRect(find.byKey(const Key('above_area'))).center.dy,
+    );
+    await tester.tapAt(abovePoint);
+    expect(aboveTaps, 1);
+
+    await tapWord(tester, 'beta');
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('dict_sheet_sizer')), findsOneWidget);
+
+    // 面板开着：点句子上方紧邻控件 → 屏障关面板并吸收，下层不触发
+    await tester.tapAt(abovePoint);
+    await tester.pumpAndSettle();
+    expect(aboveTaps, 1);
+    expect(find.byKey(const Key('dict_sheet_sizer')), findsNothing);
+
+    // 再开面板：点句子下方紧邻控件同理
+    await tapWord(tester, 'beta');
+    await tester.pumpAndSettle();
+    final belowPoint = Offset(
+      500,
+      tester.getRect(find.byKey(const Key('below_area'))).center.dy,
+    );
+    await tester.tapAt(belowPoint);
+    await tester.pumpAndSettle();
+    expect(belowTaps, 0);
+    expect(find.byKey(const Key('dict_sheet_sizer')), findsNothing);
   });
 
   testWidgets('面板关闭后选区与手柄清除', (tester) async {

@@ -146,13 +146,13 @@ class _SelectableSentenceTextState extends State<SelectableSentenceText> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    // 向宿主注册屏障豁免区域：面板开着时点本组件（词/手柄）仍放行，
+    // 向宿主注册屏障豁免命中谓词：面板开着时点本组件（词/手柄）仍放行，
     // 点区域外则由宿主屏障关面板并吸收点击。
     final host = DictionaryPanelHost.maybeOf(context);
     if (!identical(host, _host)) {
-      _host?.unregisterTapThroughRegion(_tapThroughRect);
+      _host?.unregisterTapThroughHitTest(_hitsTapThrough);
       _host = host;
-      _host?.registerTapThroughRegion(_tapThroughRect);
+      _host?.registerTapThroughHitTest(_hitsTapThrough);
     }
     // 面板关闭或别的组件发起了查词：清掉本组件的选区高亮/手柄。
     // （didChangeDependencies 本就处于重建流程，直接改字段即可）
@@ -166,22 +166,38 @@ class _SelectableSentenceTextState extends State<SelectableSentenceText> {
 
   @override
   void dispose() {
-    _host?.unregisterTapThroughRegion(_tapThroughRect);
+    _host?.unregisterTapThroughHitTest(_hitsTapThrough);
     super.dispose();
   }
 
-  /// 屏障豁免区域（全局坐标）：组件自身 + 手柄外扩
-  /// （左右各半个命中区、上下各一个命中区，覆盖越界的手柄——
-  /// 起始圆点悬在首行上方、结束圆点悬在末行下方）
-  Rect _tapThroughRect() {
+  /// 屏障豁免命中判定（全局坐标）：命中「文本 bounds」或「选区手柄命中区」
+  /// 才放行穿透。**精确判定、不整圈外扩**——此前用组件 bounds 上下外扩
+  /// 36dp 的粗矩形，句子紧邻的下层交互（盲听点击切换字幕、标注卡解析按钮）
+  /// 会被误放行；现在这些点击统一由屏障关面板并吸收，行为全场景一致。
+  bool _hitsTapThrough(Offset globalPosition) {
     final obj = context.findRenderObject();
-    if (obj is! RenderBox || !obj.attached || !obj.hasSize) return Rect.zero;
-    final topLeft = obj.localToGlobal(Offset.zero);
-    return Rect.fromLTRB(
-      topLeft.dx - _kHandleHitSize / 2,
-      topLeft.dy - _kHandleHitSize,
-      topLeft.dx + obj.size.width + _kHandleHitSize / 2,
-      topLeft.dy + obj.size.height + _kHandleHitSize,
+    if (obj is! RenderBox || !obj.attached || !obj.hasSize) return false;
+    final local = obj.globalToLocal(globalPosition);
+    if ((Offset.zero & obj.size).contains(local)) return true;
+    // 手柄圆点悬在文本 bounds 外（首行上方/末行下方），单独精确判定
+    if (_selection == null) return false;
+    return _handleHitRect(isStartHandle: true).contains(local) ||
+        _handleHitRect(isStartHandle: false).contains(local);
+  }
+
+  /// 手柄命中区矩形（组件局部坐标），与 [_buildHandle] 的定位公式一致：
+  /// 36dp 见方、以圆点为中心；无锚点（无选区/未完成 post-frame 定位）时为空
+  Rect _handleHitRect({required bool isStartHandle}) {
+    final anchor = isStartHandle ? _startAnchor : _endAnchor;
+    if (anchor == null) return Rect.zero;
+    final x = isStartHandle ? anchor.left : anchor.right;
+    final dotCenterY = isStartHandle
+        ? anchor.top - _kHandleDotSize / 2
+        : anchor.bottom + _kHandleDotSize / 2;
+    return Rect.fromCenter(
+      center: Offset(x, dotCenterY),
+      width: _kHandleHitSize,
+      height: _kHandleHitSize,
     );
   }
 
@@ -331,11 +347,11 @@ class _SelectableSentenceTextState extends State<SelectableSentenceText> {
         ),
         if (_selection != null && _startAnchor != null) ...[
           _buildCaretLine(theme, isStartHandle: true, anchor: _startAnchor!),
-          _buildHandle(theme, isStartHandle: true, anchor: _startAnchor!),
+          _buildHandle(theme, isStartHandle: true),
         ],
         if (_selection != null && _endAnchor != null) ...[
           _buildCaretLine(theme, isStartHandle: false, anchor: _endAnchor!),
-          _buildHandle(theme, isStartHandle: false, anchor: _endAnchor!),
+          _buildHandle(theme, isStartHandle: false),
         ],
       ],
     );
@@ -406,19 +422,13 @@ class _SelectableSentenceTextState extends State<SelectableSentenceText> {
   /// 结束手柄悬在竖线下端，圆点与竖线端点相切），直径较系统略大便于点按。
   /// 命中区 36dp、以圆点为中心；用 [ImmediateMultiDragGestureRecognizer]
   /// 按下即赢得手势竞技场，压制外层滚动/横滑/长按（系统选择手柄同款思路）。
-  Widget _buildHandle(
-    ThemeData theme, {
-    required bool isStartHandle,
-    required Rect anchor,
-  }) {
-    final x = isStartHandle ? anchor.left : anchor.right;
-    // 圆点中心：起始 = 竖线上端再上移半径，结束 = 竖线下端再下移半径
-    final dotCenterY = isStartHandle
-        ? anchor.top - _kHandleDotSize / 2
-        : anchor.bottom + _kHandleDotSize / 2;
+  Widget _buildHandle(ThemeData theme, {required bool isStartHandle}) {
+    // 命中区矩形与屏障豁免判定共用同一公式（[_handleHitRect]），保证
+    // 「能拖到的位置」与「屏障放行的位置」永远一致
+    final hitRect = _handleHitRect(isStartHandle: isStartHandle);
     return Positioned(
-      left: x - _kHandleHitSize / 2,
-      top: dotCenterY - _kHandleHitSize / 2,
+      left: hitRect.left,
+      top: hitRect.top,
       child: RawGestureDetector(
         behavior: HitTestBehavior.opaque,
         gestures: {

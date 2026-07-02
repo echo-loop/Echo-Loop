@@ -68,7 +68,8 @@ class _DictionaryPanelState extends ConsumerState<DictionaryPanel> {
   /// `ConsumerState.dispose` 内不可用 `ref`，见 CLAUDE.md §7.14）。
   TtsController? _ttsController;
 
-  /// 可拉伸源面板的当前高度（像素）。默认 1/2 屏高（避免遮挡正文），
+  /// 可拉伸源面板的当前高度（像素）。默认 3/5 屏高（真机反馈：1/2 偏低、
+  /// 2/3 偏高），
   /// 用户上拉拖拽指示条可放大、下拉可缩小（夹在 [_minSheetHeight] 与
   /// [_maxSheetHeight] 之间）。文本本地源不用此值（按内容自适应）。
   double? _sheetHeight;
@@ -94,8 +95,8 @@ class _DictionaryPanelState extends ConsumerState<DictionaryPanel> {
   /// 面板高度上限：屏高 95%（嵌入正文时再受宿主 Stack 约束自然封顶）
   double get _maxSheetHeight => MediaQuery.sizeOf(context).height * 0.95;
 
-  /// 面板默认高度：屏高 1/2（避免遮挡正文）
-  double get _defaultSheetHeight => MediaQuery.sizeOf(context).height / 2;
+  /// 面板默认高度：屏高 3/5（1/2 偏低、2/3 偏高，真机反馈折中）
+  double get _defaultSheetHeight => MediaQuery.sizeOf(context).height * 0.6;
 
   @override
   void initState() {
@@ -269,7 +270,7 @@ class _DictionaryPanelState extends ConsumerState<DictionaryPanel> {
     final lemma = _lemmaWord(state);
     final displayWord = _displayWord(state);
     final isWeb = _isWebSource(state.selectedSourceId);
-    // AI 与网页源内容丰富，默认 1/2 屏高且可上拉放大；本地源内容短，按内容自适应。
+    // AI 与网页源内容丰富，默认 3/5 屏高且可上拉放大；本地源内容短，按内容自适应。
     final isResizable =
         isWeb || state.selectedSourceId == AiDictionarySource.sourceId;
 
@@ -285,7 +286,7 @@ class _DictionaryPanelState extends ConsumerState<DictionaryPanel> {
         top: false,
         child: SizedBox(
           key: const Key('dict_sheet_sizer'),
-          // 可拉伸源用显式高度（默认 1/2，可拖拽指示条调整）；本地源按内容自适应。
+          // 可拉伸源用显式高度（默认 3/5，可拖拽指示条调整）；本地源按内容自适应。
           height: isResizable ? (_sheetHeight ?? _defaultSheetHeight) : null,
           child: Padding(
             padding: const EdgeInsets.fromLTRB(
@@ -322,7 +323,7 @@ class _DictionaryPanelState extends ConsumerState<DictionaryPanel> {
   /// 内容区：按源类型决定填充策略。
   /// - 网页源（[isWeb]）：填满面板剩余高度且占满宽度，WebView 跟随上拉一起放大；
   /// - AI 源（[isResizable] 且非网页）：填满剩余高度并内部滚动，跟随上拉显示更多；
-  /// - 本地源：按内容自适应、限高 1/2 并内部滚动。
+  /// - 本地源：按内容自适应、限高 3/5（与可拉伸源默认高度统一）并内部滚动。
   Widget _buildResultArea(
     DictionaryLookupState state,
     String word,
@@ -354,7 +355,7 @@ class _DictionaryPanelState extends ConsumerState<DictionaryPanel> {
     return Flexible(
       child: ConstrainedBox(
         constraints: BoxConstraints(
-          maxHeight: MediaQuery.sizeOf(context).height / 2,
+          maxHeight: MediaQuery.sizeOf(context).height * 0.6,
         ),
         child: SingleChildScrollView(
           child: _buildContent(state.selectedSourceId, resultView),
