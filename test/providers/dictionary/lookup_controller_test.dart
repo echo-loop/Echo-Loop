@@ -303,6 +303,79 @@ void main() {
     );
   });
 
+  test('会话粘滞源：手动切源后，切词（新 controller）沿用该源不回退默认', () async {
+    final a = ControllableSource('a');
+    final b = ControllableSource('b');
+    final c = ProviderContainer(
+      overrides: [
+        dictionarySourcesByIdProvider.overrideWithValue({'a': a, 'b': b}),
+        resolvedDefaultSourceIdProvider.overrideWithValue('a'),
+        visibleDictionarySourcesProvider.overrideWithValue([a, b]),
+        dictionaryLookupContextProvider.overrideWithValue(
+          const DictionaryLookupContext(
+            accessToken: 'tok',
+            targetLanguage: 'zh-CN',
+          ),
+        ),
+      ],
+    );
+    addTearDown(c.dispose);
+    final ctrl = start(c, 'run');
+    await pump();
+    ctrl.selectSource('b'); // 用户手动切到 b
+    await pump();
+
+    // 切词：新 family controller 初始源应为粘滞的 b，而非默认 a
+    start(c, 'walk');
+    await pump();
+    expect(
+      c.read(dictionaryLookupControllerProvider('walk')).selectedSourceId,
+      'b',
+    );
+
+    // 粘滞源优先于词组的 AI 偏好
+    start(c, 'give up');
+    await pump();
+    expect(
+      c.read(dictionaryLookupControllerProvider('give up')).selectedSourceId,
+      'b',
+    );
+
+    // 会话结束（面板关闭清除粘滞源）后恢复默认源
+    c.read(dictionarySessionSourceProvider.notifier).clear();
+    start(c, 'jump');
+    await pump();
+    expect(
+      c.read(dictionaryLookupControllerProvider('jump')).selectedSourceId,
+      'a',
+    );
+  });
+
+  test('会话粘滞源已不可见（设置隐藏）时回退默认源', () async {
+    final a = ControllableSource('a');
+    final c = ProviderContainer(
+      overrides: [
+        dictionarySourcesByIdProvider.overrideWithValue({'a': a}),
+        resolvedDefaultSourceIdProvider.overrideWithValue('a'),
+        visibleDictionarySourcesProvider.overrideWithValue([a]),
+        dictionaryLookupContextProvider.overrideWithValue(
+          const DictionaryLookupContext(
+            accessToken: 'tok',
+            targetLanguage: 'zh-CN',
+          ),
+        ),
+      ],
+    );
+    addTearDown(c.dispose);
+    c.read(dictionarySessionSourceProvider.notifier).remember('gone');
+    start(c, 'run');
+    await pump();
+    expect(
+      c.read(dictionaryLookupControllerProvider('run')).selectedSourceId,
+      'a',
+    );
+  });
+
   test('不需联网的源不读取上下文也能查', () async {
     final a = ControllableSource('a', requiresNetwork: false);
     // 不 override context：若 controller 误读会抛错

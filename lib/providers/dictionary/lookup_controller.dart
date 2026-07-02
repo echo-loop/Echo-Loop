@@ -99,6 +99,24 @@ class DictionaryLookupContext {
   const DictionaryLookupContext({this.accessToken, this.targetLanguage});
 }
 
+/// 会话内粘滞源：词典面板打开期间用户手动选中的源 id（null = 未手动选过）。
+///
+/// 同一面板会话内切词/重新选词组时，新词的查词 controller 沿用该源，
+/// 不回退默认源；面板关闭时由 [DictionaryPanel] 清除，下次打开恢复默认。
+/// keepAlive——family 查词 controller 是 autoDispose（切词即销毁重建），
+/// 粘滞选择必须跨 controller 存活。
+@Riverpod(keepAlive: true)
+class DictionarySessionSource extends _$DictionarySessionSource {
+  @override
+  String? build() => null;
+
+  /// 记录用户手动选中的源（面板切源入口调用）
+  void remember(String id) => state = id;
+
+  /// 会话结束（面板关闭）时清除，下次打开恢复默认源
+  void clear() => state = null;
+}
+
 /// 查词会话 controller（family by word，autoDispose）
 @riverpod
 class DictionaryLookupController extends _$DictionaryLookupController {
@@ -131,9 +149,16 @@ class DictionaryLookupController extends _$DictionaryLookupController {
     );
   }
 
-  /// 初始选中源：词组（含空格的多词查询）优先 AI 源——本地词典对多词短语
-  /// 覆盖有限，AI 释义最可用；其余场景沿用全局默认源。用户仍可手动切源。
+  /// 初始选中源，优先级：
+  /// 1. 会话粘滞源（本次面板会话内用户手动选过且仍可见）——切词不回退默认源；
+  /// 2. 词组（含空格的多词查询）优先 AI 源——本地词典对多词短语覆盖有限；
+  /// 3. 全局默认源。
   String _resolveInitialSourceId() {
+    final session = ref.read(dictionarySessionSourceProvider);
+    if (session != null) {
+      final visible = ref.read(visibleDictionarySourcesProvider);
+      if (visible.any((s) => s.id == session)) return session;
+    }
     final isPhrase = word.contains(' ');
     if (isPhrase) {
       final visible = ref.read(visibleDictionarySourcesProvider);
@@ -144,8 +169,11 @@ class DictionaryLookupController extends _$DictionaryLookupController {
     return ref.read(resolvedDefaultSourceIdProvider);
   }
 
-  /// 切换选中源（懒加载：未查过/上次失败才发起查询）
+  /// 切换选中源（懒加载：未查过/上次失败才发起查询）。
+  /// 调用方均为用户手动切源（源切换器/AI 快捷按钮），故同时记入会话粘滞源，
+  /// 使本次面板会话内后续切词保持该源。
   void selectSource(String id) {
+    ref.read(dictionarySessionSourceProvider.notifier).remember(id);
     if (state.selectedSourceId != id) {
       state = state.copyWith(selectedSourceId: id);
     }

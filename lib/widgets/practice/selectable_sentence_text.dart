@@ -108,8 +108,8 @@ class _SelectableSentenceTextState extends State<SelectableSentenceText> {
   /// 手柄命中区边长
   static const double _kHandleHitSize = 36;
 
-  /// 手柄水滴视觉尺寸（Android 系统选择手柄同款：圆形去掉朝向边界的一角）
-  static const double _kHandleDropSize = 14;
+  /// 手柄圆点直径（iOS 系统选择手柄同款圆点，略放大便于点按）
+  static const double _kHandleDotSize = 12;
 
   /// 选区边界竖线宽度
   static const double _kCaretWidth = 2;
@@ -171,14 +171,15 @@ class _SelectableSentenceTextState extends State<SelectableSentenceText> {
   }
 
   /// 屏障豁免区域（全局坐标）：组件自身 + 手柄外扩
-  /// （左右各半个命中区、底部一个命中区，覆盖越界的手柄）
+  /// （左右各半个命中区、上下各一个命中区，覆盖越界的手柄——
+  /// 起始圆点悬在首行上方、结束圆点悬在末行下方）
   Rect _tapThroughRect() {
     final obj = context.findRenderObject();
     if (obj is! RenderBox || !obj.attached || !obj.hasSize) return Rect.zero;
     final topLeft = obj.localToGlobal(Offset.zero);
     return Rect.fromLTRB(
       topLeft.dx - _kHandleHitSize / 2,
-      topLeft.dy,
+      topLeft.dy - _kHandleHitSize,
       topLeft.dx + obj.size.width + _kHandleHitSize / 2,
       topLeft.dy + obj.size.height + _kHandleHitSize,
     );
@@ -319,7 +320,7 @@ class _SelectableSentenceTextState extends State<SelectableSentenceText> {
     );
     // 选区存在时布局可能变化（旋屏/字号），每帧后校正手柄位置
     if (_selection != null) _scheduleAnchorUpdate();
-    // 手柄悬在文本 bounds 之外（末行下方/行首左侧），普通 Stack 的命中测试
+    // 手柄悬在文本 bounds 之外（首行上方/末行下方/行首左侧），普通 Stack 的命中测试
     // 会在 size.contains 处提前剪裁——用越界命中 Stack 保证手柄全域可拖。
     return _UnboundedHitStack(
       children: [
@@ -401,20 +402,23 @@ class _SelectableSentenceTextState extends State<SelectableSentenceText> {
     );
   }
 
-  /// 选区边界手柄：业界标准水滴形（圆形去掉朝向边界的上角，Android 系统
-  /// 选择手柄同款——起始手柄缺右上角、结束手柄缺左上角，缺角顶点即竖线
-  /// 下端）。命中区 36dp；用 [ImmediateMultiDragGestureRecognizer] 按下即
-  /// 赢得手势竞技场，压制外层滚动/横滑/长按（系统选择手柄同款思路）。
+  /// 选区边界手柄：iOS 系统选择手柄同款圆点（起始手柄圆点悬在竖线上端，
+  /// 结束手柄悬在竖线下端，圆点与竖线端点相切），直径较系统略大便于点按。
+  /// 命中区 36dp、以圆点为中心；用 [ImmediateMultiDragGestureRecognizer]
+  /// 按下即赢得手势竞技场，压制外层滚动/横滑/长按（系统选择手柄同款思路）。
   Widget _buildHandle(
     ThemeData theme, {
     required bool isStartHandle,
     required Rect anchor,
   }) {
     final x = isStartHandle ? anchor.left : anchor.right;
-    final radius = Radius.circular(_kHandleDropSize / 2);
+    // 圆点中心：起始 = 竖线上端再上移半径，结束 = 竖线下端再下移半径
+    final dotCenterY = isStartHandle
+        ? anchor.top - _kHandleDotSize / 2
+        : anchor.bottom + _kHandleDotSize / 2;
     return Positioned(
       left: x - _kHandleHitSize / 2,
-      top: anchor.bottom - _kHandleHitSize / 2,
+      top: dotCenterY - _kHandleHitSize / 2,
       child: RawGestureDetector(
         behavior: HitTestBehavior.opaque,
         gestures: {
@@ -433,31 +437,15 @@ class _SelectableSentenceTextState extends State<SelectableSentenceText> {
           key: Key(isStartHandle ? 'word_handle_start' : 'word_handle_end'),
           width: _kHandleHitSize,
           height: _kHandleHitSize,
-          child: Stack(
-            clipBehavior: Clip.none,
-            children: [
-              // 水滴缺角顶点对齐命中区中心（= 边界 x、行底 y，即竖线下端）：
-              // 起始手柄悬在边界左下，结束手柄悬在边界右下
-              Positioned(
-                left: isStartHandle
-                    ? _kHandleHitSize / 2 - _kHandleDropSize
-                    : _kHandleHitSize / 2,
-                top: _kHandleHitSize / 2,
-                child: Container(
-                  width: _kHandleDropSize,
-                  height: _kHandleDropSize,
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.primary,
-                    borderRadius: BorderRadius.only(
-                      topLeft: isStartHandle ? radius : Radius.zero,
-                      topRight: isStartHandle ? Radius.zero : radius,
-                      bottomLeft: radius,
-                      bottomRight: radius,
-                    ),
-                  ),
-                ),
+          child: Center(
+            child: Container(
+              width: _kHandleDotSize,
+              height: _kHandleDotSize,
+              decoration: BoxDecoration(
+                color: theme.colorScheme.primary,
+                shape: BoxShape.circle,
               ),
-            ],
+            ),
           ),
         ),
       ),
@@ -466,7 +454,7 @@ class _SelectableSentenceTextState extends State<SelectableSentenceText> {
 }
 
 /// 越界命中 Stack：不做自身 size 的提前剪裁，允许命中悬在文本 bounds
-/// 之外的选区手柄（末行下方、行首左侧）。仅用于本组件内部。
+/// 之外的选区手柄（首行上方、末行下方、行首左侧）。仅用于本组件内部。
 class _UnboundedHitStack extends Stack {
   const _UnboundedHitStack({super.children}) : super(clipBehavior: Clip.none);
 

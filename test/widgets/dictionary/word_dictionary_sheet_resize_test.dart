@@ -179,7 +179,7 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  testWidgets('网页源默认 2/3 屏高，上拉指示条放大、下拉缩小', (tester) async {
+  testWidgets('网页源默认 1/2 屏高，上拉指示条放大、下拉缩小', (tester) async {
     await withLinux(() async {
       await tester.pumpWidget(wrap());
       await tester.pumpAndSettle();
@@ -192,8 +192,8 @@ void main() {
       final screenH =
           tester.view.physicalSize.height / tester.view.devicePixelRatio;
       final initial = tester.getSize(sizer).height;
-      // 默认约 2/3 屏高（受 SafeArea 影响略小，给足容差）
-      expect(initial, closeTo(screenH * 2 / 3, 40));
+      // 默认约 1/2 屏高（受 SafeArea 影响略小，给足容差）
+      expect(initial, closeTo(screenH / 2, 40));
 
       // 上拉放大
       await tester.drag(handle, const Offset(0, -200));
@@ -228,7 +228,7 @@ void main() {
     });
   });
 
-  testWidgets('AI 源默认 2/3 屏高，上拉指示条放大', (tester) async {
+  testWidgets('AI 源默认 1/2 屏高，上拉指示条放大', (tester) async {
     await tester.pumpWidget(wrap(defaultId: 'ai'));
     await tester.pumpAndSettle();
 
@@ -243,7 +243,7 @@ void main() {
     final screenH =
         tester.view.physicalSize.height / tester.view.devicePixelRatio;
     final initial = tester.getSize(sizer).height;
-    expect(initial, closeTo(screenH * 2 / 3, 40));
+    expect(initial, closeTo(screenH / 2, 40));
 
     await tester.drag(handle, const Offset(0, -200));
     await tester.pumpAndSettle();

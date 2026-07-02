@@ -28,8 +28,32 @@ final dictionaryLookupContextProvider =
 // ignore: unused_element
 typedef DictionaryLookupContextRef =
     AutoDisposeProviderRef<DictionaryLookupContext>;
+String _$dictionarySessionSourceHash() =>
+    r'7b5db5448f5049403292e651521a8bcda4f525df';
+
+/// 会话内粘滞源：词典面板打开期间用户手动选中的源 id（null = 未手动选过）。
+///
+/// 同一面板会话内切词/重新选词组时，新词的查词 controller 沿用该源，
+/// 不回退默认源；面板关闭时由 [DictionaryPanel] 清除，下次打开恢复默认。
+/// keepAlive——family 查词 controller 是 autoDispose（切词即销毁重建），
+/// 粘滞选择必须跨 controller 存活。
+///
+/// Copied from [DictionarySessionSource].
+@ProviderFor(DictionarySessionSource)
+final dictionarySessionSourceProvider =
+    NotifierProvider<DictionarySessionSource, String?>.internal(
+      DictionarySessionSource.new,
+      name: r'dictionarySessionSourceProvider',
+      debugGetCreateSourceHash: const bool.fromEnvironment('dart.vm.product')
+          ? null
+          : _$dictionarySessionSourceHash,
+      dependencies: null,
+      allTransitiveDependencies: null,
+    );
+
+typedef _$DictionarySessionSource = Notifier<String?>;
 String _$dictionaryLookupControllerHash() =>
-    r'5d43e6a224b2f1b72c35524316702bac0b3d95d3';
+    r'77d386c9a22105df437386e6cbc5e9f051212b6a';
 
 /// Copied from Dart SDK
 class _SystemHash {

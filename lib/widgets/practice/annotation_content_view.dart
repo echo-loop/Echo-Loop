@@ -624,9 +624,11 @@ class _AnnotationContentViewState extends ConsumerState<AnnotationContentView> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // 固定工具栏（监听 notifier 刷新）
+            // 固定工具栏（监听 notifier 刷新）。
+            // 下方间距缩小：句子已自带 12dp 上留白（给选区手柄圆点让位，
+            // 见 SentenceAnnotationCard），二者合计维持原 16dp 视觉间距。
             Padding(
-              padding: const EdgeInsets.only(bottom: AppSpacing.m),
+              padding: const EdgeInsets.only(bottom: AppSpacing.xs),
               child: ListenableBuilder(
                 listenable: _toolbarNotifier,
                 builder: (context, _) {

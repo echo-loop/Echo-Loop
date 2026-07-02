@@ -565,8 +565,16 @@ class SentenceAnnotationCardState extends State<SentenceAnnotationCard> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // 句子文本 — 意群色块模式或纯 RichText（带长按/右键复制整句）
-        _wrapGuide(widget.sentenceGuideStep, sentenceBody),
+        // 句子文本 — 意群色块模式或纯 RichText（带长按/右键复制整句）。
+        // 上下留白给选区手柄圆点（悬在首行上方/末行下方各约 12dp）让位，
+        // 避免遮挡；上方留白由外部工具栏缩小间距补偿（annotation_content_view）。
+        _wrapGuide(
+          widget.sentenceGuideStep,
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: AppSpacing.m - 4),
+            child: sentenceBody,
+          ),
+        ),
 
         // 翻译文本（直接显示在句子下方，弱化字体）
         _buildInlineTranslation(theme, l10n),
