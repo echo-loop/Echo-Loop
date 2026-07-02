@@ -489,7 +489,8 @@ flutter test integration_test -d macos
   - **几何**：RichText + `RenderParagraph.getPositionForOffset`（命中）/`getBoxesForSelection`（手柄定位，post-frame 计算）。选区清理经宿主 `activeOwnerOf`（InheritedWidget 依赖面）：面板关闭或别处点词即自动清。
 - **规则**：
   - **返回键**：已有 PopScope 的宿主在 `_handleExit` **首行**加 `closeIfOpen()` guard，**禁止**宿主内再注册第二个 PopScope（同路由多 PopScope 触发顺序无保证）；无 PopScope 的页面用宿主 `handleBackButton: true`。
-  - **不做「点空白关闭」**：非 modal 面板的价值就是查着词继续操作页面（业界一致），且需要 translucent Listener 与点词 show 的同帧时序去重，脆弱。关闭仅显式（X/下拉超阈值/返回键）。
+  - **点面板外关闭 = 带词区域豁免的屏障**（2026-07-02 用户真机反馈后由「不做点空白关闭」改为此方案）：面板开着时正文上盖透明屏障（Stack 中位于正文之上、面板之下），点句子里的词/拖手柄经**豁免区域**放行（连续查词/扩选不受影响），点其它区域先关面板并**吸收该次点击**（不触发下层操作，如盲听偷看切换）。豁免区域由 `SelectableSentenceText` 挂载时向宿主 `registerTapThroughRegion(全局 Rect getter)` 注册、卸载时注销；屏障用自定义 `RenderProxyBox.hitTest`（豁免命中返回 false 穿透）+ `Listener.onPointerDown` 关面板（非手势竞技场，即时且无歧义吸收）。**不要**用 translucent Listener——事件会同时到达下层，正好触发用户不想要的主屏操作。
+  - **手柄悬垂越界命中**：手柄/竖线悬在文本 bounds 外（末行下方、行首左侧），普通 Stack 的 `hitTest` 在 `size.contains` 处提前剪裁导致悬垂部分不可拖——组件用 `_UnboundedHitStack`（重写 `hitTest` 跳过自身 size 剪裁、直接测子节点）。手柄视觉=业界标准：选区边界竖线（行高）+ Android 式水滴（圆形缺朝向边界的上角，缺角顶点=竖线下端；起始手柄缺右上、结束手柄缺左上）。
   - **词组查询管线**：`normalizeWord` 已折叠内部空白；controller 对含空格 key 默认选 AI 源；AI 缓存 key（`normalizeForCache`）天然兼容词组。**V1 不带句子上下文**——带则缓存 key/family key 必须复合 sentenceHash，命中率崩塌且后端要改协议（`DictionaryLookupRequest.sentence` 已预留）。
   - 新增可点词渲染场景一律复用 `SelectableSentenceText`，不要再造分词/recognizer。
 - **相关代码**：`lib/widgets/dictionary/dictionary_panel_host.dart`、`dictionary_panel.dart`、`lib/widgets/practice/selectable_sentence_text.dart`、`sentence_word_selection.dart`、`lib/providers/dictionary/lookup_controller.dart`（`_resolveInitialSourceId`）、`lib/utils/text_normalize.dart`；测试 `test/widgets/dictionary/dictionary_panel_test.dart` 等

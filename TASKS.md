@@ -8,12 +8,13 @@
 用户反馈：只能查单个单词不支持词组；modal 词典弹窗遮蔽主界面，连续查词必须反复开关。按业界标准（每日英语听力/LingQ/Kindle）重设计：非 modal 内嵌底部面板（显示期间正文可继续点词，点新词原地切换内容）+ 选区手柄词组选择（点词出左右词级吸附手柄，拖动扩选、松手查词组）。长按复制整句保留不动（手柄模式不占用长按）。
 
 - [x] 查词管线适配词组：`normalizeWord` 追加内部空白折叠；`DictionaryLookupController` 词组（含空格）默认选 AI 源（本地/网页源仍可手动切，Cambridge URL 天然支持词组）；AI 缓存 key 经 `normalizeForCache` 天然兼容词组，零迁移。V1 不带句子上下文（避免缓存 key 串味，`DictionaryLookupRequest.sentence` 已预留）。
-- [x] 非 modal 面板：新增 `dictionary_panel_host.dart`（Stack 内嵌 + 页面局部 state + AnimationController 滑入滑出 + `closeIfOpen` 返回键 guard + `activeOwnerOf` 选区清理依赖面）；`word_dictionary_sheet.dart` 迁移为 `dictionary_panel.dart`（resize/下拉关闭/TTS 预热保留；`maybePop`→`onClose`；`didUpdateWidget` 切词；标题行加关闭按钮 X）。「点面板外」不关闭（业界一致：非 modal 的价值就是查着词继续操作），关闭仅显式（X/下拉/返回键）。
+- [x] 非 modal 面板：新增 `dictionary_panel_host.dart`（Stack 内嵌 + 页面局部 state + AnimationController 滑入滑出 + `closeIfOpen` 返回键 guard + `activeOwnerOf` 选区清理依赖面）；`word_dictionary_sheet.dart` 迁移为 `dictionary_panel.dart`（resize/下拉关闭/TTS 预热保留；`maybePop`→`onClose`；`didUpdateWidget` 切词；标题行加关闭按钮 X）。关闭方式：X/下拉/返回键/点句子外区域。
 - [x] 统一可点词组件：新增 `sentence_word_selection.dart`（分词/词级吸附纯逻辑）+ `selectable_sentence_text.dart`（RichText + RenderParagraph 几何命中；手柄用 ImmediateMultiDragGestureRecognizer 按下即抢占，不与滚动/长按冲突），替换标注卡 RichText+recognizer 与盲听 Wrap+GestureDetector 两套旧实现（约 -230 行）。
 - [x] 6 宿主接入：4 个已有 PopScope 页（精听/跟读/收藏复习/难句补练）`_handleExit` 首行加 `closeIfOpen` guard；player_screen / sentence_detail_screen 用宿主自带 `handleBackButton`。盲听三页 `onWordTap` 闭包改为 `lookupOrigin + onBeforeLookup`（`enterWaitingForUserInBlindMode` 语义保留）。
 - [x] 清理：删除 `showWordDictionarySheet` 与 `word_dictionary_sheet.dart`，全仓引用清零。
 - [x] 测试：新增 `dictionary_panel_test.dart`（show/切换/close/关闭按钮/activeOwner/返回键）、`sentence_word_selection_test.dart`、`selectable_sentence_text_test.dart`（点词/手柄/拖拽扩选/交叉 clamp/面板关闭清选区/评分染色）；改造 resize/switch/content 三个旧弹窗测试为面板方式；`text_normalize_test.dart`、`lookup_controller_test.dart` 补词组用例。
-- [x] 验证：`flutter analyze` 仅预存在 issue；`flutter test` 全量通过。
+- [x] 验证：`flutter analyze` 仅预存在 issue；`flutter test` 全量通过（macOS integration_test 因本机 debug connection 环境问题失败，main 基线对照同样失败，非回归）。
+- [x] 真机反馈跟进（2026-07-02）：① 手柄改业界标准形状——选区边界竖线（行高）+ Android 式水滴（缺角朝向边界），`_UnboundedHitStack` 解决手柄悬垂在文本 bounds 外不可拖；② 点句子外区域自动关面板并吸收点击（不触发盲听偷看等下层操作），实现为「带词区域豁免的透明屏障」：`SelectableSentenceText` 向宿主注册豁免 Rect getter，屏障自定义 hitTest 放行豁免区、`Listener.onPointerDown` 关面板。
 
   **完成时间**: 2026-07-02
 

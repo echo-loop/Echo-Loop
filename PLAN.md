@@ -11,7 +11,7 @@
 
 响应用户反馈（不支持词组查询、modal 弹窗连续查词体验差），按业界标准（每日英语听力/LingQ/Kindle）重设计词典交互，设计约束见 CLAUDE.md §7.25：
 
-- **非 modal 面板**：`DictionaryPanelHost`（Stack 内嵌、页面局部 state）+ `DictionaryPanel`（原 `word_dictionary_sheet` 迁移，resize/下拉关闭保留）。面板显示期间正文可继续点词/选词组，点新词原地切换；关闭仅显式（X/下拉/返回键），返回键经 `closeIfOpen()` guard 先关面板
+- **非 modal 面板**：`DictionaryPanelHost`（Stack 内嵌、页面局部 state）+ `DictionaryPanel`（原 `word_dictionary_sheet` 迁移，resize/下拉关闭保留）。面板显示期间正文可继续点词/选词组，点新词原地切换；关闭方式：X/下拉/返回键（经 `closeIfOpen()` guard 先关面板）/点句子外区域（带词区域豁免的屏障，吸收点击不触发下层操作）
 - **词组选择**：`SelectableSentenceText`（统一两套旧点词实现）——点词即查并出词级吸附选区手柄，拖动扩选、松手查词组；长按复制整句保留。查词管线：`normalizeWord` 折叠内部空白、词组默认 AI 源、AI 缓存零迁移、V1 不带句子上下文
 - 6 个宿主页接入（player / sentence_detail / 精听 / 跟读 / 收藏复习 / 难句补练），`showWordDictionarySheet` modal 路径删除
 
