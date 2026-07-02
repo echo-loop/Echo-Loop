@@ -11,6 +11,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../features/auth/providers/auth_providers.dart';
 import '../../models/dictionary/dictionary_lookup_result.dart';
+import '../../services/dictionary/ai_dictionary_source.dart';
 import '../../services/dictionary/dictionary_source.dart';
 import '../settings_provider.dart';
 import 'dictionary_registry.dart';
@@ -121,13 +122,26 @@ class DictionaryLookupController extends _$DictionaryLookupController {
         if (!t.isCancelled) t.cancel('controller disposed');
       }
     });
-    final defaultId = ref.read(resolvedDefaultSourceIdProvider);
+    final defaultId = _resolveInitialSourceId();
     // 进入即查默认源；其它源懒加载（切到才查）
     Future.microtask(() => _lookup(defaultId));
     return DictionaryLookupState(
       selectedSourceId: defaultId,
       bySource: const {},
     );
+  }
+
+  /// 初始选中源：词组（含空格的多词查询）优先 AI 源——本地词典对多词短语
+  /// 覆盖有限，AI 释义最可用；其余场景沿用全局默认源。用户仍可手动切源。
+  String _resolveInitialSourceId() {
+    final isPhrase = word.contains(' ');
+    if (isPhrase) {
+      final visible = ref.read(visibleDictionarySourcesProvider);
+      if (visible.any((s) => s.id == AiDictionarySource.sourceId)) {
+        return AiDictionarySource.sourceId;
+      }
+    }
+    return ref.read(resolvedDefaultSourceIdProvider);
   }
 
   /// 切换选中源（懒加载：未查过/上次失败才发起查询）
@@ -188,7 +202,7 @@ class DictionaryLookupController extends _$DictionaryLookupController {
 
   DictionaryLookupRequest _buildRequest(DictionarySource source) {
     // word（= family key）已由调用方归一化一次（见 DictionaryLookupRequest.word
-    // 「已清洗」契约 + word_dictionary_sheet._normalizedWord）。此处及各源均不再归一，
+    // 「已清洗」契约 + dictionary_panel._normalizedWord）。此处及各源均不再归一，
     // 保证「查一次词只归一化一次」，各端共用同一清洗结果。
     if (!source.requiresNetwork) {
       return DictionaryLookupRequest(word: word);

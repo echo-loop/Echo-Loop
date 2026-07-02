@@ -45,8 +45,11 @@ class AiDictionarySource implements DictionarySource {
   }) : _cacheDao = cacheDao,
        _apiClient = apiClient;
 
+  /// 稳定源 id（供控制器等处引用，避免散落魔法字符串）
+  static const sourceId = 'ai';
+
   @override
-  String get id => 'ai';
+  String get id => sourceId;
 
   @override
   IconData get icon => Icons.auto_awesome;

@@ -37,11 +37,13 @@ final RegExp _edgeNonAlnum = RegExp(r"^[^A-Za-z0-9]+|[^A-Za-z0-9']+$");
 /// 归一化查词输入，供本地 / AI / 网页等所有词典源共用，保证大小写处理一致。
 ///
 /// 处理步骤：去首尾空白 → 弯撇号归一为直撇号 → 剥离首尾标点（右侧直撇号除外）
-/// → 一律转小写。全大写缩写（NASA / FBI 等）不做特殊保留，统一小写化。
+/// → 一律转小写 → 折叠内部连续空白为单个空格（多词词组换行/多空格归一）。
+/// 全大写缩写（NASA / FBI 等）不做特殊保留，统一小写化。
 String normalizeWord(String word) {
   return word
       .trim()
       .replaceAll(_smartApostrophes, "'")
       .replaceAll(_edgeNonAlnum, '')
-      .toLowerCase();
+      .toLowerCase()
+      .replaceAll(RegExp(r'\s+'), ' ');
 }

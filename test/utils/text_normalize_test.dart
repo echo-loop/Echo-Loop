@@ -80,6 +80,21 @@ void main() {
     test('空字符串', () {
       expect(normalizeWord(''), '');
     });
+
+    test('词组：内部连续空白折叠为单个空格', () {
+      expect(normalizeWord('give  up'), 'give up');
+      expect(normalizeWord('give\nup on'), 'give up on');
+      expect(normalizeWord('  Look   Forward  To  '), 'look forward to');
+    });
+
+    test('词组：剥离首尾标点，保留内部标点', () {
+      expect(normalizeWord('"give up"'), 'give up');
+      expect(normalizeWord('well, you know.'), 'well, you know');
+    });
+
+    test('单词无内部空白，行为不变', () {
+      expect(normalizeWord('Hello.'), 'hello');
+    });
   });
 
   group('hashText', () {

@@ -238,6 +238,71 @@ void main() {
     expect(a.requests.single.word, "dogs'");
   });
 
+  test('词组（含空格）：AI 源可见时初始源为 AI，忽略全局默认源', () async {
+    final a = ControllableSource('a');
+    final ai = ControllableSource('ai');
+    final c = ProviderContainer(
+      overrides: [
+        dictionarySourcesByIdProvider.overrideWithValue({'a': a, 'ai': ai}),
+        resolvedDefaultSourceIdProvider.overrideWithValue('a'),
+        visibleDictionarySourcesProvider.overrideWithValue([a, ai]),
+        dictionaryLookupContextProvider.overrideWithValue(
+          const DictionaryLookupContext(
+            accessToken: 'tok',
+            targetLanguage: 'zh-CN',
+          ),
+        ),
+      ],
+    );
+    addTearDown(c.dispose);
+    start(c, 'give up');
+    await pump();
+    expect(
+      c.read(dictionaryLookupControllerProvider('give up')).selectedSourceId,
+      'ai',
+    );
+    expect(ai.calls, hasLength(1)); // 进入即查 AI 源
+    expect(a.calls, isEmpty);
+    expect(ai.requests.single.word, 'give up');
+  });
+
+  test('词组：AI 源不可见时回退全局默认源', () async {
+    final a = ControllableSource('a');
+    final c = ProviderContainer(
+      overrides: [
+        dictionarySourcesByIdProvider.overrideWithValue({'a': a}),
+        resolvedDefaultSourceIdProvider.overrideWithValue('a'),
+        visibleDictionarySourcesProvider.overrideWithValue([a]),
+        dictionaryLookupContextProvider.overrideWithValue(
+          const DictionaryLookupContext(
+            accessToken: 'tok',
+            targetLanguage: 'zh-CN',
+          ),
+        ),
+      ],
+    );
+    addTearDown(c.dispose);
+    start(c, 'give up');
+    await pump();
+    expect(
+      c.read(dictionaryLookupControllerProvider('give up')).selectedSourceId,
+      'a',
+    );
+    expect(a.calls, hasLength(1));
+  });
+
+  test('单词（无空格）初始源沿用全局默认源，不读可见源列表', () async {
+    final a = ControllableSource('a');
+    // 不 override visibleDictionarySourcesProvider：单词路径不应读它
+    final c = makeContainer({'a': a});
+    start(c, 'run2');
+    await pump();
+    expect(
+      c.read(dictionaryLookupControllerProvider('run2')).selectedSourceId,
+      'a',
+    );
+  });
+
   test('不需联网的源不读取上下文也能查', () async {
     final a = ControllableSource('a', requiresNetwork: false);
     // 不 override context：若 controller 误读会抛错
