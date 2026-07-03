@@ -188,4 +188,184 @@ void main() {
       expect(await waveFile.exists(), isFalse);
     });
   });
+
+  group('AudioLibrary.deleteDownloadedAudio', () {
+    late Directory tempDir;
+    late ProviderContainer container;
+
+    setUp(() async {
+      tempDir = await Directory.systemTemp.createTemp('audio_library_deldl_');
+      appDataDirectoryOverride = tempDir;
+      final db = createTestDatabase();
+      container = ProviderContainer(
+        overrides: [
+          appDatabaseProvider.overrideWithValue(db),
+          analyticsOverride(),
+          usageOverride(),
+          collectionListProvider.overrideWith(
+            () => TestCollectionList(const CollectionState()),
+          ),
+          tagListProvider.overrideWith(() => TestTagList(const TagState())),
+          learningProgressNotifierProvider.overrideWith(
+            () => TestLearningProgressNotifier(const LearningProgressState()),
+          ),
+        ],
+      );
+      addTearDown(() async {
+        container.dispose();
+        await db.close();
+      });
+    });
+
+    tearDown(() async {
+      appDataDirectoryOverride = null;
+      if (await tempDir.exists()) {
+        await tempDir.delete(recursive: true);
+      }
+    });
+
+    test('播客/导入：清空 audioPath 并删文件，item 保留，文件派生元数据一并清空', () async {
+      final audioFile = File('${tempDir.path}/audios/imported/a.m4a');
+      await audioFile.create(recursive: true);
+      await audioFile.writeAsString('audio');
+      final notifier = container.read(audioLibraryProvider.notifier);
+      await notifier.addAudioItems([
+        createTestAudioItem(
+          id: 'dl-1',
+          name: 'dl-1',
+          audioPath: 'audios/imported/a.m4a',
+        ).copyWith(
+          podcastEpisodeGuid: 'guid-1',
+          audioSha256: 'sha-x',
+          originalAudioSha256: 'orig-x',
+          contentStatus: AudioContentStatus.suspectEmpty,
+        ),
+      ]);
+
+      await notifier.deleteDownloadedAudio('dl-1');
+
+      // 文件已删、item 仍在、下载态与文件派生元数据全部清空
+      expect(await audioFile.exists(), isFalse);
+      final items = container.read(audioLibraryProvider).audioItems;
+      expect(items.map((e) => e.id), ['dl-1']);
+      final it = items.single;
+      expect(it.audioPath, isNull);
+      expect(it.isAudioReady, isFalse);
+      expect(it.audioSha256, isNull);
+      expect(it.originalAudioSha256, isNull);
+      expect(it.contentStatus, isNull);
+    });
+
+    test('官方：保留 audioSha256（重下定位标识），清空其余文件派生元数据', () async {
+      final audioFile = File('${tempDir.path}/audios/official/a.m4a');
+      await audioFile.create(recursive: true);
+      await audioFile.writeAsString('audio');
+      final notifier = container.read(audioLibraryProvider.notifier);
+      await notifier.addAudioItems([
+        createTestAudioItem(
+          id: 'dl-1',
+          name: 'dl-1',
+          audioPath: 'audios/official/a.m4a',
+        ).copyWith(
+          remoteAudioId: 'remote-1',
+          audioSha256: 'sha-official',
+          contentStatus: AudioContentStatus.ok,
+        ),
+      ]);
+
+      await notifier.deleteDownloadedAudio('dl-1');
+
+      expect(await audioFile.exists(), isFalse);
+      final it = container.read(audioLibraryProvider).audioItems.single;
+      expect(it.audioPath, isNull);
+      // 官方 sha 保留，供重新下载定位 audios/official/<sha>.m4a
+      expect(it.audioSha256, 'sha-official');
+      expect(it.contentStatus, isNull);
+    });
+
+    test('保留字幕文件（字幕单独管理，不随删下载移除）', () async {
+      final audioFile = File('${tempDir.path}/audios/official/a.m4a');
+      await audioFile.create(recursive: true);
+      await audioFile.writeAsString('audio');
+      final transcriptFile = File('${tempDir.path}/transcripts/a.srt');
+      await transcriptFile.create(recursive: true);
+      await transcriptFile.writeAsString('srt');
+      final notifier = container.read(audioLibraryProvider.notifier);
+      await notifier.addAudioItems([
+        createTestAudioItem(
+          id: 'dl-1',
+          name: 'dl-1',
+          audioPath: 'audios/official/a.m4a',
+          transcriptPath: 'transcripts/a.srt',
+        ),
+      ]);
+
+      await notifier.deleteDownloadedAudio('dl-1');
+
+      expect(await audioFile.exists(), isFalse);
+      expect(await transcriptFile.exists(), isTrue);
+    });
+
+    test('一并删除对应 waveform 文件', () async {
+      final audioFile = File('${tempDir.path}/audios/official/a.m4a');
+      await audioFile.create(recursive: true);
+      await audioFile.writeAsString('audio');
+      final waveFile = File('${tempDir.path}/waveforms/dl-1.wave');
+      await waveFile.create(recursive: true);
+      await waveFile.writeAsString('wave');
+      final notifier = container.read(audioLibraryProvider.notifier);
+      await notifier.addAudioItems([
+        createTestAudioItem(
+          id: 'dl-1',
+          name: 'dl-1',
+          audioPath: 'audios/official/a.m4a',
+        ),
+      ]);
+
+      await notifier.deleteDownloadedAudio('dl-1');
+
+      expect(await waveFile.exists(), isFalse);
+    });
+
+    test('底层音频文件仍被其他条目引用时保留', () async {
+      final file = File('${tempDir.path}/audios/official/shared.m4a');
+      await file.create(recursive: true);
+      await file.writeAsString('audio');
+      final notifier = container.read(audioLibraryProvider.notifier);
+      await notifier.addAudioItems([
+        createTestAudioItem(
+          id: 'dl-1',
+          name: 'dl-1',
+          audioPath: 'audios/official/shared.m4a',
+        ),
+        createTestAudioItem(
+          id: 'keep',
+          name: 'keep',
+          audioPath: 'audios/official/shared.m4a',
+        ),
+      ]);
+
+      await notifier.deleteDownloadedAudio('dl-1');
+
+      // 文件被 keep 引用故保留；dl-1 仍在但 audioPath 置空
+      expect(await file.exists(), isTrue);
+      final items = container.read(audioLibraryProvider).audioItems;
+      expect(items.firstWhere((e) => e.id == 'dl-1').audioPath, isNull);
+      expect(
+        items.firstWhere((e) => e.id == 'keep').audioPath,
+        'audios/official/shared.m4a',
+      );
+    });
+
+    test('未下载（audioPath 为空）时为 no-op', () async {
+      final notifier = container.read(audioLibraryProvider.notifier);
+      await notifier.addAudioItems([
+        createTestAudioItem(id: 'dl-1', name: 'dl-1', audioPath: ''),
+      ]);
+
+      await notifier.deleteDownloadedAudio('dl-1');
+
+      expect(container.read(audioLibraryProvider).audioItems.length, 1);
+    });
+  });
 }

@@ -227,6 +227,97 @@ void main() {
     });
   });
 
+  group('AudioListTile 删除下载菜单项', () {
+    Widget buildTile(AudioItem item) {
+      return createTestApp(
+        Center(
+          child: SizedBox(width: 360, child: AudioListTile(audioItem: item)),
+        ),
+        overrides: [
+          audioLibraryProvider.overrideWith(
+            () => TestAudioLibrary(AudioLibraryState(audioItems: [item])),
+          ),
+        ],
+      );
+    }
+
+    testWidgets('官方已下载音频菜单含「删除下载」', (tester) async {
+      final item = createTestAudioItem(
+        name: 'Official Audio',
+      ).copyWith(remoteAudioId: 'remote-1');
+
+      await tester.pumpWidget(buildTile(item));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('audio_list_tile_menu_hit_area')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Delete Audio'), findsOneWidget);
+      // 官方音频不提供整条删除
+      expect(find.text('Delete'), findsNothing);
+    });
+
+    testWidgets('官方未下载音频菜单不含「删除下载」', (tester) async {
+      final item = createTestAudioItem(
+        name: 'Official Audio',
+      ).copyWith(remoteAudioId: 'remote-1', audioPath: null);
+
+      await tester.pumpWidget(buildTile(item));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('audio_list_tile_menu_hit_area')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Delete Audio'), findsNothing);
+    });
+
+    testWidgets('播客已下载单集菜单含「删除下载」', (tester) async {
+      final item = createTestAudioItem(
+        name: 'Podcast Episode',
+      ).copyWith(podcastEpisodeGuid: 'guid-1');
+
+      await tester.pumpWidget(buildTile(item));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('audio_list_tile_menu_hit_area')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Delete Audio'), findsOneWidget);
+    });
+
+    testWidgets('用户自建音频菜单不含「删除下载」（仅普通删除）', (tester) async {
+      final item = createTestAudioItem(name: 'User Audio');
+
+      await tester.pumpWidget(buildTile(item));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('audio_list_tile_menu_hit_area')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Delete Audio'), findsNothing);
+      expect(find.text('Delete'), findsOneWidget);
+    });
+
+    testWidgets('点「删除下载」清空 audioPath', (tester) async {
+      final item = createTestAudioItem(
+        name: 'Official Audio',
+      ).copyWith(remoteAudioId: 'remote-1');
+      final library = TestAudioLibrary(AudioLibraryState(audioItems: [item]));
+
+      await tester.pumpWidget(
+        createTestApp(
+          Center(
+            child: SizedBox(width: 360, child: AudioListTile(audioItem: item)),
+          ),
+          overrides: [audioLibraryProvider.overrideWith(() => library)],
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('audio_list_tile_menu_hit_area')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Delete Audio'));
+      await tester.pumpAndSettle();
+
+      expect(library.state.audioItems.single.audioPath, isNull);
+    });
+  });
+
   group('AudioListTile 内容异常警告', () {
     Widget buildTile(AudioItem item) {
       return createTestApp(

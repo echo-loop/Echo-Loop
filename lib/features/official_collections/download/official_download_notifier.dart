@@ -285,21 +285,29 @@ class OfficialDownload extends _$OfficialDownload {
       await audioFinalFile.parent.create(recursive: true);
       await tmpAudioFile.rename(audioFinalPath);
 
-      final wordsJson = encodeWordTimestamps(content.wordTimestamps);
-
-      // 字幕统计（句数/词数）随下载一起入库，否则学习计划页要等下次启动
-      // backfillTranscriptStats 才能补上。
-      // 不在此处插入 sessionId 检查：原代码约定音频落盘 + DB write 是原子块，
-      // 中途 return 会留下 DB 缺 audioPath 的孤儿文件。
-      final stats = await getTranscriptStatsFromSrt(content.srt);
+      // 重新下载（用户曾「删除下载」但保留了字幕）时，本地字幕已存在则保留，不覆盖：
+      // 覆盖会重排句子切分/索引，导致收藏句与学习进度错位（与 updateTranscript 主动
+      // 清理 bookmark/progress 的语义呼应）。字幕单独管理，需要更新走「更新官方字幕」。
+      final hasExistingTranscript =
+          audioItem.transcriptSrt != null &&
+          audioItem.transcriptSrt!.isNotEmpty;
 
       // 4) 写 DB —— audioPath 是「下载是否就绪」的单一真实来源，
       //    必须在音频落盘之后写入；字幕内容入 transcript_srt 列。
       final database = ref.read(appDatabaseProvider);
-      await (database.update(
-        database.audioItems,
-      )..where((t) => t.id.equals(audioItem.id))).write(
-        db.AudioItemsCompanion(
+      final db.AudioItemsCompanion companion;
+      if (hasExistingTranscript) {
+        // 仅写下载就绪标记，字幕/词级时间戳/统计沿用已有值。
+        companion = db.AudioItemsCompanion(
+          audioPath: Value(relativeAudioPath),
+          updatedAt: Value(DateTime.now()),
+        );
+      } else {
+        // 首次下载：字幕内容随下载一起入库，否则学习计划页要等下次启动
+        // backfillTranscriptStats 才能补上。
+        final wordsJson = encodeWordTimestamps(content.wordTimestamps);
+        final stats = await getTranscriptStatsFromSrt(content.srt);
+        companion = db.AudioItemsCompanion(
           audioPath: Value(relativeAudioPath),
           transcriptPath: const Value(null),
           transcriptSrt: Value(content.srt),
@@ -308,8 +316,13 @@ class OfficialDownload extends _$OfficialDownload {
           sentenceCount: Value(stats.$1),
           wordCount: Value(stats.$2),
           updatedAt: Value(DateTime.now()),
-        ),
-      );
+        );
+      }
+      // 不在此处插入 sessionId 检查：原代码约定音频落盘 + DB write 是原子块，
+      // 中途 return 会留下 DB 缺 audioPath 的孤儿文件。
+      await (database.update(
+        database.audioItems,
+      )..where((t) => t.id.equals(audioItem.id))).write(companion);
       if (sid != _sessionId) return false;
 
       // 5) 刷新 audioLibrary state，让学习计划页等 watcher 立即读到新路径

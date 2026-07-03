@@ -189,6 +189,24 @@ class FakeAudioLibrary extends AudioLibrary {
     }
   }
 
+  @override
+  Future<void> deleteDownloadedAudio(String id) async {
+    // 不访问文件系统，仅镜像真实语义：清下载态、保留 item / 字幕。
+    final items = [...state.audioItems];
+    final index = items.indexWhere((item) => item.id == id);
+    if (index != -1 && items[index].isAudioReady) {
+      final item = items[index];
+      final isOfficial = item.remoteAudioId != null;
+      items[index] = item.copyWith(
+        audioPath: null,
+        contentStatus: null,
+        originalAudioSha256: null,
+        audioSha256: isOfficial ? item.audioSha256 : null,
+      );
+      state = state.copyWith(audioItems: items);
+    }
+  }
+
   /// 直接设置音频列表（测试用）
   void setItems(List<AudioItem> items) {
     state = state.copyWith(audioItems: items);

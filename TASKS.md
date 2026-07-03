@@ -1,7 +1,22 @@
 # Echo Loop 任务清单
 
-> 最后更新：2026-07-03（学习计划页顶栏「更多」菜单）
+> 最后更新：2026-07-03（官方/播客音频「删除音频」）
 > 当前焦点：Android 结束录音闪退（离线 ASR / Silero VAD）——**仍未解决**
+
+## 已完成：官方/播客音频「删除音频」
+
+官方精选合集与博客（播客）合集的音频 item 下载后无法回收本地占用（这些 item 由后端 / RSS 管理，不能整条删除）。新增「删除音频」菜单项——只删本地音频文件、item 保留、随时可重新下载。
+
+- [x] **DAO**：`AudioItemDao.clearDownloadState(id, {keepAudioSha256})`——清「文件派生」列还原为未下载态：`audioPath` / `audioContentStatus` / `originalAudioSha256` 一律置空，`audioSha256` 仅非官方清空（官方由 enroll 写入、是重下定位 `audios/official/<sha>.m4a` 的稳定标识，必须保留）。**不触碰字幕 / 进度 / 时长**（时长未下载态仍需展示）。
+- [x] **Provider**：`AudioLibrary.deleteDownloadedAudio(id)`——守卫 `isAudioReady`；引用计数（共享文件不误删）；按 `remoteAudioId` 判官方决定是否保留 sha；清 DB → 同步内存 state → best-effort 删音频文件 + 波形缓存；**保留字幕 / 学习进度**；无二次确认（item 仍在可重下）。磁盘上音频文件仅 `audioPath` 一个（转码后 m4a，原始文件在 finalize 时已删除），无遗留。
+- [x] **UI**：`audio_list_tile` 新增菜单项（value `deleteDownload`，文案「删除音频」），仅 `(isOfficial || isPodcastEpisode) && isAudioReady` 显示，destructive 样式，直接调 provider。
+- [x] **官方重下保留已有字幕**：`official_download_notifier._runDownload` 改为——本地字幕已存在（用户删下载后保留）则只写 `audioPath`，不覆盖 `transcriptSrt/wordTimestamps/统计`，避免句子索引重排导致收藏句/进度错位。播客下载本就不碰字幕。
+- [x] **l10n**：菜单文案复用现有 `deleteAudio`（删除音频 / Delete Audio），未新增键。
+- [x] **测试**：`audio_library_provider_test` +5 例（清路径保留 item / 保留字幕 / 删波形 / 共享文件引用计数 / 未下载 no-op）；`audio_list_tile_test` +5 例（官方&播客已下载显示、官方未下载隐藏、用户音频不显示、点击清空 audioPath）；`FakeAudioLibrary` 加无 IO 的 `deleteDownloadedAudio` 覆写。
+- [x] **验证**：`flutter analyze` 改动文件 0 问题；相关测试全过（provider + widget 54 例）。
+- [ ] **真机验证待办**：官方/播客已下载音频点「删除音频」→ 图标回到下载箭头、文件回收；重新下载正常且字幕不丢/不重复。
+
+  **完成时间**: 2026-07-03
 
 ## 已完成：学习计划页顶栏「更多」菜单（管理字幕/编辑字幕/导出音频/导出 PDF）
 

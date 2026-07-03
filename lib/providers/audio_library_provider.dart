@@ -285,6 +285,90 @@ class AudioLibrary extends _$AudioLibrary {
     }
   }
 
+  /// 删除已下载的音频文件，但保留 item 本身（还原为「未下载」态）。
+  ///
+  /// 用于官方/播客音频——item 由后端 / RSS 统一管理不可删除，仅回收本地下载占用。
+  /// 语义：清 DB 下载态（audioPath + 文件派生指纹/内容状态，见 [AudioItemDao.clearDownloadState]）
+  /// → 同步内存 state → best-effort 删磁盘音频文件 + 波形缓存。
+  /// **不触碰字幕与学习进度**（字幕单独管理，重新下载即恢复播放）。无需二次确认——
+  /// item 仍在，随时可重新下载。
+  Future<void> deleteDownloadedAudio(String id) async {
+    AudioItem? item;
+    try {
+      item = state.audioItems.firstWhere((i) => i.id == id);
+    } catch (e) {
+      AppLogger.log('AudioLib', 'Audio item not found: $id');
+      return;
+    }
+    if (!item.isAudioReady) return;
+
+    // 引用计数：同一音频文件可能被多个条目共享，仅当无其它条目引用时才删磁盘文件
+    // （与 removeAudioItems 一致，避免误删仍在使用的文件）。
+    final pathsStillReferenced = await _pathsReferencedOutside(
+      existingItems: state.audioItems,
+      removedIds: {id},
+    );
+
+    // 官方音频的 audioSha256 是重新下载定位文件路径的稳定标识，必须保留。
+    final isOfficial = item.remoteAudioId != null;
+    final dao = ref.read(audioItemDaoProvider);
+    await dao.clearDownloadState(id, keepAudioSha256: isOfficial);
+
+    state = state.copyWith(
+      audioItems: [
+        for (final i in state.audioItems)
+          if (i.id == id)
+            i.copyWith(
+              audioPath: null,
+              contentStatus: null,
+              originalAudioSha256: null,
+              audioSha256: isOfficial ? i.audioSha256 : null,
+            )
+          else
+            i,
+      ],
+    );
+
+    // 只删音频文件本体 + 波形缓存，保留字幕文件（字幕单独管理）。
+    await _deleteDownloadedAudioFileOnly(item, pathsStillReferenced);
+  }
+
+  /// 删除单个音频的文件本体与波形缓存，保留字幕（供「删除下载」使用）。
+  Future<void> _deleteDownloadedAudioFileOnly(
+    AudioItem item,
+    Set<String> pathsStillReferenced,
+  ) async {
+    try {
+      final audioPath = await item.getFullAudioPath();
+      if (audioPath != null && !pathsStillReferenced.contains(audioPath)) {
+        final audioFile = File(audioPath);
+        if (await audioFile.exists()) {
+          await audioFile.delete();
+          AppLogger.log(
+            'AudioLib',
+            'Deleted downloaded audio file: $audioPath',
+          );
+        }
+      }
+    } catch (e) {
+      AppLogger.log('AudioLib', 'Error deleting downloaded audio file: $e');
+    }
+
+    // 波形缓存按音频 id 独占落盘（waveforms/{id}.wave），删音频即一并删。
+    try {
+      final dataDir = await getAppDataDirectory();
+      final waveFile = File(
+        p.join(dataDir.path, 'waveforms', '${item.id}.wave'),
+      );
+      if (await waveFile.exists()) {
+        await waveFile.delete();
+        AppLogger.log('AudioLib', 'Deleted waveform file: ${waveFile.path}');
+      }
+    } catch (e) {
+      AppLogger.log('AudioLib', 'Error deleting waveform file: $e');
+    }
+  }
+
   Future<Set<String>> _pathsReferencedOutside({
     required List<AudioItem> existingItems,
     required Set<String> removedIds,

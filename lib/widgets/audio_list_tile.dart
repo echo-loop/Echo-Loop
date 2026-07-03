@@ -729,6 +729,21 @@ class AudioListTile extends ConsumerWidget {
               label: l10n.delete,
               destructive: true,
             ),
+          // 官方/播客音频：item 由后端 / RSS 管理不可删除，但已下载的音频文件可回收。
+          // 「删除音频」仅删本地音频文件、把 audioPath 置空（列表重现下载按钮），
+          // 字幕/进度保留，随时可重新下载。
+          if ((isOfficial || isPodcastEpisode) && audioItem.isAudioReady)
+            appPopupMenuItem(
+              context,
+              value: 'deleteDownload',
+              icon: Icon(
+                Icons.delete_outline,
+                size: 20,
+                color: theme.colorScheme.error,
+              ),
+              label: l10n.deleteAudio,
+              destructive: true,
+            ),
           if (audioItem.podcastEpisodeGuid != null)
             appPopupMenuItem(
               context,
@@ -765,6 +780,11 @@ class AudioListTile extends ConsumerWidget {
             _showResetProgressDialog(context, ref);
           } else if (value == 'delete') {
             onDelete?.call();
+          } else if (value == 'deleteDownload') {
+            // 无需二次确认：item 仍在、可随时重新下载。
+            ref
+                .read(audioLibraryProvider.notifier)
+                .deleteDownloadedAudio(audioItem.id);
           } else if (value == 'podcastEpisodeInfo') {
             showPodcastEpisodeInfoSheet(context, _latestAudioItem(ref));
           }

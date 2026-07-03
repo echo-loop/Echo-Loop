@@ -114,6 +114,33 @@ class AudioItemDao extends DatabaseAccessor<AppDatabase>
     );
   }
 
+  /// 清除下载态：丢弃本地音频文件对应的派生元数据，把 item 还原为「未下载」。
+  ///
+  /// 用于官方/播客音频「删除音频」：仅回收本地音频文件占用，item 与字幕保留，
+  /// 需要时可重新下载。清空的列都是「由被删音频文件派生、离开文件即失去意义」的：
+  /// - [audioPath]：下载就绪的单一真实来源，置空即让列表重现下载按钮
+  /// - [audioContentStatus]：文件内容有效性检测结果，重下后由 checkAudioContent 重测
+  /// - [originalAudioSha256]：转码前原始文件指纹，文件已删；官方不用、播客/导入重下重算
+  ///
+  /// [keepAudioSha256] 为 true 时保留 [audioSha256]：官方音频的该指纹由 enroll 写入，
+  /// 是重新下载时定位文件路径（`audios/official/<sha>.m4a`）的稳定标识，清掉会导致重下
+  /// 报错；播客/导入音频的指纹由本地文件派生，清空后由重下重算。
+  ///
+  /// **不触碰字幕 / 学习进度 / 时长**（字幕单独管理；时长在未下载态仍需在列表展示）。
+  Future<void> clearDownloadState(
+    String audioItemId, {
+    required bool keepAudioSha256,
+  }) {
+    return (update(audioItems)..where((t) => t.id.equals(audioItemId))).write(
+      AudioItemsCompanion(
+        audioPath: const Value(null),
+        audioContentStatus: const Value(null),
+        originalAudioSha256: const Value(null),
+        audioSha256: keepAudioSha256 ? const Value.absent() : const Value(null),
+      ),
+    );
+  }
+
   /// 获取指定音频的字幕内容（完整 SRT 文本）。
   ///
   /// 独立查询，避免列表加载时读取大字段。
