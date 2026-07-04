@@ -1,7 +1,52 @@
 # Echo Loop 任务清单
 
-> 最后更新：2026-07-04（语音识别常开 + 评分开关迁移 + ASR 模型管理）
+> 最后更新：2026-07-04（词典面板查询标题与多词含义标题）
 > 当前焦点：Android 结束录音闪退（离线 ASR / Silero VAD）——**仍未解决**
+
+## 已完成：词典面板查询标题与多词含义标题
+
+响应词典面板真机截图反馈：长查询表达不再缩小成过小单行，并补齐多词 AI 结果的含义区标题。
+
+- [x] **查询标题**：词典面板顶部查询表达取消 `FittedBox` 单行缩放，改为固定 17sp 粗体并允许自然换行，避免多词表达被缩到难读。
+- [x] **含义区标题**：多词 AI 结果的 `meanings` 区块新增「含义与例句 / Meanings & Examples」分节标题，结构从核心要点过渡到含义例句更清晰。
+- [x] **测试**：更新词典面板标题断言与多词 AI 结果分节标题断言。
+- [x] **验证**：`flutter analyze lib/widgets/dictionary/dictionary_panel.dart lib/widgets/dictionary/ai_multi_word_result_view.dart lib/l10n/app_localizations.dart lib/l10n/app_localizations_en.dart lib/l10n/app_localizations_zh.dart test/widgets/dictionary/dictionary_panel_test.dart test/widgets/dictionary/ai_dict_result_view_test.dart` 0 问题；`flutter test test/widgets/dictionary/dictionary_panel_test.dart test/widgets/dictionary/ai_dict_result_view_test.dart` 全过（24 例）。
+
+  **完成时间**: 2026-07-04
+
+## 已完成：学习设置入口文案统一
+
+设置页「学习」分组中的学习偏好入口从「学习计划」改为「学习设置」，并同步语音识别模型下载失败弹窗里的关闭路径。
+
+- [x] **入口文案**：`learningSettings` 中文改为「学习设置」，英文改为 `Learning Settings`。
+- [x] **路径提示**：ASR 下载失败弹窗路径同步为「设置 > 学习设置 > 跟读时显示评分 / 复述时显示评分」。
+- [x] **测试**：更新 ASR 下载失败弹窗路径断言与 app shell 设置入口点击断言。
+- [x] **验证**：`flutter analyze lib/l10n/app_localizations.dart lib/l10n/app_localizations_en.dart lib/l10n/app_localizations_zh.dart test/widgets/asr_download_prompt_dialog_test.dart test/screens/app_shell_test.dart` 0 问题；`flutter test test/widgets/asr_download_prompt_dialog_test.dart` 全过（14 例）；`flutter test test/screens/app_shell_test.dart` 全过（5 例）。
+
+  **完成时间**: 2026-07-04
+
+## 已完成：语音识别模型下载失败弹窗文案收敛
+
+ASR 模型下载失败弹窗不再使用旧语义「暂不启用」，统一说明失败对象与关闭自动评分的位置。
+
+- [x] **失败标题**：进入前发现失败、下载过程中失败均显示「语音识别模型下载失败」，避免泛化为不明确的「下载失败」。
+- [x] **失败说明**：按入口场景分别说明模型用途与关闭位置；跟读类提示「语音识别模型用于跟读后自动评分」，路径为「设置 > 学习设置 > 跟读时显示评分」；复述类提示「语音识别模型用于复述后自动评分」，路径为「设置 > 学习设置 > 复述时显示评分」。弹窗内容拆为用途和关闭入口两段，避免长段落阅读负担；失败原因已在上方单独展示，不再重复「检查网络后重试」。
+- [x] **按钮收敛**：下载失败态删除左侧「暂不启用 / Not Now」按钮，仅保留「重试」，用户不想重试时可关闭弹窗或按说明去设置页关闭评分。
+- [x] **测试**：补充下载过程中失败与复述入口失败的回归用例，覆盖只保留重试按钮、网络错误原因、跟读/复述分场景设置路径提示，以及重试成功放行。
+- [x] **验证**：`flutter analyze lib/widgets/asr_download_prompt_dialog.dart test/widgets/asr_download_prompt_dialog_test.dart lib/l10n/app_localizations.dart lib/l10n/app_localizations_en.dart lib/l10n/app_localizations_zh.dart` 0 问题；`flutter test test/widgets/asr_download_prompt_dialog_test.dart` 全过（14 例）。
+
+  **完成时间**: 2026-07-04
+
+## 已完成：设置页语音引擎文案统一
+
+设置页「语音识别」与「语音合成」入口右侧摘要统一展示语音引擎品牌，不再在语音合成入口显示口音。
+
+- [x] **文案统一**：ASR/TTS 平台引擎统一显示为 `Apple AI`；Echo Loop 本地引擎统一显示为 `Echo Loop AI`，TTS 详情页保留 Balanced / Advanced 档位区分。
+- [x] **入口摘要**：设置首页语音合成入口改为按当前 TTS engine 显示 `Apple AI` 或 `Echo Loop AI`，口音/音色仍在语音合成详情页展示。
+- [x] **测试**：补充设置首页语音合成入口摘要回归用例，并更新 TTS 设置页旧引擎文案断言。
+- [x] **验证**：`flutter analyze lib/screens/settings_screen.dart lib/screens/tts_settings_screen.dart lib/screens/asr_settings_screen.dart test/screens/settings_screen_test.dart test/screens/tts_settings_screen_test.dart test/screens/asr_settings_screen_test.dart` 0 问题；`flutter test test/screens/settings_screen_test.dart test/screens/tts_settings_screen_test.dart test/screens/asr_settings_screen_test.dart` 全过（44 例）。
+
+  **完成时间**: 2026-07-04
 
 ## 已完成：语音识别常开 + 评分开关迁移 + ASR 模型管理
 

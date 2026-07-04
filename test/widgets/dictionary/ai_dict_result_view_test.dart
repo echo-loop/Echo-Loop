@@ -61,11 +61,10 @@ MultiWordDictionaryEntry _multiEntry() => MultiWordDictionaryEntry(
   naturalness: '这是自然表达。',
   category: '术语',
   pronunciationTips: const ['重音通常落在 learning。'],
+  keyPoints: const ['machine learning 是固定术语，不可拆开理解。'],
   meanings: const [
     MultiWordMeaning(
-      definition: '让计算机从数据中学习模式的方法。',
       translation: ['机器学习'],
-      usageNote: '常见于技术和商业语境。',
       examples: [
         ExampleSentence(
           sentence: 'Machine learning improves recommendations.',
@@ -83,7 +82,6 @@ MultiWordDictionaryEntry _multiEntry() => MultiWordDictionaryEntry(
     ),
   ],
   background: '人工智能核心术语。',
-  learnerTips: const ['通常作不可数名词短语使用。'],
 );
 
 void main() {
@@ -283,19 +281,15 @@ void main() {
     expect(find.text('提示二'), findsOneWidget);
   });
 
-  testWidgets('多词表达渲染自然性/含义/发音/相似表达/背景', (tester) async {
+  testWidgets('多词表达渲染核心要点/含义/自然性/发音/相似表达/背景', (tester) async {
     await tester.pumpWidget(
       _wrap(view(LookupLoaded(AiDictResult(_multiEntry())))),
     );
 
     expect(find.text('机器学习'), findsWidgets);
-    expect(find.text('让计算机从数据中学习模式的方法。'), findsOneWidget);
     expect(find.text('术语'), findsOneWidget);
+    expect(find.text('machine learning 是固定术语，不可拆开理解。'), findsOneWidget);
     expect(find.text('这是自然表达。'), findsOneWidget);
-    expect(
-      find.textContaining('常见于技术和商业语境。', findRichText: true),
-      findsOneWidget,
-    );
     expect(find.text('重音通常落在 learning。'), findsOneWidget);
     expect(
       find.text('Machine learning improves recommendations.'),
@@ -307,31 +301,30 @@ void main() {
       findsOneWidget,
     );
     expect(find.text('人工智能核心术语。'), findsOneWidget);
-    expect(find.text('通常作不可数名词短语使用。'), findsOneWidget);
   });
 
-  testWidgets('多词表达按 schema 展示顺序渲染非空字段', (tester) async {
+  testWidgets('多词表达核心要点位于含义之前，其余按 schema 顺序渲染', (tester) async {
     await tester.pumpWidget(
       _wrap(view(LookupLoaded(AiDictResult(_multiEntry())))),
     );
 
     double topOf(String text) => tester.getTopLeft(find.text(text)).dy;
 
+    final keyPointsTop = topOf('machine learning 是固定术语，不可拆开理解。');
     final meaningsTop = topOf('机器学习');
     final naturalnessTop = topOf('这是自然表达。');
     final pronunciationTop = topOf('重音通常落在 learning。');
     final similarTop = topOf('deep learning');
     final backgroundTop = topOf('人工智能核心术语。');
-    final learnerTipsTop = topOf('通常作不可数名词短语使用。');
 
+    expect(keyPointsTop, lessThan(meaningsTop));
     expect(meaningsTop, lessThan(naturalnessTop));
     expect(naturalnessTop, lessThan(pronunciationTop));
     expect(pronunciationTop, lessThan(similarTop));
     expect(similarTop, lessThan(backgroundTop));
-    expect(backgroundTop, lessThan(learnerTipsTop));
   });
 
-  testWidgets('多词表达中文分节标题显示为背景知识和学习提示', (tester) async {
+  testWidgets('多词表达中文分节标题显示为核心要点/含义与例句/背景知识', (tester) async {
     await tester.pumpWidget(
       _wrap(
         view(LookupLoaded(AiDictResult(_multiEntry()))),
@@ -339,8 +332,9 @@ void main() {
       ),
     );
 
+    expect(find.text('核心要点'), findsOneWidget);
+    expect(find.text('含义与例句'), findsOneWidget);
     expect(find.text('背景知识'), findsOneWidget);
-    expect(find.text('学习提示'), findsOneWidget);
   });
 
   testWidgets('空结果显示 aiNoAnalysis', (tester) async {

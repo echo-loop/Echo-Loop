@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:echo_loop/database/enums.dart';
 import 'package:echo_loop/l10n/app_localizations.dart';
+import 'package:echo_loop/providers/learning_settings_provider.dart';
 import 'package:echo_loop/providers/offline_asr_settings_provider.dart';
 import 'package:echo_loop/services/asr/asr_model_manager.dart';
 import 'package:echo_loop/services/download/download_failure.dart';
@@ -13,9 +14,13 @@ import 'package:echo_loop/widgets/asr_download_prompt_dialog.dart';
 import '../helpers/mock_providers.dart';
 
 class _TestOfflineAsrSettingsNotifier extends OfflineAsrSettingsNotifier {
-  _TestOfflineAsrSettingsNotifier(this._initialState);
+  _TestOfflineAsrSettingsNotifier(
+    this._initialState, {
+    this.failOnEnable = false,
+  });
 
   final OfflineAsrSettingsState _initialState;
+  final bool failOnEnable;
 
   int enableCallCount = 0;
   int disableCallCount = 0;
@@ -34,6 +39,14 @@ class _TestOfflineAsrSettingsNotifier extends OfflineAsrSettingsNotifier {
       downloadProgress: 0.4,
     );
     Future.microtask(() {
+      if (failOnEnable) {
+        state = state.copyWith(
+          enabled: true,
+          downloadStatus: AsrModelDownloadStatus.failed,
+          downloadError: DownloadFailureKind.network,
+        );
+        return;
+      }
       state = state.copyWith(
         enabled: true,
         downloadStatus: AsrModelDownloadStatus.downloaded,
@@ -82,10 +95,16 @@ void main() {
     type: AsrModelType.moonshine,
   );
 
-  Widget createTestWidget({required _TestOfflineAsrSettingsNotifier notifier}) {
+  Widget createTestWidget({
+    required _TestOfflineAsrSettingsNotifier notifier,
+    SubStageType? subStage,
+  }) {
     return ProviderScope(
       overrides: [
         analyticsOverride(),
+        initialLearningSettingsProvider.overrideWithValue(
+          const LearningSettings(),
+        ),
         offlineAsrSettingsProvider.overrideWith(() => notifier),
       ],
       child: MaterialApp(
@@ -101,10 +120,9 @@ void main() {
             builder: (context, ref, _) => Center(
               child: FilledButton(
                 onPressed: () async {
-                  final allowed = await ensureAsrReadyBeforeSpeechPractice(
-                    context,
-                    ref,
-                  );
+                  final allowed = subStage == null
+                      ? await ensureAsrReadyBeforeSpeechPractice(context, ref)
+                      : await ensureAsrReadyForSubStage(context, ref, subStage);
                   if (!context.mounted) return;
                   ScaffoldMessenger.of(
                     context,
@@ -170,7 +188,12 @@ void main() {
         ),
       );
 
-      await tester.pumpWidget(createTestWidget(notifier: notifier));
+      await tester.pumpWidget(
+        createTestWidget(
+          notifier: notifier,
+          subStage: SubStageType.listenAndRepeat,
+        ),
+      );
       await tester.tap(find.text('start'));
       await tester.pumpAndSettle();
 
@@ -193,7 +216,12 @@ void main() {
         ),
       );
 
-      await tester.pumpWidget(createTestWidget(notifier: notifier));
+      await tester.pumpWidget(
+        createTestWidget(
+          notifier: notifier,
+          subStage: SubStageType.listenAndRepeat,
+        ),
+      );
       await tester.tap(find.text('start'));
       await tester.pumpAndSettle();
 
@@ -216,7 +244,12 @@ void main() {
         ),
       );
 
-      await tester.pumpWidget(createTestWidget(notifier: notifier));
+      await tester.pumpWidget(
+        createTestWidget(
+          notifier: notifier,
+          subStage: SubStageType.listenAndRepeat,
+        ),
+      );
       await tester.tap(find.text('start'));
       await tester.pumpAndSettle();
 
@@ -240,7 +273,12 @@ void main() {
         ),
       );
 
-      await tester.pumpWidget(createTestWidget(notifier: notifier));
+      await tester.pumpWidget(
+        createTestWidget(
+          notifier: notifier,
+          subStage: SubStageType.listenAndRepeat,
+        ),
+      );
       await tester.tap(find.text('start'));
       await tester.pumpAndSettle();
 
@@ -306,16 +344,36 @@ void main() {
           backend: AsrBackend.offline,
           enabled: true,
           downloadStatus: AsrModelDownloadStatus.failed,
-          downloadError: DownloadFailureKind.unknown,
+          downloadError: DownloadFailureKind.network,
           recommendedModel: recommendedModel,
         ),
       );
 
-      await tester.pumpWidget(createTestWidget(notifier: notifier));
+      await tester.pumpWidget(
+        createTestWidget(
+          notifier: notifier,
+          subStage: SubStageType.listenAndRepeat,
+        ),
+      );
       await tester.tap(find.text('start'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Download failed. Tap to retry.'), findsOneWidget);
+      expect(
+        find.text('Speech Recognition Model Download Failed'),
+        findsOneWidget,
+      );
+      expect(
+        find.text('Network error. Check your connection and retry.'),
+        findsOneWidget,
+      );
+      expect(
+        find.textContaining(
+          'Settings > Learning Settings > Show rating during read-aloud',
+        ),
+        findsOneWidget,
+      );
+      expect(find.textContaining('Show rating during retelling'), findsNothing);
+      expect(find.text('Not Now'), findsNothing);
 
       // 点击空白区域关闭对话框（"Retry" 是唯一按钮，没有 "Not Now"）
       await tester.tapAt(const Offset(8, 8));
@@ -337,16 +395,104 @@ void main() {
         ),
       );
 
-      await tester.pumpWidget(createTestWidget(notifier: notifier));
+      await tester.pumpWidget(
+        createTestWidget(
+          notifier: notifier,
+          subStage: SubStageType.listenAndRepeat,
+        ),
+      );
       await tester.tap(find.text('start'));
       await tester.pumpAndSettle();
 
+      expect(find.text('Not Now'), findsNothing);
       await tester.tap(find.text('Retry'));
       await tester.pump();
       await tester.pumpAndSettle();
 
       expect(find.text('allowed=true'), findsOneWidget);
       expect(notifier.enableCallCount, 1);
+    });
+
+    testWidgets('下载过程中失败时只保留重试按钮并提示关闭评分位置', (tester) async {
+      final notifier = _TestOfflineAsrSettingsNotifier(
+        OfflineAsrSettingsState(
+          backend: AsrBackend.offline,
+          recommendedModel: recommendedModel,
+        ),
+        failOnEnable: true,
+      );
+
+      await tester.pumpWidget(
+        createTestWidget(
+          notifier: notifier,
+          subStage: SubStageType.listenAndRepeat,
+        ),
+      );
+      await tester.tap(find.text('start'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Download Now'));
+      await tester.pump();
+      await tester.pumpAndSettle();
+
+      expect(
+        find.text('Speech Recognition Model Download Failed'),
+        findsOneWidget,
+      );
+      expect(
+        find.text('Network error. Check your connection and retry.'),
+        findsOneWidget,
+      );
+      expect(
+        find.textContaining(
+          'Settings > Learning Settings > Show rating during read-aloud',
+        ),
+        findsOneWidget,
+      );
+      expect(find.textContaining('Show rating during retelling'), findsNothing);
+      expect(find.text('Not Now'), findsNothing);
+      expect(find.text('Retry'), findsOneWidget);
+
+      await tester.tap(find.text('Retry'));
+      await tester.pump();
+      await tester.pumpAndSettle();
+
+      expect(find.text('allowed=true'), findsOneWidget);
+      expect(notifier.retryDownloadCallCount, 1);
+    });
+
+    testWidgets('复述入口下载失败时只提示关闭复述评分', (tester) async {
+      final notifier = _TestOfflineAsrSettingsNotifier(
+        OfflineAsrSettingsState(
+          backend: AsrBackend.offline,
+          enabled: true,
+          downloadStatus: AsrModelDownloadStatus.failed,
+          downloadError: DownloadFailureKind.unknown,
+          recommendedModel: recommendedModel,
+        ),
+      );
+
+      await tester.pumpWidget(
+        createTestWidget(notifier: notifier, subStage: SubStageType.retell),
+      );
+      await tester.tap(find.text('start'));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.text('Speech Recognition Model Download Failed'),
+        findsOneWidget,
+      );
+      expect(
+        find.textContaining(
+          'Settings > Learning Settings > Show rating during retelling',
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.textContaining('Show rating during read-aloud'),
+        findsNothing,
+      );
+      expect(find.text('Not Now'), findsNothing);
     });
 
     testWidgets('下载失败弹窗点空白后返回 false 且不改状态', (tester) async {
@@ -360,11 +506,26 @@ void main() {
         ),
       );
 
-      await tester.pumpWidget(createTestWidget(notifier: notifier));
+      await tester.pumpWidget(
+        createTestWidget(
+          notifier: notifier,
+          subStage: SubStageType.listenAndRepeat,
+        ),
+      );
       await tester.tap(find.text('start'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Download failed. Tap to retry.'), findsOneWidget);
+      expect(
+        find.text('Speech Recognition Model Download Failed'),
+        findsOneWidget,
+      );
+      expect(
+        find.textContaining(
+          'Settings > Learning Settings > Show rating during read-aloud',
+        ),
+        findsOneWidget,
+      );
+      expect(find.text('Not Now'), findsNothing);
 
       await tester.tapAt(const Offset(8, 8));
       await tester.pumpAndSettle();
@@ -386,11 +547,26 @@ void main() {
         ),
       );
 
-      await tester.pumpWidget(createTestWidget(notifier: notifier));
+      await tester.pumpWidget(
+        createTestWidget(
+          notifier: notifier,
+          subStage: SubStageType.listenAndRepeat,
+        ),
+      );
       await tester.tap(find.text('start'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Download failed. Tap to retry.'), findsOneWidget);
+      expect(
+        find.text('Speech Recognition Model Download Failed'),
+        findsOneWidget,
+      );
+      expect(
+        find.textContaining(
+          'Settings > Learning Settings > Show rating during read-aloud',
+        ),
+        findsOneWidget,
+      );
+      expect(find.text('Not Now'), findsNothing);
 
       await tester.tap(find.byIcon(Icons.close));
       await tester.pumpAndSettle();

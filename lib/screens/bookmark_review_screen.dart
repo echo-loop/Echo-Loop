@@ -21,6 +21,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../database/enums.dart';
 import '../l10n/app_localizations.dart';
 import '../models/speech_practice_models.dart';
 import '../utils/playback_speed.dart';
@@ -76,7 +77,11 @@ class _BookmarkReviewScreenState extends ConsumerState<BookmarkReviewScreen>
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
-      final ok = await ensureSpeechReadyForRecording(context, ref);
+      final ok = await ensureSpeechReadyForSubStage(
+        context,
+        ref,
+        SubStageType.reviewDifficultPractice,
+      );
       if (!mounted) return;
       if (!ok) {
         if (context.canPop()) context.pop();

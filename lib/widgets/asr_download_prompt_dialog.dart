@@ -33,6 +33,39 @@ bool requiresAsrBeforeEnteringSubStage(
   };
 }
 
+enum _AsrRatingPromptPurpose { listenAndRepeat, retell, generic }
+
+_AsrRatingPromptPurpose _promptPurposeForSubStage(SubStageType subStage) {
+  return switch (subStage) {
+    SubStageType.listenAndRepeat || SubStageType.reviewDifficultPractice =>
+      _AsrRatingPromptPurpose.listenAndRepeat,
+    SubStageType.retell ||
+    SubStageType.reviewRetellParagraph ||
+    SubStageType.reviewRetellSummary => _AsrRatingPromptPurpose.retell,
+    _ => _AsrRatingPromptPurpose.generic,
+  };
+}
+
+({String purpose, String disablePath}) _downloadFailedCopy(
+  AppLocalizations l10n,
+  _AsrRatingPromptPurpose purpose,
+) {
+  return switch (purpose) {
+    _AsrRatingPromptPurpose.listenAndRepeat => (
+      purpose: l10n.speechModelDownloadFailedListenAndRepeatPurpose,
+      disablePath: l10n.speechModelDisablePathListenAndRepeat,
+    ),
+    _AsrRatingPromptPurpose.retell => (
+      purpose: l10n.speechModelDownloadFailedRetellPurpose,
+      disablePath: l10n.speechModelDisablePathRetell,
+    ),
+    _AsrRatingPromptPurpose.generic => (
+      purpose: l10n.speechModelDownloadFailedGenericPurpose,
+      disablePath: l10n.speechModelDisablePathGeneric,
+    ),
+  };
+}
+
 /// 在进入语音练习前检查本地 ASR 是否已就绪。
 ///
 /// 返回：
@@ -41,7 +74,19 @@ bool requiresAsrBeforeEnteringSubStage(
 Future<bool> ensureAsrReadyBeforeSpeechPractice(
   BuildContext context,
   WidgetRef ref,
-) async {
+) {
+  return _ensureAsrReadyBeforeSpeechPractice(
+    context,
+    ref,
+    purpose: _AsrRatingPromptPurpose.generic,
+  );
+}
+
+Future<bool> _ensureAsrReadyBeforeSpeechPractice(
+  BuildContext context,
+  WidgetRef ref, {
+  required _AsrRatingPromptPurpose purpose,
+}) async {
   final state = ref.read(offlineAsrSettingsProvider);
 
   // 非 offline 后端 → 不需要检查 Whisper 模型。
@@ -56,14 +101,19 @@ Future<bool> ensureAsrReadyBeforeSpeechPractice(
   }
 
   if (state.isDownloading) {
-    return _showDownloadProgressDialog(context, ref, startDownload: false);
+    return _showDownloadProgressDialog(
+      context,
+      ref,
+      startDownload: false,
+      purpose: purpose,
+    );
   }
 
   if (state.downloadStatus == AsrModelDownloadStatus.failed) {
-    return _showRepairPrompt(context, ref);
+    return _showRepairPrompt(context, ref, purpose: purpose);
   }
 
-  return _showEnableDownloadPrompt(context, ref);
+  return _showEnableDownloadPrompt(context, ref, purpose: purpose);
 }
 
 /// 仅在目标子阶段依赖本地 ASR 时执行前置检查。
@@ -80,7 +130,11 @@ Future<bool> ensureAsrReadyForSubStage(
   )) {
     return true;
   }
-  return ensureAsrReadyBeforeSpeechPractice(context, ref);
+  return _ensureAsrReadyBeforeSpeechPractice(
+    context,
+    ref,
+    purpose: _promptPurposeForSubStage(subStage),
+  );
 }
 
 /// 后台加载引擎（fire-and-forget，不阻塞 UI）。
@@ -95,8 +149,9 @@ Future<void> _ensureEngineLoaded(WidgetRef ref) async {
 
 Future<bool> _showEnableDownloadPrompt(
   BuildContext context,
-  WidgetRef ref,
-) async {
+  WidgetRef ref, {
+  required _AsrRatingPromptPurpose purpose,
+}) async {
   final shouldDownload = await showDialog<bool>(
     context: context,
     barrierDismissible: true,
@@ -104,7 +159,12 @@ Future<bool> _showEnableDownloadPrompt(
   );
 
   if (shouldDownload == true && context.mounted) {
-    return _showDownloadProgressDialog(context, ref, startDownload: true);
+    return _showDownloadProgressDialog(
+      context,
+      ref,
+      startDownload: true,
+      purpose: purpose,
+    );
   }
 
   // 用户选择"暂不启用"：仅阻止本次进入，不修改设置。
@@ -112,18 +172,29 @@ Future<bool> _showEnableDownloadPrompt(
   return false;
 }
 
-Future<bool> _showRepairPrompt(BuildContext context, WidgetRef ref) async {
+Future<bool> _showRepairPrompt(
+  BuildContext context,
+  WidgetRef ref, {
+  required _AsrRatingPromptPurpose purpose,
+}) async {
   final state = ref.read(offlineAsrSettingsProvider);
   final shouldDownload = await showDialog<bool>(
     context: context,
     barrierDismissible: true,
     builder: (ctx) => _RepairPromptDialog(
       isFailed: state.downloadStatus == AsrModelDownloadStatus.failed,
+      downloadError: state.downloadError,
+      purpose: purpose,
     ),
   );
 
   if (shouldDownload != true || !context.mounted) return false;
-  return _showDownloadProgressDialog(context, ref, startDownload: true);
+  return _showDownloadProgressDialog(
+    context,
+    ref,
+    startDownload: true,
+    purpose: purpose,
+  );
 }
 
 /// 下载进度弹窗（阻塞式）。
@@ -131,6 +202,7 @@ Future<bool> _showDownloadProgressDialog(
   BuildContext context,
   WidgetRef ref, {
   required bool startDownload,
+  required _AsrRatingPromptPurpose purpose,
 }) async {
   final notifier = ref.read(offlineAsrSettingsProvider.notifier);
   if (startDownload) {
@@ -140,7 +212,7 @@ Future<bool> _showDownloadProgressDialog(
   final result = await showDialog<bool>(
     context: context,
     barrierDismissible: true,
-    builder: (ctx) => const _DownloadProgressDialog(),
+    builder: (ctx) => _DownloadProgressDialog(purpose: purpose),
   );
 
   if (result == true) {
@@ -176,8 +248,14 @@ class _EnableDownloadPromptDialog extends ConsumerWidget {
 
 class _RepairPromptDialog extends ConsumerWidget {
   final bool isFailed;
+  final DownloadFailureKind? downloadError;
+  final _AsrRatingPromptPurpose purpose;
 
-  const _RepairPromptDialog({required this.isFailed});
+  const _RepairPromptDialog({
+    required this.isFailed,
+    required this.purpose,
+    this.downloadError,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -187,15 +265,16 @@ class _RepairPromptDialog extends ConsumerWidget {
       titlePadding: EdgeInsets.zero,
       title: _DialogTitle(
         title: isFailed
-            ? l10n.speechModelDownloadFailed
+            ? l10n.speechModelDownloadFailedTitle
             : l10n.speechModelRepairTitle,
         onClose: () => Navigator.of(context).pop(),
       ),
-      content: Text(
-        isFailed
-            ? l10n.speechModelRepairMessage
-            : l10n.speechModelRepairMessage,
-      ),
+      content: isFailed
+          ? _DownloadFailedContent(
+              downloadError: downloadError,
+              purpose: purpose,
+            )
+          : Text(l10n.speechModelRepairMessage),
       actions: [
         FilledButton(
           onPressed: () => Navigator.of(context).pop(true),
@@ -207,7 +286,9 @@ class _RepairPromptDialog extends ConsumerWidget {
 }
 
 class _DownloadProgressDialog extends ConsumerWidget {
-  const _DownloadProgressDialog();
+  final _AsrRatingPromptPurpose purpose;
+
+  const _DownloadProgressDialog({required this.purpose});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -226,7 +307,7 @@ class _DownloadProgressDialog extends ConsumerWidget {
       titlePadding: EdgeInsets.zero,
       title: _DialogTitle(
         title: isFailed
-            ? l10n.speechModelDownloadFailed
+            ? l10n.speechModelDownloadFailedTitle
             : l10n.downloadingSpeechModel,
         onClose: () => Navigator.of(context).pop(),
       ),
@@ -258,14 +339,14 @@ class _DownloadProgressDialog extends ConsumerWidget {
               style: const TextStyle(color: Colors.red),
             ),
           ],
+          if (isFailed) ...[
+            const SizedBox(height: 8),
+            _DownloadFailedContent(downloadError: null, purpose: purpose),
+          ],
         ],
       ),
       actions: state.downloadStatus == AsrModelDownloadStatus.failed
           ? [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(false),
-                child: Text(l10n.notNow),
-              ),
               FilledButton(
                 onPressed: () => ref
                     .read(offlineAsrSettingsProvider.notifier)
@@ -274,6 +355,52 @@ class _DownloadProgressDialog extends ConsumerWidget {
               ),
             ]
           : const [],
+    );
+  }
+}
+
+class _DownloadFailedContent extends StatelessWidget {
+  final DownloadFailureKind? downloadError;
+  final _AsrRatingPromptPurpose purpose;
+
+  const _DownloadFailedContent({
+    required this.downloadError,
+    required this.purpose,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final copy = _downloadFailedCopy(l10n, purpose);
+    final textTheme = Theme.of(context).textTheme;
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (downloadError != null &&
+            downloadError != DownloadFailureKind.unknown) ...[
+          Text(
+            downloadFailureMessage(l10n, downloadError),
+            style: TextStyle(color: colorScheme.error),
+          ),
+          const SizedBox(height: 10),
+        ],
+        Text(copy.purpose, style: textTheme.bodyMedium),
+        const SizedBox(height: 14),
+        Text(
+          l10n.speechModelDownloadFailedDisableHint,
+          style: textTheme.bodySmall?.copyWith(
+            color: colorScheme.onSurfaceVariant,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          copy.disablePath,
+          style: textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+        ),
+      ],
     );
   }
 }

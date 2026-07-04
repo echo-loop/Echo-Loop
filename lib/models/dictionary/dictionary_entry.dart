@@ -368,6 +368,9 @@ class MultiWordDictionaryEntry implements AiDictionaryEntry {
   /// 发音提示（连读、弱读、重音等），每条一项，无明显提示时为空列表。
   final List<String> pronunciationTips;
 
+  /// 核心要点：学习者最该掌握的信息，每条一项，最重要在前。
+  final List<String> keyPoints;
+
   /// 各含义与对应场景用法。
   final List<MultiWordMeaning> meanings;
 
@@ -377,9 +380,6 @@ class MultiWordDictionaryEntry implements AiDictionaryEntry {
   /// 补充背景。
   final String background;
 
-  /// 学习者提示
-  final List<String> learnerTips;
-
   @override
   String get headword => originalExpression;
 
@@ -388,10 +388,10 @@ class MultiWordDictionaryEntry implements AiDictionaryEntry {
     required this.naturalness,
     required this.category,
     required this.pronunciationTips,
+    required this.keyPoints,
     required this.meanings,
     required this.similarExpressions,
     required this.background,
-    required this.learnerTips,
   });
 
   factory MultiWordDictionaryEntry.fromJson(Map<String, dynamic> json) {
@@ -404,6 +404,7 @@ class MultiWordDictionaryEntry implements AiDictionaryEntry {
       naturalness: _str(json['naturalness']),
       category: _str(json['category']),
       pronunciationTips: _strList(json['pronunciationTips']),
+      keyPoints: _strList(json['keyPoints']),
       meanings: meanings is List
           ? meanings
                 .whereType<Map<String, dynamic>>()
@@ -417,7 +418,6 @@ class MultiWordDictionaryEntry implements AiDictionaryEntry {
                 .toList(growable: false)
           : const [],
       background: _str(json['background']),
-      learnerTips: _strList(json['learnerTips']),
     );
   }
 
@@ -428,10 +428,10 @@ class MultiWordDictionaryEntry implements AiDictionaryEntry {
     'naturalness': naturalness,
     'category': category,
     'pronunciationTips': pronunciationTips,
+    'keyPoints': keyPoints,
     'meanings': meanings.map((m) => m.toJson()).toList(),
     'similarExpressions': similarExpressions.map((e) => e.toJson()).toList(),
     'background': background,
-    'learnerTips': learnerTips,
   };
 
   @override
@@ -439,39 +439,29 @@ class MultiWordDictionaryEntry implements AiDictionaryEntry {
       naturalness.isEmpty &&
       category.isEmpty &&
       pronunciationTips.isEmpty &&
+      keyPoints.isEmpty &&
       meanings.isEmpty &&
       similarExpressions.isEmpty &&
-      background.isEmpty &&
-      learnerTips.isEmpty;
+      background.isEmpty;
 }
 
 /// 多词表达义项
 class MultiWordMeaning {
-  /// 学习者友好的释义
-  final String definition;
-
   /// 目标语言自然对译
   final List<String> translation;
-
-  /// 语气、含义或场景说明
-  final String usageNote;
 
   /// 例句
   final List<ExampleSentence> examples;
 
   const MultiWordMeaning({
-    required this.definition,
     required this.translation,
-    required this.usageNote,
     required this.examples,
   });
 
   factory MultiWordMeaning.fromJson(Map<String, dynamic> json) {
     final examples = json['examples'];
     return MultiWordMeaning(
-      definition: _str(json['definition']),
       translation: _strList(json['translation']),
-      usageNote: _str(json['usageNote']),
       examples: examples is List
           ? examples
                 .whereType<Map<String, dynamic>>()
@@ -482,17 +472,11 @@ class MultiWordMeaning {
   }
 
   Map<String, dynamic> toJson() => {
-    'definition': definition,
     'translation': translation,
-    'usageNote': usageNote,
     'examples': examples.map((e) => e.toJson()).toList(),
   };
 
-  bool get isEmpty =>
-      definition.isEmpty &&
-      translation.isEmpty &&
-      usageNote.isEmpty &&
-      examples.isEmpty;
+  bool get isEmpty => translation.isEmpty && examples.isEmpty;
 }
 
 /// 相近、替代或易混表达

@@ -289,9 +289,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                ref.watch(ttsSettingsProvider).accent == TtsAccent.uk
-                    ? l10n.ttsAccentUk
-                    : l10n.ttsAccentUs,
+                _ttsEngineSummary(l10n, ref.watch(ttsSettingsProvider).engine),
                 style: TextStyle(color: colorScheme.onSurfaceVariant),
               ),
               const SizedBox(width: AppSpacing.xs),
@@ -337,6 +335,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         ),
       ],
     );
+  }
+
+  /// 设置首页仅展示当前语音引擎品牌，口音和音色留在语音合成详情页展示。
+  String _ttsEngineSummary(AppLocalizations l10n, TtsEngineKind engine) {
+    return switch (engine) {
+      TtsEngineKind.platform => platformSpeechEngineName(l10n),
+      TtsEngineKind.echoLoop || TtsEngineKind.piper => l10n.asrBackendOffline,
+    };
   }
 
   /// 构建存储管理区域

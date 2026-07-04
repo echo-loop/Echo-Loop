@@ -1,9 +1,9 @@
 /// AI 多词表达结果视图
 ///
 /// 展示后端 `queryType=multi_word` 的结构化分析。视觉语言与单词视图
-/// [AiDictResultView] 完全对齐：顶部类别标签 → 词义区（序号 + 释义 + 用法 +
-/// 例句，主内容，无卡片包裹）→ 补充卡片（自然性 / 发音 / 相似表达 / 背景 /
-/// 学习提示，图标徽章 + 主色小标题 + 柔和卡片）。空字段整段隐藏。
+/// [AiDictResultView] 完全对齐：顶部类别标签 → 核心要点卡片 → 词义区（序号 +
+/// 对译 + 例句，主内容，无卡片包裹）→ 补充卡片（自然性 / 发音 / 相似表达 /
+/// 背景，图标徽章 + 主色小标题 + 柔和卡片）。空字段整段隐藏。
 library;
 
 import 'package:flutter/material.dart';
@@ -28,6 +28,26 @@ class AiMultiWordResultView extends StatelessWidget {
     // 类别标签是多词表达的元信息，不参与主要内容区排序。
     if (entry.category.isNotEmpty) {
       children.add(_CategoryTag(text: entry.category));
+    }
+
+    // 核心要点（置于词义之前，作主内容不套卡片，逐条项目符号）
+    if (entry.keyPoints.isNotEmpty) {
+      children.add(
+        _Section(
+          title: l10n.dictAiMultiKeyPoints,
+          icon: Icons.lightbulb_outline,
+          boxed: false,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              for (var i = 0; i < entry.keyPoints.length; i++) ...[
+                if (i > 0) const SizedBox(height: AppSpacing.xs),
+                _TipItem(text: entry.keyPoints[i]),
+              ],
+            ],
+          ),
+        ),
+      );
     }
 
     // 词义（主内容）：多义项显示序号，义项之间细分隔，直接渲染不套卡片
@@ -57,9 +77,14 @@ class AiMultiWordResultView extends StatelessWidget {
         );
       }
       children.add(
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: meaningWidgets,
+        _Section(
+          title: l10n.dictAiMultiMeanings,
+          icon: Icons.menu_book_outlined,
+          boxed: false,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: meaningWidgets,
+          ),
         ),
       );
     }
@@ -120,25 +145,6 @@ class AiMultiWordResultView extends StatelessWidget {
           title: l10n.dictAiMultiBackground,
           icon: Icons.history_edu_outlined,
           child: _bodyText(Theme.of(context), entry.background),
-        ),
-      );
-    }
-
-    // 学习提示（逐条项目符号）
-    if (entry.learnerTips.isNotEmpty) {
-      children.add(
-        _Section(
-          title: l10n.dictAiTips,
-          icon: Icons.lightbulb_outline,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              for (var i = 0; i < entry.learnerTips.length; i++) ...[
-                if (i > 0) const SizedBox(height: AppSpacing.xs),
-                _TipItem(text: entry.learnerTips[i]),
-              ],
-            ],
-          ),
         ),
       );
     }
@@ -211,11 +217,8 @@ class _MeaningBlock extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    // 对应词存在时作主标题（目标语先行），英文释义降为辅助行；
-    // 对应词缺失则回退用英文释义作主标题。
-    final translation = meaning.translation.join('；');
-    final hasTranslation = translation.isNotEmpty;
-    final headline = hasTranslation ? translation : meaning.definition;
+    // 对应词作主标题（目标语），多条对译以顿号连接。
+    final headline = meaning.translation.join('；');
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -238,48 +241,6 @@ class _MeaningBlock extends StatelessWidget {
             ),
           ],
         ),
-        // 英文单语释义（仅当对应词已占主标题时单独成行）
-        if (hasTranslation && meaning.definition.isNotEmpty)
-          Padding(
-            padding: const EdgeInsets.only(top: 4, left: 2),
-            child: Text(
-              meaning.definition,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                height: 1.5,
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-            ),
-          ),
-        if (meaning.usageNote.isNotEmpty)
-          Padding(
-            padding: const EdgeInsets.only(top: 8, left: 2),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.only(top: 2, right: 6),
-                  child: Icon(
-                    Icons.info_outline_rounded,
-                    size: 13,
-                    color: theme.colorScheme.onSurfaceVariant.withValues(
-                      alpha: 0.7,
-                    ),
-                  ),
-                ),
-                Expanded(
-                  child: Text(
-                    meaning.usageNote,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant.withValues(
-                        alpha: 0.85,
-                      ),
-                      height: 1.4,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
         for (final ex in meaning.examples)
           _ExampleView(sentence: ex.sentence, translation: ex.translation),
       ],
@@ -477,10 +438,15 @@ class _Section extends StatelessWidget {
   final String title;
   final IconData icon;
   final Widget child;
+
+  /// 是否用柔和卡片（边框+底色）包裹内容。主内容区（如核心要点）传 false，
+  /// 直接展示不套卡片，与词义区视觉层级一致。
+  final bool boxed;
   const _Section({
     required this.title,
     required this.icon,
     required this.child,
+    this.boxed = true,
   });
 
   @override
@@ -510,18 +476,21 @@ class _Section extends StatelessWidget {
           ],
         ),
         const SizedBox(height: AppSpacing.s),
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(AppSpacing.m),
-          decoration: BoxDecoration(
-            color: theme.colorScheme.onSurface.withValues(alpha: 0.025),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: theme.colorScheme.outlineVariant.withValues(alpha: 0.5),
+        if (boxed)
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(AppSpacing.m),
+            decoration: BoxDecoration(
+              color: theme.colorScheme.onSurface.withValues(alpha: 0.025),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: theme.colorScheme.outlineVariant.withValues(alpha: 0.5),
+              ),
             ),
-          ),
-          child: child,
-        ),
+            child: child,
+          )
+        else
+          SizedBox(width: double.infinity, child: child),
       ],
     );
   }

@@ -97,8 +97,8 @@ void main() {
       await tester.tap(find.text('Profile'));
       await tester.pump(const Duration(milliseconds: 500));
 
-      // Study Plan 是 push 进新页面，等路由动画 + 异步加载
-      await tester.tap(find.text('Study Plan'));
+      // Learning Settings 是 push 进新页面，等路由动画 + 异步加载
+      await tester.tap(find.text('Learning Settings'));
       await tester.pump(const Duration(milliseconds: 500));
       await tester.pump(const Duration(milliseconds: 500));
 

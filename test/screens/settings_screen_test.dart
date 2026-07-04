@@ -13,6 +13,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:echo_loop/providers/app_update_provider.dart';
 import 'package:echo_loop/providers/developer_options_provider.dart';
 import 'package:echo_loop/providers/offline_asr_settings_provider.dart';
+import 'package:echo_loop/providers/tts/tts_settings_provider.dart';
 import 'package:echo_loop/screens/settings_screen.dart';
 import 'package:echo_loop/providers/settings_provider.dart';
 import 'package:echo_loop/providers/audio_library_provider.dart';
@@ -21,6 +22,7 @@ import 'package:echo_loop/features/auth/providers/auth_providers.dart';
 import 'package:echo_loop/providers/listening_practice/listening_practice_provider.dart';
 import 'package:echo_loop/providers/audio_engine/audio_engine_provider.dart';
 import 'package:echo_loop/providers/package_info_provider.dart';
+import 'package:echo_loop/services/tts/tts_engine.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../helpers/mock_providers.dart';
@@ -46,6 +48,7 @@ void main() {
     bool showDeveloperOptions = true,
     bool showOfflineAsrSection = false,
     OfflineAsrSettingsState? offlineAsrState,
+    TtsSettings ttsSettings = const TtsSettings(),
     PackageInfo? packageInfo,
   }) {
     const recommendedModel = AsrModelInfo(
@@ -56,6 +59,7 @@ void main() {
     return [
       ...learningSettingsOverrides(prefs: prefs),
       appSettingsProvider.overrideWith(() => TestAppSettings(settings)),
+      initialTtsSettingsProvider.overrideWithValue(ttsSettings),
       showDeveloperOptionsProvider.overrideWith(
         () => _TestDeveloperOptions(showDeveloperOptions),
       ),
@@ -345,6 +349,32 @@ void main() {
 
         expect(find.text('Learning'), findsOneWidget);
         expect(find.text('Speech Recognition'), findsOneWidget);
+      });
+
+      testWidgets('语音合成入口显示当前平台引擎，不显示口音', (tester) async {
+        await tester.pumpWidget(
+          createTestScreen(const SettingsScreen(), overrides: buildOverrides()),
+        );
+        await tester.pumpAndSettle();
+
+        expect(find.text('Text-to-Speech'), findsOneWidget);
+        expect(find.text('Apple AI'), findsOneWidget);
+        expect(find.text('American'), findsNothing);
+      });
+
+      testWidgets('语音合成入口显示 Echo Loop 引擎', (tester) async {
+        await tester.pumpWidget(
+          createTestScreen(
+            const SettingsScreen(),
+            overrides: buildOverrides(
+              ttsSettings: const TtsSettings(engine: TtsEngineKind.echoLoop),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(find.text('Text-to-Speech'), findsOneWidget);
+        expect(find.text('Echo Loop AI'), findsOneWidget);
       });
 
       testWidgets('开发者选项关闭时不显示开发者分组', (tester) async {

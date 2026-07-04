@@ -128,7 +128,11 @@ class _RetellPlayerScreenState extends ConsumerState<RetellPlayerScreen>
     _latestRecordingState = ref.read(retellRecordingControllerProvider);
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
-      final ok = await ensureSpeechReadyForRecording(context, ref);
+      final ok = await ensureSpeechReadyForSubStage(
+        context,
+        ref,
+        SubStageType.retell,
+      );
       if (!mounted) return;
       if (!ok) {
         if (context.canPop()) context.pop();

@@ -41,7 +41,7 @@ Future<bool> ensureSpeechReadyForSubStage(
   SubStageType subStage,
 ) async {
   if (!requiresMicForSubStage(subStage)) return true;
-  return ensureSpeechReadyForRecording(context, ref);
+  return _ensureSpeechReady(context, ref, subStage: subStage);
 }
 
 /// 调用方已确认会进入录音流程时使用的入口（如聚合页按钮）。
@@ -50,7 +50,13 @@ Future<bool> ensureSpeechReadyForSubStage(
 Future<bool> ensureSpeechReadyForRecording(
   BuildContext context,
   WidgetRef ref,
-) async {
+) => _ensureSpeechReady(context, ref);
+
+Future<bool> _ensureSpeechReady(
+  BuildContext context,
+  WidgetRef ref, {
+  SubStageType? subStage,
+}) async {
   AppLogger.log('SpeechPermGate', '┌ ensureSpeechReadyForRecording');
   final service = ref.read(speechPermissionServiceProvider);
   if (!service.isSupported) {
@@ -65,7 +71,7 @@ Future<bool> ensureSpeechReadyForRecording(
     return false;
   }
 
-  final permOk = await _ensurePermissions(context, ref);
+  final permOk = await _ensurePermissions(context, ref, subStage: subStage);
   if (!permOk || !context.mounted) {
     AppLogger.log(
       'SpeechPermGate',
@@ -75,14 +81,34 @@ Future<bool> ensureSpeechReadyForRecording(
   }
 
   AppLogger.log('SpeechPermGate', '│ perm ok → check asr model');
-  final asrOk = await ensureAsrReadyBeforeSpeechPractice(context, ref);
+  final asrOk = subStage == null
+      // ignore: use_build_context_synchronously
+      ? await _ensureAsrReadyForUnknownRecording(context, ref)
+      // ignore: use_build_context_synchronously
+      : await ensureAsrReadyForSubStage(context, ref, subStage);
   AppLogger.log('SpeechPermGate', '└ asrOk=$asrOk');
   return asrOk;
 }
 
+Future<bool> _ensureAsrReadyForUnknownRecording(
+  BuildContext context,
+  WidgetRef ref,
+) async {
+  final learningSettings = ref.read(learningSettingsProvider);
+  final anyRatingEnabled =
+      learningSettings.listenAndRepeatRatingEnabled ||
+      learningSettings.retellRatingEnabled;
+  if (!anyRatingEnabled) return true;
+  return ensureAsrReadyBeforeSpeechPractice(context, ref);
+}
+
 /// 仅检查权限（mic + 可选 speech）。
-Future<bool> _ensurePermissions(BuildContext context, WidgetRef ref) async {
-  final needsSpeech = _needsPlatformSpeechPermission(ref);
+Future<bool> _ensurePermissions(
+  BuildContext context,
+  WidgetRef ref, {
+  SubStageType? subStage,
+}) async {
+  final needsSpeech = _needsPlatformSpeechPermission(ref, subStage: subStage);
   final service = ref.read(speechPermissionServiceProvider);
   AppLogger.log('SpeechPermGate', '│ needsSpeech=$needsSpeech');
 
@@ -115,13 +141,19 @@ Future<bool> _ensurePermissions(BuildContext context, WidgetRef ref) async {
 }
 
 /// 是否需要平台语音识别权限。
-bool _needsPlatformSpeechPermission(WidgetRef ref) {
+bool _needsPlatformSpeechPermission(WidgetRef ref, {SubStageType? subStage}) {
   final asrSettings = ref.read(offlineAsrSettingsProvider);
   final learningSettings = ref.read(learningSettingsProvider);
-  final anyRatingEnabled =
-      learningSettings.listenAndRepeatRatingEnabled ||
-      learningSettings.retellRatingEnabled;
-  return anyRatingEnabled && asrSettings.backend == AsrBackend.platform;
+  final needsRating = subStage == null
+      ? learningSettings.listenAndRepeatRatingEnabled ||
+            learningSettings.retellRatingEnabled
+      : requiresAsrBeforeEnteringSubStage(
+          subStage,
+          listenAndRepeatRatingEnabled:
+              learningSettings.listenAndRepeatRatingEnabled,
+          retellRatingEnabled: learningSettings.retellRatingEnabled,
+        );
+  return needsRating && asrSettings.backend == AsrBackend.platform;
 }
 
 /// 当前权限是否已经覆盖所需项。

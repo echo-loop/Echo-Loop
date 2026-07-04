@@ -89,7 +89,11 @@ class _ListenAndRepeatPlayerScreenState
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
-      final ok = await ensureSpeechReadyForRecording(context, ref);
+      final ok = await ensureSpeechReadyForSubStage(
+        context,
+        ref,
+        SubStageType.listenAndRepeat,
+      );
       if (!mounted) return;
       if (!ok) {
         if (context.canPop()) context.pop();

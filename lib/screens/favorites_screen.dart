@@ -13,6 +13,7 @@ import '../features/usage/usage_event.dart';
 import '../features/usage/usage_providers.dart';
 import '../database/app_database.dart';
 import '../database/daos/bookmark_dao.dart';
+import '../database/enums.dart';
 import '../database/providers.dart';
 import '../l10n/app_localizations.dart';
 import '../models/audio_item.dart' as model;
@@ -366,7 +367,11 @@ class _FloatingSentenceReviewButton extends ConsumerWidget {
                 EventParams.totalSentencesCount: validBookmarks.length,
               },
             );
-        final allowed = await ensureSpeechReadyForRecording(context, ref);
+        final allowed = await ensureSpeechReadyForSubStage(
+          context,
+          ref,
+          SubStageType.reviewDifficultPractice,
+        );
         if (!allowed || !context.mounted) return;
 
         final sw = Stopwatch()..start();
@@ -585,9 +590,10 @@ class _AudioBookmarkGroup extends ConsumerWidget {
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(),
                 onPressed: () async {
-                  final allowed = await ensureSpeechReadyForRecording(
+                  final allowed = await ensureSpeechReadyForSubStage(
                     context,
                     ref,
+                    SubStageType.reviewDifficultPractice,
                   );
                   if (!allowed || !context.mounted) return;
 

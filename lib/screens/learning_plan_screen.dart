@@ -767,7 +767,11 @@ class _LearningPlanScreenState extends ConsumerState<LearningPlanScreen> {
     DifficultPracticeSettings settings = const DifficultPracticeSettings(),
     LearningStage? stage,
   }) async {
-    final allowed = await ensureSpeechReadyForRecording(context, ref);
+    final allowed = await ensureSpeechReadyForSubStage(
+      context,
+      ref,
+      SubStageType.reviewDifficultPractice,
+    );
     if (!allowed || !context.mounted) return;
 
     final lpState = await _ensureAudioLoaded();
@@ -858,7 +862,13 @@ class _LearningPlanScreenState extends ConsumerState<LearningPlanScreen> {
     BuildContext context, {
     required bool isSummary,
   }) async {
-    final allowed = await ensureSpeechReadyForRecording(context, ref);
+    final allowed = await ensureSpeechReadyForSubStage(
+      context,
+      ref,
+      isSummary
+          ? SubStageType.reviewRetellSummary
+          : SubStageType.reviewRetellParagraph,
+    );
     if (!allowed || !context.mounted) return;
 
     final lpState = await _ensureAudioLoaded();
@@ -1105,7 +1115,11 @@ class _LearningPlanScreenState extends ConsumerState<LearningPlanScreen> {
 
   /// 进入难句跟读
   Future<void> _startListenAndRepeat(BuildContext context) async {
-    final allowed = await ensureSpeechReadyForRecording(context, ref);
+    final allowed = await ensureSpeechReadyForSubStage(
+      context,
+      ref,
+      SubStageType.listenAndRepeat,
+    );
     if (!allowed || !context.mounted) return;
 
     final lpState = await _ensureAudioLoaded();
@@ -1217,7 +1231,11 @@ class _LearningPlanScreenState extends ConsumerState<LearningPlanScreen> {
 
   /// 进入段落复述
   Future<void> _startRetelling(BuildContext context) async {
-    final allowed = await ensureSpeechReadyForRecording(context, ref);
+    final allowed = await ensureSpeechReadyForSubStage(
+      context,
+      ref,
+      SubStageType.retell,
+    );
     if (!allowed || !context.mounted) return;
 
     final lpState = await _ensureAudioLoaded();

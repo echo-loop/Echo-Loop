@@ -14,10 +14,11 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// 平台语音引擎的显示名随宿主而变（见 [platformSpeechEngineName]）：
-/// Apple 宿主（macOS/iOS）显「Apple Speech」，其余（Linux CI 等）显「System Speech」。
-/// 测试断言须与运行宿主一致，否则在 Linux CI 上找不到「Apple Speech」而失败。
-final String _platformEngineLabel =
-    (Platform.isIOS || Platform.isMacOS) ? 'Apple Speech' : 'System Speech';
+/// Apple 宿主（macOS/iOS）显「Apple AI」，其余（Linux CI 等）显「System Speech」。
+/// 测试断言须与运行宿主一致，否则在 Linux CI 上找不到「Apple AI」而失败。
+final String _platformEngineLabel = (Platform.isIOS || Platform.isMacOS)
+    ? 'Apple AI'
+    : 'System Speech';
 
 /// 受控的 Kokoro 模型 notifier：build 返回注入初值，方法仅按变体计数（不做真实 IO）。
 class _TestKokoroNotifier extends KokoroModelNotifier {
@@ -89,11 +90,11 @@ void main() {
     await tester.pumpWidget(_wrap(const TtsSettings()));
     await tester.pumpAndSettle();
 
-    // 平台引擎显示名随宿主而变（Apple → Apple Speech，其余 → System Speech）。
+    // 平台引擎显示名随宿主而变（Apple → Apple AI，其余 → System Speech）。
     expect(find.text(_platformEngineLabel), findsOneWidget);
     // Echo Loop 现拆为两档可选：Balanced(Piper) / Advanced(Kokoro)。
-    expect(find.text('Echo Loop Speech (Balanced)'), findsOneWidget);
-    expect(find.text('Echo Loop Speech (Advanced)'), findsOneWidget);
+    expect(find.text('Echo Loop AI (Balanced)'), findsOneWidget);
+    expect(find.text('Echo Loop AI (Advanced)'), findsOneWidget);
     expect(find.textContaining('Best sound quality'), findsOneWidget);
     expect(find.text('American'), findsOneWidget);
     expect(find.text('British'), findsOneWidget);
@@ -107,7 +108,7 @@ void main() {
     await tester.pumpAndSettle();
 
     // echoLoop = Advanced 档（Kokoro）。
-    await tester.tap(find.text('Echo Loop Speech (Advanced)'));
+    await tester.tap(find.text('Echo Loop AI (Advanced)'));
     await tester.pumpAndSettle();
 
     expect(

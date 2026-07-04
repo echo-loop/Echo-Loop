@@ -29,11 +29,10 @@ MultiWordDictionaryEntry _multiEntry() => MultiWordDictionaryEntry(
   naturalness: '',
   category: '术语',
   pronunciationTips: const [],
+  keyPoints: const [],
   meanings: const [
     MultiWordMeaning(
-      definition: '让计算机从数据中学习模式的方法。',
       translation: ['机器学习'],
-      usageNote: '',
       examples: [
         ExampleSentence(
           sentence: 'Machine learning improves recommendations.',
@@ -51,7 +50,6 @@ MultiWordDictionaryEntry _multiEntry() => MultiWordDictionaryEntry(
     ),
   ],
   background: '',
-  learnerTips: const [],
 );
 
 WordMeaning _meaning(List<ExampleSentence> examples) => WordMeaning(

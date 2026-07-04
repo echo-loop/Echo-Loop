@@ -198,11 +198,10 @@ void main() {
         'naturalness': '',
         'category': '搭配',
         'pronunciationTips': ['pretty 可弱读。'],
+        'keyPoints': ['pretty 是程度副词，不是“漂亮”。'],
         'meanings': [
           {
-            'definition': '挺忙的；有不少事情要做。',
             'translation': ['挺忙的'],
-            'usageNote': '语气比 very busy 更委婉。',
             'examples': [
               {
                 'sentence': 'I’m pretty busy this afternoon.',
@@ -220,7 +219,6 @@ void main() {
           },
         ],
         'background': '',
-        'learnerTips': ['通常作不可数名词短语使用。'],
       });
 
       expect(entry, isA<MultiWordDictionaryEntry>());
@@ -229,8 +227,8 @@ void main() {
       expect(multi.headword, 'pretty busy');
       expect(multi.category, '搭配');
       expect(multi.pronunciationTips, ['pretty 可弱读。']);
+      expect(multi.keyPoints, ['pretty 是程度副词，不是“漂亮”。']);
       expect(multi.meanings.first.translation, ['挺忙的']);
-      expect(multi.meanings.first.usageNote, '语气比 very busy 更委婉。');
       expect(
         multi.meanings.first.examples.first.sentence,
         'I’m pretty busy this afternoon.',
@@ -240,7 +238,6 @@ void main() {
         multi.similarExpressions.first.sentence,
         'I’m very busy this week.',
       );
-      expect(multi.learnerTips, ['通常作不可数名词短语使用。']);
       expect(multi.isEmpty, isFalse);
     });
 

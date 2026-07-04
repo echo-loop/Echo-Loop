@@ -1426,7 +1426,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get asrEngine => '语音引擎';
 
   @override
-  String get asrBackendPlatform => 'Apple Speech';
+  String get asrBackendPlatform => 'Apple AI';
 
   @override
   String get asrBackendPlatformDescription => '使用系统自带的语音识别，无需下载';
@@ -1476,6 +1476,31 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get speechModelDownloadFailed => '下载失败，点击重试。';
+
+  @override
+  String get speechModelDownloadFailedTitle => '语音识别模型下载失败';
+
+  @override
+  String get speechModelDownloadFailedGenericPurpose => '语音识别模型用于练习后自动评分。';
+
+  @override
+  String get speechModelDownloadFailedListenAndRepeatPurpose =>
+      '语音识别模型用于跟读后自动评分。';
+
+  @override
+  String get speechModelDownloadFailedRetellPurpose => '语音识别模型用于复述后自动评分。';
+
+  @override
+  String get speechModelDownloadFailedDisableHint => '暂时不需要自动评分，可关闭：';
+
+  @override
+  String get speechModelDisablePathGeneric => '设置 > 学习设置';
+
+  @override
+  String get speechModelDisablePathListenAndRepeat => '设置 > 学习设置 > 跟读时显示评分';
+
+  @override
+  String get speechModelDisablePathRetell => '设置 > 学习设置 > 复述时显示评分';
 
   @override
   String get downloadErrorStorage => '存储空间不足，请清理后重试。';
@@ -3216,7 +3241,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get learningSection => '学习';
 
   @override
-  String get learningSettings => '学习计划';
+  String get learningSettings => '学习设置';
 
   @override
   String get speakingPracticeSection => '口语练习';
@@ -3752,13 +3777,13 @@ class AppLocalizationsZh extends AppLocalizations {
   String get ttsEnginePlatform => '系统语音';
 
   @override
-  String get ttsEnginePlatformApple => 'Apple 语音';
+  String get ttsEnginePlatformApple => 'Apple AI';
 
   @override
   String get ttsEnginePlatformDescription => '设备自带，速度快、无需下载，但音质一般。';
 
   @override
-  String get ttsEngineEchoLoop => 'Echo Loop 语音 (Advanced)';
+  String get ttsEngineEchoLoop => 'Echo Loop AI (Advanced)';
 
   @override
   String get ttsEngineComingSoon => '即将推出';
@@ -3767,7 +3792,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get ttsEngineEchoLoopDescription => '音质最好，需下载模型，推荐高性能设备使用。';
 
   @override
-  String get ttsEnginePiper => 'Echo Loop 语音 (Balanced)';
+  String get ttsEnginePiper => 'Echo Loop AI (Balanced)';
 
   @override
   String get ttsEnginePiperDescription => '音质自然流畅，需下载模型，推荐中等配置设备使用。';
@@ -3929,6 +3954,12 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get dictAiTips => '学习提示';
+
+  @override
+  String get dictAiMultiKeyPoints => '核心要点';
+
+  @override
+  String get dictAiMultiMeanings => '含义与例句';
 
   @override
   String get dictAiMultiNaturalness => '自然性';

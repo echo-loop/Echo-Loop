@@ -118,8 +118,9 @@ Widget _wrap({
 
 /// 在 widget tree 内异步触发 ensureSpeechReadyForRecording 并捕获结果。
 class _Probe extends ConsumerStatefulWidget {
-  const _Probe({required this.onResult});
+  const _Probe({required this.onResult, this.subStage});
   final void Function(bool) onResult;
+  final SubStageType? subStage;
 
   @override
   ConsumerState<_Probe> createState() => _ProbeState();
@@ -130,7 +131,9 @@ class _ProbeState extends ConsumerState<_Probe> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      final ok = await ensureSpeechReadyForRecording(context, ref);
+      final ok = widget.subStage == null
+          ? await ensureSpeechReadyForRecording(context, ref)
+          : await ensureSpeechReadyForSubStage(context, ref, widget.subStage!);
       widget.onResult(ok);
     });
   }
@@ -228,6 +231,68 @@ void main() {
             retellRatingEnabled: false,
           ),
           child: _Probe(onResult: (r) => result = r),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(result, isTrue);
+      expect(find.byType(AlertDialog), findsNothing);
+    });
+
+    testWidgets('关闭跟读评分时进入跟读不检查 Whisper 模型', (tester) async {
+      final fake = _FakeService(
+        current: const SpeechPracticePermissionState(
+          microphone: _granted,
+          speech: _denied,
+        ),
+      );
+
+      bool? result;
+      await tester.pumpWidget(
+        _wrap(
+          asr: _settings(
+            backend: AsrBackend.offline,
+          ).copyWith(downloadStatus: AsrModelDownloadStatus.downloading),
+          service: fake,
+          learning: const LearningSettings(
+            listenAndRepeatRatingEnabled: false,
+            retellRatingEnabled: true,
+          ),
+          child: _Probe(
+            subStage: SubStageType.listenAndRepeat,
+            onResult: (r) => result = r,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(result, isTrue);
+      expect(find.byType(AlertDialog), findsNothing);
+    });
+
+    testWidgets('关闭复述评分时进入复述不检查 Whisper 模型', (tester) async {
+      final fake = _FakeService(
+        current: const SpeechPracticePermissionState(
+          microphone: _granted,
+          speech: _denied,
+        ),
+      );
+
+      bool? result;
+      await tester.pumpWidget(
+        _wrap(
+          asr: _settings(
+            backend: AsrBackend.offline,
+          ).copyWith(downloadStatus: AsrModelDownloadStatus.downloading),
+          service: fake,
+          learning: const LearningSettings(
+            listenAndRepeatRatingEnabled: true,
+            retellRatingEnabled: false,
+          ),
+          child: _Probe(
+            subStage: SubStageType.retell,
+            onResult: (r) => result = r,
+          ),
         ),
       );
       await tester.pumpAndSettle();

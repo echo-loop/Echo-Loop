@@ -1474,7 +1474,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get asrEngine => 'Speech Engine';
 
   @override
-  String get asrBackendPlatform => 'Apple Speech';
+  String get asrBackendPlatform => 'Apple AI';
 
   @override
   String get asrBackendPlatformDescription =>
@@ -1527,6 +1527,37 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get speechModelDownloadFailed => 'Download failed. Tap to retry.';
+
+  @override
+  String get speechModelDownloadFailedTitle =>
+      'Speech Recognition Model Download Failed';
+
+  @override
+  String get speechModelDownloadFailedGenericPurpose =>
+      'The speech recognition model is used for automatic scoring after speech practice.';
+
+  @override
+  String get speechModelDownloadFailedListenAndRepeatPurpose =>
+      'The speech recognition model is used for automatic scoring after read-aloud practice.';
+
+  @override
+  String get speechModelDownloadFailedRetellPurpose =>
+      'The speech recognition model is used for automatic scoring after retelling practice.';
+
+  @override
+  String get speechModelDownloadFailedDisableHint =>
+      'If you do not need automatic scoring for now, turn off:';
+
+  @override
+  String get speechModelDisablePathGeneric => 'Settings > Learning Settings';
+
+  @override
+  String get speechModelDisablePathListenAndRepeat =>
+      'Settings > Learning Settings > Show rating during read-aloud';
+
+  @override
+  String get speechModelDisablePathRetell =>
+      'Settings > Learning Settings > Show rating during retelling';
 
   @override
   String get downloadErrorStorage =>
@@ -3363,7 +3394,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get learningSection => 'Learning';
 
   @override
-  String get learningSettings => 'Study Plan';
+  String get learningSettings => 'Learning Settings';
 
   @override
   String get speakingPracticeSection => 'Speaking practice';
@@ -3928,14 +3959,14 @@ class AppLocalizationsEn extends AppLocalizations {
   String get ttsEnginePlatform => 'System Speech';
 
   @override
-  String get ttsEnginePlatformApple => 'Apple Speech';
+  String get ttsEnginePlatformApple => 'Apple AI';
 
   @override
   String get ttsEnginePlatformDescription =>
       'Built into your device. Fast, no download, but average quality.';
 
   @override
-  String get ttsEngineEchoLoop => 'Echo Loop Speech (Advanced)';
+  String get ttsEngineEchoLoop => 'Echo Loop AI (Advanced)';
 
   @override
   String get ttsEngineComingSoon => 'Coming soon';
@@ -3945,7 +3976,7 @@ class AppLocalizationsEn extends AppLocalizations {
       'Best sound quality. Needs a model download; recommended for high-performance devices.';
 
   @override
-  String get ttsEnginePiper => 'Echo Loop Speech (Balanced)';
+  String get ttsEnginePiper => 'Echo Loop AI (Balanced)';
 
   @override
   String get ttsEnginePiperDescription =>
@@ -4117,6 +4148,12 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get dictAiTips => 'Learning Tips';
+
+  @override
+  String get dictAiMultiKeyPoints => 'Key Points';
+
+  @override
+  String get dictAiMultiMeanings => 'Meanings & Examples';
 
   @override
   String get dictAiMultiNaturalness => 'Naturalness';

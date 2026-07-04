@@ -2657,7 +2657,7 @@ abstract class AppLocalizations {
   /// No description provided for @asrBackendPlatform.
   ///
   /// In en, this message translates to:
-  /// **'Apple Speech'**
+  /// **'Apple AI'**
   String get asrBackendPlatform;
 
   /// No description provided for @asrBackendPlatformDescription.
@@ -2737,6 +2737,54 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Download failed. Tap to retry.'**
   String get speechModelDownloadFailed;
+
+  /// No description provided for @speechModelDownloadFailedTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Speech Recognition Model Download Failed'**
+  String get speechModelDownloadFailedTitle;
+
+  /// No description provided for @speechModelDownloadFailedGenericPurpose.
+  ///
+  /// In en, this message translates to:
+  /// **'The speech recognition model is used for automatic scoring after speech practice.'**
+  String get speechModelDownloadFailedGenericPurpose;
+
+  /// No description provided for @speechModelDownloadFailedListenAndRepeatPurpose.
+  ///
+  /// In en, this message translates to:
+  /// **'The speech recognition model is used for automatic scoring after read-aloud practice.'**
+  String get speechModelDownloadFailedListenAndRepeatPurpose;
+
+  /// No description provided for @speechModelDownloadFailedRetellPurpose.
+  ///
+  /// In en, this message translates to:
+  /// **'The speech recognition model is used for automatic scoring after retelling practice.'**
+  String get speechModelDownloadFailedRetellPurpose;
+
+  /// No description provided for @speechModelDownloadFailedDisableHint.
+  ///
+  /// In en, this message translates to:
+  /// **'If you do not need automatic scoring for now, turn off:'**
+  String get speechModelDownloadFailedDisableHint;
+
+  /// No description provided for @speechModelDisablePathGeneric.
+  ///
+  /// In en, this message translates to:
+  /// **'Settings > Learning Settings'**
+  String get speechModelDisablePathGeneric;
+
+  /// No description provided for @speechModelDisablePathListenAndRepeat.
+  ///
+  /// In en, this message translates to:
+  /// **'Settings > Learning Settings > Show rating during read-aloud'**
+  String get speechModelDisablePathListenAndRepeat;
+
+  /// No description provided for @speechModelDisablePathRetell.
+  ///
+  /// In en, this message translates to:
+  /// **'Settings > Learning Settings > Show rating during retelling'**
+  String get speechModelDisablePathRetell;
 
   /// No description provided for @downloadErrorStorage.
   ///
@@ -5915,7 +5963,7 @@ abstract class AppLocalizations {
   /// No description provided for @learningSettings.
   ///
   /// In en, this message translates to:
-  /// **'Study Plan'**
+  /// **'Learning Settings'**
   String get learningSettings;
 
   /// No description provided for @speakingPracticeSection.
@@ -6953,7 +7001,7 @@ abstract class AppLocalizations {
   /// No description provided for @ttsEnginePlatformApple.
   ///
   /// In en, this message translates to:
-  /// **'Apple Speech'**
+  /// **'Apple AI'**
   String get ttsEnginePlatformApple;
 
   /// No description provided for @ttsEnginePlatformDescription.
@@ -6965,7 +7013,7 @@ abstract class AppLocalizations {
   /// No description provided for @ttsEngineEchoLoop.
   ///
   /// In en, this message translates to:
-  /// **'Echo Loop Speech (Advanced)'**
+  /// **'Echo Loop AI (Advanced)'**
   String get ttsEngineEchoLoop;
 
   /// No description provided for @ttsEngineComingSoon.
@@ -6983,7 +7031,7 @@ abstract class AppLocalizations {
   /// No description provided for @ttsEnginePiper.
   ///
   /// In en, this message translates to:
-  /// **'Echo Loop Speech (Balanced)'**
+  /// **'Echo Loop AI (Balanced)'**
   String get ttsEnginePiper;
 
   /// No description provided for @ttsEnginePiperDescription.
@@ -7291,6 +7339,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Learning Tips'**
   String get dictAiTips;
+
+  /// No description provided for @dictAiMultiKeyPoints.
+  ///
+  /// In en, this message translates to:
+  /// **'Key Points'**
+  String get dictAiMultiKeyPoints;
+
+  /// No description provided for @dictAiMultiMeanings.
+  ///
+  /// In en, this message translates to:
+  /// **'Meanings & Examples'**
+  String get dictAiMultiMeanings;
 
   /// No description provided for @dictAiMultiNaturalness.
   ///

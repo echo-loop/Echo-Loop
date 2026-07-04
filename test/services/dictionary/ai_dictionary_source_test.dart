@@ -32,17 +32,15 @@ MultiWordDictionaryEntry _multiEntry(String headword) =>
       naturalness: '',
       category: '术语',
       pronunciationTips: const [],
+      keyPoints: const [],
       meanings: const [
         MultiWordMeaning(
-          definition: '机器学习。',
           translation: ['机器学习'],
-          usageNote: '基于数据训练模型的方法。',
           examples: [],
         ),
       ],
       similarExpressions: const [],
       background: '',
-      learnerTips: const [],
     );
 
 void main() {
