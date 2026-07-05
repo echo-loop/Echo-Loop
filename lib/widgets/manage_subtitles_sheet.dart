@@ -21,18 +21,25 @@ import '../providers/listening_practice/listening_practice_provider.dart';
 import '../providers/new_user_guide_provider.dart';
 import '../providers/settings_provider.dart';
 import '../providers/transcription_task_provider.dart';
+import '../providers/local_transcription_task_provider.dart';
+import '../providers/local_transcription_model_provider.dart';
+import '../providers/offline_asr_settings_provider.dart';
 import '../l10n/app_localizations.dart';
 import '../router/app_router.dart';
+import '../services/asr/asr_model_manager.dart';
+import '../services/asr/offline_asr_engine.dart';
 import '../services/subtitle_parser.dart';
+import 'asr_download_prompt_dialog.dart';
 import '../theme/app_theme.dart';
 import '../models/word_timestamp.dart';
 import '../utils/synthetic_word_timestamps.dart';
 import '../utils/transcript_picker.dart';
 import '../utils/transcript_stats.dart';
+import 'common/anchored_bubble.dart';
 import 'guide_flow.dart';
 
 /// 字幕操作选项
-enum _SubtitleAction { localUpload, aiTranscription }
+enum _SubtitleAction { localUpload, aiTranscription, offlineTranscription }
 
 /// 内联错误提示的种类（决定图标和标题，文案外部传入）。
 enum _UploadErrorKind { unsupportedFormat, formatInvalid, empty, generic }
@@ -60,7 +67,8 @@ class ManageSubtitlesSheet extends ConsumerStatefulWidget {
 }
 
 class _ManageSubtitlesSheetState extends ConsumerState<ManageSubtitlesSheet> {
-  _SubtitleAction _selectedAction = _SubtitleAction.localUpload;
+  /// 默认选中首位「AI 转录」（与选项排序一致，避免高亮落在末尾）。
+  _SubtitleAction _selectedAction = _SubtitleAction.aiTranscription;
   String _selectedLanguage = 'en';
 
   /// AI 转录「自动合并短句」开关，初值取自设置（记住上次选择），默认开启。
@@ -78,12 +86,13 @@ class _ManageSubtitlesSheetState extends ConsumerState<ManageSubtitlesSheet> {
   final _keyAiTranscription = GlobalKey();
   final _keyStartTranscription = GlobalKey();
 
+  /// 识别模型档位选择气泡浮层控制器。
+  final OverlayPortalController _modelMenuController =
+      OverlayPortalController();
+
   @override
   void initState() {
     super.initState();
-    if (!widget.audioItem.hasTranscript) {
-      _selectedAction = _SubtitleAction.aiTranscription;
-    }
     // 取上次记住的「自动合并短句」选择作为默认值
     _autoMergeShortSentences = ref
         .read(appSettingsProvider)
@@ -103,6 +112,20 @@ class _ManageSubtitlesSheetState extends ConsumerState<ManageSubtitlesSheet> {
       });
     } else {
       _initialClear = false;
+    }
+
+    // 同样清除本地转录残留的终态（失败/空结果），避免重开闪现旧状态。
+    final localTaskState = ref.read(
+      localTranscriptionTaskManagerProvider,
+    )[widget.audioItem.id];
+    if (localTaskState is LocalTranscriptionFailed ||
+        localTaskState is LocalTranscriptionEmptyResult) {
+      Future(() {
+        if (!mounted) return;
+        ref
+            .read(localTranscriptionTaskManagerProvider.notifier)
+            .clearState(widget.audioItem.id);
+      });
     }
   }
 
@@ -157,11 +180,22 @@ class _ManageSubtitlesSheetState extends ConsumerState<ManageSubtitlesSheet> {
       taskState = const TranscriptionIdle();
     }
 
+    // 监听本地（离线）转录任务状态
+    final localTaskState = ref.watch(
+      localTranscriptionTaskManagerProvider.select((m) => m[audioItem.id]),
+    );
+    final isLocalTaskActive =
+        localTaskState is LocalTranscriptionDecoding ||
+        localTaskState is LocalTranscriptionTranscribing;
+    final hasLocalTask =
+        localTaskState != null && localTaskState is! LocalTranscriptionIdle;
+
     // 是否有进行中的任务
     final isTaskActive =
         taskState is TranscriptionHashing ||
         taskState is TranscriptionUploading ||
-        taskState is TranscriptionProcessing;
+        taskState is TranscriptionProcessing ||
+        isLocalTaskActive;
 
     // 转录完成后自动关闭弹窗
     ref.listen(
@@ -173,6 +207,22 @@ class _ManageSubtitlesSheetState extends ConsumerState<ManageSubtitlesSheet> {
             if (!mounted || !context.mounted) return;
             ref
                 .read(transcriptionTaskManagerProvider.notifier)
+                .clearState(audioItem.id);
+            Navigator.pop(context);
+          });
+        }
+      },
+    );
+
+    // 本地转录完成后自动关闭弹窗
+    ref.listen(
+      localTranscriptionTaskManagerProvider.select((map) => map[audioItem.id]),
+      (prev, next) {
+        if (next is LocalTranscriptionCompleted) {
+          Future.delayed(const Duration(milliseconds: 800), () {
+            if (!mounted || !context.mounted) return;
+            ref
+                .read(localTranscriptionTaskManagerProvider.notifier)
                 .clearState(audioItem.id);
             Navigator.pop(context);
           });
@@ -213,6 +263,20 @@ class _ManageSubtitlesSheetState extends ConsumerState<ManageSubtitlesSheet> {
                         ),
                       ),
                     ),
+                    // 本地转录进行中：右上角红色取消按钮（立即打断并清理临时文件）。
+                    if (isLocalTaskActive)
+                      TextButton(
+                        onPressed: () => ref
+                            .read(
+                              localTranscriptionTaskManagerProvider.notifier,
+                            )
+                            .cancelTranscription(audioItem.id),
+                        style: TextButton.styleFrom(
+                          foregroundColor: theme.colorScheme.error,
+                          visualDensity: VisualDensity.compact,
+                        ),
+                        child: Text(l10n.cancel),
+                      ),
                     // 编辑与删除仅在已有字幕且没有进行中的转录任务时显示。
                     if (audioItem.hasTranscript && !isTaskActive) ...[
                       Tooltip(
@@ -279,7 +343,9 @@ class _ManageSubtitlesSheetState extends ConsumerState<ManageSubtitlesSheet> {
               // 进度模式 或 选择模式
               AnimatedSwitcher(
                 duration: const Duration(milliseconds: 300),
-                child: isTaskActive || taskState is TranscriptionCompleted
+                child: hasLocalTask
+                    ? _buildLocalBody(l10n, theme, localTaskState)
+                    : isTaskActive || taskState is TranscriptionCompleted
                     ? _buildProgressView(l10n, theme, taskState)
                     : taskState is TranscriptionFailed
                     ? _buildErrorView(l10n, theme, taskState, audioItem)
@@ -289,7 +355,9 @@ class _ManageSubtitlesSheetState extends ConsumerState<ManageSubtitlesSheet> {
               ),
               const SizedBox(height: AppSpacing.m),
               // 操作按钮（进度模式下隐藏）
-              if (!isTaskActive && taskState is! TranscriptionCompleted)
+              if (!isTaskActive &&
+                  taskState is! TranscriptionCompleted &&
+                  localTaskState is! LocalTranscriptionCompleted)
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: AppSpacing.m),
                   child: SizedBox(
@@ -617,6 +685,188 @@ class _ManageSubtitlesSheetState extends ConsumerState<ManageSubtitlesSheet> {
     );
   }
 
+  /// 路由本地转录任务状态到对应视图。
+  Widget _buildLocalBody(
+    AppLocalizations l10n,
+    ThemeData theme,
+    LocalTranscriptionState st,
+  ) {
+    if (st is LocalTranscriptionFailed) {
+      return _buildLocalFailedView(l10n, theme);
+    }
+    if (st is LocalTranscriptionEmptyResult) {
+      return _buildEmptyResultView(l10n, theme);
+    }
+    return _buildLocalProgressView(l10n, theme, st);
+  }
+
+  /// 本地转录进度视图（解码=不定态，转录=determinate，完成=对勾）。
+  Widget _buildLocalProgressView(
+    AppLocalizations l10n,
+    ThemeData theme,
+    LocalTranscriptionState st,
+  ) {
+    final IconData icon;
+    final String text;
+    final Color iconColor;
+    double? progress;
+    final isCompleted = st is LocalTranscriptionCompleted;
+
+    if (isCompleted) {
+      icon = Icons.check_circle;
+      text = l10n.transcriptionComplete;
+      iconColor = Colors.green;
+    } else if (st is LocalTranscriptionDecoding) {
+      icon = Icons.graphic_eq;
+      text = l10n.localTranscriptionDecoding;
+      iconColor = theme.colorScheme.primary;
+      progress = null;
+    } else {
+      icon = Icons.auto_awesome;
+      text = l10n.transcriptionProcessing;
+      iconColor = theme.colorScheme.primary;
+      progress = st is LocalTranscriptionTranscribing ? st.progress : null;
+    }
+
+    return Padding(
+      key: const ValueKey('local-progress'),
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.m),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(vertical: AppSpacing.l),
+        decoration: BoxDecoration(
+          color: isCompleted
+              ? Colors.green.withValues(alpha: 0.08)
+              : theme.colorScheme.primaryContainer.withValues(alpha: 0.3),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Column(
+          children: [
+            Container(
+              width: 56,
+              height: 56,
+              decoration: BoxDecoration(
+                color: iconColor.withValues(alpha: 0.12),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, size: 28, color: iconColor),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              text,
+              style: theme.textTheme.titleSmall?.copyWith(
+                color: iconColor,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            if (!isCompleted) ...[
+              const SizedBox(height: 16),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.l),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(4),
+                  child: LinearProgressIndicator(value: progress, minHeight: 4),
+                ),
+              ),
+              // 数字进度：仅转录态（有确定进度）显示，解码不定态不显示。
+              if (progress != null) ...[
+                const SizedBox(height: 8),
+                Text(
+                  l10n.localTranscriptionProgressPercent(
+                    (progress.clamp(0.0, 1.0) * 100).round(),
+                  ),
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: iconColor,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+              const SizedBox(height: 12),
+              // 提醒保持前台：本地转录纯靠 Dart isolate 推理，切后台/锁屏
+              // 进程被挂起会中断，故显式提示用户别切走。
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.l),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(
+                      Icons.info_outline_rounded,
+                      size: 15,
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                    const SizedBox(width: 6),
+                    Flexible(
+                      child: Text(
+                        l10n.localTranscriptionForegroundHint,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// 本地转录失败视图。
+  Widget _buildLocalFailedView(AppLocalizations l10n, ThemeData theme) {
+    return Padding(
+      key: const ValueKey('local-error'),
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.m),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(vertical: AppSpacing.l),
+        decoration: BoxDecoration(
+          color: theme.colorScheme.errorContainer.withValues(alpha: 0.3),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Column(
+          children: [
+            Container(
+              width: 56,
+              height: 56,
+              decoration: BoxDecoration(
+                color: theme.colorScheme.error.withValues(alpha: 0.12),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.error_outline,
+                size: 28,
+                color: theme.colorScheme.error,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              l10n.transcriptionFailed,
+              style: theme.textTheme.titleSmall?.copyWith(
+                color: theme.colorScheme.error,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.m),
+              child: Text(
+                l10n.transcriptionErrorUnknown,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   /// 构建选项卡片列表（替代 RadioListTile）
   Widget _buildRadioOptions(
     AppLocalizations l10n,
@@ -629,21 +879,14 @@ class _ManageSubtitlesSheetState extends ConsumerState<ManageSubtitlesSheet> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildOptionTile(
-            theme: theme,
-            icon: Icons.folder_open_outlined,
-            title: l10n.localUpload,
-            selected: _selectedAction == _SubtitleAction.localUpload,
-            onTap: () =>
-                setState(() => _selectedAction = _SubtitleAction.localUpload),
-          ),
-          const SizedBox(height: AppSpacing.s),
+          // 排序：AI 转录（推荐默认）→ 本地转录（离线替代）→ 本地上传（进阶手动）。
           GuideTarget(
             step: _stepAiTranscription(l10n),
             child: _buildOptionTile(
               theme: theme,
               icon: Icons.auto_awesome_outlined,
               title: l10n.aiTranscription,
+              subtitle: l10n.aiTranscriptionSubtitle,
               selected: _selectedAction == _SubtitleAction.aiTranscription,
               onTap: () => setState(
                 () => _selectedAction = _SubtitleAction.aiTranscription,
@@ -659,7 +902,307 @@ class _ManageSubtitlesSheetState extends ConsumerState<ManageSubtitlesSheet> {
                 ? _buildLanguageSelector(l10n, theme, audioItem)
                 : const SizedBox(width: double.infinity, height: 0),
           ),
+          const SizedBox(height: AppSpacing.s),
+          // 本地（离线）转录选项
+          _buildOptionTile(
+            theme: theme,
+            icon: Icons.offline_bolt_outlined,
+            title: l10n.offlineTranscription,
+            subtitle: l10n.offlineTranscriptionSubtitle,
+            selected: _selectedAction == _SubtitleAction.offlineTranscription,
+            onTap: () => setState(
+              () => _selectedAction = _SubtitleAction.offlineTranscription,
+            ),
+          ),
+          // 本地转录选项（语言 + 模型档位，动画展开/收起）
+          AnimatedSize(
+            duration: const Duration(milliseconds: 200),
+            curve: Curves.easeInOut,
+            alignment: Alignment.topCenter,
+            child: _selectedAction == _SubtitleAction.offlineTranscription
+                ? _buildOfflineOptions(l10n, theme)
+                : const SizedBox(width: double.infinity, height: 0),
+          ),
+          const SizedBox(height: AppSpacing.s),
+          // 本地上传（手动导入已有字幕文件）
+          _buildOptionTile(
+            theme: theme,
+            icon: Icons.folder_open_outlined,
+            title: l10n.localUpload,
+            selected: _selectedAction == _SubtitleAction.localUpload,
+            onTap: () =>
+                setState(() => _selectedAction = _SubtitleAction.localUpload),
+          ),
         ],
+      ),
+    );
+  }
+
+  /// 构建本地转录选项区（语言：仅英文可选；识别模型档位选择）。
+  Widget _buildOfflineOptions(AppLocalizations l10n, ThemeData theme) {
+    final colorScheme = theme.colorScheme;
+    final selectedModel = ref.watch(localTranscriptionModelProvider);
+    final asrState = ref.watch(offlineAsrSettingsProvider);
+
+    return Padding(
+      padding: const EdgeInsets.only(top: AppSpacing.s, left: 4, right: 4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // 语言行：当前仅英文可选（选择器可见，不隐含只支持英文）。
+          Row(
+            children: [
+              Icon(
+                Icons.translate_rounded,
+                size: 18,
+                color: colorScheme.onSurfaceVariant,
+              ),
+              const SizedBox(width: AppSpacing.s),
+              Expanded(
+                child: Text(
+                  l10n.selectLanguage,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: colorScheme.onSurface,
+                    fontWeight: FontWeight.w500,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const SizedBox(width: AppSpacing.s),
+              // 语言胶囊：当前仅英文一个选项，但仍做成可点菜单，避免与下方
+              // 可点的「识别模型」胶囊外观一致却点不动造成困惑。
+              PopupMenuButton<String>(
+                initialValue: 'en',
+                tooltip: '',
+                position: PopupMenuPosition.under,
+                offset: const Offset(0, 4),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                padding: EdgeInsets.zero,
+                itemBuilder: (context) => [
+                  _buildOfflineLanguageMenuItem(
+                    'en',
+                    l10n.languageEnglish,
+                    theme,
+                  ),
+                ],
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 10,
+                  ),
+                  decoration: BoxDecoration(
+                    color: colorScheme.primaryContainer.withValues(alpha: 0.45),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        l10n.languageEnglish,
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: colorScheme.onSurface,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      Icon(
+                        Icons.unfold_more_rounded,
+                        size: 18,
+                        color: colorScheme.primary,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.s),
+          // 「自动合并短句」开关（与 AI 转录共用）：开启时客户端把 VAD 相邻短段
+          // 合并到目标时长，关闭时保留 VAD 原始切分。
+          _buildAutoMergeToggle(l10n, theme),
+          const SizedBox(height: AppSpacing.s),
+          // 识别模型档位选择。
+          Row(
+            children: [
+              Icon(
+                Icons.tune_rounded,
+                size: 18,
+                color: colorScheme.onSurfaceVariant,
+              ),
+              const SizedBox(width: AppSpacing.s),
+              Expanded(
+                child: Text(
+                  l10n.transcriptionModelTier,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: colorScheme.onSurface,
+                    fontWeight: FontWeight.w500,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const SizedBox(width: AppSpacing.s),
+              AnchoredBubble(
+                controller: _modelMenuController,
+                direction: BubbleDirection.up,
+                width: 320,
+                contentBuilder: (_) =>
+                    _buildModelMenu(l10n, asrState, selectedModel.id, theme),
+                child: Semantics(
+                  button: true,
+                  label: selectedModel.displayName,
+                  onTap: _modelMenuController.toggle,
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: _modelMenuController.toggle,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 10,
+                      ),
+                      decoration: BoxDecoration(
+                        color: colorScheme.primaryContainer.withValues(
+                          alpha: 0.45,
+                        ),
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            selectedModel.displayName,
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              color: colorScheme.onSurface,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          Icon(
+                            Icons.unfold_more_rounded,
+                            size: 18,
+                            color: colorScheme.primary,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 本地转录语言下拉菜单项（当前仅英文，恒为选中态）。
+  PopupMenuItem<String> _buildOfflineLanguageMenuItem(
+    String value,
+    String label,
+    ThemeData theme,
+  ) {
+    return PopupMenuItem<String>(
+      value: value,
+      // 仅英文可选，选择不改变任何状态；菜单仅用于消除「看似可点却点不动」的困惑。
+      child: Row(
+        children: [
+          SizedBox(
+            width: 24,
+            child: Icon(
+              Icons.check_rounded,
+              size: 18,
+              color: theme.colorScheme.primary,
+            ),
+          ),
+          Text(
+            label,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: theme.colorScheme.onSurface,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 识别模型档位气泡菜单内容：每档一行，选中打勾 + 下载状态 badge。
+  Widget _buildModelMenu(
+    AppLocalizations l10n,
+    OfflineAsrSettingsState asrState,
+    String selectedId,
+    ThemeData theme,
+  ) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        for (final model in availableModels)
+          _buildModelMenuRow(l10n, model, asrState, selectedId, theme),
+      ],
+    );
+  }
+
+  /// 模型档位气泡行：行首打勾（选中）+ 显示名称 + 行尾下载状态 badge。
+  ///
+  /// badge 仅展示状态（就绪 / 需下载），具体体积在设置页查看。名称单行不换行。
+  Widget _buildModelMenuRow(
+    AppLocalizations l10n,
+    AsrModelInfo model,
+    OfflineAsrSettingsState asrState,
+    String selectedId,
+    ThemeData theme,
+  ) {
+    final selected = model.id == selectedId;
+    final ready = asrState.modelStateOf(model.id).isReady;
+    return Semantics(
+      button: true,
+      selected: selected,
+      child: InkWell(
+        onTap: () {
+          _modelMenuController.hide();
+          ref.read(localTranscriptionModelProvider.notifier).select(model);
+        },
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.m,
+            vertical: 10,
+          ),
+          child: Row(
+            children: [
+              SizedBox(
+                width: 24,
+                child: selected
+                    ? Icon(
+                        Icons.check_rounded,
+                        size: 18,
+                        color: theme.colorScheme.primary,
+                      )
+                    : null,
+              ),
+              Expanded(
+                child: Text(
+                  model.displayName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  softWrap: false,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: theme.colorScheme.onSurface,
+                    fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+                  ),
+                ),
+              ),
+              const SizedBox(width: AppSpacing.s),
+              _ModelStatusBadge(
+                label: ready
+                    ? l10n.speechModelStatusReady
+                    : l10n.speechModelStatusNeedsDownload,
+                ready: ready,
+                theme: theme,
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -751,50 +1294,7 @@ class _ManageSubtitlesSheetState extends ConsumerState<ManageSubtitlesSheet> {
             ],
           ),
           const SizedBox(height: AppSpacing.s),
-          // 「自动合并短句」开关：默认开启；关闭后后端返回未合并基线（句子更短）
-          Row(
-            children: [
-              Icon(
-                Icons.compress_rounded,
-                size: 18,
-                color: colorScheme.onSurfaceVariant,
-              ),
-              const SizedBox(width: AppSpacing.s),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      l10n.autoMergeShortSentences,
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: colorScheme.onSurface,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      l10n.autoMergeShortSentencesHint,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: colorScheme.onSurfaceVariant.withValues(
-                          alpha: 0.75,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: AppSpacing.s),
-              Switch.adaptive(
-                value: _autoMergeShortSentences,
-                onChanged: (value) {
-                  setState(() => _autoMergeShortSentences = value);
-                  ref
-                      .read(appSettingsProvider.notifier)
-                      .setAiTranscriptionAutoMergeEnabled(value);
-                },
-              ),
-            ],
-          ),
+          _buildAutoMergeToggle(l10n, theme),
           // 仅在该选项已转录时提示，混合语言不支持的提示已移除
           if (_isAiDisabled(audioItem))
             Padding(
@@ -808,6 +1308,55 @@ class _ManageSubtitlesSheetState extends ConsumerState<ManageSubtitlesSheet> {
             ),
         ],
       ),
+    );
+  }
+
+  /// 「自动合并短句」开关行（AI 转录与本地转录共用）。
+  ///
+  /// AI 转录：透传给后端返回合并/未合并基线；本地转录：控制客户端把 VAD
+  /// 相邻短段合并到目标时长。二者共用同一持久化偏好（记住上次选择，默认开启）。
+  Widget _buildAutoMergeToggle(AppLocalizations l10n, ThemeData theme) {
+    final colorScheme = theme.colorScheme;
+    return Row(
+      children: [
+        Icon(
+          Icons.compress_rounded,
+          size: 18,
+          color: colorScheme.onSurfaceVariant,
+        ),
+        const SizedBox(width: AppSpacing.s),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                l10n.autoMergeShortSentences,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: colorScheme.onSurface,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                l10n.autoMergeShortSentencesHint,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: colorScheme.onSurfaceVariant.withValues(alpha: 0.75),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(width: AppSpacing.s),
+        Switch.adaptive(
+          value: _autoMergeShortSentences,
+          onChanged: (value) {
+            setState(() => _autoMergeShortSentences = value);
+            ref
+                .read(appSettingsProvider.notifier)
+                .setAiTranscriptionAutoMergeEnabled(value);
+          },
+        ),
+      ],
     );
   }
 
@@ -914,8 +1463,11 @@ class _ManageSubtitlesSheetState extends ConsumerState<ManageSubtitlesSheet> {
                     if (subtitle != null)
                       Text(
                         subtitle,
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: colorScheme.onSurfaceVariant,
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: colorScheme.onSurfaceVariant.withValues(
+                            alpha: 0.6,
+                          ),
+                          fontWeight: FontWeight.normal,
                         ),
                       ),
                   ],
@@ -949,6 +1501,8 @@ class _ManageSubtitlesSheetState extends ConsumerState<ManageSubtitlesSheet> {
   /// 操作按钮是否可用
   bool _getActionEnabled(AudioItem audioItem) {
     if (_selectedAction == _SubtitleAction.localUpload) return true;
+    // 本地转录：始终可用（可重复转录/覆盖）。
+    if (_selectedAction == _SubtitleAction.offlineTranscription) return true;
     // AI 转录：同语言已转录时禁用
     return !_isAiDisabled(audioItem);
   }
@@ -968,7 +1522,8 @@ class _ManageSubtitlesSheetState extends ConsumerState<ManageSubtitlesSheet> {
         ? l10n.retryTranscription
         : _selectedAction == _SubtitleAction.localUpload
         ? l10n.uploadTranscript
-        : _isAiDisabled(audioItem)
+        : _selectedAction == _SubtitleAction.aiTranscription &&
+              _isAiDisabled(audioItem)
         ? l10n.alreadyTranscribedWithOption
         : l10n.startTranscription;
 
@@ -982,11 +1537,86 @@ class _ManageSubtitlesSheetState extends ConsumerState<ManageSubtitlesSheet> {
 
   /// 处理操作按钮点击
   Future<void> _handleAction(BuildContext context, AudioItem audioItem) async {
-    if (_selectedAction == _SubtitleAction.localUpload) {
-      await _handleLocalUpload(context, audioItem);
-    } else {
-      await _handleAiTranscription(context, audioItem);
+    switch (_selectedAction) {
+      case _SubtitleAction.localUpload:
+        await _handleLocalUpload(context, audioItem);
+      case _SubtitleAction.aiTranscription:
+        await _handleAiTranscription(context, audioItem);
+      case _SubtitleAction.offlineTranscription:
+        await _handleOfflineTranscription(context, audioItem);
     }
+  }
+
+  /// 处理本地（离线）转录：确认覆盖/疑似空音频 → 门控下载模型 → 启动后台任务。
+  ///
+  /// 无需登录、无云端大小/时长限制。
+  Future<void> _handleOfflineTranscription(
+    BuildContext context,
+    AudioItem audioItem,
+  ) async {
+    final l10n = AppLocalizations.of(context)!;
+
+    // 疑似空音频确认（与 AI 转录一致，用确认而非硬拦截）。
+    if (audioItem.contentStatus == AudioContentStatus.suspectEmpty) {
+      final proceed = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: Text(l10n.transcriptionSilentConfirmTitle),
+          content: Text(l10n.transcriptionSilentConfirmMessage),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: Text(l10n.cancel),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: Text(l10n.transcriptionSilentConfirmProceed),
+            ),
+          ],
+        ),
+      );
+      if (proceed != true || !context.mounted) return;
+    }
+
+    // 已有字幕时弹出覆盖确认。
+    if (audioItem.hasTranscript) {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: Text(l10n.overwriteExistingSubtitle),
+          content: Text(l10n.overwriteExistingSubtitleMessage),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: Text(l10n.cancel),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: Text(l10n.overwrite),
+            ),
+          ],
+        ),
+      );
+      if (confirmed != true || !context.mounted) return;
+    }
+
+    // 门控：确保所选档位模型已下载（无视评分后端，不改评分设置）。
+    final model = ref.read(localTranscriptionModelProvider);
+    final ready = await ensureAsrModelReadyForTranscription(
+      context,
+      ref,
+      model: model,
+    );
+    if (!ready || !context.mounted) return;
+
+    // 启动后台本地转录任务。
+    ref
+        .read(localTranscriptionTaskManagerProvider.notifier)
+        .startLocalTranscription(
+          audioItem,
+          model: model,
+          autoMergeShortSentences: _autoMergeShortSentences,
+        );
   }
 
   /// 处理本地上传
@@ -1321,5 +1951,47 @@ class _ManageSubtitlesSheetState extends ConsumerState<ManageSubtitlesSheet> {
             forceTranscriptReload: true,
           );
     }
+  }
+}
+
+/// 模型档位下载状态 badge：已就绪（primaryContainer）/ 需下载（surfaceVariant）。
+class _ModelStatusBadge extends StatelessWidget {
+  const _ModelStatusBadge({
+    required this.label,
+    required this.ready,
+    required this.theme,
+  });
+
+  /// badge 文案（就绪 · 150 MB / 需下载 · 150 MB）。
+  final String label;
+
+  /// 是否已就绪（决定配色）。
+  final bool ready;
+
+  final ThemeData theme;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = theme.colorScheme;
+    final bg = ready
+        ? colorScheme.primaryContainer
+        : colorScheme.surfaceContainerHighest;
+    final fg = ready
+        ? colorScheme.onPrimaryContainer
+        : colorScheme.onSurfaceVariant;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Text(
+        label,
+        style: theme.textTheme.labelSmall?.copyWith(
+          color: fg,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
   }
 }

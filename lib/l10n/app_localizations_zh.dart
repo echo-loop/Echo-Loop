@@ -104,6 +104,12 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String get waveformLoadFailed => '波形生成失败，仍可在下方编辑字幕。';
+
+  @override
+  String get waveformRetry => '重试';
+
+  @override
   String get playbackSpeed => '播放速度';
 
   @override
@@ -1470,6 +1476,12 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String get speechModelStatusReady => '就绪';
+
+  @override
+  String get speechModelStatusNeedsDownload => '需下载';
+
+  @override
   String speechModelDownloading(String progress) {
     return '正在下载... $progress';
   }
@@ -1607,7 +1619,38 @@ class AppLocalizationsZh extends AppLocalizations {
   String get localUpload => '本地上传';
 
   @override
-  String get aiTranscription => 'AI 转录';
+  String get aiTranscription => '云端转录';
+
+  @override
+  String get aiTranscriptionSubtitle => '精度高，速度快，需联网登录';
+
+  @override
+  String get offlineTranscription => '本地转录';
+
+  @override
+  String get offlineTranscriptionSubtitle => '离线、隐私，无需登录';
+
+  @override
+  String get transcriptionModelTier => '识别模型';
+
+  @override
+  String get localTranscriptionDecoding => '正在解码音频…';
+
+  @override
+  String get localTranscriptionForegroundHint => '转录完成前请保持应用在前台，切到后台或锁屏会中断转录。';
+
+  @override
+  String localTranscriptionProgressPercent(int percent) {
+    return '已完成 $percent%';
+  }
+
+  @override
+  String get localTranscriptionModelRequiredTitle => '需要语音模型';
+
+  @override
+  String localTranscriptionModelRequiredMessage(String modelName) {
+    return '本地转录需先下载 $modelName 语音模型（仅一次，之后完全离线）。';
+  }
 
   @override
   String get deleteSubtitle => '删除字幕';

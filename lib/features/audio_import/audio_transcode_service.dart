@@ -75,6 +75,68 @@ class AudioTranscodeService {
     }
   }
 
+  /// 把 [source] 解码为 16kHz / 单声道 / PCM16 的 WAV 写入 [output]。
+  ///
+  /// 供离线 ASR 转录使用：sherpa-onnx Whisper 需要 16kHz 单声道 PCM，
+  /// 而库音频多为 m4a/mp3（`audio_file_reader` 只认 WAV/CAF），故先经 ffmpeg
+  /// 解码为标准 WAV。成功返回 `true`；失败（ffmpeg 非零返回、抛异常或输出缺失）
+  /// 删除半成品 [output]、返回 `false`，**不删除/不改动 [source]**。
+  Future<bool> transcodeToPcmWav16k({
+    required File source,
+    required File output,
+  }) async {
+    if (!await source.exists()) {
+      AppLogger.log(_logTag, 'skip wav16k: source missing path=${source.path}');
+      return false;
+    }
+    await output.parent.create(recursive: true);
+
+    try {
+      // 全局选项须在 -i 之前（同 transcodeToFile）。-vn 丢弃视频轨，
+      // -ac 1 单声道，-ar 16000 采样率，pcm_s16le 16-bit little-endian。
+      final session = await FFmpegKit.executeWithArguments([
+        '-nostdin',
+        '-y',
+        '-loglevel',
+        'error',
+        '-i',
+        source.path,
+        '-vn',
+        '-map',
+        '0:a:0',
+        '-map_metadata',
+        '-1',
+        '-map_chapters',
+        '-1',
+        '-ac',
+        '1',
+        '-ar',
+        '16000',
+        '-c:a',
+        'pcm_s16le',
+        output.path,
+      ]);
+      final returnCode = await session.getReturnCode();
+      if (!ReturnCode.isSuccess(returnCode) || !await output.exists()) {
+        final logs = await session.getOutput();
+        AppLogger.log(
+          _logTag,
+          'wav16k failed: returnCode=$returnCode source=${p.basename(source.path)} output=${p.basename(output.path)} logs=${logs ?? ''}',
+        );
+        await _deleteIfExists(output);
+        return false;
+      }
+      return true;
+    } catch (error, stackTrace) {
+      AppLogger.log(
+        _logTag,
+        'wav16k exception: source=${p.basename(source.path)} error=$error stack=$stackTrace',
+      );
+      await _deleteIfExists(output);
+      return false;
+    }
+  }
+
   Future<void> _deleteIfExists(File file) async {
     if (!await file.exists()) return;
     try {

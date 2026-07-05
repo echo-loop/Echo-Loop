@@ -1,7 +1,74 @@
 # Echo Loop 任务清单
 
-> 最后更新：2026-07-05（词组选区手柄拖拽放大镜）
+> 最后更新：2026-07-05（本地转录去 VAD + whisper 自驱滑窗 + 原生 segment 时间戳）
 > 当前焦点：Android 结束录音闪退（离线 ASR / Silero VAD）——**仍未解决**
+
+## 已完成：字幕编辑最大缩放按音频时长自适应
+
+用户反馈：30 分钟音频在字幕编辑页把缩放拉到最大后，波形和边界仍然拥挤，难以拖动调整左右边界。
+
+- [x] **最大缩放公式**：字幕编辑页进入后根据音频总时长和波形可用宽度计算最大缩放，目标为最大放大时 `1 秒音频 ≈ 2cm 屏幕长度`；移除旧的固定 `300x` 上限，长音频可得到更高上限。
+- [x] **初始缩放保持**：初始缩放仍按 `1 秒音频 ≈ 1cm 屏幕长度` 设置，用户进入页面不会直接过度放大；最大档再提供一倍精调空间。
+- [x] **测试**：补 30 分钟音频回归用例，验证 360px 可用宽度下最大缩放约 `630x`，不再被旧固定上限截断。
+- [x] **验证**：`flutter analyze lib/features/subtitle_editor/subtitle_editor_controller.dart test/features/subtitle_editor/subtitle_editor_controller_test.dart` 0 问题；`flutter test test/features/subtitle_editor/subtitle_editor_controller_test.dart` 全过（44 例）。
+
+  **完成时间**: 2026-07-05
+
+## 已完成：本地转录去 VAD，改 whisper 自驱滑窗 + 原生 segment 时间戳
+
+用户反馈：① int8 tiny 碎片送 whisper WER 高；② 现在有 whisper segment 时间戳了，VAD 冗余、且它删内容（丢短词/削边/对非人声误删）。最终**转录路径彻底不用 VAD**，改 openai/whisper 标准的自驱滑窗（详见 PLAN ADR-10 定稿）。已真机验证 `whisperSegments=13`、13 条句级 cue、时轴贴合。
+
+- [x] **whisper segment 时间戳**：`_buildWhisperConfig` 开 `enableSegmentTimestamps`（现有 int8 模型即可，不用重导，sherpa-onnx PR #2945/1.12.24+）。segment 不在公开 `getResult()`，经实现层 import `SherpaOnnxBindings.getOfflineStreamResultAsJson` 取原生 result JSON，`parseWhisperSegments`（纯逻辑）解析 `segment_texts/timestamps/durations`。
+- [x] **自驱滑窗**：`_slidingWindowTranscribe` 把音频切 ≤30s **连续窗口**逐个解码，窗口在「上一个完整 segment 结束时刻」推进——不裁剪/不丢内容/不在词中间硬切；cue 时间 = 窗口起点 + 段相对时间（线性）。`Pcm16WavStreamReader.readWindow(start,count)` 按 seek 位置读窗，内存与时长解耦；非标准 WAV 回退全量读同样滑窗。
+- [x] **静音跳过**（`_skipLeadingSilence`/`firstAudibleFrameIndex`）：每窗前跳过 ≥0.8s 的长静音（考试音频答题静音无意义 + 防 whisper 长静音幻觉）。**能量(RMS)检测非人声检测**，保守阈值(≈-40dBFS)只删真静音、保留一切有声内容；漏跳无害、绝不误跳有声。
+- [x] **核心循环可测化 + 全面单测**：把滑窗解码依赖注入出来（`WindowDecoder` typedef + `slidingWindowCues` 纯核心，返回 `TranscriptionCue`；`_slidingWindowTranscribe` 只作生产包装：注入真 recognizer 解码 + 转 `_SegmentPayload` + 进度/日志回调）。`sherpa_onnx_engine_test.dart` 用 fake 解码 + 合成音频覆盖 11 例：短音频单窗/单窗多段/**多窗滑动（推进到倒数第二段、丢末段下一窗重解析、无重复无间隙）**/全静音不解码/前导长静音跳过/无 segment 回退按句切/防打转（整窗单段）/短段+超长段（丢末段推进不足改全用）/空音频/进度单调；`firstAudibleFrameIndex` 4 例；`readWindow` 4 例。
+- [x] **转录去 VAD**：`_handleTranscribeSegments` 删除 vad 参数与整条 VAD 链路（`_streamingSegmentsWithVad`/`_ChunkedDecoder`/`_extractSpeechSegmentsWithStart`/`_concatToOriginalSec` 全删）；转录不再触及 Silero VAD → §7.4 崩溃对转录消失。VAD 仅评分路径保留。
+- [x] **回退**：某窗无 segment 时按句切分（`splitTextIntoSentences`）+ 字符比例估时（`_emitCharProportional`）。下游 `mergeShortAsrSegments`/SRT 零改动。
+- [x] **诊断日志**：worker 落盘 `chunk decode … whisperSegments=N` + 每条 cue `[start~end] 文本` + `滑窗分段完成: N cues`。
+- [x] **测试**：`sherpa_onnx_engine_test.dart` 覆盖 `parseWhisperSegments`（配对/trim/缺字段/长度不齐/非法 JSON）+ `splitTextIntoSentences`；`audio_file_reader_test.dart` 加 `readWindow`（随机读/越界截断/超尾空/不扰乱顺序读）。
+- [x] **验证**：`flutter analyze lib/services/asr test/services/asr` 0 问题；相关单测全过；真机 macOS `whisperSegments=13` 生效。
+- [ ] **真机验证待办**：① 更长音频（>30s 语音、需多窗滑动）确认窗口推进正确、无漏词/无重复/时轴连续；② WER 仍高时换 small.en 档位对比（int8 tiny 本身弱）。
+
+  **完成时间**: 2026-07-05
+
+## 已完成：修复学习任务完成后返回主界面偶发点击失效
+
+用户反馈“学习完一个音频任务后，返回主界面，然后点什么都没用了”。排查完成弹窗退出链路后，统一收敛播放器完成返回的 `PopScope(canPop:false)` 防重入处理，避免完成弹窗内 `context.pop()` 被页面自身返回拦截再次触发退出逻辑，造成路由/屏障状态异常。
+
+- [x] **完成退出防重入**：跟读、逐句精听、难句补练、收藏复习在完成弹窗确认退出/返回前先置 `_isExiting = true`，再释放录音/播放资源、清断点/标记完成、退出学习态并导航。
+- [x] **回归测试**：四个 screen 测试补“完成后返回测试主页，主页按钮仍可点击并能再次进入播放器”，覆盖无退出确认框、无残留 modal/barrier 吞点击。
+- [x] **验证**：`flutter analyze lib/screens/listen_and_repeat_player_screen.dart lib/screens/intensive_listen_player_screen.dart lib/screens/review_difficult_practice_screen.dart lib/screens/bookmark_review_screen.dart test/screens/listen_and_repeat_player_screen_test.dart test/screens/intensive_listen_player_screen_test.dart test/screens/review_difficult_practice_screen_test.dart test/screens/bookmark_review_screen_test.dart` 0 问题；`flutter test test/screens/listen_and_repeat_player_screen_test.dart test/screens/intensive_listen_player_screen_test.dart test/screens/review_difficult_practice_screen_test.dart test/screens/bookmark_review_screen_test.dart` 全过。
+- [ ] **真机验证待办**：完成一个正式学习任务后点“完成”返回主界面，连续点击底部 Tab、学习卡片、再次进入播放器，确认无点击失效；同时验证“继续下一步”路径不受影响。
+
+  **完成时间**: 2026-07-05
+
+## 已完成：本地转录补齐「自动合并短句」+ 语言选择器可点
+
+响应真机反馈：① 离线区「选择语言」是死胶囊（静态 Container），与下方可点的「识别模型」胶囊外观一致却点不动，令人困惑；② 离线转录缺 AI 转录已有的「自动合并短句」。
+
+- [x] **语言选择器可点**：离线「选择语言」由静态 Container 改为 `PopupMenuButton`（单个 English 选项 + `unfold_more_rounded` 箭头），与 AI 区一致；选择不改状态，仅消除「看似可点却点不动」的困惑。
+- [x] **合并能力对齐**：`_buildAutoMergeToggle` 抽为 AI/离线共用；离线区渲染同款开关，复用同一持久化偏好 `aiTranscriptionAutoMergeEnabled`（记住上次选择，默认开启）。
+- [x] **客户端合并**：`mergeShortAsrSegments`（纯函数）贪心把 VAD 相邻短段合并到 ≥4s（目标 4-7s），单个长段不拆、文本空格拼接、区间取并；`startLocalTranscription(autoMergeShortSentences:)` 开启时应用，关闭时保留 VAD 原始切分。AI 侧合并仍在后端，本地为客户端实现（两条管线机制不同）。
+- [x] **测试**：`mergeShortAsrSegments` 4 例（空/单段/合并到下限/长段独立/末尾残余保留）；provider 补「合并开启→相邻短段合并为一句」；原流水线测试显式关合并保留 2 段断言；widget 补「离线显示合并开关」「语言胶囊可点弹菜单」。
+- [x] **验证**：`flutter analyze` 改动 4 文件 0 问题；`dart format`；`flutter test test/providers/local_transcription_task_provider_test.dart test/widgets/manage_subtitles_sheet_test.dart` 全过。
+
+  **完成时间**: 2026-07-05
+
+## 已完成：本地（离线）音频转录生成字幕
+
+用设备已下载的 Whisper 模型在本机转录音频生成字幕，作为云端 AI 转录的离线平行选项（不上传、不登录、隐私友好）。云端与本地共用同一下游字幕管线（SRT + 词级时间戳入库），差异仅在文本来源。
+
+- [x] **引擎分段能力**：`OfflineAsrEngine` 新增 `AsrSegment` + `transcribeSegments(wav, onProgress)`；`SherpaOnnxEngine` worker 新增段级请求，保留 VAD `SpeechSegment.start` 偏移换算真实段级时间戳，逐段解码 + 进度回传，**不合并**（句级切分）。`transcribe()` 评分路径零改动。
+- [x] **解码 seam**：`AudioTranscodeService.transcodeToPcmWav16k`（ffmpeg 压缩音频 → 16kHz 单声道 PCM WAV），复用已打包 ffmpeg，无原生通道改动。
+- [x] **档位偏好**：`localTranscriptionModelProvider`（独立持久化 `local_transcription_model_id`，默认回退评分 selectedModel/推荐档位，与评分互不回写）。
+- [x] **后台任务**：`LocalTranscriptionTaskManager`（keepAlive）：解码→专用引擎按所选档位分段转录→SRT + 合成词级时间戳（`generateSyntheticWordTimestampsFromSrt`，与本地上传一致，不接 auto-align）→`saveTranscriptContent` + `transcriptSource=device`。**专用引擎实例用后即 dispose**，与评分共享引擎解耦；可取消。
+- [x] **门控**：`ensureAsrModelReadyForTranscription`（无视评分后端，按指定档位检查/下载，绝不改评分设置）。
+- [x] **模型枚举**：`TranscriptSource.device`（追加末尾、序列化兼容；词级时间戳合成语义与 `local` 同侧，`annotation_content_view` 合成提示同步纳入）。
+- [x] **UI**：`ManageSubtitlesSheet` 第三选项「本地转录（离线）」+ 语言选择器（仅英文可选、可见）+ 档位选择器（tiny/base/small，显示下载态）+ 进度/失败/空结果视图 + 完成自动关闭。
+- [x] **测试**：`TranscriptSource.device` 序列化；`transcribeSegments` 未初始化守卫；档位偏好 provider（默认/恢复/select 独立）；`LocalTranscriptionTaskManager` 全流水线 + 空结果/解码失败/异常 dispose/防重入/取消；`ManageSubtitlesSheet` 第三选项 + 选择器渲染。
+- [x] **验证**：新增/改动文件 `flutter analyze` 0 问题；`dart format`；相关单测/组件测全过。真机端到端（ffmpeg 解码 + 真模型转录、关网离线、后台存活）待设备验证。
+
+  **完成时间**: 2026-07-05
 
 ## 已完成：词组选区手柄拖拽放大镜
 

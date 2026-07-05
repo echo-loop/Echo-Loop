@@ -172,6 +172,7 @@ Widget _createTestWidget({
   required _TestListenAndRepeatController controller,
   SpeechRecordingState recordingState = const SpeechRecordingState(),
   List<Override> extraOverrides = const [],
+  bool startAtHome = false,
 }) {
   final audioItemDao = _MockAudioItemDao();
   when(
@@ -180,8 +181,20 @@ Widget _createTestWidget({
   when(() => audioItemDao.getById(any())).thenAnswer((_) async => null);
 
   final router = GoRouter(
-    initialLocation: '/collections/c1/a1/listen-and-repeat',
+    initialLocation: startAtHome ? '/' : '/collections/c1/a1/listen-and-repeat',
     routes: [
+      GoRoute(
+        path: '/',
+        builder: (context, state) => Scaffold(
+          body: Center(
+            child: FilledButton(
+              onPressed: () =>
+                  context.push('/collections/c1/a1/listen-and-repeat'),
+              child: const Text('Open player'),
+            ),
+          ),
+        ),
+      ),
       GoRoute(
         path: '/collections/:collectionId/:audioId/listen-and-repeat',
         builder: (context, state) {
@@ -453,6 +466,37 @@ void main() {
 
       expect(find.text('Listen & Repeat Complete'), findsOneWidget);
       verifyNever(() => notificationService.canShowPrompt());
+    });
+
+    testWidgets('点完成返回后不触发退出确认且主界面仍可点击', (tester) async {
+      final controller = _TestListenAndRepeatController(
+        createState(),
+        createTestSentences(count: 3),
+        startPlayingNoop: true,
+      );
+
+      await tester.pumpWidget(
+        _createTestWidget(controller: controller, startAtHome: true),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Open player'));
+      await tester.pumpAndSettle();
+
+      controller.completeSession();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 200));
+
+      await tester.tap(find.text('Done'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Exit Listen & Repeat?'), findsNothing);
+      expect(find.text('Open player'), findsOneWidget);
+
+      await tester.tap(find.text('Open player'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(ListenAndRepeatPlayerScreen), findsOneWidget);
     });
 
     testWidgets('修改重复次数后当前句遍数标签立即刷新', (tester) async {

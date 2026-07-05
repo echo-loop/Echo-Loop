@@ -192,6 +192,7 @@ void main() {
     LearningSessionState? sessionState,
     SpeechRecordingPhase turnPhase = SpeechRecordingPhase.idle,
     List<Override> extraOverrides = const [],
+    bool startAtHome = false,
     TestReviewDifficultPractice Function(
       ReviewDifficultPracticeState initialState,
       List<Sentence> sentences,
@@ -209,8 +210,22 @@ void main() {
     ).thenAnswer((_) async => null);
 
     final router = GoRouter(
-      initialLocation: '/collections/c1/a1/review-difficult',
+      initialLocation: startAtHome
+          ? '/'
+          : '/collections/c1/a1/review-difficult',
       routes: [
+        GoRoute(
+          path: '/',
+          builder: (context, state) => Scaffold(
+            body: Center(
+              child: FilledButton(
+                onPressed: () =>
+                    context.push('/collections/c1/a1/review-difficult'),
+                child: const Text('Open player'),
+              ),
+            ),
+          ),
+        ),
         GoRoute(
           path: '/collections/:collectionId/:audioId/review-difficult',
           builder: (context, state) {
@@ -874,6 +889,38 @@ void main() {
 
       expect(find.text('Difficult Practice Complete'), findsOneWidget);
       verifyNever(() => notificationService.canShowPrompt());
+    });
+
+    testWidgets('点完成返回后不触发退出确认且主界面仍可点击', (tester) async {
+      await tester.pumpWidget(
+        createTestWidget(
+          startAtHome: true,
+          sessionState: const LearningSessionState(isFreePlay: false),
+          playerState: createPlayerState(
+            currentSentenceIndex: 4,
+            totalSentences: 5,
+            isPlaying: false,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Open player'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byIcon(Icons.check_circle_rounded));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Complete Review'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Exit Practice?'), findsNothing);
+      expect(find.text('Open player'), findsOneWidget);
+
+      await tester.tap(find.text('Open player'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(ReviewDifficultPracticeScreen), findsOneWidget);
     });
   });
 }

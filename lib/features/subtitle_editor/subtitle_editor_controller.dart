@@ -47,6 +47,13 @@ class SubtitleEditorState {
   final Duration? totalDuration;
   final Waveform? waveform;
   final double waveformProgress;
+
+  /// 波形提取是否失败（原生解码报错或长时间无进展）。
+  ///
+  /// 波形只是编辑辅助：失败时波形区显示失败态 + 重试，下方句子列表仍可正常编辑，
+  /// 不阻断整个编辑流程。与「加载中（waveform == null 且未失败）」显式区分，
+  /// 避免失败被误显示成永久「加载 0%」。
+  final bool waveformFailed;
   final double playbackSpeed;
   final double waveformZoomScale;
 
@@ -85,8 +92,10 @@ class SubtitleEditorState {
     this.totalDuration,
     this.waveform,
     this.waveformProgress = 0,
+    this.waveformFailed = false,
     this.playbackSpeed = 1.0,
     this.waveformZoomScale = 1.0,
+    this.maxWaveformZoomScale = 1.0,
     this.selectionEpoch = 0,
     this.words = const [],
     this.focusedWordIndex,
@@ -98,20 +107,12 @@ class SubtitleEditorState {
     return sentences[index];
   }
 
-  /// 最大放大时屏幕内约可见的秒数；据此让长音频也能放大到看清单词。
-  /// 取 1 秒：放大到极限时屏内约 1 秒音频，方便精细编辑单词边界。
-  static const double _minVisibleSeconds = 1.0;
-
   /// 波形最大放大倍数。
   ///
-  /// `1.0` 表示不缩放（整段音频铺满屏宽）；放大到上限时屏幕内约可见
-  /// [_minVisibleSeconds] 秒，足够精细调整单词边界。音频越长上限越大；
-  /// 短于该秒数的音频无需放大，返回 `1.0`。
-  double get maxWaveformZoomScale {
-    final seconds = (totalDuration?.inMilliseconds ?? 0) / 1000;
-    if (seconds <= _minVisibleSeconds) return 1.0;
-    return (seconds / _minVisibleSeconds).clamp(1.0, 300.0);
-  }
+  /// `1.0` 表示不缩放（整段音频铺满屏宽）；进入编辑页拿到波形可用宽度后，
+  /// [SubtitleEditorController.initZoomForViewport] 会按「最大放大时 1 秒音频约占
+  /// 2cm 屏幕长度」计算上限。音频越长，上限越大。
+  final double maxWaveformZoomScale;
 
   SubtitleEditorState copyWith({
     bool? isLoading,
@@ -128,8 +129,10 @@ class SubtitleEditorState {
     Object? totalDuration = _sentinel,
     Waveform? waveform,
     double? waveformProgress,
+    bool? waveformFailed,
     double? playbackSpeed,
     double? waveformZoomScale,
+    double? maxWaveformZoomScale,
     int? selectionEpoch,
     List<WordTimestamp>? words,
     Object? focusedWordIndex = _sentinel,
@@ -157,8 +160,10 @@ class SubtitleEditorState {
           : totalDuration as Duration?,
       waveform: waveform ?? this.waveform,
       waveformProgress: waveformProgress ?? this.waveformProgress,
+      waveformFailed: waveformFailed ?? this.waveformFailed,
       playbackSpeed: playbackSpeed ?? this.playbackSpeed,
       waveformZoomScale: waveformZoomScale ?? this.waveformZoomScale,
+      maxWaveformZoomScale: maxWaveformZoomScale ?? this.maxWaveformZoomScale,
       selectionEpoch: selectionEpoch ?? this.selectionEpoch,
       words: words ?? this.words,
       focusedWordIndex: focusedWordIndex == _sentinel
@@ -230,6 +235,9 @@ class SubtitleEditorController extends StateNotifier<SubtitleEditorState> {
 
   /// 每厘米屏幕对应的逻辑像素数（160 逻辑像素/英寸 ÷ 2.54 厘米/英寸）。
   static const double _logicalPixelsPerCm = 160 / 2.54;
+
+  /// 最大放大时 1 秒音频在屏幕上占用的物理长度。
+  static const double _maxZoomCentimetersPerSecond = 2.0;
 
   Future<void> load() async {
     if (_hasLoaded) return;
@@ -867,19 +875,27 @@ class SubtitleEditorController extends StateNotifier<SubtitleEditorState> {
     );
   }
 
-  /// 进入编辑页时按屏幕物理宽度自动计算初始缩放：每厘米屏幕约显示 1 秒音频。
+  /// 进入编辑页时按屏幕物理宽度自动计算缩放范围与初始缩放。
   ///
-  /// Flutter 逻辑像素以 160px/英寸 为基准，故 1 厘米 ≈ 63 逻辑像素。
-  /// 缩放语义见 [SubtitleEditorState.maxWaveformZoomScale]：`zoom == 1` 时整段
-  /// 音频铺满可视区，于是目标缩放 = (每厘米逻辑像素 × 音频秒数) / 可视区宽度。
+  /// Flutter 逻辑像素以 160px/英寸 为基准，故 1 厘米 ≈ 63 逻辑像素。缩放语义：
+  /// `zoom == 1` 时整段音频铺满可视区；最大缩放时 1 秒音频约占 2cm 屏幕长度，
+  /// 因此上限 = `音频秒数 × 2cm逻辑像素 / 可视区宽度`。
+  ///
+  /// 初始缩放仍保持每 1cm 屏幕约显示 1 秒音频，最大缩放则再放大一档用于精调。
   /// 仅在首次进入时执行一次，之后用户可通过滑块手动调整。
   void initZoomForViewport(double usableViewportWidth) {
     if (_didInitZoom) return;
     final seconds = (state.totalDuration?.inMilliseconds ?? 0) / 1000;
     if (usableViewportWidth <= 0 || seconds <= 0) return;
     _didInitZoom = true;
-    final scale = _logicalPixelsPerCm * seconds / usableViewportWidth;
-    setWaveformZoomScale(scale);
+    final initialScale = _logicalPixelsPerCm * seconds / usableViewportWidth;
+    final maxScale = initialScale * _maxZoomCentimetersPerSecond;
+    state = state.copyWith(
+      maxWaveformZoomScale: maxScale.clamp(1.0, double.infinity).toDouble(),
+      waveformZoomScale: initialScale
+          .clamp(1.0, maxScale.clamp(1.0, double.infinity))
+          .toDouble(),
+    );
   }
 
   void mergeWithNext(int index) {
@@ -1197,10 +1213,32 @@ class SubtitleEditorController extends StateNotifier<SubtitleEditorState> {
     ]);
   }
 
+  /// 波形提取的「无进展」超时窗口。
+  ///
+  /// 提取正常时原生会持续上报进度（每递增 1% 触发一次），只要有事件到达就重置计时；
+  /// 仅当**连续这么久没有任何进度事件**（真机原生解码卡死、且未报错）才判失败。
+  /// 取足够大的值，避免误伤慢机型上长音频「首个 1% 需解码较多音频」的正常等待。
+  static const Duration _waveformInactivityTimeout = Duration(seconds: 60);
+
+  /// 波形提取是否正在进行，避免 [load] 与 [retryWaveform] 并发重复提取。
+  bool _loadingWaveform = false;
+
+  /// 重新尝试提取波形（失败态下用户点「重试」）。
+  Future<void> retryWaveform() async {
+    if (_loadingWaveform) return;
+    state = state.copyWith(waveformFailed: false, waveformProgress: 0);
+    await _loadWaveform();
+  }
+
   Future<void> _loadWaveform() async {
+    if (_loadingWaveform) return;
+    _loadingWaveform = true;
     try {
       final audioPath = await state.audioItem.getFullAudioPath();
-      if (audioPath == null) return;
+      if (audioPath == null) {
+        if (mounted) state = state.copyWith(waveformFailed: true);
+        return;
+      }
       final dataDir = await getAppDataDirectory();
       final waveDir = Directory(p.join(dataDir.path, 'waveforms'));
       if (!await waveDir.exists()) {
@@ -1214,11 +1252,13 @@ class SubtitleEditorController extends StateNotifier<SubtitleEditorState> {
         return;
       }
 
+      // 原生提取失败（如 HE-AAC/SBR 触发采样率变更抛异常，见 §排查）会以 stream error
+      // 抛出；原生卡死无事件则由 timeout 兜底。两者都进 catch 置失败态，而不再假死 0%。
       await for (final progress in JustWaveform.extract(
         audioInFile: File(audioPath),
         waveOutFile: waveFile,
         zoom: const WaveformZoom.pixelsPerSecond(80),
-      )) {
+      ).timeout(_waveformInactivityTimeout)) {
         if (!mounted) return;
         state = state.copyWith(
           waveform: progress.waveform,
@@ -1227,7 +1267,9 @@ class SubtitleEditorController extends StateNotifier<SubtitleEditorState> {
       }
     } catch (_) {
       if (!mounted) return;
-      state = state.copyWith(waveformProgress: 0);
+      state = state.copyWith(waveformFailed: true);
+    } finally {
+      _loadingWaveform = false;
     }
   }
 

@@ -274,15 +274,54 @@ void main() {
 
   test('setWaveformZoomScale 限制缩放范围（1.0 ~ 按音频长度）', () async {
     final notifier = controller();
-    await notifier.load(); // totalDuration = 12s → maxZoom = 12 / 1 = 12.0
+    await notifier.load();
+    notifier.initZoomForViewport(360);
 
-    expect(state().maxWaveformZoomScale, 12.0);
+    expect(state().maxWaveformZoomScale, closeTo(4.1994, 0.001));
 
     notifier.setWaveformZoomScale(20);
-    expect(state().waveformZoomScale, 12.0);
+    expect(state().waveformZoomScale, closeTo(4.1994, 0.001));
 
     notifier.setWaveformZoomScale(0.2);
     expect(state().waveformZoomScale, 1.0);
+  });
+
+  test('maxWaveformZoomScale 长音频按 2cm/秒自适应，不被固定上限截断', () async {
+    final localAudioItem = createTestAudioItem(totalDuration: 1800);
+    final localAudioEngine = _RecordingAudioEngine(
+      duration: const Duration(minutes: 30),
+      sentences: sentences,
+    );
+    final localContainer = ProviderContainer(
+      overrides: [
+        audioEngineProvider.overrideWith(() => localAudioEngine),
+        audioItemDaoProvider.overrideWithValue(audioItemDao),
+      ],
+    );
+    final localSubscription = localContainer.listen(
+      subtitleEditorControllerProvider(localAudioItem),
+      (_, _) {},
+      fireImmediately: true,
+    );
+
+    try {
+      final notifier = localContainer.read(
+        subtitleEditorControllerProvider(localAudioItem).notifier,
+      );
+      await notifier.load();
+      notifier.initZoomForViewport(360);
+      final st = localContainer.read(
+        subtitleEditorControllerProvider(localAudioItem),
+      );
+
+      // 1cm ≈ 62.992 逻辑像素。30 分钟音频、360px 可用宽度下，最大缩放 =
+      // 1800s × 2cm/s × 62.992px/cm / 360px ≈ 629.92，旧固定 300x 会不够。
+      expect(st.maxWaveformZoomScale, closeTo(629.92, 0.01));
+    } finally {
+      localSubscription.close();
+      localContainer.dispose();
+      localAudioEngine.disposeController();
+    }
   });
 
   test('initZoomForViewport 按可视区宽度设置初始缩放（每厘米约 1 秒）', () async {
@@ -310,13 +349,14 @@ void main() {
     expect(state().waveformZoomScale, closeTo(2.0997, 0.001));
   });
 
-  test('initZoomForViewport 超长音频缩放被 max 截断', () async {
+  test('initZoomForViewport 同时设置初始缩放和 2cm/秒最大缩放', () async {
     final notifier = controller();
-    await notifier.load(); // maxZoom = 12.0
+    await notifier.load();
 
-    // 极窄可视区会算出超大 scale，应被 maxWaveformZoomScale 截断。
-    notifier.initZoomForViewport(50);
-    expect(state().waveformZoomScale, 12.0);
+    notifier.initZoomForViewport(360);
+
+    expect(state().waveformZoomScale, closeTo(2.0997, 0.001));
+    expect(state().maxWaveformZoomScale, closeTo(4.1994, 0.001));
   });
 
   test('sentenceCountChanged：调边界为 false，删除/合并为 true', () async {

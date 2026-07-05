@@ -30,6 +30,8 @@
   "playbackSettings": "播放设置",
   "waveformZoom": "缩放",
   "waveformLoading": "正在加载波形 {progress}%",
+  "waveformLoadFailed": "波形生成失败，仍可在下方编辑字幕。",
+  "waveformRetry": "重试",
   "playbackSpeed": "播放速度",
   "loopPlayback": "循环播放",
   "loopCount": "循环次数",
@@ -645,6 +647,8 @@
   "speechModelSize": "模型大小：约 {size}",
   "speechModelApproxSize": "约 {size}",
   "speechModelReady": "就绪 · {size}",
+  "speechModelStatusReady": "就绪",
+  "speechModelStatusNeedsDownload": "需下载",
   "speechModelDownloading": "正在下载... {progress}",
   "speechModelDownloadFailed": "下载失败，点击重试。",
   "speechModelDownloadFailedTitle": "语音识别模型下载失败",
@@ -690,7 +694,22 @@
 
   "manageSubtitles": "管理字幕",
   "localUpload": "本地上传",
-  "aiTranscription": "AI 转录",
+  "aiTranscription": "云端转录",
+  "aiTranscriptionSubtitle": "精度高，速度快，需联网登录",
+  "offlineTranscription": "本地转录",
+  "offlineTranscriptionSubtitle": "离线、隐私，无需登录",
+  "transcriptionModelTier": "识别模型",
+  "localTranscriptionDecoding": "正在解码音频…",
+  "localTranscriptionForegroundHint": "转录完成前请保持应用在前台，切到后台或锁屏会中断转录。",
+  "localTranscriptionProgressPercent": "已完成 {percent}%",
+  "@localTranscriptionProgressPercent": {
+    "placeholders": { "percent": { "type": "int" } }
+  },
+  "localTranscriptionModelRequiredTitle": "需要语音模型",
+  "localTranscriptionModelRequiredMessage": "本地转录需先下载 {modelName} 语音模型（仅一次，之后完全离线）。",
+  "@localTranscriptionModelRequiredMessage": {
+    "placeholders": { "modelName": { "type": "String" } }
+  },
   "deleteSubtitle": "删除字幕",
   "startTranscription": "开始转录",
   "alreadyTranscribedWithOption": "已使用该选项转录",

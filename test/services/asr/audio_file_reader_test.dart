@@ -266,6 +266,101 @@ void main() {
       expect(result[2], closeTo(0.1, 0.0001));
     });
   });
+
+  group('Pcm16WavStreamReader', () {
+    File tempWav(Uint8List bytes, String name) {
+      final f = File('${Directory.systemTemp.path}/$name');
+      f.writeAsBytesSync(bytes);
+      addTearDown(() {
+        if (f.existsSync()) f.deleteSync();
+      });
+      return f;
+    }
+
+    test('打开标准 16kHz 单声道 WAV，totalSamples 与样本值正确', () {
+      final samples = List<int>.generate(1000, (i) => (i * 7) % 3000 - 1500);
+      final f = tempWav(
+        _buildMinimalWav(sampleRate: 16000, numChannels: 1, samples: samples),
+        'stream_mono.wav',
+      );
+
+      final reader = Pcm16WavStreamReader.open(f.path);
+      expect(reader, isNotNull);
+      expect(reader!.sampleRate, 16000);
+      expect(reader.totalSamples, 1000);
+
+      // 分块读取并拼接，应还原全部样本。
+      final collected = <double>[];
+      while (true) {
+        final block = reader.readBlock(128);
+        if (block.isEmpty) break;
+        collected.addAll(block);
+      }
+      reader.close();
+
+      expect(collected.length, 1000);
+      for (var i = 0; i < samples.length; i++) {
+        expect(collected[i], closeTo(samples[i] / 32768.0, 0.0001));
+      }
+    });
+
+    test('末尾之后 readBlock 返回空', () {
+      final f = tempWav(
+        _buildMinimalWav(sampleRate: 16000, numChannels: 1, samples: [1, 2, 3]),
+        'stream_tail.wav',
+      );
+      final reader = Pcm16WavStreamReader.open(f.path)!;
+      expect(reader.readBlock(10).length, 3);
+      expect(reader.readBlock(10).isEmpty, isTrue);
+      reader.close();
+    });
+
+    test('readWindow 随机读任意窗口（滑窗转录用）', () {
+      final samples = List<int>.generate(1000, (i) => (i * 7) % 3000 - 1500);
+      final f = tempWav(
+        _buildMinimalWav(sampleRate: 16000, numChannels: 1, samples: samples),
+        'stream_window.wav',
+      );
+      final reader = Pcm16WavStreamReader.open(f.path)!;
+
+      // 从中间读一窗，值应与对应样本一致。
+      final w = reader.readWindow(500, 100);
+      expect(w.length, 100);
+      for (var i = 0; i < 100; i++) {
+        expect(w[i], closeTo(samples[500 + i] / 32768.0, 0.0001));
+      }
+
+      // 越界自动截断到末尾。
+      final tail = reader.readWindow(950, 100);
+      expect(tail.length, 50);
+      expect(tail[0], closeTo(samples[950] / 32768.0, 0.0001));
+
+      // 起点已到/超过末尾返回空。
+      expect(reader.readWindow(1000, 10).isEmpty, isTrue);
+      expect(reader.readWindow(5000, 10).isEmpty, isTrue);
+
+      // 不影响顺序读取位置（readWindow 用绝对偏移、独立于 _posByte）。
+      expect(reader.readBlock(10).length, 10);
+      reader.close();
+    });
+
+    test('多声道 WAV 返回 null（交由全量路径处理）', () {
+      final f = tempWav(
+        _buildMinimalWav(
+          sampleRate: 16000,
+          numChannels: 2,
+          samples: [1, 2, 3, 4],
+        ),
+        'stream_stereo.wav',
+      );
+      expect(Pcm16WavStreamReader.open(f.path), isNull);
+    });
+
+    test('非 RIFF 文件返回 null', () {
+      final f = tempWav(Uint8List.fromList(List.filled(64, 0x42)), 'bad.bin');
+      expect(Pcm16WavStreamReader.open(f.path), isNull);
+    });
+  });
 }
 
 /// 构造最小有效 CAF 文件。

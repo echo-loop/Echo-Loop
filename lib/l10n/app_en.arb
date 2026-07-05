@@ -44,6 +44,8 @@
       }
     }
   },
+  "waveformLoadFailed": "Waveform unavailable. You can still edit subtitles below.",
+  "waveformRetry": "Retry",
   "playbackSpeed": "Playback Speed",
   "loopPlayback": "Loop Playback",
   "loopCount": "Loop Count",
@@ -850,6 +852,8 @@
       "size": { "type": "String" }
     }
   },
+  "speechModelStatusReady": "Ready",
+  "speechModelStatusNeedsDownload": "Download",
   "speechModelDownloading": "Downloading... {progress}",
   "@speechModelDownloading": {
     "placeholders": {
@@ -910,7 +914,22 @@
 
   "manageSubtitles": "Manage Subtitles",
   "localUpload": "Local Upload",
-  "aiTranscription": "AI Transcription",
+  "aiTranscription": "Cloud Transcription",
+  "aiTranscriptionSubtitle": "Higher accuracy, needs network + sign-in",
+  "offlineTranscription": "On-Device Transcription",
+  "offlineTranscriptionSubtitle": "Offline, private, no sign-in",
+  "transcriptionModelTier": "Recognition model",
+  "localTranscriptionDecoding": "Decoding audio...",
+  "localTranscriptionForegroundHint": "Keep the app open and on-screen until it finishes — transcription pauses if you switch apps or lock the screen.",
+  "localTranscriptionProgressPercent": "{percent}% done",
+  "@localTranscriptionProgressPercent": {
+    "placeholders": { "percent": { "type": "int" } }
+  },
+  "localTranscriptionModelRequiredTitle": "Speech model needed",
+  "localTranscriptionModelRequiredMessage": "On-device transcription needs to download the {modelName} speech model once (offline afterwards).",
+  "@localTranscriptionModelRequiredMessage": {
+    "placeholders": { "modelName": { "type": "String" } }
+  },
   "deleteSubtitle": "Delete Subtitle",
   "startTranscription": "Start Transcription",
   "alreadyTranscribedWithOption": "Already transcribed with this option",

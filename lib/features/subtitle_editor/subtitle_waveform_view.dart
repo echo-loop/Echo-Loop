@@ -136,8 +136,18 @@ class SubtitleWaveformView extends StatefulWidget {
   /// [onAdjustEnd] 默认空实现。
   static void _ignoreAdjustEnd() {}
 
+  /// [onRetryExtraction] 默认空实现。
+  static void _ignoreRetry() {}
+
   final Waveform? waveform;
   final double extractionProgress;
+
+  /// 波形提取是否失败：为 true 时波形区显示失败态 + 重试，而非「加载中」。
+  final bool extractionFailed;
+
+  /// 点击「重试」重新提取波形。
+  final VoidCallback onRetryExtraction;
+
   final Duration? duration;
   final List<Sentence> sentences;
   final Sentence? activeSentence;
@@ -175,6 +185,8 @@ class SubtitleWaveformView extends StatefulWidget {
     super.key,
     required this.waveform,
     required this.extractionProgress,
+    this.extractionFailed = false,
+    this.onRetryExtraction = _ignoreRetry,
     required this.duration,
     required this.sentences,
     required this.activeSentence,
@@ -309,8 +321,11 @@ class _SubtitleWaveformViewState extends State<SubtitleWaveformView> {
       child: SizedBox(
         height: 112,
         width: double.infinity,
-        child:
-            (waveform == null || duration == null || duration <= Duration.zero)
+        child: widget.extractionFailed
+            ? _WaveformFailed(onRetry: widget.onRetryExtraction)
+            : (waveform == null ||
+                  duration == null ||
+                  duration <= Duration.zero)
             ? _WaveformLoading(progress: widget.extractionProgress)
             : LayoutBuilder(
                 builder: (context, constraints) {
@@ -763,6 +778,48 @@ class _WaveformLoading extends StatelessWidget {
               AppLocalizations.of(context)!.waveformLoading(l10nProgress),
               style: Theme.of(context).textTheme.bodySmall,
             ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// 波形提取失败态：提示失败 + 重试按钮。
+///
+/// 波形只是编辑辅助，失败不阻断编辑——下方句子列表仍可正常增删改。
+class _WaveformFailed extends StatelessWidget {
+  final VoidCallback onRetry;
+
+  const _WaveformFailed({required this.onRetry});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final l10n = AppLocalizations.of(context)!;
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.graphic_eq,
+              size: 18,
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+            const SizedBox(width: 8),
+            Flexible(
+              child: Text(
+                l10n.waveformLoadFailed,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ),
+            const SizedBox(width: 8),
+            TextButton(onPressed: onRetry, child: Text(l10n.waveformRetry)),
           ],
         ),
       ),

@@ -116,17 +116,17 @@ const _defaultModelFileRegistry = <String, AsrModelManifest>{
 final List<AsrModelInfo> availableModels = [
   const AsrModelInfo(
     id: 'whisper-tiny-en-int8',
-    displayName: 'Whisper Tiny.en',
+    displayName: 'Echo Loop AI (Fast)',
     type: AsrModelType.whisper,
   ),
   const AsrModelInfo(
     id: 'whisper-base-en-int8',
-    displayName: 'Whisper Base.en',
+    displayName: 'Echo Loop AI (Balanced)',
     type: AsrModelType.whisper,
   ),
   const AsrModelInfo(
     id: 'whisper-small-en-int8',
-    displayName: 'Whisper Small.en',
+    displayName: 'Echo Loop AI (Accurate)',
     type: AsrModelType.whisper,
   ),
 ];

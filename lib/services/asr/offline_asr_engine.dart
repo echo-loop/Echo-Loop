@@ -87,6 +87,28 @@ class AsrResult {
   const AsrResult({required this.text, required this.inferenceTime});
 }
 
+/// 带时间戳的转录片段（用于字幕生成）。
+///
+/// 时间戳来自 VAD 切出的语音段边界（真实、按静音切分），
+/// 每段独立解码得到 [text]。sherpa-onnx Whisper 不产词级时间戳，
+/// 故仅提供段级（≈句级）时间，词级时间由上层按字符长度合成。
+class AsrSegment {
+  /// 段文本。
+  final String text;
+
+  /// 段起始时间（相对音频开头）。
+  final Duration start;
+
+  /// 段结束时间（相对音频开头）。
+  final Duration end;
+
+  const AsrSegment({
+    required this.text,
+    required this.start,
+    required this.end,
+  });
+}
+
 /// 离线 ASR 引擎抽象接口。
 ///
 /// 统一 Moonshine、Whisper 等模型的转录能力，
@@ -111,6 +133,17 @@ abstract class OfflineAsrEngine {
   /// 在后台执行推理，不阻塞 UI 线程。
   /// 引擎未初始化时抛出 [StateError]。
   Future<AsrResult> transcribe(String wavPath);
+
+  /// 转录 WAV 文件（16kHz/mono/PCM16），产出带时间戳的分段列表（用于字幕生成）。
+  ///
+  /// 与 [transcribe] 的区别：按 VAD 语音段逐段解码、保留每段真实起止时间，
+  /// **不合并**为大块，得到句级切分。[onProgress] 在每段解码完成后回调
+  /// 进度（0.0~1.0）。全静音/空音频返回空列表。
+  /// 在后台执行推理，不阻塞 UI 线程；引擎未初始化时抛出 [StateError]。
+  Future<List<AsrSegment>> transcribeSegments(
+    String wavPath, {
+    void Function(double progress)? onProgress,
+  });
 
   /// 释放模型和引擎资源。
   Future<void> dispose();

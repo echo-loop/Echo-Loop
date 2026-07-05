@@ -11,9 +11,13 @@ import 'package:echo_loop/providers/learning_session/learning_session_provider.d
 import 'package:echo_loop/providers/learning_session/blind_listen_player_provider.dart';
 import 'package:echo_loop/providers/settings_provider.dart';
 import 'package:echo_loop/providers/transcription_task_provider.dart';
+import 'package:echo_loop/providers/local_transcription_task_provider.dart';
+import 'package:echo_loop/features/onboarding_survey/providers/onboarding_survey_provider.dart';
 import 'package:echo_loop/services/transcription_api_client.dart';
 import 'package:echo_loop/widgets/manage_subtitles_sheet.dart';
 import 'package:echo_loop/features/auth/providers/auth_providers.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../helpers/mock_providers.dart';
@@ -46,6 +50,7 @@ void main() {
       AppSettingsState appSettingsState = const AppSettingsState(
         locale: Locale('en'),
       ),
+      List<Override> extraOverrides = const [],
     }) {
       final libraryState = AudioLibraryState(audioItems: [audioItem]);
       return createTestApp(
@@ -89,6 +94,7 @@ void main() {
           supabaseSessionProvider.overrideWith(
             (ref) => Stream<Session?>.value(session),
           ),
+          ...extraOverrides,
         ],
       );
     }
@@ -105,7 +111,7 @@ void main() {
 
         // 两个 Radio 选项
         expect(find.text('Local Upload'), findsOneWidget);
-        expect(find.text('AI Transcription'), findsOneWidget);
+        expect(find.text('Cloud Transcription'), findsOneWidget);
 
         // 无删除按钮
         expect(find.byTooltip('Delete Subtitle'), findsNothing);
@@ -149,7 +155,7 @@ void main() {
         await tester.pumpAndSettle();
 
         // 切换到 AI 选项
-        await tester.tap(find.text('AI Transcription'));
+        await tester.tap(find.text('Cloud Transcription'));
         await tester.pumpAndSettle();
 
         // 切换语言到 English（与现有字幕语言相同）
@@ -246,7 +252,7 @@ void main() {
         await tester.pumpAndSettle();
 
         // 切换到 AI 选项
-        await tester.tap(find.text('AI Transcription'));
+        await tester.tap(find.text('Cloud Transcription'));
         await tester.pumpAndSettle();
 
         // 切换到 auto（与已转录的 en 不同）→ 按钮可点击
@@ -298,7 +304,7 @@ void main() {
         await tester.pumpAndSettle();
         await tester.pump();
 
-        await tester.tap(find.text('AI Transcription'));
+        await tester.tap(find.text('Cloud Transcription'));
         await tester.pumpAndSettle();
 
         await tester.tap(
@@ -368,7 +374,7 @@ void main() {
         await tester.pumpAndSettle();
 
         // 切换到 AI
-        await tester.tap(find.text('AI Transcription'));
+        await tester.tap(find.text('Cloud Transcription'));
         await tester.pumpAndSettle();
         expect(find.text('Select Language'), findsOneWidget);
 
@@ -435,6 +441,128 @@ void main() {
 
         expect(find.text('Auto-merge short sentences'), findsOneWidget);
         expect(tester.widget<Switch>(find.byType(Switch)).value, isFalse);
+      });
+    });
+
+    group('本地（离线）转录', () {
+      testWidgets('无字幕音频：显示本地转录选项', (tester) async {
+        final item = createTestAudioItem(transcriptPath: null);
+        await tester.pumpWidget(buildSheet(item));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Open'));
+        await tester.pumpAndSettle();
+
+        expect(find.text('On-Device Transcription'), findsOneWidget);
+      });
+
+      testWidgets('选中本地转录：显示语言（英文）与模型档位选择', (tester) async {
+        // 用已有字幕的音频，避免无字幕时的新手引导 coachmark 干扰 pumpAndSettle。
+        SharedPreferences.setMockInitialValues({});
+        final sp = await SharedPreferences.getInstance();
+        final item = createTestAudioItem();
+        await tester.pumpWidget(
+          buildSheet(
+            item,
+            extraOverrides: [sharedPreferencesProvider.overrideWithValue(sp)],
+          ),
+        );
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Open'));
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.text('On-Device Transcription'));
+        await tester.pumpAndSettle();
+
+        // 语言选择（仅英文）与模型档位选择出现。
+        expect(find.text('Select Language'), findsOneWidget);
+        expect(find.text('English'), findsWidgets);
+        expect(find.text('Recognition model'), findsOneWidget);
+        // 档位选择器显示当前档位（测试环境推荐档位 = 'Test Model'）。
+        expect(find.text('Test Model'), findsOneWidget);
+        // 自动合并短句开关在离线区也出现（与 AI 转录对齐）。
+        expect(find.text('Auto-merge short sentences'), findsOneWidget);
+      });
+
+      testWidgets('选中本地转录：语言胶囊可点击弹出菜单（仅英文一项）', (tester) async {
+        SharedPreferences.setMockInitialValues({});
+        final sp = await SharedPreferences.getInstance();
+        final item = createTestAudioItem();
+        await tester.pumpWidget(
+          buildSheet(
+            item,
+            extraOverrides: [sharedPreferencesProvider.overrideWithValue(sp)],
+          ),
+        );
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Open'));
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.text('On-Device Transcription'));
+        await tester.pumpAndSettle();
+
+        // 离线语言选择器是可点的 PopupMenuButton（不再是死胶囊）。
+        final langButton = find.byType(PopupMenuButton<String>);
+        expect(langButton, findsOneWidget);
+
+        // 点击弹出菜单，出现单个 English 选项（额外的 English 文本）。
+        final englishBefore = find.text('English').evaluate().length;
+        await tester.tap(langButton);
+        await tester.pumpAndSettle();
+        expect(
+          find.text('English').evaluate().length,
+          greaterThan(englishBefore),
+        );
+      });
+
+      testWidgets('转录进行中：显示保持前台提示', (tester) async {
+        final item = createTestAudioItem();
+        await tester.pumpWidget(
+          buildSheet(
+            item,
+            extraOverrides: [
+              localTranscriptionTaskManagerProvider.overrideWith(
+                () => TestLocalTranscriptionTaskManager({
+                  item.id: const LocalTranscriptionTranscribing(progress: 0.3),
+                }),
+              ),
+            ],
+          ),
+        );
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Open'));
+        await tester.pumpAndSettle();
+
+        // 进度视图渲染时展示保持前台的提示与数字进度百分比。
+        expect(find.textContaining('Keep the app open'), findsOneWidget);
+        expect(find.text('30% done'), findsOneWidget);
+        // 提供取消按钮。
+        expect(find.text('Cancel'), findsOneWidget);
+      });
+
+      testWidgets('转录进行中：点取消回到选项界面', (tester) async {
+        final item = createTestAudioItem();
+        await tester.pumpWidget(
+          buildSheet(
+            item,
+            extraOverrides: [
+              localTranscriptionTaskManagerProvider.overrideWith(
+                () => TestLocalTranscriptionTaskManager({
+                  item.id: const LocalTranscriptionTranscribing(progress: 0.3),
+                }),
+              ),
+            ],
+          ),
+        );
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Open'));
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.text('Cancel'));
+        await tester.pumpAndSettle();
+
+        // 取消后状态回 Idle，进度视图消失，重新显示转录选项。
+        expect(find.textContaining('Keep the app open'), findsNothing);
+        expect(find.text('On-Device Transcription'), findsOneWidget);
       });
     });
   });

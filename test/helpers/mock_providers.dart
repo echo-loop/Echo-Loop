@@ -26,6 +26,7 @@ import 'package:echo_loop/providers/notification_permission_provider.dart';
 import 'package:echo_loop/providers/offline_asr_settings_provider.dart';
 import 'package:echo_loop/providers/retell_recording_controller_provider.dart';
 import 'package:echo_loop/providers/speech/speech_recording_controller.dart';
+import 'package:echo_loop/providers/local_transcription_task_provider.dart';
 import 'package:echo_loop/providers/transcription_task_provider.dart';
 import 'package:echo_loop/database/providers.dart';
 import 'package:echo_loop/models/app_update_info.dart';
@@ -331,6 +332,34 @@ class TestTranscriptionTaskManager extends TranscriptionTaskManager {
     AudioItem audioItem,
     String language, {
     required String accessToken,
+    bool autoMergeShortSentences = true,
+  }) async {}
+
+  @override
+  void cancelTranscription(String audioId) {
+    state = Map.of(state)..remove(audioId);
+  }
+
+  @override
+  void clearState(String audioId) {
+    state = Map.of(state)..remove(audioId);
+  }
+}
+
+/// 测试用 LocalTranscriptionTaskManager — build 返回注入的固定状态，
+/// 副作用方法置空，便于渲染进度/终态视图。
+class TestLocalTranscriptionTaskManager extends LocalTranscriptionTaskManager {
+  final Map<String, LocalTranscriptionState> _initialState;
+
+  TestLocalTranscriptionTaskManager([this._initialState = const {}]);
+
+  @override
+  Map<String, LocalTranscriptionState> build() => Map.of(_initialState);
+
+  @override
+  Future<void> startLocalTranscription(
+    AudioItem audioItem, {
+    required AsrModelInfo model,
     bool autoMergeShortSentences = true,
   }) async {}
 

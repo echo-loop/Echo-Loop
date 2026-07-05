@@ -150,6 +150,9 @@ class _SubtitleSimpleEditorScreenState
                       child: SubtitleWaveformView(
                         waveform: state.waveform,
                         extractionProgress: state.waveformProgress,
+                        extractionFailed: state.waveformFailed,
+                        onRetryExtraction: () =>
+                            unawaited(controller.retryWaveform()),
                         duration: state.totalDuration,
                         sentences: state.sentences,
                         activeSentence: state.selectedSentence,

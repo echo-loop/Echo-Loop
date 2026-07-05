@@ -313,6 +313,7 @@ class _ReviewDifficultPracticeScreenState
               .resetToStart();
         },
         onExit: () async {
+          _isExiting = true;
           await ref
               .read(learningSessionProvider.notifier)
               .recordCatchUpCompletionIfAny(widget.audioItemId);
@@ -367,6 +368,7 @@ class _ReviewDifficultPracticeScreenState
       debugPrint('难句补练完成处理出错: $e');
     }
 
+    _isExiting = true;
     await ref.read(learningSessionProvider.notifier).exitLearningMode();
     if (!mounted) return;
 

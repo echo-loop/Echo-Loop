@@ -391,7 +391,11 @@ class _AnnotationContentViewState extends ConsumerState<AnnotationContentView> {
 
     final audioItem = await ref.read(audioItemDaoProvider).getById(audioItemId);
     if (!mounted || widget.audioItemId != audioItemId) return false;
-    if (audioItem?.transcriptSource != app_model.TranscriptSource.local.index) {
+    // 本地上传与设备离线转录的词级时间戳都是合成近似值，均需提示；AI 转录自带
+    // 真实词级时间戳，无需提示。
+    final source = audioItem?.transcriptSource;
+    if (source != app_model.TranscriptSource.local.index &&
+        source != app_model.TranscriptSource.device.index) {
       return true;
     }
 

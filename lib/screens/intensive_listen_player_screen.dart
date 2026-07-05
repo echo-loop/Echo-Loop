@@ -392,6 +392,7 @@ class _IntensiveListenPlayerScreenState
           ref.read(intensiveListenPlayerProvider.notifier).resetToStart();
         },
         onExit: () async {
+          _isExiting = true;
           await ref
               .read(learningSessionProvider.notifier)
               .recordCatchUpCompletionIfAny(widget.audioItemId);
@@ -479,6 +480,7 @@ class _IntensiveListenPlayerScreenState
     // 现行任务顺序下，该任务就是逐句精听。
     await maybeShowLearningNotificationPrompt(context, ref);
 
+    _isExiting = true;
     await ref.read(learningSessionProvider.notifier).exitLearningMode();
     if (!mounted) return;
 

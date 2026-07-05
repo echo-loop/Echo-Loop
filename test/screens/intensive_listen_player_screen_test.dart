@@ -200,6 +200,7 @@ void main() {
     LearningSessionState? sessionState,
     _TestBookmarkDao? bookmarkDao,
     List<Override> extraOverrides = const [],
+    bool startAtHome = false,
     TestIntensiveListenPlayer Function(
       IntensiveListenState initialState,
       List<Sentence> sentences,
@@ -210,8 +211,22 @@ void main() {
     final initialPlayerState = playerState ?? createPlayerState();
 
     final router = GoRouter(
-      initialLocation: '/collections/col-1/test-1/intensive-listen',
+      initialLocation: startAtHome
+          ? '/'
+          : '/collections/col-1/test-1/intensive-listen',
       routes: [
+        GoRoute(
+          path: '/',
+          builder: (context, state) => Scaffold(
+            body: Center(
+              child: FilledButton(
+                onPressed: () =>
+                    context.push('/collections/col-1/test-1/intensive-listen'),
+                child: const Text('Open player'),
+              ),
+            ),
+          ),
+        ),
         GoRoute(
           path: '/collections/:collectionId/:audioId/intensive-listen',
           builder: (context, state) {
@@ -630,6 +645,45 @@ void main() {
 
       verify(() => notificationService.canShowPrompt()).called(1);
       expect(find.text('Review while it\'s fresh'), findsOneWidget);
+    });
+
+    testWidgets('点完成返回后不触发退出确认且主界面仍可点击', (tester) async {
+      final notificationService = _MockNotificationPermissionService();
+      when(
+        () => notificationService.canShowPrompt(),
+      ).thenAnswer((_) async => false);
+
+      await tester.pumpWidget(
+        createTestWidget(
+          startAtHome: true,
+          playerState: createPlayerState(totalSentences: 5),
+          playerFactory: (state, sentences) =>
+              _AutoCompleteIntensiveListenPlayer(state, sentences),
+          extraOverrides: [
+            notificationPermissionServiceProvider.overrideWithValue(
+              notificationService,
+            ),
+          ],
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Open player'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byIcon(Icons.check_circle_rounded));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Done'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Exit Intensive Listening?'), findsNothing);
+      expect(find.text('Open player'), findsOneWidget);
+
+      await tester.tap(find.text('Open player'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(IntensiveListenPlayerScreen), findsOneWidget);
     });
 
     testWidgets('点击设置按钮打开设置面板', (tester) async {

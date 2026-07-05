@@ -49,6 +49,9 @@ dependencies:
   path_provider: ^2.1.1
   shared_preferences: ^2.2.2
   path: ^1.8.3
+  # sherpa-onnx 的 whisper segment 时间戳需读原生 result JSON（Pointer<Utf8>→String），
+  # 用 package:ffi 的 toDartString；ffi 本是 sherpa_onnx 传递依赖，此处显式声明直接使用。
+  ffi: ^2.1.0
   intl: ^0.20.2
   clock: ^1.1.1
   drift: ^2.25.0

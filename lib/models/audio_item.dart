@@ -9,8 +9,15 @@ enum TranscriptSource {
   /// 本地文件上传
   local,
 
-  /// AI 转录生成
-  ai;
+  /// AI 转录生成（云端）
+  ai,
+
+  /// 设备本地转录生成（离线 Whisper）。
+  ///
+  /// 词级时间戳与 [local] 一样是按字符长度合成的近似值（VAD 提供句级真实边界，
+  /// sherpa-onnx Whisper 不产词级时间戳），故凡按「ai vs 非 ai」区分词级时间戳
+  /// 质量的逻辑，[device] 都与 [local] 同侧处理。
+  device;
 
   /// 从整数值创建（数据库存储用）
   static TranscriptSource? fromIndex(int? index) {

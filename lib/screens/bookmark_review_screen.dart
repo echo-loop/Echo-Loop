@@ -182,6 +182,7 @@ class _BookmarkReviewScreenState extends ConsumerState<BookmarkReviewScreen>
         await ref.read(bookmarkReviewProvider.notifier).resetToStart();
       },
       onExit: () async {
+        _isExiting = true;
         ref.read(bookmarkReviewProvider.notifier).disposePlayer();
         if (mounted) context.pop();
       },

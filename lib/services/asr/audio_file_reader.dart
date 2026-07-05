@@ -182,6 +182,157 @@ Float32List pcm16ToFloat32(Uint8List bytes, Endian endian, int numChannels) {
   return result;
 }
 
+/// 16kHz/单声道/PCM16 WAV 的流式读取器。
+///
+/// 定位 `data` chunk 后按块顺序读取 PCM16 样本并归一化为 Float32，
+/// 避免像 [readAudioFile] 那样一次性把整段音频读入内存
+/// （长音频可达数百 MB，直接 OOM）。仅支持单声道 PCM16；
+/// 其它声道数/位深/格式一律返回 null，交由调用方回退到 [readAudioFile]。
+class Pcm16WavStreamReader {
+  final RandomAccessFile _raf;
+
+  /// 采样率（Hz）。
+  final int sampleRate;
+
+  /// data chunk 起始字节偏移（绝对）。
+  final int _dataStartByte;
+
+  /// data chunk 结束字节偏移（绝对，已按文件长度截断）。
+  final int _dataEndByte;
+
+  /// 当前读取位置（绝对字节偏移）。
+  int _posByte;
+
+  Pcm16WavStreamReader._(
+    this._raf,
+    this.sampleRate,
+    this._dataStartByte,
+    this._dataEndByte,
+  ) : _posByte = _dataStartByte;
+
+  /// data chunk 内的总样本数（单声道 → 每样本 2 字节），用于进度估算。
+  int get totalSamples => (_dataEndByte - _dataStartByte) ~/ 2;
+
+  /// 打开 [path] 并解析头部，成功返回定位到 data 起始的读取器；
+  /// 非 RIFF/WAVE、非单声道、非 16-bit PCM 或格式异常时返回 null（不抛出）。
+  static Pcm16WavStreamReader? open(String path) {
+    RandomAccessFile? raf;
+    try {
+      raf = File(path).openSync();
+      final fileLen = raf.lengthSync();
+      final head = raf.readSync(12);
+      if (head.length < 12) return _closeReturnNull(raf);
+      if (String.fromCharCodes(head.sublist(0, 4)) != 'RIFF' ||
+          String.fromCharCodes(head.sublist(8, 12)) != 'WAVE') {
+        return _closeReturnNull(raf);
+      }
+
+      int numChannels = 0;
+      int bitsPerSample = 0;
+      int sampleRate = 0;
+      var offset = 12;
+
+      // 遍历 chunk 头，定位 fmt（读格式）与 data（定位样本区）。
+      while (offset + 8 <= fileLen) {
+        raf.setPositionSync(offset);
+        final chunkHeader = raf.readSync(8);
+        if (chunkHeader.length < 8) break;
+        final chunkId = String.fromCharCodes(chunkHeader.sublist(0, 4));
+        final chunkSize = ByteData.sublistView(
+          chunkHeader,
+        ).getUint32(4, Endian.little);
+        final chunkDataStart = offset + 8;
+
+        if (chunkId == 'fmt ') {
+          final fmt = raf.readSync(16);
+          if (fmt.length < 16) return _closeReturnNull(raf);
+          final bd = ByteData.sublistView(fmt);
+          numChannels = bd.getUint16(2, Endian.little);
+          sampleRate = bd.getUint32(4, Endian.little);
+          bitsPerSample = bd.getUint16(14, Endian.little);
+        } else if (chunkId == 'data') {
+          if (numChannels != 1 || bitsPerSample != 16) {
+            return _closeReturnNull(raf);
+          }
+          final dataEnd = chunkDataStart + chunkSize;
+          final end = dataEnd > fileLen ? fileLen : dataEnd;
+          return Pcm16WavStreamReader._(raf, sampleRate, chunkDataStart, end);
+        }
+
+        offset = chunkDataStart + chunkSize + (chunkSize.isOdd ? 1 : 0);
+      }
+      return _closeReturnNull(raf);
+    } catch (_) {
+      if (raf != null) {
+        try {
+          raf.closeSync();
+        } catch (_) {}
+      }
+      return null;
+    }
+  }
+
+  static Pcm16WavStreamReader? _closeReturnNull(RandomAccessFile raf) {
+    try {
+      raf.closeSync();
+    } catch (_) {}
+    return null;
+  }
+
+  /// 从样本下标 [startSample] 起随机读取最多 [maxSamples] 个样本（不影响顺序读位置）。
+  ///
+  /// 供滑窗转录按 seek 位置读任意 ≤30s 窗口（PCM16 每样本 2 字节，可直接算字节偏移）。
+  /// 越界自动截断，起点已到/超过末尾返回空 [Float32List]。
+  Float32List readWindow(int startSample, int maxSamples) {
+    final startByte = _dataStartByte + startSample * 2;
+    if (startByte >= _dataEndByte) return Float32List(0);
+    var wantBytes = maxSamples * 2;
+    final avail = _dataEndByte - startByte;
+    if (wantBytes > avail) wantBytes = avail;
+    wantBytes -= wantBytes % 2; // 对齐到完整样本
+    if (wantBytes <= 0) return Float32List(0);
+
+    _raf.setPositionSync(startByte);
+    final bytes = _raf.readSync(wantBytes);
+    final n = bytes.length ~/ 2;
+    final bd = ByteData.sublistView(bytes);
+    final out = Float32List(n);
+    for (var i = 0; i < n; i++) {
+      out[i] = bd.getInt16(i * 2, Endian.little) / 32768.0;
+    }
+    return out;
+  }
+
+  /// 顺序读取下一块样本（最多 [maxSamples] 个），到末尾返回空 [Float32List]。
+  Float32List readBlock(int maxSamples) {
+    final remainingBytes = _dataEndByte - _posByte;
+    if (remainingBytes <= 0) return Float32List(0);
+    var wantBytes = maxSamples * 2;
+    if (wantBytes > remainingBytes) wantBytes = remainingBytes;
+    wantBytes -= wantBytes % 2; // 对齐到完整样本
+    if (wantBytes <= 0) return Float32List(0);
+
+    _raf.setPositionSync(_posByte);
+    final bytes = _raf.readSync(wantBytes);
+    _posByte += bytes.length;
+
+    final n = bytes.length ~/ 2;
+    final bd = ByteData.sublistView(bytes);
+    final out = Float32List(n);
+    for (var i = 0; i < n; i++) {
+      out[i] = bd.getInt16(i * 2, Endian.little) / 32768.0;
+    }
+    return out;
+  }
+
+  /// 关闭底层文件句柄。
+  void close() {
+    try {
+      _raf.closeSync();
+    } catch (_) {}
+  }
+}
+
 /// 将音频从 [fromRate] 降采样到 [toRate]（整数倍降采样）。
 ///
 /// 要求 [fromRate] 是 [toRate] 的整数倍（如 48000→16000，比率 3）。

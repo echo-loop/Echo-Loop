@@ -770,7 +770,7 @@ void main() {
       await tester.tap(find.text('Manage Subtitles'));
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('AI Transcription'));
+      await tester.tap(find.text('Cloud Transcription'));
       await tester.pumpAndSettle();
 
       await tester.tap(

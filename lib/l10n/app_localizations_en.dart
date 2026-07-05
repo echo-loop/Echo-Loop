@@ -104,6 +104,13 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get waveformLoadFailed =>
+      'Waveform unavailable. You can still edit subtitles below.';
+
+  @override
+  String get waveformRetry => 'Retry';
+
+  @override
   String get playbackSpeed => 'Playback Speed';
 
   @override
@@ -1521,6 +1528,12 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get speechModelStatusReady => 'Ready';
+
+  @override
+  String get speechModelStatusNeedsDownload => 'Download';
+
+  @override
   String speechModelDownloading(String progress) {
     return 'Downloading... $progress';
   }
@@ -1671,7 +1684,40 @@ class AppLocalizationsEn extends AppLocalizations {
   String get localUpload => 'Local Upload';
 
   @override
-  String get aiTranscription => 'AI Transcription';
+  String get aiTranscription => 'Cloud Transcription';
+
+  @override
+  String get aiTranscriptionSubtitle =>
+      'Higher accuracy, needs network + sign-in';
+
+  @override
+  String get offlineTranscription => 'On-Device Transcription';
+
+  @override
+  String get offlineTranscriptionSubtitle => 'Offline, private, no sign-in';
+
+  @override
+  String get transcriptionModelTier => 'Recognition model';
+
+  @override
+  String get localTranscriptionDecoding => 'Decoding audio...';
+
+  @override
+  String get localTranscriptionForegroundHint =>
+      'Keep the app open and on-screen until it finishes — transcription pauses if you switch apps or lock the screen.';
+
+  @override
+  String localTranscriptionProgressPercent(int percent) {
+    return '$percent% done';
+  }
+
+  @override
+  String get localTranscriptionModelRequiredTitle => 'Speech model needed';
+
+  @override
+  String localTranscriptionModelRequiredMessage(String modelName) {
+    return 'On-device transcription needs to download the $modelName speech model once (offline afterwards).';
+  }
 
   @override
   String get deleteSubtitle => 'Delete Subtitle';

@@ -607,6 +607,31 @@ EchoLoopApp (main.dart)
 
 **风险**：iOS `AVAudioSession` 进程级共享，TTS worker 推理 + just_audio 播放 + 录音器争用本机/CI 测不到，需真机验证；sherpa native abort 不可 catch（§7.4），CPU provider 已规避已知路径。详见 CLAUDE.md §7.16。
 
+### ADR-10: 本地（离线）音频转录生成字幕（复用离线 Whisper 引擎，作云端转录的对偶）
+
+**决策**：把评分用的离线 sherpa-onnx Whisper 引擎复用于"文件转字幕"，作为云端 `TranscriptionTaskManager`（Deepgram）的离线平行选项。云端与本地是两个平行的后台 task manager，**共用同一下游 sink**（`saveTranscriptContent` + SRT + 词级时间戳入库），差异只在文本来源——正确的解耦点。
+
+**词级时间戳仍按字符长度合成**（`generateSyntheticWordTimestampsFromSrt`，与"本地上传 SRT"路径完全一致）。引擎新增 `transcribeSegments`（保留 `transcribe()` 评分路径不动）。
+
+**whisper 分段策略（2026-07-05 定稿：转录路径彻底去 VAD + whisper 自驱滑窗 + 原生 segment 时间戳）**：旧实现每个 VAD 段单独送 whisper（`minSilenceDuration=0.25s` 切 <1s 碎片，whisper 易幻觉/漏词）。中途试过「VAD 拼 ≤30s chunk」，但发现 VAD 作内容闸门本身有害——`minSpeechDuration=0.5s` 丢短词、削词头尾、对非人声误删。最终方案彻底不在转录用 VAD：
+- ① **whisper 自驱滑窗**（`_slidingWindowTranscribe`，openai/whisper 长音频标准做法）：把音频切成 ≤30s **连续窗口**逐个解码，窗口在「上一个完整 whisper segment 的结束时刻」推进——**不裁剪、不丢弃任何音频，切点落在自然停顿、不在词中间硬切**。whisper 30s 硬上限是唯一还需要切窗的理由。
+- ② 窗口读取：可 seek 的 `Pcm16WavStreamReader.readWindow(start,count)` 按 seek 位置只读当前窗口，峰值内存与总时长解耦；非标准 WAV 回退全量读后同样滑窗。
+- ②b **静音跳过**（`_skipLeadingSilence`/`firstAudibleFrameIndex`）：每窗前跳过「持续 ≥0.8s 且均方 <阈值(≈-40dBFS)」的静音（考试音频大段答题静音转录无意义，且 whisper 会在长静音上幻觉）。用**能量(RMS)检测、非人声检测**——保守阈值只删真静音、保留一切有声内容（含音乐/音效）；漏跳只是把静音喂给 whisper（无害），绝不误跳有声。
+- ③ cue 边界与时间取 **whisper 原生 segment 时间戳**（`enableSegmentTimestamps`；segment 自带 start/duration/text），线性映射回原始音频（窗口连续、无丢静音，`绝对时间 = 窗口起点 + 段相对时间`）。
+- **附带**：转录路径不再触及 Silero VAD → §7.4 的 native 崩溃对转录彻底消失。VAD 仅评分路径（`_handleTranscribe`）保留。
+
+**为什么是 segment 而非 token 时间戳**：sherpa-onnx 的 whisper **token 时间戳（DTW）需要重导带 `cross_attention_weights` 输出的模型**（官方发布的模型都没带，实测 `result.timestamps` 恒空）；而 **segment 时间戳靠 logit filter 保留 whisper 原生时间戳 token，现有 int8 模型即可**（sherpa-onnx PR #2945，已在 1.12.24+，我们用 1.12.36）。**坑**：segment 字段不在公开 `getResult()` 里（被丢弃），只在原生 result JSON（`segment_timestamps`/`segment_durations`/`segment_texts`）；需实现层 import `package:sherpa_onnx/src/sherpa_onnx_bindings.dart` 调 `getOfflineStreamResultAsJson` 取 raw JSON 自解析（`parseWhisperSegments`，纯逻辑可测；`// ignore: implementation_imports`，已 pin `^1.12.36`）。
+**回退**：某窗未产出 segment（全静音/极端情况）时，按句末标点切句（`splitTextIntoSentences`）+ 字符长度在该窗时间跨度上比例分配估时（近似，与 `generateSyntheticWordTimestampsFromSrt` 同源）。下游 `mergeShortAsrSegments`（合并过短句到 4-7s）/SRT 零改动。
+**踩坑教训**：① 曾误用 VAD 段边界当 cue 边界——`minSilenceDuration=0.8s` 下整段连续对话被 VAD 当成 1 个 ~30s 段，33s 音频只出 1 条巨型字幕（文本对但粒度全丢）；cue 粒度必须来自 whisper。② 曾据一次 `ts=0` 草率断定「sherpa 不支持时间戳」——真因是模型导出缺 attention 权重 + Dart 绑定丢弃 segment 字段，非 API 不支持。③ 最终认识到 VAD 检测的是"人声"、且会删内容，用它当 whisper 的内容闸门有害；whisper 自己有 segment 时间戳 + 30s 内部处理，转录只需"切 ≤30s 窗、喂连续音频"，VAD 冗余且有害，遂彻底移除（切窗改由 whisper segment 边界自驱）。
+
+**解码 seam**：库音频多为 m4a/mp3，`audio_file_reader` 只认 WAV/CAF，故 ffmpeg（已打包）先转 16kHz 单声道 PCM WAV（`AudioTranscodeService.transcodeToPcmWav16k`），无原生通道改动。原生 `audio_decode` 通道返回 1kHz（仅供静音检测），不可用于 ASR。
+
+**专用引擎实例（不复用共享评分引擎）**：转录档位可与评分档位不同，复用共享单例会因切换模型 dispose/reload 扰乱评分。故 `LocalTranscriptionTaskManager` 自建 `OfflineAsrEngine`（注入工厂）按所选档位构建 config，用后即 dispose（"谁创建谁销毁"）。后台 keepAlive + 进度 + 可取消（业界标准；native 阻塞段无法中途中断，取消在阶段边界生效）。
+
+**档位与后端解耦**：转录**完全无视评分 `backend` 开关**（Apple Speech 评分用户无需切后端即可转录）。档位偏好独立持久化（`localTranscriptionModelProvider`，默认回退评分 selectedModel/推荐档位，互不回写）。门控 `ensureAsrModelReadyForTranscription` 按指定档位检查/下载，绝不改评分设置。`TranscriptSource.device` 区分"设备本地转录"与 local/ai（词级时间戳合成语义与 local 同侧）。
+
+**风险/验证**：`enableSegmentTimestamps` 已真机（macOS）确认生效——33s 音频出 `whisperSegments=13`、13 条句级 cue、时轴贴合。**待验证**：① 更长音频（>30s 语音、触发多窗滑动）窗口推进正确、无漏词/重复、时轴连续；② int8 tiny WER 偏高时换 small.en 档位（模型本身弱，非管线问题）；③ 长音频与练习评分并发争用 CPU（不同场景，可接受）。
+
 ---
 
 ## 学习流程设计

@@ -555,6 +555,46 @@ void main() {
       expect(wordAdjusts.last.$2, BoundaryEdge.start);
     });
 
+    testWidgets('提取失败时显示失败态和重试，点击重试回调', (tester) async {
+      await tester.binding.setSurfaceSize(const Size(800, 240));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      var retried = 0;
+      await tester.pumpWidget(
+        createTestApp(
+          SubtitleWaveformView(
+            waveform: null,
+            extractionProgress: 0,
+            extractionFailed: true,
+            onRetryExtraction: () => retried++,
+            duration: const Duration(seconds: 10),
+            sentences: _sentences(),
+            activeSentence: null,
+            selectionEpoch: 0,
+            playbackPosition: Duration.zero,
+            isPlaying: false,
+            zoomScale: 1,
+            onZoomChanged: (_) {},
+            onScrub: (_) {},
+            onScrubEnd: (_) {},
+            onAdjustEnd: () {},
+          ),
+        ),
+      );
+
+      // 失败态不显示「加载中」进度，而显示失败提示 + 重试按钮。
+      expect(find.byType(LinearProgressIndicator), findsNothing);
+      expect(
+        find.text('Waveform unavailable. You can still edit subtitles below.'),
+        findsOneWidget,
+      );
+      expect(find.text('Retry'), findsOneWidget);
+
+      await tester.tap(find.text('Retry'));
+      await tester.pump();
+      expect(retried, 1);
+    });
+
     testWidgets('触控板捏合（pan-zoom）按 scale 放大波形', (tester) async {
       await tester.binding.setSurfaceSize(const Size(800, 240));
       addTearDown(() => tester.binding.setSurfaceSize(null));

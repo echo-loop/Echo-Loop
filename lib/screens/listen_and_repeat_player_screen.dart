@@ -279,6 +279,7 @@ class _ListenAndRepeatPlayerScreenState
           await ctrl.startPlaying();
         },
         onExit: () async {
+          _isExiting = true;
           await ref
               .read(learningSessionProvider.notifier)
               .recordCatchUpCompletionIfAny(widget.audioItemId);
@@ -318,6 +319,7 @@ class _ListenAndRepeatPlayerScreenState
     }
 
     // 清除断点 + 标记完成
+    _isExiting = true;
     await ctrl.clearBreakpoint(isFreePlay: false);
     await ctrl.completeSubStage();
     await ctrl.exitLearningMode();

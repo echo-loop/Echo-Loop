@@ -5,12 +5,23 @@
 /// [transcribe] 通过消息传递将推理委托给后台 Isolate，不阻塞 UI 线程。
 library;
 
+import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 import 'dart:isolate';
 import 'dart:typed_data';
 
+import 'package:ffi/ffi.dart' show Utf8Pointer;
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:path/path.dart' as p;
 import 'package:sherpa_onnx/sherpa_onnx.dart' as sherpa;
+// 实现层 import：sherpa_onnx 未导出 SherpaOnnxBindings，但 whisper 的 segment
+// 时间戳（segment_timestamps/…）只在原生 result JSON 里，公开 getResult() 丢弃了它们。
+// 直接调 package 已解析的 getOfflineStreamResultAsJson 取 raw JSON（比自建
+// DynamicLibrary 查符号更跨平台稳，复用 package 的按平台加载）。已 pin ^1.12.36。
+// ignore: implementation_imports
+import 'package:sherpa_onnx/src/sherpa_onnx_bindings.dart'
+    show SherpaOnnxBindings;
 
 import 'audio_file_reader.dart';
 import '../app_logger.dart';
@@ -87,6 +98,31 @@ class SherpaOnnxEngine implements OfflineAsrEngine {
           'elapsed=${result.inferenceTime.inMilliseconds}ms',
     );
     return result;
+  }
+
+  @override
+  Future<List<AsrSegment>> transcribeSegments(
+    String wavPath, {
+    void Function(double progress)? onProgress,
+  }) async {
+    final worker = _worker;
+    if (worker == null) {
+      throw StateError('Engine not initialized. Call initialize() first.');
+    }
+
+    AppLogger.log(
+      'ASREngine',
+      '┌ transcribeSegments wavPath=$wavPath model=${_config?.model.id ?? '(null)'}',
+    );
+    final segments = await worker.transcribeSegments(
+      wavPath,
+      onProgress: onProgress,
+    );
+    AppLogger.log(
+      'ASREngine',
+      '└ transcribeSegments done segments=${segments.length}',
+    );
+    return segments;
   }
 
   @override
@@ -167,11 +203,65 @@ class _AsrWorker {
     throw StateError('Transcription failed: $response');
   }
 
+  /// 发送分段转录请求到 Worker，逐段解码并回传进度与结果。
+  ///
+  /// replyPort 上先到达若干 [_SegmentsProgress]（透传给 [onProgress]），
+  /// 最后到达 [_TranscribeSegmentsResponse]（完成）或错误字符串（失败）。
+  Future<List<AsrSegment>> transcribeSegments(
+    String wavPath, {
+    void Function(double progress)? onProgress,
+  }) {
+    final replyPort = ReceivePort();
+    final completer = Completer<List<AsrSegment>>();
+
+    replyPort.listen((message) {
+      if (message is _SegmentsProgress) {
+        onProgress?.call(
+          message.total == 0 ? 1.0 : message.done / message.total,
+        );
+        return;
+      }
+      replyPort.close();
+      if (message is _TranscribeSegmentsResponse) {
+        completer.complete(
+          message.segments
+              .map(
+                (s) => AsrSegment(
+                  text: s.text,
+                  start: Duration(milliseconds: s.startMs),
+                  end: Duration(milliseconds: s.endMs),
+                ),
+              )
+              .toList(),
+        );
+      } else {
+        completer.completeError(StateError('Transcription failed: $message'));
+      }
+    });
+
+    _commandPort.send(
+      _TranscribeSegmentsRequest(
+        wavPath: wavPath,
+        replyPort: replyPort.sendPort,
+      ),
+    );
+    return completer.future;
+  }
+
   /// 释放 Recognizer 并关闭 Worker Isolate。
+  ///
+  /// 优先请求 worker 优雅释放 native 资源（free recognizer/vad）；worker 空闲时
+  /// 立即完成。若 worker 正阻塞在推理循环中（如用户取消转录），其事件循环无法
+  /// 响应 [_DisposeRequest]，则超时后强制 kill isolate（native 资源随进程回收，
+  /// 取消属低频操作，可接受），避免 dispose 挂死拖住调用方的清理逻辑。
   Future<void> dispose() async {
     final replyPort = ReceivePort();
     _commandPort.send(_DisposeRequest(replyPort: replyPort.sendPort));
-    await replyPort.first;
+    try {
+      await replyPort.first.timeout(const Duration(milliseconds: 500));
+    } catch (_) {
+      // 超时（worker 忙于阻塞推理）→ 强制 kill。
+    }
     replyPort.close();
     _isolate.kill(priority: Isolate.immediate);
   }
@@ -217,6 +307,41 @@ class _TranscribeResponse {
   });
 }
 
+/// 分段转录请求（主线程 → Worker）。
+class _TranscribeSegmentsRequest {
+  final String wavPath;
+  final SendPort replyPort;
+  const _TranscribeSegmentsRequest({
+    required this.wavPath,
+    required this.replyPort,
+  });
+}
+
+/// 分段转录进度（Worker → 主线程，可多次）。
+class _SegmentsProgress {
+  final int done;
+  final int total;
+  const _SegmentsProgress({required this.done, required this.total});
+}
+
+/// 单个分段载荷（跨 isolate 传递用原始类型）。
+class _SegmentPayload {
+  final String text;
+  final int startMs;
+  final int endMs;
+  const _SegmentPayload({
+    required this.text,
+    required this.startMs,
+    required this.endMs,
+  });
+}
+
+/// 分段转录结果（Worker → 主线程）。
+class _TranscribeSegmentsResponse {
+  final List<_SegmentPayload> segments;
+  const _TranscribeSegmentsResponse({required this.segments});
+}
+
 /// 释放请求（主线程 → Worker）。
 class _DisposeRequest {
   final SendPort replyPort;
@@ -253,6 +378,15 @@ void _isolateEntryPoint(_InitPayload init) {
         _handleTranscribe(
           recognizer,
           vad,
+          message,
+          logFilePath: logFilePath,
+          crashMarkerPath: crashMarkerPath,
+          diag: diag,
+        );
+      } else if (message is _TranscribeSegmentsRequest) {
+        // 转录（字幕生成）不使用 VAD：whisper 自驱滑窗 + 原生 segment 时间戳。
+        _handleTranscribeSegments(
+          recognizer,
           message,
           logFilePath: logFilePath,
           crashMarkerPath: crashMarkerPath,
@@ -316,7 +450,9 @@ sherpa.VoiceActivityDetector? _createVad(String? vadModelPath) {
   final config = sherpa.VadModelConfig(
     sileroVad: sherpa.SileroVadModelConfig(
       model: vadModelPath,
-      minSilenceDuration: 0.25,
+      // 仅在静音 ≥0.8s 处切段：短促停顿不再切碎，每段更接近完整句/短语，
+      // 供上层拼成 ≤30s chunk 后整体送 whisper（whisper 在长上下文上质量远好于碎片）。
+      minSilenceDuration: 0.8,
       minSpeechDuration: 0.5,
       maxSpeechDuration: 30.0,
     ),
@@ -365,8 +501,8 @@ List<Float32List>? _extractSpeechWithVad(
   return segments.isEmpty ? null : segments;
 }
 
-/// VAD 目标采样率。
-const _vadSampleRate = 16000;
+/// ASR 输入采样率（16kHz）——whisper 转录与评分 VAD 均用此采样率。
+const _asrSampleRate = 16000;
 
 /// 将 VAD 语音段合并为 ≤ maxSamples 的 chunk。
 ///
@@ -435,11 +571,11 @@ void _handleTranscribe(
     );
 
     // VAD 裁剪静音段（需要 16kHz 输入）。
-    if (vad != null && audioData.sampleRate >= _vadSampleRate) {
-      final samples16k = audioData.sampleRate == _vadSampleRate
+    if (vad != null && audioData.sampleRate >= _asrSampleRate) {
+      final samples16k = audioData.sampleRate == _asrSampleRate
           ? audioData.samples
-          : downsample(audioData.samples, audioData.sampleRate, _vadSampleRate);
-      final beforeSec = samples16k.length / _vadSampleRate;
+          : downsample(audioData.samples, audioData.sampleRate, _asrSampleRate);
+      final beforeSec = samples16k.length / _asrSampleRate;
       // 诊断：计算 RMS 确认输入音频有效。
       var sumSq = 0.0;
       for (final s in samples16k) {
@@ -469,7 +605,7 @@ void _handleTranscribe(
         0,
         (s, seg) => s + seg.length,
       );
-      final afterSec = totalSpeechSamples / _vadSampleRate;
+      final afterSec = totalSpeechSamples / _asrSampleRate;
       _workerLog(
         logFilePath,
         'ASREngine',
@@ -477,7 +613,7 @@ void _handleTranscribe(
       );
 
       // 合并小段为 ≤30s 的 chunk，减少 whisper 调用次数。
-      final chunks = _mergeSegments(segments, 30 * _vadSampleRate);
+      final chunks = _mergeSegments(segments, 30 * _asrSampleRate);
       _workerLog(
         logFilePath,
         'ASREngine',
@@ -488,7 +624,7 @@ void _handleTranscribe(
       final texts = <String>[];
       for (final chunk in chunks) {
         final stream = recognizer.createStream();
-        stream.acceptWaveform(samples: chunk, sampleRate: _vadSampleRate);
+        stream.acceptWaveform(samples: chunk, sampleRate: _asrSampleRate);
         recognizer.decode(stream);
         final t = recognizer.getResult(stream).text.trim();
         if (t.isNotEmpty) texts.add(t);
@@ -529,6 +665,425 @@ void _handleTranscribe(
     // 仅当 native abort 杀进程、finally 未执行时，面包屑才残留。
     _clearCrashMarker(crashMarkerPath);
   }
+}
+
+/// 在 Worker 内执行分段转录（字幕生成）：把音频切成 ≤30s 连续窗口逐个送 whisper
+/// 解码，用 whisper 原生 segment 时间戳生成字幕 cue（whisper 自驱滑窗，业界标准做法）。
+///
+/// **不使用 VAD**：cue 边界/时间来自 whisper 原生 segment 时间戳（见
+/// [_slidingWindowTranscribe]）；窗口在 whisper 自己的完整 segment 边界处推进，
+/// **不裁剪、不丢弃任何音频**（旧的 VAD 切段会漏掉 <0.5s 短词、削词头尾、对非人声
+/// 误删）。whisper 30s 硬上限决定必须切窗，切点由 whisper 上一个完整 segment 的结束
+/// 时刻决定（落在自然停顿处、不在词中间硬切）。转录路径因此也不再触及 Silero VAD
+/// （规避 §7.4 的 native 崩溃面）。
+///
+/// **内存**：优先用可 seek 的 [Pcm16WavStreamReader]（标准 16kHz 单声道 PCM16 WAV，
+/// = ffmpeg 转码产物），按 seek 位置只读当前 ≤30s 窗口，峰值内存与总时长解耦；
+/// 非标准 WAV 回退 [readAudioFile] 全量读后同样滑窗。
+void _handleTranscribeSegments(
+  sherpa.OfflineRecognizer recognizer,
+  _TranscribeSegmentsRequest request, {
+  String? logFilePath,
+  String? crashMarkerPath,
+  String diag = '',
+}) {
+  try {
+    // ── 首选：可 seek 流式读取（标准 16kHz 单声道 PCM16 WAV，内存与时长解耦）──
+    final reader = Pcm16WavStreamReader.open(request.wavPath);
+    if (reader != null && reader.sampleRate == _asrSampleRate) {
+      final total = reader.totalSamples;
+      _writeCrashMarker(
+        crashMarkerPath,
+        AppLogger.formatLine(
+          DateTime.now(),
+          'ASRCrash',
+          'native 滑窗分段推理中 $diag wav=${request.wavPath} '
+              'audio=${(total / _asrSampleRate).toStringAsFixed(1)}s',
+        ),
+      );
+      try {
+        final out = _slidingWindowTranscribe(
+          recognizer,
+          total,
+          (start, count) => reader.readWindow(start, count),
+          request.replyPort,
+          logFilePath: logFilePath,
+        );
+        request.replyPort.send(_TranscribeSegmentsResponse(segments: out));
+      } finally {
+        reader.close();
+      }
+      return;
+    }
+    reader?.close();
+
+    // ── 回退：全量读取（非标准 WAV）──
+    final audioData = readAudioFile(request.wavPath);
+    if (audioData.samples.isEmpty) {
+      request.replyPort.send(const _TranscribeSegmentsResponse(segments: []));
+      return;
+    }
+    // whisper 需 16kHz：等于直用；整数倍降采样；其余（<16k/非整数倍）尽力直送。
+    final samples16k = audioData.sampleRate == _asrSampleRate
+        ? audioData.samples
+        : (audioData.sampleRate > _asrSampleRate &&
+              audioData.sampleRate % _asrSampleRate == 0)
+        ? downsample(audioData.samples, audioData.sampleRate, _asrSampleRate)
+        : audioData.samples;
+    final total = samples16k.length;
+    _writeCrashMarker(
+      crashMarkerPath,
+      AppLogger.formatLine(
+        DateTime.now(),
+        'ASRCrash',
+        'native 滑窗分段推理中(全量) $diag wav=${request.wavPath} '
+            'audio=${(total / _asrSampleRate).toStringAsFixed(1)}s',
+      ),
+    );
+    final out = _slidingWindowTranscribe(
+      recognizer,
+      total,
+      (start, count) {
+        final end = start + count > total ? total : start + count;
+        if (start >= end) return Float32List(0);
+        return Float32List.sublistView(samples16k, start, end);
+      },
+      request.replyPort,
+      logFilePath: logFilePath,
+    );
+    request.replyPort.send(_TranscribeSegmentsResponse(segments: out));
+  } catch (e) {
+    request.replyPort.send('Transcribe segments failed: $e');
+  } finally {
+    _clearCrashMarker(crashMarkerPath);
+  }
+}
+
+/// 窗口解码函数签名：输入 ≤30s 窗口样本，返回 (whisper 原生 segment 列表[相对窗口
+/// 起点秒], 整段文本)。生产用 [_decodeWindow]（真 recognizer），测试注入 fake。
+typedef WindowDecoder =
+    (List<WhisperSegment>, String) Function(Float32List samples);
+
+/// 一条字幕 cue（绝对毫秒时间；[slidingWindowCues] 的可测输出类型）。
+@visibleForTesting
+class TranscriptionCue {
+  final String text;
+  final int startMs;
+  final int endMs;
+  const TranscriptionCue(this.text, this.startMs, this.endMs);
+
+  @override
+  bool operator ==(Object other) =>
+      other is TranscriptionCue &&
+      other.text == text &&
+      other.startMs == startMs &&
+      other.endMs == endMs;
+
+  @override
+  int get hashCode => Object.hash(text, startMs, endMs);
+
+  @override
+  String toString() => 'Cue("$text", $startMs~$endMs)';
+}
+
+/// whisper 自驱滑窗转录核心（纯逻辑、依赖注入、可单测）：把音频切成 ≤30s **连续窗口**
+/// 逐个 [decode]，用 whisper 原生 segment 时间戳生成 cue，窗口在「上一个完整 segment
+/// 的结束时刻」推进（openai/whisper 长音频标准做法）——既不丢内容也不在词中间硬切；
+/// 每窗前跳过足够长的静音（[_skipLeadingSilence]）。
+///
+/// [totalSamples] 总样本数（16kHz）；[readWindow] 按样本下标随机读一段（越界截断、
+/// 超尾返回空）；[decode] 解码一窗。cue 绝对时间 = 窗口起点 + segment 相对时间
+/// （连续音频，线性映射）。[onProgress] 回传已推进样本数，[log] 回传诊断行。
+@visibleForTesting
+List<TranscriptionCue> slidingWindowCues(
+  int totalSamples,
+  Float32List Function(int startSample, int count) readWindow,
+  WindowDecoder decode, {
+  void Function(int done)? onProgress,
+  void Function(String msg)? log,
+}) {
+  const windowSamples = 30 * _asrSampleRate; // whisper 30s 硬上限
+  const minProgress = _asrSampleRate; // 至少推进 1s，防止在段边界原地打转
+  final out = <TranscriptionCue>[];
+  var seek = 0;
+
+  while (seek < totalSamples) {
+    // 跳过足够长的静音（考试音频常有大段答题静音，转录无意义且 whisper 会在静音上
+    // 幻觉）。只跳「持续 ≥0.8s 且能量极低」的段，保守阈值绝不跳过有声内容。
+    final afterSilence = _skipLeadingSilence(readWindow, seek, totalSamples);
+    if (afterSilence != seek) {
+      if (afterSilence >= totalSamples) break; // 剩余全是静音
+      seek = afterSilence;
+      onProgress?.call(seek);
+    }
+
+    final window = readWindow(seek, windowSamples);
+    if (window.isEmpty) break;
+    final windowLen = window.length;
+    final isLast = seek + windowLen >= totalSamples;
+    final seekSec = seek / _asrSampleRate;
+
+    final (segments, text) = decode(window);
+
+    List<WhisperSegment> used;
+    int advance;
+    if (segments.isEmpty) {
+      // 该窗无 segment 时间戳：有文本则按句切分 + 字符比例估时（罕见兜底），推进整窗。
+      used = const [];
+      advance = windowLen;
+      if (text.isNotEmpty) {
+        _emitCharProportional(out, text, seekSec, windowLen / _asrSampleRate);
+      }
+    } else if (isLast || segments.length == 1) {
+      // 末窗或整窗仅一段：全用，推进整窗（末窗循环随后结束；单段无法安全丢弃、防打转）。
+      used = segments;
+      advance = windowLen;
+    } else {
+      // 丢弃末段（可能被 30s 边界截断），推进到倒数第二段结束、下一窗重解析末段。
+      final candidate = (segments[segments.length - 2].endSec * _asrSampleRate)
+          .round();
+      if (candidate >= minProgress) {
+        used = segments.sublist(0, segments.length - 1);
+        advance = candidate;
+      } else {
+        // 丢末段推进不足（如「短段 + 超长段」）：改为全用、推进整窗，避免漏掉长段。
+        used = segments;
+        advance = windowLen;
+      }
+    }
+
+    for (final seg in used) {
+      final t = seg.text.trim();
+      if (t.isEmpty) continue;
+      final startMs = ((seekSec + seg.startSec) * 1000).round();
+      final endMs = ((seekSec + seg.endSec) * 1000).round();
+      out.add(TranscriptionCue(t, startMs, endMs));
+      log?.call(
+        '│ cue [${_msLabel(startMs)}~${_msLabel(endMs)}] "${_preview(t)}"',
+      );
+    }
+
+    seek += advance <= 0 ? windowLen : advance;
+    onProgress?.call(seek > totalSamples ? totalSamples : seek);
+  }
+
+  onProgress?.call(totalSamples);
+  log?.call(
+    '滑窗分段完成: ${out.length} cues, '
+    'audio=${(totalSamples / _asrSampleRate).toStringAsFixed(1)}s',
+  );
+  return out;
+}
+
+/// [slidingWindowCues] 的生产包装：注入真 recognizer 解码、把 cue 转 [_SegmentPayload]、
+/// 进度经 replyPort 回传、诊断行落盘日志。
+List<_SegmentPayload> _slidingWindowTranscribe(
+  sherpa.OfflineRecognizer recognizer,
+  int totalSamples,
+  Float32List Function(int startSample, int count) readWindow,
+  SendPort replyPort, {
+  String? logFilePath,
+}) {
+  final cues = slidingWindowCues(
+    totalSamples,
+    readWindow,
+    (samples) => _decodeWindow(recognizer, samples),
+    onProgress: (done) =>
+        replyPort.send(_SegmentsProgress(done: done, total: totalSamples)),
+    log: (msg) => _workerLog(logFilePath, 'ASREngine', msg),
+  );
+  return [
+    for (final c in cues)
+      _SegmentPayload(text: c.text, startMs: c.startMs, endMs: c.endMs),
+  ];
+}
+
+/// 帧级静音判定阈值（归一化 PCM 均方，≈ -40 dBFS）。低于此视作静音。
+/// 保守取值：宁可漏跳（把静音喂给 whisper，无害）也不误跳有声内容。
+const _silenceMeanSquare = 1e-4;
+
+/// 静音扫描帧长（20ms @16kHz）。
+const _silenceFrameSamples = 320;
+
+/// 只跳过时长 ≥1s 的静音（略大于 2×前导，保证跳过后仍留足两侧余量；短停顿保留）。
+const _minSkipSilenceSamples = _asrSampleRate;
+
+/// 跳到可听内容前保留 0.5s 前导，避免削掉词头（能量检测可能漏掉很轻的词起音）。
+const _silenceLeadInSamples = _asrSampleRate ~/ 2;
+
+/// 从 [seek] 起跳过「足够长（≥1s）的静音」，返回下一段可听内容前 ~0.5s 处的样本
+/// 下标；静音不足则原样返回 [seek]；[seek] 起剩余全为静音则返回 [total]。
+///
+/// 「静音 = 持续多帧均方 < 阈值」，与内容无关（不检测人声），故只删真静音、
+/// 保留一切有声内容（语音/音乐/音效）。按 2s 块扫描（均方，无神经网络，廉价）。
+int _skipLeadingSilence(
+  Float32List Function(int startSample, int count) readWindow,
+  int seek,
+  int total,
+) {
+  const scanBlock = _asrSampleRate * 2; // 2s，且是帧长整数倍（32000/320=100）
+  var pos = seek;
+  while (pos < total) {
+    final block = readWindow(pos, scanBlock);
+    if (block.isEmpty) break;
+    final idx = firstAudibleFrameIndex(block);
+    if (idx >= 0) {
+      final audibleStart = pos + idx;
+      if (audibleStart - seek < _minSkipSilenceSamples) return seek; // 静音太短
+      final newSeek = audibleStart - _silenceLeadInSamples;
+      return newSeek < seek ? seek : newSeek;
+    }
+    pos += block.length;
+  }
+  // 到末尾都无可听帧：[seek] 起全是静音，够长则跳到末尾（结束），否则原样保留。
+  return (total - seek) >= _minSkipSilenceSamples ? total : seek;
+}
+
+/// 返回 [block] 内首个「可听帧」（均方 ≥ [_silenceMeanSquare]）的起始样本下标；
+/// 全为静音返回 -1。帧长 [_silenceFrameSamples]，尾部不足一帧的残余忽略。
+@visibleForTesting
+int firstAudibleFrameIndex(Float32List block) {
+  final frames = block.length ~/ _silenceFrameSamples;
+  for (var f = 0; f < frames; f++) {
+    final base = f * _silenceFrameSamples;
+    var sum = 0.0;
+    for (var i = 0; i < _silenceFrameSamples; i++) {
+      final s = block[base + i];
+      sum += s * s;
+    }
+    if (sum / _silenceFrameSamples >= _silenceMeanSquare) return base;
+  }
+  return -1;
+}
+
+/// 解码一个 ≤30s 窗口，返回 (whisper 原生 segment 列表[相对窗口起点秒], 整段文本)。
+(List<WhisperSegment>, String) _decodeWindow(
+  sherpa.OfflineRecognizer recognizer,
+  Float32List samples,
+) {
+  final stream = recognizer.createStream();
+  stream.acceptWaveform(samples: samples, sampleRate: _asrSampleRate);
+  recognizer.decode(stream);
+  // 先取原生 result JSON（含 segment 时间戳），再用公开 getResult 拿整段文本兜底。
+  final rawJson = _rawStreamResultJson(stream);
+  final result = recognizer.getResult(stream);
+  stream.free();
+  final segs = rawJson == null
+      ? const <WhisperSegment>[]
+      : parseWhisperSegments(rawJson);
+  return (segs, result.text.trim());
+}
+
+/// 无 segment 时间戳时的兜底：把 [text] 按句切分，时间按字符长度在
+/// `[startSec, startSec+spanSec]` 内比例分配（近似，与词级合成同源）。罕见路径。
+void _emitCharProportional(
+  List<TranscriptionCue> out,
+  String text,
+  double startSec,
+  double spanSec,
+) {
+  final sentences = splitTextIntoSentences(text);
+  if (sentences.isEmpty) return;
+  final totalChars = sentences.fold<int>(0, (s, x) => s + x.length);
+  var cumChars = 0;
+  for (final sent in sentences) {
+    final startFrac = totalChars == 0 ? 0.0 : cumChars / totalChars;
+    cumChars += sent.length;
+    final endFrac = totalChars == 0 ? 1.0 : cumChars / totalChars;
+    final s = ((startSec + spanSec * startFrac) * 1000).round();
+    final e = ((startSec + spanSec * endFrac) * 1000).round();
+    out.add(TranscriptionCue(sent, s, e));
+  }
+}
+
+/// 取解码后 stream 的原生 result JSON 字符串（含 `segment_timestamps` 等公开
+/// getResult 丢弃的字段）。绑定未就绪/异常时返回 null（调用方回退）。
+String? _rawStreamResultJson(sherpa.OfflineStream stream) {
+  final getJson = SherpaOnnxBindings.getOfflineStreamResultAsJson;
+  final destroy = SherpaOnnxBindings.destroyOfflineStreamResultJson;
+  if (getJson == null || destroy == null) return null;
+  final ptr = getJson(stream.ptr);
+  if (ptr.address == 0) return null;
+  try {
+    return ptr.toDartString();
+  } finally {
+    destroy(ptr);
+  }
+}
+
+/// whisper 原生 segment（时间为相对 chunk 起点的秒，待映射回原始音频）。
+@visibleForTesting
+class WhisperSegment {
+  final String text;
+  final double startSec;
+  final double durationSec;
+  const WhisperSegment(this.text, this.startSec, this.durationSec);
+
+  /// 段结束时间（相对 chunk 起点的秒）。
+  double get endSec => startSec + durationSec;
+}
+
+/// 解析 whisper 原生 result JSON 里的 segment 时间戳（纯逻辑，可测）。
+///
+/// 读 `segment_texts` / `segment_timestamps`（各段起始秒）/ `segment_durations`
+/// （各段时长秒），三者等长时逐段配对；任一缺失/长度不齐/JSON 非法 → 返回空列表
+/// （调用方回退到按句切分）。文本 trim，丢弃空段。
+@visibleForTesting
+List<WhisperSegment> parseWhisperSegments(String json) {
+  final Object? decoded;
+  try {
+    decoded = jsonDecode(json);
+  } catch (_) {
+    return const [];
+  }
+  if (decoded is! Map) return const [];
+  final texts = decoded['segment_texts'];
+  final starts = decoded['segment_timestamps'];
+  final durs = decoded['segment_durations'];
+  if (texts is! List || starts is! List || durs is! List) return const [];
+  final n = texts.length;
+  if (starts.length != n || durs.length != n) return const [];
+
+  final out = <WhisperSegment>[];
+  for (var i = 0; i < n; i++) {
+    final t = texts[i];
+    final s = starts[i];
+    final d = durs[i];
+    if (t is! String || s is! num || d is! num) continue;
+    final text = t.trim();
+    if (text.isEmpty) continue;
+    out.add(WhisperSegment(text, s.toDouble(), d.toDouble()));
+  }
+  return out;
+}
+
+/// 毫秒 → `mm:ss.mmm` 简标签，便于对照播放器时间轴。
+String _msLabel(int ms) {
+  final totalSec = ms ~/ 1000;
+  final mm = (totalSec ~/ 60).toString().padLeft(2, '0');
+  final ss = (totalSec % 60).toString().padLeft(2, '0');
+  final rem = (ms % 1000).toString().padLeft(3, '0');
+  return '$mm:$ss.$rem';
+}
+
+/// 文本预览：过长时截断，避免日志刷屏。
+String _preview(String text, [int max = 80]) =>
+    text.length <= max ? text : '${text.substring(0, max)}…';
+
+/// 把整段文本按**句末标点**（`.`/`?`/`!`）切成句子列表（纯逻辑，可测）。
+///
+/// 每个句子保留其结尾标点；连续标点（如 `?!`、省略号 `...`）归入同一句。
+/// 末尾无标点的残句也单独成句。各句归一空白 + trim，丢弃空句。
+/// 供 chunk 级转录结果按句切成字幕 cue（时间另按字符长度比例分配）。
+@visibleForTesting
+List<String> splitTextIntoSentences(String text) {
+  final out = <String>[];
+  // 匹配「若干非句末字符 + 一个及以上句末标点」或「结尾无标点的残段」。
+  for (final m in RegExp(r'[^.!?]*[.!?]+|[^.!?]+$').allMatches(text)) {
+    final s = m.group(0)!.replaceAll(RegExp(r'\s+'), ' ').trim();
+    if (s.isNotEmpty) out.add(s);
+  }
+  return out;
 }
 
 // ---------------------------------------------------------------------------
@@ -640,6 +1195,12 @@ sherpa.OfflineRecognizerConfig _buildWhisperConfig({
     decoder: p.join(modelDir, '$prefix-decoder.int8.onnx'),
     language: 'en',
     task: 'transcribe',
+    // 开启 segment 级时间戳：靠 logit filter 保留 whisper 原生时间戳 token，**不需
+    // 重导模型**（现有 int8 模型即可，见 sherpa-onnx PR #2945）。分段路径据此把每个
+    // whisper segment 直接作一条字幕 cue（自带真实 start/duration）。
+    // 注意：token 级时间戳（DTW）才需重导带 cross_attention_weights 的模型，故不开
+    // enableTokenTimestamps。segment 数据不在公开 getResult()，需读原生 result JSON。
+    enableSegmentTimestamps: true,
   );
 
   final model = sherpa.OfflineModelConfig(

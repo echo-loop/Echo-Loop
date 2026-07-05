@@ -278,6 +278,18 @@ abstract class AppLocalizations {
   /// **'Loading waveform {progress}%'**
   String waveformLoading(int progress);
 
+  /// No description provided for @waveformLoadFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Waveform unavailable. You can still edit subtitles below.'**
+  String get waveformLoadFailed;
+
+  /// No description provided for @waveformRetry.
+  ///
+  /// In en, this message translates to:
+  /// **'Retry'**
+  String get waveformRetry;
+
   /// No description provided for @playbackSpeed.
   ///
   /// In en, this message translates to:
@@ -2726,6 +2738,18 @@ abstract class AppLocalizations {
   /// **'Ready · {size}'**
   String speechModelReady(String size);
 
+  /// No description provided for @speechModelStatusReady.
+  ///
+  /// In en, this message translates to:
+  /// **'Ready'**
+  String get speechModelStatusReady;
+
+  /// No description provided for @speechModelStatusNeedsDownload.
+  ///
+  /// In en, this message translates to:
+  /// **'Download'**
+  String get speechModelStatusNeedsDownload;
+
   /// No description provided for @speechModelDownloading.
   ///
   /// In en, this message translates to:
@@ -2987,8 +3011,62 @@ abstract class AppLocalizations {
   /// No description provided for @aiTranscription.
   ///
   /// In en, this message translates to:
-  /// **'AI Transcription'**
+  /// **'Cloud Transcription'**
   String get aiTranscription;
+
+  /// No description provided for @aiTranscriptionSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Higher accuracy, needs network + sign-in'**
+  String get aiTranscriptionSubtitle;
+
+  /// No description provided for @offlineTranscription.
+  ///
+  /// In en, this message translates to:
+  /// **'On-Device Transcription'**
+  String get offlineTranscription;
+
+  /// No description provided for @offlineTranscriptionSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Offline, private, no sign-in'**
+  String get offlineTranscriptionSubtitle;
+
+  /// No description provided for @transcriptionModelTier.
+  ///
+  /// In en, this message translates to:
+  /// **'Recognition model'**
+  String get transcriptionModelTier;
+
+  /// No description provided for @localTranscriptionDecoding.
+  ///
+  /// In en, this message translates to:
+  /// **'Decoding audio...'**
+  String get localTranscriptionDecoding;
+
+  /// No description provided for @localTranscriptionForegroundHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep the app open and on-screen until it finishes — transcription pauses if you switch apps or lock the screen.'**
+  String get localTranscriptionForegroundHint;
+
+  /// No description provided for @localTranscriptionProgressPercent.
+  ///
+  /// In en, this message translates to:
+  /// **'{percent}% done'**
+  String localTranscriptionProgressPercent(int percent);
+
+  /// No description provided for @localTranscriptionModelRequiredTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Speech model needed'**
+  String get localTranscriptionModelRequiredTitle;
+
+  /// No description provided for @localTranscriptionModelRequiredMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'On-device transcription needs to download the {modelName} speech model once (offline afterwards).'**
+  String localTranscriptionModelRequiredMessage(String modelName);
 
   /// No description provided for @deleteSubtitle.
   ///

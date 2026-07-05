@@ -14,6 +14,7 @@ import '../l10n/app_localizations.dart';
 import '../providers/learning_settings_provider.dart';
 import '../providers/offline_asr_settings_provider.dart';
 import '../services/asr/asr_model_manager.dart';
+import '../services/asr/offline_asr_engine.dart';
 import '../services/download/download_failure.dart';
 import '../utils/download_failure_message.dart';
 
@@ -114,6 +115,30 @@ Future<bool> _ensureAsrReadyBeforeSpeechPractice(
   }
 
   return _showEnableDownloadPrompt(context, ref, purpose: purpose);
+}
+
+/// 在发起本地（离线）转录前，确保指定 Whisper 档位模型已下载。
+///
+/// 与 [ensureAsrReadyBeforeSpeechPractice] 不同：**完全无视评分后端**
+/// （不早退于 `backend != offline`）——本地转录必用 Whisper 模型。
+/// 只按 [model] 检查/下载该档位，**绝不修改评分后端或评分选中模型**。
+///
+/// 返回 true 表示模型已就绪、可继续转录；false 表示用户取消。
+Future<bool> ensureAsrModelReadyForTranscription(
+  BuildContext context,
+  WidgetRef ref, {
+  required AsrModelInfo model,
+}) async {
+  final st = ref.read(offlineAsrSettingsProvider).modelStateOf(model.id);
+  if (st.downloadStatus == AsrModelDownloadStatus.downloaded) {
+    return true;
+  }
+  final result = await showDialog<bool>(
+    context: context,
+    barrierDismissible: true,
+    builder: (ctx) => _TranscriptionModelDownloadDialog(model: model),
+  );
+  return result == true;
 }
 
 /// 仅在目标子阶段依赖本地 ASR 时执行前置检查。
@@ -401,6 +426,108 @@ class _DownloadFailedContent extends StatelessWidget {
           style: textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
         ),
       ],
+    );
+  }
+}
+
+/// 本地转录专用的模型下载对话框（按指定档位）。
+///
+/// 打开时若该档位未在下载则自动开始下载（`retryDownload(modelId)` 只作用于该
+/// 档位、不改评分后端/选中模型）；下载完成自动 pop(true)，失败可重试。
+class _TranscriptionModelDownloadDialog extends ConsumerStatefulWidget {
+  final AsrModelInfo model;
+
+  const _TranscriptionModelDownloadDialog({required this.model});
+
+  @override
+  ConsumerState<_TranscriptionModelDownloadDialog> createState() =>
+      _TranscriptionModelDownloadDialogState();
+}
+
+class _TranscriptionModelDownloadDialogState
+    extends ConsumerState<_TranscriptionModelDownloadDialog> {
+  @override
+  void initState() {
+    super.initState();
+    // 打开即按需开始下载该档位（已在下载/已完成则 retryDownload 内部安全处理）。
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final st = ref
+          .read(offlineAsrSettingsProvider)
+          .modelStateOf(widget.model.id);
+      if (st.downloadStatus != AsrModelDownloadStatus.downloading &&
+          st.downloadStatus != AsrModelDownloadStatus.downloaded) {
+        ref
+            .read(offlineAsrSettingsProvider.notifier)
+            .retryDownload(widget.model.id);
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final st = ref.watch(
+      offlineAsrSettingsProvider.select((s) => s.modelStateOf(widget.model.id)),
+    );
+
+    if (st.downloadStatus == AsrModelDownloadStatus.downloaded) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (context.mounted) Navigator.of(context).pop(true);
+      });
+    }
+
+    final isFailed = st.downloadStatus == AsrModelDownloadStatus.failed;
+
+    return AlertDialog(
+      titlePadding: EdgeInsets.zero,
+      title: _DialogTitle(
+        title: isFailed
+            ? l10n.speechModelDownloadFailedTitle
+            : l10n.localTranscriptionModelRequiredTitle,
+        onClose: () => Navigator.of(context).pop(false),
+      ),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (!isFailed)
+            Text(
+              l10n.localTranscriptionModelRequiredMessage(
+                widget.model.displayName,
+              ),
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+          if (st.isDownloading) ...[
+            const SizedBox(height: 16),
+            LinearProgressIndicator(value: st.downloadProgress),
+            const SizedBox(height: 8),
+            Text(
+              '${(st.downloadProgress * 100).toStringAsFixed(0)}%',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ],
+          if (isFailed &&
+              st.downloadError != null &&
+              st.downloadError != DownloadFailureKind.unknown) ...[
+            const SizedBox(height: 8),
+            Text(
+              downloadFailureMessage(l10n, st.downloadError),
+              style: const TextStyle(color: Colors.red),
+            ),
+          ],
+        ],
+      ),
+      actions: isFailed
+          ? [
+              FilledButton(
+                onPressed: () => ref
+                    .read(offlineAsrSettingsProvider.notifier)
+                    .retryDownload(widget.model.id),
+                child: Text(l10n.retryDownload),
+              ),
+            ]
+          : const [],
     );
   }
 }

@@ -270,14 +270,16 @@ void main() {
       test('fromIndex 正确映射', () {
         expect(TranscriptSource.fromIndex(0), TranscriptSource.local);
         expect(TranscriptSource.fromIndex(1), TranscriptSource.ai);
+        expect(TranscriptSource.fromIndex(2), TranscriptSource.device);
         expect(TranscriptSource.fromIndex(null), isNull);
         expect(TranscriptSource.fromIndex(99), isNull);
         expect(TranscriptSource.fromIndex(-1), isNull);
       });
 
-      test('index 属性正确', () {
+      test('index 属性正确（既有值不变，device 追加在末尾）', () {
         expect(TranscriptSource.local.index, 0);
         expect(TranscriptSource.ai.index, 1);
+        expect(TranscriptSource.device.index, 2);
       });
     });
 
@@ -298,6 +300,15 @@ void main() {
 
         final restored = AudioItem.fromJson(json);
         expect(restored.transcriptSource, TranscriptSource.ai);
+      });
+
+      test('toJson / fromJson 往返一致 — device', () {
+        final item = createSample(transcriptSource: TranscriptSource.device);
+        final json = item.toJson();
+        expect(json['transcriptSource'], 2);
+
+        final restored = AudioItem.fromJson(json);
+        expect(restored.transcriptSource, TranscriptSource.device);
       });
 
       test('toJson / fromJson 往返一致 — null', () {

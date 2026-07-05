@@ -10,7 +10,6 @@ import 'package:echo_loop/l10n/app_localizations.dart';
 import 'package:echo_loop/screens/bookmark_review_screen.dart';
 import 'package:echo_loop/providers/audio_engine/audio_engine_provider.dart';
 import 'package:echo_loop/providers/learning_session/bookmark_review_provider.dart';
-import 'package:echo_loop/providers/learning_session/review_difficult_practice_provider.dart';
 import 'package:echo_loop/providers/repeat_flow/repeat_flow_engine.dart';
 import 'package:echo_loop/providers/repeat_flow/repeat_flow_phase.dart' as flow;
 import 'package:echo_loop/providers/repeat_flow/repeat_flow_state.dart';
@@ -263,6 +262,10 @@ class _TestBookmarkReview extends BookmarkReview {
       totalSentences: _testSentences.length,
     );
   }
+
+  void completeSession() {
+    state = state.copyWith(stepFinished: true);
+  }
 }
 
 class _SettingsSpyBookmarkReview extends _TestBookmarkReview {
@@ -385,6 +388,7 @@ void main() {
     ReviewDifficultPracticeState? playerState,
     List<BookmarkSentence>? sentences,
     SpeechRecordingPhase turnPhase = SpeechRecordingPhase.idle,
+    bool startAtHome = false,
     BookmarkReview Function(
       ReviewDifficultPracticeState initialState,
       List<BookmarkSentence> sentences,
@@ -400,8 +404,19 @@ void main() {
     ).thenAnswer((_) async => null);
 
     final router = GoRouter(
-      initialLocation: '/bookmark-review',
+      initialLocation: startAtHome ? '/' : '/bookmark-review',
       routes: [
+        GoRoute(
+          path: '/',
+          builder: (context, state) => Scaffold(
+            body: Center(
+              child: FilledButton(
+                onPressed: () => context.push('/bookmark-review'),
+                child: const Text('Open player'),
+              ),
+            ),
+          ),
+        ),
         GoRoute(
           path: '/bookmark-review',
           builder: (context, state) => const BookmarkReviewScreen(),
@@ -854,6 +869,42 @@ void main() {
       expect(find.text('收藏复习'), findsOneWidget);
       expect(find.text('偷看字幕'), findsOneWidget);
       expect(find.text('听不太懂'), findsOneWidget);
+    });
+  });
+
+  group('BookmarkReviewScreen — 完成弹窗', () {
+    testWidgets('点完成返回后主界面仍可点击', (tester) async {
+      late _TestBookmarkReview player;
+
+      await tester.pumpWidget(
+        createTestWidget(
+          startAtHome: true,
+          playerFactory: (state, sentences) {
+            player = _TestBookmarkReview(state, sentences);
+            return player;
+          },
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Open player'));
+      await tester.pumpAndSettle();
+
+      player.completeSession();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 200));
+
+      expect(find.text('Review Complete'), findsOneWidget);
+
+      await tester.tap(find.text('Done'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Open player'), findsOneWidget);
+
+      await tester.tap(find.text('Open player'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(BookmarkReviewScreen), findsOneWidget);
     });
   });
 }
