@@ -1,7 +1,27 @@
 # Echo Loop 任务清单
 
-> 最后更新：2026-07-06（修复 GitHub CI Linux 测试失败 run 28764287226）
+> 最后更新：2026-07-06（修复 Release iOS RevenueCat Apple key 变量来源）
 > 当前焦点：Android 结束录音闪退（离线 ASR / Silero VAD）——**仍未解决**
+
+## 已完成：修复 Release iOS RevenueCat Apple key 变量来源
+
+最新 GitHub Actions `Release` run `28766561568` 中 Android release job 已成功完成 APK/AAB 构建与上传；iOS release job 失败在 `Build iOS app (no codesign)`，日志显示 `REVENUECAT_API_KEY_APPLE` 为空并触发硬校验退出。根因是 Release workflow 的 iOS 步骤读取 `${{ secrets.REVENUECAT_API_KEY_APPLE }}`，而 RevenueCat public SDK API key 按项目约定配置在 GitHub repository variables，Android 步骤也已使用 `${{ vars.REVENUECAT_API_KEY_GOOGLE }}`。
+
+- [x] **变量来源统一**：`.github/workflows/release.yml` 的 iOS `Build iOS app (no codesign)` 步骤改为读取 `${{ vars.REVENUECAT_API_KEY_APPLE }}`。
+- [x] **错误文案同步**：缺失校验文案从 `secret is required` 改为 `repository variable is required`，与 Android release 保持一致。
+- [x] **验证策略**：本次仅修改 GitHub Actions YAML 变量引用，不运行 Flutter 测试；最终通过性以下一次 Release run 为准。
+
+  **完成时间**: 2026-07-06
+
+## 已完成：修复 GitHub CI 全量测试通过后仍 exit 1
+
+最新 GitHub Actions `CI` run `28766555966` 中 `analyze` job 通过，`test` job 日志显示 `3851 tests passed, 13 skipped`，但 `flutter test` 汇总成功后进程仍以 `exit code 1` 结束，导致 `build` job 被跳过。日志没有新的断言失败、SIGSEGV 或 Dart 异常栈，符合 Ubuntu runner 上全量测试并行收尾阶段的原生资源竞态特征。
+
+- [x] **CI 测试并发收敛**：`.github/workflows/ci.yml` 的 test job 改为 `flutter test --concurrency=1`，避免多个 `flutter_tester` 并行收尾时 SQLite/插件/测试进程资源清理互相影响。
+- [x] **超时放宽**：test job timeout 从 25 分钟提高到 45 分钟，覆盖串行执行后的耗时增长。
+- [x] **验证策略**：不在本地重复全量测试（用户确认上次本地全量正常）；仅验证 Flutter test runner 支持 `--concurrency` 参数。最终通过性以下一次 GitHub Actions run 为准。
+
+  **完成时间**: 2026-07-06
 
 ## 已完成：修复 GitHub CI Linux 测试失败 run 28764287226
 

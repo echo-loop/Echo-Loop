@@ -352,7 +352,7 @@ jobs:
           SUPABASE_URL: ${{ vars.SUPABASE_URL }}
           SUPABASE_PUBLISHABLE_KEY: ${{ vars.SUPABASE_PUBLISHABLE_KEY }}
           GOOGLE_WEB_CLIENT_ID: ${{ vars.GOOGLE_WEB_CLIENT_ID }}
-          REVENUECAT_API_KEY_APPLE: ${{ secrets.REVENUECAT_API_KEY_APPLE }}
+          REVENUECAT_API_KEY_APPLE: ${{ vars.REVENUECAT_API_KEY_APPLE }}
         run: |
           # 避免 Homebrew rsync 抢占（Apple toolchain 需要系统 rsync）
           export PATH="/usr/bin:/bin:/usr/sbin:/sbin:$PATH"
@@ -367,7 +367,7 @@ jobs:
             DART_DEFINES+=("--dart-define=POSTHOG_API_KEY=${POSTHOG_API_KEY}")
           fi
           if [[ -z "$REVENUECAT_API_KEY_APPLE" ]]; then
-            echo "ERROR: REVENUECAT_API_KEY_APPLE secret is required for iOS release builds." >&2
+            echo "ERROR: REVENUECAT_API_KEY_APPLE repository variable is required for iOS release builds." >&2
             exit 1
           fi
           DART_DEFINES+=("--dart-define=REVENUECAT_API_KEY_APPLE=${REVENUECAT_API_KEY_APPLE}")
