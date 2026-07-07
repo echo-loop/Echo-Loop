@@ -174,12 +174,17 @@ void main() async {
   // 仅在 --dart-define 注入了 SUPABASE_URL / SUPABASE_PUBLISHABLE_KEY 时才初始化；
   // 未配置时跳过，登录功能不可用但 app 仍可匿名运行（渐进式登录策略）。
   // Session 默认走 SharedPreferences 持久化，重启自动恢复。
+  // 已恢复的登录用户 ID（若有）。用于给 RevenueCat configure 直接带上 appUserID，
+  // 让已登录老用户冷启动跳过匿名态；未登录 / 未配置认证时为 null。
+  String? restoredUserId;
   if (auth_config.isAuthConfigured) {
     try {
       await Supabase.initialize(
         url: auth_config.supabaseUrl,
         anonKey: auth_config.supabasePublishableKey,
       );
+      // Supabase 启动时自动从 SharedPreferences 恢复上次 session；此处读回恢复的用户 ID。
+      restoredUserId = Supabase.instance.client.auth.currentSession?.user.id;
     } catch (e) {
       AppLogger.log('App', 'Supabase 初始化失败，认证功能不可用: $e');
     }
@@ -206,8 +211,20 @@ void main() async {
       if (kDebugMode) {
         await Purchases.setLogLevel(LogLevel.debug);
       }
-      await Purchases.configure(
-        PurchasesConfiguration(revenuecat_config.revenueCatApiKey),
+      // 若已有恢复的登录 session，直接以真实用户 ID 配置，跳过匿名态；
+      // 否则匿名 configure（行为同旧版），后续由 SubscriptionController.logIn 绑定。
+      final configuration = PurchasesConfiguration(
+        revenuecat_config.revenueCatApiKey,
+      );
+      if (restoredUserId != null) {
+        configuration.appUserID = restoredUserId;
+      }
+      await Purchases.configure(configuration);
+      AppLogger.log(
+        'App',
+        restoredUserId != null
+            ? 'RevenueCat 以已登录身份 configure（appUserID=$restoredUserId）'
+            : 'RevenueCat 匿名 configure',
       );
     } catch (e) {
       AppLogger.log('App', 'RevenueCat 初始化失败，订阅功能不可用: $e');
@@ -458,9 +475,7 @@ class _EchoLoopAppState extends ConsumerState<EchoLoopApp>
         _triggerCatalogSync();
         // 回前台时重对账订阅权益：用户可能刚在系统订阅页退订 / 换 plan / 续费，
         // 或退款生效。RevenueCat 有约 5 分钟缓存，频繁切前台基本命中缓存、近零成本。
-        unawaited(
-          ref.read(subscriptionControllerProvider.notifier).refresh(),
-        );
+        unawaited(ref.read(subscriptionControllerProvider.notifier).refresh());
       case AppLifecycleState.paused:
       case AppLifecycleState.detached:
         // 立即刷新 PostHog 埋点队列，避免 Application Backgrounded 等事件
