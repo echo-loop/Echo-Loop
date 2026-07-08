@@ -222,16 +222,22 @@ class RevenueCatPurchaseService implements PurchaseService {
     };
   }
 
+  @override
+  Future<String?> storefrontCountryCode() async {
+    final storefront = await Purchases.storefront;
+    return storefront?.countryCode;
+  }
+
   /// 记录当前 Apple/Google 商店账号所在 storefront。
   ///
   /// 该值决定平台本地化价格。诊断时用它对齐 Offering 商品价、direct product
   /// 查询价与系统付款弹窗价格，判断是否存在 SDK/商店商品详情缓存不一致。
   Future<void> _logStorefront(String stage) async {
     try {
-      final storefront = await Purchases.storefront;
+      final countryCode = await storefrontCountryCode();
       AppLogger.log(
         'Subscription',
-        'storefront[$stage]=${storefront?.countryCode ?? "null"}',
+        'storefront[$stage]=${countryCode ?? "null"}',
       );
     } catch (e) {
       AppLogger.log('Subscription', 'storefront[$stage] 获取失败: $e');

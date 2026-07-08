@@ -80,6 +80,9 @@ class FakePurchaseService implements PurchaseService {
 
   @override
   Future<Map<String, Object?>> debugCustomerInfoSnapshot() async => const {};
+
+  @override
+  Future<String?> storefrontCountryCode() async => null;
 }
 
 /// 内存缓存替身（覆盖 secure_storage 实现）。

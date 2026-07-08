@@ -207,6 +207,9 @@ class LocalStoreKitPurchaseService implements PurchaseService {
     };
   }
 
+  @override
+  Future<String?> storefrontCountryCode() async => null;
+
   // ── 内部 ──────────────────────────────────────────────────────
 
   Entitlement _currentEntitlement() => localEntitlementFromActiveIds(

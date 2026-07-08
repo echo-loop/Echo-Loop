@@ -4,22 +4,26 @@
 /// - 冷启动 / 回到前台时后台静默检查（无时间节流）
 /// - 支持手动检查（绕过忽略逻辑，带 Checking UI 态）
 /// - 用户忽略后记录版本号，同版本不再自动弹窗
+///
+/// iOS 路径的 Lookup 查询区域按用户真实 App Store storefront 判定（口径同订阅价格），
+/// 故本 core provider 依赖 subscription feature 的 [purchaseServiceProvider] 取 storefront。
 library;
 
 import 'dart:io' show Platform;
-import 'dart:ui' show Locale, PlatformDispatcher;
 
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../features/subscription/services/revenuecat_purchase_service.dart'
+    show purchaseServiceProvider;
 import '../models/app_update_info.dart';
 import '../services/app_logger.dart';
 import '../services/app_update_checker.dart';
+import '../utils/app_store_country.dart';
 import '../utils/version_compare.dart';
 import 'dev_version_override_provider.dart';
 import 'package_info_provider.dart';
-import 'settings_provider.dart';
 
 part 'app_update_provider.g.dart';
 
@@ -70,7 +74,9 @@ class AppUpdate extends _$AppUpdate {
     AppLogger.log(_logTag, 'checkInBackground start');
     try {
       final prefs = await SharedPreferences.getInstance();
-      final info = await _checker?.check(country: _appStoreCountry());
+      final info = await _checker?.check(
+        country: await _resolveAppStoreCountry(),
+      );
       if (state is AppUpdateChecking) {
         AppLogger.log(
           _logTag,
@@ -102,7 +108,9 @@ class AppUpdate extends _$AppUpdate {
     AppLogger.log(_logTag, 'manualCheck start');
     state = const AppUpdateChecking();
 
-    final info = await _checker?.check(country: _appStoreCountry());
+    final info = await _checker?.check(
+      country: await _resolveAppStoreCountry(),
+    );
     final result = _buildResult(info: info, isManual: true);
     AppLogger.log(
       _logTag,
@@ -115,24 +123,28 @@ class AppUpdate extends _$AppUpdate {
     return result;
   }
 
-  /// 根据当前界面语言推断 App Store 区域代码
+  /// 根据用户真实 App Store storefront 推断 iTunes Lookup 的区域代码。
   ///
-  /// 界面语言为 null（跟随系统）时按系统 locale 匹配后再映射。
-  String _appStoreCountry() {
-    final settings = ref.read(appSettingsProvider);
-    return appStoreCountryForLocale(settings.locale);
-  }
-
-  /// 把界面 locale 映射为 iTunes Lookup API 的区域代码（static 公开，便于测试）
-  ///
-  /// iTunes Lookup API 的 releaseNotes 文案取决于查询的 App Store 区域：
-  /// 不传 country 默认走美区（英文）。中文界面用户需查中国区（`cn`）才能
-  /// 拿到 App Store Connect 中配置的中文更新说明，其它语言一律走美区（`us`）。
-  /// [uiLocale] 为 null 表示跟随系统，此时按系统 locale 匹配界面语言。
-  static String appStoreCountryForLocale(Locale? uiLocale) {
-    final locale =
-        uiLocale ?? matchUiLocale(PlatformDispatcher.instance.locale);
-    return locale.languageCode == 'zh' ? 'cn' : 'us';
+  /// 口径与订阅价格一致：不用界面语言，而用商店账号所在 storefront。
+  /// storefront 国家码来自 [purchaseServiceProvider]（RevenueCat，返回 alpha-3），
+  /// 经 [appStoreCountryFromStorefront] 转成 Lookup 所需的 alpha-2 小写码。
+  /// 取不到 / 无法识别（非订阅渠道、SDK 未就绪、未知码等）返回 null →
+  /// [AppUpdateChecker.check] 不传 country → Lookup 默认走美区。
+  Future<String?> _resolveAppStoreCountry() async {
+    try {
+      final raw = await ref
+          .read(purchaseServiceProvider)
+          .storefrontCountryCode();
+      final country = appStoreCountryFromStorefront(raw);
+      AppLogger.log(
+        _logTag,
+        'storefront=${raw ?? "(null)"} → lookup country=${country ?? "(default)"}',
+      );
+      return country;
+    } catch (e) {
+      AppLogger.log(_logTag, 'storefront country 获取失败，回退默认区: $e');
+      return null;
+    }
   }
 
   /// 根据远程信息构建检查结果

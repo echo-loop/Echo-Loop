@@ -38,6 +38,8 @@ class _FakePurchaseService implements PurchaseService {
     'lookForEntitlementId': 'Echo Loop Plus',
     'activeEntitlements': current.isPremium ? ['Echo Loop Plus'] : <String>[],
   };
+  @override
+  Future<String?> storefrontCountryCode() async => null;
 }
 
 class _FakeRepo implements EntitlementRepository {

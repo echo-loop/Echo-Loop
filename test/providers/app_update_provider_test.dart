@@ -1,41 +1,9 @@
-import 'dart:ui' show Locale;
-
 import 'package:flutter_test/flutter_test.dart';
 import 'package:echo_loop/models/app_update_info.dart';
 import 'package:echo_loop/providers/app_update_provider.dart';
 import 'package:echo_loop/utils/version_compare.dart';
 
 void main() {
-  group('AppUpdate.appStoreCountryForLocale', () {
-    // 直接影响 iTunes Lookup 返回哪个区域的 releaseNotes 文案：
-    // 中文界面必须走中国区（cn）才能拿到中文更新说明，否则全是英文。
-
-    test('中文界面（zh-CN）→ 中国区 cn', () {
-      expect(
-        AppUpdate.appStoreCountryForLocale(const Locale('zh', 'CN')),
-        'cn',
-      );
-    });
-
-    test('中文界面（仅 zh）→ 中国区 cn', () {
-      expect(AppUpdate.appStoreCountryForLocale(const Locale('zh')), 'cn');
-    });
-
-    test('英文界面 → 美区 us', () {
-      expect(AppUpdate.appStoreCountryForLocale(const Locale('en')), 'us');
-    });
-
-    test('其它语言（如日语）→ 美区 us', () {
-      expect(AppUpdate.appStoreCountryForLocale(const Locale('ja')), 'us');
-    });
-
-    test('null（跟随系统）时回退结果仍是合法区域代码', () {
-      // 系统 locale 取决于测试环境，只断言落在已支持的区域内，
-      // 不让用例依赖具体宿主语言。
-      expect(AppUpdate.appStoreCountryForLocale(null), anyOf('cn', 'us'));
-    });
-  });
-
   group('AppUpdate._determineUpdateType', () {
     const info = AppUpdateInfo(latestVersion: '2.0.0', minimumVersion: '1.5.0');
 

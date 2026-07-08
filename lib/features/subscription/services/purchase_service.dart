@@ -62,6 +62,12 @@ abstract class PurchaseService {
   /// originalAppUserId / 期望的 entitlementId 等原始字段，便于定位
   /// 「商品没挂 entitlement」「entitlement 标识没对上」等配置问题。
   Future<Map<String, Object?>> debugCustomerInfoSnapshot();
+
+  /// 当前 App Store / 商店账号所在 storefront 的国家码（ISO 3166-1 alpha-3，
+  /// 如 `USA` / `CHN`）。用于按用户真实商店区判定行为（如更新检查查哪个区的
+  /// Lookup），口径与本地化价格一致。取不到（未配置 / 无 storefront 概念）返回
+  /// `null`，由调用方回退默认区。
+  Future<String?> storefrontCountryCode();
 }
 
 /// Phase 0 占位实现：无平台依赖，不发起真实购买。
@@ -95,4 +101,7 @@ class StubPurchaseService implements PurchaseService {
 
   @override
   Future<Map<String, Object?>> debugCustomerInfoSnapshot() async => const {};
+
+  @override
+  Future<String?> storefrontCountryCode() async => null;
 }

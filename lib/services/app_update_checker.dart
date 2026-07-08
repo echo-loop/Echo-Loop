@@ -188,6 +188,14 @@ class AppUpdateChecker {
         options: Options(responseType: ResponseType.plain),
       );
       final body = response.data;
+      // 打印实际访问的 Lookup URL（含 country 查询参数）、HTTP 状态码与
+      // body 字节数，便于排查「查错区 / 返回空 / 被限流」等问题。
+      final bodyBytes = body == null ? 0 : utf8.encode(body).length;
+      AppLogger.log(
+        _logTag,
+        'iOS lookup response: url=${response.realUri} '
+        'status=${response.statusCode} bodyBytes=$bodyBytes',
+      );
       if (body == null || body.isEmpty) {
         AppLogger.log(_logTag, 'iOS lookup empty body');
         return null;
