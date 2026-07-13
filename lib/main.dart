@@ -63,6 +63,7 @@ import 'features/onboarding_survey/data/onboarding_survey_storage.dart';
 import 'features/onboarding_survey/providers/onboarding_survey_provider.dart';
 import 'features/auth/providers/auth_providers.dart';
 import 'features/subscription/providers/subscription_controller.dart';
+import 'features/subscription/providers/subscription_plans_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -425,6 +426,10 @@ class _EchoLoopAppState extends ConsumerState<EchoLoopApp>
     // 也修复已受影响用户——下次启动即重绑 / 把匿名购买 Transfer 到其 Supabase UUID。
     ref.read(subscriptionControllerProvider);
 
+    // RevenueCat configure 后尽早预热套餐；Provider 保留本次会话的最后成功价格，
+    // 用户首次打开订阅页时可直接渲染，无需等待临时网络请求。
+    ref.read(subscriptionPlansProvider);
+
     _authSessionSubscription = ref.listenManual<AsyncValue<Session?>>(
       supabaseSessionProvider,
       (previous, next) {
@@ -486,6 +491,11 @@ class _EchoLoopAppState extends ConsumerState<EchoLoopApp>
         // 回前台时重对账订阅权益：用户可能刚在系统订阅页退订 / 换 plan / 续费，
         // 或退款生效。RevenueCat 有约 5 分钟缓存，频繁切前台基本命中缓存、近零成本。
         unawaited(ref.read(subscriptionControllerProvider.notifier).refresh());
+        // 同时检查商店 storefront。跨区时立即撤下旧币种价格并重新读取商品；
+        // 同区则遵循五分钟 TTL，避免每次短暂切后台都重复查询。
+        unawaited(
+          ref.read(subscriptionPlansProvider.notifier).refreshIfStale(),
+        );
       case AppLifecycleState.paused:
       case AppLifecycleState.detached:
         // 立即刷新 PostHog 埋点队列，避免 Application Backgrounded 等事件

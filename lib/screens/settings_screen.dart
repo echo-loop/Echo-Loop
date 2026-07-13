@@ -1,7 +1,5 @@
 import 'dart:io';
 
-import 'package:file_picker/file_picker.dart';
-import 'package:share_plus/share_plus.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
@@ -16,7 +14,6 @@ import '../database/providers.dart';
 import '../l10n/app_localizations.dart';
 import '../models/app_update_info.dart';
 import '../providers/app_update_provider.dart';
-import '../providers/backup_provider.dart';
 import '../providers/dev_version_override_provider.dart';
 import '../providers/developer_options_provider.dart';
 import '../providers/offline_asr_settings_provider.dart';
@@ -44,8 +41,6 @@ import '../router/app_router.dart';
 import '../features/onboarding_survey/providers/onboarding_survey_provider.dart';
 import '../services/app_network_image_cache.dart';
 import '../services/tts/tts_cache_store.dart';
-import '../services/backup/backup_manifest.dart';
-import '../services/backup/backup_service.dart';
 import '../services/dictionary_download_manager.dart';
 import '../services/orphan_file_cleanup_service.dart';
 import '../services/temp_cleanup_service.dart';
@@ -81,13 +76,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   /// 连续点击版本号解锁开发者选项的计数器
   int _devTapCount = 0;
   DateTime? _lastDevTap;
-
-  /// 用户下载目录路径（用于文件选择器默认打开目录）
-  static String? get _downloadsDirectory {
-    final home = Platform.environment['HOME'];
-    if (home == null) return null;
-    return '$home/Downloads';
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -424,6 +412,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       title: l10n.storage,
       children: [
         ListTile(
+          leading: _emojiIcon('💾'),
+          title: Text(l10n.backupAndRestore),
+          trailing: const Icon(Icons.chevron_right),
+          onTap: () => context.push(AppRoutes.backupRestore),
+        ),
+        ListTile(
           leading: _emojiIcon('🗑️'),
           title: Text(l10n.clearCache),
           onTap: () => _clearAiCache(context, ref, l10n),
@@ -724,10 +718,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         info: result.info!,
         isForceUpdate: isForce,
         downloadUrl: downloadUrl,
-        onUpdate: () => launcher.launch(
-          info: result.info!,
-          primaryUrl: downloadUrl,
-        ),
+        onUpdate: () =>
+            launcher.launch(info: result.info!, primaryUrl: downloadUrl),
         onDismiss: () => ref.read(appUpdateProvider.notifier).dismiss(),
       );
     }
@@ -941,18 +933,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ),
         ),
         ListTile(
-          leading: _emojiIcon('📤'),
-          title: Text(l10n.exportData),
-          trailing: const Icon(Icons.chevron_right),
-          onTap: () => _handleExport(context, ref),
-        ),
-        ListTile(
-          leading: _emojiIcon('📥'),
-          title: Text(l10n.importData),
-          trailing: const Icon(Icons.chevron_right),
-          onTap: () => _handleImport(context, ref),
-        ),
-        ListTile(
           leading: _emojiIcon('📖'),
           title: const Text('词典查询'),
           trailing: const Icon(Icons.chevron_right),
@@ -1084,262 +1064,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('Demo mode error: $e')));
-    }
-  }
-
-  /// 处理导出数据操作
-  Future<void> _handleExport(BuildContext context, WidgetRef ref) async {
-    final l10n = AppLocalizations.of(context)!;
-    var progressStage = l10n.exporting;
-
-    // 显示进度对话框
-    showDialog<void>(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => PopScope(
-        canPop: false,
-        child: AlertDialog(
-          content: Row(
-            children: [
-              const CircularProgressIndicator(),
-              const SizedBox(width: AppSpacing.l),
-              Expanded(
-                child: StatefulBuilder(
-                  builder: (context, setState) {
-                    // 进度文字通过外部更新
-                    return Text(progressStage);
-                  },
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-
-    var dialogOpen = true;
-    try {
-      debugPrint('[Backup] Starting export...');
-      final zipPath = await performExport(
-        ref,
-        onProgress: (p) {
-          debugPrint('[Backup] Progress: ${p.stage} ${p.progress}');
-          progressStage = _localizeProgress(l10n, p.stage);
-        },
-      );
-      debugPrint('[Backup] Export done: $zipPath');
-
-      if (!context.mounted) return;
-      Navigator.of(context, rootNavigator: true).pop();
-      dialogOpen = false;
-
-      // 保存文件：移动端用分享面板，桌面端用保存对话框
-      final fileName = zipPath.split('/').last;
-      if (Platform.isIOS || Platform.isAndroid) {
-        final box = context.findRenderObject() as RenderBox?;
-        await Share.shareXFiles(
-          [XFile(zipPath)],
-          subject: fileName,
-          sharePositionOrigin: box != null
-              ? box.localToGlobal(Offset.zero) & box.size
-              : Rect.zero,
-        );
-      } else {
-        final savePath = await FilePicker.platform.saveFile(
-          dialogTitle: l10n.exportData,
-          fileName: fileName,
-          initialDirectory: _downloadsDirectory,
-          type: FileType.custom,
-          allowedExtensions: ['zip'],
-        );
-        if (savePath != null) {
-          await File(zipPath).copy(savePath);
-          debugPrint('[Backup] Saved to: $savePath');
-          if (context.mounted) {
-            ScaffoldMessenger.of(
-              context,
-            ).showSnackBar(SnackBar(content: Text(l10n.exportSuccess)));
-          }
-        }
-      }
-      // 清理临时文件
-      try {
-        await File(zipPath).delete();
-      } catch (_) {}
-    } catch (e, stack) {
-      debugPrint('[Backup] Export error: $e');
-      debugPrint('[Backup] Stack: $stack');
-      if (!context.mounted) return;
-      if (dialogOpen) {
-        Navigator.of(context, rootNavigator: true).pop();
-      }
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('${l10n.exportData} error: $e')));
-    }
-  }
-
-  /// 处理导入数据操作
-  Future<void> _handleImport(BuildContext context, WidgetRef ref) async {
-    final l10n = AppLocalizations.of(context)!;
-
-    // Step 1: 选择文件
-    final result = await FilePicker.platform.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: ['zip'],
-      initialDirectory: _downloadsDirectory,
-    );
-    if (result == null || result.files.isEmpty) return;
-
-    final filePath = result.files.first.path;
-    if (filePath == null) return;
-
-    // Step 2: 读取 manifest 预览
-    BackupManifest manifest;
-    try {
-      manifest = await readBackupManifest(ref, filePath);
-    } on BackupException {
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(l10n.importInvalidFile)));
-      return;
-    } catch (_) {
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(l10n.importInvalidFile)));
-      return;
-    }
-
-    if (!context.mounted) return;
-
-    // Step 3: 确认对话框
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(l10n.importConfirmTitle),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildManifestRow(
-              l10n.backupTime,
-              DateFormat.yMd().add_Hm().format(manifest.createdAt.toLocal()),
-            ),
-            _buildManifestRow(l10n.backupVersion, manifest.appVersion),
-            _buildManifestRow(
-              l10n.backupFileCount,
-              '${manifest.mediaFileCount}',
-            ),
-            _buildManifestRow(l10n.backupSize, manifest.formattedSize),
-            const SizedBox(height: AppSpacing.m),
-            Text(
-              l10n.importConfirmMessage,
-              style: Theme.of(ctx).textTheme.bodySmall?.copyWith(
-                color: Theme.of(ctx).colorScheme.error,
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: Text(MaterialLocalizations.of(ctx).cancelButtonLabel),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
-            child: Text(l10n.importData),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmed != true || !context.mounted) return;
-
-    // Step 4: 检查版本兼容性
-    if (manifest.schemaVersion > AppDatabase.currentSchemaVersion) {
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(l10n.importIncompatible)));
-      return;
-    }
-
-    // Step 5: 执行导入（带进度）
-    showDialog<void>(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => PopScope(
-        canPop: false,
-        child: AlertDialog(
-          content: Row(
-            children: [
-              const CircularProgressIndicator(),
-              const SizedBox(width: AppSpacing.l),
-              Text(l10n.importing),
-            ],
-          ),
-        ),
-      ),
-    );
-
-    try {
-      await performImport(ref, filePath);
-
-      if (!context.mounted) return;
-      Navigator.of(context, rootNavigator: true).pop(); // 关闭进度对话框
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(l10n.importSuccess)));
-    } catch (e) {
-      if (!context.mounted) return;
-      Navigator.of(context, rootNavigator: true).pop(); // 关闭进度对话框
-
-      final message = e is BackupException && e.message == 'incompatibleVersion'
-          ? l10n.importIncompatible
-          : '${l10n.importData} error: $e';
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(message)));
-    }
-  }
-
-  /// 构建 manifest 预览行
-  Widget _buildManifestRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(label),
-          Text(value, style: const TextStyle(fontWeight: FontWeight.w600)),
-        ],
-      ),
-    );
-  }
-
-  /// 将进度阶段 key 转为本地化文字
-  String _localizeProgress(AppLocalizations l10n, String stage) {
-    switch (stage) {
-      case 'exportingDatabase':
-        return l10n.exportingDatabase;
-      case 'exportingPreferences':
-        return l10n.exportingPreferences;
-      case 'exportingMedia':
-        return l10n.exportingMedia;
-      case 'exportingPacking':
-        return l10n.exportingPacking;
-      case 'importingExtracting':
-        return l10n.importingExtracting;
-      case 'importingMedia':
-        return l10n.importingMedia;
-      case 'importingDatabase':
-        return l10n.importingDatabase;
-      case 'importingPreferences':
-        return l10n.importingPreferences;
-      default:
-        return stage;
     }
   }
 

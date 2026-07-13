@@ -27,7 +27,9 @@ class WebPurchaseService implements PurchaseService {
   const WebPurchaseService();
 
   @override
-  Future<List<SubscriptionPlan>> fetchPlans() async {
+  Future<List<SubscriptionPlan>> fetchPlans({
+    bool includeIntroEligibility = true,
+  }) async {
     // 无商店 SDK 取本地化价；套餐、价格与促销由 RevenueCat 托管 Paywall 展示。
     logWebPurchaseConfig(stage: 'fetchPlans');
     AppLogger.log(

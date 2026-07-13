@@ -41,6 +41,7 @@ import '../screens/review_difficult_practice_screen.dart';
 import '../screens/bookmark_review_screen.dart';
 import '../screens/sentence_detail_screen.dart';
 import '../screens/pdf_preview_screen.dart';
+import '../screens/backup_restore_screen.dart';
 import '../screens/flashcard_screen.dart';
 import '../screens/activity_calendar_screen.dart';
 import 'main_shell.dart';
@@ -130,6 +131,7 @@ abstract class AppRoutes {
 
   /// 学习材料 PDF 导出预览页路径
   static const pdfPreview = '/pdf-preview';
+  static const backupRestore = '/backup-restore';
 
   /// Flashcard 单词卡片复习页路径
   static const flashcard = '/flashcard';
@@ -326,6 +328,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         ],
       ),
       // Onboarding 问卷（首启新用户全屏，无 tab bar / 不可返回）
+      GoRoute(
+        path: AppRoutes.backupRestore,
+        builder: (context, state) => const BackupRestoreScreen(),
+      ),
       GoRoute(
         path: AppRoutes.onboardingSurvey,
         parentNavigatorKey: rootNavigatorKey,

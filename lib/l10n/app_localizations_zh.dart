@@ -2849,6 +2849,55 @@ class AppLocalizationsZh extends AppLocalizations {
   String get importingPreferences => '正在恢复设置...';
 
   @override
+  String get backupAndRestore => '备份与恢复';
+
+  @override
+  String get backupAndRestoreSubtitle => '换手机或重装后恢复学习数据';
+
+  @override
+  String get backupData => '备份';
+
+  @override
+  String get backupDataSubtitle => '备份学习数据、媒体文件和离线词典';
+
+  @override
+  String get restoreData => '恢复';
+
+  @override
+  String get restoreDataSubtitle => '从本地备份文件恢复全部数据';
+
+  @override
+  String get backupReadyTitle => '备份文件已准备好';
+
+  @override
+  String get backupFileName => '文件名';
+
+  @override
+  String get restoreOverwriteTitle => '覆盖并恢复全部数据？';
+
+  @override
+  String get restoreOverwriteMessage => '恢复后将覆盖当前设备上的学习数据、设置、音频、字幕和词典，且无法撤销。';
+
+  @override
+  String get restoreOverwriteAction => '覆盖并恢复';
+
+  @override
+  String get exportingResources => '正在备份离线词典...';
+
+  @override
+  String get importingResources => '正在恢复离线词典...';
+
+  @override
+  String backupFailed(String error) {
+    return '备份失败：$error';
+  }
+
+  @override
+  String restoreFailed(String error) {
+    return '恢复失败：$error';
+  }
+
+  @override
   String get activityCalendar => '学习日历';
 
   @override

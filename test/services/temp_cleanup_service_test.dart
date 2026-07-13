@@ -104,6 +104,18 @@ void main() {
   });
 
   group('cleanupAllTempFiles', () {
+    test('清理备份流程遗留的最终备份文件', () async {
+      final backup = File(
+        '${fakeCacheDir.path}/echoloop_backup_20260713.elbak',
+      );
+      await backup.writeAsBytes(List<int>.filled(32, 1));
+
+      final result = await cleanupAllTempFiles();
+
+      expect(await backup.exists(), isFalse);
+      expect(result.freedBytes, greaterThanOrEqualTo(32));
+    });
+
     test('tmp/ 全量清理（任意名字文件都删）', () async {
       final tmpFile = File('${fakeTmpDir.path}/rec.caf');
       tmpFile.writeAsBytesSync(List.filled(1000, 0));

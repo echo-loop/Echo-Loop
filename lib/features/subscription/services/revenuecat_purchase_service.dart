@@ -10,7 +10,7 @@ library;
 import 'dart:async';
 import 'dart:io' show Platform;
 
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show kDebugMode, kIsWeb;
 import 'package:flutter/services.dart' show PlatformException;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:purchases_flutter/purchases_flutter.dart';
@@ -37,9 +37,13 @@ class RevenueCatPurchaseService implements PurchaseService {
   final Map<String, SubscriptionPeriod> _periodByProductId = {};
 
   @override
-  Future<List<SubscriptionPlan>> fetchPlans() async {
+  Future<List<SubscriptionPlan>> fetchPlans({
+    bool includeIntroEligibility = true,
+  }) async {
     try {
-      await _logStorefront('fetchPlans:beforeOfferings');
+      if (kDebugMode) {
+        unawaited(_logStorefront('fetchPlans:beforeOfferings'));
+      }
       final offerings = await Purchases.getOfferings();
       final current = offerings.current;
       AppLogger.log(
@@ -65,14 +69,20 @@ class RevenueCatPurchaseService implements PurchaseService {
       for (final p in current.availablePackages) {
         _logPackageDiagnostics(p, stage: 'fetchPlans:offering');
       }
-      await _logDirectProductsForDiagnostics(
-        current.availablePackages
-            .map((p) => p.storeProduct.identifier)
-            .toSet()
-            .toList(),
-        stage: 'fetchPlans:directProducts',
-      );
-      final eligibility = await _introEligibilityFor(current.availablePackages);
+      if (kDebugMode) {
+        unawaited(
+          _logDirectProductsForDiagnostics(
+            current.availablePackages
+                .map((p) => p.storeProduct.identifier)
+                .toSet()
+                .toList(),
+            stage: 'fetchPlans:directProducts',
+          ),
+        );
+      }
+      final eligibility = includeIntroEligibility
+          ? await _introEligibilityFor(current.availablePackages)
+          : const <String, IntroEligibilityStatus>{};
       final plans = current.availablePackages
           .map((p) => _packageToPlan(p, eligibility[p.storeProduct.identifier]))
           .toList();

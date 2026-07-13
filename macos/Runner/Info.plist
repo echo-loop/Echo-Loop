@@ -32,6 +32,42 @@
 	<string>This app needs microphone access so you can record your spoken English practice.</string>
 	<key>NSSpeechRecognitionUsageDescription</key>
 	<string>This app needs speech recognition access to compare your spoken English with the target sentence.</string>
+	<key>UTExportedTypeDeclarations</key>
+	<array>
+		<dict>
+			<key>UTTypeIdentifier</key>
+			<string>top.echo-loop.backup</string>
+			<key>UTTypeDescription</key>
+			<string>Echo Loop Backup</string>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.zip-archive</string>
+				<string>public.data</string>
+			</array>
+			<key>UTTypeTagSpecification</key>
+			<dict>
+				<key>public.filename-extension</key>
+				<array>
+					<string>elbak</string>
+				</array>
+				<key>public.mime-type</key>
+				<string>application/zip</string>
+			</dict>
+		</dict>
+	</array>
+	<key>CFBundleDocumentTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeName</key>
+			<string>Echo Loop Backup</string>
+			<key>LSHandlerRank</key>
+			<string>Alternate</string>
+			<key>LSItemContentTypes</key>
+			<array>
+				<string>top.echo-loop.backup</string>
+			</array>
+		</dict>
+	</array>
 	<key>FirebaseAutomaticScreenReportingEnabled</key>
 	<false/>
 	<key>FLTEnableMergedPlatformUIThread</key>

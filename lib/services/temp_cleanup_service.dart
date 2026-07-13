@@ -73,6 +73,7 @@ const _ownCacheTempPrefixes = <String>[
   'audio_export_',
   'echoloop_export_',
   'echoloop_import_',
+  'echoloop_backup_',
   'pdf_export_',
 ];
 

@@ -59,6 +59,7 @@ void main() {
       expect(AppRoutes.study, '/study');
       expect(AppRoutes.favorites, '/favorites');
       expect(AppRoutes.settings, '/settings');
+      expect(AppRoutes.backupRestore, '/backup-restore');
     });
 
     test('collectionDetail 构建正确路径', () {

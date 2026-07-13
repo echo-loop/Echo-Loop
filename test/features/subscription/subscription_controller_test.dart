@@ -60,7 +60,9 @@ class FakePurchaseService implements PurchaseService {
   int invalidateCalls = 0;
 
   @override
-  Future<List<SubscriptionPlan>> fetchPlans() async => const [];
+  Future<List<SubscriptionPlan>> fetchPlans({
+    bool includeIntroEligibility = true,
+  }) async => const [];
 
   @override
   Future<Entitlement> currentEntitlement() async {

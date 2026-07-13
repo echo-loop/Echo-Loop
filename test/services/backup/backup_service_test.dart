@@ -153,7 +153,7 @@ void main() {
       archive.addFile(ArchiveFile('echo_loop.db', 4, utf8.encode('test')));
 
       final zipData = ZipEncoder().encode(archive);
-      final zipFile = File('${tempDir.path}/test.zip');
+      final zipFile = File('${tempDir.path}/test.elbak');
       zipFile.writeAsBytesSync(zipData);
 
       // 使用一个不需要真实数据库的方式测试 readManifest
@@ -263,6 +263,7 @@ void main() {
         appVersion: '1.0.0',
         platform: 'macos',
       );
+      expect(zipPath.endsWith('.elbak'), isTrue);
 
       final archive = ZipDecoder().decodeBytes(
         await File(zipPath).readAsBytes(),
@@ -276,6 +277,114 @@ void main() {
             as Map<String, dynamic>,
       );
       expect(manifest.mediaFileCount, 1);
+    });
+
+    test('v2 备份仅包含离线词典并排除模型与下载临时文件', () async {
+      final docsDir = Directory(p.join(tempDir.path, 'docs'))
+        ..createSync(recursive: true);
+      final outputDir = Directory(p.join(tempDir.path, 'out'))
+        ..createSync(recursive: true);
+      PathProviderPlatform.instance = _FakePathProvider(tempDir.path);
+      SharedPreferences.setMockInitialValues({});
+      appDataDirectoryOverride = docsDir;
+      addTearDown(() => appDataDirectoryOverride = null);
+
+      final db = AppDatabase(
+        NativeDatabase(File(p.join(docsDir.path, 'echo_loop.db'))),
+      );
+      addTearDown(db.close);
+      await db.customSelect('SELECT 1').get();
+
+      final asrFile = File(
+        p.join(tempDir.path, 'asr-models', 'small', 'model.onnx'),
+      );
+      final ttsFile = File(
+        p.join(tempDir.path, 'tts-models', 'voice', 'model.onnx'),
+      );
+      final dictFile = File(
+        p.join(tempDir.path, 'dictionary', 'en_zh', 'dict.db'),
+      );
+      final partial = File(
+        p.join(tempDir.path, 'tts-models', '_dl_voice.tar.gz'),
+      );
+      for (final file in [asrFile, ttsFile, dictFile, partial]) {
+        await file.parent.create(recursive: true);
+        await file.writeAsBytes([1, 2, 3]);
+      }
+
+      final zipPath = await BackupService(db).exportData(
+        outputDir: outputDir.path,
+        appVersion: '1.0.25',
+        platform: 'macos',
+      );
+      expect(zipPath.endsWith('.elbak'), isTrue);
+      final archive = ZipDecoder().decodeBytes(
+        await File(zipPath).readAsBytes(),
+      );
+      expect(archive.findFile('resources/asr-models/small/model.onnx'), isNull);
+      expect(archive.findFile('resources/tts-models/voice/model.onnx'), isNull);
+      expect(archive.findFile('resources/dictionary/en_zh/dict.db'), isNotNull);
+      expect(archive.findFile('resources/tts-models/_dl_voice.tar.gz'), isNull);
+
+      final manifestEntry = archive.findFile('manifest.json');
+      final manifest = BackupManifest.fromJson(
+        jsonDecode(utf8.decode(manifestEntry!.content as List<int>))
+            as Map<String, dynamic>,
+      );
+      expect(manifest.version, 2);
+      expect(manifest.offlineResourceFileCount, 1);
+      expect(manifest.offlineResourceSizeBytes, 3);
+    });
+
+    test('导入 v2 备份时仅恢复词典，不覆盖本机模型文件', () async {
+      final docsDir = Directory(p.join(tempDir.path, 'docs'))
+        ..createSync(recursive: true);
+      final outputDir = Directory(p.join(tempDir.path, 'out'))
+        ..createSync(recursive: true);
+      PathProviderPlatform.instance = _FakePathProvider(tempDir.path);
+      SharedPreferences.setMockInitialValues({});
+      appDataDirectoryOverride = docsDir;
+      addTearDown(() => appDataDirectoryOverride = null);
+
+      final dbFile = File(p.join(docsDir.path, 'echo_loop.db'));
+      final db = AppDatabase(NativeDatabase(dbFile));
+      await db.customSelect('SELECT 1').get();
+
+      final asrFile = File(
+        p.join(tempDir.path, 'asr-models', 'small', 'model.onnx'),
+      );
+      final ttsFile = File(
+        p.join(tempDir.path, 'tts-models', 'voice', 'model.onnx'),
+      );
+      final dictFile = File(
+        p.join(tempDir.path, 'dictionary', 'en_zh', 'dict.db'),
+      );
+      await asrFile.parent.create(recursive: true);
+      await ttsFile.parent.create(recursive: true);
+      await dictFile.parent.create(recursive: true);
+      await asrFile.writeAsBytes([1, 1, 1]);
+      await ttsFile.writeAsBytes([2, 2, 2]);
+      await dictFile.writeAsBytes([3, 3, 3]);
+
+      final backupPath = await BackupService(db).exportData(
+        outputDir: outputDir.path,
+        appVersion: '1.0.25',
+        platform: 'macos',
+      );
+
+      await db.close();
+
+      await asrFile.writeAsBytes([9, 9, 9]);
+      await ttsFile.writeAsBytes([8, 8, 8]);
+      await dictFile.writeAsBytes([7, 7, 7]);
+
+      final importDb = AppDatabase(NativeDatabase(dbFile));
+      addTearDown(importDb.close);
+      await BackupService(importDb).importData(zipPath: backupPath);
+
+      expect(await asrFile.readAsBytes(), [9, 9, 9]);
+      expect(await ttsFile.readAsBytes(), [8, 8, 8]);
+      expect(await dictFile.readAsBytes(), [3, 3, 3]);
     });
   });
 

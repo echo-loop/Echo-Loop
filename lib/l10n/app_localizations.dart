@@ -5222,6 +5222,96 @@ abstract class AppLocalizations {
   /// **'Restoring preferences...'**
   String get importingPreferences;
 
+  /// No description provided for @backupAndRestore.
+  ///
+  /// In en, this message translates to:
+  /// **'Backup & Restore'**
+  String get backupAndRestore;
+
+  /// No description provided for @backupAndRestoreSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Restore your learning data after reinstalling or changing devices'**
+  String get backupAndRestoreSubtitle;
+
+  /// No description provided for @backupData.
+  ///
+  /// In en, this message translates to:
+  /// **'Back Up'**
+  String get backupData;
+
+  /// No description provided for @backupDataSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Back up learning data, media, and offline dictionaries'**
+  String get backupDataSubtitle;
+
+  /// No description provided for @restoreData.
+  ///
+  /// In en, this message translates to:
+  /// **'Restore'**
+  String get restoreData;
+
+  /// No description provided for @restoreDataSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Restore all data from a local backup file'**
+  String get restoreDataSubtitle;
+
+  /// No description provided for @backupReadyTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Backup file is ready'**
+  String get backupReadyTitle;
+
+  /// No description provided for @backupFileName.
+  ///
+  /// In en, this message translates to:
+  /// **'File name'**
+  String get backupFileName;
+
+  /// No description provided for @restoreOverwriteTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Overwrite and restore all data?'**
+  String get restoreOverwriteTitle;
+
+  /// No description provided for @restoreOverwriteMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'This will overwrite learning data, settings, audio, subtitles, and dictionaries on this device. This action cannot be undone.'**
+  String get restoreOverwriteMessage;
+
+  /// No description provided for @restoreOverwriteAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Overwrite & Restore'**
+  String get restoreOverwriteAction;
+
+  /// No description provided for @exportingResources.
+  ///
+  /// In en, this message translates to:
+  /// **'Backing up offline dictionaries...'**
+  String get exportingResources;
+
+  /// No description provided for @importingResources.
+  ///
+  /// In en, this message translates to:
+  /// **'Restoring offline dictionaries...'**
+  String get importingResources;
+
+  /// No description provided for @backupFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Backup failed: {error}'**
+  String backupFailed(String error);
+
+  /// No description provided for @restoreFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Restore failed: {error}'**
+  String restoreFailed(String error);
+
   /// No description provided for @activityCalendar.
   ///
   /// In en, this message translates to:

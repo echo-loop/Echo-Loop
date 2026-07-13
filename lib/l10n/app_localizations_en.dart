@@ -2969,6 +2969,58 @@ class AppLocalizationsEn extends AppLocalizations {
   String get importingPreferences => 'Restoring preferences...';
 
   @override
+  String get backupAndRestore => 'Backup & Restore';
+
+  @override
+  String get backupAndRestoreSubtitle =>
+      'Restore your learning data after reinstalling or changing devices';
+
+  @override
+  String get backupData => 'Back Up';
+
+  @override
+  String get backupDataSubtitle =>
+      'Back up learning data, media, and offline dictionaries';
+
+  @override
+  String get restoreData => 'Restore';
+
+  @override
+  String get restoreDataSubtitle => 'Restore all data from a local backup file';
+
+  @override
+  String get backupReadyTitle => 'Backup file is ready';
+
+  @override
+  String get backupFileName => 'File name';
+
+  @override
+  String get restoreOverwriteTitle => 'Overwrite and restore all data?';
+
+  @override
+  String get restoreOverwriteMessage =>
+      'This will overwrite learning data, settings, audio, subtitles, and dictionaries on this device. This action cannot be undone.';
+
+  @override
+  String get restoreOverwriteAction => 'Overwrite & Restore';
+
+  @override
+  String get exportingResources => 'Backing up offline dictionaries...';
+
+  @override
+  String get importingResources => 'Restoring offline dictionaries...';
+
+  @override
+  String backupFailed(String error) {
+    return 'Backup failed: $error';
+  }
+
+  @override
+  String restoreFailed(String error) {
+    return 'Restore failed: $error';
+  }
+
+  @override
   String get activityCalendar => 'Activity Calendar';
 
   @override

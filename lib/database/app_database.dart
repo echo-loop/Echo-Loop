@@ -184,21 +184,25 @@ class AppDatabase extends _$AppDatabase {
         // v44→v45：句子解析改为流式结构化结果，旧解析缓存与新 Prompt /
         // 展示契约不兼容。只清理句子解析缓存，保留翻译、查词和意群缓存。
         if (from < 45) {
-          await customStatement('''
-            DELETE FROM sentence_ai_cache
-            WHERE type LIKE 'analysis:%'
-               OR type LIKE 'analysis_v2:%'
-          ''');
+          if (await _tableExists('sentence_ai_cache')) {
+            await customStatement('''
+              DELETE FROM sentence_ai_cache
+              WHERE type LIKE 'analysis:%'
+                 OR type LIKE 'analysis_v2:%'
+            ''');
+          }
         }
         // v45→v46：翻译改为流式单句 + 上下文（context hash）+ prompt version，
         // 旧翻译缓存（裸 `translation:` type、上下文无关 hash）与新契约不兼容。
         // 只清理翻译缓存，保留解析、查词和意群。新代 type 为 `translation_v2:$lang`，
         // 旧行天然不再命中，此处一并删除回收空间（双保险）。
         if (from < 46) {
-          await customStatement('''
-            DELETE FROM sentence_ai_cache
-            WHERE type LIKE 'translation:%'
-          ''');
+          if (await _tableExists('sentence_ai_cache')) {
+            await customStatement('''
+              DELETE FROM sentence_ai_cache
+              WHERE type LIKE 'translation:%'
+            ''');
+          }
         }
         // v14→v15：新增 saved_words 表（收藏单词）
         if (from < 15) {
@@ -897,17 +901,23 @@ class AppDatabase extends _$AppDatabase {
   /// 防御性补列：检查列是否存在，不存在则添加
   ///
   /// 解决开发阶段可能出现的迁移版本号已更新但列未实际添加的问题。
+  Future<bool> _tableExists(String table) async {
+    final tableExists = await customSelect(
+      "SELECT COUNT(*) AS cnt FROM sqlite_master WHERE type='table' AND name = '$table'",
+    ).getSingle();
+    return (tableExists.data['cnt'] as int) > 0;
+  }
+
+  /// 防御性补列：仅在目标表已存在且列缺失时执行 ALTER。
+  ///
+  /// 某些 legacy fixture 会直接从很早版本跳到当前版本；这些路径里中间表可能尚未
+  /// 创建。这里先判表存在，避免迁移过程误打到不存在的表。
   Future<void> _addColumnIfNotExists(
     String table,
     String column,
     String definition,
   ) async {
-    // 先校验表存在；不存在直接跳过（某些 legacy 迁移路径里 learning_progresses
-    // 可能在到达本步骤前还没创建，例如从 v28 fixture 直接升级到当前版本）。
-    final tableExists = await customSelect(
-      "SELECT COUNT(*) AS cnt FROM sqlite_master WHERE type='table' AND name = '$table'",
-    ).getSingle();
-    if ((tableExists.data['cnt'] as int) == 0) return;
+    if (!await _tableExists(table)) return;
 
     final result = await customSelect(
       "SELECT COUNT(*) AS cnt FROM pragma_table_info('$table') WHERE name = '$column'",

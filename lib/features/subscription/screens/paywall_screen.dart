@@ -51,6 +51,18 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
   bool _waitingForWeb = false;
 
   @override
+  void initState() {
+    super.initState();
+    // 页面首帧优先消费会话缓存，再让 SDK 在后台校验当前 offering/storefront。
+    Future.microtask(() {
+      if (!mounted) return;
+      unawaited(
+        ref.read(subscriptionPlansProvider.notifier).refresh(force: true),
+      );
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
 
@@ -258,9 +270,8 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
                 yearlyValue: plans[index].period == SubscriptionPeriod.yearly
                     ? yearlyValue
                     : null,
-                onTap: () => setState(
-                  () => _selectedPlanId = plans[index].planId,
-                ),
+                onTap: () =>
+                    setState(() => _selectedPlanId = plans[index].planId),
               ),
             ],
             const SizedBox(height: 14),

@@ -115,7 +115,9 @@ class LocalStoreKitPurchaseService implements PurchaseService {
   }
 
   @override
-  Future<List<SubscriptionPlan>> fetchPlans() async {
+  Future<List<SubscriptionPlan>> fetchPlans({
+    bool includeIntroEligibility = true,
+  }) async {
     final available = await _iap.isAvailable();
     if (!available) {
       AppLogger.log('Subscription', '本地 StoreKit 不可用（IAP isAvailable=false）');

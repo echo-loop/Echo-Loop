@@ -1,14 +1,18 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:isolate';
 
 import 'package:archive/archive.dart';
 import 'package:crypto/crypto.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart' show getTemporaryDirectory;
+import 'package:path_provider/path_provider.dart'
+    show getApplicationSupportDirectory;
 import '../../utils/app_data_dir.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../database/app_database.dart';
+import 'backup_constants.dart';
 import 'backup_manifest.dart';
 import 'backup_progress.dart';
 
@@ -89,11 +93,15 @@ class BackupService {
         }
       }
 
-      // Step 5: 生成 manifest
+      // Step 5: 复制可跨设备复用且体积可控的离线词典资源。
+      onProgress?.call(const BackupProgress(stage: 'exportingResources'));
+      final resources = await _copyOfflineResources(tempDir);
+
+      // Step 6: 生成 manifest
       final dbSha256 = await _computeFileSha256(dbDst.path);
       final totalSize = await _calculateDirSize(tempDir);
       final manifest = BackupManifest(
-        version: 1,
+        version: 2,
         appVersion: appVersion,
         schemaVersion: _database.schemaVersion,
         createdAt: DateTime.now().toUtc(),
@@ -101,11 +109,13 @@ class BackupService {
         dbSha256: dbSha256,
         mediaFileCount: copiedCount,
         totalSizeBytes: totalSize,
+        offlineResourceFileCount: resources.fileCount,
+        offlineResourceSizeBytes: resources.sizeBytes,
       );
       final manifestFile = File(p.join(tempDir.path, 'manifest.json'));
       await manifestFile.writeAsString(jsonEncode(manifest.toJson()));
 
-      // Step 6: 打包为 ZIP
+      // Step 7: 打包为 ZIP
       onProgress?.call(const BackupProgress(stage: 'exportingPacking'));
       final timestamp = DateTime.now()
           .toIso8601String()
@@ -113,29 +123,27 @@ class BackupService {
           .replaceAll('-', '')
           .split('.')
           .first;
-      final zipFileName = 'echoloop_backup_$timestamp.zip';
-      final zipPath = p.join(outputDir, zipFileName);
-      await _packZip(tempDir, zipPath);
+      final backupFileName = 'echoloop_backup_$timestamp.$backupFileExtension';
+      final backupPath = p.join(outputDir, backupFileName);
+      await _packZip(tempDir, backupPath);
 
-      return zipPath;
+      return backupPath;
     } finally {
-      // Step 7: 清理 temp
+      // Step 8: 清理 temp
       if (await tempDir.exists()) {
         await tempDir.delete(recursive: true);
       }
     }
   }
 
-  /// 读取 .zip 文件的 manifest 信息（导入前预览用）
-  Future<BackupManifest> readManifest(String zipPath) async {
-    final bytes = await File(zipPath).readAsBytes();
-    final archive = ZipDecoder().decodeBytes(bytes);
-    final manifestEntry = archive.findFile('manifest.json');
-    if (manifestEntry == null) {
-      throw const BackupException('Invalid backup: manifest.json not found');
-    }
-    final jsonStr = utf8.decode(manifestEntry.content as List<int>);
-    return BackupManifest.fromJson(jsonDecode(jsonStr) as Map<String, dynamic>);
+  /// 读取备份文件的 manifest 信息（导入前预览用）。
+  ///
+  /// 备份外层文件名为 `.elbak`，内部仍是 ZIP 容器，保持应用内压缩/解压能力。
+  Future<BackupManifest> readManifest(String backupPath) async {
+    final manifestJson = await Isolate.run(
+      () => _readManifestJsonSync(backupPath),
+    );
+    return BackupManifest.fromJson(manifestJson);
   }
 
   /// 从 .zip 文件导入全部数据。
@@ -152,23 +160,7 @@ class BackupService {
     try {
       // Step 1: 解压
       onProgress?.call(const BackupProgress(stage: 'importingExtracting'));
-      final bytes = await File(zipPath).readAsBytes();
-      final archive = ZipDecoder().decodeBytes(bytes);
-      for (final entry in archive) {
-        // ZIP slip 防护
-        final cleanName = entry.name;
-        if (cleanName.contains('..') || p.isAbsolute(cleanName)) {
-          throw BackupException('Invalid path in archive: $cleanName');
-        }
-        final outPath = p.join(tempDir.path, cleanName);
-        if (entry.isFile) {
-          final outFile = File(outPath);
-          await outFile.parent.create(recursive: true);
-          await outFile.writeAsBytes(entry.content as List<int>);
-        } else {
-          await Directory(outPath).create(recursive: true);
-        }
-      }
+      await Isolate.run(() => _extractZipSync(zipPath, tempDir.path));
 
       // Step 2: 验证 manifest
       final manifestFile = File(p.join(tempDir.path, 'manifest.json'));
@@ -178,7 +170,7 @@ class BackupService {
       final manifest = BackupManifest.fromJson(
         jsonDecode(await manifestFile.readAsString()) as Map<String, dynamic>,
       );
-      if (manifest.version != 1) {
+      if (manifest.version != 1 && manifest.version != 2) {
         throw BackupException(
           'Unsupported backup version: ${manifest.version}',
         );
@@ -212,6 +204,12 @@ class BackupService {
       final mediaDir = Directory(p.join(tempDir.path, 'media'));
       if (await mediaDir.exists()) {
         await _copyDirectory(mediaDir, docsDir);
+      }
+
+      // Step 5.5: v2 备份仅替换可安全迁移的离线词典，不覆盖本机模型文件。
+      if (manifest.version >= 2) {
+        onProgress?.call(const BackupProgress(stage: 'importingResources'));
+        await _restoreOfflineResources(tempDir);
       }
 
       // Step 6: 替换数据库文件（.bak 原子性保护）
@@ -285,6 +283,50 @@ class BackupService {
       }
     }
     return paths.toList();
+  }
+
+  /// 将可跨设备使用的离线词典复制到 ZIP 的 resources 目录。
+  ///
+  /// ASR/TTS 模型体积过大，且往往可在目标设备按需重新下载，因此不进入备份。
+  Future<({int fileCount, int sizeBytes})> _copyOfflineResources(
+    Directory tempDir,
+  ) async {
+    final appSupport = await getApplicationSupportDirectory();
+    final resourcesDir = Directory(p.join(tempDir.path, 'resources'));
+    var fileCount = 0;
+    var sizeBytes = 0;
+
+    for (final name in ['dictionary']) {
+      final source = Directory(p.join(appSupport.path, name));
+      if (!await source.exists()) continue;
+      await for (final entity in source.list(recursive: true)) {
+        if (entity is! File) continue;
+        final basename = p.basename(entity.path);
+        if (basename.startsWith('_dl_') || basename.endsWith('.tmp')) continue;
+        final relative = p.relative(entity.path, from: appSupport.path);
+        final target = File(p.join(resourcesDir.path, relative));
+        await target.parent.create(recursive: true);
+        await entity.copy(target.path);
+        fileCount++;
+        sizeBytes += await entity.length();
+      }
+    }
+    return (fileCount: fileCount, sizeBytes: sizeBytes);
+  }
+
+  /// 用备份中的离线词典替换本机对应目录。
+  ///
+  /// 模型文件不在备份范围内，因此恢复时也不能删除或覆盖本机已下载模型。
+  Future<void> _restoreOfflineResources(Directory tempDir) async {
+    final resourcesDir = Directory(p.join(tempDir.path, 'resources'));
+    if (!await resourcesDir.exists()) return;
+    final appSupport = await getApplicationSupportDirectory();
+    for (final name in ['dictionary']) {
+      final target = Directory(p.join(appSupport.path, name));
+      if (await target.exists()) await target.delete(recursive: true);
+      final source = Directory(p.join(resourcesDir.path, name));
+      if (await source.exists()) await _copyDirectory(source, target);
+    }
   }
 
   /// 导出 SharedPreferences（黑名单排除）
@@ -378,16 +420,52 @@ class BackupService {
 
   /// 将目录打包为 ZIP 文件
   Future<void> _packZip(Directory sourceDir, String zipPath) async {
-    final archive = Archive();
-    await for (final entity in sourceDir.list(recursive: true)) {
-      if (entity is File) {
-        final relPath = p.relative(entity.path, from: sourceDir.path);
-        final bytes = await entity.readAsBytes();
-        archive.addFile(ArchiveFile(relPath, bytes.length, bytes));
-      }
+    await Isolate.run(() => _packZipSync(sourceDir.path, zipPath));
+  }
+}
+
+/// 后台 isolate 读取备份 manifest，避免 ZIP 解码阻塞主线程动画。
+Map<String, dynamic> _readManifestJsonSync(String backupPath) {
+  final bytes = File(backupPath).readAsBytesSync();
+  final archive = ZipDecoder().decodeBytes(bytes);
+  final manifestEntry = archive.findFile('manifest.json');
+  if (manifestEntry == null) {
+    throw const BackupException('Invalid backup: manifest.json not found');
+  }
+  final jsonStr = utf8.decode((manifestEntry.content as List).cast<int>());
+  return jsonDecode(jsonStr) as Map<String, dynamic>;
+}
+
+/// 后台 isolate 将临时目录打包成 ZIP 容器，输出为 `.elbak` 备份文件。
+void _packZipSync(String sourceDirPath, String zipPath) {
+  final archive = Archive();
+  for (final entity in Directory(sourceDirPath).listSync(recursive: true)) {
+    if (entity is! File) continue;
+    final relPath = p.relative(entity.path, from: sourceDirPath);
+    final bytes = entity.readAsBytesSync();
+    archive.addFile(ArchiveFile(relPath, bytes.length, bytes));
+  }
+  final zipData = ZipEncoder().encode(archive);
+  File(zipPath).writeAsBytesSync(zipData);
+}
+
+/// 后台 isolate 解压 ZIP 容器到临时目录，避免主线程在大备份上卡顿。
+void _extractZipSync(String backupPath, String outputDirPath) {
+  final bytes = File(backupPath).readAsBytesSync();
+  final archive = ZipDecoder().decodeBytes(bytes);
+  for (final entry in archive) {
+    final cleanName = entry.name;
+    if (cleanName.contains('..') || p.isAbsolute(cleanName)) {
+      throw BackupException('Invalid path in archive: $cleanName');
     }
-    final zipData = ZipEncoder().encode(archive);
-    await File(zipPath).writeAsBytes(zipData);
+    final outPath = p.join(outputDirPath, cleanName);
+    if (entry.isFile) {
+      final outFile = File(outPath);
+      outFile.parent.createSync(recursive: true);
+      outFile.writeAsBytesSync((entry.content as List).cast<int>());
+    } else {
+      Directory(outPath).createSync(recursive: true);
+    }
   }
 }
 

@@ -35,6 +35,18 @@ class _SpyController extends SubscriptionController {
   Future<void> restore() async => restoreCalls++;
 }
 
+class _FixedPlansController extends SubscriptionPlansController {
+  _FixedPlansController(this._plans);
+
+  final List<SubscriptionPlan> _plans;
+
+  @override
+  AsyncValue<List<SubscriptionPlan>> build() => AsyncData(_plans);
+
+  @override
+  Future<void> refresh({bool force = false}) async {}
+}
+
 const _plans = [
   SubscriptionPlan(
     planId: 'monthly',
@@ -69,7 +81,9 @@ Widget _harness({
       subscriptionControllerProvider.overrideWith(
         controller ?? () => _FixedController(state),
       ),
-      subscriptionPlansProvider.overrideWith((ref) async => plans),
+      subscriptionPlansProvider.overrideWith(
+        () => _FixedPlansController(plans),
+      ),
       if (authenticated != null)
         isAuthenticatedProvider.overrideWithValue(authenticated),
     ],

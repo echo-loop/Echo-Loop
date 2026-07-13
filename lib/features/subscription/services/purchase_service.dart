@@ -26,7 +26,12 @@ class PurchaseException implements Exception {
 /// IAP 购买服务抽象。
 abstract class PurchaseService {
   /// 拉取可购买套餐（从平台 SDK 取本地化价格）。
-  Future<List<SubscriptionPlan>> fetchPlans();
+  ///
+  /// 关闭 [includeIntroEligibility] 时优先返回基础价格，避免 iOS 促销资格查询
+  /// 阻塞 paywall 首屏；购买行为始终由平台在成交时应用真实可用 offer。
+  Future<List<SubscriptionPlan>> fetchPlans({
+    bool includeIntroEligibility = true,
+  });
 
   /// 当前权益快照（来自平台 / RevenueCat 已校验的 CustomerInfo）。
   ///
@@ -85,7 +90,9 @@ class StubPurchaseService implements PurchaseService {
   const StubPurchaseService();
 
   @override
-  Future<List<SubscriptionPlan>> fetchPlans() async => const [];
+  Future<List<SubscriptionPlan>> fetchPlans({
+    bool includeIntroEligibility = true,
+  }) async => const [];
 
   @override
   Future<Entitlement> currentEntitlement() async => Entitlement.free;

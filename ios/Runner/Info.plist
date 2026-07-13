@@ -65,6 +65,26 @@
 	<array>
 		<dict>
 			<key>UTTypeIdentifier</key>
+			<string>top.echo-loop.backup</string>
+			<key>UTTypeDescription</key>
+			<string>Echo Loop Backup</string>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.zip-archive</string>
+				<string>public.data</string>
+			</array>
+			<key>UTTypeTagSpecification</key>
+			<dict>
+				<key>public.filename-extension</key>
+				<array>
+					<string>elbak</string>
+				</array>
+				<key>public.mime-type</key>
+				<string>application/zip</string>
+			</dict>
+		</dict>
+		<dict>
+			<key>UTTypeIdentifier</key>
 			<string>top.echo-loop.subrip-subtitle</string>
 			<key>UTTypeDescription</key>
 			<string>SubRip Subtitle</string>
@@ -106,6 +126,16 @@
 	</array>
 	<key>CFBundleDocumentTypes</key>
 	<array>
+		<dict>
+			<key>CFBundleTypeName</key>
+			<string>Echo Loop Backup</string>
+			<key>LSHandlerRank</key>
+			<string>Alternate</string>
+			<key>LSItemContentTypes</key>
+			<array>
+				<string>top.echo-loop.backup</string>
+			</array>
+		</dict>
 		<dict>
 			<key>CFBundleTypeName</key>
 			<string>SubRip Subtitle</string>

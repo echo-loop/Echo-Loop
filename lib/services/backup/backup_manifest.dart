@@ -26,6 +26,12 @@ class BackupManifest {
   /// 备份总大小（字节）
   final int totalSizeBytes;
 
+  /// 已备份的离线资源文件数量（ASR、TTS 模型与本地词典）。
+  final int offlineResourceFileCount;
+
+  /// 已备份的离线资源原始大小。
+  final int offlineResourceSizeBytes;
+
   const BackupManifest({
     required this.version,
     required this.appVersion,
@@ -35,6 +41,8 @@ class BackupManifest {
     required this.dbSha256,
     required this.mediaFileCount,
     required this.totalSizeBytes,
+    this.offlineResourceFileCount = 0,
+    this.offlineResourceSizeBytes = 0,
   });
 
   /// 从 JSON Map 反序列化
@@ -48,6 +56,8 @@ class BackupManifest {
       dbSha256: json['dbSha256'] as String,
       mediaFileCount: json['mediaFileCount'] as int,
       totalSizeBytes: json['totalSizeBytes'] as int,
+      offlineResourceFileCount: json['offlineResourceFileCount'] as int? ?? 0,
+      offlineResourceSizeBytes: json['offlineResourceSizeBytes'] as int? ?? 0,
     );
   }
 
@@ -62,6 +72,8 @@ class BackupManifest {
       'dbSha256': dbSha256,
       'mediaFileCount': mediaFileCount,
       'totalSizeBytes': totalSizeBytes,
+      'offlineResourceFileCount': offlineResourceFileCount,
+      'offlineResourceSizeBytes': offlineResourceSizeBytes,
     };
   }
 
