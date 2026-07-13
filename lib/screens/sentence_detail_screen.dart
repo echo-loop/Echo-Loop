@@ -319,6 +319,7 @@ class _SentenceDetailScreenState extends ConsumerState<SentenceDetailScreen> {
                       setState(() => _isPlaying = false);
                     }
                   },
+                  autoLoadSentenceAi: true,
                 ),
               ),
             ),

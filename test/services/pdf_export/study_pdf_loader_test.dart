@@ -210,7 +210,7 @@ void main() {
         'analysis_v2:zh-CN',
         jsonEncode({
           'grammar': [
-            {'point': '主系表结构', 'explanation': ''},
+            {'point': '主系表结构', 'note': ''},
           ],
           'vocabulary': [
             {'term': 'test', 'note': '测试'},

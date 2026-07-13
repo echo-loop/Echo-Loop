@@ -232,6 +232,9 @@ void main() {
     when(
       () => audioItemDao.getWordTimestamps(any()),
     ).thenAnswer((_) async => null);
+    when(
+      () => audioItemDao.getTranscriptSrt(any()),
+    ).thenAnswer((_) async => null);
 
     final router = GoRouter(
       initialLocation: startAtHome

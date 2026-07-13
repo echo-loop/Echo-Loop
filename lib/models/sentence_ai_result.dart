@@ -59,21 +59,16 @@ class GrammarPoint {
   final String point;
 
   /// 该结构在本句中如何运作的通俗说明
-  final String explanation;
+  final String note;
 
-  const GrammarPoint({required this.point, required this.explanation});
+  const GrammarPoint({required this.point, required this.note});
 
-  factory GrammarPoint.fromJson(Map<String, dynamic> json) => GrammarPoint(
-    point: _str(json['point']),
-    explanation: _str(json['explanation']),
-  );
+  factory GrammarPoint.fromJson(Map<String, dynamic> json) =>
+      GrammarPoint(point: _str(json['point']), note: _str(json['note']));
 
-  Map<String, dynamic> toJson() => {
-    'point': point,
-    'explanation': explanation,
-  };
+  Map<String, dynamic> toJson() => {'point': point, 'note': note};
 
-  bool get isEmpty => point.trim().isEmpty && explanation.trim().isEmpty;
+  bool get isEmpty => point.trim().isEmpty && note.trim().isEmpty;
 }
 
 /// 词汇要点：一条关键词/表达。
@@ -86,10 +81,8 @@ class VocabularyItem {
 
   const VocabularyItem({required this.term, required this.note});
 
-  factory VocabularyItem.fromJson(Map<String, dynamic> json) => VocabularyItem(
-    term: _str(json['term']),
-    note: _str(json['note']),
-  );
+  factory VocabularyItem.fromJson(Map<String, dynamic> json) =>
+      VocabularyItem(term: _str(json['term']), note: _str(json['note']));
 
   Map<String, dynamic> toJson() => {'term': term, 'note': note};
 
@@ -106,10 +99,8 @@ class ListeningPoint {
 
   const ListeningPoint({required this.phrase, required this.note});
 
-  factory ListeningPoint.fromJson(Map<String, dynamic> json) => ListeningPoint(
-    phrase: _str(json['phrase']),
-    note: _str(json['note']),
-  );
+  factory ListeningPoint.fromJson(Map<String, dynamic> json) =>
+      ListeningPoint(phrase: _str(json['phrase']), note: _str(json['note']));
 
   Map<String, dynamic> toJson() => {'phrase': phrase, 'note': note};
 
@@ -166,7 +157,7 @@ class SentenceAnalysis {
   /// PDF 文本投影：把结构化要点拍平成多行 `标签: 详解` 文本，供 PDF 导出复用
   /// 现有字符串渲染（PDF 侧不感知结构化）。
   String get grammarText =>
-      _joinPairs([for (final g in grammar) (g.point, g.explanation)]);
+      _joinPairs([for (final g in grammar) (g.point, g.note)]);
   String get vocabularyText =>
       _joinPairs([for (final v in vocabulary) (v.term, v.note)]);
   String get listeningText =>

@@ -22,8 +22,9 @@ void main() {
 
     test('fromJson 防御性：translation 非字符串回退空串', () {
       expect(
-        SentenceTranslation.fromJson(<String, dynamic>{'translation': 42})
-            .translation,
+        SentenceTranslation.fromJson(<String, dynamic>{
+          'translation': 42,
+        }).translation,
         '',
       );
     });
@@ -40,7 +41,7 @@ void main() {
     test('fromJson 正确解析顶层结构化数组', () {
       final json = {
         'grammar': [
-          {'point': '主谓宾', 'explanation': '核心结构'},
+          {'point': '主谓宾', 'note': '核心结构'},
         ],
         'vocabulary': [
           {'term': 'run', 'note': '经营'},
@@ -51,7 +52,7 @@ void main() {
       };
       final result = SentenceAnalysis.fromJson(json);
       expect(result.grammar.single.point, '主谓宾');
-      expect(result.grammar.single.explanation, '核心结构');
+      expect(result.grammar.single.note, '核心结构');
       expect(result.vocabulary.single.term, 'run');
       expect(result.listening.single.phrase, 'did you');
       expect(result.isNotEmpty, isTrue);
@@ -65,21 +66,21 @@ void main() {
       expect(result.isEmpty, isTrue);
     });
 
-    test('fromJson 防御性：半成品快照（缺 explanation / null 元素）不抛', () {
+    test('fromJson 防御性：半成品快照（缺 note / null 元素）不抛', () {
       final json = {
         'grammar': [
-          {'point': '主谓宾'}, // explanation 尚未到达
+          {'point': '主谓宾'}, // note 尚未到达
           null, // 流式 null 占位
         ],
       };
       final result = SentenceAnalysis.fromJson(json);
       expect(result.grammar.single.point, '主谓宾');
-      expect(result.grammar.single.explanation, '');
+      expect(result.grammar.single.note, '');
     });
 
     test('toJson 与 fromJson 对称（L2 缓存往返）', () {
       const original = SentenceAnalysis(
-        grammar: [GrammarPoint(point: 'p', explanation: 'e')],
+        grammar: [GrammarPoint(point: 'p', note: 'e')],
         vocabulary: [VocabularyItem(term: 't', note: 'n')],
         listening: [ListeningPoint(phrase: 'ph', note: 'no')],
       );
@@ -91,7 +92,7 @@ void main() {
 
     test('isEmpty：全空要点视为空', () {
       const empty = SentenceAnalysis(
-        grammar: [GrammarPoint(point: '', explanation: '')],
+        grammar: [GrammarPoint(point: '', note: '')],
       );
       expect(empty.isEmpty, isTrue);
     });
@@ -99,8 +100,8 @@ void main() {
     test('文本投影 grammarText/vocabularyText/listeningText', () {
       const analysis = SentenceAnalysis(
         grammar: [
-          GrammarPoint(point: '主谓宾', explanation: '核心结构'),
-          GrammarPoint(point: '定语从句', explanation: '修饰名词'),
+          GrammarPoint(point: '主谓宾', note: '核心结构'),
+          GrammarPoint(point: '定语从句', note: '修饰名词'),
         ],
         vocabulary: [VocabularyItem(term: 'run', note: '经营')],
         listening: [ListeningPoint(phrase: '', note: '仅详解')],

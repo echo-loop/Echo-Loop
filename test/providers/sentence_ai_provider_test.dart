@@ -18,7 +18,7 @@ class MockApiClient extends Mock implements SentenceAiApiClient {}
 
 /// 结构化解析样例
 const _analysisSample = SentenceAnalysis(
-  grammar: [GrammarPoint(point: 'g', explanation: 'ge')],
+  grammar: [GrammarPoint(point: 'g', note: 'ge')],
   vocabulary: [VocabularyItem(term: 'v', note: 'vn')],
   listening: [ListeningPoint(phrase: 'l', note: 'ln')],
 );
@@ -95,9 +95,7 @@ void main() {
           DioException(
             requestOptions: RequestOptions(path: '/api/v1/stream/translate'),
             response: Response(
-              requestOptions: RequestOptions(
-                path: '/api/v1/stream/translate',
-              ),
+              requestOptions: RequestOptions(path: '/api/v1/stream/translate'),
               statusCode: 402,
             ),
           ),
@@ -116,6 +114,47 @@ void main() {
       );
     });
 
+    test('后端 quota_exceeded 响应携带 resetAt 时透传到异常', () async {
+      final resetAt = DateTime.utc(2026, 8);
+      when(
+        () => mockDao.getByHash(any(), l2TranslationType),
+      ).thenAnswer((_) async => null);
+      stubTranslateStream(
+        text,
+        () => _errorTranslation(
+          DioException(
+            requestOptions: RequestOptions(path: '/api/v1/stream/translate'),
+            response: Response(
+              requestOptions: RequestOptions(path: '/api/v1/stream/translate'),
+              statusCode: 402,
+              data: {
+                'error': 'Monthly free quota exceeded',
+                'code': 'quota_exceeded',
+                'quota': {'resetAt': resetAt.toIso8601String()},
+              },
+            ),
+          ),
+        ),
+      );
+
+      await expectLater(
+        notifier
+            .getTranslationStream(
+              text,
+              targetLanguage: lang,
+              accessToken: 'token',
+            )
+            .toList(),
+        throwsA(
+          isA<AiFeatureQuotaExceededException>().having(
+            (e) => e.resetAt,
+            'resetAt',
+            resetAt,
+          ),
+        ),
+      );
+    });
+
     test('非 402 的 Dio 错误原样抛出（不误判为额度超限）', () async {
       when(
         () => mockDao.getByHash(any(), l2TranslationType),
@@ -126,9 +165,7 @@ void main() {
           DioException(
             requestOptions: RequestOptions(path: '/api/v1/stream/translate'),
             response: Response(
-              requestOptions: RequestOptions(
-                path: '/api/v1/stream/translate',
-              ),
+              requestOptions: RequestOptions(path: '/api/v1/stream/translate'),
               statusCode: 500,
             ),
           ),
@@ -153,7 +190,11 @@ void main() {
       ).thenAnswer((_) async => '{"translation":"你好世界"}');
 
       final frames = await notifier
-          .getTranslationStream(text, targetLanguage: lang, accessToken: 'token')
+          .getTranslationStream(
+            text,
+            targetLanguage: lang,
+            accessToken: 'token',
+          )
           .toList();
       expect(frames.single.translation, '你好世界');
 
@@ -180,7 +221,11 @@ void main() {
       ).thenAnswer((_) async {});
 
       final result = await notifier
-          .getTranslationStream(text, targetLanguage: lang, accessToken: 'token')
+          .getTranslationStream(
+            text,
+            targetLanguage: lang,
+            accessToken: 'token',
+          )
           .last;
       expect(result.translation, '你好世界');
 
@@ -227,7 +272,11 @@ void main() {
       );
 
       await notifier
-          .getTranslationStream(text, targetLanguage: lang, accessToken: 'token')
+          .getTranslationStream(
+            text,
+            targetLanguage: lang,
+            accessToken: 'token',
+          )
           .toList();
 
       verifyNever(() => mockDao.upsert(any(), l2TranslationType, any()));
@@ -245,10 +294,18 @@ void main() {
       ).thenAnswer((_) async {});
 
       final f1 = notifier
-          .getTranslationStream(text, targetLanguage: lang, accessToken: 'token')
+          .getTranslationStream(
+            text,
+            targetLanguage: lang,
+            accessToken: 'token',
+          )
           .toList();
       final f2 = notifier
-          .getTranslationStream(text, targetLanguage: lang, accessToken: 'token')
+          .getTranslationStream(
+            text,
+            targetLanguage: lang,
+            accessToken: 'token',
+          )
           .toList();
       await Future<void>.delayed(Duration.zero);
 
@@ -323,7 +380,7 @@ void main() {
     test('L2 SQLite 缓存命中，一次性 yield 结构化结果', () async {
       when(() => mockDao.getByHash(any(), l2AnalysisType)).thenAnswer(
         (_) async =>
-            '{"grammar":[{"point":"现在完成进行时","explanation":"表持续"}],"vocabulary":[],"listening":[]}',
+            '{"grammar":[{"point":"现在完成进行时","note":"表持续"}],"vocabulary":[],"listening":[]}',
       );
 
       final frames = await notifier
@@ -364,6 +421,43 @@ void main() {
       expect(result.grammar.single.point, 'g');
 
       verify(() => mockDao.upsert(any(), l2AnalysisType, any())).called(1);
+    });
+
+    test('final 解析为空时不写缓存、不计试用，后续允许重试', () async {
+      final consumed = <PremiumFeature>[];
+      final gated = SentenceAiNotifier(
+        cacheDao: mockDao,
+        apiClient: mockApi,
+        onConsumeTrial: consumed.add,
+      );
+      when(
+        () => mockDao.getByHash(any(), l2AnalysisType),
+      ).thenAnswer((_) async => null);
+      var calls = 0;
+      when(
+        () => mockApi.analyzeStream(
+          text,
+          targetLanguage: lang,
+          accessToken: 'token',
+          cancelToken: any(named: 'cancelToken'),
+        ),
+      ).thenAnswer((_) {
+        calls++;
+        return _finalFrame(const SentenceAnalysis());
+      });
+
+      final first = await gated
+          .getAnalysisStream(text, targetLanguage: lang, accessToken: 'token')
+          .toList();
+      final second = await gated
+          .getAnalysisStream(text, targetLanguage: lang, accessToken: 'token')
+          .toList();
+
+      expect(first.single.isEmpty, isTrue);
+      expect(second.single.isEmpty, isTrue);
+      expect(calls, 2);
+      expect(consumed, isEmpty);
+      verifyNever(() => mockDao.upsert(any(), l2AnalysisType, any()));
     });
 
     test('L2 未命中且无 accessToken 时抛出登录需求，不调用 API', () async {
@@ -832,10 +926,119 @@ void main() {
       ).thenAnswer((_) async {});
 
       await gated
-          .getTranslationStream(text, targetLanguage: lang, accessToken: 'token')
+          .getTranslationStream(
+            text,
+            targetLanguage: lang,
+            accessToken: 'token',
+          )
           .last;
 
       expect(consumed, [PremiumFeature.aiTranslation]);
+    });
+
+    test('自动加载尊重本地 reset，提前抛 QuotaExceeded 且不调用 API', () async {
+      final gated = SentenceAiNotifier(
+        cacheDao: mockDao,
+        apiClient: mockApi,
+        beforeApiRequest: (feature, {required respectLocalQuotaReset}) async {
+          expect(feature, PremiumFeature.aiTranslation);
+          if (respectLocalQuotaReset) {
+            throw AiFeatureQuotaExceededException(feature: feature);
+          }
+        },
+      );
+      when(
+        () => mockDao.getByHash(any(), l2TranslationType),
+      ).thenAnswer((_) async => null);
+
+      await expectLater(
+        gated
+            .getTranslationStream(
+              text,
+              targetLanguage: lang,
+              accessToken: 'token',
+              respectLocalQuotaReset: true,
+            )
+            .toList(),
+        throwsA(isA<AiFeatureQuotaExceededException>()),
+      );
+
+      verifyNever(
+        () => mockApi.translateStream(
+          any(),
+          previousText: any(named: 'previousText'),
+          nextText: any(named: 'nextText'),
+          targetLanguage: any(named: 'targetLanguage'),
+          accessToken: any(named: 'accessToken'),
+          cancelToken: any(named: 'cancelToken'),
+        ),
+      );
+    });
+
+    test('用户主动请求不受本地 reset 阻断，仍发起 API', () async {
+      final gated = SentenceAiNotifier(
+        cacheDao: mockDao,
+        apiClient: mockApi,
+        beforeApiRequest: (feature, {required respectLocalQuotaReset}) async {
+          expect(feature, PremiumFeature.aiTranslation);
+          expect(respectLocalQuotaReset, isFalse);
+        },
+      );
+      when(
+        () => mockDao.getByHash(any(), l2TranslationType),
+      ).thenAnswer((_) async => null);
+      stubTranslateStream(text, () => _finalTranslation('你好世界'));
+      when(
+        () => mockDao.upsert(any(), l2TranslationType, any()),
+      ).thenAnswer((_) async {});
+
+      final result = await gated
+          .getTranslationStream(
+            text,
+            targetLanguage: lang,
+            accessToken: 'token',
+          )
+          .last;
+
+      expect(result.translation, '你好世界');
+      verify(
+        () => mockApi.translateStream(
+          text,
+          previousText: any(named: 'previousText'),
+          nextText: any(named: 'nextText'),
+          targetLanguage: lang,
+          accessToken: 'token',
+          cancelToken: any(named: 'cancelToken'),
+        ),
+      ).called(1);
+    });
+
+    test('L3 成功后清除该功能 reset 时间', () async {
+      final cleared = <PremiumFeature>[];
+      final gated = SentenceAiNotifier(
+        cacheDao: mockDao,
+        apiClient: mockApi,
+        onApiSucceeded: (feature) async {
+          cleared.add(feature);
+        },
+      );
+      when(
+        () => mockDao.getByHash(any(), l2TranslationType),
+      ).thenAnswer((_) async => null);
+      stubTranslateStream(text, () => _finalTranslation('你好世界'));
+      when(
+        () => mockDao.upsert(any(), l2TranslationType, any()),
+      ).thenAnswer((_) async {});
+
+      await gated
+          .getTranslationStream(
+            text,
+            targetLanguage: lang,
+            accessToken: 'token',
+          )
+          .last;
+
+      expect(cleared, [PremiumFeature.aiTranslation]);
     });
 
     test('缓存命中不经过额度闸（不抛、不消耗）', () async {
@@ -851,7 +1054,11 @@ void main() {
       ).thenAnswer((_) async => '{"translation":"你好世界"}');
 
       final result = await gated
-          .getTranslationStream(text, targetLanguage: lang, accessToken: 'token')
+          .getTranslationStream(
+            text,
+            targetLanguage: lang,
+            accessToken: 'token',
+          )
           .last;
       expect(result.translation, '你好世界');
       expect(consumed, isEmpty);

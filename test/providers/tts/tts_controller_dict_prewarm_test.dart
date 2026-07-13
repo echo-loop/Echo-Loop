@@ -112,6 +112,19 @@ void main() {
 
   late Directory tmpDir;
 
+  Future<void> waitUntil(
+    bool Function() condition, {
+    Duration timeout = const Duration(seconds: 1),
+  }) async {
+    final deadline = DateTime.now().add(timeout);
+    while (!condition()) {
+      if (DateTime.now().isAfter(deadline)) {
+        fail('waitUntil timeout');
+      }
+      await pumpEventQueue();
+    }
+  }
+
   setUp(() {
     SharedPreferences.setMockInitialValues({});
     engine = _RecordingEngine();
@@ -164,7 +177,7 @@ void main() {
       // 拦住第一条合成，制造「批次在途」窗口。
       engine.gate('a');
       final batch = notifier.prewarmTexts(['a', 'b', 'c']);
-      await pumpEventQueue();
+      await waitUntil(() => engine.synthTexts.isNotEmpty);
       expect(engine.synthTexts, ['a'], reason: '第一条已进入合成、阻塞在闸门');
 
       // 取消（bump token），放行第一条 → 下一轮迭代发现 token 失效即停止。
@@ -257,7 +270,7 @@ void main() {
 
       engine.gate('a');
       final batch = notifier.prewarmTextsIncremental(['a', 'b', 'c']);
-      await pumpEventQueue();
+      await waitUntil(() => engine.synthTexts.isNotEmpty);
       expect(engine.synthTexts, ['a'], reason: '第一条已进入合成、阻塞在闸门');
 
       notifier.cancelTextsPrewarm();

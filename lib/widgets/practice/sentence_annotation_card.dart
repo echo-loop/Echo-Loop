@@ -23,6 +23,9 @@ import '../guide_flow.dart';
 import 'selectable_sentence_text.dart';
 import 'sense_group_text.dart';
 
+/// 句子 AI 请求来源。
+enum SentenceAiRequestSource { automatic, userTap }
+
 /// 内容加载状态
 enum ContentLoadState { idle, loading, loaded, error }
 
@@ -43,10 +46,17 @@ class SentenceAnnotationCard extends StatefulWidget {
   final String text;
 
   /// 请求翻译回调（返回译文的字段级增量流，逐帧渐显；与 [onRequestAnalysis] 同构）
-  final Stream<String> Function(CancelToken cancelToken)? onRequestTranslation;
+  final Stream<String> Function(
+    CancelToken cancelToken,
+    SentenceAiRequestSource source,
+  )?
+  onRequestTranslation;
 
   /// 请求解析回调（返回结构化解析的字段级增量流，逐帧渐显）
-  final Stream<SentenceAnalysis> Function(CancelToken cancelToken)?
+  final Stream<SentenceAnalysis> Function(
+    CancelToken cancelToken,
+    SentenceAiRequestSource source,
+  )?
   onRequestAnalysis;
 
   /// 已缓存的翻译文本
@@ -54,6 +64,18 @@ class SentenceAnnotationCard extends StatefulWidget {
 
   /// 已缓存的结构化解析（命中时自动展开）
   final SentenceAnalysis? cachedAnalysis;
+
+  /// 是否在首帧后自动加载翻译。
+  final bool autoLoadTranslation;
+
+  /// 是否在首帧后自动加载解析。
+  final bool autoLoadAnalysis;
+
+  /// 用户手动点击翻译按钮时触发。
+  final VoidCallback? onTranslationUserIntent;
+
+  /// 用户手动点击解析按钮时触发。
+  final VoidCallback? onAnalysisUserIntent;
 
   /// 来源音频 ID（用于词典弹窗收藏单词时记录来源）
   final String? audioItemId;
@@ -144,6 +166,10 @@ class SentenceAnnotationCard extends StatefulWidget {
     this.onRequestAnalysis,
     this.cachedTranslation,
     this.cachedAnalysis,
+    this.autoLoadTranslation = false,
+    this.autoLoadAnalysis = false,
+    this.onTranslationUserIntent,
+    this.onAnalysisUserIntent,
     this.audioItemId,
     this.sentenceIndex,
     this.sentenceStartMs,
@@ -227,6 +253,10 @@ class SentenceAnnotationCardState extends State<SentenceAnnotationCard> {
         if (mounted) _notifyToolbar();
       });
     }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _triggerInitialAutoLoads();
+    });
   }
 
   @override
@@ -289,6 +319,14 @@ class SentenceAnnotationCardState extends State<SentenceAnnotationCard> {
         if (mounted) _notifyToolbar();
       });
     }
+    if (widget.text != oldWidget.text ||
+        widget.autoLoadTranslation != oldWidget.autoLoadTranslation ||
+        widget.autoLoadAnalysis != oldWidget.autoLoadAnalysis) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        _triggerInitialAutoLoads();
+      });
+    }
   }
 
   // -- 按钮点击处理 --
@@ -296,6 +334,37 @@ class SentenceAnnotationCardState extends State<SentenceAnnotationCard> {
   /// 通知外部工具栏状态已变化
   void _notifyToolbar() {
     widget.onToolbarStateChanged?.call();
+  }
+
+  /// 首帧后自动加载翻译/解析。
+  void _triggerInitialAutoLoads() {
+    if (widget.autoLoadTranslation) {
+      AppLogger.log(
+        'SentenceAnnotation',
+        '自动加载翻译: start text="${widget.text}"',
+      );
+      unawaited(
+        _runAutoLoad('translation', () => _requestTranslation(automatic: true)),
+      );
+    }
+    if (widget.autoLoadAnalysis) {
+      AppLogger.log(
+        'SentenceAnnotation',
+        '自动加载解析: start text="${widget.text}"',
+      );
+      unawaited(
+        _runAutoLoad('analysis', () => _requestAnalysis(automatic: true)),
+      );
+    }
+  }
+
+  Future<void> _runAutoLoad(String type, Future<void> Function() action) async {
+    try {
+      await action();
+      AppLogger.log('SentenceAnnotation', '自动加载$type: done');
+    } catch (error) {
+      AppLogger.log('SentenceAnnotation', '自动加载$type: blocked/failed $error');
+    }
   }
 
   /// 获取当前模式下应显示的意群列表（off 时返回 null）
@@ -386,7 +455,27 @@ class SentenceAnnotationCardState extends State<SentenceAnnotationCard> {
   /// 与流式解析一致）。返回的 Future 在流结束（完成/出错）时 settle，供按钮收起
   /// loading。auth/quota 异常向上抛出交由 glue 弹登录/订阅。
   Future<void> _onTapTranslation() async {
-    widget.onToolbarButtonTapped?.call();
+    widget.onTranslationUserIntent?.call();
+    await _requestTranslation(automatic: false);
+  }
+
+  /// 加载翻译。自动触发与用户点击共用该逻辑；自动触发不折叠已有内容。
+  Future<void> _requestTranslation({required bool automatic}) async {
+    final source = automatic ? 'auto' : 'user';
+    if (_translationState == ContentLoadState.loading) {
+      AppLogger.log(
+        'SentenceAnnotation',
+        '翻译请求跳过: source=$source reason=loading',
+      );
+      return;
+    }
+    if (automatic && _translationContent != null) {
+      AppLogger.log('SentenceAnnotation', '翻译自动加载跳过: reason=hasContent');
+      return;
+    }
+    if (!automatic) {
+      widget.onToolbarButtonTapped?.call();
+    }
     if (!_translationActivated) {
       _translationActivated = true;
     }
@@ -398,8 +487,15 @@ class SentenceAnnotationCardState extends State<SentenceAnnotationCard> {
       _notifyToolbar();
       return;
     }
-    if (widget.onRequestTranslation == null) return;
+    if (widget.onRequestTranslation == null) {
+      AppLogger.log(
+        'SentenceAnnotation',
+        '翻译请求跳过: source=$source reason=noCallback',
+      );
+      return;
+    }
 
+    AppLogger.log('SentenceAnnotation', '翻译请求进入 loading: source=$source');
     setState(() {
       _translationExpanded = true;
       _translationState = ContentLoadState.loading;
@@ -411,37 +507,58 @@ class SentenceAnnotationCardState extends State<SentenceAnnotationCard> {
     _translationCancelToken?.cancel('translation stream replaced');
     final cancelToken = CancelToken();
     _translationCancelToken = cancelToken;
-    _translationSub = widget.onRequestTranslation!(cancelToken).listen(
-      (translation) {
-        if (!mounted) return;
-        // 首帧起把 shimmer 换成内容，后续帧持续覆盖（渐显）。空快照仍留在 loading。
-        if (translation.isEmpty) return;
-        setState(() {
-          _translationContent = translation;
-          _translationState = ContentLoadState.loaded;
-        });
-        _notifyToolbar();
-      },
-      onError: (Object error) {
-        _translationSub = null;
-        _translationCancelToken = null;
-        if (!completer.isCompleted) completer.completeError(error);
-      },
-      onDone: () {
-        _translationSub = null;
-        _translationCancelToken = null;
-        if (!completer.isCompleted) completer.complete();
-      },
-      cancelOnError: true,
-    );
+    _translationSub = widget
+        .onRequestTranslation!(
+          cancelToken,
+          automatic
+              ? SentenceAiRequestSource.automatic
+              : SentenceAiRequestSource.userTap,
+        )
+        .listen(
+          (translation) {
+            if (!mounted) return;
+            // 首帧起把 shimmer 换成内容，后续帧持续覆盖（渐显）。空快照仍留在 loading。
+            if (translation.isEmpty) return;
+            AppLogger.log(
+              'SentenceAnnotation',
+              '翻译请求收到内容: source=$source length=${translation.length}',
+            );
+            setState(() {
+              _translationContent = translation;
+              _translationState = ContentLoadState.loaded;
+            });
+            _notifyToolbar();
+          },
+          onError: (Object error) {
+            _translationSub = null;
+            _translationCancelToken = null;
+            if (!completer.isCompleted) completer.completeError(error);
+          },
+          onDone: () {
+            _translationSub = null;
+            _translationCancelToken = null;
+            if (!completer.isCompleted) completer.complete();
+          },
+          cancelOnError: true,
+        );
 
     try {
       await completer.future;
+      if (mounted &&
+          _translationState == ContentLoadState.loading &&
+          _translationContent == null) {
+        _resetTranslationAfterEmptyRequest(source);
+      }
     } catch (error) {
       if (error is AiFeatureAuthRequiredException ||
           error is AiFeatureQuotaExceededException) {
         _resetTranslationAfterBlockedRequest();
-        rethrow;
+        AppLogger.log(
+          'SentenceAnnotation',
+          '翻译请求被阻断: source=$source error=$error',
+        );
+        if (!automatic) rethrow;
+        return;
       }
       if (mounted) {
         setState(() {
@@ -450,13 +567,31 @@ class SentenceAnnotationCardState extends State<SentenceAnnotationCard> {
           _translationContent = null;
         });
         _notifyToolbar();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(AppLocalizations.of(context)!.aiTranslationFailed),
-          ),
+        AppLogger.log(
+          'SentenceAnnotation',
+          '翻译请求失败: source=$source error=$error',
         );
+        if (!automatic) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(AppLocalizations.of(context)!.aiTranslationFailed),
+            ),
+          );
+        }
       }
     }
+  }
+
+  /// 流正常结束但没有任何可展示译文时，退出 loading 并允许后续重试。
+  void _resetTranslationAfterEmptyRequest(String source) {
+    setState(() {
+      _translationExpanded = false;
+      _translationState = ContentLoadState.idle;
+      _translationContent = null;
+      _translationActivated = false;
+    });
+    _notifyToolbar();
+    AppLogger.log('SentenceAnnotation', '翻译请求无内容结束: source=$source');
   }
 
   /// 登录或额度门槛阻断请求时，恢复翻译区域到可重新点击的初始状态。
@@ -477,7 +612,27 @@ class SentenceAnnotationCardState extends State<SentenceAnnotationCard> {
   /// 渐显（与流式查词一致）。返回的 Future 在流结束（完成/出错）时 settle，供按钮
   /// 收起 loading。auth/quota 异常向上抛出交由 glue 弹登录/订阅。
   Future<void> _onTapAnalysis() async {
-    widget.onToolbarButtonTapped?.call();
+    widget.onAnalysisUserIntent?.call();
+    await _requestAnalysis(automatic: false);
+  }
+
+  /// 加载解析。自动触发与用户点击共用该逻辑；自动触发不折叠已有内容。
+  Future<void> _requestAnalysis({required bool automatic}) async {
+    final source = automatic ? 'auto' : 'user';
+    if (_analysisState == ContentLoadState.loading) {
+      AppLogger.log(
+        'SentenceAnnotation',
+        '解析请求跳过: source=$source reason=loading',
+      );
+      return;
+    }
+    if (automatic && _analysisContent != null) {
+      AppLogger.log('SentenceAnnotation', '解析自动加载跳过: reason=hasContent');
+      return;
+    }
+    if (!automatic) {
+      widget.onToolbarButtonTapped?.call();
+    }
     if (!_analysisActivated) {
       _analysisActivated = true;
     }
@@ -489,8 +644,15 @@ class SentenceAnnotationCardState extends State<SentenceAnnotationCard> {
       _notifyToolbar();
       return;
     }
-    if (widget.onRequestAnalysis == null) return;
+    if (widget.onRequestAnalysis == null) {
+      AppLogger.log(
+        'SentenceAnnotation',
+        '解析请求跳过: source=$source reason=noCallback',
+      );
+      return;
+    }
 
+    AppLogger.log('SentenceAnnotation', '解析请求进入 loading: source=$source');
     setState(() {
       _analysisExpanded = true;
       _analysisState = ContentLoadState.loading;
@@ -502,37 +664,55 @@ class SentenceAnnotationCardState extends State<SentenceAnnotationCard> {
     _analysisCancelToken?.cancel('analysis stream replaced');
     final cancelToken = CancelToken();
     _analysisCancelToken = cancelToken;
-    _analysisSub = widget.onRequestAnalysis!(cancelToken).listen(
-      (analysis) {
-        if (!mounted) return;
-        // 首帧起把 shimmer 换成内容，后续帧持续覆盖（渐显）。空快照仍留在 loading。
-        if (analysis.isEmpty) return;
-        setState(() {
-          _analysisContent = analysis;
-          _analysisState = ContentLoadState.loaded;
-        });
-        _notifyToolbar();
-      },
-      onError: (Object error) {
-        _analysisSub = null;
-        _analysisCancelToken = null;
-        if (!completer.isCompleted) completer.completeError(error);
-      },
-      onDone: () {
-        _analysisSub = null;
-        _analysisCancelToken = null;
-        if (!completer.isCompleted) completer.complete();
-      },
-      cancelOnError: true,
-    );
+    _analysisSub = widget
+        .onRequestAnalysis!(
+          cancelToken,
+          automatic
+              ? SentenceAiRequestSource.automatic
+              : SentenceAiRequestSource.userTap,
+        )
+        .listen(
+          (analysis) {
+            if (!mounted) return;
+            // 首帧起把 shimmer 换成内容，后续帧持续覆盖（渐显）。空快照仍留在 loading。
+            if (analysis.isEmpty) return;
+            AppLogger.log('SentenceAnnotation', '解析请求收到内容: source=$source');
+            setState(() {
+              _analysisContent = analysis;
+              _analysisState = ContentLoadState.loaded;
+            });
+            _notifyToolbar();
+          },
+          onError: (Object error) {
+            _analysisSub = null;
+            _analysisCancelToken = null;
+            if (!completer.isCompleted) completer.completeError(error);
+          },
+          onDone: () {
+            _analysisSub = null;
+            _analysisCancelToken = null;
+            if (!completer.isCompleted) completer.complete();
+          },
+          cancelOnError: true,
+        );
 
     try {
       await completer.future;
+      if (mounted &&
+          _analysisState == ContentLoadState.loading &&
+          _analysisContent == null) {
+        _resetAnalysisAfterEmptyRequest(source);
+      }
     } catch (error) {
       if (error is AiFeatureAuthRequiredException ||
           error is AiFeatureQuotaExceededException) {
         _resetAnalysisAfterBlockedRequest();
-        rethrow;
+        AppLogger.log(
+          'SentenceAnnotation',
+          '解析请求被阻断: source=$source error=$error',
+        );
+        if (!automatic) rethrow;
+        return;
       }
       if (mounted) {
         setState(() {
@@ -541,13 +721,31 @@ class SentenceAnnotationCardState extends State<SentenceAnnotationCard> {
           _analysisContent = null;
         });
         _notifyToolbar();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(AppLocalizations.of(context)!.aiAnalysisFailed),
-          ),
+        AppLogger.log(
+          'SentenceAnnotation',
+          '解析请求失败: source=$source error=$error',
         );
+        if (!automatic) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(AppLocalizations.of(context)!.aiAnalysisFailed),
+            ),
+          );
+        }
       }
     }
+  }
+
+  /// 流正常结束但没有任何可展示解析时，退出 loading 并允许后续重试。
+  void _resetAnalysisAfterEmptyRequest(String source) {
+    setState(() {
+      _analysisExpanded = false;
+      _analysisState = ContentLoadState.idle;
+      _analysisContent = null;
+      _analysisActivated = false;
+    });
+    _notifyToolbar();
+    AppLogger.log('SentenceAnnotation', '解析请求无内容结束: source=$source');
   }
 
   /// 登录或额度门槛阻断请求时，恢复解析区域到可重新点击的初始状态。
@@ -612,6 +810,7 @@ class SentenceAnnotationCardState extends State<SentenceAnnotationCard> {
       iconColor: Colors.purple.shade400,
       isActive: _analysisExpanded && _analysisState != ContentLoadState.idle,
       isDisabled: !_hasAnalysis,
+      isLoading: _analysisState == ContentLoadState.loading,
       onPressed: _onTapAnalysis,
     );
     final translationBtn = AsyncToggleButton(
@@ -622,6 +821,7 @@ class SentenceAnnotationCardState extends State<SentenceAnnotationCard> {
       isActive:
           _translationExpanded && _translationState != ContentLoadState.idle,
       isDisabled: !_hasTranslation,
+      isLoading: _translationState == ContentLoadState.loading,
       onPressed: _onTapTranslation,
     );
     final senseGroupBtn = AsyncToggleButton(
@@ -748,15 +948,8 @@ class SentenceAnnotationCardState extends State<SentenceAnnotationCard> {
     switch (_translationState) {
       case ContentLoadState.loading:
         content = Padding(
-          padding: const EdgeInsets.only(top: AppSpacing.xs),
-          child: SizedBox(
-            width: 14,
-            height: 14,
-            child: CircularProgressIndicator(
-              strokeWidth: 2,
-              color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
-            ),
-          ),
+          padding: const EdgeInsets.only(top: AppSpacing.s),
+          child: _buildLoadingPanel(theme),
         );
       case ContentLoadState.loaded:
         content = Padding(
@@ -776,6 +969,14 @@ class SentenceAnnotationCardState extends State<SentenceAnnotationCard> {
     }
 
     return content;
+  }
+
+  /// 构建 AI 内容加载骨架，翻译和解析使用同一套 shimmer 反馈机制。
+  Widget _buildLoadingPanel(ThemeData theme) {
+    return _buildContentPanelContainer(
+      theme,
+      const ShimmerPlaceholder(singleLine: true),
+    );
   }
 
   /// 构建解析内容展示区
@@ -808,7 +1009,20 @@ class SentenceAnnotationCardState extends State<SentenceAnnotationCard> {
     required ContentLoadState state,
     required SentenceAnalysis? content,
   }) {
-    // 纯黑深色主题下：半透明底色会显朦胧且边界不清，改用不透明实底 + 细描边。
+    final child = switch (state) {
+      ContentLoadState.loading => const ShimmerPlaceholder(),
+      ContentLoadState.loaded when content != null => _AnalysisContent(
+        analysis: content,
+      ),
+      ContentLoadState.loaded => const SizedBox.shrink(),
+      ContentLoadState.error => const SizedBox.shrink(),
+      ContentLoadState.idle => const SizedBox.shrink(),
+    };
+    return _buildContentPanelContainer(theme, child);
+  }
+
+  /// 构建 AI 内容面板容器；纯黑深色主题下使用不透明实底 + 细描边。
+  Widget _buildContentPanelContainer(ThemeData theme, Widget child) {
     final isDark = theme.brightness == Brightness.dark;
     return Container(
       width: double.infinity,
@@ -822,15 +1036,7 @@ class SentenceAnnotationCardState extends State<SentenceAnnotationCard> {
             ? Border.all(color: theme.colorScheme.outlineVariant, width: 1)
             : null,
       ),
-      child: switch (state) {
-        ContentLoadState.loading => const ShimmerPlaceholder(),
-        ContentLoadState.loaded when content != null => _AnalysisContent(
-          analysis: content,
-        ),
-        ContentLoadState.loaded => const SizedBox.shrink(),
-        ContentLoadState.error => const SizedBox.shrink(),
-        ContentLoadState.idle => const SizedBox.shrink(),
-      },
+      child: child,
     );
   }
 }
@@ -875,7 +1081,7 @@ class _AnalysisContent extends StatelessWidget {
         for (final p in analysis.listening) (p.phrase, p.note),
       ]),
       _Section(l10n.aiGrammar, Icons.menu_book_outlined, [
-        for (final g in analysis.grammar) (g.point, g.explanation),
+        for (final g in analysis.grammar) (g.point, g.note),
       ]),
     ];
 

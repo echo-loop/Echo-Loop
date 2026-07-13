@@ -10,7 +10,10 @@ import '../../theme/app_theme.dart';
 
 /// Shimmer 骨架屏占位
 class ShimmerPlaceholder extends StatefulWidget {
-  const ShimmerPlaceholder({super.key});
+  /// 是否只显示单行占位；默认两行，翻译等短内容可使用单行。
+  final bool singleLine;
+
+  const ShimmerPlaceholder({super.key, this.singleLine = false});
 
   @override
   State<ShimmerPlaceholder> createState() => _ShimmerPlaceholderState();
@@ -65,8 +68,10 @@ class _ShimmerPlaceholderState extends State<ShimmerPlaceholder>
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _shimmerBar(width: double.infinity),
-          const SizedBox(height: AppSpacing.s),
-          _shimmerBar(width: 200),
+          if (!widget.singleLine) ...[
+            const SizedBox(height: AppSpacing.s),
+            _shimmerBar(width: 200),
+          ],
         ],
       ),
     );

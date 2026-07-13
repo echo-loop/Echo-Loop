@@ -119,13 +119,13 @@ abstract class AppLocalizations {
   /// No description provided for @aiQuotaExceededTitle.
   ///
   /// In en, this message translates to:
-  /// **'You\'ve used up this month\'s free credits'**
+  /// **'You\'ve reached your free limit'**
   String get aiQuotaExceededTitle;
 
   /// No description provided for @aiQuotaExceededMessage.
   ///
   /// In en, this message translates to:
-  /// **'Upgrade to Premium for unlimited AI dictionary, translation, and analysis.'**
+  /// **'Upgrade to unlock more AI usage and features.'**
   String get aiQuotaExceededMessage;
 
   /// No description provided for @aiQuotaExceededCta.
@@ -133,6 +133,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Upgrade to Premium'**
   String get aiQuotaExceededCta;
+
+  /// No description provided for @aiQuotaExceededDismiss.
+  ///
+  /// In en, this message translates to:
+  /// **'Got it'**
+  String get aiQuotaExceededDismiss;
+
+  /// No description provided for @aiQuotaExceededSubscribe.
+  ///
+  /// In en, this message translates to:
+  /// **'Upgrade Now'**
+  String get aiQuotaExceededSubscribe;
 
   /// No description provided for @premiumEntryTitle.
   ///

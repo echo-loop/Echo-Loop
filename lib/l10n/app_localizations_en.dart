@@ -18,15 +18,20 @@ class AppLocalizationsEn extends AppLocalizations {
   String get premiumTagline => 'Get more AI-powered learning';
 
   @override
-  String get aiQuotaExceededTitle =>
-      'You\'ve used up this month\'s free credits';
+  String get aiQuotaExceededTitle => 'You\'ve reached your free limit';
 
   @override
   String get aiQuotaExceededMessage =>
-      'Upgrade to Premium for unlimited AI dictionary, translation, and analysis.';
+      'Upgrade to unlock more AI usage and features.';
 
   @override
   String get aiQuotaExceededCta => 'Upgrade to Premium';
+
+  @override
+  String get aiQuotaExceededDismiss => 'Got it';
+
+  @override
+  String get aiQuotaExceededSubscribe => 'Upgrade Now';
 
   @override
   String get premiumEntryTitle => 'Subscription';

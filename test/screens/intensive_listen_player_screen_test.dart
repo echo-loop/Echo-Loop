@@ -55,6 +55,9 @@ class _TestAudioItemDao implements AudioItemDao {
   Future<AudioItem?> getById(String id) async => null;
 
   @override
+  Future<String?> getTranscriptSrt(String audioItemId) async => null;
+
+  @override
   Future<void> updateWordTimestamps(String audioItemId, String? json) async {}
 
   @override

@@ -179,6 +179,9 @@ Widget _createTestWidget({
     () => audioItemDao.getWordTimestamps(any()),
   ).thenAnswer((_) async => null);
   when(() => audioItemDao.getById(any())).thenAnswer((_) async => null);
+  when(
+    () => audioItemDao.getTranscriptSrt(any()),
+  ).thenAnswer((_) async => null);
 
   final router = GoRouter(
     initialLocation: startAtHome ? '/' : '/collections/c1/a1/listen-and-repeat',

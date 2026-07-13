@@ -649,6 +649,7 @@ class _IntensiveListenPlayerScreenState
                                 onToolbarButtonTapped: () {
                                   player.onAnnotationUserInteraction();
                                 },
+                                autoLoadSentenceAi: true,
                               ),
                             )
                           : PracticeNormalModeView(

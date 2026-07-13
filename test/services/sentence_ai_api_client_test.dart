@@ -245,7 +245,7 @@ void main() {
           ])}'
           '${opsLine([
             {
-              'p': ['grammar', 0, 'explanation'],
+              'p': ['grammar', 0, 'note'],
               'v': '表持续动作',
             },
           ])}'
@@ -262,7 +262,7 @@ void main() {
       expect(frames.first.isFinal, isFalse);
       expect(frames.first.analysis.grammar.single.point, '现在完成进行时');
       expect(frames.last.isFinal, isTrue);
-      expect(frames.last.analysis.grammar.single.explanation, '表持续动作');
+      expect(frames.last.analysis.grammar.single.note, '表持续动作');
     });
 
     test('非 200（如 402）抛出带状态码的 DioException', () async {

@@ -19,9 +19,7 @@ SentenceAnalysis _analysis({
   List<(String, String)> vocabulary = const [],
   List<(String, String)> listening = const [],
 }) => SentenceAnalysis(
-  grammar: [
-    for (final (p, e) in grammar) GrammarPoint(point: p, explanation: e),
-  ],
+  grammar: [for (final (p, e) in grammar) GrammarPoint(point: p, note: e)],
   vocabulary: [
     for (final (t, n) in vocabulary) VocabularyItem(term: t, note: n),
   ],
@@ -34,12 +32,16 @@ SentenceAnalysis _analysis({
 Stream<SentenceAnalysis> _stream(SentenceAnalysis a) => Stream.value(a);
 
 /// 占位解析流：仅用于启用解析按钮（不校验内容）。
-Stream<SentenceAnalysis> _dummyStream(CancelToken _) =>
-    _stream(_analysis(grammar: const [('g', 'e')]));
+Stream<SentenceAnalysis> _dummyStream(
+  CancelToken _,
+  SentenceAiRequestSource __,
+) => _stream(_analysis(grammar: const [('g', 'e')]));
 
 /// 单帧译文流回调（一次到齐）。
-Stream<String> Function(CancelToken) _translate(String t) =>
-    (_) => Stream.value(t);
+Stream<String> Function(CancelToken, SentenceAiRequestSource) _translate(
+  String t,
+) =>
+    (_, __) => Stream.value(t);
 
 /// 收集当前树内所有 RichText 的可见纯文本（结构化 bullet 走 Text.rich，
 /// find.text 无法直接匹配，故用拼接后 contains 断言）。
@@ -134,7 +136,7 @@ void main() {
         createTestApp(
           SentenceAnnotationCard(
             text: 'Test sentence',
-            onRequestTranslation: (_) {
+            onRequestTranslation: (_, __) {
               requested = true;
               return completer.future.asStream();
             },
@@ -157,6 +159,39 @@ void main() {
       expect(find.text('这是翻译结果'), findsOneWidget);
     });
 
+    testWidgets('翻译请求中显示单行骨架屏且按钮保留圆形进度', (tester) async {
+      final controller = StreamController<String>();
+      addTearDown(() {
+        if (!controller.isClosed) return controller.close();
+      });
+
+      await tester.pumpWidget(
+        createTestApp(
+          SentenceAnnotationCard(
+            text: 'Test sentence',
+            onRequestTranslation: (_, __) => controller.stream,
+          ),
+        ),
+      );
+
+      await tester.tap(find.byIcon(Icons.translate));
+      await tester.pump();
+
+      expect(find.byType(ShimmerPlaceholder), findsOneWidget);
+      final shimmer = tester.widget<ShimmerPlaceholder>(
+        find.byType(ShimmerPlaceholder),
+      );
+      expect(shimmer.singleLine, isTrue);
+      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+
+      controller.add('这是翻译结果');
+      await controller.close();
+      await tester.pumpAndSettle();
+
+      expect(find.byType(ShimmerPlaceholder), findsNothing);
+      expect(find.text('这是翻译结果'), findsOneWidget);
+    });
+
     testWidgets('cachedTranslation 初始自动展开，不触发请求', (tester) async {
       var requested = false;
 
@@ -165,7 +200,7 @@ void main() {
           SentenceAnnotationCard(
             text: 'Test',
             cachedTranslation: '已缓存的翻译',
-            onRequestTranslation: (_) {
+            onRequestTranslation: (_, __) {
               requested = true;
               return Stream.value('新翻译');
             },
@@ -186,7 +221,7 @@ void main() {
         createTestApp(
           SentenceAnnotationCard(
             text: 'Test',
-            onRequestTranslation: (_) {
+            onRequestTranslation: (_, __) {
               callCount++;
               return Stream<String>.error('network error');
             },
@@ -211,7 +246,7 @@ void main() {
         createTestApp(
           SentenceAnnotationCard(
             text: 'Test',
-            onRequestTranslation: (_) {
+            onRequestTranslation: (_, __) {
               callCount++;
               return Stream<String>.error(
                 const AiFeatureQuotaExceededException(),
@@ -255,6 +290,123 @@ void main() {
     });
   });
 
+  group('SentenceAnnotationCard — 自动加载', () {
+    testWidgets('首帧后自动请求翻译和解析，不请求意群，加载中禁止重复点击', (tester) async {
+      var translationCalls = 0;
+      var analysisCalls = 0;
+      var senseGroupCalls = 0;
+      final translationController = StreamController<String>();
+      final analysisController = StreamController<SentenceAnalysis>();
+
+      await tester.pumpWidget(
+        createTestApp(
+          SentenceAnnotationCard(
+            text: 'Auto',
+            autoLoadTranslation: true,
+            autoLoadAnalysis: true,
+            onRequestTranslation: (_, __) {
+              translationCalls++;
+              return translationController.stream;
+            },
+            onRequestAnalysis: (_, __) {
+              analysisCalls++;
+              return analysisController.stream;
+            },
+            onRequestSenseGroups: () async {
+              senseGroupCalls++;
+            },
+          ),
+        ),
+      );
+
+      await tester.pump();
+
+      expect(translationCalls, 1);
+      expect(analysisCalls, 1);
+      expect(senseGroupCalls, 0);
+      expect(find.byType(CircularProgressIndicator), findsWidgets);
+
+      await tester.tap(find.byKey(const ValueKey('translation')));
+      await tester.tap(find.byKey(const ValueKey('analysis')));
+      await tester.pump();
+
+      expect(translationCalls, 1);
+      expect(analysisCalls, 1);
+
+      translationController.add('自动翻译');
+      analysisController.add(_analysis(grammar: const [('自动解析', '')]));
+      await translationController.close();
+      await analysisController.close();
+      await tester.pumpAndSettle();
+
+      expect(find.text('自动翻译'), findsOneWidget);
+      expect(_renderedRichText().contains('自动解析'), isTrue);
+    });
+
+    testWidgets('有缓存时自动加载不触发请求且保持展开', (tester) async {
+      var translationCalls = 0;
+      var analysisCalls = 0;
+
+      await tester.pumpWidget(
+        createTestApp(
+          SentenceAnnotationCard(
+            text: 'Cached',
+            autoLoadTranslation: true,
+            autoLoadAnalysis: true,
+            cachedTranslation: '缓存翻译',
+            cachedAnalysis: _analysis(grammar: const [('缓存解析', '')]),
+            onRequestTranslation: (_, __) {
+              translationCalls++;
+              return Stream.value('不应请求');
+            },
+            onRequestAnalysis: (_, __) {
+              analysisCalls++;
+              return _stream(_analysis(grammar: const [('不应请求', '')]));
+            },
+          ),
+        ),
+      );
+
+      await tester.pump();
+
+      expect(translationCalls, 0);
+      expect(analysisCalls, 0);
+      expect(find.text('缓存翻译'), findsOneWidget);
+      expect(_renderedRichText().contains('缓存解析'), isTrue);
+    });
+
+    testWidgets('自动加载解析流无内容结束时退出 loading 并允许重试', (tester) async {
+      var analysisCalls = 0;
+
+      await tester.pumpWidget(
+        createTestApp(
+          SentenceAnnotationCard(
+            text: 'Empty analysis',
+            autoLoadAnalysis: true,
+            onRequestAnalysis: (_, __) {
+              analysisCalls++;
+              return Stream.value(const SentenceAnalysis());
+            },
+          ),
+        ),
+      );
+
+      await tester.pump();
+      await tester.pumpAndSettle();
+
+      expect(analysisCalls, 1);
+      expect(find.byType(CircularProgressIndicator), findsNothing);
+      expect(find.byType(ShimmerPlaceholder), findsNothing);
+
+      await tester.tap(find.byKey(const ValueKey('analysis')));
+      await tester.pumpAndSettle();
+
+      expect(analysisCalls, 2);
+      expect(find.byType(CircularProgressIndicator), findsNothing);
+      expect(find.byType(ShimmerPlaceholder), findsNothing);
+    });
+  });
+
   group('SentenceAnnotationCard — 解析交互', () {
     testWidgets('点击解析按钮触发流式请求并逐帧渐显', (tester) async {
       var requested = false;
@@ -265,7 +417,7 @@ void main() {
           SentenceAnnotationCard(
             text: 'Test sentence',
             onRequestTranslation: _translate('翻译'),
-            onRequestAnalysis: (_) {
+            onRequestAnalysis: (_, __) {
               requested = true;
               return controller.stream;
             },
@@ -308,7 +460,7 @@ void main() {
         createTestApp(
           SentenceAnnotationCard(
             text: 'Hello',
-            onRequestAnalysis: (cancelToken) {
+            onRequestAnalysis: (cancelToken, _) {
               captured = cancelToken;
               return controller.stream;
             },
@@ -334,7 +486,7 @@ void main() {
         createTestApp(
           SentenceAnnotationCard(
             text: 'Hello',
-            onRequestAnalysis: (_) {
+            onRequestAnalysis: (_, __) {
               callCount++;
               return Stream<SentenceAnalysis>.error(
                 const AiFeatureQuotaExceededException(),
@@ -366,7 +518,7 @@ void main() {
           SentenceAnnotationCard(
             text: 'Hello',
             cachedAnalysis: cached,
-            onRequestAnalysis: (_) => _stream(cached),
+            onRequestAnalysis: (_, __) => _stream(cached),
           ),
         ),
       );
@@ -392,7 +544,7 @@ void main() {
           SentenceAnnotationCard(
             text: 'Test',
             onRequestTranslation: _translate('翻译OK'),
-            onRequestAnalysis: (_) => _stream(analysis),
+            onRequestAnalysis: (_, __) => _stream(analysis),
           ),
         ),
       );
@@ -426,7 +578,7 @@ void main() {
             cachedTranslation: '缓存翻译',
             onRequestTranslation: _translate('缓存翻译'),
             cachedAnalysis: cached,
-            onRequestAnalysis: (_) => _stream(cached),
+            onRequestAnalysis: (_, __) => _stream(cached),
           ),
         ),
       );
@@ -570,20 +722,20 @@ void main() {
       (w) => w is Text && w.style?.fontFamily == 'monospace',
     );
 
-    /// 用一条 (标签, 详解) 要点构造已缓存的解析卡（缓存自动展开）。
-    /// 内联标记（反引号 / IPA）在详解中渲染。
+    /// 用一条 (标签, 说明) 要点构造已缓存的解析卡（缓存自动展开）。
+    /// 内联标记（反引号 / IPA）在说明中渲染。
     Future<void> pumpAnalysisCard(
       WidgetTester tester,
       String point,
-      String explanation,
+      String note,
     ) async {
-      final analysis = _analysis(grammar: [(point, explanation)]);
+      final analysis = _analysis(grammar: [(point, note)]);
       await tester.pumpWidget(
         createTestApp(
           SentenceAnnotationCard(
             text: 'Test',
             cachedAnalysis: analysis,
-            onRequestAnalysis: (_) => _stream(analysis),
+            onRequestAnalysis: (_, __) => _stream(analysis),
           ),
         ),
       );

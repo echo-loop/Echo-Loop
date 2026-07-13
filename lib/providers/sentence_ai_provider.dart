@@ -15,8 +15,10 @@ import '../database/daos/sentence_ai_cache_dao.dart';
 import '../database/providers.dart';
 import '../features/subscription/models/premium_feature.dart';
 import '../features/subscription/providers/ai_trial_usage_provider.dart';
+import '../features/subscription/providers/ai_quota_limit_provider.dart';
 import '../features/subscription/providers/feature_access_provider.dart';
 import '../features/subscription/providers/subscription_controller.dart';
+import '../features/subscription/providers/subscription_identity.dart';
 import '../models/sense_group_result.dart';
 import '../models/sentence_ai_result.dart';
 import '../services/sentence_ai_api_client.dart';
@@ -36,10 +38,19 @@ class AiFeatureAuthRequiredException implements Exception {
 /// 由额度闸在发起 L3 请求前抛出，UI 捕获后引导订阅升级（Paywall）。
 /// 仅在缓存未命中、确需消耗后端算力时触发，已缓存结果不受影响。
 class AiFeatureQuotaExceededException implements Exception {
-  const AiFeatureQuotaExceededException();
+  const AiFeatureQuotaExceededException({this.feature, this.resetAt});
+
+  /// 被后端或本地 quota reset 阻断的功能。
+  final PremiumFeature? feature;
+
+  /// 后端返回的本轮免费额度重置时间。
+  final DateTime? resetAt;
 
   @override
-  String toString() => 'AiFeatureQuotaExceededException';
+  String toString() =>
+      'AiFeatureQuotaExceededException'
+      '${feature != null ? '(feature=${feature!.name})' : ''}'
+      '${resetAt != null ? '(resetAt=${resetAt!.toIso8601String()})' : ''}';
 }
 
 /// 单个句子解析 L3 请求的共享流。
@@ -208,6 +219,21 @@ class SentenceAiNotifier {
   /// L3 成功后调用：消耗一次免费试用（实现内部对会员不计数）。
   final void Function(PremiumFeature feature)? _onConsumeTrial;
 
+  /// L3 请求前调用：清理过期 reset、会员清 reset；自动加载可选择尊重本地
+  /// reset 并提前阻断，用户主动点击始终进入后端裁决。
+  final Future<void> Function(
+    PremiumFeature feature, {
+    required bool respectLocalQuotaReset,
+  })?
+  _beforeApiRequest;
+
+  /// 后端返回 quota exceeded 后记录 resetAt。
+  final Future<void> Function(PremiumFeature feature, DateTime resetAt)?
+  _onQuotaExceeded;
+
+  /// 后端请求成功后清除该功能 reset，说明用户当前已经恢复可用额度。
+  final Future<void> Function(PremiumFeature feature)? _onApiSucceeded;
+
   /// L1 内存缓存
   final Map<String, SentenceTranslation> _translationCache = {};
   final Map<String, SentenceAnalysis> _analysisCache = {};
@@ -223,10 +249,21 @@ class SentenceAiNotifier {
     required SentenceAiApiClient apiClient,
     void Function(PremiumFeature feature)? guardFeature,
     void Function(PremiumFeature feature)? onConsumeTrial,
+    Future<void> Function(
+      PremiumFeature feature, {
+      required bool respectLocalQuotaReset,
+    })?
+    beforeApiRequest,
+    Future<void> Function(PremiumFeature feature, DateTime resetAt)?
+    onQuotaExceeded,
+    Future<void> Function(PremiumFeature feature)? onApiSucceeded,
   }) : _cacheDao = cacheDao,
        _apiClient = apiClient,
        _guardFeature = guardFeature,
-       _onConsumeTrial = onConsumeTrial;
+       _onConsumeTrial = onConsumeTrial,
+       _beforeApiRequest = beforeApiRequest,
+       _onQuotaExceeded = onQuotaExceeded,
+       _onApiSucceeded = onApiSucceeded;
 
   /// 获取翻译（流式，三级缓存查找，带前后句上下文）
   ///
@@ -245,6 +282,7 @@ class SentenceAiNotifier {
     String? next,
     String? accessToken,
     CancelToken? cancelToken,
+    bool respectLocalQuotaReset = false,
   }) async* {
     final hash = translationContextHash(text, previous: previous, next: next);
     final cacheKey = '$hash:$targetLanguage';
@@ -279,6 +317,10 @@ class SentenceAiNotifier {
       AppLogger.log('SentenceAI', '翻译 L3 需要登录，未发现 Supabase access token');
       throw const AiFeatureAuthRequiredException();
     }
+    await _beforeApiRequest?.call(
+      PremiumFeature.aiTranslation,
+      respectLocalQuotaReset: respectLocalQuotaReset,
+    );
     _guardFeature?.call(PremiumFeature.aiTranslation);
 
     final existing = _pendingTranslations[cacheKey];
@@ -319,16 +361,53 @@ class SentenceAiNotifier {
   }) async {
     SentenceTranslation? finalTranslation;
     try {
-      await for (final frame in _apiClient.translateStream(
-        text,
-        previousText: previous,
-        nextText: next,
-        targetLanguage: targetLanguage,
-        accessToken: accessToken,
-        cancelToken: pending.cancelToken,
-      )) {
-        pending.add(frame.translation);
-        if (frame.isFinal) finalTranslation = frame.translation;
+      var attempt = 0;
+      while (true) {
+        attempt += 1;
+        try {
+          await for (final frame in _apiClient.translateStream(
+            text,
+            previousText: previous,
+            nextText: next,
+            targetLanguage: targetLanguage,
+            accessToken: accessToken,
+            cancelToken: pending.cancelToken,
+          )) {
+            pending.add(frame.translation);
+            if (frame.isFinal) finalTranslation = frame.translation;
+          }
+          break;
+        } on DioException catch (e, stackTrace) {
+          if (pending.cancelToken.isCancelled) {
+            await pending.close();
+            return;
+          }
+          final quota = await _quotaExceptionFor(
+            PremiumFeature.aiTranslation,
+            e,
+          );
+          if (quota != null) {
+            await pending.addError(quota, stackTrace);
+            return;
+          }
+          if (attempt < 2) {
+            AppLogger.log('SentenceAI', '翻译 L3 失败，重试一次: $e');
+            continue;
+          }
+          await pending.addError(e, stackTrace);
+          return;
+        } catch (e, stackTrace) {
+          if (pending.cancelToken.isCancelled) {
+            await pending.close();
+            return;
+          }
+          if (attempt < 2) {
+            AppLogger.log('SentenceAI', '翻译流失败，重试一次: $e');
+            continue;
+          }
+          await pending.addError(e, stackTrace);
+          return;
+        }
       }
 
       // 仅「完整完成」且译文非空才落缓存并计一次试用；未收到 final（取消/EOF）不写。
@@ -339,20 +418,10 @@ class SentenceAiNotifier {
           l2Type,
           jsonEncode({'translation': finalTranslation.translation}),
         );
+        await _onApiSucceeded?.call(PremiumFeature.aiTranslation);
         _onConsumeTrial?.call(PremiumFeature.aiTranslation);
       }
       await pending.close();
-    } on DioException catch (e, stackTrace) {
-      if (pending.cancelToken.isCancelled) {
-        await pending.close();
-      } else if (e.response?.statusCode == 402) {
-        await pending.addError(
-          const AiFeatureQuotaExceededException(),
-          stackTrace,
-        );
-      } else {
-        await pending.addError(e, stackTrace);
-      }
     } catch (e, stackTrace) {
       if (pending.cancelToken.isCancelled) {
         await pending.close();
@@ -377,6 +446,7 @@ class SentenceAiNotifier {
     required String targetLanguage,
     String? accessToken,
     CancelToken? cancelToken,
+    bool respectLocalQuotaReset = false,
   }) async* {
     final hash = hashText(text);
     final cacheKey = '$hash:$targetLanguage';
@@ -411,6 +481,10 @@ class SentenceAiNotifier {
       AppLogger.log('SentenceAI', '解析 L3 需要登录，未发现 Supabase access token');
       throw const AiFeatureAuthRequiredException();
     }
+    await _beforeApiRequest?.call(
+      PremiumFeature.aiAnalysis,
+      respectLocalQuotaReset: respectLocalQuotaReset,
+    );
     _guardFeature?.call(PremiumFeature.aiAnalysis);
 
     final existing = _pendingAnalyses[cacheKey];
@@ -447,38 +521,64 @@ class SentenceAiNotifier {
   }) async {
     SentenceAnalysis? finalAnalysis;
     try {
-      await for (final frame in _apiClient.analyzeStream(
-        text,
-        targetLanguage: targetLanguage,
-        accessToken: accessToken,
-        cancelToken: pending.cancelToken,
-      )) {
-        pending.add(frame.analysis);
-        if (frame.isFinal) finalAnalysis = frame.analysis;
+      var attempt = 0;
+      while (true) {
+        attempt += 1;
+        try {
+          await for (final frame in _apiClient.analyzeStream(
+            text,
+            targetLanguage: targetLanguage,
+            accessToken: accessToken,
+            cancelToken: pending.cancelToken,
+          )) {
+            pending.add(frame.analysis);
+            if (frame.isFinal) finalAnalysis = frame.analysis;
+          }
+          break;
+        } on DioException catch (e, stackTrace) {
+          if (pending.cancelToken.isCancelled) {
+            await pending.close();
+            return;
+          }
+          final quota = await _quotaExceptionFor(PremiumFeature.aiAnalysis, e);
+          if (quota != null) {
+            await pending.addError(quota, stackTrace);
+            return;
+          }
+          if (attempt < 2) {
+            AppLogger.log('SentenceAI', '解析 L3 失败，重试一次: $e');
+            continue;
+          }
+          await pending.addError(e, stackTrace);
+          return;
+        } catch (e, stackTrace) {
+          if (pending.cancelToken.isCancelled) {
+            await pending.close();
+            return;
+          }
+          if (attempt < 2) {
+            AppLogger.log('SentenceAI', '解析流失败，重试一次: $e');
+            continue;
+          }
+          await pending.addError(e, stackTrace);
+          return;
+        }
       }
 
-      // 仅「完整完成」才落缓存并计一次试用；未收到 final（取消/EOF）一律不写。
-      if (finalAnalysis != null) {
+      // 仅「完整完成」且解析非空才落缓存并计一次试用；空解析允许后续重试。
+      if (finalAnalysis != null && finalAnalysis.isNotEmpty) {
         _analysisCache[cacheKey] = finalAnalysis;
         await _cacheDao.upsert(
           hash,
           l2Type,
           jsonEncode(finalAnalysis.toJson()),
         );
+        await _onApiSucceeded?.call(PremiumFeature.aiAnalysis);
         _onConsumeTrial?.call(PremiumFeature.aiAnalysis);
+      } else if (finalAnalysis != null) {
+        AppLogger.log('SentenceAI', '解析最终结果为空，不落缓存（可重试）');
       }
       await pending.close();
-    } on DioException catch (e, stackTrace) {
-      if (pending.cancelToken.isCancelled) {
-        await pending.close();
-      } else if (e.response?.statusCode == 402) {
-        await pending.addError(
-          const AiFeatureQuotaExceededException(),
-          stackTrace,
-        );
-      } else {
-        await pending.addError(e, stackTrace);
-      }
     } catch (e, stackTrace) {
       if (pending.cancelToken.isCancelled) {
         await pending.close();
@@ -503,6 +603,7 @@ class SentenceAiNotifier {
     String text, {
     String? accessToken,
     CancelToken? cancelToken,
+    bool respectLocalQuotaReset = false,
   }) async* {
     final hash = hashText(text);
 
@@ -541,6 +642,10 @@ class SentenceAiNotifier {
       AppLogger.log('SenseGroup', 'L3 需要登录，未发现 Supabase access token');
       throw const AiFeatureAuthRequiredException();
     }
+    await _beforeApiRequest?.call(
+      PremiumFeature.aiSenseGroup,
+      respectLocalQuotaReset: respectLocalQuotaReset,
+    );
     _guardFeature?.call(PremiumFeature.aiSenseGroup);
 
     final existing = _pendingSenseGroups[hash];
@@ -571,13 +676,50 @@ class SentenceAiNotifier {
   }) async {
     SenseGroupResult? finalResult;
     try {
-      await for (final frame in _apiClient.senseGroupsStream(
-        text,
-        accessToken: accessToken,
-        cancelToken: pending.cancelToken,
-      )) {
-        pending.add(frame.result);
-        if (frame.isFinal) finalResult = frame.result;
+      var attempt = 0;
+      while (true) {
+        attempt += 1;
+        try {
+          await for (final frame in _apiClient.senseGroupsStream(
+            text,
+            accessToken: accessToken,
+            cancelToken: pending.cancelToken,
+          )) {
+            pending.add(frame.result);
+            if (frame.isFinal) finalResult = frame.result;
+          }
+          break;
+        } on DioException catch (e, stackTrace) {
+          if (pending.cancelToken.isCancelled) {
+            await pending.close();
+            return;
+          }
+          final quota = await _quotaExceptionFor(
+            PremiumFeature.aiSenseGroup,
+            e,
+          );
+          if (quota != null) {
+            await pending.addError(quota, stackTrace);
+            return;
+          }
+          if (attempt < 2) {
+            AppLogger.log('SenseGroup', '意群 L3 失败，重试一次: $e');
+            continue;
+          }
+          await pending.addError(e, stackTrace);
+          return;
+        } catch (e, stackTrace) {
+          if (pending.cancelToken.isCancelled) {
+            await pending.close();
+            return;
+          }
+          if (attempt < 2) {
+            AppLogger.log('SenseGroup', '意群流失败，重试一次: $e');
+            continue;
+          }
+          await pending.addError(e, stackTrace);
+          return;
+        }
       }
 
       // 仅「完整完成」且 medium 非空、concat 校验通过（两级粒度拼接均能还原原句）才落缓存并计一次试用。
@@ -592,22 +734,12 @@ class SentenceAiNotifier {
           'sense_groups',
           jsonEncode(finalResult.toJson()),
         );
+        await _onApiSucceeded?.call(PremiumFeature.aiSenseGroup);
         _onConsumeTrial?.call(PremiumFeature.aiSenseGroup);
       } else if (finalResult != null) {
         AppLogger.log('SenseGroup', '最终结果空或 concat 校验失败，不落缓存（可重试）');
       }
       await pending.close();
-    } on DioException catch (e, stackTrace) {
-      if (pending.cancelToken.isCancelled) {
-        await pending.close();
-      } else if (e.response?.statusCode == 402) {
-        await pending.addError(
-          const AiFeatureQuotaExceededException(),
-          stackTrace,
-        );
-      } else {
-        await pending.addError(e, stackTrace);
-      }
     } catch (e, stackTrace) {
       if (pending.cancelToken.isCancelled) {
         await pending.close();
@@ -750,10 +882,33 @@ class SentenceAiNotifier {
     _senseGroupCache.clear();
   }
 
+  Future<AiFeatureQuotaExceededException?> _quotaExceptionFor(
+    PremiumFeature feature,
+    DioException error,
+  ) async {
+    if (error.response?.statusCode != 402) return null;
+    final data = error.response?.data;
+    if (data is Map && data['code'] != 'quota_exceeded') return null;
+    final resetAt = _quotaResetAtFrom(data);
+    if (resetAt != null) {
+      await _onQuotaExceeded?.call(feature, resetAt);
+    }
+    return AiFeatureQuotaExceededException(feature: feature, resetAt: resetAt);
+  }
+
+  DateTime? _quotaResetAtFrom(Object? data) {
+    if (data is! Map) return null;
+    final quota = data['quota'];
+    if (quota is! Map) return null;
+    final rawResetAt = quota['resetAt'];
+    if (rawResetAt is! String || rawResetAt.isEmpty) return null;
+    return DateTime.tryParse(rawResetAt)?.toUtc();
+  }
 }
 
 /// SentenceAiNotifier Provider
 final sentenceAiNotifierProvider = Provider<SentenceAiNotifier>((ref) {
+  ref.watch(aiQuotaLimitCleanupProvider);
   return SentenceAiNotifier(
     cacheDao: ref.watch(sentenceAiCacheDaoProvider),
     apiClient: ref.watch(sentenceAiApiClientProvider),
@@ -767,6 +922,36 @@ final sentenceAiNotifierProvider = Provider<SentenceAiNotifier>((ref) {
     onConsumeTrial: (feature) {
       if (ref.read(subscriptionControllerProvider).isActive) return;
       ref.read(aiTrialUsageProvider.notifier).consume(feature);
+    },
+    beforeApiRequest: (feature, {required respectLocalQuotaReset}) async {
+      final userId = ref.read(subscriptionIdentityProvider).userId;
+      if (userId == null) return;
+      final store = ref.read(aiQuotaLimitStoreProvider);
+      if (ref.read(subscriptionControllerProvider).isActive) {
+        await store.clearAllResets(userId);
+        return;
+      }
+      await store.clearExpiredResets(userId);
+      if (!respectLocalQuotaReset) return;
+      final resetAt = store.activeResetAt(userId, feature);
+      if (resetAt != null) {
+        throw AiFeatureQuotaExceededException(
+          feature: feature,
+          resetAt: resetAt,
+        );
+      }
+    },
+    onQuotaExceeded: (feature, resetAt) async {
+      final userId = ref.read(subscriptionIdentityProvider).userId;
+      if (userId == null) return;
+      await ref
+          .read(aiQuotaLimitStoreProvider)
+          .recordResetAt(userId, feature, resetAt);
+    },
+    onApiSucceeded: (feature) async {
+      final userId = ref.read(subscriptionIdentityProvider).userId;
+      if (userId == null) return;
+      await ref.read(aiQuotaLimitStoreProvider).clearReset(userId, feature);
     },
   );
 });

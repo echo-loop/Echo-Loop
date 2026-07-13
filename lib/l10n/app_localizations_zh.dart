@@ -21,10 +21,16 @@ class AppLocalizationsZh extends AppLocalizations {
   String get aiQuotaExceededTitle => '本月免费额度已用完';
 
   @override
-  String get aiQuotaExceededMessage => '升级会员，畅享无限 AI 查词、翻译与句子解析。';
+  String get aiQuotaExceededMessage => '升级会员，获得更多 AI 额度和 AI 功能。';
 
   @override
   String get aiQuotaExceededCta => '升级会员';
+
+  @override
+  String get aiQuotaExceededDismiss => '知道了';
+
+  @override
+  String get aiQuotaExceededSubscribe => '立即升级';
 
   @override
   String get premiumEntryTitle => '会员与订阅';

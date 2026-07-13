@@ -30,6 +30,11 @@ class AsyncToggleButton extends StatefulWidget {
   /// 是否禁用
   final bool isDisabled;
 
+  /// 外部驱动的加载状态。
+  ///
+  /// 自动触发请求时，按钮没有经过内部点击路径，但仍需要显示加载并禁止重复点击。
+  final bool isLoading;
+
   /// 默认状态下的图标颜色（未激活、未禁用时使用）
   /// 为 null 时使用 foregroundColor（与文字同色）
   final Color? iconColor;
@@ -43,6 +48,7 @@ class AsyncToggleButton extends StatefulWidget {
     required this.icon,
     this.isActive = false,
     this.isDisabled = false,
+    this.isLoading = false,
     this.iconColor,
     required this.onPressed,
   });
@@ -55,7 +61,7 @@ class _AsyncToggleButtonState extends State<AsyncToggleButton> {
   bool _isLoading = false;
 
   Future<void> _handleTap() async {
-    if (_isLoading || widget.isDisabled) return;
+    if (_effectiveLoading || widget.isDisabled) return;
     setState(() => _isLoading = true);
     try {
       await widget.onPressed();
@@ -65,6 +71,8 @@ class _AsyncToggleButtonState extends State<AsyncToggleButton> {
       if (mounted) setState(() => _isLoading = false);
     }
   }
+
+  bool get _effectiveLoading => _isLoading || widget.isLoading;
 
   @override
   Widget build(BuildContext context) {
@@ -90,7 +98,7 @@ class _AsyncToggleButtonState extends State<AsyncToggleButton> {
               width: 1,
             )
           : null;
-    } else if (widget.isActive || _isLoading) {
+    } else if (widget.isActive || _effectiveLoading) {
       backgroundColor = isDark ? _activeFillDark : colorScheme.primaryContainer;
       foregroundColor = colorScheme.primary;
       border = Border.all(
@@ -121,7 +129,7 @@ class _AsyncToggleButtonState extends State<AsyncToggleButton> {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            if (_isLoading)
+            if (_effectiveLoading)
               SizedBox(
                 width: 14,
                 height: 14,

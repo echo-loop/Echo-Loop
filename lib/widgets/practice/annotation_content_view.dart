@@ -15,6 +15,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../features/auth/providers/auth_providers.dart';
 import '../../features/auth/sign_in_required_dialog.dart';
 import '../../features/subscription/widgets/feature_gate.dart';
+import '../../features/subscription/providers/ai_quota_limit_provider.dart';
+import '../../features/subscription/providers/subscription_identity.dart';
 import '../../features/usage/usage_event.dart';
 import '../../features/usage/usage_providers.dart';
 import '../../database/providers.dart';
@@ -86,6 +88,11 @@ class AnnotationContentView extends ConsumerStatefulWidget {
   /// 回收销毁时其注册回调会落在已 unmount 的 State 上而崩溃。
   final bool enableGuide;
 
+  /// 是否在进入视图时自动加载句子翻译和解析。
+  ///
+  /// 仅讲解详情页启用；未登录时不会自动触发，避免冷启动直接弹登录。
+  final bool autoLoadSentenceAi;
+
   const AnnotationContentView({
     super.key,
     required this.text,
@@ -99,6 +106,7 @@ class AnnotationContentView extends ConsumerStatefulWidget {
     this.onTimingsChanged,
     this.onToolbarButtonTapped,
     this.enableGuide = true,
+    this.autoLoadSentenceAi = false,
   });
 
   @override
@@ -145,6 +153,9 @@ class _AnnotationContentViewState extends ConsumerState<AnnotationContentView> {
 
   /// 上传字幕推测时间提示是否正在展示，防止快速连点弹出多个对话框。
   bool _isShowingSyntheticTimingNotice = false;
+
+  /// quota 提醒弹窗是否正在展示，防止翻译/解析并发失败时叠多个弹窗。
+  bool _isShowingAiQuotaDialog = false;
 
   // --- 意群快捷菜单 Overlay ---
   OverlayEntry? _actionBarOverlay;
@@ -355,7 +366,7 @@ class _AnnotationContentViewState extends ConsumerState<AnnotationContentView> {
             if (e is AiFeatureAuthRequiredException) {
               _showAiFeatureSignInDialog();
             } else if (e is AiFeatureQuotaExceededException) {
-              _openUpgradePaywall();
+              unawaited(_showAiQuotaExceededDialog(e, force: true));
             } else {
               AppLogger.log('SenseGroup', '请求意群失败: $e');
               final l10n = AppLocalizations.of(context);
@@ -416,8 +427,52 @@ class _AnnotationContentViewState extends ConsumerState<AnnotationContentView> {
   }
 
   /// 已登录但未解锁 AI 功能时引导订阅升级（登录优先逻辑见 openPaywall）。
-  Future<void> _openUpgradePaywall() async {
-    await openPaywall(context, ref);
+  Future<void> _showAiQuotaExceededDialog(
+    AiFeatureQuotaExceededException error, {
+    bool force = false,
+  }) async {
+    if (_isShowingAiQuotaDialog || !mounted) return;
+    final feature = error.feature;
+    final userId = ref.read(subscriptionIdentityProvider).userId;
+    final store = ref.read(aiQuotaLimitStoreProvider);
+    if (userId != null &&
+        feature != null &&
+        !force &&
+        !store.shouldShowReminder(userId, feature)) {
+      return;
+    }
+
+    _isShowingAiQuotaDialog = true;
+    try {
+      final l10n = AppLocalizations.of(context)!;
+      final result = await showDialog<String>(
+        context: context,
+        barrierDismissible: false,
+        builder: (dialogContext) => AlertDialog(
+          title: Text(l10n.aiQuotaExceededTitle),
+          content: Text(l10n.aiQuotaExceededMessage),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop('dismiss'),
+              child: Text(l10n.aiQuotaExceededDismiss),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(dialogContext).pop('subscribe'),
+              child: Text(l10n.aiQuotaExceededSubscribe),
+            ),
+          ],
+        ),
+      );
+      if (!mounted) return;
+      if (userId != null && feature != null) {
+        await store.markReminderShown(userId, feature);
+      }
+      if (result == 'subscribe' && mounted) {
+        await openPaywall(context, ref);
+      }
+    } finally {
+      _isShowingAiQuotaDialog = false;
+    }
   }
 
   /// 意群粒度切换回调
@@ -739,6 +794,10 @@ class _AnnotationContentViewState extends ConsumerState<AnnotationContentView> {
         .watch(supabaseSessionProvider)
         .valueOrNull
         ?.accessToken;
+    final shouldAutoLoadSentenceAi =
+        widget.autoLoadSentenceAi &&
+        accessToken != null &&
+        accessToken.isNotEmpty;
 
     // 局部 watch 已收藏意群文本集合，避免全局重建
     final savedTextsAsync = ref.watch(savedSenseGroupTextsProvider);
@@ -827,10 +886,8 @@ class _AnnotationContentViewState extends ConsumerState<AnnotationContentView> {
                   showToolbar: false,
                   onToolbarStateChanged: _toolbarNotifier.notify,
                   onRequestTranslation: ai != null
-                      ? (cancelToken) async* {
-                          ref
-                              .read(usageTrackerProvider)
-                              .record(UsageEvent.translationTapped);
+                      ? (cancelToken, source) async* {
+                          var hasContent = false;
                           try {
                             // await for（非 yield*）确保流内 auth/quota 错误在本
                             // try 内重抛，从而弹登录/订阅（与 onRequestAnalysis 语义一致）。
@@ -841,30 +898,41 @@ class _AnnotationContentViewState extends ConsumerState<AnnotationContentView> {
                               targetLanguage: nativeLanguage,
                               accessToken: accessToken,
                               cancelToken: cancelToken,
+                              respectLocalQuotaReset:
+                                  source == SentenceAiRequestSource.automatic,
                             )) {
+                              if (t.translation.isNotEmpty) {
+                                hasContent = true;
+                              }
                               yield t.translation;
                             }
-                            ref
-                                .read(usageTrackerProvider)
-                                .record(UsageEvent.translationSucceeded);
+                            if (hasContent) {
+                              ref
+                                  .read(usageTrackerProvider)
+                                  .record(UsageEvent.translationSucceeded);
+                            }
                           } on AiFeatureAuthRequiredException {
                             if (mounted) {
                               unawaited(_showAiFeatureSignInDialog());
                             }
                             rethrow;
-                          } on AiFeatureQuotaExceededException {
+                          } on AiFeatureQuotaExceededException catch (e) {
                             if (mounted) {
-                              unawaited(_openUpgradePaywall());
+                              unawaited(
+                                _showAiQuotaExceededDialog(
+                                  e,
+                                  force:
+                                      source == SentenceAiRequestSource.userTap,
+                                ),
+                              );
                             }
                             rethrow;
                           }
                         }
                       : null,
                   onRequestAnalysis: ai != null
-                      ? (cancelToken) async* {
-                          ref
-                              .read(usageTrackerProvider)
-                              .record(UsageEvent.analysisTapped);
+                      ? (cancelToken, source) async* {
+                          var hasContent = false;
                           try {
                             // await for 确保流内 auth/quota 错误进入本层 catch，
                             // 从而触发登录或订阅导航，并由卡片恢复按钮状态。
@@ -873,20 +941,33 @@ class _AnnotationContentViewState extends ConsumerState<AnnotationContentView> {
                               targetLanguage: nativeLanguage,
                               accessToken: accessToken,
                               cancelToken: cancelToken,
+                              respectLocalQuotaReset:
+                                  source == SentenceAiRequestSource.automatic,
                             )) {
+                              if (analysis.isNotEmpty) {
+                                hasContent = true;
+                              }
                               yield analysis;
                             }
-                            ref
-                                .read(usageTrackerProvider)
-                                .record(UsageEvent.analysisSucceeded);
+                            if (hasContent) {
+                              ref
+                                  .read(usageTrackerProvider)
+                                  .record(UsageEvent.analysisSucceeded);
+                            }
                           } on AiFeatureAuthRequiredException {
                             if (mounted) {
                               unawaited(_showAiFeatureSignInDialog());
                             }
                             rethrow;
-                          } on AiFeatureQuotaExceededException {
+                          } on AiFeatureQuotaExceededException catch (e) {
                             if (mounted) {
-                              unawaited(_openUpgradePaywall());
+                              unawaited(
+                                _showAiQuotaExceededDialog(
+                                  e,
+                                  force:
+                                      source == SentenceAiRequestSource.userTap,
+                                ),
+                              );
                             }
                             rethrow;
                           }
@@ -894,6 +975,18 @@ class _AnnotationContentViewState extends ConsumerState<AnnotationContentView> {
                       : null,
                   cachedTranslation: cachedTranslation,
                   cachedAnalysis: cachedAnalysis,
+                  autoLoadTranslation: shouldAutoLoadSentenceAi,
+                  autoLoadAnalysis: shouldAutoLoadSentenceAi,
+                  onTranslationUserIntent: () {
+                    ref
+                        .read(usageTrackerProvider)
+                        .record(UsageEvent.translationTapped);
+                  },
+                  onAnalysisUserIntent: () {
+                    ref
+                        .read(usageTrackerProvider)
+                        .record(UsageEvent.analysisTapped);
+                  },
                   audioItemId: widget.audioItemId,
                   sentenceIndex: widget.sentenceIndex,
                   sentenceStartMs: widget.sentenceStartMs,
