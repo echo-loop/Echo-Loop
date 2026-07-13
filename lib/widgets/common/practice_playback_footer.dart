@@ -72,11 +72,13 @@ class PracticePlaybackFooter extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final mediaPadding = MediaQuery.paddingOf(context);
+    final viewPadding = MediaQuery.viewPaddingOf(context);
+    final bottomInset = mediaPadding.bottom > viewPadding.bottom
+        ? mediaPadding.bottom
+        : viewPadding.bottom;
     final isMobile = MediaQuery.sizeOf(context).width < 600;
     final bottomPadding = isMobile
-        ? (mediaPadding.bottom * 0.35)
-              .clamp(AppSpacing.xs, AppSpacing.s)
-              .toDouble()
+        ? (bottomInset * 0.5).clamp(AppSpacing.s, AppSpacing.m).toDouble()
         : AppSpacing.m;
 
     return Padding(

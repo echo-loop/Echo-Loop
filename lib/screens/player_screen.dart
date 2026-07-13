@@ -882,8 +882,12 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
     );
 
     final mediaPadding = MediaQuery.paddingOf(context);
+    final viewPadding = MediaQuery.viewPaddingOf(context);
+    final bottomInset = mediaPadding.bottom > viewPadding.bottom
+        ? mediaPadding.bottom
+        : viewPadding.bottom;
     final bottomPadding = centered
-        ? (mediaPadding.bottom * 0.35).clamp(4.0, AppSpacing.s).toDouble()
+        ? (bottomInset * 0.5).clamp(AppSpacing.s, AppSpacing.m).toDouble()
         : AppSpacing.s;
 
     return Container(

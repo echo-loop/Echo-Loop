@@ -333,9 +333,11 @@ void main() {
         tester.view.physicalSize = const Size(390, 844);
         tester.view.devicePixelRatio = 1.0;
         tester.view.padding = const FakeViewPadding(bottom: 34);
+        tester.view.viewPadding = const FakeViewPadding(bottom: 34);
         addTearDown(tester.view.resetPhysicalSize);
         addTearDown(tester.view.resetDevicePixelRatio);
         addTearDown(tester.view.resetPadding);
+        addTearDown(tester.view.resetViewPadding);
 
         final item = createTestAudioItem();
         final sentences = createTestSentences(count: 3);
@@ -361,9 +363,9 @@ void main() {
         final screenBottom =
             tester.view.physicalSize.height / tester.view.devicePixelRatio;
 
-        // 底部状态行只保留压缩后的 8px 间距，避免 Home indicator 的 34px
-        // 全量安全区把播放器控制面板顶高，给上方正文留出更多空间。
-        expect(screenBottom - statusRowBottom, closeTo(8, 0.1));
+        // 底部状态行保留约 16px 压缩安全区，避免贴住 Home indicator，
+        // 同时不使用 34px 全量安全区把播放器控制面板顶高。
+        expect(screenBottom - statusRowBottom, closeTo(16, 0.1));
         await _disposeTree(tester);
       });
 

@@ -11,9 +11,11 @@ void main() {
     tester.view.physicalSize = const Size(390, 844);
     tester.view.devicePixelRatio = 1.0;
     tester.view.padding = const FakeViewPadding(bottom: 34);
+    tester.view.viewPadding = const FakeViewPadding(bottom: 34);
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
     addTearDown(tester.view.resetPadding);
+    addTearDown(tester.view.resetViewPadding);
 
     await tester.pumpWidget(
       createTestApp(
@@ -56,7 +58,7 @@ void main() {
         tester.view.physicalSize.height / tester.view.devicePixelRatio;
 
     // 学习页共用 footer 不再叠加 label 内部 16px + footer 外部 16px；
-    // 有 Home indicator 时只保留压缩后的 8px，给正文区域更多高度。
-    expect(screenBottom - labelBottom, closeTo(8, 0.1));
+    // 有 Home indicator 时保留约 16px 压缩安全区，避免 label 贴底重叠。
+    expect(screenBottom - labelBottom, closeTo(16, 0.1));
   });
 }
