@@ -13,15 +13,9 @@ import '../helpers/mock_providers.dart';
 import '../helpers/test_app.dart';
 
 class _ImmediateAudioImportController extends AudioImportController {
-  _ImmediateAudioImportController({
-    this.fail = false,
-    this.withTranscript = false,
-  });
+  _ImmediateAudioImportController({this.fail = false});
 
   final bool fail;
-
-  /// 为 true 时返回的音频已带字幕（模拟导入库里已存在、已带字幕的音频）。
-  final bool withTranscript;
 
   @override
   AudioImportState build() => const AudioImportIdle();
@@ -39,14 +33,13 @@ class _ImmediateAudioImportController extends AudioImportController {
       name: 'URL Audio',
       audioPath: 'audios/imported/url.mp3',
       addedDate: DateTime(2026, 1, 1),
-      transcriptSource: withTranscript ? TranscriptSource.local : null,
     );
     state = AudioImportCompleted(item);
     return item;
   }
 }
 
-Widget _buildApp({bool failImport = false, bool withTranscript = false}) {
+Widget _buildApp({bool failImport = false}) {
   return createTestApp(
     Builder(
       builder: (context) => Scaffold(
@@ -73,10 +66,7 @@ Widget _buildApp({bool failImport = false, bool withTranscript = false}) {
       audioLibraryProvider.overrideWith(() => TestAudioLibrary()),
       collectionListProvider.overrideWith(() => TestCollectionList()),
       audioImportControllerProvider.overrideWith(
-        () => _ImmediateAudioImportController(
-          fail: failImport,
-          withTranscript: withTranscript,
-        ),
+        () => _ImmediateAudioImportController(fail: failImport),
       ),
     ],
   );
@@ -207,42 +197,26 @@ void main() {
     );
   });
 
-  testWidgets('本地文件入口使用全宽次级按钮', (tester) async {
+  testWidgets('本地文件入口进入后不再展示选择按钮与网盘提示', (tester) async {
     await tester.pumpWidget(_buildApp());
     await tester.tap(find.text('Open Import'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Import from File'));
     await tester.pumpAndSettle();
 
-    final selectButton = find.byKey(const ValueKey('select-audio-file-button'));
-    expect(selectButton, findsOneWidget);
+    // 点入口即自动唤起选择器，面板内不再有手动选择按钮和网盘提示。
     expect(
-      find.widgetWithText(ElevatedButton, 'Select Audio File'),
+      find.byKey(const ValueKey('select-audio-file-button')),
       findsNothing,
     );
     expect(
-      find.descendant(
-        of: selectButton,
-        matching: find.byIcon(Icons.audio_file_outlined),
-      ),
-      findsOneWidget,
-    );
-    expect(
       find.widgetWithText(FilledButton, 'Select Audio File'),
-      findsOneWidget,
+      findsNothing,
     );
     expect(
       find.textContaining('Before choosing from a cloud drive'),
-      findsOneWidget,
+      findsNothing,
     );
-    expect(
-      find.textContaining('may not support direct selection'),
-      findsOneWidget,
-    );
-
-    final sheetWidth = tester.getSize(find.byType(ImportAudioFlowSheet)).width;
-    final selectWidth = tester.getSize(selectButton).width;
-    expect(selectWidth, greaterThan(sheetWidth - 40));
   });
 
   testWidgets('链接导入页可从剪切板粘贴链接并启用提交', (tester) async {
@@ -330,7 +304,7 @@ void main() {
     expect(find.text('Audio link'), findsOneWidget);
   });
 
-  testWidgets('链接导入成功后在同一流程内显示完成和字幕操作', (tester) async {
+  testWidgets('链接导入成功后仅显示完成确认，不再提示添加字幕', (tester) async {
     await tester.pumpWidget(_buildApp());
     await tester.tap(find.text('Open Import'));
     await tester.pumpAndSettle();
@@ -344,25 +318,8 @@ void main() {
 
     expect(find.text('Import complete'), findsOneWidget);
     expect(find.text('URL Audio'), findsOneWidget);
-    expect(find.text('Add Subtitle'), findsOneWidget);
-  });
-
-  testWidgets('导入已带字幕的音频不提示添加字幕', (tester) async {
-    await tester.pumpWidget(_buildApp(withTranscript: true));
-    await tester.tap(find.text('Open Import'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Import from Link'));
-    await tester.pumpAndSettle();
-
-    await tester.enterText(find.byType(TextField), 'https://example.com/a.mp3');
-    await tester.pump();
-    await tester.tap(find.text('Download and Import'));
-    await tester.pumpAndSettle();
-
-    expect(find.text('Import complete'), findsOneWidget);
-    expect(find.text('URL Audio'), findsOneWidget);
     expect(find.text('Done'), findsOneWidget);
-    // 已有字幕：不显示添加字幕提示与按钮
+    // 字幕已自动匹配，完成页不再提示添加字幕。
     expect(find.text('Add Subtitle'), findsNothing);
     expect(find.text('Add a subtitle now for learning?'), findsNothing);
   });

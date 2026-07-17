@@ -70,19 +70,25 @@ class AddAudioDialog extends ConsumerStatefulWidget {
   /// 合集 ID（为 null 时显示合集下拉框）
   final String? collectionId;
   final bool embedded;
-  final VoidCallback? onBack;
   final ValueChanged<List<AudioItem>>? onComplete;
   final AudioImportSourceType importSourceType;
   final bool preferDownloadsDirectory;
+
+  /// 面板创建后是否立即唤起文件选择器（用于「点入口即选择」的流程）。
+  final bool autoPickOnStart;
+
+  /// 自动唤起的选择器被取消、且当前未选中任何文件时回调（供上层退回来源选择页）。
+  final VoidCallback? onPickerDismissedEmpty;
 
   const AddAudioDialog({
     super.key,
     this.collectionId,
     this.embedded = false,
-    this.onBack,
     this.onComplete,
     this.importSourceType = AudioImportSourceType.local,
     this.preferDownloadsDirectory = true,
+    this.autoPickOnStart = false,
+    this.onPickerDismissedEmpty,
   });
 
   @override
@@ -104,6 +110,20 @@ class _AddAudioDialogState extends ConsumerState<AddAudioDialog> {
   /// 内联错误状态（避免 SnackBar 被 dialog scrim 遮蔽）
   _InlineError? _error;
   Timer? _errorClearTimer;
+
+  /// 文件选择器是否正在唤起中（用于展示占位加载态）
+  bool _isPicking = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // 「点入口即选择」：面板挂载后立即唤起系统文件选择器。
+    if (widget.autoPickOnStart) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _pickAudioFiles();
+      });
+    }
+  }
 
   @override
   void dispose() {
@@ -191,10 +211,9 @@ class _AddAudioDialogState extends ConsumerState<AddAudioDialog> {
           children: [
             Expanded(
               child: SecondaryActionButton(
-                onPressed: _isLoading
-                    ? null
-                    : (widget.onBack ?? () => Navigator.pop(context)),
-                label: l10n.back,
+                // 取消：直接关闭整个导入流程；返回来源选择页由顶部返回箭头处理。
+                onPressed: _isLoading ? null : () => Navigator.pop(context),
+                label: l10n.cancel,
               ),
             ),
             const SizedBox(width: 8),
@@ -227,11 +246,15 @@ class _AddAudioDialogState extends ConsumerState<AddAudioDialog> {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildSelectAudioFileButton(l10n, colorScheme),
-        if (widget.embedded) ...[
-          const SizedBox(height: 12),
-          _buildCloudDriveHint(Theme.of(context), l10n),
-        ],
+        // embedded 流程由来源选择页直接唤起选择器，面板内不再展示选择按钮与网盘提示，
+        // 只呈现已选文件列表。非 embedded（独立弹窗）仍保留手动选择入口。
+        if (!widget.embedded) _buildSelectAudioFileButton(l10n, colorScheme),
+        // 选择器唤起中且尚无已选文件：展示占位加载态，避免空白面板。
+        if (widget.embedded && _isPicking && _pickedFiles.isEmpty)
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 24),
+            child: Center(child: CircularProgressIndicator()),
+          ),
         // 内联错误提示（淡入 + 上滑，6 秒自动消失）
         AnimatedSize(
           duration: const Duration(milliseconds: 220),
@@ -350,39 +373,6 @@ class _AddAudioDialogState extends ConsumerState<AddAudioDialog> {
     );
   }
 
-  Widget _buildCloudDriveHint(ThemeData theme, AppLocalizations l10n) {
-    final colorScheme = theme.colorScheme;
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
-      decoration: BoxDecoration(
-        color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.38),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: colorScheme.outlineVariant),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(
-            Icons.info_outline,
-            size: 18,
-            color: colorScheme.onSurfaceVariant,
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              l10n.audioFilePickerCloudDriveHint,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: colorScheme.onSurfaceVariant,
-                height: 1.35,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   /// 构建单个文件行（单行：图标 + 文件名 + 大小 + 删除）
   Widget _buildFileRow(_PickedAudio file, int index, ColorScheme colorScheme) {
     return Padding(
@@ -398,23 +388,31 @@ class _AddAudioDialogState extends ConsumerState<AddAudioDialog> {
               overflow: TextOverflow.ellipsis,
             ),
           ),
-          // 已配对同名字幕：显示徽章，让用户明确会一并导入。
-          if (file.subtitleText != null) ...[
-            const SizedBox(width: 6),
-            Tooltip(
-              message: AppLocalizations.of(context)!.subtitlePairedBadge,
-              child: Icon(
-                Icons.closed_caption_outlined,
-                size: 16,
-                color: colorScheme.primary,
-              ),
-            ),
-          ],
+          // 已配对同名字幕徽章：固定槽位（无论有无都占位），保证后续大小列对齐。
+          const SizedBox(width: 6),
+          SizedBox(
+            width: 16,
+            child: file.subtitleText != null
+                ? Tooltip(
+                    message: AppLocalizations.of(context)!.subtitlePairedBadge,
+                    child: Icon(
+                      Icons.closed_caption_outlined,
+                      size: 16,
+                      color: colorScheme.primary,
+                    ),
+                  )
+                : null,
+          ),
           const SizedBox(width: 8),
-          Text(
-            _formatFileSize(file.fileSize),
-            style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: colorScheme.onSurfaceVariant,
+          // 大小列固定宽度右对齐，长标题不挤占此列，各行大小与删除按钮竖直对齐。
+          SizedBox(
+            width: 64,
+            child: Text(
+              _formatFileSize(file.fileSize),
+              textAlign: TextAlign.right,
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                color: colorScheme.onSurfaceVariant,
+              ),
             ),
           ),
           IconButton(
@@ -558,9 +556,14 @@ class _AddAudioDialogState extends ConsumerState<AddAudioDialog> {
   /// 选择器放行「音频 + 字幕」并集，用户一次把成对的音频和字幕都选上；App 在选中集合内
   /// 按去扩展名同名把字幕配对到音频，导入时一并入库，免去逐个手动上传字幕。
   Future<void> _pickAudioFiles() async {
+    if (mounted) setState(() => _isPicking = true);
     try {
       final result = await _showAudioFilePicker();
-      if (result == null || result.files.isEmpty) return;
+      if (result == null || result.files.isEmpty) {
+        // 未选中任何文件：若当前也无已选文件，通知上层退回来源选择页。
+        if (_pickedFiles.isEmpty) widget.onPickerDismissedEmpty?.call();
+        return;
+      }
 
       // 1. 建立文件名 → 文件映射，并按扩展名分类（音频 / 字幕 / 不支持）。
       final byName = <String, PlatformFile>{
@@ -653,6 +656,8 @@ class _AddAudioDialogState extends ConsumerState<AddAudioDialog> {
           ),
         );
       }
+    } finally {
+      if (mounted) setState(() => _isPicking = false);
     }
   }
 

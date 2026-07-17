@@ -10,34 +10,18 @@ import '../theme/app_theme.dart';
 import 'add_audio_dialog.dart';
 import 'common/form_input_style.dart';
 import 'common/secondary_action_button.dart';
-import 'manage_subtitles_sheet.dart';
 
 /// 显示统一的音频导入流程。
 Future<void> showImportAudioSheet(
   BuildContext context, {
   String? collectionId,
 }) async {
-  final action = await showModalBottomSheet<_ImportAudioCompletionAction>(
+  await showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
     showDragHandle: true,
     builder: (_) => ImportAudioFlowSheet(collectionId: collectionId),
   );
-  if (!context.mounted || action == null) return;
-  switch (action) {
-    case _ImportAudioCompletionAction(:final audioItem):
-      showModalBottomSheet(
-        context: context,
-        isScrollControlled: true,
-        builder: (_) => ManageSubtitlesSheet(audioItem: audioItem),
-      );
-  }
-}
-
-class _ImportAudioCompletionAction {
-  const _ImportAudioCompletionAction.addSubtitle(this.audioItem);
-
-  final AudioItem audioItem;
 }
 
 enum _ImportStep { chooseSource, localFile, directUrl, completed }
@@ -136,8 +120,9 @@ class _ImportAudioFlowSheetState extends ConsumerState<ImportAudioFlowSheet> {
           key: const ValueKey('local-file'),
           collectionId: widget.collectionId,
           embedded: true,
-          onBack: _goBackToSource,
+          autoPickOnStart: true,
           onComplete: _handleImported,
+          onPickerDismissedEmpty: _goBackToSource,
         ),
         _ImportStep.directUrl => _DirectUrlPanel(
           key: const ValueKey('direct-url'),
@@ -151,16 +136,6 @@ class _ImportAudioFlowSheetState extends ConsumerState<ImportAudioFlowSheet> {
           key: const ValueKey('completed'),
           items: _importedItems,
           onDone: () => Navigator.pop(context),
-          onAddSubtitle:
-              (_importedItems.length == 1 &&
-                  !_importedItems.first.hasTranscript)
-              ? () => Navigator.pop(
-                  context,
-                  _ImportAudioCompletionAction.addSubtitle(
-                    _importedItems.first,
-                  ),
-                )
-              : null,
         ),
       },
     );
@@ -555,16 +530,10 @@ class _InlineInfoCard extends StatelessWidget {
 }
 
 class _CompletedPanel extends StatelessWidget {
-  const _CompletedPanel({
-    super.key,
-    required this.items,
-    required this.onDone,
-    required this.onAddSubtitle,
-  });
+  const _CompletedPanel({super.key, required this.items, required this.onDone});
 
   final List<AudioItem> items;
   final VoidCallback onDone;
-  final VoidCallback? onAddSubtitle;
 
   @override
   Widget build(BuildContext context) {
@@ -590,31 +559,10 @@ class _CompletedPanel extends StatelessWidget {
             ),
           ],
         ),
-        if (onAddSubtitle != null) ...[
-          const SizedBox(height: 16),
-          Text(
-            l10n.addSubtitlePromptMessage,
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: colorScheme.onSurfaceVariant,
-            ),
-          ),
-        ],
         const SizedBox(height: AppSpacing.l),
-        Row(
-          children: [
-            Expanded(
-              child: OutlinedButton(onPressed: onDone, child: Text(l10n.done)),
-            ),
-            if (onAddSubtitle != null) ...[
-              const SizedBox(width: 8),
-              Expanded(
-                child: FilledButton(
-                  onPressed: onAddSubtitle,
-                  child: Text(l10n.addSubtitle),
-                ),
-              ),
-            ],
-          ],
+        SizedBox(
+          width: double.infinity,
+          child: FilledButton(onPressed: onDone, child: Text(l10n.done)),
         ),
       ],
     );
