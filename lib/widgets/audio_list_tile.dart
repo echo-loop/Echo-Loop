@@ -189,9 +189,18 @@ class AudioListTile extends ConsumerWidget {
             ),
           ),
         );
-        final guidedCard = itemStep != null
-            ? GuideTarget(step: itemStep!, child: card)
+        // 置顶项右上角常驻图钉标记，让用户一眼识别已置顶（与背景高亮呼应）。
+        final decoratedCard = audioItem.isPinned
+            ? Stack(
+                children: [
+                  card,
+                  const Positioned(top: 6, right: 6, child: _PinnedBadge()),
+                ],
+              )
             : card;
+        final guidedCard = itemStep != null
+            ? GuideTarget(step: itemStep!, child: decoratedCard)
+            : decoratedCard;
         return Padding(
           padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
           child: guidedCard,
@@ -1125,6 +1134,22 @@ class AudioListTile extends ConsumerWidget {
           .read(audioLibraryProvider.notifier)
           .updateAudioItem(audioItem.copyWith(name: name));
     }
+  }
+}
+
+/// 置顶标记徽章 —— 卡片右上角常驻图钉，直观表达该音频已置顶。
+///
+/// 采用与菜单内图钉一致的倾斜角度与 [AppTheme.pinColor]，视觉语言统一。
+class _PinnedBadge extends StatelessWidget {
+  const _PinnedBadge();
+
+  @override
+  Widget build(BuildContext context) {
+    return Transform.rotate(
+      key: const Key('audio_list_tile_pinned_badge'),
+      angle: 0.52,
+      child: const Icon(Icons.push_pin, size: 14, color: AppTheme.pinColor),
+    );
   }
 }
 
