@@ -215,6 +215,7 @@ class _CollectionDetailScreenState
               ? null
               : () => _confirmBatchDelete(context, l10n, currentIds),
         ),
+        const SizedBox(width: 8),
       ],
     );
   }
