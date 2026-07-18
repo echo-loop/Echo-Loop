@@ -290,6 +290,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get add => 'Add';
 
   @override
+  String get importAction => 'Import';
+
+  @override
   String get selectAudioFile => 'Select Audio File';
 
   @override
@@ -3187,6 +3190,16 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String multipleAudioAdded(int count) {
     return '$count audio files added';
+  }
+
+  @override
+  String audioImportedCount(int count) {
+    return '$count audio files imported';
+  }
+
+  @override
+  String audioImportedWithSubtitleCount(int count) {
+    return '$count with subtitles';
   }
 
   @override

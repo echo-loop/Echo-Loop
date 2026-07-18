@@ -286,6 +286,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get add => '添加';
 
   @override
+  String get importAction => '导入';
+
+  @override
   String get selectAudioFile => '选择音频文件';
 
   @override
@@ -3061,6 +3064,16 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String multipleAudioAdded(int count) {
     return '已添加 $count 个音频';
+  }
+
+  @override
+  String audioImportedCount(int count) {
+    return '成功导入 $count 个音频';
+  }
+
+  @override
+  String audioImportedWithSubtitleCount(int count) {
+    return '其中 $count 个包含字幕';
   }
 
   @override

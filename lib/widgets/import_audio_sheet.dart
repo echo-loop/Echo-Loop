@@ -5,7 +5,6 @@ import 'package:flutter/services.dart';
 import '../features/audio_import/audio_import_models.dart';
 import '../features/audio_import/audio_import_provider.dart';
 import '../l10n/app_localizations.dart';
-import '../models/audio_item.dart';
 import '../theme/app_theme.dart';
 import 'add_audio_dialog.dart';
 import 'common/form_input_style.dart';
@@ -39,7 +38,7 @@ class ImportAudioFlowSheet extends ConsumerStatefulWidget {
 class _ImportAudioFlowSheetState extends ConsumerState<ImportAudioFlowSheet> {
   final _urlController = TextEditingController();
   _ImportStep _step = _ImportStep.chooseSource;
-  List<AudioItem> _importedItems = const [];
+  AudioImportOutcome _outcome = (added: const [], duplicates: const []);
 
   @override
   void dispose() {
@@ -134,7 +133,7 @@ class _ImportAudioFlowSheetState extends ConsumerState<ImportAudioFlowSheet> {
         ),
         _ImportStep.completed => _CompletedPanel(
           key: const ValueKey('completed'),
-          items: _importedItems,
+          outcome: _outcome,
           onDone: () => Navigator.pop(context),
         ),
       },
@@ -146,10 +145,11 @@ class _ImportAudioFlowSheetState extends ConsumerState<ImportAudioFlowSheet> {
     setState(() => _step = _ImportStep.chooseSource);
   }
 
-  void _handleImported(List<AudioItem> items) {
-    if (items.isEmpty) return;
+  void _handleImported(AudioImportOutcome outcome) {
+    // 无任何结果（既没成功也没跳过）时不前进，停留原页供用户重选。
+    if (outcome.added.isEmpty && outcome.duplicates.isEmpty) return;
     setState(() {
-      _importedItems = items;
+      _outcome = outcome;
       _step = _ImportStep.completed;
     });
   }
@@ -164,7 +164,7 @@ class _ImportAudioFlowSheetState extends ConsumerState<ImportAudioFlowSheet> {
         .read(audioImportControllerProvider.notifier)
         .importFromUrl(input, collectionId: widget.collectionId);
     if (!mounted || item == null) return;
-    _handleImported([item]);
+    _handleImported((added: [item], duplicates: const []));
   }
 
   Future<void> _cancelUrlImport() async {
@@ -529,10 +529,17 @@ class _InlineInfoCard extends StatelessWidget {
   }
 }
 
+/// 导入完成页：统一展示成功入库的音频与因内容重复被跳过的项。
+///
+/// 成功与跳过结果合并到同一页，替代原先独立的重复项提示弹窗。
 class _CompletedPanel extends StatelessWidget {
-  const _CompletedPanel({super.key, required this.items, required this.onDone});
+  const _CompletedPanel({
+    super.key,
+    required this.outcome,
+    required this.onDone,
+  });
 
-  final List<AudioItem> items;
+  final AudioImportOutcome outcome;
   final VoidCallback onDone;
 
   @override
@@ -540,31 +547,166 @@ class _CompletedPanel extends StatelessWidget {
     final l10n = AppLocalizations.of(context)!;
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    final singleItem = items.length == 1 ? items.first : null;
+    final added = outcome.added;
+    final duplicates = outcome.duplicates;
+    // 成功导入数（含 0）与其中带字幕的数量。
+    final addedCount = added.length;
+    final subtitleCount = added.where((a) => a.hasTranscript).length;
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // 成功入库摘要（始终显示，哪怕 0 个）。
         Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Icon(Icons.check_circle, color: colorScheme.primary, size: 24),
             const SizedBox(width: 10),
             Expanded(
-              child: Text(
-                singleItem == null
-                    ? l10n.multipleAudioAdded(items.length)
-                    : singleItem.name,
-                style: theme.textTheme.titleMedium,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    l10n.audioImportedCount(addedCount),
+                    style: theme.textTheme.titleMedium,
+                  ),
+                  // 成功导入数不为 0 时，再显示其中多少个带字幕。
+                  if (addedCount > 0)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 2),
+                      child: Text(
+                        l10n.audioImportedWithSubtitleCount(subtitleCount),
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ),
+                ],
               ),
             ),
           ],
         ),
+        // 跳过的重复项列表（有跳过项才显示）。
+        if (duplicates.isNotEmpty) ...[
+          const SizedBox(height: AppSpacing.l),
+          Row(
+            children: [
+              Icon(
+                Icons.copy_all_outlined,
+                color: colorScheme.onSurfaceVariant,
+                size: 22,
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  l10n.duplicatesSkipped(duplicates.length),
+                  style: theme.textTheme.titleMedium,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            l10n.duplicatesSkippedDetail,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: colorScheme.onSurfaceVariant,
+              height: 1.35,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Flexible(child: _DuplicatesList(duplicates: duplicates)),
+        ],
         const SizedBox(height: AppSpacing.l),
         SizedBox(
           width: double.infinity,
           child: FilledButton(onPressed: onDone, child: Text(l10n.done)),
         ),
       ],
+    );
+  }
+}
+
+/// 重复项限高滚动列表：单条为音频图标 + 导入名（+ 与哪个已有音频内容相同）。
+class _DuplicatesList extends StatelessWidget {
+  const _DuplicatesList({required this.duplicates});
+
+  final List<AudioImportDuplicate> duplicates;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    return Container(
+      constraints: const BoxConstraints(maxHeight: 240),
+      decoration: BoxDecoration(
+        color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Scrollbar(
+        child: ListView.separated(
+          shrinkWrap: true,
+          padding: const EdgeInsets.symmetric(vertical: 4),
+          itemCount: duplicates.length,
+          separatorBuilder: (_, __) => Divider(
+            height: 1,
+            thickness: 1,
+            indent: 44,
+            color: colorScheme.outlineVariant.withValues(alpha: 0.4),
+          ),
+          itemBuilder: (_, i) => _buildRow(theme, context, duplicates[i]),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRow(
+    ThemeData theme,
+    BuildContext context,
+    AudioImportDuplicate dup,
+  ) {
+    final l10n = AppLocalizations.of(context)!;
+    final colorScheme = theme.colorScheme;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // 与本地文件导入列表统一使用波形图标（非音乐图标）。
+          Icon(Icons.graphic_eq, size: 18, color: colorScheme.primary),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  dup.attempted,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.w500,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                // 仅当导入名与已有名不同时，标注与哪个已有音频内容相同。
+                if (dup.existing != dup.attempted)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 2),
+                    child: Text(
+                      l10n.duplicateOfExisting(dup.existing),
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: colorScheme.onSurfaceVariant.withValues(
+                          alpha: 0.75,
+                        ),
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

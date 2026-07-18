@@ -51,6 +51,17 @@ typedef _SavedPickedAudio = ({
   bool created,
 });
 
+/// 被跳过的重复项：本次导入名 + 与之内容相同的库中已有条目名。
+typedef AudioImportDuplicate = ({String attempted, String existing});
+
+/// 批量导入结果：成功入库的音频 + 因内容重复被跳过的项。
+///
+/// 供完成页统一展示成功与跳过结果，避免额外的重复项提示弹窗。
+typedef AudioImportOutcome = ({
+  List<AudioItem> added,
+  List<AudioImportDuplicate> duplicates,
+});
+
 /// 内联错误提示种类
 enum _AudioErrorKind { unsupportedFormat, generic }
 
@@ -70,7 +81,7 @@ class AddAudioDialog extends ConsumerStatefulWidget {
   /// 合集 ID（为 null 时显示合集下拉框）
   final String? collectionId;
   final bool embedded;
-  final ValueChanged<List<AudioItem>>? onComplete;
+  final ValueChanged<AudioImportOutcome>? onComplete;
   final AudioImportSourceType importSourceType;
   final bool preferDownloadsDirectory;
 
@@ -191,7 +202,7 @@ class _AddAudioDialogState extends ConsumerState<AddAudioDialog> {
                         height: 16,
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
-                    : Text(l10n.add),
+                    : Text(l10n.importAction),
               ),
             ),
           ],
@@ -228,7 +239,7 @@ class _AddAudioDialogState extends ConsumerState<AddAudioDialog> {
                         height: 16,
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
-                    : Text(l10n.add),
+                    : Text(l10n.importAction),
               ),
             ),
           ],
@@ -307,16 +318,30 @@ class _AddAudioDialogState extends ConsumerState<AddAudioDialog> {
             ),
           ConstrainedBox(
             constraints: BoxConstraints(maxHeight: maxFileListHeight),
-            child: Material(
-              type: MaterialType.transparency,
-              child: ListView.separated(
-                shrinkWrap: true,
-                itemCount: _pickedFiles.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 2),
-                itemBuilder: (context, index) {
-                  final file = _pickedFiles[index];
-                  return _buildFileRow(file, index, colorScheme);
-                },
+            child: Container(
+              decoration: BoxDecoration(
+                color: colorScheme.surfaceContainerHighest.withValues(
+                  alpha: 0.4,
+                ),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              clipBehavior: Clip.antiAlias,
+              child: Scrollbar(
+                child: ListView.separated(
+                  shrinkWrap: true,
+                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  itemCount: _pickedFiles.length,
+                  separatorBuilder: (_, __) => Divider(
+                    height: 1,
+                    thickness: 1,
+                    indent: 44,
+                    color: colorScheme.outlineVariant.withValues(alpha: 0.4),
+                  ),
+                  itemBuilder: (context, index) {
+                    final file = _pickedFiles[index];
+                    return _buildFileRow(file, index, colorScheme);
+                  },
+                ),
               ),
             ),
           ),
@@ -373,18 +398,66 @@ class _AddAudioDialogState extends ConsumerState<AddAudioDialog> {
     );
   }
 
-  /// 构建单个文件行（单行：图标 + 文件名 + 大小 + 删除）
+  /// 是否为移动端（Android / iOS）。移动端用左滑删除，桌面/Web 用删除按钮。
+  bool get _isMobilePlatform =>
+      !kIsWeb && (Platform.isAndroid || Platform.isIOS);
+
+  /// 从已选列表移除指定索引的文件。
+  void _removeFileAt(int index) {
+    setState(() {
+      _pickedFiles = List.of(_pickedFiles)..removeAt(index);
+    });
+  }
+
+  /// 构建单个文件行。
+  ///
+  /// 桌面/Web：行尾显示删除按钮；移动端：去掉删除按钮，改为整行左滑删除
+  /// （删除按钮太小不便点击）。两端均展示字幕徽章与文件大小列。
   Widget _buildFileRow(_PickedAudio file, int index, ColorScheme colorScheme) {
+    final row = _buildFileRowContent(file, index, colorScheme);
+    if (!_isMobilePlatform) return row;
+    // 移动端：左滑删除，加载中禁用滑动。
+    return Dismissible(
+      key: ValueKey(file.file),
+      direction: _isLoading
+          ? DismissDirection.none
+          : DismissDirection.endToStart,
+      onDismissed: (_) => _removeFileAt(index),
+      background: Container(
+        alignment: Alignment.centerRight,
+        color: colorScheme.errorContainer,
+        padding: const EdgeInsets.only(right: 20),
+        child: Icon(
+          Icons.delete_outline,
+          size: 20,
+          color: colorScheme.onErrorContainer,
+        ),
+      ),
+      child: row,
+    );
+  }
+
+  /// 文件行内容：波形图标 + 文件名 + 字幕徽章 + 大小（+ 桌面端删除按钮）。
+  Widget _buildFileRowContent(
+    _PickedAudio file,
+    int index,
+    ColorScheme colorScheme,
+  ) {
+    final theme = Theme.of(context);
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
       child: Row(
         children: [
-          Icon(Icons.audio_file_outlined, size: 18, color: colorScheme.primary),
-          const SizedBox(width: 8),
+          // 音频图标统一用波形（graphic_eq），避免音乐音符观感。
+          Icon(Icons.graphic_eq, size: 18, color: colorScheme.primary),
+          const SizedBox(width: 10),
           Expanded(
             child: Text(
               file.displayName,
-              style: Theme.of(context).textTheme.bodySmall,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                fontWeight: FontWeight.w500,
+              ),
+              maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
           ),
@@ -404,32 +477,44 @@ class _AddAudioDialogState extends ConsumerState<AddAudioDialog> {
                 : null,
           ),
           const SizedBox(width: 8),
-          // 大小列固定宽度右对齐，长标题不挤占此列，各行大小与删除按钮竖直对齐。
+          // 大小列固定宽度右对齐，长标题不挤占此列，各行大小竖直对齐。
           SizedBox(
             width: 64,
             child: Text(
               _formatFileSize(file.fileSize),
               textAlign: TextAlign.right,
-              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+              style: theme.textTheme.labelSmall?.copyWith(
                 color: colorScheme.onSurfaceVariant,
               ),
             ),
           ),
-          IconButton(
-            icon: Icon(
-              Icons.close,
-              size: 16,
-              color: colorScheme.onSurfaceVariant,
+          // 桌面/Web：圆形删除按钮；移动端不显示（改用左滑）。
+          if (!_isMobilePlatform) ...[
+            const SizedBox(width: 4),
+            IconButton(
+              icon: Icon(
+                Icons.close,
+                size: 16,
+                color: colorScheme.onSurfaceVariant,
+              ),
+              // 圆形按钮：默认透明，仅悬停/按下时显示灰色圆底。
+              style: ButtonStyle(
+                shape: const WidgetStatePropertyAll(CircleBorder()),
+                minimumSize: const WidgetStatePropertyAll(Size(28, 28)),
+                backgroundColor: WidgetStateProperty.resolveWith(
+                  (states) =>
+                      states.contains(WidgetState.hovered) ||
+                          states.contains(WidgetState.pressed)
+                      ? colorScheme.surfaceContainerHighest
+                      : Colors.transparent,
+                ),
+              ),
+              visualDensity: VisualDensity.compact,
+              padding: const EdgeInsets.all(4),
+              constraints: const BoxConstraints(),
+              onPressed: _isLoading ? null : () => _removeFileAt(index),
             ),
-            visualDensity: VisualDensity.compact,
-            padding: const EdgeInsets.all(4),
-            constraints: const BoxConstraints(),
-            onPressed: _isLoading
-                ? null
-                : () => setState(() {
-                    _pickedFiles = List.of(_pickedFiles)..removeAt(index);
-                  }),
-          ),
+          ],
         ],
       ),
     );
@@ -832,7 +917,7 @@ class _AddAudioDialogState extends ConsumerState<AddAudioDialog> {
 
     final List<AudioItem> results = [];
     // 跳过的重复项：本次导入名 + 与之重复的库中已有条目名。
-    final List<({String attempted, String existing})> skippedDuplicates = [];
+    final List<AudioImportDuplicate> skippedDuplicates = [];
 
     // 全程包裹 try/catch/finally：任一文件入库（读时长/写库）抛异常都不能让面板
     // 卡在 loading（按钮全禁用、只能杀进程），finally 统一恢复可交互。
@@ -895,180 +980,14 @@ class _AddAudioDialogState extends ConsumerState<AddAudioDialog> {
 
     if (!mounted) return;
 
-    // 有跳过项时弹窗提示
-    if (skippedDuplicates.isNotEmpty) {
-      await showDialog(
-        context: context,
-        builder: (_) => DuplicatesSkippedDialog(duplicates: skippedDuplicates),
-      );
-    }
+    // 成功与跳过结果统一交给完成页展示，不再弹独立的重复项提示弹窗。
+    final outcome = (added: results, duplicates: skippedDuplicates);
 
-    // embedded 全部重复时 onComplete 收到空列表不前进，面板停留本页（_isLoading
-    // 已在 finally 恢复），用户可删除或改选其它文件。
-    if (mounted && widget.embedded) {
-      widget.onComplete?.call(results);
+    if (widget.embedded) {
+      widget.onComplete?.call(outcome);
       return;
     }
 
-    if (mounted) {
-      Navigator.pop(context, results);
-    }
-  }
-}
-
-/// 重复音频跳过提示弹窗。
-///
-/// 批量导入时，内容与库中已有音频完全相同（按 SHA256 去重）的文件会被跳过。
-/// 弹窗以限高滚动卡片列出被跳过项，避免大量重复时撑破弹窗，并在导入名与已有名
-/// 不同时标注与哪个已有音频内容相同。
-class DuplicatesSkippedDialog extends StatelessWidget {
-  const DuplicatesSkippedDialog({super.key, required this.duplicates});
-
-  /// 被跳过的重复项：本次导入名 + 与之内容相同的库中已有条目名。
-  final List<({String attempted, String existing})> duplicates;
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-
-    return AlertDialog(
-      titlePadding: const EdgeInsets.fromLTRB(24, 24, 24, 8),
-      contentPadding: const EdgeInsets.fromLTRB(24, 0, 24, 20),
-      // 标题行：图标 + 计数，左对齐更紧凑直观。
-      title: Row(
-        children: [
-          Container(
-            width: 36,
-            height: 36,
-            decoration: BoxDecoration(
-              color: colorScheme.primary.withValues(alpha: 0.12),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              Icons.copy_all_outlined,
-              size: 20,
-              color: colorScheme.primary,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              l10n.duplicatesSkipped(duplicates.length),
-              style: theme.textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-        ],
-      ),
-      content: SizedBox(
-        width: double.maxFinite,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              l10n.duplicatesSkippedDetail,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: colorScheme.onSurfaceVariant,
-                height: 1.35,
-              ),
-            ),
-            const SizedBox(height: 12),
-            // 重复项可能很多：装进限高、带滚动条的卡片，避免撑破弹窗。
-            Flexible(
-              child: Container(
-                constraints: const BoxConstraints(maxHeight: 280),
-                decoration: BoxDecoration(
-                  color: colorScheme.surfaceContainerHighest.withValues(
-                    alpha: 0.4,
-                  ),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                clipBehavior: Clip.antiAlias,
-                child: Scrollbar(
-                  child: ListView.separated(
-                    shrinkWrap: true,
-                    padding: const EdgeInsets.symmetric(vertical: 4),
-                    itemCount: duplicates.length,
-                    separatorBuilder: (_, __) => Divider(
-                      height: 1,
-                      thickness: 1,
-                      indent: 44,
-                      color: colorScheme.outlineVariant.withValues(alpha: 0.4),
-                    ),
-                    itemBuilder: (_, i) =>
-                        _buildRow(theme, l10n, duplicates[i]),
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(height: 20),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton(
-                onPressed: () => Navigator.pop(context),
-                child: Text(l10n.ok),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  /// 单条重复项行：音频图标 + 导入名（+ 与哪个已有音频内容相同的次行）。
-  Widget _buildRow(
-    ThemeData theme,
-    AppLocalizations l10n,
-    ({String attempted, String existing}) dup,
-  ) {
-    final colorScheme = theme.colorScheme;
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(
-            Icons.music_note_outlined,
-            size: 18,
-            color: colorScheme.onSurfaceVariant,
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  dup.attempted,
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    fontWeight: FontWeight.w500,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                // 仅当导入名与已有名不同时，标注与哪个已有音频内容相同。
-                if (dup.existing != dup.attempted)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 2),
-                    child: Text(
-                      l10n.duplicateOfExisting(dup.existing),
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: colorScheme.onSurfaceVariant.withValues(
-                          alpha: 0.75,
-                        ),
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
+    Navigator.pop(context, outcome);
   }
 }

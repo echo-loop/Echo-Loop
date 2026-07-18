@@ -163,6 +163,7 @@
   },
   "cancel": "Cancel",
   "add": "Add",
+  "importAction": "Import",
   "selectAudioFile": "Select Audio File",
   "subtitlePairedBadge": "Subtitle matched, imported together",
   "audioFilePickerCloudDriveHint": "Before choosing from a cloud drive, install and sign in to that cloud drive app first. A few cloud drive apps may not support direct selection from the file picker.",
@@ -1728,6 +1729,18 @@
   },
   "multipleAudioAdded": "{count} audio files added",
   "@multipleAudioAdded": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "audioImportedCount": "{count} audio files imported",
+  "@audioImportedCount": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "audioImportedWithSubtitleCount": "{count} with subtitles",
+  "@audioImportedWithSubtitleCount": {
     "placeholders": {
       "count": {"type": "int"}
     }

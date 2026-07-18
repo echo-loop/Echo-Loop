@@ -590,6 +590,12 @@ abstract class AppLocalizations {
   /// **'Add'**
   String get add;
 
+  /// No description provided for @importAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Import'**
+  String get importAction;
+
   /// No description provided for @selectAudioFile.
   ///
   /// In en, this message translates to:
@@ -5599,6 +5605,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{count} audio files added'**
   String multipleAudioAdded(int count);
+
+  /// No description provided for @audioImportedCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} audio files imported'**
+  String audioImportedCount(int count);
+
+  /// No description provided for @audioImportedWithSubtitleCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} with subtitles'**
+  String audioImportedWithSubtitleCount(int count);
 
   /// No description provided for @duplicatesSkipped.
   ///

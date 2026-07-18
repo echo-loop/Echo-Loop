@@ -317,7 +317,9 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Import complete'), findsOneWidget);
-    expect(find.text('URL Audio'), findsOneWidget);
+    // 完成页展示成功导入计数与其中带字幕数量。
+    expect(find.text('1 audio files imported'), findsOneWidget);
+    expect(find.text('0 with subtitles'), findsOneWidget);
     expect(find.text('Done'), findsOneWidget);
     // 字幕已自动匹配，完成页不再提示添加字幕。
     expect(find.text('Add Subtitle'), findsNothing);
