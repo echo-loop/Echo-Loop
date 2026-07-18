@@ -297,6 +297,26 @@ class CollectionList extends _$CollectionList {
     state = state.copyWith(audioIdsMap: newMap);
   }
 
+  /// 从指定合集中批量移除多个音频引用。
+  ///
+  /// 用于合集详情页的多选删除「仅从合集移除」分支。DAO 单条 SQL 删除 junction，
+  /// 内存 `audioIdsMap` 只更新一次，避免逐条 [removeAudioFromCollection] 触发多次
+  /// state 重建。
+  Future<void> removeAudiosFromCollection(
+    String collectionId,
+    Set<String> audioIds,
+  ) async {
+    if (audioIds.isEmpty) return;
+    final dao = ref.read(collectionDaoProvider);
+    await dao.removeAudios(collectionId, audioIds);
+
+    final newMap = Map<String, List<String>>.from(state.audioIdsMap);
+    final ids = List<String>.from(newMap[collectionId] ?? [])
+      ..removeWhere(audioIds.contains);
+    newMap[collectionId] = ids;
+    state = state.copyWith(audioIdsMap: newMap);
+  }
+
   /// 从所有合集中移除指定音频的引用（当音频从音频库删除时调用）
   /// CASCADE 已自动清理 junction 表，此方法仅更新内存缓存
   Future<void> removeAudioFromAllCollections(String audioId) async {

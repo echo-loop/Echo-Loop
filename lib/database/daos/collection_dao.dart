@@ -155,6 +155,19 @@ class CollectionDao extends DatabaseAccessor<AppDatabase>
         .go();
   }
 
+  /// 从指定合集中批量移除多个音频。
+  ///
+  /// 单条 SQL DELETE 完成，避免逐条 [removeAudio] 的多次往返。
+  Future<void> removeAudios(String collectionId, Set<String> audioItemIds) {
+    if (audioItemIds.isEmpty) return Future.value();
+    return (delete(collectionAudioItems)..where(
+          (t) =>
+              t.collectionId.equals(collectionId) &
+              t.audioItemId.isIn(audioItemIds),
+        ))
+        .go();
+  }
+
   /// 从所有合集中移除指定音频（当音频被删除时调用）
   Future<void> removeAudioFromAll(String audioItemId) {
     return (delete(
