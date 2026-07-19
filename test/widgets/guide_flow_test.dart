@@ -10,6 +10,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:showcaseview/showcaseview.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:echo_loop/features/onboarding_survey/providers/onboarding_survey_provider.dart';
 import 'package:echo_loop/l10n/app_localizations.dart';
 import 'package:echo_loop/providers/new_user_guide_provider.dart';
 import 'package:echo_loop/widgets/guide_flow.dart';
@@ -50,6 +51,7 @@ void main() {
     final prefs = await SharedPreferences.getInstance();
     final container = ProviderContainer(
       overrides: [
+        sharedPreferencesProvider.overrideWithValue(prefs),
         guideRegistryProvider.overrideWithValue(GuideRegistry(prefs: prefs)),
       ],
     );
@@ -114,7 +116,10 @@ void main() {
     final prefs = await SharedPreferences.getInstance();
     final registry = GuideRegistry(prefs: prefs);
     final container = ProviderContainer(
-      overrides: [guideRegistryProvider.overrideWithValue(registry)],
+      overrides: [
+        sharedPreferencesProvider.overrideWithValue(prefs),
+        guideRegistryProvider.overrideWithValue(registry),
+      ],
     );
     addTearDown(container.dispose);
 
@@ -162,7 +167,10 @@ void main() {
     final prefs = await SharedPreferences.getInstance();
     final registry = GuideRegistry(prefs: prefs);
     final container = ProviderContainer(
-      overrides: [guideRegistryProvider.overrideWithValue(registry)],
+      overrides: [
+        sharedPreferencesProvider.overrideWithValue(prefs),
+        guideRegistryProvider.overrideWithValue(registry),
+      ],
     );
     addTearDown(container.dispose);
 
@@ -197,6 +205,7 @@ void main() {
     final prefs = await SharedPreferences.getInstance();
     final container = ProviderContainer(
       overrides: [
+        sharedPreferencesProvider.overrideWithValue(prefs),
         guideRegistryProvider.overrideWithValue(GuideRegistry(prefs: prefs)),
       ],
     );
@@ -252,7 +261,10 @@ void main() {
     final prefs = await SharedPreferences.getInstance();
     final registry = GuideRegistry(prefs: prefs);
     final container = ProviderContainer(
-      overrides: [guideRegistryProvider.overrideWithValue(registry)],
+      overrides: [
+        sharedPreferencesProvider.overrideWithValue(prefs),
+        guideRegistryProvider.overrideWithValue(registry),
+      ],
     );
     addTearDown(container.dispose);
 

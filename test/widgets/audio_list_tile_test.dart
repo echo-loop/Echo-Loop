@@ -122,7 +122,7 @@ void main() {
       );
     }
 
-    testWidgets('有字幕时第三行显示带图标、描边和浅色底的字幕标签', (tester) async {
+    testWidgets('有字幕时元信息行显示带描边和浅色底的 CC 字幕标签', (tester) async {
       final item = createTestAudioItem(name: 'Audio with transcript');
 
       await tester.pumpWidget(buildTile(item));
@@ -132,16 +132,14 @@ void main() {
         find.byKey(const Key('audio_list_tile_metadata_row')),
         findsOneWidget,
       );
-      expect(
-        find.byKey(const Key('audio_list_tile_badge_row')),
-        findsOneWidget,
-      );
+      expect(find.byKey(const Key('audio_list_tile_badge_row')), findsNothing);
       expect(
         find.byKey(const Key('audio_list_tile_transcript_badge')),
         findsOneWidget,
       );
-      expect(find.byIcon(Icons.subtitles_outlined), findsOneWidget);
-      expect(find.text('Transcript'), findsOneWidget);
+      expect(find.byIcon(Icons.subtitles_outlined), findsNothing);
+      expect(find.text('CC'), findsOneWidget);
+      expect(find.text('Transcript'), findsNothing);
 
       final badge = tester.widget<Container>(
         find.byKey(const Key('audio_list_tile_transcript_badge')),
@@ -159,10 +157,10 @@ void main() {
           .getTopLeft(find.byKey(const Key('audio_list_tile_metadata_row')))
           .dy;
       final badgeY = tester
-          .getTopLeft(find.byKey(const Key('audio_list_tile_badge_row')))
+          .getTopLeft(find.byKey(const Key('audio_list_tile_transcript_badge')))
           .dy;
       expect(metadataY, greaterThan(titleY));
-      expect(badgeY, greaterThan(metadataY));
+      expect((badgeY - metadataY).abs(), lessThan(2));
     });
 
     testWidgets('无任何 badge 时只显示标题和元数据两行', (tester) async {
@@ -800,7 +798,7 @@ void main() {
       expect(find.textContaining('Audio too long'), findsOneWidget);
       expect(find.byType(SnackBar), findsNothing);
 
-      await tester.pump(const Duration(seconds: 5));
+      await tester.pump(const Duration(seconds: 12));
       await tester.pumpAndSettle();
 
       expect(find.textContaining('Audio too long'), findsNothing);

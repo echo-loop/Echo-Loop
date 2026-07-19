@@ -19,6 +19,7 @@ import 'package:echo_loop/providers/listen_and_repeat/listen_and_repeat_controll
 import 'package:echo_loop/providers/listen_and_repeat/listen_and_repeat_phase.dart';
 import 'package:echo_loop/providers/listen_and_repeat/listen_and_repeat_settings_provider.dart';
 import 'package:echo_loop/providers/listen_and_repeat/listen_and_repeat_session_state.dart';
+import 'package:echo_loop/providers/new_user_guide_provider.dart';
 import 'package:echo_loop/providers/notification_permission_provider.dart';
 import 'package:echo_loop/providers/sentence_ai_provider.dart';
 import 'package:echo_loop/providers/speech/speech_recording_controller.dart';
@@ -213,6 +214,7 @@ Widget _createTestWidget({
   return ProviderScope(
     overrides: [
       analyticsOverride(),
+      guideEnabledProvider.overrideWith(() => _DisabledGuideEnabledNotifier()),
       ...studyTimeOverrides(),
       ...learningSettingsOverrides(),
       speechPermissionServiceProvider.overrideWithValue(
@@ -258,6 +260,16 @@ Widget _createTestWidget({
       routerConfig: router,
     ),
   );
+}
+
+class _DisabledGuideEnabledNotifier extends GuideEnabledNotifier {
+  @override
+  bool build() => false;
+
+  @override
+  Future<void> setEnabled(bool enabled) async {
+    state = false;
+  }
 }
 
 class _StaticSpeechRecordingController extends SpeechRecordingController {

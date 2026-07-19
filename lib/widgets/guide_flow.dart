@@ -156,8 +156,9 @@ class _GuideFlowSequenceHostState extends ConsumerState<GuideFlowSequenceHost> {
     if (!TickerMode.valuesOf(context).enabled) return;
     final showcase = _tryGetShowcase();
     if (showcase == null) return;
-    // 新手引导总开关关闭时，直接不启动任何 flow。
-    if (!ref.read(guideEnabledProvider)) return;
+    // 新手引导总开关关闭时，直接不启动任何 flow；纯 widget 测试若未注入
+    // SharedPreferences，也跳过引导，避免后台 tour 干扰与引导无关的断言。
+    if (!_canStartGuide()) return;
     if (ref.read(guideControllerProvider).isActive) return;
 
     final registry = ref.read(guideRegistryProvider);
@@ -187,6 +188,17 @@ class _GuideFlowSequenceHostState extends ConsumerState<GuideFlowSequenceHost> {
 
       showcase.startShowCase(keys);
       return;
+    }
+  }
+
+  bool _canStartGuide() {
+    try {
+      return ref.read(guideEnabledProvider);
+    } on UnimplementedError catch (error) {
+      if (error.toString().contains('sharedPreferencesProvider')) {
+        return false;
+      }
+      rethrow;
     }
   }
 

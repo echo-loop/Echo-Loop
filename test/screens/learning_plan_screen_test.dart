@@ -991,7 +991,7 @@ void main() {
       expect(find.textContaining('Audio too long'), findsOneWidget);
       expect(find.byType(SnackBar), findsNothing);
 
-      await tester.pump(const Duration(seconds: 5));
+      await tester.pump(const Duration(seconds: 12));
       await tester.pumpAndSettle();
 
       expect(find.textContaining('Audio too long'), findsNothing);

@@ -109,10 +109,10 @@ void main() {
     await tester.longPress(find.text('a1'));
     await tester.pumpAndSettle();
 
-    // 进入多选：工具栏 + 已选 1 项 + 出现复选框
+    // 进入多选：工具栏 + 已选 1 项 + 每项左右各出现一个复选框热区
     expect(find.text('1 selected'), findsOneWidget);
     expect(find.text('Select All'), findsOneWidget);
-    expect(find.byType(Checkbox), findsNWidgets(2));
+    expect(find.byType(Checkbox), findsNWidgets(4));
 
     // 全选
     await tester.tap(find.text('Select All'));

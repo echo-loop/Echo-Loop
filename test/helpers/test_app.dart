@@ -71,6 +71,7 @@ Widget createTestApp(
         AppSettingsState(themeMode: themeMode, locale: locale),
       ),
     ),
+    guideEnabledProvider.overrideWith(() => _DisabledGuideEnabledNotifier()),
     audioLibraryProvider.overrideWith(() => TestAudioLibrary()),
     collectionListProvider.overrideWith(() => TestCollectionList()),
     tagListProvider.overrideWith(() => TestTagList()),
@@ -128,6 +129,7 @@ Widget createTestScreen(
     appSettingsProvider.overrideWith(
       () => TestAppSettings(AppSettingsState(locale: locale)),
     ),
+    guideEnabledProvider.overrideWith(() => _DisabledGuideEnabledNotifier()),
     audioLibraryProvider.overrideWith(() => TestAudioLibrary()),
     collectionListProvider.overrideWith(() => TestCollectionList()),
     tagListProvider.overrideWith(() => TestTagList()),
@@ -204,6 +206,9 @@ Future<void> pumpFullApp(
         isFirstLaunchProvider.overrideWithValue(false),
         sharedPreferencesProvider.overrideWithValue(prefs),
         initialOnboardingCompletedProvider.overrideWithValue(true),
+        guideEnabledProvider.overrideWith(
+          () => _DisabledGuideEnabledNotifier(),
+        ),
         // 隐藏 AI section，避免 ASR 相关 Provider 未实现导致 UnimplementedError
         showOfflineAsrSectionProvider.overrideWithValue(false),
         offlineAsrOverride(),
@@ -249,6 +254,16 @@ Future<void> pumpFullApp(
       child: const EchoLoopApp(),
     ),
   );
+}
+
+class _DisabledGuideEnabledNotifier extends GuideEnabledNotifier {
+  @override
+  bool build() => false;
+
+  @override
+  Future<void> setEnabled(bool enabled) async {
+    state = false;
+  }
 }
 
 /// 在 flutter_test 中渲染完整 [EchoLoopApp] 并预置一份音频学习数据。

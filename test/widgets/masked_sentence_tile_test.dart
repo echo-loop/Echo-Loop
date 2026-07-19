@@ -253,7 +253,7 @@ void main() {
       expect(find.byIcon(Icons.play_arrow), findsNothing);
     });
 
-    testWidgets('编号点击区宽度收窄为 40dp', (tester) async {
+    testWidgets('编号点击区宽度收窄为 32dp', (tester) async {
       await tester.pumpWidget(
         buildInteractiveTile(
           sentence: _sentence('Hello world', index: 0),
@@ -262,12 +262,12 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // 编号文本 "1" 的祖先 SizedBox 应收窄为 40dp。
+      // 编号文本 "1" 的祖先 SizedBox 应收窄为 32dp。
       final sizedBoxes = tester.widgetList<SizedBox>(
         find.ancestor(of: find.text('1'), matching: find.byType(SizedBox)),
       );
-      final hasWidth40 = sizedBoxes.any((s) => s.width == 40);
-      expect(hasWidth40, true);
+      final hasWidth32 = sizedBoxes.any((s) => s.width == 32);
+      expect(hasWidth32, true);
     });
 
     testWidgets('isBookmarked=true 时右侧渲染已收藏图标', (tester) async {
