@@ -4533,4 +4533,90 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get dictAiMultiBackground => '背景知识';
+
+  @override
+  String get chatOpenTooltip => '问 AI';
+
+  @override
+  String get chatSentenceTitle => 'AI 助教';
+
+  @override
+  String get chatInputPlaceholder => '有问题尽管问…';
+
+  @override
+  String get chatSend => '发送';
+
+  @override
+  String get chatStop => '停止';
+
+  @override
+  String get chatClear => '清空对话';
+
+  @override
+  String get chatNewChat => '新建会话';
+
+  @override
+  String get chatRegenerate => '重新生成';
+
+  @override
+  String get chatEdit => '编辑';
+
+  @override
+  String get chatEditTitle => '编辑消息';
+
+  @override
+  String get chatCopy => '复制';
+
+  @override
+  String get chatCopied => '已复制';
+
+  @override
+  String chatContextLabel(String summary) {
+    return '正在讨论：$summary';
+  }
+
+  @override
+  String get chatEmptyGreeting => '关于这句话，有什么想问的？';
+
+  @override
+  String get chatErrorNetwork => '网络不可用，点击重试。';
+
+  @override
+  String get chatErrorGenerate => '生成失败，点击重试。';
+
+  @override
+  String get chatQuotaTitle => '免费额度已用完';
+
+  @override
+  String get chatUpgrade => '升级';
+
+  @override
+  String get chatSignInTitle => '需要登录';
+
+  @override
+  String get chatSignInMessage => '登录后即可使用 AI 助手。';
+
+  @override
+  String get chatScrollToBottom => '回到底部';
+
+  @override
+  String get chatThinking => '思考中…';
+
+  @override
+  String get chatFollowUp => '问 AI';
+
+  @override
+  String get chatFollowUpExplain => '详细解释';
+
+  @override
+  String get chatFollowUpTranslate => '翻译';
+
+  @override
+  String get chatFollowUpExample => '举个例子';
+
+  @override
+  String get chatFollowUpInstruction => '请仅根据下方引用的内容回答问题。';
+
+  @override
+  String get chatQuoteRemove => '移除引用';
 }

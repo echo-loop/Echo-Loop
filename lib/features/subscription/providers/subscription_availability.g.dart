@@ -7,7 +7,7 @@ part of 'subscription_availability.dart';
 // **************************************************************************
 
 String _$subscriptionAvailabilityHash() =>
-    r'b445e1bd133f9afb86390b9055e59b9ebf476ab0';
+    r'1d8a6329d9b6a654eb55cf7c7323fcb08ca099ee';
 
 /// 当前平台是否支持订阅（订阅 UI 展示总闸）。
 ///
@@ -26,12 +26,12 @@ final subscriptionAvailabilityProvider = AutoDisposeProvider<bool>.internal(
 @Deprecated('Will be removed in 3.0. Use Ref instead')
 // ignore: unused_element
 typedef SubscriptionAvailabilityRef = AutoDisposeProviderRef<bool>;
-String _$webCheckoutModeHash() => r'21d9e2ff1e214141e0c0f58f762b4f5cfa8dcebd';
+String _$webCheckoutModeHash() => r'a50e5b3874aa3f9c8b5db0c04aa000115c167bd4';
 
-/// 当前是否走「网页支付」渠道（侧载 APK / 桌面）。
+/// 当前是否走 Paddle 网页支付渠道（侧载 APK / 桌面）。
 ///
-/// Paywall 据此切换购买交互：true 时不展示商店套餐卡、改为「浏览器结账 + 回流对账」。
-/// 测试可 override 模拟网页渠道。
+/// Paywall 据此切换购买动作：套餐仍由统一 UI 展示，点击后改为
+/// 「服务端创建 Paddle checkout + 浏览器结账 + 回流对账」。
 ///
 /// Copied from [webCheckoutMode].
 @ProviderFor(webCheckoutMode)

@@ -9,6 +9,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 import '../analytics/analytics_providers.dart';
 import '../analytics/audio_event_params.dart';
@@ -16,6 +17,9 @@ import '../analytics/models/event_names.dart';
 import '../features/usage/usage_event.dart';
 import '../features/usage/usage_providers.dart';
 import '../database/providers.dart';
+import '../features/chatbot/chatbot_flags.dart';
+import '../features/chatbot/chatbot_sheet.dart';
+import '../features/chatbot/models/chatbot_config.dart';
 import '../l10n/app_localizations.dart';
 import '../models/audio_item.dart' as model;
 import '../models/sentence.dart';
@@ -266,7 +270,43 @@ class _SentenceDetailScreenState extends ConsumerState<SentenceDetailScreen> {
         '${_formatTime(args.startTimeMs)} - ${_formatTime(args.endTimeMs)}';
 
     return Scaffold(
-      appBar: AppBar(title: Text(args.audioName), centerTitle: true),
+      appBar: AppBar(
+        title: Text(args.audioName),
+        centerTitle: true,
+        // 发布开关：kChatbotEnabled=false（后端未就绪）时不对用户暴露 AI 按钮。
+        actions: [
+          if (kChatbotEnabled)
+            // 右侧留白：让 action 按钮不贴屏幕右缘，与左侧返回箭头边距对称。
+            Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: IconButton(
+                // 渐变多色图标，保留原始配色不做 colorFilter 染色。
+                // SVG 图案铺满 viewBox（无自带留白），渲染到 20px 使可见footprint
+                // 与返回箭头等大，左右视觉边距对称。
+                icon: SvgPicture.asset(
+                  'assets/icon/chat/use-ai-chat.svg',
+                  width: 24,
+                  height: 24,
+                ),
+                tooltip: l10n.chatOpenTooltip,
+                onPressed: () => showChatbotSheet(
+                  context: context,
+                  config: ChatbotConfig(
+                    // 会话按句子内容归属：相同句子无论出现在哪都复用同一会话
+                    // （context 只传 sentenceText，位置无关）。用完整 text 而非
+                    // hashCode，避免 hash 碰撞导致不同句子串会话；sessionId 仅内存 key，长度无妨。
+                    sessionId: 'sentence:${args.sentenceText}',
+                    endpoint: '/api/v1/stream/chat/sentence',
+                    context: {'sentence': args.sentenceText},
+                    title: l10n.chatSentenceTitle,
+                    inputPlaceholder: l10n.chatInputPlaceholder,
+                    contextSummary: args.sentenceText,
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
       // 词典面板宿主：面板内嵌 body、非 modal（显示期间正文可继续点词）。
       // 页面自身无 PopScope，由宿主代管返回键（面板开着时先关面板）。
       body: DictionaryPanelHost(

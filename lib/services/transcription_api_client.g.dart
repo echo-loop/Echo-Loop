@@ -7,7 +7,7 @@ part of 'transcription_api_client.dart';
 // **************************************************************************
 
 String _$transcriptionApiClientHash() =>
-    r'1de7a795bc1d6edbe445ba35c8b019bbfe92bbdc';
+    r'c56f348296d802513efa849f03a2839e145a4032';
 
 /// 转录 API 客户端单例 Provider
 ///

@@ -7,7 +7,7 @@ part of 'official_catalog_service.dart';
 // **************************************************************************
 
 String _$officialCatalogServiceHash() =>
-    r'e9e332516abbe3fda4258079e01499edee1238c2';
+    r'6b8e671bf0c0e43b17972701131f6f835e100c44';
 
 /// catalog service Provider（keepAlive；进程内单例）。
 ///

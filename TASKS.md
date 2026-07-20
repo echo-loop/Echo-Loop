@@ -9,6 +9,35 @@
 
 - [ ] Android 离线 ASR：结束录音后仍闪退。当前已确认崩在 sherpa-onnx 的 Silero VAD native 推理，现有 cpu provider、AudioRecord 串行、自适应跳过 VAD 都未解决；下一步必须拿到真机 `logcat` 与 `/data/tombstones` 再定方案。
 
+## 通用 Chatbot 组件
+
+> 实现规格见 [docs/chatbot-implementation-plan.md](./docs/chatbot-implementation-plan.md)。多轮对话式 AI 助手，一套可插拔组件（sheet + 全屏页双载体），首接入点为句子讲解页。发布由编译期常量 `kChatbotEnabled`（默认 false）控制，后端就绪前不对用户暴露。不抢占当前录音识别焦点任务。
+
+### P0
+
+- [x] T0 流程登记（本条）。**完成时间**: 2026-07-18
+- [x] T1 数据模型与配置（chat_role/chat_message/chatbot_config/chat_session_state/chatbot_flags）。**完成时间**: 2026-07-18
+- [x] T2 流式协议层（ndjson_text_stream）。**完成时间**: 2026-07-18
+- [x] T3 ChatApiClient + FakeChatApiClient + provider。**完成时间**: 2026-07-18
+- [x] T4 额度门枚举（PremiumFeature.aiChat）。**完成时间**: 2026-07-18
+- [x] T5 ChatSessionController（防竞态状态机）。**完成时间**: 2026-07-18
+- [x] T6 UI 组件 + markdown（gpt_markdown）。**完成时间**: 2026-07-18
+- [x] T7 双语文案（en/zh）。**完成时间**: 2026-07-18
+- [x] T8 两载体 + 首接入点 + 发布开关。**完成时间**: 2026-07-18
+
+### P1
+
+- [x] T9 边界打磨 + e2e（竞态回归 widget 测试；发送→流式→完成 / 发送→停止 均以 ChatView widget 测试覆盖）。本机 `integration_test -d macos` 环境已知异常（见 MEMORY），未跑全量 e2e binding。**完成时间**: 2026-07-18
+- [x] T10 清空 / 重新生成（载体 header 溢出菜单 clear/retry）。**完成时间**: 2026-07-18
+- [x] T11 气泡操作栏：user 复制+修改、assistant 复制+重新生成；修改走输入框回填（不分叉）；图标用复刻 ChatGPT 的 SVG（flutter_svg），随主题着色。**完成时间**: 2026-07-18
+- [x] T12 AI 回答选择文本 + 选区气泡操作条：官方 `SelectionArea` + `contextMenuBuilder` 标准方案（稳定、贴官方惯用法）。
+  - 决策：此前自定义实现（`AppleTextSelectionControls` + `ImmediateMultiDrag` 自驱端点 + 放大镜 + 桌面分支）bug 反复，已整体删除，回到干净基线，改走官方标准方案。
+  - 已完成（清理）：删除全部旧自定义选择文本代码与测试（3 widget + 3 test）。**完成时间**: 2026-07-20
+  - 已完成（步骤 1 · 选择）：AI 回答用 `SelectionArea` 可选中任意连续文本（跨 markdown 块、含行内代码 `` `code` ``）；`_InlineCodeMd` 半透明底色让选中高亮透出。**完成时间**: 2026-07-20
+  - 已完成（步骤 2 · 操作条）：`SelectableAssistantMarkdown` 用 `contextMenuBuilder` 在选区上方弹出「复制 / 问 AI」气泡；抽出可复用组件 `SelectionToolbar`（横向 `CupertinoTextSelectionToolbar` 胶囊，三端一致，非 macOS 纵向下拉）；`SelectionToolbar.anchorsForSelection` 始终按选区几何算锚点（修右键弹在鼠标处），并收紧气泡与文字间隔（`_kAnchorInset`）；问 AI 接回 `onFollowUp` 链路。**完成时间**: 2026-07-20
+  - 已确认（平台默认行为）：移动端按 Flutter 原生长按/拖拽结束弹出；桌面端回到 Flutter 默认交互，仅右键/上下文菜单触发同一套 `SelectionToolbar`，不做选区完成自动弹出；同时打开 `kChatbotUseFakeApi` 方便本地假流数据验收。**确认时间**: 2026-07-20
+  - 已完成（步骤 4 · 气泡按钮等宽）：`SelectionToolbar` 按最长本地化文案统一按钮宽度，修复中文「复制 / 问 AI」分割线不居中的问题，并补中文等宽 widget 回归。**完成时间**: 2026-07-20
+
 ### P1
 
 - [ ] 启动埋点附带 4 类授权状态：仅剩手动验证（PostHog Live Events / Persons / Insights）。
@@ -100,6 +129,10 @@
 - [x] 2026-07-20 10:19：商店包 Web 支付兜底入口。会员订阅页在商店包远程开关 `showStoreWebCheckoutFallback` 命中且 Paddle 后端可用时，在主订阅按钮下方展示弱化“商店支付遇到问题？使用网页支付”文字入口；用户切换后重新拉取 Paddle plans 并展示 Web 支付价格，主 CTA 文案不额外改成 Web 支付，下面展示弱化“继续使用商店支付”用于切回；购买动作走 Paddle checkout，登录门、浏览器打开和权益轮询复用现有 direct 链路；补充远程配置解析、展示门控、Paddle plans 数据源切换和 Paywall checkout 回归测试。
 - [x] 2026-07-19 15:26：远程 Config 定期刷新。Remote Config provider 从启动期静态值改为可变 StateNotifier，保留 `main.dart` 冷启动安全加载，同时运行期通过 `RefreshCoordinator` 复用 TTL 节流与 inflight 合并；新增直接触网的 `fetchRemote()`，回前台和前台长驻时按 `ttlSeconds` one-shot 定时静默刷新，失败只记录日志并保留旧内存配置；导入弹窗继续通过 `remoteFeatureEnabledProvider(RemoteFeature.cloudDriveImport)` 自动响应开关变化；补充 service/controller/provider 单测并回归导入弹窗远程开关测试。
 - [x] 2026-07-19 14:16：远程 Config V1：从网盘导入开关。后端 `/api/v1/client/config` 改为版本化 schema，统一 `countryCode` 为 ISO 3166-1 alpha-2 uppercase，并用集中 registry 按国家解析 `features.cloudDriveImport.enabled`（默认关闭，CN 开启）；Flutter 新增 remote config 模型、TTL 缓存、启动期加载与 provider，导入弹窗通过 `RemoteFeature.cloudDriveImport` 控制“从网盘导入”入口显示，当前 provider 仍只有百度网盘；补充后端路由、Flutter 解析/缓存/service 和导入弹窗显示/隐藏回归测试。
+- [x] 2026-07-20：AI 聊天页发送后把新消息滑动置顶（取代 07-20 「取消自动滚动」的决定）。`ChatMessageList` 从 `ListView.builder`+`ScrollController` 改用 `ScrollablePositionedList`：发送后监听「最后一条 user 消息 id」变化，用 `ItemScrollController.jumpTo(index, alignment)` 按 index 把新提问瞬时顶到视口顶部（对齐列表顶 padding），末条消息用 `ConstrainedBox(minHeight: 视口高)` 预留空间承接流式回答；回底浮标改为按 `ItemPositionsListener` 的末尾 0 高度哨兵 item 是否进入视口底部阈值判断（原实现依赖 `ScrollController.position`，SPL 不支持）。新增 `CHAT-SCROLL` 诊断日志（置顶触发/落位、浮标显隐）。补充 ChatView widget 回归：新消息气泡贴顶断言、流式增量后仍钉顶。
+- [x] 2026-07-20：修复 AI 聊天页新会话后回底按钮残留。`ChatMessageList` 的回底浮标改为只按滚动几何判断：视口底部之外仍有内容才显示，并监听内容尺寸变化与流式最后一条内容变化同步状态；点击“新会话”后列表收缩，按钮随之消失，生成中内容撑出底部时按钮立即出现。补充 ChatView widget 回归覆盖清空后按钮消失、长 greeting 仍有底部内容时按钮可显示、流式未结束时按钮出现。**完成时间**: 2026-07-20
+- [x] 2026-07-20：AI 聊天页取消自动滚动。`ChatMessageList` 不再在首帧、消息新增或流式回答增量时主动滚到底部，用户阅读上文时位置保持不变；保留手动回到底部浮动按钮。补充 ChatView widget 回归，覆盖发送和流式更新不改变当前滚动位置。**完成时间**: 2026-07-20
+- [x] 2026-07-19：chatbot 用户消息编辑改版。user 气泡去掉常驻操作栏（复制/编辑），改为长按弹 iOS 风格菜单（复制 + 编辑，带右侧 SVG 图标）；assistant 保持常驻「复制 + 重新生成」不变。点「编辑」进入独立全屏编辑页（`ChatEditScreen`：X 关闭 + 标题「编辑消息」+ 预填输入框 + 发送按钮），关闭=取消、发送=返回新文本，确认后才截断该轮并重发（不再点一下就清空后续消息）。controller：`prepareEdit` 换成 `editAndResend(userId,newText)` + `messageContent(id)`；删除 composer 的 `editRequest` 回填 seam（死代码）；新增 l10n `chatEditTitle`、zh `chatEdit` 改「编辑」。测试：message_bubble 长按菜单、chat_edit_screen 预填/发送/关闭/禁用、controller editAndResend 三态。
 - [x] 2026-07-18：合集详情页音频多选删除（仅用户自建合集）。长按任一音频进入多选模式，AppBar 切换为多选工具栏（关闭 / 已选 N / 全选·取消全选 / 删除），支持全选后一键删除；删除弹二选一确认「从合集移除 N 项」/「彻底删除 N 项」，分别复用 `CollectionList.removeAudiosFromCollection`（新增批量方法 + `CollectionDao.removeAudios` 单条 SQL 删 junction、内存 `audioIdsMap` 一次更新）与已有 `AudioLibrary.removeAudioItems`。选中态由 `CollectionDetailScreen` 局部持有透传到 `AudioListView`/`AudioListTile`（新增可选参数，默认关闭，库/播客场景零影响），多选态卡片高亮 + 左侧 Checkbox + `IgnorePointer` 屏蔽右侧播放/菜单，`PopScope` 拦截返回优先退出多选；官方/播客合集不启用。测试：DAO 批量移除边界单测 + 屏幕多选进入/全选/二选一删除/官方合集不启用的 widget 测试。
 - [x] 2026-07-18：优化音频导入——多选批量导入 + 同名字幕自动配对 + 字幕统一 SRT 入库（含 LRC）。选择器放行「音频+字幕」并集（Android 用 FileType.any 自过滤，避开多扩展名灰选 bug），用户一次多选音频和同名字幕，App 按去扩展名同名（大小写不敏感、优先级 srt>vtt>lrc）自动配对；配对字幕在有音频时长的入库处统一转 SRT（新增 `parseSupportedSubtitle`/`normalizeSubtitleToSrt`/`importLocalSubtitle`），修掉 VTT 原文直存的隐患。新增 LRC 解析器（`lib/services/lrc_parser.dart`，支持厘秒/毫秒/hh:mm:ss/多标签/offset/元数据跳过，末句结束时间取音频总时长）。新增纯配对逻辑 `subtitle_pairing.dart`（`matchSubtitlesForAudios`/`classifyImportFiles`）。手动上传路径（`uploadTranscriptForAudio`/`ManageSubtitlesSheet`）复用同一入库主干。已选文件行显示「含字幕」徽章，全程 `AudioImport` 诊断日志。
   - **性能**：把「复制到沙盒 + 全文件 SHA256 指纹」从选择阶段延后到点「添加」时（进度条覆盖），选完文件预览秒出。

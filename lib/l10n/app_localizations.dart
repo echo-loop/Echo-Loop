@@ -8323,6 +8323,174 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Background Knowledge'**
   String get dictAiMultiBackground;
+
+  /// No description provided for @chatOpenTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Ask AI'**
+  String get chatOpenTooltip;
+
+  /// No description provided for @chatSentenceTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'AI Tutor'**
+  String get chatSentenceTitle;
+
+  /// No description provided for @chatInputPlaceholder.
+  ///
+  /// In en, this message translates to:
+  /// **'Ask anything…'**
+  String get chatInputPlaceholder;
+
+  /// No description provided for @chatSend.
+  ///
+  /// In en, this message translates to:
+  /// **'Send'**
+  String get chatSend;
+
+  /// No description provided for @chatStop.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop'**
+  String get chatStop;
+
+  /// No description provided for @chatClear.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear chat'**
+  String get chatClear;
+
+  /// No description provided for @chatNewChat.
+  ///
+  /// In en, this message translates to:
+  /// **'New chat'**
+  String get chatNewChat;
+
+  /// No description provided for @chatRegenerate.
+  ///
+  /// In en, this message translates to:
+  /// **'Regenerate'**
+  String get chatRegenerate;
+
+  /// No description provided for @chatEdit.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit'**
+  String get chatEdit;
+
+  /// No description provided for @chatEditTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit message'**
+  String get chatEditTitle;
+
+  /// No description provided for @chatCopy.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy'**
+  String get chatCopy;
+
+  /// No description provided for @chatCopied.
+  ///
+  /// In en, this message translates to:
+  /// **'Copied'**
+  String get chatCopied;
+
+  /// No description provided for @chatContextLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Discussing: {summary}'**
+  String chatContextLabel(String summary);
+
+  /// No description provided for @chatEmptyGreeting.
+  ///
+  /// In en, this message translates to:
+  /// **'Ask me anything about this sentence.'**
+  String get chatEmptyGreeting;
+
+  /// No description provided for @chatErrorNetwork.
+  ///
+  /// In en, this message translates to:
+  /// **'Network unavailable. Tap to retry.'**
+  String get chatErrorNetwork;
+
+  /// No description provided for @chatErrorGenerate.
+  ///
+  /// In en, this message translates to:
+  /// **'Generation failed. Tap to retry.'**
+  String get chatErrorGenerate;
+
+  /// No description provided for @chatQuotaTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Free quota used up'**
+  String get chatQuotaTitle;
+
+  /// No description provided for @chatUpgrade.
+  ///
+  /// In en, this message translates to:
+  /// **'Upgrade'**
+  String get chatUpgrade;
+
+  /// No description provided for @chatSignInTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign in required'**
+  String get chatSignInTitle;
+
+  /// No description provided for @chatSignInMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign in to use the AI assistant.'**
+  String get chatSignInMessage;
+
+  /// No description provided for @chatScrollToBottom.
+  ///
+  /// In en, this message translates to:
+  /// **'Scroll to bottom'**
+  String get chatScrollToBottom;
+
+  /// No description provided for @chatThinking.
+  ///
+  /// In en, this message translates to:
+  /// **'Thinking…'**
+  String get chatThinking;
+
+  /// No description provided for @chatFollowUp.
+  ///
+  /// In en, this message translates to:
+  /// **'Ask AI'**
+  String get chatFollowUp;
+
+  /// No description provided for @chatFollowUpExplain.
+  ///
+  /// In en, this message translates to:
+  /// **'Explain'**
+  String get chatFollowUpExplain;
+
+  /// No description provided for @chatFollowUpTranslate.
+  ///
+  /// In en, this message translates to:
+  /// **'Translate'**
+  String get chatFollowUpTranslate;
+
+  /// No description provided for @chatFollowUpExample.
+  ///
+  /// In en, this message translates to:
+  /// **'Example'**
+  String get chatFollowUpExample;
+
+  /// No description provided for @chatFollowUpInstruction.
+  ///
+  /// In en, this message translates to:
+  /// **'Answer the question based strictly on the quoted text below.'**
+  String get chatFollowUpInstruction;
+
+  /// No description provided for @chatQuoteRemove.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove quote'**
+  String get chatQuoteRemove;
 }
 
 class _AppLocalizationsDelegate

@@ -29,4 +29,7 @@ enum PremiumFeature {
 
   /// AI 转录字幕（后端转录算力，最耗成本）。
   aiTranscription,
+
+  /// AI 对话助手（后端 LLM 多轮对话）。
+  aiChat,
 }

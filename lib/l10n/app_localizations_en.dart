@@ -4749,4 +4749,91 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get dictAiMultiBackground => 'Background Knowledge';
+
+  @override
+  String get chatOpenTooltip => 'Ask AI';
+
+  @override
+  String get chatSentenceTitle => 'AI Tutor';
+
+  @override
+  String get chatInputPlaceholder => 'Ask anything…';
+
+  @override
+  String get chatSend => 'Send';
+
+  @override
+  String get chatStop => 'Stop';
+
+  @override
+  String get chatClear => 'Clear chat';
+
+  @override
+  String get chatNewChat => 'New chat';
+
+  @override
+  String get chatRegenerate => 'Regenerate';
+
+  @override
+  String get chatEdit => 'Edit';
+
+  @override
+  String get chatEditTitle => 'Edit message';
+
+  @override
+  String get chatCopy => 'Copy';
+
+  @override
+  String get chatCopied => 'Copied';
+
+  @override
+  String chatContextLabel(String summary) {
+    return 'Discussing: $summary';
+  }
+
+  @override
+  String get chatEmptyGreeting => 'Ask me anything about this sentence.';
+
+  @override
+  String get chatErrorNetwork => 'Network unavailable. Tap to retry.';
+
+  @override
+  String get chatErrorGenerate => 'Generation failed. Tap to retry.';
+
+  @override
+  String get chatQuotaTitle => 'Free quota used up';
+
+  @override
+  String get chatUpgrade => 'Upgrade';
+
+  @override
+  String get chatSignInTitle => 'Sign in required';
+
+  @override
+  String get chatSignInMessage => 'Sign in to use the AI assistant.';
+
+  @override
+  String get chatScrollToBottom => 'Scroll to bottom';
+
+  @override
+  String get chatThinking => 'Thinking…';
+
+  @override
+  String get chatFollowUp => 'Ask AI';
+
+  @override
+  String get chatFollowUpExplain => 'Explain';
+
+  @override
+  String get chatFollowUpTranslate => 'Translate';
+
+  @override
+  String get chatFollowUpExample => 'Example';
+
+  @override
+  String get chatFollowUpInstruction =>
+      'Answer the question based strictly on the quoted text below.';
+
+  @override
+  String get chatQuoteRemove => 'Remove quote';
 }

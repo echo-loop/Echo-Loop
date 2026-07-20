@@ -7,7 +7,7 @@ part of 'official_collection_api.dart';
 // **************************************************************************
 
 String _$officialCollectionApiHash() =>
-    r'd397a0ce428e44b8edf9ecd36c75c5ce9f68db6a';
+    r'a14d87daebac76999f32f9da5fa47aea777a9749';
 
 /// See also [officialCollectionApi].
 @ProviderFor(officialCollectionApi)

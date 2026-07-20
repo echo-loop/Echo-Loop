@@ -2379,5 +2379,40 @@
   "dictAiMultiNaturalness": "Correction",
   "dictAiMultiPronunciationTips": "Pronunciation",
   "dictAiMultiSimilarExpressions": "Similar Expressions",
-  "dictAiMultiBackground": "Background Knowledge"
+  "dictAiMultiBackground": "Background Knowledge",
+  "chatOpenTooltip": "Ask AI",
+  "chatSentenceTitle": "AI Tutor",
+  "chatInputPlaceholder": "Ask anything…",
+  "chatSend": "Send",
+  "chatStop": "Stop",
+  "chatClear": "Clear chat",
+  "chatNewChat": "New chat",
+  "chatRegenerate": "Regenerate",
+  "chatEdit": "Edit",
+  "chatEditTitle": "Edit message",
+  "chatCopy": "Copy",
+  "chatCopied": "Copied",
+  "chatContextLabel": "Discussing: {summary}",
+  "@chatContextLabel": {
+    "placeholders": {
+      "summary": {
+        "type": "String"
+      }
+    }
+  },
+  "chatEmptyGreeting": "Ask me anything about this sentence.",
+  "chatErrorNetwork": "Network unavailable. Tap to retry.",
+  "chatErrorGenerate": "Generation failed. Tap to retry.",
+  "chatQuotaTitle": "Free quota used up",
+  "chatUpgrade": "Upgrade",
+  "chatSignInTitle": "Sign in required",
+  "chatSignInMessage": "Sign in to use the AI assistant.",
+  "chatScrollToBottom": "Scroll to bottom",
+  "chatThinking": "Thinking…",
+  "chatFollowUp": "Ask AI",
+  "chatFollowUpExplain": "Explain",
+  "chatFollowUpTranslate": "Translate",
+  "chatFollowUpExample": "Example",
+  "chatFollowUpInstruction": "Answer the question based strictly on the quoted text below.",
+  "chatQuoteRemove": "Remove quote"
 }
