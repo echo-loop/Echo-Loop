@@ -119,6 +119,7 @@
 ## 最近完成（保留近两周）
 
 - [x] 2026-07-21 07:25：修复 GitHub Actions run 29760958767 的 chatbot carriers 测试断言。`kChatbotUseFakeApi` 已恢复发布默认 false，测试同步改为验证入口开启但走真实流式 API，避免本地联调临时开关污染 CI。
+- [x] 2026-07-21 07:16：AI 聊天助手入口接入 remote config 全球开关。Flutter remote config 新增 `features.aiChatAssistant.enabled`，缺失时默认开启；句子详情页 AI 聊天入口改为编译期开关 `kChatbotEnabled` 与远程开关同时命中才显示，保留本地硬停能力；补充 remote config 解析/provider 和入口门控单测。
 - [x] 2026-07-20 23:28：修复 BBC 等播客音频下载失败提示不透明的问题。RSS 解析优先使用 `ppg:enclosureSecure` HTTPS 音频地址；已落库的 BBC HTTP enclosure 下载前自动升级为 HTTPS；播客单集下载失败 SnackBar 追加具体原因，并记录下载失败 URL、Dio 类型和 HTTP 状态；补充 parser、下载服务和列表项 widget 回归测试。
 - [x] 2026-07-20 23:18：修复 CI JSON 测试判定对 Flutter runner 收尾噪声过严的问题。GitHub Actions 测试解析现在只把带 `error` payload 的 `testDone failure/error` 判为真实失败；对无错误载荷的 orphan `testDone error` 只输出 warning，避免 `done.success=false` 被污染时误挡已全量通过的测试。
 - [x] 2026-07-20 23:04：修复 CI 中 TTS controller 预览竞态单测偶发失败。`previewVoice 同一 speakingKey 连续发音` 用例不再依赖固定 `pumpEventQueue()` 次数，而是等待 fake engine 收到指定数量的合成 gate，避免 CI 机器调度较慢时在首个合成请求入队前误判失败；补跑相关 analyze 与单测。

@@ -98,7 +98,8 @@ class RemoteConfigService {
     AppLogger.log(
       _logTag,
       'fetch ok country=${config.context.countryCode} '
-      'cloudDriveImport=${config.features.cloudDriveImport.enabled}',
+      'cloudDriveImport=${config.features.cloudDriveImport.enabled} '
+      'aiChatAssistant=${config.features.aiChatAssistant.enabled}',
     );
     return config;
   }

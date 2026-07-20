@@ -32,6 +32,7 @@ void main() {
         'features': {
           'cloudDriveImport': {'enabled': true, 'ignored': 'x'},
           'showStoreWebCheckoutFallback': {'enabled': true},
+          'aiChatAssistant': {'enabled': false},
         },
         'limits': {
           'transcription': {
@@ -50,17 +51,19 @@ void main() {
         config.isEnabled(RemoteFeature.showStoreWebCheckoutFallback),
         isTrue,
       );
+      expect(config.isEnabled(RemoteFeature.aiChatAssistant), isFalse);
       expect(config.transcriptionLimits.maxDurationSeconds, 3600);
       expect(config.transcriptionLimits.maxUploadBytes, 104857600);
     });
 
-    test('缺字段和未知版本回退本地默认', () {
+    test('缺字段和未知版本回退本地默认，AI 聊天入口默认开启', () {
       final missing = RemoteConfig.fromJson({'version': 1});
       expect(missing.isEnabled(RemoteFeature.cloudDriveImport), isFalse);
       expect(
         missing.isEnabled(RemoteFeature.showStoreWebCheckoutFallback),
         isFalse,
       );
+      expect(missing.isEnabled(RemoteFeature.aiChatAssistant), isTrue);
       expect(missing.ttlSeconds, RemoteConfig.defaultTtlSeconds);
       expect(
         missing.transcriptionLimits.maxDurationSeconds,
@@ -78,6 +81,7 @@ void main() {
         },
       });
       expect(unknownVersion.isEnabled(RemoteFeature.cloudDriveImport), isFalse);
+      expect(unknownVersion.isEnabled(RemoteFeature.aiChatAssistant), isTrue);
     });
 
     test('转录限制字段非法时逐项回退本地默认', () {
@@ -387,6 +391,31 @@ void main() {
 
       expect(limits.maxDurationSeconds, 300);
       expect(limits.maxUploadBytes, 1048576);
+    });
+
+    test('feature provider 暴露 AI 聊天助手开关', () {
+      final container = ProviderContainer(
+        overrides: [
+          initialRemoteConfigProvider.overrideWithValue(
+            const RemoteConfig(
+              version: 1,
+              ttlSeconds: 60,
+              context: RemoteConfigContext(countryCode: 'US'),
+              features: RemoteConfigFeatures(
+                aiChatAssistant: RemoteFeatureConfig(enabled: false),
+              ),
+            ),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      expect(
+        container.read(
+          remoteFeatureEnabledProvider(RemoteFeature.aiChatAssistant),
+        ),
+        isFalse,
+      );
     });
 
     test('并发刷新只发起一次后端请求', () async {
