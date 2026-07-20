@@ -1,6 +1,6 @@
 # Echo Loop 任务清单
 
-> 最后更新：2026-07-19（导入弹窗网盘 UI 修复）
+> 最后更新：2026-07-19（远程 Config 定期刷新）
 > 当前焦点：Android 结束录音闪退（离线 ASR / Silero VAD）——仍未解决
 
 ## 当前优先级
@@ -51,6 +51,7 @@
 - [x] 2026-07-19 09:56：导入弹窗滚动条控制器修复。共用导入确认列表、重复项列表与百度文件浏览列表改为持有本地 `ScrollController`，`Scrollbar` 和对应 `ListView` 显式共用同一个 controller；导入弹窗外层滚动容器也改为本地 controller 且所有嵌套列表声明 `primary: false`，避免桌面自动滚动条误用无 `ScrollPosition` 的 `PrimaryScrollController` 并触发动画库断言；补充 macOS 平台固定高度列表拖动回归测试。
 - [x] 2026-07-19 10:26：本地导入字幕解码插件修复。将 `charset_converter` 2.4.0 作为本地 path override 接入并修补 iOS/macOS 原生 `handle` 分支，已处理 `encode` / `decode` / `check` / `availableCharsets` 后立即返回，避免同名字幕解码时 MethodChannel 重复发送响应并打印 “Message responses can be sent only once”；保留现有多编码字幕解码能力并补跑字幕解码与导入弹窗回归测试。
 - [x] 2026-07-19 11:46：导入弹窗网盘 UI 修复。百度网盘未授权连接页不再显示退出登录按钮；导入方式首屏入口改为“本地文件 / 网盘 / 链接”顺序，并收紧入口卡片内边距、图标占位和卡片间距；补充未授权退出按钮隐藏、入口顺序和紧凑间距 widget 回归测试。
+- [x] 2026-07-19 12:58：百度网盘导入来源图标替换。将 `~/Downloads/baidu-netdisk.svg` 纳入运行时资源，百度网盘来源卡片改用该 SVG 品牌图标，保留其它导入入口的原有 Material 图标；补跑导入弹窗 widget 回归测试。
 - [x] 2026-07-18 21:53：修复合集详情页音频卡片长按无法选中。`AudioListView` 在合集上下文恢复长按进入选择模式，选择模式下点击卡片切换选中状态，`AudioListTile` 支持外层传入选中态并用复选框替代菜单按钮；补充合集音频长按选择 widget 回归测试。
 - [ ] 任务 5：跨平台验证与发布准备。
 
@@ -88,6 +89,8 @@
 
 ## 最近完成（保留近两周）
 
+- [x] 2026-07-19 15:26：远程 Config 定期刷新。Remote Config provider 从启动期静态值改为可变 StateNotifier，保留 `main.dart` 冷启动安全加载，同时运行期通过 `RefreshCoordinator` 复用 TTL 节流与 inflight 合并；新增直接触网的 `fetchRemote()`，回前台和前台长驻时按 `ttlSeconds` one-shot 定时静默刷新，失败只记录日志并保留旧内存配置；导入弹窗继续通过 `remoteFeatureEnabledProvider(RemoteFeature.cloudDriveImport)` 自动响应开关变化；补充 service/controller/provider 单测并回归导入弹窗远程开关测试。
+- [x] 2026-07-19 14:16：远程 Config V1：从网盘导入开关。后端 `/api/v1/client/config` 改为版本化 schema，统一 `countryCode` 为 ISO 3166-1 alpha-2 uppercase，并用集中 registry 按国家解析 `features.cloudDriveImport.enabled`（默认关闭，CN 开启）；Flutter 新增 remote config 模型、TTL 缓存、启动期加载与 provider，导入弹窗通过 `RemoteFeature.cloudDriveImport` 控制“从网盘导入”入口显示，当前 provider 仍只有百度网盘；补充后端路由、Flutter 解析/缓存/service 和导入弹窗显示/隐藏回归测试。
 - [x] 2026-07-18：合集详情页音频多选删除（仅用户自建合集）。长按任一音频进入多选模式，AppBar 切换为多选工具栏（关闭 / 已选 N / 全选·取消全选 / 删除），支持全选后一键删除；删除弹二选一确认「从合集移除 N 项」/「彻底删除 N 项」，分别复用 `CollectionList.removeAudiosFromCollection`（新增批量方法 + `CollectionDao.removeAudios` 单条 SQL 删 junction、内存 `audioIdsMap` 一次更新）与已有 `AudioLibrary.removeAudioItems`。选中态由 `CollectionDetailScreen` 局部持有透传到 `AudioListView`/`AudioListTile`（新增可选参数，默认关闭，库/播客场景零影响），多选态卡片高亮 + 左侧 Checkbox + `IgnorePointer` 屏蔽右侧播放/菜单，`PopScope` 拦截返回优先退出多选；官方/播客合集不启用。测试：DAO 批量移除边界单测 + 屏幕多选进入/全选/二选一删除/官方合集不启用的 widget 测试。
 - [x] 2026-07-18：优化音频导入——多选批量导入 + 同名字幕自动配对 + 字幕统一 SRT 入库（含 LRC）。选择器放行「音频+字幕」并集（Android 用 FileType.any 自过滤，避开多扩展名灰选 bug），用户一次多选音频和同名字幕，App 按去扩展名同名（大小写不敏感、优先级 srt>vtt>lrc）自动配对；配对字幕在有音频时长的入库处统一转 SRT（新增 `parseSupportedSubtitle`/`normalizeSubtitleToSrt`/`importLocalSubtitle`），修掉 VTT 原文直存的隐患。新增 LRC 解析器（`lib/services/lrc_parser.dart`，支持厘秒/毫秒/hh:mm:ss/多标签/offset/元数据跳过，末句结束时间取音频总时长）。新增纯配对逻辑 `subtitle_pairing.dart`（`matchSubtitlesForAudios`/`classifyImportFiles`）。手动上传路径（`uploadTranscriptForAudio`/`ManageSubtitlesSheet`）复用同一入库主干。已选文件行显示「含字幕」徽章，全程 `AudioImport` 诊断日志。
   - **性能**：把「复制到沙盒 + 全文件 SHA256 指纹」从选择阶段延后到点「添加」时（进度条覆盖），选完文件预览秒出。

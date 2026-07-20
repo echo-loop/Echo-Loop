@@ -108,6 +108,7 @@ dependencies:
   purchases_flutter: ^10.3.0
   in_app_purchase: ^3.3.0
   charset_converter: ^2.4.0
+  flutter_svg: ^2.3.0
 
 dev_dependencies:
   flutter_test:
@@ -159,6 +160,7 @@ flutter:
     # ic_stat_logo 仅作 Android 通知图标源文件）不进包；订阅页透明底品牌图单独显式打包。
     - assets/icon/app-icon-1024.png
     - assets/icon/app-icon-1024-alpha.png
+    - assets/icon/baidu-netdisk.svg
     # PDF 导出品牌角标（96px 小图，1024 原图 190KB 直接嵌会撑大每份 PDF）
     - assets/icon/app-icon-96.png
     # 后台静音保活轨：停顿期间循环播放以保持 iOS 音频会话活跃（见 background_audio_handler）

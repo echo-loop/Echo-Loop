@@ -62,6 +62,8 @@ import 'features/official_collections/download/official_download_notifier.dart';
 import 'features/onboarding_survey/data/onboarding_survey_storage.dart';
 import 'features/onboarding_survey/providers/onboarding_survey_provider.dart';
 import 'features/auth/providers/auth_providers.dart';
+import 'features/remote_config/remote_config_providers.dart';
+import 'features/remote_config/remote_config_service.dart';
 import 'features/subscription/providers/subscription_controller.dart';
 import 'features/subscription/providers/subscription_plans_provider.dart';
 
@@ -87,6 +89,13 @@ void main() async {
   // 检查是否处于演示模式
   final prefs = await SharedPreferences.getInstance();
   final isDemoMode = prefs.getBool('demo_mode') ?? false;
+
+  // 远程配置：启动期先解析缓存/远端配置，失败时降级到本地默认值。
+  // 下游 UI 只读取 provider 暴露的 resolved config，不直接接触网络与缓存。
+  final initialRemoteConfig = await RemoteConfigService.create(
+    prefs: prefs,
+    appVersion: packageInfo.version,
+  ).load();
 
   // 首次启动检测：哨兵 key `first_launch_done` 不存在即视为首次启动，
   // 立即写入 true。后续所有启动都会读到该 key = true，即非首启。
@@ -369,6 +378,7 @@ void main() async {
           initialAiTranscriptionAutoMergeEnabledProvider.overrideWithValue(
             initialAiTranscriptionAutoMergeEnabled,
           ),
+          initialRemoteConfigProvider.overrideWithValue(initialRemoteConfig),
           if (recommendedAsrModel != null)
             recommendedAsrModelProvider.overrideWithValue(recommendedAsrModel),
           if (initialOfflineAsrSettingsState != null)

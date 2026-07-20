@@ -9,9 +9,12 @@ import 'package:echo_loop/features/baidu_netdisk/models/baidu_oauth_session.dart
 import 'package:echo_loop/features/baidu_netdisk/models/baidu_oauth_session_status.dart';
 import 'package:echo_loop/features/baidu_netdisk/models/cloud_drive_models.dart';
 import 'package:echo_loop/features/baidu_netdisk/providers/baidu_netdisk_providers.dart';
+import 'package:echo_loop/features/remote_config/remote_config.dart';
+import 'package:echo_loop/features/remote_config/remote_config_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:echo_loop/features/audio_import/audio_import_models.dart';
 import 'package:echo_loop/features/audio_import/audio_import_provider.dart';
@@ -372,6 +375,7 @@ class _MixedDuplicateBaiduImportService extends _ImmediateBaiduImportService {
 Widget _buildApp({
   bool failImport = false,
   Locale locale = const Locale('en'),
+  bool cloudDriveImportEnabled = true,
   List<Override> overrides = const <Override>[],
 }) {
   return createTestApp(
@@ -401,6 +405,18 @@ Widget _buildApp({
       collectionListProvider.overrideWith(() => TestCollectionList()),
       audioImportControllerProvider.overrideWith(
         () => _ImmediateAudioImportController(fail: failImport),
+      ),
+      initialRemoteConfigProvider.overrideWithValue(
+        RemoteConfig(
+          version: RemoteConfig.currentVersion,
+          ttlSeconds: RemoteConfig.defaultTtlSeconds,
+          context: const RemoteConfigContext(),
+          features: RemoteConfigFeatures(
+            cloudDriveImport: RemoteFeatureConfig(
+              enabled: cloudDriveImportEnabled,
+            ),
+          ),
+        ),
       ),
       ...overrides,
     ],
@@ -534,6 +550,21 @@ void main() {
     expect(cloudTop, lessThan(linkTop));
   });
 
+  testWidgets('远程配置关闭时隐藏网盘导入入口', (tester) async {
+    await tester.pumpWidget(_buildApp(cloudDriveImportEnabled: false));
+    await tester.tap(find.text('Open Import'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Import Audio'), findsOneWidget);
+    expect(find.text('Import from File'), findsOneWidget);
+    expect(find.text('Import from Link'), findsOneWidget);
+    expect(find.text('Import from Cloud Drive'), findsNothing);
+    expect(
+      find.byKey(const ValueKey('import-option-cloud-drive')),
+      findsNothing,
+    );
+  });
+
   testWidgets('导入方式入口使用独立边框分隔', (tester) async {
     await tester.pumpWidget(_buildApp());
     await tester.tap(find.text('Open Import'));
@@ -614,6 +645,13 @@ void main() {
     expect(find.text('Import from Cloud Drive'), findsOneWidget);
     expect(
       find.byKey(const ValueKey('cloud-drive-option-baidu-netdisk')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey('cloud-drive-option-baidu-netdisk')),
+        matching: find.byType(SvgPicture),
+      ),
       findsOneWidget,
     );
     expect(find.text('Baidu Netdisk'), findsOneWidget);
