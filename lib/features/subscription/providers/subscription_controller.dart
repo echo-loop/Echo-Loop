@@ -18,6 +18,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../../../config/client_distribution.dart';
 import '../../../services/app_logger.dart';
 import '../models/entitlement.dart';
+import '../models/entitlement_source.dart';
 import '../services/entitlement_cache.dart';
 import '../services/entitlement_reconciler.dart';
 import '../services/entitlement_repository.dart';
@@ -224,6 +225,8 @@ class SubscriptionController extends _$SubscriptionController {
       '对账完成: remote=${remote != null ? "isPremium=${remote.isPremium}" : "无"} '
           'cached=${cached != null ? "isPremium=${cached.entitlement.isPremium}" : "无"} '
           '→ status=${state.status.name} isStale=${state.isStale}'
+          ' source=${state.entitlement?.source.name ?? "none"} '
+          'channel=${_paymentChannel.name}'
           '${error != null ? " error=$error" : ""}',
     );
 
@@ -317,16 +320,24 @@ class SubscriptionController extends _$SubscriptionController {
 
   /// 创建 Paddle Customer Portal session，供 direct 用户取消订阅或更新支付方式。
   Future<Uri> createPaddlePortal() async {
-    if (_paymentChannel != ClientPaymentChannel.web) {
+    final currentEntitlement = state.entitlement;
+    final hasActivePaddleEntitlement =
+        currentEntitlement?.source == EntitlementSource.paddle &&
+        (currentEntitlement?.isActive(clock.now()) ?? false);
+    if (_paymentChannel != ClientPaymentChannel.web &&
+        !hasActivePaddleEntitlement) {
       AppLogger.log(
         'Subscription',
-        'Paddle Portal 中止: channel=${_paymentChannel.name}',
+        'Paddle Portal 中止: channel=${_paymentChannel.name} '
+            'source=${currentEntitlement?.source.name ?? "none"}',
       );
       throw PurchaseException('当前渠道不支持 Paddle Portal');
     }
     AppLogger.log(
       'Subscription',
-      'Paddle Portal 创建入口: userId=${_identity.userId ?? "匿名"}',
+      'Paddle Portal 创建入口: userId=${_identity.userId ?? "匿名"} '
+          'channel=${_paymentChannel.name} '
+          'source=${currentEntitlement?.source.name ?? "none"}',
     );
     await _ensurePurchaseIdentity();
     final token = _identity.accessToken;

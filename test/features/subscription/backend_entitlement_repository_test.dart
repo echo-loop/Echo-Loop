@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:echo_loop/features/subscription/models/entitlement.dart';
+import 'package:echo_loop/features/subscription/models/entitlement_source.dart';
 import 'package:echo_loop/features/subscription/models/subscription_plan.dart';
 import 'package:echo_loop/features/subscription/services/entitlement_repository.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -37,6 +38,7 @@ void main() {
         'productId': 'echo_loop_plus_annual',
         'expiresAtMs': 1750000000000,
         'willRenew': true,
+        'source': 'paddle',
       }),
     );
 
@@ -51,6 +53,77 @@ void main() {
       DateTime.fromMillisecondsSinceEpoch(1750000000000, isUtc: true),
     );
     expect(e.willRenew, isTrue);
+    expect(e.source, EntitlementSource.paddle);
+  });
+
+  test('source 字段按购买来源映射，未知值回退 unknown', () async {
+    for (final entry in {
+      'apple': EntitlementSource.apple,
+      'google': EntitlementSource.google,
+      'paddle': EntitlementSource.paddle,
+      'stripe': EntitlementSource.unknown,
+    }.entries) {
+      when(
+        () => dio.get<Map<String, dynamic>>(
+          '/api/entitlements',
+          options: any(named: 'options'),
+        ),
+      ).thenAnswer(
+        (_) async => resp({
+          'isPremium': true,
+          'entitlementIds': ['Echo Loop Plus'],
+          'productId': 'echo_loop_plus_monthly',
+          'expiresAtMs': 1750000000000,
+          'willRenew': true,
+          'source': entry.key,
+        }),
+      );
+
+      final e = await repo.fetchRemote(userId: 'u1', accessToken: 't');
+      expect(e!.source, entry.value);
+      reset(dio);
+    }
+  });
+
+  test('source 字段缺失：兼容旧后端，映射为 unknown', () async {
+    when(
+      () => dio.get<Map<String, dynamic>>(
+        '/api/entitlements',
+        options: any(named: 'options'),
+      ),
+    ).thenAnswer(
+      (_) async => resp({
+        'isPremium': true,
+        'entitlementIds': ['Echo Loop Plus'],
+        'productId': 'echo_loop_plus_monthly',
+        'expiresAtMs': 1750000000000,
+        'willRenew': true,
+      }),
+    );
+
+    final e = await repo.fetchRemote(userId: 'u1', accessToken: 't');
+    expect(e!.source, EntitlementSource.unknown);
+  });
+
+  test('source 字段类型异常：兼容异常后端，映射为 unknown', () async {
+    when(
+      () => dio.get<Map<String, dynamic>>(
+        '/api/entitlements',
+        options: any(named: 'options'),
+      ),
+    ).thenAnswer(
+      (_) async => resp({
+        'isPremium': true,
+        'entitlementIds': ['Echo Loop Plus'],
+        'productId': 'echo_loop_plus_monthly',
+        'expiresAtMs': 1750000000000,
+        'willRenew': true,
+        'source': 42,
+      }),
+    );
+
+    final e = await repo.fetchRemote(userId: 'u1', accessToken: 't');
+    expect(e!.source, EntitlementSource.unknown);
   });
 
   test('willRenew=false：premium 有效但不再自动续订', () async {

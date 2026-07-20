@@ -1,6 +1,6 @@
 # Echo Loop 任务清单
 
-> 最后更新：2026-07-20（商店包 Web 支付兜底入口文案调整）
+> 最后更新：2026-07-20（订阅管理入口按购买来源解耦）
 > 当前焦点：Android 结束录音闪退（离线 ASR / Silero VAD）——仍未解决
 
 ## 当前优先级
@@ -89,6 +89,7 @@
 
 ## 最近完成（保留近两周）
 
+- [x] 2026-07-20 14:40：订阅管理入口按购买来源解耦。后端权益 `/api/entitlements.source` 现在映射为客户端 `Entitlement.source` 并写入诊断日志；“管理订阅”按有效权益来源分流，Paddle 来源即使运行在 App Store / Google Play 商店包内也打开 Paddle Customer Portal，Apple / Google 来源继续打开对应商店管理页；补充后端 source 映射、商店渠道 Paddle Portal 门控和 Paywall 点击回归测试。
 - [x] 2026-07-20 14:20：商店包 Web 支付兜底入口文案调整。将商店包订阅页的 Web 支付兜底入口中文文案改为“商店支付遇到问题？使用网页支付”，英文同步调整为“Store payment not working? Use web checkout”，并更新订阅页回归测试断言。
 - [x] 2026-07-20 14:02：AI 讲解开关组 UI 优化。学习设置中的 AI 讲解子开关改为自定义对齐行，使用解析、翻译、意群分割对应图标，统一左侧图标/文案和右侧开关位置，强化总开关与子项层级；子项文案调整为“AI 解析 / AI 翻译 / AI 意群分割”，补充设置页回归测试。
 - [x] 2026-07-20 13:54：自动意群分割 loading 状态对齐。将意群自动加载触发收口到 `SentenceAnnotationCard` 内，与解析/翻译共用自动加载路径；意群按钮新增外部 loading 状态，自动显示时按钮会展示 spinner 并禁止重复点击；请求来源透传 automatic / userTap，自动请求继续遵守本地 quota reset，手动点击保持强制弹提醒；补充自动意群按钮 loading 回归测试。

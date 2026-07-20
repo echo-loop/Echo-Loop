@@ -122,7 +122,9 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
       'paywall build: isPremium=$isPremium webMode=$webMode '
           'storeWebFallback=$_useWebCheckoutFallback '
           'showStoreWebFallback=$showStoreWebCheckoutFallback '
-          'status=${subState.status} waitingForWeb=$_waitingForWeb busy=$_busy',
+          'status=${subState.status} '
+          'source=${subState.entitlement?.source.name ?? "none"} '
+          'waitingForWeb=$_waitingForWeb busy=$_busy',
     );
     return Scaffold(
       appBar: AppBar(

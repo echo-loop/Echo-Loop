@@ -2,6 +2,7 @@ import 'package:echo_loop/config/revenuecat_config.dart';
 import 'package:echo_loop/config/paddle_config.dart';
 import 'package:echo_loop/features/auth/providers/auth_providers.dart';
 import 'package:echo_loop/features/subscription/models/entitlement.dart';
+import 'package:echo_loop/features/subscription/models/entitlement_source.dart';
 import 'package:echo_loop/features/subscription/models/subscription_plan.dart';
 import 'package:echo_loop/features/subscription/providers/subscription_availability.dart';
 import 'package:echo_loop/features/subscription/providers/subscription_controller.dart';
@@ -508,6 +509,41 @@ void main() {
         state: spy._state,
         plans: _paddlePlans,
         webCheckout: true,
+        authenticated: true,
+        identity: const SubscriptionIdentity(
+          userId: 'user-1',
+          accessToken: 'token',
+        ),
+        controller: () => spy,
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Manage Subscription'));
+    await tester.pumpAndSettle();
+
+    expect(spy.portalCalls, 1);
+    expect(urlLauncher.launched, [
+      'https://customer-portal.paddle.test/session',
+    ]);
+  });
+
+  testWidgets('商店包 Paddle Premium 用户：管理订阅打开 Paddle Customer Portal', (
+    tester,
+  ) async {
+    final spy = _SpyController(
+      const EntitlementState(
+        status: EntitlementStatus.premium,
+        entitlement: Entitlement(
+          isPremium: true,
+          productId: 'plus_yearly',
+          source: EntitlementSource.paddle,
+        ),
+      ),
+    );
+    await tester.pumpWidget(
+      _harness(
+        state: spy._state,
         authenticated: true,
         identity: const SubscriptionIdentity(
           userId: 'user-1',

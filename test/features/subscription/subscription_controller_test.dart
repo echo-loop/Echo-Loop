@@ -1,12 +1,15 @@
 import 'dart:async';
 
 import 'package:clock/clock.dart';
+import 'package:dio/dio.dart';
 import 'package:echo_loop/features/subscription/models/entitlement.dart';
+import 'package:echo_loop/features/subscription/models/entitlement_source.dart';
 import 'package:echo_loop/features/subscription/models/subscription_plan.dart';
 import 'package:echo_loop/features/subscription/providers/subscription_controller.dart';
 import 'package:echo_loop/features/subscription/providers/subscription_identity.dart';
 import 'package:echo_loop/features/subscription/services/entitlement_cache.dart';
 import 'package:echo_loop/features/subscription/services/entitlement_repository.dart';
+import 'package:echo_loop/features/subscription/services/paddle_billing_repository.dart';
 import 'package:echo_loop/features/subscription/services/purchase_service.dart';
 import 'package:echo_loop/features/subscription/services/revenuecat_purchase_service.dart'
     show PurchaseServiceType, purchaseServiceProvider, purchaseServiceTypeFor;
@@ -15,6 +18,9 @@ import 'package:echo_loop/features/subscription/state/entitlement_state.dart';
 import 'package:fake_async/fake_async.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mocktail/mocktail.dart';
+
+class _MockDio extends Mock implements Dio {}
 
 /// 可注入处理函数的后端仓库替身。
 class FakeEntitlementRepository implements EntitlementRepository {
@@ -287,6 +293,7 @@ void main() {
     required EntitlementCache cache,
     PurchaseService? purchases,
     ClientPaymentChannel paymentChannel = ClientPaymentChannel.web,
+    PaddleBillingRepository? paddleRepository,
   }) {
     final container = ProviderContainer(
       overrides: [
@@ -295,6 +302,8 @@ void main() {
         purchaseServiceProvider.overrideWithValue(
           purchases ?? FakePurchaseService(),
         ),
+        if (paddleRepository != null)
+          paddleBillingRepositoryProvider.overrideWithValue(paddleRepository),
         subscriptionIdentityProvider.overrideWith(
           (ref) => ref.watch(testIdentityProvider),
         ),
@@ -1009,6 +1018,82 @@ void main() {
       expect(
         container.read(subscriptionControllerProvider).status,
         EntitlementStatus.premium,
+      );
+    });
+  });
+
+  test('商店渠道 + Paddle 来源权益 → 允许创建 Paddle Portal', () async {
+    await withClock(Clock.fixed(now), () async {
+      final dio = _MockDio();
+      when(
+        () => dio.post<Map<String, dynamic>>(
+          '/api/paddle/portal',
+          options: any(named: 'options'),
+        ),
+      ).thenAnswer(
+        (_) async => Response(
+          requestOptions: RequestOptions(path: '/api/paddle/portal'),
+          statusCode: 200,
+          data: {'portalUrl': 'https://customer-portal.paddle.test/session'},
+        ),
+      );
+      final paddleEntitlement = Entitlement(
+        isPremium: true,
+        productId: 'plus_yearly',
+        expiresAt: now.add(const Duration(days: 30)),
+        source: EntitlementSource.paddle,
+      );
+      final container = makeContainer(
+        identity: signedIn,
+        repo: FakeEntitlementRepository((_) async => paddleEntitlement),
+        cache: FakeEntitlementCache(),
+        purchases: FakePurchaseService()..currentResult = Entitlement.free,
+        paymentChannel: ClientPaymentChannel.appleStore,
+        paddleRepository: PaddleBillingRepository.withDio(dio),
+      );
+      container.read(subscriptionControllerProvider);
+      await pumpEventQueue();
+
+      final uri = await container
+          .read(subscriptionControllerProvider.notifier)
+          .createPaddlePortal();
+
+      expect(uri.host, 'customer-portal.paddle.test');
+      final options =
+          verify(
+                () => dio.post<Map<String, dynamic>>(
+                  '/api/paddle/portal',
+                  options: captureAny(named: 'options'),
+                ),
+              ).captured.single
+              as Options;
+      expect(options.headers?['Authorization'], 'Bearer t1');
+    });
+  });
+
+  test('商店渠道 + 非 Paddle 来源权益 → 拒绝创建 Paddle Portal', () async {
+    await withClock(Clock.fixed(now), () async {
+      final appleEntitlement = Entitlement(
+        isPremium: true,
+        productId: 'pro_yearly',
+        expiresAt: now.add(const Duration(days: 30)),
+        source: EntitlementSource.apple,
+      );
+      final container = makeContainer(
+        identity: signedIn,
+        repo: FakeEntitlementRepository((_) async => appleEntitlement),
+        cache: FakeEntitlementCache(),
+        purchases: FakePurchaseService()..currentResult = appleEntitlement,
+        paymentChannel: ClientPaymentChannel.appleStore,
+      );
+      container.read(subscriptionControllerProvider);
+      await pumpEventQueue();
+
+      await expectLater(
+        container
+            .read(subscriptionControllerProvider.notifier)
+            .createPaddlePortal(),
+        throwsA(isA<PurchaseException>()),
       );
     });
   });

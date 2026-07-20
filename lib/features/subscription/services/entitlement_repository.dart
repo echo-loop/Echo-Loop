@@ -15,6 +15,7 @@ import '../../../providers/package_info_provider.dart';
 import '../../../services/app_logger.dart';
 import '../../../services/backend_dio.dart';
 import '../models/entitlement.dart';
+import '../models/entitlement_source.dart';
 import '../models/subscription_plan.dart';
 
 /// 后端权益仓库抽象。
@@ -47,7 +48,7 @@ class StubEntitlementRepository implements EntitlementRepository {
 
 /// 后端权益仓库实现（`GET /api/entitlements`）。
 ///
-/// 响应体：`{ isPremium, entitlementIds, productId, expiresAtMs, willRenew }`（见后端
+/// 响应体：`{ isPremium, entitlementIds, productId, expiresAtMs, willRenew, source }`（见后端
 /// `apps/app/app/api/entitlements/route.ts`）。带 `Authorization: Bearer <token>`，
 /// 参照 [TranscriptionApiClient] 的既有鉴权模式。
 ///
@@ -115,6 +116,7 @@ class BackendEntitlementRepository implements EntitlementRepository {
     final expiresAt = rawExpiry is int
         ? DateTime.fromMillisecondsSinceEpoch(rawExpiry, isUtc: true)
         : null;
+    final rawSource = json['source'];
     return Entitlement(
       isPremium: true,
       activeEntitlements: entitlements,
@@ -123,6 +125,7 @@ class BackendEntitlementRepository implements EntitlementRepository {
       period: subscriptionPeriodFromProductId(productId),
       expiresAt: expiresAt,
       willRenew: json['willRenew'] == true,
+      source: entitlementSourceFromApi(rawSource is String ? rawSource : null),
     );
   }
 
@@ -142,7 +145,9 @@ class BackendEntitlementRepository implements EntitlementRepository {
           'productId=${json['productId'] is String ? json['productId'] : "null"} '
           'expiresAtMs=${json['expiresAtMs'] is int ? json['expiresAtMs'] : "null"} '
           'willRenew=${json['willRenew'] == true} '
-          'hasWillRenew=${json.containsKey('willRenew')}',
+          'hasWillRenew=${json.containsKey('willRenew')} '
+          'source=${json['source'] is String ? json['source'] : "null"} '
+          'hasSource=${json.containsKey('source')}',
     );
   }
 }
