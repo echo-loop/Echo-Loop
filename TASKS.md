@@ -1,6 +1,6 @@
 # Echo Loop 任务清单
 
-> 最后更新：2026-07-20（订阅管理入口按购买来源解耦）
+> 最后更新：2026-07-20（CI 测试结果判定改按 testDone 明细）
 > 当前焦点：Android 结束录音闪退（离线 ASR / Silero VAD）——仍未解决
 
 ## 当前优先级
@@ -89,6 +89,7 @@
 
 ## 最近完成（保留近两周）
 
+- [x] 2026-07-20 16:37：CI 测试结果判定改按 `testDone` 明细。GitHub Actions 全量测试继续保留 JSON reporter，但不再把 `done.success` 作为唯一失败依据；脚本逐条解析 `testDone`，只有存在 `failure` / `error` 用例才失败，并按 `error` 事件关联打印测试名称、错误和堆栈；没有失败用例且存在 `done` 事件时允许通过，同时上传 `test-results.json` artifact 便于后续排查 Flutter runner 收尾误报。
 - [x] 2026-07-20 14:40：订阅管理入口按购买来源解耦。后端权益 `/api/entitlements.source` 现在映射为客户端 `Entitlement.source` 并写入诊断日志；“管理订阅”按有效权益来源分流，Paddle 来源即使运行在 App Store / Google Play 商店包内也打开 Paddle Customer Portal，Apple / Google 来源继续打开对应商店管理页；补充后端 source 映射、商店渠道 Paddle Portal 门控和 Paywall 点击回归测试。
 - [x] 2026-07-20 14:20：商店包 Web 支付兜底入口文案调整。将商店包订阅页的 Web 支付兜底入口中文文案改为“商店支付遇到问题？使用网页支付”，英文同步调整为“Store payment not working? Use web checkout”，并更新订阅页回归测试断言。
 - [x] 2026-07-20 14:02：AI 讲解开关组 UI 优化。学习设置中的 AI 讲解子开关改为自定义对齐行，使用解析、翻译、意群分割对应图标，统一左侧图标/文案和右侧开关位置，强化总开关与子项层级；子项文案调整为“AI 解析 / AI 翻译 / AI 意群分割”，补充设置页回归测试。

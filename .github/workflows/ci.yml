@@ -57,27 +57,36 @@ jobs:
       - name: Run tests
         # Ubuntu runner 上全量测试收尾时，偶发「全部用例通过但 flutter test 以 1
         # 退出」的 Flutter 测试运行器收尾工具链 flakiness（发生在所有用例已完成、
-        # reporter 已写出结果之后，与 app 代码无关）。诊断证实 --concurrency=1 防不住
-        # 它（失败样本本就是串行），故不再牺牲速度串行。改用 JSON reporter 的
-        # done.success 作为权威判定：忽略被收尾污染的进程退出码，仅当存在失败用例
-        # （或运行未正常结束、无 done 事件）时才判失败。
+        # reporter 已写出结果之后，与 app 代码无关）。done.success 也可能被污染，
+        # 因此只按 testDone 的 failure/error 判定真实失败。
         run: |
           flutter test \
             --file-reporter=json:test-results.json || true
           python3 - <<'PY'
           import json, sys
           done = None
+          names, errors, failures = {}, {}, []
           try:
               with open('test-results.json', encoding='utf-8') as f:
                   for line in f:
-                      line = line.strip()
-                      if not line:
-                          continue
                       try:
                           event = json.loads(line)
                       except json.JSONDecodeError:
                           continue
-                      if event.get('type') == 'done':
+                      event_type = event.get('type')
+                      if event_type == 'testStart':
+                          test = event.get('test') or {}
+                          test_id = test.get('id')
+                          if test_id is not None:
+                              names[test_id] = test.get('name') or f'test #{test_id}'
+                      elif event_type == 'error':
+                          test_id = event.get('testID')
+                          if test_id is not None:
+                              errors.setdefault(test_id, []).append(event)
+                      elif event_type == 'testDone':
+                          if event.get('result') in ('failure', 'error'):
+                              failures.append(event)
+                      elif event_type == 'done':
                           done = event
           except FileNotFoundError:
               print('::error::test-results.json 缺失 —— 测试未产出结果')
@@ -85,11 +94,26 @@ jobs:
           if done is None:
               print('::error::未找到 done 事件，测试运行未正常结束')
               sys.exit(1)
-          if not done.get('success'):
-              print('::error::flutter test 报告存在失败用例')
+          if failures:
+              print(f'::error::flutter test 报告 {len(failures)} 个失败/错误用例')
+              for event in failures:
+                  test_id = event.get('testID')
+                  print(f'失败用例: {names.get(test_id, f"test #{test_id}")} ({event.get("result")})')
+                  for error in errors.get(test_id, []):
+                      print(error.get('error') or '')
+                      print(error.get('stackTrace') or '')
               sys.exit(1)
-          print('全部用例通过（依据 JSON reporter done.success），忽略进程退出码')
+          print('未发现失败/错误用例，测试通过')
           PY
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: flutter-test-results
+          path: test-results.json
+          if-no-files-found: warn
+          retention-days: 14
 
   build:
     needs: [analyze, test]
