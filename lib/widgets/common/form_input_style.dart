@@ -15,6 +15,7 @@ InputDecoration compactFormInputDecoration(
   String? labelText,
   String? hintText,
   String? errorText,
+  Widget? prefixIcon,
   Widget? suffixIcon,
   bool isDense = false,
 }) {
@@ -30,6 +31,7 @@ InputDecoration compactFormInputDecoration(
     labelText: labelText,
     hintText: hintText,
     errorText: errorText,
+    prefixIcon: prefixIcon,
     suffixIcon: suffixIcon,
     isDense: isDense,
     contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),

@@ -118,6 +118,7 @@
 
 ## 最近完成（保留近两周）
 
+- [x] 2026-07-21：优化「订阅 Podcast」弹窗，改造为「搜索 + 精选」发现入口。搜索框接入 Apple 官方 iTunes Search API（新增 `PodcastSearchService` + `podcastSearchResultsProvider`，350ms 防抖、family 天然防竞态），无查询词时复用 `discoverPodcastsProvider` 展示精选播客；输入 http/https 链接自动识别为「订阅此链接」，保留 RSS/Apple 直连订阅能力；列表项抽出公共组件 `PodcastSubscribeTile`/`PodcastCover`，弹窗与全屏精选页共用；订阅统一复用 `createAndFetch` 主干并加登录校验与成功跳转；补充搜索服务解析单测与面板组件测。
 - [x] 2026-07-21 11:02：合集列表 item 改为显示“更新于”相对时间。`Collection` 模型补齐 `updatedAt` 并从 Drift 映射；资源库合集副标题复用现有 `formatTimeAgo` 显示刚刚/分钟前/小时前/天前等；添加/移除音频、重命名、播客成功刷新和官方合集内容同步会刷新合集更新时间，置顶和刷新失败不刷新；补充模型、provider、合集列表、播客和官方同步回归测试。
 - [x] 2026-07-21 07:25：修复 GitHub Actions run 29760958767 的 chatbot carriers 测试断言。`kChatbotUseFakeApi` 已恢复发布默认 false，测试同步改为验证入口开启但走真实流式 API，避免本地联调临时开关污染 CI。
 - [x] 2026-07-21 07:16：AI 聊天助手入口接入 remote config 全球开关。Flutter remote config 新增 `features.aiChatAssistant.enabled`，缺失时默认开启；句子详情页 AI 聊天入口改为编译期开关 `kChatbotEnabled` 与远程开关同时命中才显示，保留本地硬停能力；补充 remote config 解析/provider 和入口门控单测。

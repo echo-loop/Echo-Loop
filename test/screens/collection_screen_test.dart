@@ -3,6 +3,7 @@
 // 测试资源库页面的合集视图渲染和交互。
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:echo_loop/features/official_collections/providers/discover_podcasts_provider.dart';
 import 'package:echo_loop/models/collection.dart';
 import 'package:echo_loop/screens/library_screen.dart';
 import 'package:echo_loop/providers/settings_provider.dart';
@@ -189,7 +190,15 @@ void main() {
       });
 
       testWidgets('创建合集和订阅 Podcast 表单弱化输入提示样式', (tester) async {
-        await tester.pumpWidget(createTestScreen(const LibraryScreen()));
+        await tester.pumpWidget(
+          createTestScreen(
+            const LibraryScreen(),
+            // 精选 catalog 置空，避免订阅面板落到 null → 无限 spinner
+            overrides: [
+              discoverPodcastsProvider.overrideWith((ref) => const []),
+            ],
+          ),
+        );
         await tester.pumpAndSettle();
 
         await tester.tap(find.byIcon(Icons.add).first);
@@ -282,7 +291,14 @@ void main() {
       });
 
       testWidgets('订阅 Podcast 使用同一个底部 sheet 表单', (tester) async {
-        await tester.pumpWidget(createTestScreen(const LibraryScreen()));
+        await tester.pumpWidget(
+          createTestScreen(
+            const LibraryScreen(),
+            overrides: [
+              discoverPodcastsProvider.overrideWith((ref) => const []),
+            ],
+          ),
+        );
         await tester.pumpAndSettle();
 
         await tester.tap(find.byIcon(Icons.add).first);
@@ -293,7 +309,8 @@ void main() {
         await tester.pumpAndSettle();
 
         expect(find.byIcon(Icons.arrow_back), findsOneWidget);
-        expect(find.text('Apple Podcasts or RSS URL'), findsOneWidget);
+        // 面板改为搜索框：label 为搜索提示，标题仍是「Subscribe Podcast」
+        expect(find.text('Search podcasts or paste a link'), findsOneWidget);
         expect(find.text('Subscribe Podcast'), findsOneWidget);
         expect(find.byType(AlertDialog), findsNothing);
       });

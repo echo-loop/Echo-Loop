@@ -4249,6 +4249,21 @@ class AppLocalizationsZh extends AppLocalizations {
       'https://podcasts.apple.com/... 或 https://…/feed.xml';
 
   @override
+  String get podcastSearchHint => '搜索播客或粘贴链接';
+
+  @override
+  String get podcastSearchEmpty => '没有找到相关播客';
+
+  @override
+  String get podcastSearchFailed => '搜索失败，请重试';
+
+  @override
+  String get podcastSubscribeThisLink => '订阅此链接';
+
+  @override
+  String get featuredPodcasts => '精选播客';
+
+  @override
   String get podcastSubscribing => '正在获取 Podcast Feed…';
 
   @override

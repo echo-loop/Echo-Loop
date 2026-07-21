@@ -4451,6 +4451,21 @@ class AppLocalizationsEn extends AppLocalizations {
       'https://podcasts.apple.com/... or https://…/feed.xml';
 
   @override
+  String get podcastSearchHint => 'Search podcasts or paste a link';
+
+  @override
+  String get podcastSearchEmpty => 'No podcasts found';
+
+  @override
+  String get podcastSearchFailed => 'Search failed, please try again';
+
+  @override
+  String get podcastSubscribeThisLink => 'Subscribe to this link';
+
+  @override
+  String get featuredPodcasts => 'Featured Podcasts';
+
+  @override
   String get podcastSubscribing => 'Fetching podcast feed…';
 
   @override

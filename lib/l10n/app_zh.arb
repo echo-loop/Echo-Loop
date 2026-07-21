@@ -1789,6 +1789,11 @@
   "subscribePodcastOptionDescription": "通过 Apple Podcasts 或 RSS 添加",
   "podcastUrlLabel": "Apple Podcasts 或 RSS 链接",
   "podcastUrlHint": "https://podcasts.apple.com/... 或 https://…/feed.xml",
+  "podcastSearchHint": "搜索播客或粘贴链接",
+  "podcastSearchEmpty": "没有找到相关播客",
+  "podcastSearchFailed": "搜索失败，请重试",
+  "podcastSubscribeThisLink": "订阅此链接",
+  "featuredPodcasts": "精选播客",
   "podcastSubscribing": "正在获取 Podcast Feed…",
   "podcastSubscribeFailed": "订阅失败：{error}",
   "@podcastSubscribeFailed": {

@@ -2263,6 +2263,11 @@
   "subscribePodcastOptionDescription": "Add with Apple Podcasts or RSS",
   "podcastUrlLabel": "Apple Podcasts or RSS URL",
   "podcastUrlHint": "https://podcasts.apple.com/... or https://…/feed.xml",
+  "podcastSearchHint": "Search podcasts or paste a link",
+  "podcastSearchEmpty": "No podcasts found",
+  "podcastSearchFailed": "Search failed, please try again",
+  "podcastSubscribeThisLink": "Subscribe to this link",
+  "featuredPodcasts": "Featured Podcasts",
   "podcastSubscribing": "Fetching podcast feed…",
   "podcastSubscribeFailed": "Failed to subscribe: {error}",
   "@podcastSubscribeFailed": {

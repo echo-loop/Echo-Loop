@@ -7784,6 +7784,36 @@ abstract class AppLocalizations {
   /// **'https://podcasts.apple.com/... or https://…/feed.xml'**
   String get podcastUrlHint;
 
+  /// No description provided for @podcastSearchHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Search podcasts or paste a link'**
+  String get podcastSearchHint;
+
+  /// No description provided for @podcastSearchEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No podcasts found'**
+  String get podcastSearchEmpty;
+
+  /// No description provided for @podcastSearchFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Search failed, please try again'**
+  String get podcastSearchFailed;
+
+  /// No description provided for @podcastSubscribeThisLink.
+  ///
+  /// In en, this message translates to:
+  /// **'Subscribe to this link'**
+  String get podcastSubscribeThisLink;
+
+  /// No description provided for @featuredPodcasts.
+  ///
+  /// In en, this message translates to:
+  /// **'Featured Podcasts'**
+  String get featuredPodcasts;
+
   /// No description provided for @podcastSubscribing.
   ///
   /// In en, this message translates to:

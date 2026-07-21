@@ -3,14 +3,21 @@
 // 原 CollectionScreen 保留用于 import，
 // 内部组件（排序按钮、列表/网格视图、空状态、对话框）
 // 导出供 LibraryScreen 复用。
+import 'dart:async';
+
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../features/auth/sign_in_required_dialog.dart';
+import '../features/official_collections/data/trigger_official_sync.dart';
+import '../features/official_collections/providers/discover_podcasts_provider.dart';
 import '../features/official_collections/providers/official_enrollment_provider.dart';
 import '../features/official_collections/widgets/official_badge.dart';
 import '../features/podcast/podcast_info_sheet.dart';
 import '../features/podcast/podcast_repository.dart';
+import '../features/podcast/podcast_search_provider.dart';
+import '../features/podcast/widgets/podcast_subscribe_tile.dart';
 import '../models/collection.dart';
 import '../providers/collection_provider.dart';
 import '../l10n/app_localizations.dart';
@@ -182,15 +189,21 @@ class _CreateCollectionFlowSheet extends ConsumerStatefulWidget {
 class _CreateCollectionFlowSheetState
     extends ConsumerState<_CreateCollectionFlowSheet> {
   final _nameController = TextEditingController();
-  final _podcastUrlController = TextEditingController();
   _CreateCollectionStep _step = _CreateCollectionStep.chooseType;
   String? _errorText;
+
+  /// 「订阅此链接」直连订阅进行中（阻止关闭 sheet）。
   bool _isSubmittingPodcast = false;
+
+  /// 列表项订阅进行中的标识集合（CatalogPodcast.id / PodcastSearchResult.id）。
+  final Set<String> _subscribingIds = <String>{};
+
+  /// 任意订阅进行中：阻止 sheet 被关闭。
+  bool get _busy => _isSubmittingPodcast || _subscribingIds.isNotEmpty;
 
   @override
   void dispose() {
     _nameController.dispose();
-    _podcastUrlController.dispose();
     super.dispose();
   }
 
@@ -199,7 +212,7 @@ class _CreateCollectionFlowSheetState
     final l10n = AppLocalizations.of(context)!;
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
     return PopScope(
-      canPop: !_isSubmittingPodcast,
+      canPop: !_busy,
       child: SafeArea(
         child: Padding(
           padding: EdgeInsets.fromLTRB(16, 0, 16, 16 + bottomInset),
@@ -213,15 +226,11 @@ class _CreateCollectionFlowSheetState
               children: [
                 _CollectionSheetHeader(
                   title: _titleFor(l10n),
-                  showBack:
-                      _step != _CreateCollectionStep.chooseType &&
-                      !_isSubmittingPodcast,
+                  showBack: _step != _CreateCollectionStep.chooseType && !_busy,
                   onBack: _goBackToType,
-                  onClose: _isSubmittingPodcast
-                      ? null
-                      : () => Navigator.pop(context),
+                  onClose: _busy ? null : () => Navigator.pop(context),
                 ),
-                const SizedBox(height: AppSpacing.m),
+                const SizedBox(height: AppSpacing.s),
                 Flexible(
                   child: SingleChildScrollView(
                     child: AnimatedSwitcher(
@@ -264,11 +273,12 @@ class _CreateCollectionFlowSheetState
       ),
       _CreateCollectionStep.podcast => _PodcastSubscriptionPanel(
         key: const ValueKey('podcast-subscription-form'),
-        controller: _podcastUrlController,
-        errorText: _errorText,
-        isSubmitting: _isSubmittingPodcast,
-        onBack: _goBackToType,
-        onSubmit: _submitPodcast,
+        subscribingIds: _subscribingIds,
+        isSubmittingLink: _isSubmittingPodcast,
+        linkErrorText: _errorText,
+        onSubscribe: _subscribeItem,
+        onSubscribeLink: _subscribeLink,
+        onGoLearn: _goLearn,
       ),
     };
   }
@@ -281,7 +291,7 @@ class _CreateCollectionFlowSheetState
   }
 
   void _goBackToType() {
-    if (_isSubmittingPodcast) return;
+    if (_busy) return;
     _setStep(_CreateCollectionStep.chooseType);
   }
 
@@ -307,11 +317,13 @@ class _CreateCollectionFlowSheetState
     return null;
   }
 
-  Future<void> _submitPodcast() async {
+  /// 「订阅此链接」直连订阅：校验 URL → createAndFetch → 关闭 sheet 跳详情。
+  ///
+  /// 失败时把错误回填到面板顶部（[_errorText]），保持链接可见供用户修正。
+  Future<void> _subscribeLink(String url) async {
     final l10n = AppLocalizations.of(context)!;
-    final url = _podcastUrlController.text.trim();
-    final uri = Uri.tryParse(url);
-    if (url.isEmpty ||
+    final uri = Uri.tryParse(url.trim());
+    if (url.trim().isEmpty ||
         uri == null ||
         !uri.hasScheme ||
         uri.host.isEmpty ||
@@ -319,15 +331,22 @@ class _CreateCollectionFlowSheetState
       setState(() => _errorText = l10n.audioUrlInvalid);
       return;
     }
+    if (_busy) return;
+
+    final canEnroll = await _ensureSignedIn(l10n);
+    if (!mounted || !canEnroll) return;
 
     setState(() {
       _errorText = null;
       _isSubmittingPodcast = true;
     });
     try {
-      await ref.read(podcastRepositoryProvider).createAndFetch(url);
+      final collection = await ref
+          .read(podcastRepositoryProvider)
+          .createAndFetch(url.trim());
       if (!mounted) return;
       Navigator.pop(context);
+      context.go(AppRoutes.collectionDetail(collection.id));
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -335,6 +354,66 @@ class _CreateCollectionFlowSheetState
         _errorText = _formatPodcastError(l10n, e);
       });
     }
+  }
+
+  /// 列表项订阅（精选/搜索结果共用）：登录校验 → createAndFetch →
+  /// 关闭 sheet 跳详情。用 [id] 驱动对应 tile 的 loading 态，防竞态。
+  Future<void> _subscribeItem(String url, String id) async {
+    final l10n = AppLocalizations.of(context)!;
+    if (_busy) return;
+
+    final canEnroll = await _ensureSignedIn(l10n);
+    if (!mounted || !canEnroll) return;
+
+    setState(() => _subscribingIds.add(id));
+    try {
+      final collection = await ref
+          .read(podcastRepositoryProvider)
+          .createAndFetch(url);
+      if (!mounted) return;
+      Navigator.pop(context);
+      context.go(AppRoutes.collectionDetail(collection.id));
+    } on PodcastAlreadySubscribedException catch (e) {
+      if (!mounted) return;
+      final existing = ref
+          .read(collectionListProvider)
+          .collections
+          .where((c) => c.isPodcast && c.name == e.collectionName)
+          .firstOrNull;
+      final messenger = ScaffoldMessenger.of(context);
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(l10n.podcastAlreadySubscribed(e.collectionName)),
+        ),
+      );
+      if (existing != null) {
+        Navigator.pop(context);
+        context.go(AppRoutes.collectionDetail(existing.id));
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(_formatPodcastError(l10n, e))));
+    } finally {
+      if (mounted) setState(() => _subscribingIds.remove(id));
+    }
+  }
+
+  /// 已订阅项「去学习」：关闭 sheet 跳到已有合集详情。
+  void _goLearn(String collectionId) {
+    Navigator.pop(context);
+    context.go(AppRoutes.collectionDetail(collectionId));
+  }
+
+  /// 订阅动作前的登录校验（复用官方合集的登录门）。
+  Future<bool> _ensureSignedIn(AppLocalizations l10n) {
+    return ensureSignedInForAction(
+      context: context,
+      ref: ref,
+      title: l10n.officialCollectionSignInRequiredTitle,
+      message: l10n.podcastCatalogSignInRequiredMessage,
+    );
   }
 
   String _formatPodcastError(AppLocalizations l10n, Object error) {
@@ -397,7 +476,7 @@ class _CollectionSheetHeader extends StatelessWidget {
             child: Text(
               title,
               textAlign: TextAlign.center,
-              style: theme.textTheme.titleLarge,
+              style: theme.textTheme.titleMedium,
               overflow: TextOverflow.ellipsis,
             ),
           ),
@@ -583,96 +662,267 @@ class _LocalCollectionPanelState extends State<_LocalCollectionPanel> {
   }
 }
 
-class _PodcastSubscriptionPanel extends StatefulWidget {
+/// 订阅 Podcast 面板：搜索框 + 列表（精选 / Apple 搜索结果 / 链接直连）。
+///
+/// - 搜索框为空 → 展示精选播客（复用 [discoverPodcastsProvider]）。
+/// - 输入关键词 → 调 Apple iTunes Search（[podcastSearchResultsProvider]，防抖）。
+/// - 输入 http/https 链接 → 自动识别，展示「订阅此链接」入口（RSS 高级用法）。
+///
+/// 订阅/去学习/登录校验/导航全部由父级回调完成，本面板只负责展示与分发。
+class _PodcastSubscriptionPanel extends ConsumerStatefulWidget {
   const _PodcastSubscriptionPanel({
     super.key,
-    required this.controller,
-    required this.errorText,
-    required this.isSubmitting,
-    required this.onBack,
-    required this.onSubmit,
+    required this.subscribingIds,
+    required this.isSubmittingLink,
+    required this.linkErrorText,
+    required this.onSubscribe,
+    required this.onSubscribeLink,
+    required this.onGoLearn,
   });
 
-  final TextEditingController controller;
-  final String? errorText;
-  final bool isSubmitting;
-  final VoidCallback onBack;
-  final VoidCallback onSubmit;
+  /// 正在订阅中的列表项标识（驱动对应 tile 的 loading）。
+  final Set<String> subscribingIds;
+
+  /// 「订阅此链接」直连订阅进行中。
+  final bool isSubmittingLink;
+
+  /// 链接直连订阅的错误文案（仅链接模式展示）。
+  final String? linkErrorText;
+
+  /// 订阅列表项：(订阅输入 URL, 状态标识 id)。
+  final void Function(String url, String id) onSubscribe;
+
+  /// 订阅粘贴的链接：(输入 URL)。
+  final void Function(String url) onSubscribeLink;
+
+  /// 已订阅项「去学习」：(本地合集 id)。
+  final void Function(String collectionId) onGoLearn;
 
   @override
-  State<_PodcastSubscriptionPanel> createState() =>
+  ConsumerState<_PodcastSubscriptionPanel> createState() =>
       _PodcastSubscriptionPanelState();
 }
 
-class _PodcastSubscriptionPanelState extends State<_PodcastSubscriptionPanel> {
+class _PodcastSubscriptionPanelState
+    extends ConsumerState<_PodcastSubscriptionPanel> {
+  final _searchController = TextEditingController();
+
+  /// 防抖后的查询词（已 trim）；驱动搜索/精选切换。
+  String _query = '';
+  Timer? _debounce;
+
+  /// 精选 catalog 未初始化时惰性触发一次同步，避免重复触发。
+  bool _syncTriggered = false;
+
+  @override
+  void dispose() {
+    _debounce?.cancel();
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  void _onSearchChanged(String value) {
+    // 立即 setState 更新清除按钮显隐；防抖 350ms 后再落到 _query。
+    setState(() {});
+    _debounce?.cancel();
+    _debounce = Timer(const Duration(milliseconds: 350), () {
+      if (!mounted) return;
+      setState(() => _query = value.trim());
+    });
+  }
+
+  /// 输入是 http/https 且 host 非空 → 返回可订阅的链接，否则 null。
+  Uri? _asLink(String value) {
+    final uri = Uri.tryParse(value.trim());
+    if (uri == null || !uri.hasScheme || uri.host.isEmpty) return null;
+    if (uri.scheme != 'http' && uri.scheme != 'https') return null;
+    return uri;
+  }
+
+  /// 本地已订阅播客：feedUrl → collection，用于判定「去学习」。
+  Map<String, Collection> _subscribedByFeed() {
+    final state = ref.watch(collectionListProvider);
+    return {
+      for (final c in state.collections)
+        if (c.isPodcast && c.podcastFeedUrl != null) c.podcastFeedUrl!: c,
+    };
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    final canSubmit =
-        widget.controller.text.trim().isNotEmpty && !widget.isSubmitting;
+    final rawText = _searchController.text;
+    final link = _asLink(_query);
+    final listHeight = MediaQuery.of(context).size.height * 0.5;
+
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         TextField(
-          controller: widget.controller,
-          enabled: !widget.isSubmitting,
+          controller: _searchController,
+          enabled: !widget.isSubmittingLink,
           autofocus: false,
           style: compactFormTextStyle(context),
           keyboardType: TextInputType.url,
-          textInputAction: TextInputAction.done,
+          textInputAction: TextInputAction.search,
           decoration: compactFormInputDecoration(
             context,
-            labelText: l10n.podcastUrlLabel,
+            isDense: true,
+            labelText: l10n.podcastSearchHint,
             hintText: l10n.podcastUrlHint,
-            suffixIcon: widget.controller.text.isEmpty || widget.isSubmitting
+            prefixIcon: const Icon(Icons.search),
+            suffixIcon: rawText.isEmpty || widget.isSubmittingLink
                 ? null
                 : IconButton(
                     icon: const Icon(Icons.close),
-                    onPressed: () => setState(widget.controller.clear),
+                    onPressed: () {
+                      _debounce?.cancel();
+                      _searchController.clear();
+                      setState(() => _query = '');
+                    },
                   ),
           ),
-          onChanged: (_) => setState(() {}),
-          onSubmitted: widget.isSubmitting ? null : (_) => widget.onSubmit(),
+          onChanged: _onSearchChanged,
         ),
-        if (widget.errorText != null) ...[
-          const SizedBox(height: AppSpacing.s),
-          _CollectionInlineError(message: widget.errorText!),
-        ],
-        if (widget.isSubmitting) ...[
-          const SizedBox(height: AppSpacing.m),
-          const LinearProgressIndicator(),
-          const SizedBox(height: AppSpacing.s),
-          Text(
-            l10n.podcastSubscribing,
-            style: Theme.of(context).textTheme.bodySmall,
-          ),
-        ],
-        const SizedBox(height: AppSpacing.l),
-        Row(
-          children: [
-            Expanded(
-              child: SecondaryActionButton(
-                onPressed: widget.isSubmitting ? null : widget.onBack,
-                label: l10n.back,
-              ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: FilledButton(
-                onPressed: canSubmit ? widget.onSubmit : null,
-                child: widget.isSubmitting
-                    ? const SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : Text(l10n.add),
-              ),
-            ),
-          ],
+        const SizedBox(height: AppSpacing.s),
+        SizedBox(
+          height: listHeight,
+          child: link != null
+              ? _buildLinkMode(l10n, link.toString())
+              : _query.isEmpty
+              ? _buildFeatured(l10n)
+              : _buildSearch(l10n, _query),
         ),
       ],
+    );
+  }
+
+  /// 链接模式：展示「订阅此链接」卡片。
+  Widget _buildLinkMode(AppLocalizations l10n, String url) {
+    return ListView(
+      children: [
+        if (widget.linkErrorText != null) ...[
+          _CollectionInlineError(message: widget.linkErrorText!),
+          const SizedBox(height: AppSpacing.s),
+        ],
+        Card(
+          clipBehavior: Clip.antiAlias,
+          child: ListTile(
+            leading: const Icon(Icons.rss_feed_rounded),
+            title: Text(l10n.podcastSubscribeThisLink),
+            subtitle: Text(url, maxLines: 2, overflow: TextOverflow.ellipsis),
+            trailing: widget.isSubmittingLink
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.add_circle_outline),
+            onTap: widget.isSubmittingLink
+                ? null
+                : () => widget.onSubscribeLink(url),
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// 精选播客列表：null=未初始化(转圈并触发同步)，空=空态，否则列表。
+  Widget _buildFeatured(AppLocalizations l10n) {
+    final podcasts = ref.watch(discoverPodcastsProvider);
+    if (podcasts == null) {
+      if (!_syncTriggered) {
+        _syncTriggered = true;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) triggerOfficialSync(ref);
+        });
+      }
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (podcasts.isEmpty) {
+      return _PodcastListMessage(message: l10n.discoverPodcastEmpty);
+    }
+    final subscribed = _subscribedByFeed();
+    return ListView.builder(
+      padding: EdgeInsets.zero,
+      itemCount: podcasts.length,
+      itemBuilder: (context, index) {
+        final podcast = podcasts[index];
+        final local = subscribed[podcast.rssUrl];
+        return PodcastSubscribeTile(
+          imageUrl: podcast.imageUrl,
+          title: podcast.title,
+          subtitle: podcast.description,
+          subscribed: local != null,
+          subscribing: widget.subscribingIds.contains(podcast.id),
+          onSubscribe: () =>
+              widget.onSubscribe(podcast.subscriptionInputUrl, podcast.id),
+          onGoLearn: () {
+            if (local != null) widget.onGoLearn(local.id);
+          },
+        );
+      },
+    );
+  }
+
+  /// Apple 搜索结果：loading/error/data(空态) 三态。
+  Widget _buildSearch(AppLocalizations l10n, String term) {
+    final async = ref.watch(podcastSearchResultsProvider(term));
+    return async.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (_, __) => _PodcastListMessage(message: l10n.podcastSearchFailed),
+      data: (results) {
+        if (results.isEmpty) {
+          return _PodcastListMessage(message: l10n.podcastSearchEmpty);
+        }
+        final subscribed = _subscribedByFeed();
+        return ListView.builder(
+          padding: EdgeInsets.zero,
+          itemCount: results.length,
+          itemBuilder: (context, index) {
+            final r = results[index];
+            final local = subscribed[r.feedUrl];
+            return PodcastSubscribeTile(
+              imageUrl: r.artworkUrl,
+              title: r.title,
+              subtitle: r.author,
+              subscribed: local != null,
+              subscribing: widget.subscribingIds.contains(r.id),
+              onSubscribe: () => widget.onSubscribe(r.feedUrl, r.id),
+              onGoLearn: () {
+                if (local != null) widget.onGoLearn(local.id);
+              },
+            );
+          },
+        );
+      },
+    );
+  }
+}
+
+/// 列表区居中提示（空态 / 错误态）。
+class _PodcastListMessage extends StatelessWidget {
+  final String message;
+
+  const _PodcastListMessage({required this.message});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.podcasts_rounded,
+            size: 48,
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+          const SizedBox(height: 12),
+          Text(message, style: theme.textTheme.bodyMedium),
+        ],
+      ),
     );
   }
 }
