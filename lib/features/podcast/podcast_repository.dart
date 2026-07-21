@@ -201,7 +201,7 @@ class PodcastRepository {
       );
       await _ref
           .read(collectionListProvider.notifier)
-          .updatePodcastCollection(failed);
+          .updatePodcastCollection(failed, touchUpdatedAt: false);
       AppLogger.log(
         'PodcastRefresh',
         'load feed failed collectionId=${collection.id} '

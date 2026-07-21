@@ -235,6 +235,7 @@ class OfficialSyncService {
     var orphan = 0;
 
     await _db.transaction(() async {
+      var collectionContentChanged = false;
       // 1) 远端新增音频：本地没有对应 remoteAudioId → 插 audio_items + junction
       for (final a in detail.audios) {
         if (localByRemoteId.containsKey(a.id)) {
@@ -254,6 +255,7 @@ class OfficialSyncService {
                     sortOrder: Value(a.sortOrder),
                   ),
                 );
+            collectionContentChanged = true;
           }
           final changedName = existing.name != a.title;
           final changedOriginalDate = existing.originalDate != a.originalDate;
@@ -269,6 +271,7 @@ class OfficialSyncService {
                 updatedAt: Value(DateTime.now()),
               ),
             );
+            collectionContentChanged = true;
           }
           continue;
         }
@@ -301,6 +304,7 @@ class OfficialSyncService {
               ),
             );
         added++;
+        collectionContentChanged = true;
       }
 
       // 2) 远端已移除：本地未下载 → 删 audio_items + junction；本地已下载 → 保留
@@ -316,6 +320,7 @@ class OfficialSyncService {
               .go();
           await _db.audioItemDao.hardDelete(row.id);
           removed++;
+          collectionContentChanged = true;
         } else {
           orphan++;
         }
@@ -325,14 +330,21 @@ class OfficialSyncService {
       final changedName = local.name != detail.name;
       final changedDesc = local.description != detail.description;
       final changedCover = local.coverUrl != detail.coverUrl;
-      if (changedName || changedDesc || changedCover) {
+      if (changedName ||
+          changedDesc ||
+          changedCover ||
+          collectionContentChanged) {
         await (_db.update(
           _db.collections,
         )..where((t) => t.id.equals(local.id))).write(
           db.CollectionsCompanion(
-            name: Value(detail.name),
-            description: Value(detail.description),
-            coverUrl: Value(detail.coverUrl),
+            name: changedName ? Value(detail.name) : const Value.absent(),
+            description: changedDesc
+                ? Value(detail.description)
+                : const Value.absent(),
+            coverUrl: changedCover
+                ? Value(detail.coverUrl)
+                : const Value.absent(),
             updatedAt: Value(DateTime.now()),
           ),
         );

@@ -17,6 +17,7 @@ import '../l10n/app_localizations.dart';
 import '../router/app_router.dart';
 import '../services/app_network_image_cache.dart';
 import '../theme/app_theme.dart';
+import '../utils/time_format.dart';
 import '../widgets/common/app_popup_menu.dart';
 import '../widgets/common/form_input_style.dart';
 import '../widgets/audio_list_view.dart';
@@ -783,7 +784,7 @@ class _CollectionListTile extends ConsumerWidget {
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              '${l10n.audioCount(collectionState.getAudioCount(collection.id))} · ${l10n.addedOn(_formatDate(collection.createdDate))}',
+                              '${l10n.audioCount(collectionState.getAudioCount(collection.id))} · ${l10n.updatedOn(formatTimeAgo(context, collection.updatedAt))}',
                               style: theme.textTheme.bodySmall?.copyWith(
                                 color: theme.colorScheme.onSurfaceVariant,
                               ),
@@ -874,10 +875,6 @@ class _CollectionListTile extends ConsumerWidget {
       ),
     );
     return _wrapWithGuideTarget(itemStep, card);
-  }
-
-  String _formatDate(DateTime date) {
-    return '${date.month}/${date.day}/${date.year}';
   }
 
   void _openCollection(BuildContext context) {
