@@ -13,8 +13,10 @@ import '../../models/word_timestamp.dart';
 import '../../providers/new_user_guide_provider.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/guide_flow.dart';
+import 'edit_text_sheet.dart';
 import 'subtitle_editor_controller.dart';
 import 'subtitle_waveform_view.dart';
+import 'timestamp_editor_dialog.dart';
 
 class SubtitleSimpleEditorScreen extends ConsumerStatefulWidget {
   final AudioItem audioItem;
@@ -202,6 +204,10 @@ class _SubtitleSimpleEditorScreenState
                         onMergeNext: controller.mergeWithNext,
                         onDelete: (index) =>
                             _deleteSentence(context, controller, l10n, index),
+                        onEditText: (index) =>
+                            _editSentenceText(context, controller, l10n, index),
+                        onTimestamp: (index) =>
+                            _showTimestampEditor(context, controller, index),
                         firstPlayGuideStep: sentencePlayStep,
                         firstMenuGuideStep: sentenceMenuStep,
                       ),
@@ -272,6 +278,41 @@ class _SubtitleSimpleEditorScreenState
           onPressed: () => controller.restoreSentences(snapshot),
         ),
       ),
+    );
+  }
+
+  /// 编辑句子文本：弹出文本输入对话框，修改后保存到控制器。
+  void _editSentenceText(
+    BuildContext context,
+    SubtitleEditorController controller,
+    AppLocalizations l10n,
+    int index,
+  ) {
+    final sentences = controller.snapshot.sentences;
+    if (index < 0 || index >= sentences.length) return;
+    final currentText = sentences[index].text;
+
+    showEditTextSheet(
+      context: context,
+      sentenceIndex: index,
+      initialText: currentText,
+    ).then((newText) {
+      if (newText != null && newText != currentText) {
+        controller.editSentenceText(index, newText);
+      }
+    });
+  }
+
+  /// 显示时间戳编辑对话框。
+  void _showTimestampEditor(
+    BuildContext context,
+    SubtitleEditorController controller,
+    int index,
+  ) {
+    showTimestampEditor(
+      context: context,
+      controller: controller,
+      sentenceIndex: index,
     );
   }
 
@@ -472,6 +513,8 @@ class _SentenceList extends StatefulWidget {
   final void Function(int wordIndex) onSplitWord;
   final void Function(int index) onMergeNext;
   final void Function(int index) onDelete;
+  final void Function(int index) onEditText;
+  final void Function(int index) onTimestamp;
   final GuideStep? firstPlayGuideStep;
   final GuideStep? firstMenuGuideStep;
 
@@ -489,6 +532,8 @@ class _SentenceList extends StatefulWidget {
     required this.onSplitWord,
     required this.onMergeNext,
     required this.onDelete,
+    required this.onEditText,
+    required this.onTimestamp,
     this.firstPlayGuideStep,
     this.firstMenuGuideStep,
   });
@@ -633,6 +678,20 @@ class _SentenceListState extends State<_SentenceList> {
                   color: theme.colorScheme.error,
                 ),
               ),
+              PopupMenuItem(
+                value: _SentenceAction.timestamp,
+                child: _MenuRow(
+                  icon: Icons.timer_outlined,
+                  label: l10n.adjustTimestamp,
+                ),
+              ),
+              PopupMenuItem(
+                value: _SentenceAction.editText,
+                child: _MenuRow(
+                  icon: Icons.edit,
+                  label: l10n.editSentenceText,
+                ),
+              ),
             ],
             onSelected: (action) {
               switch (action) {
@@ -640,6 +699,10 @@ class _SentenceListState extends State<_SentenceList> {
                   widget.onMergeNext(index);
                 case _SentenceAction.delete:
                   widget.onDelete(index);
+                case _SentenceAction.editText:
+                  widget.onEditText(index);
+                case _SentenceAction.timestamp:
+                  widget.onTimestamp(index);
               }
             },
           ),
@@ -1162,4 +1225,4 @@ class _MenuRow extends StatelessWidget {
   }
 }
 
-enum _SentenceAction { mergeNext, delete }
+enum _SentenceAction { mergeNext, delete, editText, timestamp }

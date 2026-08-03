@@ -4251,6 +4251,33 @@ class AppLocalizationsEn extends AppLocalizations {
   String get deleteSentence => 'Delete sentence';
 
   @override
+  String get editSentenceText => 'Edit Text';
+
+  @override
+  String get adjustTimestamp => 'Timestamp';
+
+  @override
+  String get editSentenceTitle => 'Edit sentence text';
+
+  @override
+  String get editSentenceLabel => 'Sentence text';
+
+  @override
+  String get timestampEditorTitle => 'Edit timestamp';
+
+  @override
+  String get timestampStart => 'Start';
+
+  @override
+  String get timestampEnd => 'End';
+
+  @override
+  String get timestampStep => 'Step';
+
+  @override
+  String get currentSentence => 'Current';
+
+  @override
   String get sentenceDeleted => 'Sentence deleted';
 
   @override

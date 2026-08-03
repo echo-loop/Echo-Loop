@@ -4059,6 +4059,33 @@ class AppLocalizationsZh extends AppLocalizations {
   String get deleteSentence => '删除句子';
 
   @override
+  String get editSentenceText => '编辑文本';
+
+  @override
+  String get adjustTimestamp => '时间戳';
+
+  @override
+  String get editSentenceTitle => '编辑句子文本';
+
+  @override
+  String get editSentenceLabel => '句子文本';
+
+  @override
+  String get timestampEditorTitle => '编辑时间戳';
+
+  @override
+  String get timestampStart => '起始';
+
+  @override
+  String get timestampEnd => '结束';
+
+  @override
+  String get timestampStep => '步长';
+
+  @override
+  String get currentSentence => '当前句';
+
+  @override
   String get sentenceDeleted => '已删除句子';
 
   @override
