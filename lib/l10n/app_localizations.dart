@@ -7676,6 +7676,60 @@ abstract class AppLocalizations {
   /// **'Delete sentence'**
   String get deleteSentence;
 
+  /// No description provided for @editSentenceText.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit Text'**
+  String get editSentenceText;
+
+  /// No description provided for @adjustTimestamp.
+  ///
+  /// In en, this message translates to:
+  /// **'Timestamp'**
+  String get adjustTimestamp;
+
+  /// No description provided for @editSentenceTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit sentence text'**
+  String get editSentenceTitle;
+
+  /// No description provided for @editSentenceLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Sentence text'**
+  String get editSentenceLabel;
+
+  /// No description provided for @timestampEditorTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit timestamp'**
+  String get timestampEditorTitle;
+
+  /// No description provided for @timestampStart.
+  ///
+  /// In en, this message translates to:
+  /// **'Start'**
+  String get timestampStart;
+
+  /// No description provided for @timestampEnd.
+  ///
+  /// In en, this message translates to:
+  /// **'End'**
+  String get timestampEnd;
+
+  /// No description provided for @timestampStep.
+  ///
+  /// In en, this message translates to:
+  /// **'Step'**
+  String get timestampStep;
+
+  /// No description provided for @currentSentence.
+  ///
+  /// In en, this message translates to:
+  /// **'Current'**
+  String get currentSentence;
+
   /// No description provided for @sentenceDeleted.
   ///
   /// In en, this message translates to:

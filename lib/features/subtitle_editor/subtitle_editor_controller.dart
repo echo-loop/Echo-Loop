@@ -308,6 +308,12 @@ class SubtitleEditorController extends StateNotifier<SubtitleEditorState> {
     return _sentenceWords(index);
   }
 
+  /// 当前编辑状态快照（供对话框等外部组件读取只读状态）。
+  ///
+  /// 注意：`state` 是 StateNotifier 的 protected 成员，不能在 controller 之外的
+  /// 实例中直接读取，这里暴露一个公开只读入口。
+  SubtitleEditorState get snapshot => state;
+
   /// 波形要绘制 / 可拖动的全部单词边界：选中句 + 前后相邻句的所有词。
   ///
   /// 句子的起止边界即首词起点 / 末词终点，统一为单词边界（见 [adjustWord]），不再
@@ -697,6 +703,132 @@ class SubtitleEditorController extends StateNotifier<SubtitleEditorState> {
     );
   }
 
+  /// 替换第 [index] 句的全部文本为 [newText]，保持原起止时间不变。
+  ///
+  /// 新文本按字符数比例重建词级时间戳，首尾词贴合句界。句子数量不变，
+  /// 不会打乱索引对应的学习进度和收藏。
+  void editSentenceText(int index, String newText) {
+    if (index < 0 || index >= state.sentences.length) return;
+    final trimmed = newText.trim();
+    if (trimmed.isEmpty) return;
+    final sentence = state.sentences[index];
+
+    // 文本没变时不操作。
+    if (trimmed == sentence.text) return;
+
+    final newTokens = _splitTokens(trimmed);
+    if (newTokens.isEmpty) return;
+
+    // 更新句子文本，起止时间不变。
+    final updatedSentence = sentence.copyWith(text: trimmed);
+
+    // 用字符比例重建词级时间戳。
+    final newSentenceWords = _proportionalTokens(newTokens, updatedSentence);
+    newSentenceWords[0] =
+        newSentenceWords.first.copyWith(startTime: sentence.startTime);
+    newSentenceWords[newSentenceWords.length - 1] =
+        newSentenceWords.last.copyWith(endTime: sentence.endTime);
+
+    // 替换全篇词列表中本句对应的区间。
+    final range = _sentenceTokenRange(index);
+    final nextSentences = [...state.sentences];
+    nextSentences[index] = updatedSentence;
+
+    List<WordTimestamp> nextWords;
+    if (range != null) {
+      nextWords = [
+        ...state.words.sublist(0, range.offset),
+        ...newSentenceWords,
+        ...state.words.sublist(range.offset + range.count),
+      ];
+    } else {
+      nextWords = _buildWords(nextSentences, state.words);
+    }
+
+    final wasPlaying = state.isPlaying;
+    if (wasPlaying) _cancelPlaybackSession();
+    state = state.copyWith(
+      sentences: nextSentences,
+      words: nextWords,
+      focusedWordIndex: null,
+      isDirty: _sentencesChanged(nextSentences) || _wordsDirty,
+      playingSentenceIndex: wasPlaying ? null : state.playingSentenceIndex,
+      isPlaying: wasPlaying ? false : state.isPlaying,
+      playbackMode: wasPlaying
+          ? SubtitleEditorPlaybackMode.idle
+          : state.playbackMode,
+    );
+  }
+
+  /// 调整第 [index] 句的起止时间戳。
+  ///
+  /// [startTime] / [endTime] 为可选：仅传需调整的一端，未传的保持不变。
+  /// 调整后按字符比例重建本句词级时间戳；句子数量不变，不打乱索引对应关系。
+  void updateSentenceTimestamps(
+    int index, {
+    Duration? startTime,
+    Duration? endTime,
+  }) {
+    if (index < 0 || index >= state.sentences.length) return;
+    final sentence = state.sentences[index];
+
+    // 未提供任何调整则不操作。
+    if (startTime == null && endTime == null) return;
+
+    // 钳制到合法范围。
+    final lower = _prevSentenceEnd(index);
+    final upper = _nextSentenceStart(index);
+    final newStart = _clampDuration(startTime ?? sentence.startTime, lower, upper);
+    final newEnd = _clampDuration(endTime ?? sentence.endTime, newStart + kMinWordDuration, upper);
+
+    // 时间没变时不操作。
+    if (newStart == sentence.startTime && newEnd == sentence.endTime) return;
+
+    final updatedSentence = sentence.copyWith(startTime: newStart, endTime: newEnd);
+
+    // 按字符比例重建词级时间戳。
+    final tokens = _splitTokens(sentence.text);
+    final newSentenceWords = tokens.isEmpty
+        ? const <WordTimestamp>[]
+        : _proportionalTokens(tokens, updatedSentence);
+    if (newSentenceWords.isNotEmpty) {
+      newSentenceWords[0] =
+          newSentenceWords.first.copyWith(startTime: newStart);
+      newSentenceWords[newSentenceWords.length - 1] =
+          newSentenceWords.last.copyWith(endTime: newEnd);
+    }
+
+    final nextSentences = [...state.sentences];
+    nextSentences[index] = updatedSentence;
+
+    // 替换全篇词列表中本句对应的区间。
+    final range = _sentenceTokenRange(index);
+    List<WordTimestamp> nextWords;
+    if (range != null && tokens.isNotEmpty) {
+      nextWords = [
+        ...state.words.sublist(0, range.offset),
+        ...newSentenceWords,
+        ...state.words.sublist(range.offset + range.count),
+      ];
+    } else {
+      nextWords = _buildWords(nextSentences, state.words);
+    }
+
+    final wasPlaying = state.isPlaying;
+    if (wasPlaying) _cancelPlaybackSession();
+    state = state.copyWith(
+      sentences: nextSentences,
+      words: nextWords,
+      focusedWordIndex: null,
+      isDirty: _sentencesChanged(nextSentences) || _wordsDirty,
+      playingSentenceIndex: wasPlaying ? null : state.playingSentenceIndex,
+      isPlaying: wasPlaying ? false : state.isPlaying,
+      playbackMode: wasPlaying
+          ? SubtitleEditorPlaybackMode.idle
+          : state.playbackMode,
+    );
+  }
+
   /// 把选中句从第 [localWordIndex] 个词处分成两句（剪刀分句时调用）。
   ///
   /// 该词成为新句（后半）的首词；前半保留原起点、终点贴前一词终点，后半起点贴该词
@@ -774,6 +906,40 @@ class SubtitleEditorController extends StateNotifier<SubtitleEditorState> {
           isPlaying: false,
           playbackMode: SubtitleEditorPlaybackMode.idle,
           playbackPosition: word.endTime,
+        );
+        await _stopActivePlayback(invalidateSession: false);
+      }
+    }
+  }
+
+  /// 播放指定时间区间 [start] 到 [end] 的音频片段。
+  ///
+  /// 供时间戳编辑弹窗调用：点击起始/结束时间时播放对应端的音频。
+  /// 播放期间不影响选中句和词聚焦态；播放完成后状态恢复 idle。
+  Future<void> playRange(Duration start, Duration end) async {
+    if (start >= end) return;
+    await _stopActivePlayback(invalidateSession: true);
+    final sessionId = _audioEngine.newSession();
+    _startPlayheadTicker(
+      sessionId: sessionId,
+      start: start,
+      end: end,
+    );
+    state = state.copyWith(
+      playingSentenceIndex: null,
+      isPlaying: true,
+      playbackMode: SubtitleEditorPlaybackMode.word,
+      playbackPosition: start,
+    );
+    try {
+      await _audioEngine.setSpeed(state.playbackSpeed);
+      await _audioEngine.playRangeOnce(start, end, sessionId);
+    } finally {
+      if (mounted && _audioEngine.isActiveSession(sessionId)) {
+        state = state.copyWith(
+          isPlaying: false,
+          playbackMode: SubtitleEditorPlaybackMode.idle,
+          playbackPosition: end,
         );
         await _stopActivePlayback(invalidateSession: false);
       }
