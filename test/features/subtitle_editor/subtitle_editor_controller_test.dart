@@ -1227,6 +1227,140 @@ void main() {
       );
     });
   });
+
+  group('editSentenceText', () {
+    test('替换句子文本并按比例重建词级时间戳', () async {
+      final notifier = controller();
+      await notifier.load();
+
+      notifier.editSentenceText(0, 'Hello world');
+      final s = state();
+
+      expect(s.sentences[0].text, 'Hello world');
+      expect(s.sentences[0].startTime, sentences[0].startTime);
+      expect(s.sentences[0].endTime, sentences[0].endTime);
+      expect(s.isDirty, isTrue);
+    });
+
+    test('文本不变时不操作', () async {
+      final notifier = controller();
+      await notifier.load();
+
+      notifier.editSentenceText(0, 'First sentence.');
+      expect(state().isDirty, isFalse);
+    });
+
+    test('空文本不操作', () async {
+      final notifier = controller();
+      await notifier.load();
+
+      notifier.editSentenceText(0, '  ');
+      expect(state().sentences[0].text, 'First sentence.');
+      expect(state().isDirty, isFalse);
+    });
+
+    test('越界索引不操作', () async {
+      final notifier = controller();
+      await notifier.load();
+
+      notifier.editSentenceText(5, 'Out of bounds');
+      expect(state().isDirty, isFalse);
+    });
+  });
+
+  group('updateSentenceTimestamps', () {
+    test('调整起始时间并重建词级时间戳', () async {
+      final notifier = controller();
+      await notifier.load();
+
+      notifier.updateSentenceTimestamps(
+        1,
+        startTime: const Duration(seconds: 5),
+      );
+      final s = state();
+
+      expect(s.sentences[1].startTime, const Duration(seconds: 5));
+      expect(s.sentences[1].endTime, sentences[1].endTime);
+      expect(s.isDirty, isTrue);
+    });
+
+    test('调整结束时间并重建词级时间戳', () async {
+      final notifier = controller();
+      await notifier.load();
+
+      notifier.updateSentenceTimestamps(
+        1,
+        endTime: const Duration(seconds: 7),
+      );
+      final s = state();
+
+      expect(s.sentences[1].startTime, sentences[1].startTime);
+      expect(s.sentences[1].endTime, const Duration(seconds: 7));
+      expect(s.isDirty, isTrue);
+    });
+
+    test('同时调整起止时间', () async {
+      final notifier = controller();
+      await notifier.load();
+
+      notifier.updateSentenceTimestamps(
+        1,
+        startTime: const Duration(seconds: 5),
+        endTime: const Duration(seconds: 7),
+      );
+      final s = state();
+
+      expect(s.sentences[1].startTime, const Duration(seconds: 5));
+      expect(s.sentences[1].endTime, const Duration(seconds: 7));
+    });
+
+    test('钳制到前一句结束时间', () async {
+      final notifier = controller();
+      await notifier.load();
+
+      // 第 1 句起始时间不能早于第 0 句结束（4s）
+      notifier.updateSentenceTimestamps(
+        1,
+        startTime: const Duration(seconds: 2),
+      );
+      expect(state().sentences[1].startTime, const Duration(seconds: 4));
+    });
+
+    test('钳制到后一句起始时间', () async {
+      final notifier = controller();
+      await notifier.load();
+
+      // 第 1 句结束时间不能晚于第 2 句起始（8s）
+      notifier.updateSentenceTimestamps(
+        1,
+        endTime: const Duration(seconds: 10),
+      );
+      expect(state().sentences[1].endTime, const Duration(seconds: 8));
+    });
+
+    test('起止时间不变时不操作', () async {
+      final notifier = controller();
+      await notifier.load();
+
+      notifier.updateSentenceTimestamps(
+        1,
+        startTime: sentences[1].startTime,
+        endTime: sentences[1].endTime,
+      );
+      expect(state().isDirty, isFalse);
+    });
+
+    test('越界索引不操作', () async {
+      final notifier = controller();
+      await notifier.load();
+
+      notifier.updateSentenceTimestamps(
+        5,
+        startTime: Duration.zero,
+      );
+      expect(state().isDirty, isFalse);
+    });
+  });
 }
 
 /// 记录 loadAudio 的 forceTranscriptReload 入参，用于验证保存后是否强制重载 LP。
