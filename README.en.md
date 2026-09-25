@@ -31,8 +31,6 @@
   </p>
 </div>
 
-> 🇨🇳 **Note for China users**: The China App Store listing is temporarily off the shelf while we complete ICP registration. Users in mainland China can still install Echo Loop with an App Store account from another region (e.g. US or Hong Kong). It will be relisted once registration is complete.
-
 ---
 
 ## 📱 Screenshots
