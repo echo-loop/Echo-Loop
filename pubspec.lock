@@ -2028,10 +2028,10 @@ packages:
     dependency: "direct main"
     description:
       name: subtitle
-      sha256: "29115fbaa5d87c5909ffa477cbfdeec2c6ee8ac9a5ef3dce9b2db731afc79f26"
+      sha256: fdefaa2eb8a3acd5a3ab71ca27e03cbb023eb32dd223667146f8dbe3b33ae406
       url: "https://pub.dev"
     source: hosted
-    version: "0.1.4"
+    version: "0.2.0"
   supabase:
     dependency: transitive
     description:

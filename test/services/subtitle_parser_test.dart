@@ -611,6 +611,56 @@ Dialogue: 0,0:00:01.00,0:00:03.00,Hello world.
         final sentences = await SubtitleParser.parseSubtitleString('');
         expect(sentences, isEmpty);
       });
+
+      test('相邻重复文本仍保留为独立句子', () async {
+        const srt = '''1
+00:00:01,000 --> 00:00:02,000
+Repeat this line.
+
+2
+00:00:02,020 --> 00:00:03,000
+Repeat this line.
+''';
+
+        final sentences = await SubtitleParser.parseSubtitleString(srt);
+
+        expect(sentences, hasLength(2));
+        expect(sentences[0].index, 0);
+        expect(sentences[1].index, 1);
+        expect(sentences[0].text, sentences[1].text);
+        expect(sentences[0].endTime, const Duration(seconds: 2));
+        expect(
+          sentences[1].startTime,
+          const Duration(seconds: 2, milliseconds: 20),
+        );
+      });
+
+      test('1815 条字幕全部保留且顺序正确', () async {
+        String timestamp(int seconds) {
+          final hours = seconds ~/ 3600;
+          final minutes = (seconds % 3600) ~/ 60;
+          final remainingSeconds = seconds % 60;
+          return '${hours.toString().padLeft(2, '0')}:'
+              '${minutes.toString().padLeft(2, '0')}:'
+              '${remainingSeconds.toString().padLeft(2, '0')},000';
+        }
+
+        final srt = List.generate(1815, (index) {
+          final start = index * 2;
+          return '${index + 1}\n'
+              '${timestamp(start)} --> ${timestamp(start + 1)}\n'
+              'Cue $index';
+        }).join('\n\n');
+
+        final sentences = await SubtitleParser.parseSubtitleString(srt);
+
+        expect(sentences, hasLength(1815));
+        expect(sentences.first.index, 0);
+        expect(sentences.first.text, 'Cue 0');
+        expect(sentences.last.index, 1814);
+        expect(sentences.last.text, 'Cue 1814');
+        expect(sentences.last.startTime, const Duration(seconds: 3628));
+      });
     });
 
     group('parseSubtitleStrictString（字符串严格校验）', () {

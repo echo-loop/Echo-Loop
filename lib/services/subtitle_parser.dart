@@ -1,5 +1,5 @@
 import 'package:universal_io/io.dart';
-import 'package:subtitle/subtitle.dart';
+import 'package:subtitle/subtitle.dart' as subtitle;
 import '../models/sentence.dart';
 
 /// 字幕解析错误类型。
@@ -49,17 +49,11 @@ class SubtitleParser {
   /// [type] 默认按 SRT 解析。
   static Future<List<Sentence>> parseSubtitleString(
     String content, {
-    SubtitleType type = SubtitleType.srt,
+    subtitle.SubtitleType type = subtitle.SubtitleType.srt,
   }) async {
     try {
       if (content.isEmpty) return [];
-      final controller = SubtitleController(
-        provider: SubtitleProvider.fromString(data: content, type: type),
-      );
-
-      await controller.initial();
-      final subtitles = controller.subtitles;
-
+      final subtitles = _parseSubtitleCues(content, type);
       return subtitles.asMap().entries.map((entry) {
         final subtitle = entry.value;
         return Sentence(
@@ -111,7 +105,9 @@ class SubtitleParser {
     // 3. 按内容严格解析
     return parseSubtitleStrictString(
       content,
-      type: ext == 'vtt' ? SubtitleType.vtt : SubtitleType.srt,
+      type: ext == 'vtt'
+          ? subtitle.SubtitleType.vtt
+          : subtitle.SubtitleType.srt,
     );
   }
 
@@ -121,15 +117,11 @@ class SubtitleParser {
   /// 校验失败抛 [SubtitleParseException]。
   static Future<List<Sentence>> parseSubtitleStrictString(
     String content, {
-    SubtitleType type = SubtitleType.srt,
+    subtitle.SubtitleType type = subtitle.SubtitleType.srt,
   }) async {
-    final List<Subtitle> subtitles;
+    final List<subtitle.Subtitle> subtitles;
     try {
-      final controller = SubtitleController(
-        provider: SubtitleProvider.fromString(data: content, type: type),
-      );
-      await controller.initial();
-      subtitles = controller.subtitles;
+      subtitles = _parseSubtitleCues(content, type);
     } catch (e) {
       throw SubtitleParseException(
         SubtitleParseErrorKind.formatInvalid,
@@ -152,6 +144,20 @@ class SubtitleParser {
     }).toList();
   }
 
+  /// 使用新版逐行解析器，并只按时间排序，不执行 controller 的去重合并。
+  ///
+  /// 学习流程将每条字幕映射为独立 Sentence，合并字幕会改变句子数量和索引。
+  static List<subtitle.Subtitle> _parseSubtitleCues(
+    String content,
+    subtitle.SubtitleType type,
+  ) {
+    final subtitles = subtitle.SubtitleParser(
+      subtitle.SubtitleObject(data: content, type: type),
+    ).parsing();
+    subtitles.sort((a, b) => a.compareTo(b));
+    return subtitles;
+  }
+
   /// 提取文件扩展名（小写、不含点）。
   static String _extensionOf(String filePath) {
     final lastDot = filePath.lastIndexOf('.');
@@ -159,14 +165,14 @@ class SubtitleParser {
     return filePath.substring(lastDot + 1).toLowerCase();
   }
 
-  static SubtitleType _getSubtitleType(String filePath) {
+  static subtitle.SubtitleType _getSubtitleType(String filePath) {
     switch (_extensionOf(filePath)) {
       case 'srt':
-        return SubtitleType.srt;
+        return subtitle.SubtitleType.srt;
       case 'vtt':
-        return SubtitleType.vtt;
+        return subtitle.SubtitleType.vtt;
       default:
-        return SubtitleType.srt; // default to SRT
+        return subtitle.SubtitleType.srt; // default to SRT
     }
   }
 
