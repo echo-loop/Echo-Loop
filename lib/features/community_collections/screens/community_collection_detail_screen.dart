@@ -33,6 +33,23 @@ class CommunityCollectionDetailScreen extends ConsumerStatefulWidget {
 class _CommunityCollectionDetailScreenState
     extends ConsumerState<CommunityCollectionDetailScreen> {
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted ||
+          _localCollection(ref.read(collectionListProvider)) != null) {
+        return;
+      }
+      if (ref
+              .read(communityCollectionFilesProvider(widget.remoteId))
+              .valueOrNull !=
+          null) {
+        unawaited(_forceRefreshRemoteFiles());
+      }
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     final listedCatalogEntry = ref
         .watch(discoverCommunityCollectionsProvider)
@@ -79,29 +96,50 @@ class _CommunityCollectionDetailScreenState
       ),
       body: files.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, _) => Center(child: Text('$error')),
-        data: (page) => _Content(
-          catalogEntry: catalogEntry,
-          remotePage: page,
-          fileCount: catalogEntry?.fileCount ?? page.items.length,
-          localId: localId,
-          onLoadMore: () => unawaited(
-            ref
-                .read(
-                  communityCollectionFilesProvider(widget.remoteId).notifier,
-                )
-                .loadMore(),
+        error: (error, _) => RefreshIndicator(
+          onRefresh: _forceRefreshRemoteFiles,
+          child: ListView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            children: [
+              SizedBox(
+                height: MediaQuery.sizeOf(context).height * .6,
+                child: Center(child: Text('$error')),
+              ),
+            ],
           ),
-          onEnroll: () => _enroll(context, ref),
-          onPreviewFileTap: (_) => _showEnrollDialog(context, ref),
-          onLearn: () {
-            if (localId != null) {
-              context.go(AppRoutes.collectionDetail(localId));
-            }
-          },
+        ),
+        data: (page) => RefreshIndicator(
+          onRefresh: _forceRefreshRemoteFiles,
+          child: _Content(
+            catalogEntry: catalogEntry,
+            remotePage: page,
+            fileCount: catalogEntry?.fileCount ?? page.items.length,
+            localId: localId,
+            onLoadMore: () => unawaited(
+              ref
+                  .read(
+                    communityCollectionFilesProvider(widget.remoteId).notifier,
+                  )
+                  .loadMore(),
+            ),
+            onEnroll: () => _enroll(context, ref),
+            onPreviewFileTap: (_) => _showEnrollDialog(context, ref),
+            onLearn: () {
+              if (localId != null) {
+                context.go(AppRoutes.collectionDetail(localId));
+              }
+            },
+          ),
         ),
       ),
     );
+  }
+
+  /// 强制更新公开详情的第一页，成功后由 Provider 丢弃旧分页链。
+  Future<void> _forceRefreshRemoteFiles() {
+    return ref
+        .read(communityCollectionFilesProvider(widget.remoteId).notifier)
+        .refresh(force: true);
   }
 
   Collection? _localCollection(CollectionState state) {

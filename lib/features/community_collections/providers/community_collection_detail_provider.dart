@@ -81,6 +81,7 @@ class CommunityCollectionFiles extends _$CommunityCollectionFiles {
     final outcome = await service.refreshFilesPage(
       collectionId,
       cursor: cursor,
+      force: true,
     );
     if (token != _operationToken) return;
     latest = state.valueOrNull ?? latest;
@@ -134,7 +135,11 @@ class CommunityCollectionFiles extends _$CommunityCollectionFiles {
       state = AsyncData(cachedState);
     }
 
-    final outcome = await service.refreshFilesPage(collectionId, cursor: null);
+    final outcome = await service.refreshFilesPage(
+      collectionId,
+      cursor: null,
+      force: true,
+    );
     if (token != _operationToken) {
       return state.valueOrNull ??
           cachedState ??

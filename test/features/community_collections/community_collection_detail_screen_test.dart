@@ -181,6 +181,42 @@ void main() {
     expect(find.text('Add Collection First'), findsNothing);
   });
 
+  testWidgets('未加入合集详情下拉时强制刷新且缓存内容仍可见', (tester) async {
+    final detailNotifier = _TestCommunityCollectionFiles(files);
+    await tester.pumpWidget(
+      createTestApp(
+        const CommunityCollectionDetailScreen(remoteId: 'collection-1'),
+        overrides: [
+          discoverCommunityCollectionsProvider.overrideWith(
+            () => _TestDiscoverCommunityCollections(
+              PublicCollectionCatalogEntry(
+                id: 'collection-1',
+                name: 'Community English',
+                description: 'A short collection',
+                coverUrl: null,
+                authorNickname: 'Echo Studio',
+                fileCount: files.length,
+                publishedAt: DateTime(2026, 9, 22),
+              ),
+            ),
+          ),
+          communityCollectionFilesProvider(
+            'collection-1',
+          ).overrideWith(() => detailNotifier),
+        ],
+      ),
+    );
+    await tester.pumpAndSettle();
+    detailNotifier.refreshCalls = 0;
+    detailNotifier.forceRefreshCalls = 0;
+
+    await tester.drag(find.byType(ListView), const Offset(0, 320));
+    await tester.pumpAndSettle();
+
+    expect(detailNotifier.forceRefreshCalls, 1);
+    expect(find.text('Track 1'), findsOneWidget);
+  });
+
   testWidgets('已加入合集详情直接使用本地列表，不等待远端文件请求', (tester) async {
     await tester.pumpWidget(
       createTestApp(
@@ -246,6 +282,8 @@ class _TestDiscoverCommunityCollections extends DiscoverCommunityCollections {
 class _TestCommunityCollectionFiles extends CommunityCollectionFiles {
   final List<CommunityCollectionFile> files;
   final PublicCollectionCatalogEntry? collection;
+  var refreshCalls = 0;
+  var forceRefreshCalls = 0;
 
   _TestCommunityCollectionFiles(this.files, [this.collection]);
 
@@ -261,5 +299,11 @@ class _TestCommunityCollectionFiles extends CommunityCollectionFiles {
         nextCursor: null,
       ),
     );
+  }
+
+  @override
+  Future<void> refresh({bool force = false}) async {
+    refreshCalls++;
+    if (force) forceRefreshCalls++;
   }
 }

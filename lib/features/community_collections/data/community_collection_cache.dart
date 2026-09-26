@@ -18,9 +18,6 @@ const _cacheVersion = 4;
 const _legacyDiscoveryCacheKey = 'community_collection_discovery_v2';
 const _firstPageKey = 'first';
 
-/// 社区合集公开 catalog 的刷新节流窗口，与其它公开 catalog 保持一致。
-const communityCollectionCatalogThrottleWindow = Duration(days: 1);
-
 /// 社区合集 catalog 刷新结果。
 sealed class CommunityCollectionRefreshOutcome<T> {
   const CommunityCollectionRefreshOutcome();
@@ -59,7 +56,7 @@ class _PageCacheDocument<T> {
 /// 社区合集 catalog 的统一分页缓存与刷新服务。
 ///
 /// 公开合集目录和详情文件元数据都使用同一套 Application Support/cache 下的
-/// JSON + meta 文件格式，并通过 [RefreshCoordinator] 处理按页节流和并发合并。
+/// JSON + meta 文件格式，并通过 [RefreshCoordinator] 合并同页并发请求。
 /// 媒体文件与字幕不属于本服务的缓存范围。
 class CommunityCollectionCatalogService {
   final CommunityCollectionApi _api;
@@ -143,8 +140,8 @@ class CommunityCollectionCatalogService {
       final result = await _collectionsRefresh.run(
         key: 'collections:$pageKey',
         force: force,
-        lastRefreshedAt: _collectionsDocument?.fetchedAt[pageKey],
-        throttleWindow: communityCollectionCatalogThrottleWindow,
+        lastRefreshedAt: null,
+        throttleWindow: Duration.zero,
         refresh: () async {
           final response = await _api.getCollections(cursor: normalizedCursor);
           final page =
@@ -199,8 +196,8 @@ class CommunityCollectionCatalogService {
       final result = await _filesRefresh.run(
         key: 'files:$remoteId:$pageKey',
         force: force,
-        lastRefreshedAt: _filesDocuments[remoteId]?.fetchedAt[pageKey],
-        throttleWindow: communityCollectionCatalogThrottleWindow,
+        lastRefreshedAt: null,
+        throttleWindow: Duration.zero,
         refresh: () async {
           final response = await _api.getCollectionDetail(
             remoteId,

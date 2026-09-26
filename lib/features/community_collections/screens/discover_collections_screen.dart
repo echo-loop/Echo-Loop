@@ -40,6 +40,17 @@ class _DiscoverCommunityCollectionsScreenState
   void initState() {
     super.initState();
     _scrollController.addListener(_handleScroll);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      // Provider 保持存活，列表页再次入栈时主动更新缓存目录。
+      if (ref.read(discoverCommunityCollectionsProvider).valueOrNull != null) {
+        unawaited(
+          ref
+              .read(discoverCommunityCollectionsProvider.notifier)
+              .refresh(force: true),
+        );
+      }
+    });
   }
 
   @override

@@ -72,7 +72,10 @@ class DiscoverCommunityCollections extends _$DiscoverCommunityCollections {
       state = AsyncData(latest.copyWith(isLoadingMore: true));
     }
 
-    final outcome = await service.refreshCollectionsPage(cursor: cursor);
+    final outcome = await service.refreshCollectionsPage(
+      cursor: cursor,
+      force: true,
+    );
     if (token != _operationToken) return;
     latest = state.valueOrNull ?? latest;
     switch (outcome) {
@@ -122,7 +125,11 @@ class DiscoverCommunityCollections extends _$DiscoverCommunityCollections {
       state = AsyncData(cachedState);
     }
 
-    final outcome = await service.refreshCollectionsPage(cursor: null);
+    // 缓存先展示；每次进入发现页都后台校验第一页，及时反映目录变更。
+    final outcome = await service.refreshCollectionsPage(
+      cursor: null,
+      force: true,
+    );
     if (token != _operationToken) {
       return state.valueOrNull ??
           cachedState ??
