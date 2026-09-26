@@ -81,6 +81,7 @@ class _RecordingIntensiveListenPlayer extends TestIntensiveListenPlayer {
   int goToPreviousCalls = 0;
   int goToSentenceCalls = 0;
   int startPlayingCalls = 0;
+  Completer<void>? pendingAnnotationAdvanceGate;
 
   @override
   Future<void> startPlaying() async {
@@ -136,6 +137,13 @@ class _RecordingIntensiveListenPlayer extends TestIntensiveListenPlayer {
       isTextRevealed: false,
       isCurrentSentenceAutoMarked: false,
     );
+  }
+
+  @override
+  Future<void> commitPendingAnnotationAdvance(int targetSentenceIndex) async {
+    await super.commitPendingAnnotationAdvance(targetSentenceIndex);
+    final gate = pendingAnnotationAdvanceGate;
+    if (gate != null) await gate.future;
   }
 
   void emit(IntensiveListenState nextState) {
@@ -1127,6 +1135,50 @@ void main() {
         find.byKey(const ValueKey('intensive-sentence-mode-1-blind')),
         findsOneWidget,
       );
+    });
+
+    testWidgets('自动翻到新句后播放未结束也允许继续切句', (tester) async {
+      late _RecordingIntensiveListenPlayer player;
+      final playbackGate = Completer<void>();
+      await tester.pumpWidget(
+        createTestWidget(
+          playerState: createPlayerState(
+            isAnnotationMode: true,
+            isPlaying: false,
+          ),
+          playerFactory: (state, sentences) {
+            player = _RecordingIntensiveListenPlayer(state, sentences)
+              ..pendingAnnotationAdvanceGate = playbackGate;
+            return player;
+          },
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      player.emit(
+        player.state.copyWith(
+          isAnnotationMode: true,
+          isAnnotationReplay: false,
+          isPlaying: false,
+          annotationState: const IntensiveAnnotationState(
+            phase: WaitingAnnotationPageTransition(targetSentenceIndex: 1),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(player.currentIndex, 1);
+      expect(player.state.annotationState, isNull);
+
+      await tester.tap(find.byIcon(Icons.skip_next_rounded));
+      await tester.pumpAndSettle();
+
+      expect(player.goToNextCalls, 1);
+      expect(player.currentIndex, 2);
+
+      playbackGate.complete();
+      await tester.pump();
+      await tester.pumpAndSettle();
     });
 
     testWidgets('讲解状态取消横滑时保留源句讲解态', (tester) async {

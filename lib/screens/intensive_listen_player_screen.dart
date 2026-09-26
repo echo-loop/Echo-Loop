@@ -161,9 +161,14 @@ class _IntensiveListenPlayerScreenState
     try {
       await _sentencePager.animateAndCommit(
         targetSentenceIndex,
-        commit: () => ref
-            .read(intensiveListenPlayerProvider.notifier)
-            .commitPendingAnnotationAdvance(targetSentenceIndex),
+        commit: () {
+          final commit = ref
+              .read(intensiveListenPlayerProvider.notifier)
+              .commitPendingAnnotationAdvance(targetSentenceIndex);
+          // Provider 已同步切换句索引；新句播放在后台继续时即可开始下一次导航。
+          _isAutoAdvancingAnnotationPage = false;
+          return commit;
+        },
       );
     } finally {
       _isAutoAdvancingAnnotationPage = false;
@@ -741,7 +746,6 @@ class _IntensiveListenPlayerScreenState
                                       playerState.currentSentenceIndex,
                                   itemCount: player.sentences.length,
                                   isTransitionLocked:
-                                      _isAutoAdvancingAnnotationPage ||
                                       playerState.annotationState?.phase
                                           is WaitingAnnotationPageTransition,
                                   onSentenceSettled: player.goToSentence,

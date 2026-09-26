@@ -94,6 +94,7 @@ class _PracticeSentencePagerState extends State<PracticeSentencePager> {
       widget.controller._attach(this);
     }
     if (oldWidget.currentIndex != widget.currentIndex) {
+      _clearPendingGesture();
       DictionaryPanelHost.maybeOf(context)?.closeIfOpen();
     }
   }
@@ -136,6 +137,7 @@ class _PracticeSentencePagerState extends State<PracticeSentencePager> {
         _synced = true;
         return;
       }
+      _clearPendingGesture();
       _programmatic = true;
       final animate =
           _synced && current != null && (targetIndex - current).abs() == 1;
@@ -158,8 +160,7 @@ class _PracticeSentencePagerState extends State<PracticeSentencePager> {
   void _handlePageChanged(int index) {
     if (_programmatic) return;
     if (index == widget.currentIndex) {
-      _pendingTarget = null;
-      _pendingSource = null;
+      _clearPendingGesture();
       return;
     }
     _pendingTarget = index;
@@ -169,16 +170,15 @@ class _PracticeSentencePagerState extends State<PracticeSentencePager> {
   bool _handleScrollNotification(ScrollNotification notification) {
     if (notification.depth != 0 ||
         notification.metrics.axis != Axis.horizontal ||
-        notification is! ScrollEndNotification ||
-        _programmatic ||
-        _transitionInFlight ||
-        widget.isTransitionLocked) {
+        notification is! ScrollEndNotification) {
       return false;
     }
     final target = _pendingTarget;
     final source = _pendingSource;
-    _pendingTarget = null;
-    _pendingSource = null;
+    _clearPendingGesture();
+    if (_programmatic || _transitionInFlight || widget.isTransitionLocked) {
+      return false;
+    }
     if (target == null || source == null) return false;
     if (_pageController.page?.round() != target) return false;
     if (widget.currentIndex != source) return false;
@@ -187,13 +187,20 @@ class _PracticeSentencePagerState extends State<PracticeSentencePager> {
     return false;
   }
 
-  /// 提交用户滑动产生的目标句，并在异步业务提交完成前保持分页锁定。
+  void _clearPendingGesture() {
+    _pendingTarget = null;
+    _pendingSource = null;
+  }
+
+  /// 分页锁仅覆盖业务回调的同步状态更新，句子播放在后台继续等待。
   Future<void> _commitSettledSentence(int target) async {
+    late final Future<void> commit;
     try {
-      await widget.onSentenceSettled(target);
+      commit = widget.onSentenceSettled(target);
     } finally {
       _transitionInFlight = false;
     }
+    await commit;
   }
 
   Future<void> animateAndCommit(
