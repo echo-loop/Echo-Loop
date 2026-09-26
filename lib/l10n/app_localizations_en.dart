@@ -5539,4 +5539,10 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get redownload => 'Download again';
+
+  @override
+  String get collapseSidebar => 'Collapse sidebar';
+
+  @override
+  String get expandSidebar => 'Expand sidebar';
 }

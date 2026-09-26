@@ -9757,6 +9757,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Download again'**
   String get redownload;
+
+  /// No description provided for @collapseSidebar.
+  ///
+  /// In en, this message translates to:
+  /// **'Collapse sidebar'**
+  String get collapseSidebar;
+
+  /// No description provided for @expandSidebar.
+  ///
+  /// In en, this message translates to:
+  /// **'Expand sidebar'**
+  String get expandSidebar;
 }
 
 class _AppLocalizationsDelegate

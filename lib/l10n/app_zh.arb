@@ -2215,5 +2215,7 @@
   "pronunciationInterjection": "感叹词",
   "pronunciationLibrary": "离线单词发音",
   "pronunciationLibraryDescription": "词典查词时优先播放预录的单词发音",
-  "redownload": "重新下载"
+  "redownload": "重新下载",
+  "collapseSidebar": "收起侧边栏",
+  "expandSidebar": "展开侧边栏"
 }

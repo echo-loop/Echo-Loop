@@ -52,6 +52,7 @@ import '../widgets/notification_permission_dialog.dart';
 import '../widgets/common/prewarm_visibility.dart';
 import '../widgets/startup_splash_screen.dart';
 import 'app_router.dart' show rootNavigatorKey, rootRouteObserver;
+import 'widgets/main_shell_navigation_rail.dart';
 
 /// 主导航壳组件 — 包含 NavigationRail / NavigationBar + 内容区域
 class MainShell extends ConsumerStatefulWidget {
@@ -754,44 +755,9 @@ class _MainShellState extends ConsumerState<MainShell> with RouteAware {
                 child: Row(
                   children: [
                     if (isWideScreen)
-                      NavigationRail(
-                        extended: constraints.maxWidth >= 800,
+                      MainShellNavigationRail(
                         selectedIndex: widget.navigationShell.currentIndex,
                         onDestinationSelected: _onTabSelected,
-                        destinations: [
-                          NavigationRailDestination(
-                            icon: const Icon(Icons.library_music_outlined),
-                            selectedIcon: const Icon(
-                              Icons.library_music,
-                              color: AppTheme.navActiveColor,
-                            ),
-                            label: Text(l10n.library),
-                          ),
-                          NavigationRailDestination(
-                            icon: const Icon(Icons.school_outlined),
-                            selectedIcon: const Icon(
-                              Icons.school,
-                              color: AppTheme.navActiveColor,
-                            ),
-                            label: Text(l10n.study),
-                          ),
-                          NavigationRailDestination(
-                            icon: const Icon(Icons.bookmark_border),
-                            selectedIcon: const Icon(
-                              Icons.bookmark,
-                              color: AppTheme.navActiveColor,
-                            ),
-                            label: Text(l10n.favorites),
-                          ),
-                          NavigationRailDestination(
-                            icon: const Icon(Icons.person_outline),
-                            selectedIcon: const Icon(
-                              Icons.person,
-                              color: AppTheme.navActiveColor,
-                            ),
-                            label: Text(l10n.profile),
-                          ),
-                        ],
                       ),
                     Expanded(
                       child: MainTabVisibilityScope(

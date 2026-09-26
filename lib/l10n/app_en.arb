@@ -2711,5 +2711,7 @@
   "pronunciationInterjection": "Interjection",
   "pronunciationLibrary": "Offline Word Pronunciation",
   "pronunciationLibraryDescription": "Pre-recorded word audio for dictionary lookups",
-  "redownload": "Download again"
+  "redownload": "Download again",
+  "collapseSidebar": "Collapse sidebar",
+  "expandSidebar": "Expand sidebar"
 }

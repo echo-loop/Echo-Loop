@@ -5293,4 +5293,10 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get redownload => '重新下载';
+
+  @override
+  String get collapseSidebar => '收起侧边栏';
+
+  @override
+  String get expandSidebar => '展开侧边栏';
 }
