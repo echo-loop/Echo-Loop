@@ -208,22 +208,20 @@ class _PracticeSentencePagerState extends State<PracticeSentencePager> {
       return;
     }
     _transitionInFlight = true;
+    var shouldCommit = false;
     try {
-      await _animateAndCommit(targetIndex, commit: commit);
+      shouldCommit = await _animateToTarget(targetIndex);
     } finally {
       _transitionInFlight = false;
     }
+    if (!shouldCommit || !mounted || widget.currentIndex == targetIndex) return;
+    await commit();
   }
 
-  Future<void> _animateAndCommit(
-    int targetIndex, {
-    required Future<void> Function() commit,
-  }) async {
-    if (targetIndex == widget.currentIndex) return;
-    if (!_pageController.hasClients) {
-      await commit();
-      return;
-    }
+  /// 分页锁只保护动画；业务提交可能包含整句播放，不能占住交互锁。
+  Future<bool> _animateToTarget(int targetIndex) async {
+    if (targetIndex == widget.currentIndex) return false;
+    if (!_pageController.hasClients) return true;
     _programmatic = true;
     try {
       await _pageController.animateToPage(
@@ -234,7 +232,6 @@ class _PracticeSentencePagerState extends State<PracticeSentencePager> {
     } finally {
       _programmatic = false;
     }
-    if (!mounted || _pageController.page?.round() != targetIndex) return;
-    if (widget.currentIndex != targetIndex) await commit();
+    return mounted && _pageController.page?.round() == targetIndex;
   }
 }
