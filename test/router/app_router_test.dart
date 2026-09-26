@@ -9,6 +9,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:go_router/go_router.dart';
 import 'package:echo_loop/l10n/app_localizations.dart';
+import 'package:echo_loop/features/community_collections/community_collection_routes.dart';
 import 'package:echo_loop/models/audio_item.dart';
 import 'package:echo_loop/router/app_router.dart';
 import 'package:echo_loop/providers/settings_provider.dart';
@@ -58,6 +59,7 @@ void main() {
   group('AppRoutes', () {
     test('路径常量正确', () {
       expect(AppRoutes.collections, '/collections');
+      expect(AppRoutes.discoverResources, '/collections/discover');
       expect(AppRoutes.study, '/study');
       expect(AppRoutes.favorites, '/favorites');
       expect(AppRoutes.settings, '/settings');
@@ -66,6 +68,13 @@ void main() {
 
     test('collectionDetail 构建正确路径', () {
       expect(AppRoutes.collectionDetail('abc-123'), '/collections/abc-123');
+    });
+
+    test('发现资源详情构建正确路径', () {
+      expect(
+        AppRoutes.discoverCollection('remote-123'),
+        '/collections/discover/remote-123',
+      );
     });
 
     test('learningPlan 构建正确路径', () {
@@ -114,7 +123,9 @@ void main() {
     });
 
     test('Podcast 搜索订阅页与预览子路由段正确', () {
-      expect(AppRoutes.podcastSubscribe, '/podcast-subscribe');
+      expect(AppRoutes.podcastSubscribeSegment, 'podcast-subscribe');
+      expect(AppRoutes.podcastSubscribe, '/collections/podcast-subscribe');
+      expect(AppRoutes.legacyPodcastSubscribe, '/podcast-subscribe');
       expect(AppRoutes.podcastPreviewSegment, 'preview');
     });
 
@@ -129,6 +140,171 @@ void main() {
   });
 
   group('GoRouter 配置', () {
+    testWidgets('发现和 Podcast 页面留在主导航壳内，旧链接重定向后也保留导航', (tester) async {
+      final router = GoRouter(
+        initialLocation: AppRoutes.collections,
+        routes: [
+          StatefulShellRoute.indexedStack(
+            builder: (context, state, navigationShell) => Scaffold(
+              body: navigationShell,
+              bottomNavigationBar: NavigationBar(
+                key: const ValueKey('main-navigation'),
+                selectedIndex: navigationShell.currentIndex,
+                destinations: const [
+                  NavigationDestination(
+                    icon: Icon(Icons.library_music),
+                    label: 'Library',
+                  ),
+                  NavigationDestination(
+                    icon: Icon(Icons.school),
+                    label: 'Study',
+                  ),
+                ],
+              ),
+            ),
+            branches: [
+              StatefulShellBranch(
+                routes: [
+                  GoRoute(
+                    path: AppRoutes.collections,
+                    builder: (context, state) =>
+                        const Scaffold(body: Text('library')),
+                    routes: [
+                      GoRoute(
+                        path: CommunityCollectionRoutes.discoverSegment,
+                        builder: (context, state) =>
+                            const Scaffold(body: Text('discover')),
+                        routes: [
+                          GoRoute(
+                            path: ':remoteId',
+                            builder: (context, state) =>
+                                const Scaffold(body: Text('discover-detail')),
+                          ),
+                        ],
+                      ),
+                      GoRoute(
+                        path: AppRoutes.podcastSubscribeSegment,
+                        builder: (context, state) =>
+                            const Scaffold(body: Text('podcast-search')),
+                        routes: [
+                          GoRoute(
+                            path: AppRoutes.podcastPreviewSegment,
+                            builder: (context, state) =>
+                                const Scaffold(body: Text('podcast-preview')),
+                          ),
+                        ],
+                      ),
+                      GoRoute(
+                        path: ':collectionId',
+                        builder: (context, state) =>
+                            const Scaffold(body: Text('collection-detail')),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              StatefulShellBranch(
+                routes: [
+                  GoRoute(
+                    path: AppRoutes.study,
+                    builder: (context, state) =>
+                        const Scaffold(body: Text('study')),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          GoRoute(
+            path: AppRoutes.legacyPodcastSubscribe,
+            redirect: (context, state) =>
+                state.uri.path == AppRoutes.legacyPodcastSubscribe
+                ? AppRoutes.podcastSubscribe
+                : null,
+            routes: [
+              GoRoute(
+                path: AppRoutes.podcastPreviewSegment,
+                redirect: (context, state) =>
+                    '${AppRoutes.podcastSubscribe}/'
+                    '${AppRoutes.podcastPreviewSegment}',
+              ),
+            ],
+          ),
+          GoRoute(
+            path: CommunityCollectionRoutes.legacyDiscover,
+            redirect: (context, state) =>
+                state.uri.path == CommunityCollectionRoutes.legacyDiscover
+                ? AppRoutes.discoverResources
+                : null,
+            routes: [
+              GoRoute(
+                path: ':remoteId',
+                redirect: (context, state) {
+                  final remoteId = state.pathParameters['remoteId'];
+                  if (remoteId == null) return AppRoutes.discoverResources;
+                  return AppRoutes.discoverCollection(remoteId);
+                },
+              ),
+            ],
+          ),
+        ],
+      );
+      addTearDown(router.dispose);
+
+      await tester.pumpWidget(createRouterTestApp(router));
+      await tester.pumpAndSettle();
+      expect(find.text('library'), findsOneWidget);
+
+      router.push<void>(CommunityCollectionRoutes.legacyDiscover);
+      await tester.pumpAndSettle();
+      expect(find.text('discover'), findsOneWidget);
+      expect(find.byKey(const ValueKey('main-navigation')), findsOneWidget);
+
+      router.push<void>(AppRoutes.discoverCollection('remote-123'));
+      await tester.pumpAndSettle();
+      expect(find.text('discover-detail'), findsOneWidget);
+      expect(find.byKey(const ValueKey('main-navigation')), findsOneWidget);
+
+      router.pop();
+      await tester.pumpAndSettle();
+      expect(find.text('discover'), findsOneWidget);
+      expect(find.byKey(const ValueKey('main-navigation')), findsOneWidget);
+
+      router.go('${CommunityCollectionRoutes.legacyDiscover}/remote-123');
+      await tester.pumpAndSettle();
+      expect(find.text('discover-detail'), findsOneWidget);
+      expect(find.byKey(const ValueKey('main-navigation')), findsOneWidget);
+
+      router.push<void>(AppRoutes.podcastSubscribe);
+      await tester.pumpAndSettle();
+      expect(find.text('podcast-search'), findsOneWidget);
+      expect(find.byKey(const ValueKey('main-navigation')), findsOneWidget);
+
+      router.push<void>(
+        '${AppRoutes.podcastSubscribe}/${AppRoutes.podcastPreviewSegment}',
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('podcast-preview'), findsOneWidget);
+      expect(find.byKey(const ValueKey('main-navigation')), findsOneWidget);
+
+      router.pop();
+      await tester.pumpAndSettle();
+      expect(find.text('podcast-search'), findsOneWidget);
+      expect(find.byKey(const ValueKey('main-navigation')), findsOneWidget);
+
+      router.go(AppRoutes.legacyPodcastSubscribe);
+      await tester.pumpAndSettle();
+      expect(find.text('podcast-search'), findsOneWidget);
+      expect(find.byKey(const ValueKey('main-navigation')), findsOneWidget);
+
+      router.go(
+        '${AppRoutes.legacyPodcastSubscribe}/'
+        '${AppRoutes.podcastPreviewSegment}',
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('podcast-preview'), findsOneWidget);
+      expect(find.byKey(const ValueKey('main-navigation')), findsOneWidget);
+    });
+
     testWidgets('导航完成后打印当前 path 与 uri，并对重复 URI 去重', (tester) async {
       AppLogger.instance.clear();
       final router = GoRouter(

@@ -47,6 +47,7 @@ import 'package:echo_loop/providers/learning_session/review_difficult_practice_p
 import 'package:echo_loop/providers/offline_asr_settings_provider.dart';
 import 'package:echo_loop/providers/saved_word_provider.dart';
 import 'package:echo_loop/providers/transcription_task_provider.dart';
+import 'package:echo_loop/router/app_router.dart';
 import 'package:echo_loop/theme/app_theme.dart';
 import 'package:echo_loop/utils/saved_text_index.dart';
 
@@ -406,7 +407,7 @@ GoRouter createTestRouter(Widget screen) {
         builder: (context, state) => const Scaffold(body: Text('Paywall')),
       ),
       GoRoute(
-        path: '/podcast-subscribe',
+        path: AppRoutes.podcastSubscribe,
         builder: (context, state) =>
             const Scaffold(body: Text('Podcast Subscribe')),
       ),

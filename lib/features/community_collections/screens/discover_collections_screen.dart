@@ -11,6 +11,7 @@ import '../../../providers/collection_provider.dart';
 import '../../../router/app_router.dart';
 import '../models/community_collection_models.dart';
 import '../models/community_collection_paging.dart';
+import '../community_collection_routes.dart';
 import '../data/trigger_community_catalog_refresh.dart';
 import '../data/trigger_community_sync.dart';
 import '../../podcast/data/trigger_podcast_catalog_refresh.dart';
@@ -149,7 +150,9 @@ class _DiscoverCommunityCollectionsScreenState
             item: item,
             enrolled: enrolledRemoteIds.contains(item.id),
             enrolling: _enrolling.contains(item.id),
-            onOpenDetail: () => context.push('/discover/${item.id}'),
+            onOpenDetail: () => context.push(
+              CommunityCollectionRoutes.discoverCollection(item.id),
+            ),
             onEnroll: () => _enroll(item),
           );
         },

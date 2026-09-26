@@ -20,6 +20,7 @@ import '../features/auth/screens/password_sign_in_screen.dart';
 import '../features/auth/providers/auth_providers.dart';
 import '../features/community_collections/screens/discover_collections_screen.dart';
 import '../features/community_collections/screens/community_collection_detail_screen.dart';
+import '../features/community_collections/community_collection_routes.dart';
 import '../features/podcast/podcast_models.dart';
 import '../features/podcast/screens/podcast_discovery_screen.dart';
 import '../features/podcast/screens/podcast_preview_screen.dart';
@@ -60,6 +61,9 @@ final rootRouteObserver = RouteObserver<ModalRoute<void>>();
 /// 路由路径常量 + 类型安全的路径构建方法
 abstract class AppRoutes {
   static const collections = '/collections';
+
+  /// 发现资源列表和合集详情留在资源库主导航壳中的路径。
+  static const discoverResources = CommunityCollectionRoutes.discoverResources;
   static const study = '/study';
   static const favorites = '/favorites';
   static const settings = '/settings';
@@ -71,8 +75,12 @@ abstract class AppRoutes {
   static const passwordSignIn = '/login/password';
   static const account = '/account';
 
-  /// Podcast 搜索与订阅统一页（全屏，两个入口共用）。
-  static const podcastSubscribe = '/podcast-subscribe';
+  /// Podcast 搜索与订阅统一页，位于资源库主导航壳中。
+  static const podcastSubscribeSegment = 'podcast-subscribe';
+  static const podcastSubscribe = '$collections/$podcastSubscribeSegment';
+
+  /// 旧版全屏 Podcast 搜索页路径，用于兼容已发出的链接。
+  static const legacyPodcastSubscribe = '/podcast-subscribe';
 
   /// Podcast 单集预览页路径段（挂在 [podcastSubscribe] 之下的相对子路由）。
   static const podcastPreviewSegment = 'preview';
@@ -80,6 +88,10 @@ abstract class AppRoutes {
   /// 合集详情页路径
   static String collectionDetail(String collectionId) =>
       '/collections/$collectionId';
+
+  /// 发现资源中的公开合集详情页路径。
+  static String discoverCollection(String remoteId) =>
+      CommunityCollectionRoutes.discoverCollection(remoteId);
 
   /// 学习计划页路径
   /// [autoStart] 为 true 时进入后自动弹出学习任务
@@ -171,7 +183,7 @@ abstract class AppRoutes {
   /// 订阅计划介绍 / 购买页（Paywall）
   static const paywall = '/paywall';
 
-  /// 在「当前路由位置之下」push 一个全屏子页。
+  /// 在「当前路由位置之下」push 一个嵌套路由子页。
   ///
   /// 使子页 URL 携带完整入口栈（如 `/collections/c/a/player/sentence-detail`），
   /// 避免框架以 null state 按 URI 重解析时把 shell 分支塌回资源库根、返回时多退
@@ -309,6 +321,45 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                 builder: (context, state) => const LibraryScreen(),
                 routes: [
                   _pdfPreviewRoute(),
+                  // 发现页属于资源库入口流程，留在 branch-0 内以持续显示主导航。
+                  GoRoute(
+                    path: CommunityCollectionRoutes.discoverSegment,
+                    builder: (context, state) =>
+                        const DiscoverCommunityCollectionsScreen(),
+                    routes: [
+                      GoRoute(
+                        path: ':remoteId',
+                        builder: (context, state) {
+                          final remoteId = state.pathParameters['remoteId'];
+                          if (remoteId == null) {
+                            return const _RestoredRoutePopper();
+                          }
+                          return CommunityCollectionDetailScreen(
+                            remoteId: remoteId,
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+                  // Podcast 搜索和单集预览共用资源库 branch，保持主导航可见。
+                  GoRoute(
+                    path: AppRoutes.podcastSubscribeSegment,
+                    builder: (context, state) => const PodcastDiscoveryScreen(),
+                    routes: [
+                      GoRoute(
+                        path: AppRoutes.podcastPreviewSegment,
+                        // Android Activity 重建可能丢失 extra；无法还原预览时
+                        // 由首帧 popper 回到搜索页。
+                        builder: (context, state) {
+                          final arg = state.extra;
+                          if (arg is! PodcastPreviewArg) {
+                            return const _RestoredRoutePopper();
+                          }
+                          return PodcastPreviewScreen(arg: arg);
+                        },
+                      ),
+                    ],
+                  ),
                   GoRoute(
                     path: ':collectionId',
                     builder: (context, state) {
@@ -542,42 +593,37 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) => const ReviewStatisticsScreen(),
       ),
-      // 发现社区合集（全屏）
+      // 兼容已发出的旧发现页链接，统一导向资源库主导航壳内的新路径。
       GoRoute(
-        path: '/discover',
-        parentNavigatorKey: rootNavigatorKey,
-        builder: (context, state) => const DiscoverCommunityCollectionsScreen(),
+        path: CommunityCollectionRoutes.legacyDiscover,
+        redirect: (context, state) =>
+            state.uri.path == CommunityCollectionRoutes.legacyDiscover
+            ? AppRoutes.discoverResources
+            : null,
         routes: [
           GoRoute(
             path: ':remoteId',
-            parentNavigatorKey: rootNavigatorKey,
-            builder: (context, state) {
-              final remoteId = state.pathParameters['remoteId']!;
-              return CommunityCollectionDetailScreen(remoteId: remoteId);
+            redirect: (context, state) {
+              final remoteId = state.pathParameters['remoteId'];
+              if (remoteId == null) return AppRoutes.discoverResources;
+              return AppRoutes.discoverCollection(remoteId);
             },
           ),
         ],
       ),
-      // Podcast 搜索与订阅统一页（全屏），两个入口共用；单集预览下沉为
-      // 本页嵌套子路由，使 URL 自表达完整栈（§7.17）。
+      // 兼容旧版全屏 Podcast 搜索和预览链接，统一导向主导航壳内的新路径。
       GoRoute(
-        path: AppRoutes.podcastSubscribe,
-        parentNavigatorKey: rootNavigatorKey,
-        builder: (context, state) => const PodcastDiscoveryScreen(),
+        path: AppRoutes.legacyPodcastSubscribe,
+        redirect: (context, state) =>
+            state.uri.path == AppRoutes.legacyPodcastSubscribe
+            ? AppRoutes.podcastSubscribe
+            : null,
         routes: [
           GoRoute(
             path: AppRoutes.podcastPreviewSegment,
-            parentNavigatorKey: rootNavigatorKey,
-            // extra（PodcastPreviewArg）在 Android Activity 重建等重解析场景
-            // 不可序列化 → 可能为 null；此时交由 _RestoredRoutePopper 首帧
-            // 退回已重建的订阅页。
-            builder: (context, state) {
-              final arg = state.extra;
-              if (arg is! PodcastPreviewArg) {
-                return const _RestoredRoutePopper();
-              }
-              return PodcastPreviewScreen(arg: arg);
-            },
+            redirect: (context, state) =>
+                '${AppRoutes.podcastSubscribe}/'
+                '${AppRoutes.podcastPreviewSegment}',
           ),
         ],
       ),

@@ -6,13 +6,14 @@ import '../../../analytics/analytics_providers.dart';
 import '../../../analytics/models/event_names.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../providers/collection_provider.dart';
+import '../community_collection_routes.dart';
 
 /// 合集列表顶部固定的「发现资源」入口条。
 ///
-/// 不滚动、永远可见，点击进入 `/discover`。文案固定为「发现资源 / 播客、托福、雅思、四六级、口译...」，
+/// 不滚动、永远可见，点击进入资源库主导航壳内的发现页。文案固定为「发现资源 / 播客、托福、雅思、四六级、口译...」，
 /// 副标题直接列出代表性合集类型，便于用户一眼看出"里面是什么"。
 class DiscoverEntryBanner extends ConsumerWidget {
-  /// 点击回调；默认 `context.push('/discover')`。测试可注入 mock。
+  /// 点击回调；默认打开发现资源列表。测试可注入 mock。
   final VoidCallback? onTap;
 
   const DiscoverEntryBanner({super.key, this.onTap});
@@ -61,7 +62,7 @@ class DiscoverEntryBanner extends ConsumerWidget {
                       Events.discoverEntryTapped,
                       {EventParams.enrolledCount: enrolledCommunityCount},
                     );
-                    context.push('/discover');
+                    context.push(CommunityCollectionRoutes.discoverResources);
                   },
               child: Padding(
                 padding: const EdgeInsets.symmetric(
