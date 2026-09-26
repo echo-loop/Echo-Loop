@@ -70,6 +70,8 @@ class _AvailableFileApi extends CommunityCollectionApi {
 }
 
 class _FakeBackgroundDownloadRunner implements BackgroundDownloadRunner {
+  String? enqueuedDisplayName;
+
   @override
   Future<BackgroundDownloadResult> enqueue({
     required Uri uri,
@@ -79,6 +81,7 @@ class _FakeBackgroundDownloadRunner implements BackgroundDownloadRunner {
     required BackgroundFileDownloadProgress? onProgress,
     required CancelToken? cancelToken,
   }) async {
+    enqueuedDisplayName = displayName;
     await File(savePath).parent.create(recursive: true);
     await File(savePath).writeAsBytes(const <int>[1, 2, 3]);
     onProgress?.call(3, null);
@@ -193,14 +196,13 @@ void main() {
           ),
         );
 
+    final runner = _FakeBackgroundDownloadRunner();
     final container = ProviderContainer(
       overrides: [
         appDatabaseProvider.overrideWithValue(database),
         communityCollectionApiProvider.overrideWithValue(_AvailableFileApi()),
         backgroundFileDownloadServiceProvider.overrideWithValue(
-          BackgroundFileDownloadService(
-            runner: _FakeBackgroundDownloadRunner(),
-          ),
+          BackgroundFileDownloadService(runner: runner),
         ),
         communityFileLifecycleServiceProvider.overrideWithValue(
           CommunityFileLifecycleService(
@@ -227,6 +229,7 @@ void main() {
       StartResult.started,
     );
     expect(await notifier.awaitCompletion(), isTrue);
+    expect(runner.enqueuedDisplayName, 'Episode');
     final item = await database.audioItemDao.getById('audio-1');
     expect(item?.name, 'Episode');
     expect(item?.totalDuration, 12);

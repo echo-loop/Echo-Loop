@@ -2184,6 +2184,9 @@
     }
   },
   "downloadLoading": "Loading",
+  "backgroundDownloadRunningTitle": "Downloading",
+  "backgroundDownloadCompleteTitle": "Download complete",
+  "backgroundDownloadFailedTitle": "Download failed",
   "audioListColumnName": "Name",
   "audioListColumnDuration": "Duration",
   "onboardingTitle": "Quick chat",

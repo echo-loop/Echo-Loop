@@ -207,6 +207,8 @@ class CommunityDownload extends _$CommunityDownload {
           .download(
             uri: Uri.parse(file.mediaUrl),
             savePath: tempFile.path,
+            // 通知展示社区合集标题，避免回退显示 `.part` 临时文件名。
+            displayName: file.title,
             cancelToken: cancelToken,
             onProgress: _updateProgress,
           );

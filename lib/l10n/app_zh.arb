@@ -1708,6 +1708,9 @@
     }
   },
   "downloadLoading": "加载中",
+  "backgroundDownloadRunningTitle": "正在下载",
+  "backgroundDownloadCompleteTitle": "下载完成",
+  "backgroundDownloadFailedTitle": "下载失败",
   "audioListColumnName": "名称",
   "audioListColumnDuration": "时长",
   "onboardingTitle": "先聊两句",

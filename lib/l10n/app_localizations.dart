@@ -7166,6 +7166,24 @@ abstract class AppLocalizations {
   /// **'Loading'**
   String get downloadLoading;
 
+  /// No description provided for @backgroundDownloadRunningTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Downloading'**
+  String get backgroundDownloadRunningTitle;
+
+  /// No description provided for @backgroundDownloadCompleteTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Download complete'**
+  String get backgroundDownloadCompleteTitle;
+
+  /// No description provided for @backgroundDownloadFailedTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Download failed'**
+  String get backgroundDownloadFailedTitle;
+
   /// No description provided for @audioListColumnName.
   ///
   /// In en, this message translates to:

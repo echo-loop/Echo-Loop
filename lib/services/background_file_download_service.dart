@@ -15,6 +15,22 @@ typedef BackgroundFileDownloadProgress =
 typedef BackgroundFileDownloadBatchProgress =
     void Function(String taskId, int receivedBytes, int? totalBytes);
 
+/// 用户文件后台下载通知使用的本地化状态标题。
+class BackgroundFileDownloadNotificationLabels {
+  const BackgroundFileDownloadNotificationLabels({
+    required this.running,
+    required this.complete,
+    required this.failed,
+  });
+
+  final String running;
+  final String complete;
+  final String failed;
+}
+
+typedef BackgroundFileDownloadNotificationLabelResolver =
+    Future<BackgroundFileDownloadNotificationLabels> Function();
+
 /// 提交到共享后台下载队列的单个文件请求。
 class BackgroundFileDownloadRequest {
   const BackgroundFileDownloadRequest({
@@ -105,16 +121,25 @@ class BackgroundFileDownloadService {
   BackgroundFileDownloadService({
     BackgroundDownloadRunner? runner,
     Future<Directory> Function()? resolveDataDir,
-  }) : _runner = runner ?? _defaultRunner(resolveDataDir);
+    BackgroundFileDownloadNotificationLabelResolver? resolveNotificationLabels,
+  }) : _runner =
+           runner ?? _defaultRunner(resolveDataDir, resolveNotificationLabels);
 
   static BackgroundDownloadRunner _defaultRunner(
     Future<Directory> Function()? resolveDataDir,
+    BackgroundFileDownloadNotificationLabelResolver? resolveNotificationLabels,
   ) {
     final directoryResolver = resolveDataDir ?? getAppDataDirectory;
     if (Platform.isMacOS) {
-      return MacOSSystemDownloadRunner(resolveDataDir: directoryResolver);
+      return MacOSSystemDownloadRunner(
+        resolveDataDir: directoryResolver,
+        resolveNotificationLabels: resolveNotificationLabels,
+      );
     }
-    return PluginBackgroundDownloadRunner(resolveDataDir: directoryResolver);
+    return PluginBackgroundDownloadRunner(
+      resolveDataDir: directoryResolver,
+      resolveNotificationLabels: resolveNotificationLabels,
+    );
   }
 
   final BackgroundDownloadRunner _runner;
@@ -412,15 +437,20 @@ class PluginBackgroundDownloadRunner
     required Future<Directory> Function() resolveDataDir,
     FileDownloader? downloader,
     Uuid? uuid,
+    BackgroundFileDownloadNotificationLabelResolver? resolveNotificationLabels,
   }) : _resolveDataDir = resolveDataDir,
        _downloader = downloader ?? FileDownloader(),
-       _uuid = uuid ?? const Uuid();
+       _uuid = uuid ?? const Uuid(),
+       _resolveNotificationLabels =
+           resolveNotificationLabels ?? _englishNotificationLabels;
 
   static const _group = 'echo-loop-user-files';
 
   final Future<Directory> Function() _resolveDataDir;
   final FileDownloader _downloader;
   final Uuid _uuid;
+  final BackgroundFileDownloadNotificationLabelResolver
+  _resolveNotificationLabels;
   final Map<String, _PendingDownload> _pending = {};
   Future<void>? _initialization;
 
@@ -455,6 +485,7 @@ class PluginBackgroundDownloadRunner
     final directory = p.dirname(relativePath);
     await File(targetPath).parent.create(recursive: true);
 
+    final labels = await _resolveNotificationLabels();
     final taskId = _uuid.v4();
     final completer = Completer<BackgroundDownloadResult>();
     _pending[taskId] = _PendingDownload(
@@ -475,6 +506,13 @@ class PluginBackgroundDownloadRunner
       updates: Updates.statusAndProgress,
       allowPause: false,
       displayName: displayName ?? p.basename(relativePath),
+    );
+    _downloader.configureNotificationForTask(
+      task,
+      running: TaskNotification(labels.running, '{displayName}'),
+      complete: TaskNotification(labels.complete, '{displayName}'),
+      error: TaskNotification(labels.failed, '{displayName}'),
+      progressBar: true,
     );
 
     if (cancelToken != null) {
@@ -566,11 +604,12 @@ class PluginBackgroundDownloadRunner
       await _downloader.configure(
         globalConfig: (Config.holdingQueue, (null, null, 1)),
       );
+      final labels = await _resolveNotificationLabels();
       _downloader.configureNotificationForGroup(
         _group,
-        running: const TaskNotification('Downloading', '{displayName}'),
-        complete: const TaskNotification('Download complete', '{displayName}'),
-        error: const TaskNotification('Download failed', '{displayName}'),
+        running: TaskNotification(labels.running, '{displayName}'),
+        complete: TaskNotification(labels.complete, '{displayName}'),
+        error: TaskNotification(labels.failed, '{displayName}'),
         progressBar: true,
       );
       _downloader.registerCallbacks(
@@ -697,6 +736,15 @@ class PluginBackgroundDownloadRunner
   }
 }
 
+Future<BackgroundFileDownloadNotificationLabels>
+_englishNotificationLabels() async {
+  return const BackgroundFileDownloadNotificationLabels(
+    running: 'Downloading',
+    complete: 'Download complete',
+    failed: 'Download failed',
+  );
+}
+
 class _PendingDownload {
   _PendingDownload({
     required this.completer,
@@ -723,6 +771,8 @@ abstract interface class MacOSSystemDownloadClient {
     required Uri uri,
     required String savePath,
     required String displayName,
+    required String completeNotificationTitle,
+    required String failedNotificationTitle,
     required Map<String, String> headers,
     required BackgroundFileDownloadProgress? onProgress,
     required CancelToken? cancelToken,
@@ -737,11 +787,16 @@ class MacOSSystemDownloadRunner implements BackgroundDownloadRunner {
   MacOSSystemDownloadRunner({
     required Future<Directory> Function() resolveDataDir,
     MacOSSystemDownloadClient? client,
+    BackgroundFileDownloadNotificationLabelResolver? resolveNotificationLabels,
   }) : _resolveDataDir = resolveDataDir,
-       _client = client ?? const _MethodChannelMacOSSystemDownloadClient();
+       _client = client ?? const _MethodChannelMacOSSystemDownloadClient(),
+       _resolveNotificationLabels =
+           resolveNotificationLabels ?? _englishNotificationLabels;
 
   final Future<Directory> Function() _resolveDataDir;
   final MacOSSystemDownloadClient _client;
+  final BackgroundFileDownloadNotificationLabelResolver
+  _resolveNotificationLabels;
 
   @override
   Future<BackgroundDownloadResult> enqueue({
@@ -761,10 +816,13 @@ class MacOSSystemDownloadRunner implements BackgroundDownloadRunner {
         'Download destination must be inside the application data directory.',
       );
     }
+    final labels = await _resolveNotificationLabels();
     return _client.download(
       uri: uri,
       savePath: targetPath,
       displayName: displayName ?? p.basename(targetPath),
+      completeNotificationTitle: labels.complete,
+      failedNotificationTitle: labels.failed,
       headers: headers,
       onProgress: onProgress,
       cancelToken: cancelToken,
@@ -790,6 +848,8 @@ class _MethodChannelMacOSSystemDownloadClient
     required Uri uri,
     required String savePath,
     required String displayName,
+    required String completeNotificationTitle,
+    required String failedNotificationTitle,
     required Map<String, String> headers,
     required BackgroundFileDownloadProgress? onProgress,
     required CancelToken? cancelToken,
@@ -832,16 +892,16 @@ class _MethodChannelMacOSSystemDownloadClient
     }
 
     try {
-      final accepted = await _methodChannel.invokeMethod<bool>(
-        'startDownload',
-        <String, Object?>{
-          'taskId': taskId,
-          'url': uri.toString(),
-          'savePath': savePath,
-          'displayName': displayName,
-          'headers': headers,
-        },
-      );
+      final accepted = await _methodChannel
+          .invokeMethod<bool>('startDownload', <String, Object?>{
+            'taskId': taskId,
+            'url': uri.toString(),
+            'savePath': savePath,
+            'displayName': displayName,
+            'completeNotificationTitle': completeNotificationTitle,
+            'failedNotificationTitle': failedNotificationTitle,
+            'headers': headers,
+          });
       if (accepted != true && !completer.isCompleted) {
         completer.complete(
           const BackgroundDownloadResult(

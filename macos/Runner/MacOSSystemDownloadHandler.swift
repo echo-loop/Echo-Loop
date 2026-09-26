@@ -82,9 +82,15 @@ final class MacOSSystemDownloadHandler: NSObject, FlutterStreamHandler, URLSessi
     let requestedName = arguments["displayName"] as? String
     let displayName = requestedName.flatMap { $0.isEmpty ? nil : $0 }
       ?? URL(fileURLWithPath: rawPath).lastPathComponent
+    let completeNotificationTitle = arguments["completeNotificationTitle"] as? String
+      ?? "Download complete"
+    let failedNotificationTitle = arguments["failedNotificationTitle"] as? String
+      ?? "Download failed"
     outcomes[taskID] = DownloadOutcome(
       targetPath: rawPath,
-      displayName: displayName
+      displayName: displayName,
+      completeNotificationTitle: completeNotificationTitle,
+      failedNotificationTitle: failedNotificationTitle
     )
     task.resume()
     result(true)
@@ -173,7 +179,12 @@ final class MacOSSystemDownloadHandler: NSObject, FlutterStreamHandler, URLSessi
   ) {
     guard let taskID = task.taskDescription else { return }
     var outcome = outcomes.removeValue(forKey: taskID)
-      ?? DownloadOutcome(targetPath: "", displayName: "")
+      ?? DownloadOutcome(
+        targetPath: "",
+        displayName: "",
+        completeNotificationTitle: "Download complete",
+        failedNotificationTitle: "Download failed"
+      )
     tasks.removeValue(forKey: taskID)
 
     if let error {
@@ -227,8 +238,8 @@ final class MacOSSystemDownloadHandler: NSObject, FlutterStreamHandler, URLSessi
 
     let content = UNMutableNotificationContent()
     content.title = outcome.status == "complete"
-      ? "Download complete"
-      : "Download failed"
+      ? outcome.completeNotificationTitle
+      : outcome.failedNotificationTitle
     content.body = outcome.displayName
     content.sound = .default
     // flutter_local_notifications 接管系统 delegate；标记其通知字段以处理点击回调。
@@ -260,6 +271,8 @@ final class MacOSSystemDownloadHandler: NSObject, FlutterStreamHandler, URLSessi
 private struct DownloadOutcome {
   let targetPath: String
   let displayName: String
+  let completeNotificationTitle: String
+  let failedNotificationTitle: String
   var status: String?
   var statusCode: Int?
   var message: String?

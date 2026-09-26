@@ -4119,6 +4119,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get downloadLoading => 'Loading';
 
   @override
+  String get backgroundDownloadRunningTitle => 'Downloading';
+
+  @override
+  String get backgroundDownloadCompleteTitle => 'Download complete';
+
+  @override
+  String get backgroundDownloadFailedTitle => 'Download failed';
+
+  @override
   String get audioListColumnName => 'Name';
 
   @override

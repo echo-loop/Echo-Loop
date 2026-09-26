@@ -3936,6 +3936,15 @@ class AppLocalizationsZh extends AppLocalizations {
   String get downloadLoading => '加载中';
 
   @override
+  String get backgroundDownloadRunningTitle => '正在下载';
+
+  @override
+  String get backgroundDownloadCompleteTitle => '下载完成';
+
+  @override
+  String get backgroundDownloadFailedTitle => '下载失败';
+
+  @override
   String get audioListColumnName => '名称';
 
   @override
