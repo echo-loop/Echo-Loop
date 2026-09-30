@@ -44,6 +44,9 @@ enum TtsAccent {
   uk,
 }
 
+/// TTS voice 语言族。Kokoro 多语言 v1.1 同时包含英文与中文发音人。
+enum TtsLanguage { english, chinese }
+
 /// Echo Loop（Kokoro）模型精度变体。
 ///
 /// 同一 Kokoro 82M 模型的两种打包：fp32 未量化（推理快、效果好，Apple/ARM 上
@@ -68,6 +71,12 @@ class TtsSpeechConfig {
   /// 语速（归一化 0..1，平台层各自映射）。
   final double rate;
 
+  /// 本地神经引擎语速倍率（1.0 = 正常；建议范围 0.5..2.0）。
+  ///
+  /// 平台 TTS 仍使用 [rate] 做归一化映射；Kokoro/Piper 使用本字段直接传给
+  /// sherpa-onnx，避免把 0.45 这类平台参数误当成神经网络倍率。
+  final double speed;
+
   /// 音调。
   final double pitch;
 
@@ -84,6 +93,7 @@ class TtsSpeechConfig {
   const TtsSpeechConfig({
     required this.languageTag,
     this.rate = 0.45,
+    this.speed = 1.0,
     this.pitch = 1.0,
     this.volume = 1.0,
     this.voiceName,
@@ -96,6 +106,7 @@ class TtsSpeechConfig {
   TtsSpeechConfig copyWith({
     String? languageTag,
     double? rate,
+    double? speed,
     double? pitch,
     double? volume,
     String? voiceName,
@@ -104,6 +115,7 @@ class TtsSpeechConfig {
     return TtsSpeechConfig(
       languageTag: languageTag ?? this.languageTag,
       rate: rate ?? this.rate,
+      speed: speed ?? this.speed,
       pitch: pitch ?? this.pitch,
       volume: volume ?? this.volume,
       voiceName: voiceName ?? this.voiceName,
@@ -118,6 +130,7 @@ class TtsSpeechConfig {
           runtimeType == other.runtimeType &&
           languageTag == other.languageTag &&
           rate == other.rate &&
+          speed == other.speed &&
           pitch == other.pitch &&
           volume == other.volume &&
           voiceName == other.voiceName &&
@@ -125,7 +138,7 @@ class TtsSpeechConfig {
 
   @override
   int get hashCode =>
-      Object.hash(languageTag, rate, pitch, volume, voiceName, modelTag);
+      Object.hash(languageTag, rate, speed, pitch, volume, voiceName, modelTag);
 }
 
 /// 合成结果（产出的本地音频文件信息）。

@@ -19,6 +19,7 @@ import 'package:echo_loop/providers/tts/tts_settings_provider.dart';
 import 'package:echo_loop/services/tts/kokoro_model_manager.dart'
     show AsrModelDownloadStatus;
 import 'package:echo_loop/services/tts/kokoro_voices.dart';
+import 'package:echo_loop/services/tts/kokoro_model_catalog.dart';
 import 'package:echo_loop/services/tts/piper_model_catalog.dart';
 import 'package:echo_loop/services/tts/tts_engine.dart';
 
@@ -203,13 +204,13 @@ void main() {
       );
       addTearDown(c.dispose);
 
-      final voice = voiceById('am_adam')!;
+      final voice = voiceById('af_sol')!;
       final future = c.read(ttsControllerProvider.notifier).previewVoice(voice);
 
       // 同步阶段（await speakWith 之前）已置 speakingKey。
       expect(
         c.read(ttsControllerProvider).speakingKey,
-        ttsVoicePreviewKey('am_adam'),
+        ttsVoicePreviewKey('af_sol'),
       );
 
       await future;
@@ -320,9 +321,7 @@ void main() {
     test('模型下载完成后 ready 变化会自动加载当前引擎', () async {
       SharedPreferences.setMockInitialValues({});
       final factory = _RecordingFactory();
-      final kokoroNotifier = _FixedKokoroNotifier(
-        KokoroModelsState.initial(),
-      );
+      final kokoroNotifier = _FixedKokoroNotifier(KokoroModelsState.initial());
       final c = ProviderContainer(
         overrides: [
           initialTtsSettingsProvider.overrideWithValue(
@@ -344,9 +343,9 @@ void main() {
 
       kokoroNotifier.updateState(_ready());
       await expectLater(
-        Stream<void>.periodic(const Duration(milliseconds: 1)).map(
-          (_) => factory.calls,
-        ),
+        Stream<void>.periodic(
+          const Duration(milliseconds: 1),
+        ).map((_) => factory.calls),
         emitsThrough(greaterThanOrEqualTo(1)),
       );
     });
@@ -502,19 +501,20 @@ void main() {
     test('对每个音色：单一来源构造，逐字段确定（口音→语言、音色 id、变体标签）', () {
       for (final voice in kokoroVoices) {
         final cfg = ttsVoicePreviewConfig(voice, KokoroModelVariant.int8);
-        expect(
-          cfg.languageTag,
-          voice.accent == TtsAccent.uk ? 'en-GB' : 'en-US',
-        );
+        expect(cfg.languageTag, switch (voice.language) {
+          TtsLanguage.chinese => 'zh-CN',
+          TtsLanguage.english =>
+            voice.accent == TtsAccent.uk ? 'en-GB' : 'en-US',
+        });
         expect(cfg.voiceName, voice.id);
-        expect(cfg.modelTag, KokoroModelVariant.int8.name);
+        expect(cfg.modelTag, kokoroSpecOf(KokoroModelVariant.int8).id);
         // voiceId（缓存键用）= voiceName，非语言标签。
         expect(cfg.voiceId, voice.id);
       }
     });
 
     test('变体不同 → modelTag 不同（fp32/int8 分桶，缓存键不串）', () {
-      final v = voiceById('am_adam')!;
+      final v = voiceById('af_sol')!;
       final fp32 = ttsVoicePreviewConfig(v, KokoroModelVariant.fp32);
       final int8 = ttsVoicePreviewConfig(v, KokoroModelVariant.int8);
       expect(fp32.modelTag, isNot(int8.modelTag));
@@ -522,7 +522,7 @@ void main() {
       expect(fp32.languageTag, int8.languageTag);
       expect(fp32.voiceName, int8.voiceName);
       // 语速默认一致（cacheKey 的 speed 段）。
-      expect(fp32.rate, int8.rate);
+      expect(fp32.speed, int8.speed);
     });
   });
 }

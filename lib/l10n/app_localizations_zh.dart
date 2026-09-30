@@ -5314,4 +5314,65 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get expandSidebar => '展开侧边栏';
+
+  @override
+  String get textToLessonTitle => '文本转听力';
+
+  @override
+  String get textToLessonDescription => '把任意英文、中文或中英混合文本生成支持逐句播放的离线学习课时。';
+
+  @override
+  String get textToLessonImportFile => '导入 .txt';
+
+  @override
+  String get textToLessonTitleLabel => '课时标题';
+
+  @override
+  String get textToLessonTextLabel => '文本';
+
+  @override
+  String get textToLessonTextHint => '在此粘贴文本，或导入 .txt 文件。';
+
+  @override
+  String get textToLessonVoice => '音色';
+
+  @override
+  String get textToLessonSpeed => '语速';
+
+  @override
+  String get textToLessonGenerate => '生成课时';
+
+  @override
+  String get textToLessonGenerating => '正在生成…';
+
+  @override
+  String get textToLessonCancel => '取消';
+
+  @override
+  String get textToLessonTextRequired => '请先输入或导入文本。';
+
+  @override
+  String get textToLessonModelRequired => '需要离线语音模型';
+
+  @override
+  String get textToLessonModelRequiredHint => '生成课时前需要先下载 Kokoro 模型。';
+
+  @override
+  String get textToLessonFailed => '课时生成失败，请重试。';
+
+  @override
+  String get ttsSpeed => '语速';
+
+  @override
+  String get listenAndRepeatReferenceLabel => '参考音频';
+
+  @override
+  String get listenAndRepeatReferenceOriginal => '原音频';
+
+  @override
+  String get listenAndRepeatReferenceTts => '本地发音';
+
+  @override
+  String get listenAndRepeatReferenceTtsHint =>
+      '使用当前 Echo Loop 音色逐句朗读，不会修改原始媒体。';
 }

@@ -12,9 +12,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../services/app_logger.dart';
+import '../../services/tts/kokoro_model_catalog.dart';
 import '../../services/tts/kokoro_voices.dart';
 import '../../services/tts/piper_model_catalog.dart';
 import '../../services/tts/tts_engine.dart';
+
+/// 本地神经 TTS 语速范围（与 sherpa-onnx 推荐范围一致）。
+double normalizeTtsSpeed(double speed) => speed.clamp(0.5, 2.0).toDouble();
 
 /// 同步从 SP 预读的 TTS 设置初值，由 main() 通过 override 注入。
 ///
@@ -36,6 +40,7 @@ abstract final class TtsSettingsKeys {
   static const kokoroVariant = 'tts_kokoro_variant';
   static const piperVoiceUs = 'tts_piper_voice_us';
   static const piperVoiceUk = 'tts_piper_voice_uk';
+  static const speed = 'tts_speed';
 }
 
 /// 将所有平台历史写入的 Echo Loop 产品名值迁移为 Kokoro 实现名。
@@ -83,6 +88,9 @@ class TtsSettings {
   /// Piper（平衡档）英音音色 id（默认 [piperDefaultVoiceUk]）。
   final String piperVoiceUk;
 
+  /// 本地神经 TTS 语速倍率（0.5x–2.0x，默认 1.0x）。
+  final double speed;
+
   const TtsSettings({
     this.engine = TtsEngineKind.kokoro,
     this.accent = TtsAccent.us,
@@ -91,6 +99,7 @@ class TtsSettings {
     this.kokoroVariant = KokoroModelVariant.fp32,
     this.piperVoiceUs = piperDefaultVoiceUs,
     this.piperVoiceUk = piperDefaultVoiceUk,
+    this.speed = 1.0,
   });
 
   /// 当前口音对应的语言标签。
@@ -108,7 +117,8 @@ class TtsSettings {
   ///
   /// Echo Loop（Kokoro）带音色（voiceName）+ 变体标签（modelTag，fp32/int8 分桶）；
   /// Piper 带音色（voiceName，即独立模型 id，缓存键据此分桶），无 modelTag；
-  /// 平台引擎不带 voiceName/modelTag（用语言标签选系统音色）。语速本期固定 0.45。
+  /// 平台引擎不带 voiceName/modelTag（用语言标签选系统音色）。平台 rate 使用
+  /// 默认值，本地引擎则使用用户选择的 [speed]。
   TtsSpeechConfig toSpeechConfig() => TtsSpeechConfig(
     languageTag: languageTag,
     voiceName: switch (engine) {
@@ -116,7 +126,10 @@ class TtsSettings {
       TtsEngineKind.piper => activePiperVoice,
       TtsEngineKind.platform => null,
     },
-    modelTag: engine == TtsEngineKind.kokoro ? kokoroVariant.name : null,
+    speed: speed,
+    modelTag: engine == TtsEngineKind.kokoro
+        ? kokoroSpecOf(kokoroVariant).id
+        : null,
   );
 
   /// 同步从 [SharedPreferences] 派生当前状态，用于启动期 override 注入。
@@ -143,6 +156,7 @@ class TtsSettings {
         prefs.getString(TtsSettingsKeys.piperVoiceUk),
         TtsAccent.uk,
       ),
+      speed: _speedFromPrefs(prefs.getDouble(TtsSettingsKeys.speed)),
     );
   }
 
@@ -184,6 +198,8 @@ class TtsSettings {
     );
   }
 
+  static double _speedFromPrefs(double? raw) => normalizeTtsSpeed(raw ?? 1.0);
+
   TtsSettings copyWith({
     TtsEngineKind? engine,
     TtsAccent? accent,
@@ -192,6 +208,7 @@ class TtsSettings {
     KokoroModelVariant? kokoroVariant,
     String? piperVoiceUs,
     String? piperVoiceUk,
+    double? speed,
   }) {
     return TtsSettings(
       engine: engine ?? this.engine,
@@ -201,6 +218,7 @@ class TtsSettings {
       kokoroVariant: kokoroVariant ?? this.kokoroVariant,
       piperVoiceUs: piperVoiceUs ?? this.piperVoiceUs,
       piperVoiceUk: piperVoiceUk ?? this.piperVoiceUk,
+      speed: speed ?? this.speed,
     );
   }
 
@@ -215,7 +233,8 @@ class TtsSettings {
           kokoroVoiceUk == other.kokoroVoiceUk &&
           kokoroVariant == other.kokoroVariant &&
           piperVoiceUs == other.piperVoiceUs &&
-          piperVoiceUk == other.piperVoiceUk;
+          piperVoiceUk == other.piperVoiceUk &&
+          speed == other.speed;
 
   @override
   int get hashCode => Object.hash(
@@ -226,6 +245,7 @@ class TtsSettings {
     kokoroVariant,
     piperVoiceUs,
     piperVoiceUk,
+    speed,
   );
 }
 
@@ -258,11 +278,9 @@ class TtsSettingsNotifier extends Notifier<TtsSettings> {
     final v = voiceById(voiceId);
     if (v == null || v.accent != accent) return;
     if (accent == TtsAccent.uk) {
-      if (state.kokoroVoiceUk == voiceId) return;
       state = state.copyWith(kokoroVoiceUk: voiceId);
       await _persist(TtsSettingsKeys.kokoroVoiceUk, voiceId);
     } else {
-      if (state.kokoroVoiceUs == voiceId) return;
       state = state.copyWith(kokoroVoiceUs: voiceId);
       await _persist(TtsSettingsKeys.kokoroVoiceUs, voiceId);
     }
@@ -289,6 +307,19 @@ class TtsSettingsNotifier extends Notifier<TtsSettings> {
       if (state.piperVoiceUs == voiceId) return;
       state = state.copyWith(piperVoiceUs: voiceId);
       await _persist(TtsSettingsKeys.piperVoiceUs, voiceId);
+    }
+  }
+
+  /// 设置本地神经 TTS 语速（自动夹到 0.5..2.0），写 SP + 更新 state。
+  Future<void> setSpeed(double speed) async {
+    final normalized = normalizeTtsSpeed(speed);
+    if (state.speed == normalized) return;
+    state = state.copyWith(speed: normalized);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setDouble(TtsSettingsKeys.speed, normalized);
+    } catch (e) {
+      AppLogger.log('TtsSettings', '写 SP 失败 ($speed): $e');
     }
   }
 

@@ -102,6 +102,24 @@ Future<bool> ensureTtsModelReadyForPlayback(Ref ref) async {
   return false;
 }
 
+/// [ensureTtsModelReadyForPlayback] 的 WidgetRef 版本，供页面直接调用。
+Future<bool> ensureTtsModelReadyForPlaybackFromWidget(WidgetRef ref) async {
+  await ref
+      .read(ttsModelInstallationGateProvider)
+      .ensureInstallationStatesLoaded();
+  final state = ref.read(ttsPlaybackModelStateProvider);
+  if (state.isReady) return true;
+
+  final context = rootNavigatorKey.currentContext;
+  if (context == null || !context.mounted) return false;
+  await showDialog<void>(
+    context: context,
+    barrierDismissible: true,
+    builder: (_) => const TtsModelDownloadDialog(),
+  );
+  return false;
+}
+
 /// 只检查指定 TTS 配置是否可用，不弹窗、不下载，供后台 warmup 使用。
 Future<bool> isTtsModelReadyForConfig(
   Ref ref, {

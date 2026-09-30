@@ -5561,4 +5561,67 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get expandSidebar => 'Expand sidebar';
+
+  @override
+  String get textToLessonTitle => 'Text to Listening';
+
+  @override
+  String get textToLessonDescription =>
+      'Turn any English, Chinese, or mixed text into an offline lesson with sentence-level playback.';
+
+  @override
+  String get textToLessonImportFile => 'Import .txt';
+
+  @override
+  String get textToLessonTitleLabel => 'Lesson title';
+
+  @override
+  String get textToLessonTextLabel => 'Text';
+
+  @override
+  String get textToLessonTextHint => 'Paste text here, or import a .txt file.';
+
+  @override
+  String get textToLessonVoice => 'Voice';
+
+  @override
+  String get textToLessonSpeed => 'Speed';
+
+  @override
+  String get textToLessonGenerate => 'Generate lesson';
+
+  @override
+  String get textToLessonGenerating => 'Generating…';
+
+  @override
+  String get textToLessonCancel => 'Cancel';
+
+  @override
+  String get textToLessonTextRequired => 'Enter or import some text first.';
+
+  @override
+  String get textToLessonModelRequired => 'Offline speech model required';
+
+  @override
+  String get textToLessonModelRequiredHint =>
+      'Download the Kokoro model before generating this lesson.';
+
+  @override
+  String get textToLessonFailed => 'Lesson generation failed. Please retry.';
+
+  @override
+  String get ttsSpeed => 'Speed';
+
+  @override
+  String get listenAndRepeatReferenceLabel => 'Reference audio';
+
+  @override
+  String get listenAndRepeatReferenceOriginal => 'Original';
+
+  @override
+  String get listenAndRepeatReferenceTts => 'Local TTS';
+
+  @override
+  String get listenAndRepeatReferenceTtsHint =>
+      'Uses the selected Echo Loop voice for each sentence. The original media is not changed.';
 }

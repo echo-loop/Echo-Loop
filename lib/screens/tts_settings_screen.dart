@@ -247,6 +247,8 @@ class _TtsSettingsScreenState extends ConsumerState<TtsSettingsScreen> {
                     if (ready) ...[
                       const Divider(height: 1, indent: 16, endIndent: 16),
                       _VoiceDisclosure(l10n: l10n),
+                      const Divider(height: 1, indent: 16, endIndent: 16),
+                      _SpeedSetting(l10n: l10n),
                     ],
                   ],
                 ),
@@ -260,6 +262,9 @@ class _TtsSettingsScreenState extends ConsumerState<TtsSettingsScreen> {
                 clipBehavior: Clip.antiAlias,
                 child: _PiperVoiceList(l10n: l10n),
               ),
+              const SizedBox(height: AppSpacing.m),
+              _SectionLabel(text: l10n.ttsSpeed),
+              Card(child: _SpeedSetting(l10n: l10n)),
             ] else ...[
               // 平台 TTS：无具名音色，仅显示口音（美/英，决定系统音色语言）。
               // 点击口音即选中并试听该口音（进页已后台预热，多数秒播）。
@@ -656,7 +661,7 @@ String formatModelBytes(int bytes) {
 
 /// 音色「当前值 + 展开」单行：标题 + 当前音色（名称 · 性别）+ 雪佛龙；点开底部弹层选。
 ///
-/// 弹层按「美音 / 英音」分组列出全部 11 个音色。音色名自带口音，选中某音色即同时把
+/// 弹层按「美音 / 英音」分组列出 v1.1 的全部英文音色。音色名自带口音，选中某音色即同时把
 /// 全局口音设为该音色的口音（见 [_openSheet]），故 Echo Loop 下无需单独的口音控件。
 class _VoiceDisclosure extends ConsumerWidget {
   const _VoiceDisclosure({required this.l10n});
@@ -694,7 +699,7 @@ class _VoiceDisclosure extends ConsumerWidget {
     );
   }
 
-  /// 弹出底部音色选择器（全部 11 个，按口音分组）。点任一行即提交选中并试听该音色，
+  /// 弹出底部音色选择器（全部英文音色，按口音分组）。点任一行即提交选中并试听该音色，
   /// 弹层**不关闭**——便于连续试听、重点当前项重播。用户手动下滑/返回关闭。
   void _openSheet(BuildContext context, WidgetRef ref) {
     showModalBottomSheet<void>(
@@ -747,6 +752,35 @@ class _VoiceDisclosure extends ConsumerWidget {
         for (final v in voicesForAccent(accent))
           _VoicePreviewRow(voice: v, l10n: l10n),
       ],
+    );
+  }
+}
+
+/// 本地神经 TTS 语速设置。
+class _SpeedSetting extends ConsumerWidget {
+  const _SpeedSetting({required this.l10n});
+
+  final AppLocalizations l10n;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final speed = ref.watch(ttsSettingsProvider.select((s) => s.speed));
+    return ListTile(
+      title: Row(
+        children: [
+          Expanded(child: Text(l10n.ttsSpeed)),
+          Text('${speed.toStringAsFixed(1)}x'),
+        ],
+      ),
+      subtitle: Slider(
+        value: speed,
+        min: 0.5,
+        max: 2.0,
+        divisions: 15,
+        label: '${speed.toStringAsFixed(1)}x',
+        onChanged: (value) =>
+            ref.read(ttsSettingsProvider.notifier).setSpeed(value),
+      ),
     );
   }
 }

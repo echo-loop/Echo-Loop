@@ -1,6 +1,7 @@
 /// Kokoro（Echo Loop TTS）模型下载、校验、缓存管理。
 ///
-/// 与 Whisper 不同，Kokoro 含 `espeak-ng-data` 目录树，故托管为单个 `tar.gz`
+/// 与 Whisper 不同，Kokoro 含 `espeak-ng-data` 目录树，故托管为单个 `tar.gz` /
+/// `tar.bz2`
 /// 归档：下载归档 → 校验整包 SHA-256 → staging 解包校验 → 原子替换模型目录。
 /// 下载基于 `ReliableHttpDownloader`，网络中断时保留 `.part` 供后续 Range 续传。
 library;
@@ -40,11 +41,19 @@ class KokoroModelPaths {
   /// `espeak-ng-data` 目录绝对路径。
   final String dataDir;
 
+  /// 多语言 Kokoro 的 lexicon 路径（多个文件以逗号连接）；旧英文模型为空。
+  final String lexicon;
+
+  /// 多语言中文规则 FST 路径（多个文件以逗号连接）；旧英文模型为空。
+  final String ruleFsts;
+
   const KokoroModelPaths({
     required this.model,
     required this.voices,
     required this.tokens,
     required this.dataDir,
+    this.lexicon = '',
+    this.ruleFsts = '',
   });
 }
 
@@ -174,7 +183,9 @@ class KokoroModelManager {
   }) async {
     final root = await _modelsRoot;
     final baseUrl = baseUrlOverride ?? kokoroCdnBaseUrl;
-    final url = '$baseUrl/model/${spec.archivePath}';
+    final url = baseUrlOverride == null
+        ? (spec.downloadUrl ?? '$baseUrl/model/${spec.archivePath}')
+        : '$baseUrl/model/${spec.archivePath}';
     final target = Directory(await modelDir());
     AppLogger.log('KokoroModel', '┌ downloadModel dir=${target.path} url=$url');
 
@@ -188,7 +199,7 @@ class KokoroModelManager {
       root: Directory(root),
       target: target,
       resourceId: spec.id,
-      archiveFileName: '_download_${spec.id}.tar.gz',
+      archiveFileName: _archiveFileName(),
       uri: Uri.parse(url),
       expectedSha256: spec.sha256,
       cancelToken: cancelToken,
@@ -237,7 +248,7 @@ class KokoroModelManager {
     await _installer.discardPartial(
       root: Directory(await _modelsRoot),
       resourceId: spec.id,
-      archiveFileName: '_download_${spec.id}.tar.gz',
+      archiveFileName: _archiveFileName(),
     );
   }
 
@@ -257,12 +268,39 @@ class KokoroModelManager {
     if (model == null || voices == null || tokens == null || dataDir == null) {
       return null;
     }
+    final lexiconUs = await _findFile(dir, 'lexicon-us-en.txt');
+    final lexiconZh = await _findFile(dir, 'lexicon-zh.txt');
+    final lexicon = [
+      lexiconUs,
+      lexiconZh,
+    ].whereType<String>().where((path) => path.isNotEmpty).join(',');
+    final phoneZh = await _findFile(dir, 'phone-zh.fst');
+    final dateZh = await _findFile(dir, 'date-zh.fst');
+    final numberZh = await _findFile(dir, 'number-zh.fst');
+    final ruleFsts = [
+      phoneZh,
+      dateZh,
+      numberZh,
+    ].whereType<String>().where((path) => path.isNotEmpty).join(',');
+
     return KokoroModelPaths(
       model: model,
       voices: voices,
       tokens: tokens,
       dataDir: dataDir,
+      lexicon: lexicon,
+      ruleFsts: ruleFsts,
     );
+  }
+
+  /// 归档下载名保留真实压缩后缀，兼容 `.tar.gz` 测试归档与官方 `.tar.bz2`。
+  String _archiveFileName() {
+    final configured = spec.archiveFileName;
+    if (configured != null && configured.isNotEmpty) return configured;
+    final path = spec.archivePath.toLowerCase();
+    if (path.endsWith('.tar.bz2')) return '_download_${spec.id}.tar.bz2';
+    if (path.endsWith('.tar.gz')) return '_download_${spec.id}.tar.gz';
+    return '_download_${spec.id}.zip';
   }
 
   Future<String?> _findFile(Directory root, String name) async {

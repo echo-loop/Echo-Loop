@@ -66,6 +66,7 @@
 - 📊 **Learning statistics**: Tracks practice time, input/output ratio, and unique vocabulary — see exactly how much you've practiced and spoken.
 - 🎙️ **AI shadowing evaluation**: Automatically aligns ASR results with the original text, highlights matched words, and gives a shadowing rating.
 - 🎧 **Local audio import + AI subtitles**: Batch-import local audio, import existing subtitles, or auto-transcribe with AI.
+- 🗣️ **Offline Kokoro speech + text lessons**: Download the Kokoro v1.1 Chinese/English model and generate speech offline for sentences, vocabulary, shadowing references, and Text to Listening lessons with voice and 0.5x–2.0x speed controls.
 
 ---
 

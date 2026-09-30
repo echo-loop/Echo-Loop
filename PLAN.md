@@ -92,7 +92,7 @@ Echo Loop 是一个围绕“音频输入 + 句子级学习 + 间隔复习 + AI �
 ## 关键 ADR 索引
 
 - 媒体引擎与前台引擎分离：避免锁屏媒体会话与前台试听互相污染。
-- 统一 TTS 架构：合成 → 文件 → 缓存 → 播放，支持平台 TTS 与 Kokoro 本地 TTS。
+- 统一 TTS 架构：合成 → 文件 → 缓存 → 播放，支持平台 TTS 与 Kokoro 本地 TTS；Kokoro 使用官方 v1.1 中英多语言模型，并支持 Text → Lesson 与跟读参考音。
 - 离线转录与本地模型：复用统一音频处理与模型下载能力。
 - 平台 + 渠道统一识别：`platform + distribution` 决定支付实现和后端配额策略。
 - 通用记忆调度基础设施：以独立调度快照与只追加复习事件建模；上层依赖应用自有接口，FSRS 仅限 adapter 内部，按逐项固定 Profile 保障可迁移与可审计性（见 [memory-scheduler-infrastructure-plan.md](./docs/memory-scheduler-infrastructure-plan.md)）。

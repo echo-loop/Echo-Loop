@@ -4,9 +4,11 @@
 // 使用 IndexedStack 保持两个视图状态。
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../features/community_collections/widgets/discover_entry_banner.dart';
 import '../providers/new_user_guide_provider.dart';
 import '../providers/collection_provider.dart';
+import '../router/app_router.dart';
 import '../l10n/app_localizations.dart';
 import '../widgets/audio_list_view.dart';
 import '../widgets/guide_flow.dart';
@@ -144,6 +146,11 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
       return [
         // 合集排序
         const CollectionSortButton(),
+        IconButton(
+          tooltip: l10n.textToLessonTitle,
+          icon: const Icon(Icons.text_fields),
+          onPressed: () => context.push(AppRoutes.textToLesson),
+        ),
         // 「发现社区合集」入口已改为列表顶部的 DiscoverEntryBanner，更醒目；
         // AppBar 这里不再放 compass icon，避免重复。
         // 创建合集
@@ -161,6 +168,11 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
         // 音频排序
         const AudioSortButton(),
         // 添加音频
+        IconButton(
+          tooltip: l10n.textToLessonTitle,
+          icon: const Icon(Icons.text_fields),
+          onPressed: () => context.push(AppRoutes.textToLesson),
+        ),
         IconButton(
           icon: const Icon(Icons.add),
           onPressed: () => showImportAudioSheet(context),

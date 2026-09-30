@@ -15,6 +15,15 @@ enum ShadowingControlMode {
   manual,
 }
 
+/// 跟读参考音频来源。
+enum ShadowingReferenceSource {
+  /// 播放原媒体中的句子片段。
+  original,
+
+  /// 使用本地 Kokoro 朗读句子文本。
+  localTts,
+}
+
 /// 停顿模式
 enum PauseMode {
   /// 智能间隔：2 倍句子时长，最短 2 秒
@@ -51,6 +60,9 @@ class IntensiveListenSettings {
   ///
   /// 难句跟读 / 逐句精听 入口弹窗均会写入此字段，会话内每次播音前生效。
   final double playbackSpeed;
+
+  /// 跟读参考音频来源（默认原音）。
+  final ShadowingReferenceSource referenceSource;
 
   /// 入口弹窗使用的离散速度选项
   ///
@@ -97,6 +109,7 @@ class IntensiveListenSettings {
     this.pauseMultiplier = 2.0,
     this.controlMode = ShadowingControlMode.auto,
     this.playbackSpeed = 1.0,
+    this.referenceSource = ShadowingReferenceSource.original,
   });
 
   /// 是否为手动控制模式
@@ -110,6 +123,7 @@ class IntensiveListenSettings {
     double? pauseMultiplier,
     ShadowingControlMode? controlMode,
     double? playbackSpeed,
+    ShadowingReferenceSource? referenceSource,
   }) {
     return IntensiveListenSettings(
       repeatCount: repeatCount ?? this.repeatCount,
@@ -121,6 +135,7 @@ class IntensiveListenSettings {
       pauseMultiplier: pauseMultiplier ?? this.pauseMultiplier,
       controlMode: controlMode ?? this.controlMode,
       playbackSpeed: playbackSpeed ?? this.playbackSpeed,
+      referenceSource: referenceSource ?? this.referenceSource,
     );
   }
 
@@ -132,6 +147,7 @@ class IntensiveListenSettings {
     'pauseMultiplier': pauseMultiplier,
     'controlMode': controlMode.name,
     'playbackSpeed': playbackSpeed,
+    'referenceSource': referenceSource.name,
   };
 
   /// 防御性解析：非法值回退默认
@@ -146,6 +162,7 @@ class IntensiveListenSettings {
       pauseMultiplier: _parsePauseMultiplier(json['pauseMultiplier']),
       controlMode: _parseControlMode(json['controlMode']),
       playbackSpeed: _parsePlaybackSpeed(json['playbackSpeed']),
+      referenceSource: _parseReferenceSource(json['referenceSource']),
     );
   }
 
@@ -196,5 +213,13 @@ class IntensiveListenSettings {
             .where((e) => e.name == raw)
             .firstOrNull ??
         ShadowingControlMode.auto;
+  }
+
+  static ShadowingReferenceSource _parseReferenceSource(dynamic raw) {
+    if (raw is! String) return ShadowingReferenceSource.original;
+    return ShadowingReferenceSource.values
+            .where((e) => e.name == raw)
+            .firstOrNull ??
+        ShadowingReferenceSource.original;
   }
 }

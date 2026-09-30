@@ -54,7 +54,7 @@ void main() {
     expect(state.engine, TtsEngineKind.kokoro);
     expect(state.status, AsrModelDownloadStatus.downloading);
     expect(state.progress, 0.42);
-    expect(state.estimatedDownloadBytes, 313785757);
+    expect(state.estimatedDownloadBytes, 364816464);
     expect(state.isReady, isFalse);
   });
 
@@ -105,7 +105,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Speech Synthesis Model Required'), findsOneWidget);
-    expect(find.text('Estimated download: ~299.2 MB'), findsOneWidget);
+    expect(find.text('Estimated download: ~347.9 MB'), findsOneWidget);
     expect(
       find.text('You can also choose another speech model in Settings.'),
       findsOneWidget,
@@ -147,7 +147,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Downloading Speech Synthesis Model'), findsOneWidget);
-    expect(find.text('Estimated download: ~299.2 MB'), findsOneWidget);
+    expect(find.text('Estimated download: ~347.9 MB'), findsOneWidget);
     expect(find.text('42% complete'), findsOneWidget);
     expect(find.byType(LinearProgressIndicator), findsOneWidget);
     expect(find.text('Cancel Download'), findsOneWidget);
@@ -186,7 +186,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(
-      find.text('The download did not finish. Estimated download: ~299.2 MB'),
+      find.text('The download did not finish. Estimated download: ~347.9 MB'),
       findsOneWidget,
     );
     expect(

@@ -18,6 +18,7 @@ import '../../database/providers.dart';
 import '../../services/app_logger.dart';
 import '../../services/pronunciation/local_audio_clip_player.dart';
 import '../../services/tts/kokoro_tts_engine.dart';
+import '../../services/tts/kokoro_model_catalog.dart';
 import '../../services/tts/kokoro_voices.dart';
 import '../../services/tts/piper_tts_engine.dart';
 import '../../services/tts/piper_model_catalog.dart';
@@ -82,9 +83,12 @@ TtsSpeechConfig ttsVoicePreviewConfig(
   KokoroModelVariant variant,
 ) {
   return TtsSpeechConfig(
-    languageTag: voice.accent == TtsAccent.uk ? 'en-GB' : 'en-US',
+    languageTag: switch (voice.language) {
+      TtsLanguage.chinese => 'zh-CN',
+      TtsLanguage.english => voice.accent == TtsAccent.uk ? 'en-GB' : 'en-US',
+    },
     voiceName: voice.id,
-    modelTag: variant.name,
+    modelTag: kokoroSpecOf(variant).id,
   );
 }
 
@@ -224,8 +228,9 @@ class TtsController extends Notifier<TtsControllerState> {
         TtsEngineKind.piper => settings.activePiperVoice,
         TtsEngineKind.platform => null,
       },
+      speed: settings.speed,
       modelTag: effective == TtsEngineKind.kokoro
-          ? settings.kokoroVariant.name
+          ? kokoroSpecOf(settings.kokoroVariant).id
           : null,
     );
     _readyCoordinator.configure(effective, config);
@@ -281,6 +286,11 @@ class TtsController extends Notifier<TtsControllerState> {
     if (token != _speakingToken) return AudioPlaybackResult.cancelled;
     return success ? AudioPlaybackResult.completed : AudioPlaybackResult.failed;
   }
+
+  /// 暴露统一协调器给需要后台产文件的系统能力（Text → Lesson）。
+  ///
+  /// UI 仍不得直接依赖 sherpa_onnx；调用方只消费协调器的缓存/调度能力。
+  TtsCoordinator get coordinator => _readyCoordinator;
 
   /// 试听某 Kokoro 音色：用该音色（及其口音、当前模型变体）朗读示范句。
   ///
@@ -758,8 +768,9 @@ class TtsController extends Notifier<TtsControllerState> {
           TtsEngineKind.piper => settings.activePiperVoice,
           TtsEngineKind.platform => null,
         },
+        speed: settings.speed,
         modelTag: settings.engine == TtsEngineKind.kokoro
-            ? settings.kokoroVariant.name
+            ? kokoroSpecOf(settings.kokoroVariant).id
             : null,
       );
       final loaded = await _readyCoordinator.ensureEngineReady(

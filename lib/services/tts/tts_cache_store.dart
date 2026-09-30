@@ -12,6 +12,7 @@ library;
 import 'dart:io';
 
 import 'package:crypto/crypto.dart';
+import 'package:path/path.dart' as p;
 import 'dart:convert';
 
 import '../../database/daos/tts_cache_dao.dart';
@@ -198,10 +199,10 @@ class TtsCacheStore {
     try {
       final dir = await _dir();
       if (!await dir.exists()) return 0;
-      final keep = (await _dao.allFilePaths()).toSet();
+      final keep = (await _dao.allFilePaths()).map(_normalizePath).toSet();
       await for (final entity in dir.list(followLinks: false)) {
         if (entity is! File) continue;
-        if (keep.contains(entity.path)) continue;
+        if (keep.contains(_normalizePath(entity.path))) continue;
         try {
           final size = await entity.length();
           await entity.delete();
@@ -214,6 +215,14 @@ class TtsCacheStore {
       AppLogger.log('TtsCacheStore', '_sweepOrphanFiles 失败: $e');
     }
     return freed;
+  }
+
+  /// 统一路径表示，避免 Windows 上 `File.path` 分隔符/大小写与目录列举不一致，
+  /// 导致有效缓存被误判为孤儿清扫。
+  String _normalizePath(String path) {
+    var normalized = p.normalize(p.absolute(path));
+    if (Platform.isWindows) normalized = normalized.toLowerCase();
+    return normalized;
   }
 
   Future<void> _deleteFileQuietly(String path) async {

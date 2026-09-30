@@ -9799,6 +9799,126 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Expand sidebar'**
   String get expandSidebar;
+
+  /// No description provided for @textToLessonTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Text to Listening'**
+  String get textToLessonTitle;
+
+  /// No description provided for @textToLessonDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Turn any English, Chinese, or mixed text into an offline lesson with sentence-level playback.'**
+  String get textToLessonDescription;
+
+  /// No description provided for @textToLessonImportFile.
+  ///
+  /// In en, this message translates to:
+  /// **'Import .txt'**
+  String get textToLessonImportFile;
+
+  /// No description provided for @textToLessonTitleLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Lesson title'**
+  String get textToLessonTitleLabel;
+
+  /// No description provided for @textToLessonTextLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Text'**
+  String get textToLessonTextLabel;
+
+  /// No description provided for @textToLessonTextHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Paste text here, or import a .txt file.'**
+  String get textToLessonTextHint;
+
+  /// No description provided for @textToLessonVoice.
+  ///
+  /// In en, this message translates to:
+  /// **'Voice'**
+  String get textToLessonVoice;
+
+  /// No description provided for @textToLessonSpeed.
+  ///
+  /// In en, this message translates to:
+  /// **'Speed'**
+  String get textToLessonSpeed;
+
+  /// No description provided for @textToLessonGenerate.
+  ///
+  /// In en, this message translates to:
+  /// **'Generate lesson'**
+  String get textToLessonGenerate;
+
+  /// No description provided for @textToLessonGenerating.
+  ///
+  /// In en, this message translates to:
+  /// **'Generating…'**
+  String get textToLessonGenerating;
+
+  /// No description provided for @textToLessonCancel.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel'**
+  String get textToLessonCancel;
+
+  /// No description provided for @textToLessonTextRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter or import some text first.'**
+  String get textToLessonTextRequired;
+
+  /// No description provided for @textToLessonModelRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Offline speech model required'**
+  String get textToLessonModelRequired;
+
+  /// No description provided for @textToLessonModelRequiredHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Download the Kokoro model before generating this lesson.'**
+  String get textToLessonModelRequiredHint;
+
+  /// No description provided for @textToLessonFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Lesson generation failed. Please retry.'**
+  String get textToLessonFailed;
+
+  /// No description provided for @ttsSpeed.
+  ///
+  /// In en, this message translates to:
+  /// **'Speed'**
+  String get ttsSpeed;
+
+  /// No description provided for @listenAndRepeatReferenceLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Reference audio'**
+  String get listenAndRepeatReferenceLabel;
+
+  /// No description provided for @listenAndRepeatReferenceOriginal.
+  ///
+  /// In en, this message translates to:
+  /// **'Original'**
+  String get listenAndRepeatReferenceOriginal;
+
+  /// No description provided for @listenAndRepeatReferenceTts.
+  ///
+  /// In en, this message translates to:
+  /// **'Local TTS'**
+  String get listenAndRepeatReferenceTts;
+
+  /// No description provided for @listenAndRepeatReferenceTtsHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Uses the selected Echo Loop voice for each sentence. The original media is not changed.'**
+  String get listenAndRepeatReferenceTtsHint;
 }
 
 class _AppLocalizationsDelegate
