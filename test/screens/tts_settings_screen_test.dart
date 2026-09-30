@@ -264,7 +264,7 @@ void main() {
     );
   });
 
-  testWidgets('就绪（fp32 选中）→ 音色行 + 点开弹层显全部 11 个（分组），使用中变体不显删除', (tester) async {
+  testWidgets('就绪（fp32 选中）→ 音色行 + 点开弹层显全部 3 个英文音色（分组）', (tester) async {
     await tester.pumpWidget(
       _wrap(
         const TtsSettings(engine: TtsEngineKind.kokoro),
@@ -274,9 +274,9 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.textContaining('Ready'), findsOneWidget);
-    // 音色收成单行 disclosure：标题 + 口音 + 当前音色（默认 American · Sarah · Female）。
+    // 音色收成单行 disclosure：标题 + 口音 + 当前音色（默认 American · Sol · Female）。
     expect(find.text('Voice'), findsOneWidget);
-    expect(find.text('American · Sarah · Female'), findsOneWidget);
+    expect(find.text('American · Sol · Female'), findsOneWidget);
     // 使用中（fp32 选中）不显删除（不删正在用的语音）；int8 未下载也无删除。
     expect(find.byTooltip('Delete model'), findsNothing);
     // Echo Loop 下无独立口音卡，弹层未开时音色列表与口音标题都不在屏上。
@@ -284,16 +284,15 @@ void main() {
     expect(find.text('American'), findsNothing);
     expect(find.text('British'), findsNothing);
 
-    // 点开音色弹层 → 全部 11 个（美音 7 + 英音 4），按口音分组。
+    // 点开音色弹层 → v1.1 英文 3 个（美音 2 + 英音 1），按口音分组。
     await tester.tap(find.text('Voice'));
     await tester.pumpAndSettle();
-    expect(find.byType(Radio<String>), findsNWidgets(11));
+    expect(find.byType(Radio<String>), findsNWidgets(3));
     expect(find.text('American'), findsOneWidget);
     expect(find.text('British'), findsOneWidget);
-    expect(find.text('Sarah'), findsOneWidget);
-    expect(find.text('Adam'), findsOneWidget);
-    expect(find.text('Emma'), findsOneWidget);
-    expect(find.text('George'), findsOneWidget);
+    expect(find.text('Maple'), findsOneWidget);
+    expect(find.text('Sol'), findsOneWidget);
+    expect(find.text('Vale'), findsOneWidget);
   });
 
   testWidgets('就绪 + 非使用中的已下载变体可删除', (tester) async {
@@ -319,16 +318,16 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    // 默认美音。点开音色弹层选英音 Emma → 口音随之切英音，音色写入英音槽。
+    // 默认美音。点开音色弹层选英音 Vale → 口音随之切英音，音色写入英音槽。
     expect(_containerOf(tester).read(ttsSettingsProvider).accent, TtsAccent.us);
     await tester.tap(find.text('Voice'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Emma'));
+    await tester.tap(find.text('Vale'));
     await tester.pumpAndSettle();
 
     final settings = _containerOf(tester).read(ttsSettingsProvider);
     expect(settings.accent, TtsAccent.uk);
-    expect(settings.kokoroVoiceUk, 'bf_emma');
+    expect(settings.kokoroVoiceUk, 'bf_vale');
   });
 
   testWidgets('就绪 + 弹层点音色 → setKokoroVoice 更新', (tester) async {
@@ -340,13 +339,13 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    // 点开音色弹层后选美音 Adam → 音色写入美音槽，口音保持美音。
+    // 点开音色弹层后选美音 Maple → 音色写入美音槽，口音保持美音。
     await tester.tap(find.text('Voice'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Adam'));
+    await tester.tap(find.text('Maple'));
     await tester.pumpAndSettle();
     final settings = _containerOf(tester).read(ttsSettingsProvider);
-    expect(settings.kokoroVoiceUs, 'am_adam');
+    expect(settings.kokoroVoiceUs, 'af_maple');
     expect(settings.accent, TtsAccent.us);
   });
 

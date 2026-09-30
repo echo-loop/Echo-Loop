@@ -70,14 +70,14 @@ void main() {
 
   testWidgets('正在试听的音色行显播放图标（volume_up），其余不显', (tester) async {
     SharedPreferences.setMockInitialValues({});
-    await tester.pumpWidget(_wrap(ttsVoicePreviewKey('am_adam')));
+    await tester.pumpWidget(_wrap(ttsVoicePreviewKey('af_maple')));
     await tester.pumpAndSettle();
 
     // 打开音色弹层。
     await tester.tap(find.text('Voice'));
     await tester.pumpAndSettle();
 
-    // 仅 Adam（正在试听）行显喇叭图标。
+    // 仅 Maple（正在试听）行显喇叭图标。
     expect(find.byIcon(Icons.volume_up), findsOneWidget);
   });
 
@@ -95,10 +95,7 @@ void main() {
   testWidgets('平台引擎：正在试听的口音行显播放图标（volume_up）', (tester) async {
     SharedPreferences.setMockInitialValues({});
     await tester.pumpWidget(
-      _wrap(
-        ttsAccentPreviewKey(TtsAccent.us),
-        engine: TtsEngineKind.platform,
-      ),
+      _wrap(ttsAccentPreviewKey(TtsAccent.us), engine: TtsEngineKind.platform),
     );
     await tester.pumpAndSettle();
 

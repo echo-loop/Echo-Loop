@@ -16,7 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 1.0.38
+version: 1.0.39
 
 environment:
   sdk: ^3.9.2
@@ -95,7 +95,7 @@ dependencies:
   share_plus: ^10.1.4
   table_calendar: ^3.2.0
   timeago: ^3.7.1
-  sherpa_onnx: ^1.13.4
+  sherpa_onnx: ^1.13.8
   showcaseview: ^5.0.1
   # 认证：复用 fluency-frontend 的 Supabase 项目（auth.users 共享），
   # mobile 端走 native ID Token 流（Apple/Google）+ 邮箱密码。详见 docs / plan。

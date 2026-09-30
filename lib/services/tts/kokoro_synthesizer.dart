@@ -9,6 +9,8 @@
 /// 规避 NNAPI 崩溃路径，详见 CLAUDE.md §7.4）。
 library;
 
+import 'dart:ffi';
+import 'dart:io';
 import 'dart:isolate';
 
 import 'package:sherpa_onnx/sherpa_onnx.dart' as sherpa;
@@ -200,7 +202,7 @@ class _DisposeRequest {
 void _entryPoint(_InitPayload init) {
   sherpa.OfflineTts? tts;
   try {
-    sherpa.initBindings();
+    _initSherpaBindings();
     tts = sherpa.OfflineTts(
       sherpa.OfflineTtsConfig(
         model: sherpa.OfflineTtsModelConfig(
@@ -209,11 +211,14 @@ void _entryPoint(_InitPayload init) {
             voices: init.paths.voices,
             tokens: init.paths.tokens,
             dataDir: init.paths.dataDir,
+            lexicon: init.paths.lexicon,
+            lang: init.paths.lexicon.isEmpty ? '' : 'zh_en',
           ),
           numThreads: init.numThreads,
           provider: 'cpu',
           debug: false,
         ),
+        ruleFsts: init.paths.ruleFsts,
       ),
     );
 
@@ -261,4 +266,26 @@ void _entryPoint(_InitPayload init) {
     tts?.free();
     init.sendPort.send('Init failed: $e');
   }
+}
+
+/// 初始化 sherpa-onnx 原生库。
+///
+/// 桌面集成测试可显式设置 `SHERPA_ONNX_LIBRARY_PATH`，避免 Windows 优先加载
+/// `System32\onnxruntime.dll` 的旧版本；Flutter 应用默认沿用包内自动解析。
+void _initSherpaBindings() {
+  final libraryPath = Platform.environment['SHERPA_ONNX_LIBRARY_PATH'];
+  if (libraryPath == null || libraryPath.isEmpty) {
+    sherpa.initBindings();
+    return;
+  }
+  if (Platform.isWindows) {
+    final directory = Directory(libraryPath);
+    final runtime = File(
+      '${directory.path}${Platform.pathSeparator}onnxruntime.dll',
+    );
+    if (runtime.existsSync()) {
+      DynamicLibrary.open(runtime.path);
+    }
+  }
+  sherpa.initBindings(libraryPath);
 }

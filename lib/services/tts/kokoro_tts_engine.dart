@@ -19,9 +19,6 @@ import 'kokoro_synthesizer.dart';
 import 'kokoro_voices.dart';
 import 'tts_engine.dart';
 
-/// Kokoro 合成语速（sherpa 的 speed 为倍率，1.0 = 正常）。
-const double _kokoroSpeed = 1.0;
-
 /// Kokoro 推理线程数（纯 CPU）。
 ///
 /// 瓶颈在 `OfflineTts.generate` 的 CPU 推理（实测 RTF≈3），线程数直接影响延迟。
@@ -87,15 +84,26 @@ class KokoroTtsEngine implements TtsEngine {
       // 优先用本次显式配置解析音色 sid（同步、入口处即定），不依赖跨 await 的
       // 引擎环境态 [_config]——使并发的不同音色合成（试听/预热）互不串扰。
       final effective = config ?? _config;
+      // v1.1-zh 的英文/中文发音人在同一模型内；当文本含 CJK 且调用方给的是
+      // 英文音色时，自动切到中文默认音色，避免中文被英文音素器读成乱码。
+      final configuredVoiceId = effective?.voiceName;
+      final hasCjk = RegExp(r'[\u3400-\u9fff]').hasMatch(text);
+      final configuredVoice = configuredVoiceId == null
+          ? null
+          : voiceById(configuredVoiceId);
+      final voiceId = hasCjk && configuredVoice?.language != TtsLanguage.chinese
+          ? kokoroDefaultVoiceZh
+          : configuredVoiceId;
       final sid = sidForVoiceId(
-        effective?.voiceName,
+        voiceId,
         fallbackAccent: _accentFromLanguageTag(effective?.languageTag),
       );
       final outputPath = p.join(outputDir, '$baseName.wav');
       final sampleRate = await synth.synthesize(
         text: text,
         sid: sid,
-        speed: _kokoroSpeed,
+        // sherpa 的 speed 是倍率，1.0 = 正常；用户设置范围为 0.5..2.0。
+        speed: (effective?.speed ?? 1.0).clamp(0.5, 2.0).toDouble(),
         outputPath: outputPath,
       );
       if (sampleRate == null) {

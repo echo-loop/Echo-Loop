@@ -26,6 +26,7 @@ import '../../models/sentence.dart';
 import '../../models/sentence_playback_result.dart';
 import '../../models/study_stage.dart';
 import '../../services/app_logger.dart';
+import '../../services/pronunciation/local_audio_clip_player.dart';
 import '../../services/study_session_timer.dart';
 import '../../services/study_time_service.dart';
 import '../audio_engine/audio_engine_provider.dart';
@@ -44,6 +45,7 @@ import '../repeat_flow/repeat_flow_phase.dart';
 import '../repeat_flow/repeat_flow_state.dart';
 import '../speech/speech_recording_controller.dart';
 import '../listening_practice/bookmark_manager.dart';
+import '../pronunciation/pronunciation_providers.dart';
 import '../favorite_sentence_lifecycle_provider.dart';
 import '../intensive_listen_prefs_provider.dart';
 import '../../models/stage_settings_overrides.dart';
@@ -95,7 +97,7 @@ class ListenAndRepeatController extends _$ListenAndRepeatController {
       onStateChanged: _onEngineStateChanged,
       callbacks: RepeatFlowCallbacks(
         // 运行时读取当前驱动：媒体初始化会替换 [_playback]，不能捕获旧音频实例。
-        pauseAudio: () => unawaited(_playback.pause()),
+        pauseAudio: _pauseAudio,
         playSentence: _playSentence,
         startRecording: _startRecording,
         cancelRecording: _cancelRecording,
@@ -987,10 +989,28 @@ class ListenAndRepeatController extends _$ListenAndRepeatController {
     int flowToken,
   ) async {
     final driver = _playback;
-    final result = await driver.playSentenceWithSpeed(
-      sentence,
-      ref.read(listenAndRepeatSettingsProvider).playbackSpeed,
-    );
+    final settings = ref.read(listenAndRepeatSettingsProvider);
+    final SentencePlaybackResult result;
+    if (settings.referenceSource == ShadowingReferenceSource.localTts) {
+      await driver.pause();
+      final playback = await ref
+          .read(textPlaybackProvider.notifier)
+          .speakWithResult(
+            sentence.text,
+            key: 'listen-repeat-tts:${sentence.index}',
+          );
+      result = switch (playback) {
+        AudioPlaybackResult.completed => SentencePlaybackResult.completed,
+        AudioPlaybackResult.cancelled => SentencePlaybackResult.cancelled,
+        AudioPlaybackResult.failed => SentencePlaybackResult.failed,
+      };
+    } else {
+      await ref.read(textPlaybackProvider.notifier).stop();
+      result = await driver.playSentenceWithSpeed(
+        sentence,
+        settings.playbackSpeed,
+      );
+    }
     if (result == SentencePlaybackResult.completed &&
         flowToken == state.flowToken) {
       AppLogger.log(
@@ -1013,6 +1033,11 @@ class ListenAndRepeatController extends _$ListenAndRepeatController {
       );
     }
     return result;
+  }
+
+  Future<void> _pauseAudio() async {
+    await _playback.pause();
+    await ref.read(textPlaybackProvider.notifier).stop();
   }
 
   /// 开始录音

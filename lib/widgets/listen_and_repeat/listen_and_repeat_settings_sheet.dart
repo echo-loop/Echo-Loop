@@ -49,6 +49,10 @@ class _ListenAndRepeatSettingsSheet extends ConsumerWidget {
           _buildControlModeSection(l10n, theme, settings, ref),
           const SizedBox(height: AppSpacing.l),
 
+          // 参考音频来源：原音 / 本地 Kokoro
+          _buildReferenceSourceSection(l10n, theme, settings, ref),
+          const SizedBox(height: AppSpacing.l),
+
           // 播放速度（手动/自动模式下都生效）
           _buildPlaybackSpeedSection(l10n, theme, settings, ref),
 
@@ -78,6 +82,60 @@ class _ListenAndRepeatSettingsSheet extends ConsumerWidget {
           ],
         ],
       ),
+    );
+  }
+
+  /// 参考音频来源：原媒体片段或本地 TTS 朗读。
+  Widget _buildReferenceSourceSection(
+    AppLocalizations l10n,
+    ThemeData theme,
+    IntensiveListenSettings settings,
+    WidgetRef ref,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          l10n.listenAndRepeatReferenceLabel,
+          style: theme.textTheme.titleSmall?.copyWith(
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: AppSpacing.s),
+        SizedBox(
+          width: double.infinity,
+          child: SegmentedButton<ShadowingReferenceSource>(
+            segments: [
+              ButtonSegment(
+                value: ShadowingReferenceSource.original,
+                label: Text(l10n.listenAndRepeatReferenceOriginal),
+                icon: const Icon(Icons.audiotrack, size: 18),
+              ),
+              ButtonSegment(
+                value: ShadowingReferenceSource.localTts,
+                label: Text(l10n.listenAndRepeatReferenceTts),
+                icon: const Icon(Icons.record_voice_over, size: 18),
+              ),
+            ],
+            selected: {settings.referenceSource},
+            onSelectionChanged: (selected) {
+              ref
+                  .read(listenAndRepeatSettingsProvider.notifier)
+                  .update(settings.copyWith(referenceSource: selected.first));
+            },
+            showSelectedIcon: false,
+          ),
+        ),
+        if (settings.referenceSource == ShadowingReferenceSource.localTts) ...[
+          const SizedBox(height: AppSpacing.xs),
+          Text(
+            l10n.listenAndRepeatReferenceTtsHint,
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ],
+      ],
     );
   }
 

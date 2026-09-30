@@ -504,6 +504,19 @@ class TtsCoordinator {
     return engine != null;
   }
 
+  /// 将文本渲染为可复用的本地音频文件，不触发播放。
+  ///
+  /// 供 Text → Lesson 等后台编排使用：仍复用同一缓存键、同一条合成调度器和
+  /// 模型实例；调用方按 chunk 边界检查取消，天然避免重复加载模型。
+  Future<String?> renderToCache(
+    String text, {
+    required TtsEngineKind kind,
+    required TtsSpeechConfig config,
+    TtsSynthPriority priority = TtsSynthPriority.user,
+  }) {
+    return _render(text, kind, config, priority: priority);
+  }
+
   /// 取消尚未开始的文本预热；运行中的初始化/推理不能被安全打断。
   void cancelPendingPrewarm() {
     _backgroundGeneration++;
@@ -527,7 +540,7 @@ class TtsCoordinator {
       text: text,
       engine: kind,
       voiceId: config.voiceId,
-      speed: config.rate,
+      speed: _effectiveSynthesisSpeed(kind, config),
       modelTag: config.modelTag,
     );
 
@@ -661,7 +674,7 @@ class TtsCoordinator {
       engine: kind,
       voiceId: config.voiceId,
       languageCode: config.languageTag,
-      speed: config.rate,
+      speed: _effectiveSynthesisSpeed(kind, config),
       result: result,
     );
     AppLogger.log(
@@ -671,6 +684,12 @@ class TtsCoordinator {
           '合成耗时=${swSynth.elapsedMilliseconds}ms',
     );
     return result.filePath;
+  }
+
+  /// 平台 TTS 的 rate 与本地神经网络 speed 分属两套尺度，缓存必须按实际合成
+  /// 参数分桶：平台用 rate，Kokoro/Piper 用 speed。
+  double _effectiveSynthesisSpeed(TtsEngineKind kind, TtsSpeechConfig config) {
+    return kind == TtsEngineKind.platform ? config.rate : config.speed;
   }
 
   /// 播放主干：抢占当前播放（递增代际、停止播放/引擎）后渲染并播放。

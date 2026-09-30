@@ -17,6 +17,7 @@ class _FakeSynth implements KokoroNativeSynthesizer {
   int initCount = 0;
   int disposeCount = 0;
   int? lastSid;
+  double? lastSpeed;
   String? lastText;
   String? lastOutputPath;
 
@@ -34,6 +35,7 @@ class _FakeSynth implements KokoroNativeSynthesizer {
   }) async {
     lastText = text;
     lastSid = sid;
+    lastSpeed = speed;
     lastOutputPath = outputPath;
     if (failSynthesis) return null;
     await File(outputPath).writeAsBytes(const [0, 1, 2, 3]);
@@ -90,10 +92,10 @@ void main() {
     final synth = _FakeSynth();
     final engine = build(synth);
     await engine.applyConfig(
-      const TtsSpeechConfig(languageTag: 'en-GB', voiceName: 'bm_george'),
+      const TtsSpeechConfig(languageTag: 'en-GB', voiceName: 'bf_vale'),
     );
     await engine.synthesize('x', outputDir: outDir.path, baseName: 'b');
-    expect(synth.lastSid, 9); // bm_george
+    expect(synth.lastSid, 2); // bf_vale
   });
 
   test('无 voiceName：按语言标签回退该口音默认音色 sid', () async {
@@ -101,11 +103,37 @@ void main() {
     final engine = build(synth);
     await engine.applyConfig(const TtsSpeechConfig(languageTag: 'en-GB'));
     await engine.synthesize('x', outputDir: outDir.path, baseName: 'b');
-    expect(synth.lastSid, 7); // bf_emma（英音默认）
+    expect(synth.lastSid, 2); // bf_vale（英音默认）
 
     await engine.applyConfig(const TtsSpeechConfig(languageTag: 'en-US'));
     await engine.synthesize('x', outputDir: outDir.path, baseName: 'c');
-    expect(synth.lastSid, 3); // af_sarah（美音默认）
+    expect(synth.lastSid, 1); // af_sol（美音默认）
+  });
+
+  test('speed 透传到 native synthesizer 并夹在 0.5..2.0', () async {
+    final synth = _FakeSynth();
+    final engine = build(synth);
+    await engine.applyConfig(
+      const TtsSpeechConfig(languageTag: 'en-US', speed: 1.7),
+    );
+    await engine.synthesize('x', outputDir: outDir.path, baseName: 'speed');
+    expect(synth.lastSpeed, 1.7);
+
+    await engine.applyConfig(
+      const TtsSpeechConfig(languageTag: 'en-US', speed: 3.0),
+    );
+    await engine.synthesize('y', outputDir: outDir.path, baseName: 'speed2');
+    expect(synth.lastSpeed, 2.0);
+  });
+
+  test('中文文本自动切到中文默认音色 sid', () async {
+    final synth = _FakeSynth();
+    final engine = build(synth);
+    await engine.applyConfig(
+      const TtsSpeechConfig(languageTag: 'en-US', voiceName: 'af_sol'),
+    );
+    await engine.synthesize('你好，world', outputDir: outDir.path, baseName: 'zh');
+    expect(synth.lastSid, 3);
   });
 
   test('合成失败（synth 返回 null）→ engine 返回 null', () async {

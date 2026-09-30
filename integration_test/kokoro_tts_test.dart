@@ -1,6 +1,6 @@
 /// Echo Loop TTS（Kokoro）端到端集成测试。
 ///
-/// 从 CDN 下载真实 Kokoro int8 模型（首次较慢，缓存到 app support 跨次复用；
+/// 从官方 GitHub Release 下载真实 Kokoro int8 多语言模型（首次较慢，缓存到 app support 跨次复用；
 /// 下载失败则跳过），跑真实 sherpa-onnx native 合成，验证：
 /// 1. 合成产出非空有效 wav；
 /// 2. 美音 / 英音音色产出**不同**音频——印证 Kokoro 在 macOS 能正确区分口音
@@ -19,6 +19,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:drift/native.dart';
 import 'package:echo_loop/database/app_database.dart';
 import 'package:echo_loop/services/tts/kokoro_model_manager.dart';
+import 'package:echo_loop/services/tts/kokoro_model_catalog.dart';
 import 'package:echo_loop/services/tts/kokoro_tts_engine.dart';
 import 'package:echo_loop/services/tts/tts_cache_store.dart';
 import 'package:echo_loop/services/tts/tts_coordinator.dart';
@@ -68,7 +69,11 @@ void main() {
   late Directory outDir;
 
   setUpAll(() async {
-    manager = KokoroModelManager();
+    final modelRoot = Platform.environment['KOKORO_MODEL_ROOT'];
+    manager = KokoroModelManager(
+      spec: kokoroSpecOf(KokoroModelVariant.int8),
+      modelsRootResolver: modelRoot == null ? null : () async => modelRoot,
+    );
     outDir = await getTemporaryDirectory();
 
     modelReady = await manager.isModelDownloaded();
@@ -99,9 +104,9 @@ void main() {
 
       const text = 'The quick brown fox jumps over the lazy dog.';
 
-      // 美音（af_sarah）。
+      // 美音（af_sol）。
       await engine.applyConfig(
-        const TtsSpeechConfig(languageTag: 'en-US', voiceName: 'af_sarah'),
+        const TtsSpeechConfig(languageTag: 'en-US', voiceName: 'af_sol'),
       );
       final us = await engine.synthesize(
         text,
@@ -117,9 +122,9 @@ void main() {
         '[Kokoro Test] US bytes=${await usFile.length()} sr=${us.sampleRate}',
       );
 
-      // 英音（bf_emma）。
+      // 英音（bf_vale）。
       await engine.applyConfig(
-        const TtsSpeechConfig(languageTag: 'en-GB', voiceName: 'bf_emma'),
+        const TtsSpeechConfig(languageTag: 'en-GB', voiceName: 'bf_vale'),
       );
       final uk = await engine.synthesize(
         text,
@@ -151,6 +156,28 @@ void main() {
       addTearDown(engine.dispose);
       expect(await engine.speakLive('hello'), isFalse);
     });
+
+    testWidgets('中文与中英混合文本可合成', (tester) async {
+      if (!modelReady) {
+        markTestSkipped('Kokoro 模型不可用');
+        return;
+      }
+      final engine = KokoroTtsEngine(resolvePaths: manager.kokoroConfigPaths);
+      addTearDown(engine.dispose);
+      await engine.applyConfig(
+        const TtsSpeechConfig(languageTag: 'zh-CN', voiceName: 'zf_001'),
+      );
+      final result = await engine.synthesize(
+        '你好，我正在学习 machine learning。今天很开心！',
+        outputDir: outDir.path,
+        baseName: 'kokoro_zh_mixed',
+      );
+      expect(result, isNotNull, reason: '中英混合合成应成功');
+      expect(await File(result!.filePath).length(), greaterThan(1000));
+      debugPrint(
+        '[Kokoro Test] ZH mixed bytes=${await File(result.filePath).length()}',
+      );
+    });
   });
 
   group('统一管线端到端（文本 → 协调器 → 引擎 → 缓存 → 播放）', () {
@@ -170,8 +197,8 @@ void main() {
 
       _CountingEngine? counting;
       final coordinator = TtsCoordinator(
-        factory: (kind) {
-          // 本测试只用 echoLoop。
+        factory: (kind, config) {
+          // 本测试只用 kokoro。
           final inner = KokoroTtsEngine(
             resolvePaths: manager.kokoroConfigPaths,
           );
@@ -183,11 +210,8 @@ void main() {
       );
       addTearDown(coordinator.dispose);
 
-      const config = TtsSpeechConfig(
-        languageTag: 'en-US',
-        voiceName: 'af_sarah',
-      );
-      await coordinator.configure(TtsEngineKind.echoLoop, config);
+      const config = TtsSpeechConfig(languageTag: 'en-US', voiceName: 'af_sol');
+      await coordinator.configure(TtsEngineKind.kokoro, config);
 
       const text = 'Learning English with Echo Loop is really fun.';
 
@@ -199,9 +223,9 @@ void main() {
       // 缓存确实落库且文件存在。
       final cacheKey = cacheStore.deriveKey(
         text: text,
-        engine: TtsEngineKind.echoLoop,
+        engine: TtsEngineKind.kokoro,
         voiceId: config.voiceId,
-        speed: config.rate,
+        speed: config.speed,
       );
       final cachedFile = await cacheStore.lookup(cacheKey);
       expect(cachedFile, isNotNull, reason: '合成结果应入缓存');

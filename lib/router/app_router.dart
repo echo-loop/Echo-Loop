@@ -29,6 +29,7 @@ import '../features/podcast/screens/podcast_preview_screen.dart';
 import '../features/onboarding_survey/providers/onboarding_survey_provider.dart';
 import '../features/onboarding_survey/screens/onboarding_survey_screen.dart';
 import '../features/subtitle_editor/subtitle_simple_editor_screen.dart';
+import '../features/text_to_lesson/screens/text_lesson_screen.dart';
 import '../models/audio_item.dart';
 import '../providers/audio_library_provider.dart';
 import '../services/app_logger.dart';
@@ -168,6 +169,9 @@ abstract class AppRoutes {
 
   /// 收藏词汇（单词+意群）调度式复习页路径
   static const favoriteVocabularyReview = '/favorite-vocabulary-review';
+
+  /// 纯文本转学习材料页面。
+  static const textToLesson = '/text-to-lesson';
 
   /// 活动日历页路径
   static const activityCalendar = '/activity-calendar';
@@ -570,6 +574,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.account,
         parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) => const AccountScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.textToLesson,
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) => const TextLessonScreen(),
       ),
       GoRoute(
         path: AppRoutes.paywall,

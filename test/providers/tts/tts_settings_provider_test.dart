@@ -167,30 +167,30 @@ void main() {
       addTearDown(c.dispose);
       final notifier = c.read(ttsSettingsProvider.notifier);
 
-      await notifier.setKokoroVoice(TtsAccent.us, 'am_adam');
-      expect(c.read(ttsSettingsProvider).kokoroVoiceUs, 'am_adam');
-      await notifier.setKokoroVoice(TtsAccent.uk, 'bm_lewis');
-      expect(c.read(ttsSettingsProvider).kokoroVoiceUk, 'bm_lewis');
+      await notifier.setKokoroVoice(TtsAccent.us, 'af_maple');
+      expect(c.read(ttsSettingsProvider).kokoroVoiceUs, 'af_maple');
+      await notifier.setKokoroVoice(TtsAccent.uk, 'bf_vale');
+      expect(c.read(ttsSettingsProvider).kokoroVoiceUk, 'bf_vale');
 
       // 美音口音传英音音色 → 忽略。
-      await notifier.setKokoroVoice(TtsAccent.us, 'bm_lewis');
-      expect(c.read(ttsSettingsProvider).kokoroVoiceUs, 'am_adam');
+      await notifier.setKokoroVoice(TtsAccent.us, 'bf_vale');
+      expect(c.read(ttsSettingsProvider).kokoroVoiceUs, 'af_maple');
 
       final saved = await SharedPreferences.getInstance();
-      expect(saved.getString(TtsSettingsKeys.kokoroVoiceUs), 'am_adam');
-      expect(saved.getString(TtsSettingsKeys.kokoroVoiceUk), 'bm_lewis');
+      expect(saved.getString(TtsSettingsKeys.kokoroVoiceUs), 'af_maple');
+      expect(saved.getString(TtsSettingsKeys.kokoroVoiceUk), 'bf_vale');
     });
   });
 
   group('Kokoro 音色 / toSpeechConfig', () {
-    test('默认音色：美音 af_sarah，英音 bf_emma', () {
+    test('默认音色：美音 af_sol，英音 bf_vale', () {
       const s = TtsSettings();
-      expect(s.kokoroVoiceUs, 'af_sarah');
-      expect(s.kokoroVoiceUk, 'bf_emma');
-      expect(s.activeKokoroVoice, 'af_sarah');
+      expect(s.kokoroVoiceUs, 'af_sol');
+      expect(s.kokoroVoiceUk, 'bf_vale');
+      expect(s.activeKokoroVoice, 'af_sol');
       expect(
         const TtsSettings(accent: TtsAccent.uk).activeKokoroVoice,
-        'bf_emma',
+        'bf_vale',
       );
     });
 
@@ -198,9 +198,9 @@ void main() {
       const s = TtsSettings(
         engine: TtsEngineKind.kokoro,
         accent: TtsAccent.uk,
-        kokoroVoiceUk: 'bm_george',
+        kokoroVoiceUk: 'bf_vale',
       );
-      expect(s.toSpeechConfig().voiceName, 'bm_george');
+      expect(s.toSpeechConfig().voiceName, 'bf_vale');
     });
 
     test('平台引擎 → config 不带 voiceName', () {
@@ -210,13 +210,13 @@ void main() {
 
     test('fromPrefsSync 非法/不匹配音色 → 回退该口音默认', () async {
       SharedPreferences.setMockInitialValues({
-        TtsSettingsKeys.kokoroVoiceUs: 'bm_lewis', // 英音 id 放美音槽 → 回退
+        TtsSettingsKeys.kokoroVoiceUs: 'bm_lewis', // 已移除的英文 id → 回退
         TtsSettingsKeys.kokoroVoiceUk: 'bogus',
       });
       final prefs = await SharedPreferences.getInstance();
       final s = TtsSettings.fromPrefsSync(prefs);
-      expect(s.kokoroVoiceUs, 'af_sarah');
-      expect(s.kokoroVoiceUk, 'bf_emma');
+      expect(s.kokoroVoiceUs, 'af_sol');
+      expect(s.kokoroVoiceUk, 'bf_vale');
     });
   });
 
@@ -225,14 +225,14 @@ void main() {
       expect(const TtsSettings().kokoroVariant, KokoroModelVariant.fp32);
     });
 
-    test('kokoro → config.modelTag 为变体名；平台 → null', () {
+    test('kokoro → config.modelTag 为模型 ID；平台 → null', () {
       const fp = TtsSettings(engine: TtsEngineKind.kokoro);
-      expect(fp.toSpeechConfig().modelTag, 'fp32');
+      expect(fp.toSpeechConfig().modelTag, 'kokoro-multi-lang-v1_1');
       const i8 = TtsSettings(
         engine: TtsEngineKind.kokoro,
         kokoroVariant: KokoroModelVariant.int8,
       );
-      expect(i8.toSpeechConfig().modelTag, 'int8');
+      expect(i8.toSpeechConfig().modelTag, 'kokoro-int8-multi-lang-v1_1');
       const plat = TtsSettings(engine: TtsEngineKind.platform);
       expect(plat.toSpeechConfig().modelTag, isNull);
     });
@@ -266,6 +266,30 @@ void main() {
         TtsSettings.fromPrefsSync(prefs).kokoroVariant,
         KokoroModelVariant.fp32,
       );
+    });
+  });
+
+  group('本地 TTS 语速', () {
+    test('默认 1.0，toSpeechConfig 透传 speed', () {
+      const s = TtsSettings(engine: TtsEngineKind.kokoro, speed: 1.3);
+      expect(s.speed, 1.3);
+      expect(s.toSpeechConfig().speed, 1.3);
+    });
+
+    test('setSpeed 夹到 0.5..2.0 并写 SP', () async {
+      SharedPreferences.setMockInitialValues({});
+      final prefs = await SharedPreferences.getInstance();
+      final c = makeContainer(prefs);
+      addTearDown(c.dispose);
+      final notifier = c.read(ttsSettingsProvider.notifier);
+
+      await notifier.setSpeed(3.0);
+      expect(c.read(ttsSettingsProvider).speed, 2.0);
+      await notifier.setSpeed(0.1);
+      expect(c.read(ttsSettingsProvider).speed, 0.5);
+
+      final saved = await SharedPreferences.getInstance();
+      expect(saved.getDouble(TtsSettingsKeys.speed), 0.5);
     });
   });
 

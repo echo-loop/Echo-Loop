@@ -21,9 +21,6 @@ import 'piper_synthesizer.dart';
 import 'piper_model_catalog.dart';
 import 'tts_engine.dart';
 
-/// Piper 合成语速（sherpa 的 speed 为倍率，1.0 = 正常）。
-const double _piperSpeed = 1.0;
-
 /// Piper 推理线程数（纯 CPU）。按设备 CPU 核心数分档（与离线 ASR 同策略，
 /// 见 `AsrModelConfig.recommendedThreads`）：
 /// cores ≥ 8 → 6 线程，cores ≥ 6 → 4 线程，其他 → 2 线程。不占满 CPU。
@@ -93,7 +90,7 @@ class PiperTtsEngine implements TtsEngine {
         paths: paths,
         voiceId: voiceId,
         text: text,
-        speed: _piperSpeed,
+        speed: (effective?.speed ?? 1.0).clamp(0.5, 2.0).toDouble(),
         outputPath: outputPath,
       );
       if (sampleRate == null) {
