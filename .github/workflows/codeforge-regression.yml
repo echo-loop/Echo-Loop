@@ -1,0 +1,63 @@
+name: CodeForge regression
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: codeforge-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  codeforge:
+    name: CodeForge regression
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+
+      - name: Expose pull request diff to CodeForge --changed
+        shell: bash
+        run: |
+          git fetch --no-tags origin "${{ github.event.pull_request.base.sha }}"
+          git reset --soft "${{ github.event.pull_request.base.sha }}"
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache CodeForge v0.2.1 build inputs
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: codeforge-v0.2.1-${{ runner.os }}-${{ runner.arch }}
+
+      - name: Install CodeForge Engine v0.2.1
+        shell: bash
+        run: |
+          if ! command -v codeforge >/dev/null 2>&1 || [ "$(codeforge --version)" != "codeforge 0.2.1" ]; then
+            cargo install --git https://github.com/styayur/codeforge-engine --tag v0.2.1 --locked codeforge-cli
+          fi
+
+      - name: Run CodeForge regression gate
+        shell: bash
+        run: |
+          codeforge ci \
+            --changed \
+            --baseline .codeforge/baseline.json \
+            --fail-on new \
+            --sarif codeforge.sarif \
+            --new-only
+
+      - name: Upload CodeForge SARIF
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: codeforge-sarif
+          path: codeforge.sarif
+          if-no-files-found: ignore

@@ -148,6 +148,11 @@ jobs:
             runner: ubuntu-latest
 
     runs-on: ${{ matrix.runner }}
+    env:
+      ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+      ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+      ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+      ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
 
     steps:
       - uses: actions/checkout@v4
@@ -197,7 +202,7 @@ jobs:
           java-version: '17'
 
       - name: Restore Android signing config
-        if: matrix.platform == 'android'
+        if: matrix.platform == 'android' && env.ANDROID_KEYSTORE_BASE64 != ''
         env:
           ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
@@ -213,10 +218,22 @@ jobs:
           EOF
 
       - name: Build Android APK
-        if: matrix.platform == 'android'
+        if: matrix.platform == 'android' && env.ANDROID_KEYSTORE_BASE64 != ''
         run: |
           flutter clean
           flutter build apk --release --flavor=prod \
+            --target-platform android-arm64 \
+            --dart-define=API_BASE_URL=${{ vars.API_BASE_URL }} \
+            --dart-define=POSTHOG_HOST=${{ vars.POSTHOG_HOST }} \
+            --dart-define=SUPABASE_URL=${{ vars.SUPABASE_URL }} \
+            --dart-define=SUPABASE_PUBLISHABLE_KEY=${{ vars.SUPABASE_PUBLISHABLE_KEY }} \
+            --dart-define=GOOGLE_WEB_CLIENT_ID=${{ vars.GOOGLE_WEB_CLIENT_ID }}
+
+      - name: Build Android debug APK without signing secrets
+        if: matrix.platform == 'android' && env.ANDROID_KEYSTORE_BASE64 == ''
+        run: |
+          flutter clean
+          flutter build apk --debug --flavor=dev \
             --target-platform android-arm64 \
             --dart-define=API_BASE_URL=${{ vars.API_BASE_URL }} \
             --dart-define=POSTHOG_HOST=${{ vars.POSTHOG_HOST }} \

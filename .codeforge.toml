@@ -1,0 +1,19 @@
+[commands.format]
+program = "dart"
+args = ["format", "--output=none", "--set-exit-if-changed", "."]
+timeout_secs = 300
+
+[commands.lint]
+program = "flutter"
+args = ["analyze", "--no-fatal-warnings", "--no-fatal-infos", "lib", "test"]
+timeout_secs = 900
+
+[commands.test]
+program = "flutter"
+args = ["test", "--concurrency=1"]
+timeout_secs = 1800
+
+[commands.build]
+program = "flutter"
+args = ["build", "apk", "--debug"]
+timeout_secs = 1800
