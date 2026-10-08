@@ -4,9 +4,6 @@
 /// 下载与安装行为由 ASR 专属归档安装器负责。
 library;
 
-/// ASR 模型 CDN 基地址。
-const asrCdnBaseUrl = 'https://cdn.echo-loop.top';
-
 /// 所有 Whisper 模型共享的 VAD 资源 ID。
 const vadModelId = 'silero-vad';
 

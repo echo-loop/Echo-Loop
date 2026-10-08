@@ -13,6 +13,7 @@ import '../resource_archive_installer.dart';
 import '../resource_install_manifest.dart';
 import 'pronunciation_catalog.dart';
 import 'pronunciation_repository.dart';
+import '../runtime_endpoint_router.dart';
 
 class PronunciationLibraryPaths {
   const PronunciationLibraryPaths({
@@ -25,11 +26,16 @@ class PronunciationLibraryPaths {
 
 /// 发音资源包下载、校验与安装管理器。
 class PronunciationLibraryManager {
-  PronunciationLibraryManager({Dio? dio, String? url, String? sha256})
-    : _dio = dio ?? Dio(),
-      _ownsDio = dio == null,
-      _url = url ?? pronunciationSpec.archiveUrl,
-      _sha256 = sha256 ?? pronunciationSpec.archiveSha256 {
+  PronunciationLibraryManager({
+    Dio? dio,
+    String? url,
+    String? sha256,
+    RuntimeEndpointRouter? endpointRouter,
+  }) : _dio = dio ?? Dio(),
+       _ownsDio = dio == null,
+       _endpointRouter = endpointRouter ?? runtimeEndpointRouter,
+       _urlOverride = url,
+       _sha256 = sha256 ?? pronunciationSpec.archiveSha256 {
     _downloader = DioReliableHttpDownloader(dio: _dio);
     _installer = ResourceArchiveInstaller(_downloader);
   }
@@ -39,19 +45,22 @@ class PronunciationLibraryManager {
     ReliableHttpDownloader downloader, {
     String? url,
     String? sha256,
+    RuntimeEndpointRouter? endpointRouter,
   }) : _dio = Dio(),
        _ownsDio = true,
+       _endpointRouter = endpointRouter ?? runtimeEndpointRouter,
        _downloader = downloader,
-       _url = url ?? pronunciationSpec.archiveUrl,
+       _urlOverride = url,
        _sha256 = sha256 ?? pronunciationSpec.archiveSha256 {
     _installer = ResourceArchiveInstaller(_downloader);
   }
 
   final Dio _dio;
   final bool _ownsDio;
+  final RuntimeEndpointRouter _endpointRouter;
   late final ReliableHttpDownloader _downloader;
   late final ResourceArchiveInstaller _installer;
-  final String _url;
+  final String? _urlOverride;
   final String _sha256;
 
   Future<String> _root() async =>
@@ -130,7 +139,9 @@ class PronunciationLibraryManager {
       target: Directory(root),
       downloadDirectory: Directory(p.join(root, '.download')),
       resourceId: pronunciationSpec.resourceId,
-      uri: Uri.parse(_url),
+      uri: _urlOverride == null
+          ? _endpointRouter.modelCdnUri(pronunciationSpec.archivePath)
+          : Uri.parse(_urlOverride),
       expectedSha256: _sha256,
       cancelToken: cancelToken,
       onProgress: onDownloadProgress,

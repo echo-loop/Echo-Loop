@@ -15,28 +15,37 @@ import 'app_logger.dart';
 import 'reliable_http_downloader.dart';
 import 'resource_archive_installer.dart';
 import 'resource_install_manifest.dart';
+import 'runtime_endpoint_router.dart';
 
 /// 词典下载管理器
 class DictionaryDownloadManager {
-  DictionaryDownloadManager({this.specs = dictionarySpecs})
-    : _dio = Dio(
-        BaseOptions(
-          connectTimeout: const Duration(seconds: 15),
-          receiveTimeout: const Duration(minutes: 5),
-        ),
-      ) {
+  DictionaryDownloadManager({
+    this.specs = dictionarySpecs,
+    RuntimeEndpointRouter? endpointRouter,
+  }) : _endpointRouter = endpointRouter ?? runtimeEndpointRouter,
+       _dio = Dio(
+         BaseOptions(
+           connectTimeout: const Duration(seconds: 15),
+           receiveTimeout: const Duration(minutes: 5),
+         ),
+       ) {
     _downloader = DioReliableHttpDownloader(dio: _dio);
     _installer = ResourceArchiveInstaller(_downloader);
   }
 
   /// 测试用构造器
   @visibleForTesting
-  DictionaryDownloadManager.withDio(this._dio, {this.specs = dictionarySpecs}) {
+  DictionaryDownloadManager.withDio(
+    this._dio, {
+    this.specs = dictionarySpecs,
+    RuntimeEndpointRouter? endpointRouter,
+  }) : _endpointRouter = endpointRouter ?? runtimeEndpointRouter {
     _downloader = DioReliableHttpDownloader(dio: _dio);
     _installer = ResourceArchiveInstaller(_downloader);
   }
 
   final Dio _dio;
+  final RuntimeEndpointRouter _endpointRouter;
   final Map<String, DictionarySpec> specs;
 
   /// `ReliableHttpDownloader` 接口本身不提供释放能力，[dispose] 需要靠持有
@@ -98,7 +107,7 @@ class DictionaryDownloadManager {
         root: root,
         target: Directory(dir),
         resourceId: spec.resourceId,
-        uri: Uri.parse(spec.archiveUrl),
+        uri: _endpointRouter.modelCdnUri(spec.archivePath),
         expectedSha256: spec.archiveSha256,
         cancelToken: cancelToken,
         onProgress: onProgress,

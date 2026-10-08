@@ -27,9 +27,6 @@ class KokoroModelSpec {
   });
 }
 
-/// Kokoro 模型 CDN 基地址。
-const kokoroCdnBaseUrl = 'https://cdn.echo-loop.top';
-
 /// 默认 Kokoro 模型变体。
 const kokoroDefaultVariant = KokoroModelVariant.fp32;
 

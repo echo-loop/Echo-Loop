@@ -8,11 +8,13 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:echo_loop/config/regional_service_endpoints.dart';
 import 'package:echo_loop/services/dictionary_download_manager.dart';
 import 'package:echo_loop/services/dictionary/dictionary_catalog.dart';
 import 'package:echo_loop/services/app_logger.dart';
 import 'package:echo_loop/services/reliable_http_downloader.dart';
 import 'package:echo_loop/services/resource_install_manifest.dart';
+import 'package:echo_loop/services/runtime_endpoint_router.dart';
 
 /// 按固定下载 URL 返回预置 ZIP；其余请求 404。
 class _MockAdapter implements HttpClientAdapter {
@@ -20,11 +22,13 @@ class _MockAdapter implements HttpClientAdapter {
     required this.downloadUrl,
     this.payload,
     this.downloadStatusCode = 200,
+    this.requestUris,
   });
 
   final String downloadUrl;
   final List<int>? payload;
   final int downloadStatusCode;
+  final List<Uri>? requestUris;
 
   @override
   Future<ResponseBody> fetch(
@@ -32,7 +36,8 @@ class _MockAdapter implements HttpClientAdapter {
     Stream<List<int>>? requestStream,
     Future<void>? cancelFuture,
   ) async {
-    if (options.path == downloadUrl) {
+    requestUris?.add(options.uri);
+    if (options.path == downloadUrl || options.uri.toString() == downloadUrl) {
       if (downloadStatusCode != 200 || payload == null) {
         return ResponseBody(
           const Stream.empty(),
@@ -60,9 +65,8 @@ void main() {
 
   test('catalog 包含当前两种语言的固定版本资源', () {
     expect(
-      dictionarySpecOf('zh-CN').archiveUrl,
-      'https://cdn.echo-loop.top/dictionary/en_zh-CN/'
-      'dict_en_zh-CN-v1.sqlite.zip',
+      dictionarySpecOf('zh-CN').archivePath,
+      'dictionary/en_zh-CN/dict_en_zh-CN-v1.sqlite.zip',
     );
     expect(
       dictionarySpecOf('zh-CN').archiveSha256,
@@ -104,18 +108,23 @@ void main() {
     }
   });
 
-  DictionaryDownloadManager manager(_MockAdapter adapter) {
+  DictionaryDownloadManager manager(
+    _MockAdapter adapter, {
+    RuntimeEndpointRouter? endpointRouter,
+    String? archivePath,
+  }) {
     final dio = Dio();
     dio.httpClientAdapter = adapter;
     final zip = _dictionaryArchivePayload();
     final sha = sha256.convert(zip).toString();
     return DictionaryDownloadManager.withDio(
       dio,
+      endpointRouter: endpointRouter,
       specs: {
         'zh': DictionarySpec(
           nativeLanguage: 'zh',
           resourceId: 'dict-en_zh-v1',
-          archiveUrl: adapter.downloadUrl,
+          archivePath: archivePath ?? adapter.downloadUrl,
           archiveSha256: sha,
           estimatedDownloadBytes: zip.length,
         ),
@@ -150,6 +159,34 @@ void main() {
       ),
       isTrue,
     );
+  });
+
+  test('下载使用注入路由器选择的中国 CDN 地址', () async {
+    final payload = _dictionaryArchivePayload();
+    final requestedUris = <Uri>[];
+    final adapter = _MockAdapter(
+      downloadUrl: 'https://china-cdn.example/dictionary/test.sqlite.zip',
+      payload: payload,
+      requestUris: requestedUris,
+    );
+    final router = RuntimeEndpointRouter(
+      endpoints: const RegionalServiceEndpoints(
+        globalApiBaseUrl: 'https://global-api.example',
+        chinaApiBaseUrl: 'https://china-api.example',
+        globalModelCdnBaseUrl: 'https://global-cdn.example',
+        chinaModelCdnBaseUrl: 'https://china-cdn.example',
+      ),
+    )..updateFromUserRegion(isChinaUser: true);
+    final downloadManager = manager(
+      adapter,
+      endpointRouter: router,
+      archivePath: 'dictionary/test.sqlite.zip',
+    );
+
+    await downloadManager.download('zh');
+
+    expect(requestedUris.single.host, 'china-cdn.example');
+    expect(requestedUris.single.path, '/dictionary/test.sqlite.zip');
   });
 
   test('归档下载网络失败 → 抛结构化 ReliableDownloadException(httpStatus) 且不留残留', () async {

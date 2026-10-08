@@ -1,12 +1,10 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart' show Ref;
 import 'package:riverpod_annotation/riverpod_annotation.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-
-import '../../../analytics/geo_interceptor.dart';
 import '../../../config/api_config.dart';
 import '../../../providers/package_info_provider.dart';
 import '../../../services/backend_dio.dart';
+import '../../../services/runtime_endpoint_router.dart';
 import '../models/community_collection_models.dart';
 
 part 'community_collection_api.g.dart';
@@ -42,18 +40,18 @@ class CommunityCollectionNotFound implements Exception {
 class CommunityCollectionApi {
   final Dio _dio;
 
-  CommunityCollectionApi({required String baseUrl, String? appVersion})
-    : _dio = createBackendDio(
-        baseUrl: baseUrl,
-        appVersion: appVersion,
-        connectTimeout: const Duration(seconds: 15),
-        receiveTimeout: const Duration(seconds: 30),
-        apiLogTag: 'COMMUNITY-COLLECTION',
-      ) {
-    SharedPreferences.getInstance().then(
-      (prefs) => _dio.interceptors.add(GeoInterceptor(prefs)),
-    );
-  }
+  CommunityCollectionApi({
+    required String baseUrl,
+    String? appVersion,
+    RuntimeEndpointRouter? endpointRouter,
+  }) : _dio = createBackendDio(
+         baseUrl: baseUrl,
+         endpointRouter: endpointRouter,
+         appVersion: appVersion,
+         connectTimeout: const Duration(seconds: 15),
+         receiveTimeout: const Duration(seconds: 30),
+         apiLogTag: 'COMMUNITY-COLLECTION',
+       );
 
   /// 测试用构造，允许注入 Dio。
   CommunityCollectionApi.withDio(this._dio);
@@ -177,6 +175,7 @@ String? _nullableString(Map<String, Object?> json, String key) {
 CommunityCollectionApi communityCollectionApi(Ref ref) {
   return CommunityCollectionApi(
     baseUrl: apiBaseUrl,
+    endpointRouter: runtimeEndpointRouter,
     appVersion: readAppVersion(ref),
   );
 }

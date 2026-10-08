@@ -11,12 +11,9 @@ import 'package:echo_loop/services/client_info.dart';
 import 'package:echo_loop/services/sentence_ai_api_client.dart';
 import 'package:echo_loop/services/transcription_api_client.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
-  // 真实构造函数会挂 GeoInterceptor（内部取 SharedPreferences），需 mock 初始化。
   TestWidgetsFlutterBinding.ensureInitialized();
-  setUp(() => SharedPreferences.setMockInitialValues({}));
 
   group('clientPlatformName', () {
     test('返回后端约定的合法平台名（与 normalizePlatform 集合一致）', () {

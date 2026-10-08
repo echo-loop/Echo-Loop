@@ -8,14 +8,16 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
 import 'package:sqlite3/sqlite3.dart';
 
+import 'package:echo_loop/config/regional_service_endpoints.dart';
 import 'package:echo_loop/services/pronunciation/pronunciation_library_manager.dart';
 import 'package:echo_loop/services/pronunciation/pronunciation_catalog.dart';
 import 'package:echo_loop/services/reliable_http_downloader.dart';
+import 'package:echo_loop/services/runtime_endpoint_router.dart';
 
 class _BytesDownloader implements ReliableHttpDownloader {
   _BytesDownloader(this.bytes);
   final List<int> bytes;
-  final calls = <({bool allowResume, String savePath})>[];
+  final calls = <({Uri uri, bool allowResume, String savePath})>[];
 
   @override
   Future<ReliableDownloadResult> download({
@@ -28,7 +30,7 @@ class _BytesDownloader implements ReliableHttpDownloader {
     cancelToken,
     void Function(int receivedBytes, int? totalBytes)? onProgress,
   }) async {
-    calls.add((allowResume: allowResume, savePath: savePath));
+    calls.add((uri: uri, allowResume: allowResume, savePath: savePath));
     final part = File('$savePath.part');
     if (part.existsSync()) await part.delete();
     final meta = File('$savePath.part.meta.json');
@@ -41,6 +43,18 @@ class _BytesDownloader implements ReliableHttpDownloader {
       resumed: false,
     );
   }
+}
+
+Future<RuntimeEndpointRouter> _routerWithChinaCdn() async {
+  final router = RuntimeEndpointRouter(
+    endpoints: const RegionalServiceEndpoints(
+      globalApiBaseUrl: 'https://global-api.example',
+      chinaApiBaseUrl: 'https://china-api.example',
+      globalModelCdnBaseUrl: 'https://global-cdn.example',
+      chinaModelCdnBaseUrl: 'https://china-cdn.example',
+    ),
+  );
+  return router..updateFromUserRegion(isChinaUser: true);
 }
 
 void main() {
@@ -84,6 +98,7 @@ void main() {
       final manager = PronunciationLibraryManager.withDownloader(
         downloader,
         sha256: digest,
+        endpointRouter: await _routerWithChinaCdn(),
       );
       Directory(
         p.join(support.path, 'pronunciation', 'v1'),
@@ -102,6 +117,11 @@ void main() {
         isFalse,
       );
       expect(downloader.calls.single.allowResume, isTrue);
+      expect(downloader.calls.single.uri.host, 'china-cdn.example');
+      expect(
+        downloader.calls.single.uri.path,
+        '/dictionary/pronunciation-v2.zip',
+      );
       manager.dispose();
     },
   );

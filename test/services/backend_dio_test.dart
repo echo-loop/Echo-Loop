@@ -13,6 +13,8 @@ import 'package:echo_loop/services/api_log_interceptor.dart';
 import 'package:echo_loop/services/client_info.dart';
 import 'package:echo_loop/services/supabase_token_coordinator.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:echo_loop/config/regional_service_endpoints.dart';
+import 'package:echo_loop/services/runtime_endpoint_router.dart';
 
 class _AuthSource implements AuthSessionSource {
   _AuthSource(this.snapshot);
@@ -49,6 +51,7 @@ class _RecordingAdapter implements HttpClientAdapter {
 
   final List<int> statusCodes;
   final headers = <Map<String, Object?>>[];
+  final requestUris = <Uri>[];
 
   @override
   Future<ResponseBody> fetch(
@@ -57,6 +60,7 @@ class _RecordingAdapter implements HttpClientAdapter {
     Future<void>? cancelFuture,
   ) async {
     headers.add(Map<String, Object?>.from(options.headers));
+    requestUris.add(options.uri);
     final status = statusCodes.removeAt(0);
     return ResponseBody.fromString(
       '{}',
@@ -73,6 +77,33 @@ class _RecordingAdapter implements HttpClientAdapter {
 
 void main() {
   group('createBackendDio', () {
+    test('API 区域跟随 UserRegion 更新', () async {
+      final router = RuntimeEndpointRouter(
+        endpoints: const RegionalServiceEndpoints(
+          globalApiBaseUrl: 'https://global-api.example',
+          chinaApiBaseUrl: 'https://china-api.example',
+          globalModelCdnBaseUrl: 'https://global-cdn.example',
+          chinaModelCdnBaseUrl: 'https://china-cdn.example',
+        ),
+      );
+      final adapter = _RecordingAdapter([200, 200, 200]);
+      final dio = createBackendDio(
+        baseUrl: 'https://global-api.example',
+        endpointRouter: router,
+      )..httpClientAdapter = adapter;
+
+      await dio.get<Object?>('/before-routing-change');
+      await dio.get<Object?>('/after-routing-change');
+      router.updateFromUserRegion(isChinaUser: true);
+      router.markApiRegionAvailable(ServiceEndpointRegion.china);
+      await dio.get<Object?>('/after-user-region-update');
+
+      expect(adapter.requestUris[0].host, 'global-api.example');
+      expect(adapter.requestUris[1].host, 'global-api.example');
+      expect(adapter.requestUris[2].host, 'china-api.example');
+      dio.close();
+    });
+
     test('BaseOptions.headers 与 clientInfoHeaders 一致（携带平台/渠道/版本）', () {
       final dio = createBackendDio(
         baseUrl: 'https://example.com',

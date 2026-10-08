@@ -8,6 +8,7 @@ import 'package:dio/dio.dart';
 
 import '../../../config/api_config.dart';
 import '../../../services/backend_dio.dart';
+import '../../../services/runtime_endpoint_router.dart';
 import '../../baidu_netdisk/models/baidu_credential_bundle.dart';
 import '../../baidu_netdisk/models/baidu_netdisk_error.dart';
 import '../../baidu_netdisk/models/baidu_oauth_session.dart';
@@ -40,12 +41,16 @@ abstract interface class BaiduOAuthApi {
 /// 自家后端实现。
 class BackendBaiduOAuthApi implements BaiduOAuthApi {
   /// 构造后端 OAuth API。
-  BackendBaiduOAuthApi({required String baseUrl, String? appVersion})
-    : _dio = createBackendDio(
-        baseUrl: baseUrl,
-        appVersion: appVersion,
-        apiLogTag: 'BAIDU-OAUTH',
-      );
+  BackendBaiduOAuthApi({
+    required String baseUrl,
+    String? appVersion,
+    RuntimeEndpointRouter? endpointRouter,
+  }) : _dio = createBackendDio(
+         baseUrl: baseUrl,
+         endpointRouter: endpointRouter,
+         appVersion: appVersion,
+         apiLogTag: 'BAIDU-OAUTH',
+       );
 
   /// 测试用构造。
   BackendBaiduOAuthApi.withDio(this._dio);
@@ -127,5 +132,9 @@ class BackendBaiduOAuthApi implements BaiduOAuthApi {
 
 /// 默认后端 OAuth API。
 BackendBaiduOAuthApi createDefaultBaiduOAuthApi({String? appVersion}) {
-  return BackendBaiduOAuthApi(baseUrl: apiBaseUrl, appVersion: appVersion);
+  return BackendBaiduOAuthApi(
+    baseUrl: apiBaseUrl,
+    appVersion: appVersion,
+    endpointRouter: runtimeEndpointRouter,
+  );
 }

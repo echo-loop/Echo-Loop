@@ -9,12 +9,11 @@ import 'dart:convert';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart' show visibleForTesting;
-import 'package:shared_preferences/shared_preferences.dart';
 
-import '../../../analytics/geo_interceptor.dart';
 import '../../../services/ai_http_client_adapter.dart';
 import '../../../services/app_logger.dart';
 import '../../../services/backend_dio.dart';
+import '../../../services/runtime_endpoint_router.dart';
 import '../../../services/ndjson_stream.dart';
 import '../../../services/supabase_token_coordinator.dart';
 import '../models/chat_message.dart';
@@ -61,11 +60,13 @@ class ChatApiClient implements ChatApi {
     required String baseUrl,
     String? appVersion,
     SupabaseTokenCoordinator? tokenCoordinator,
+    RuntimeEndpointRouter? endpointRouter,
     bool http2Enabled = aiHttp2EnabledByDefault,
     void Function(String message)? streamLogPrint,
   }) : _dio = createAuthenticatedBackendDio(
          tokenCoordinator: tokenCoordinator,
          baseUrl: baseUrl,
+         endpointRouter: endpointRouter,
          appVersion: appVersion,
          connectTimeout: const Duration(seconds: 15),
          receiveTimeout: const Duration(seconds: 30),
@@ -77,10 +78,6 @@ class ChatApiClient implements ChatApi {
       _dio,
       baseUrl: baseUrl,
       http2Enabled: http2Enabled,
-    );
-    // 异步添加 GeoInterceptor（SharedPreferences 在 main() 中已初始化）。
-    SharedPreferences.getInstance().then(
-      (prefs) => _dio.interceptors.add(GeoInterceptor(prefs)),
     );
   }
 

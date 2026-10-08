@@ -7,7 +7,6 @@ import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:universal_io/io.dart';
 
-import '../config/api_config.dart';
 import '../features/auth/providers/auth_providers.dart';
 import '../features/subscription/models/ai_quota_rejection.dart';
 import '../features/subscription/models/premium_feature.dart';
@@ -19,6 +18,7 @@ import '../models/retell_review_sample.dart';
 import '../services/app_logger.dart';
 import '../services/retell_review_audio_preparer.dart';
 import '../services/sentence_ai_api_client.dart';
+import '../services/runtime_endpoint_router.dart';
 
 const _maxReviewAudioBytes = 2 * 1024 * 1024;
 
@@ -193,7 +193,8 @@ class RetellReviewEvaluationController
     } catch (error, stackTrace) {
       AppLogger.log(
         'RetellReview',
-        '评估失败: error=$error stack=$stackTrace baseUrl=$apiBaseUrl',
+        '评估失败: error=$error stack=$stackTrace '
+            'baseUrl=${runtimeEndpointRouter.apiBaseUrl}',
       );
       _setFailure(generation, attemptKey, 'request_failed');
     } finally {

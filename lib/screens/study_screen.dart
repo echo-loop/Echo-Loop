@@ -8,7 +8,7 @@ import '../analytics/analytics_providers.dart';
 import '../analytics/models/event_names.dart';
 import '../features/usage/usage_event.dart';
 import '../features/usage/usage_providers.dart';
-import '../config/api_config.dart';
+import '../services/runtime_endpoint_router.dart';
 import '../database/daos/stage_completion_dao.dart';
 import '../database/enums.dart';
 import '../l10n/app_localizations.dart';
@@ -814,13 +814,14 @@ class _CommunityInviteCard extends ConsumerWidget {
           child: InkWell(
             splashColor: palette.inkSplash,
             highlightColor: palette.inkHighlight,
-            onTap: () {
+            onTap: () async {
               ref
                   .read(analyticsServiceProvider)
                   .track(Events.communityInviteTapped);
               final isZh = Localizations.localeOf(context).languageCode == 'zh';
               final path = isZh ? '/zh-CN/social' : '/en/social';
-              launchUrl(Uri.parse('$apiBaseUrl$path'));
+              final uri = runtimeEndpointRouter.apiUri(path);
+              await launchUrl(uri);
             },
             child: Padding(
               padding: const EdgeInsets.symmetric(

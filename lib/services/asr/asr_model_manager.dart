@@ -16,6 +16,7 @@ import '../reliable_http_downloader.dart';
 import '../resource_install_manifest.dart';
 import 'asr_archive_installer.dart';
 import 'asr_model_catalog.dart';
+import '../runtime_endpoint_router.dart';
 import 'offline_asr_engine.dart';
 
 /// 旧版逐文件安装布局的文件元数据，仅用于迁移和兼容校验。
@@ -140,9 +141,11 @@ class AsrModelManager {
   AsrModelManager({
     Dio? dio,
     this.baseUrlOverride,
+    RuntimeEndpointRouter? endpointRouter,
     Map<String, AsrModelResourceSpec>? resourceRegistryOverride,
     this.modelsRootResolver,
-  }) : resourceRegistry = resourceRegistryOverride ?? asrModelResourceCatalog {
+  }) : _endpointRouter = endpointRouter ?? runtimeEndpointRouter,
+       resourceRegistry = resourceRegistryOverride ?? asrModelResourceCatalog {
     _dio =
         dio ??
         Dio(
@@ -160,6 +163,7 @@ class AsrModelManager {
   late final ReliableHttpDownloader _downloader;
   late final AsrArchiveInstaller _installer;
   final String? baseUrlOverride;
+  final RuntimeEndpointRouter _endpointRouter;
   final Map<String, AsrModelResourceSpec> resourceRegistry;
   final Future<String> Function()? modelsRootResolver;
 
@@ -234,9 +238,9 @@ class AsrModelManager {
       root: root,
       target: target,
       resourceId: modelId,
-      uri: Uri.parse(
-        '${baseUrlOverride ?? asrCdnBaseUrl}/model/${spec.archivePath}',
-      ),
+      uri: baseUrlOverride == null
+          ? _endpointRouter.modelCdnUri('/model/${spec.archivePath}')
+          : Uri.parse('$baseUrlOverride/model/${spec.archivePath}'),
       expectedSha256: spec.sha256,
       cancelToken: cancelToken,
       onProgress: (value) => onProgress?.call(

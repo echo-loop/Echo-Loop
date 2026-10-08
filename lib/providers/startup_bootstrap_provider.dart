@@ -20,7 +20,6 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../analytics/analytics_providers.dart';
 import '../analytics/analytics_service.dart';
 import '../analytics/permission_snapshot.dart';
-import '../config/api_config.dart';
 import '../config/auth_config.dart' as auth_config;
 import '../config/paddle_config.dart' as paddle_config;
 import '../config/revenuecat_config.dart' as revenuecat_config;
@@ -37,6 +36,7 @@ import '../services/bundled_example_installer.dart';
 import '../services/network_permission_trigger.dart';
 import '../services/speech_practice_platform.dart';
 import '../services/startup_trace.dart';
+import '../services/runtime_endpoint_router.dart';
 import '../services/temp_cleanup_service.dart';
 import '../services/tts/tts_cache_store.dart';
 import '../utils/app_data_dir.dart';
@@ -209,7 +209,12 @@ class DefaultStartupBootstrapper implements StartupBootstrapper {
         'detached_scheduled',
         fields: {'step': 'ios_network_permission_trigger'},
       );
-      unawaited(NetworkPermissionTrigger.trigger(_prefs, apiBaseUrl));
+      unawaited(
+        NetworkPermissionTrigger.trigger(
+          _prefs,
+          runtimeEndpointRouter.apiBaseUrl,
+        ),
+      );
     }
 
     var firebaseReady = false;

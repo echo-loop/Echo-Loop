@@ -20,6 +20,7 @@ import 'app_logger.dart';
 import 'client_info.dart';
 import 'entitlement_signal_interceptor.dart';
 import 'supabase_token_coordinator.dart';
+import 'runtime_endpoint_router.dart';
 
 /// 响应 401 后的端点级重试策略；默认禁止重放业务请求。
 enum AuthRetryPolicy { none, once }
@@ -35,12 +36,14 @@ Options authRetryOnceOptions({Map<String, Object?>? headers}) => Options(
 
 /// 构造一个已注入 client-info 公共 header 的后端 Dio。
 ///
-/// 统一安装 [ApiLogInterceptor]；Geo、HTTP2 等差异化能力仍由各 client 追加。
+/// 工厂统一安装 client-info 与请求日志；HTTP/2 等差异化能力由各 client 追加。
+/// 传入 [endpointRouter] 后，每次请求发送前会读取最新的区域 API 地址。
 ///
 /// [baseUrl] 为空时表示各请求用完整 URL（header 仍随每个请求上送，故仅用于纯后端 Dio）。
 /// [appVersion] 为空/null 时省略版本 header（降级不阻断，见 [clientInfoHeaders]）。
 Dio createBackendDio({
   String baseUrl = '',
+  RuntimeEndpointRouter? endpointRouter,
   String? appVersion,
   Duration connectTimeout = const Duration(seconds: 15),
   Duration receiveTimeout = const Duration(seconds: 30),
@@ -55,6 +58,9 @@ Dio createBackendDio({
       headers: clientInfoHeaders(appVersion: appVersion),
     ),
   );
+  if (endpointRouter != null) {
+    dio.interceptors.add(RuntimeApiEndpointInterceptor(endpointRouter));
+  }
   dio.interceptors.add(
     ApiLogInterceptor(tag: apiLogTag, logPrint: apiLogPrint),
   );
@@ -70,6 +76,7 @@ Dio createBackendDio({
 Dio createAuthenticatedBackendDio({
   required SupabaseTokenCoordinator? tokenCoordinator,
   String baseUrl = '',
+  RuntimeEndpointRouter? endpointRouter,
   String? appVersion,
   Duration connectTimeout = const Duration(seconds: 15),
   Duration receiveTimeout = const Duration(seconds: 30),
@@ -78,6 +85,7 @@ Dio createAuthenticatedBackendDio({
 }) {
   final dio = createBackendDio(
     baseUrl: baseUrl,
+    endpointRouter: endpointRouter,
     appVersion: appVersion,
     connectTimeout: connectTimeout,
     receiveTimeout: receiveTimeout,
@@ -91,6 +99,25 @@ Dio createAuthenticatedBackendDio({
     );
   }
   return dio;
+}
+
+/// 在每次请求发送前读取 UserRegion 统一结论当前选中的 API 地址。
+class RuntimeApiEndpointInterceptor extends Interceptor {
+  RuntimeApiEndpointInterceptor(this._router);
+
+  final RuntimeEndpointRouter _router;
+
+  @override
+  void onRequest(RequestOptions options, RequestInterceptorHandler handler) {
+    final requestUri = Uri.tryParse(options.path);
+    if (requestUri?.hasScheme ?? false) {
+      handler.next(options);
+      return;
+    }
+    final baseUrl = _router.apiBaseUrl;
+    if (baseUrl.isNotEmpty) options.baseUrl = baseUrl;
+    handler.next(options);
+  }
 }
 
 class _AuthenticatedBackendInterceptor extends Interceptor {

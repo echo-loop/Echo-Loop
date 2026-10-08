@@ -12,6 +12,7 @@ import '../../../config/api_config.dart';
 import '../../auth/providers/auth_providers.dart';
 import '../../../providers/package_info_provider.dart';
 import '../../../services/backend_dio.dart';
+import '../../../services/runtime_endpoint_router.dart';
 import '../../../services/app_logger.dart';
 import '../../../services/supabase_token_coordinator.dart';
 import '../models/subscription_plan.dart';
@@ -38,9 +39,11 @@ class PaddleBillingRepository {
     required String baseUrl,
     String? appVersion,
     SupabaseTokenCoordinator? tokenCoordinator,
+    RuntimeEndpointRouter? endpointRouter,
   }) : _authenticatedDio = createAuthenticatedBackendDio(
          tokenCoordinator: tokenCoordinator,
          baseUrl: baseUrl,
+         endpointRouter: endpointRouter,
          appVersion: appVersion,
          connectTimeout: const Duration(seconds: 15),
          receiveTimeout: const Duration(seconds: 30),
@@ -49,6 +52,7 @@ class PaddleBillingRepository {
        _plans = PaddlePlansService(
          dio: createBackendDio(
            baseUrl: baseUrl,
+           endpointRouter: endpointRouter,
            appVersion: appVersion,
            connectTimeout: const Duration(seconds: 15),
            receiveTimeout: const Duration(seconds: 30),
@@ -344,6 +348,7 @@ final paddleBillingRepositoryProvider = Provider<PaddleBillingRepository>((
 ) {
   return PaddleBillingRepository(
     baseUrl: apiBaseUrl,
+    endpointRouter: runtimeEndpointRouter,
     appVersion: readAppVersion(ref),
     tokenCoordinator: ref.read(supabaseTokenCoordinatorProvider),
   );

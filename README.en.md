@@ -247,15 +247,29 @@ Thanks to [Yang Yan](https://sfs.muc.edu.cn/info/1063/3729.htm) (School of Forei
 ```bash
 git clone git@github.com:echo-loop/Echo-Loop.git
 cd Echo-Loop
-cp .dev.env.template .dev.env   # fill in Supabase / Google / API base URL
+cp .dev.env.template .dev.env   # fill in Supabase / Google settings
 flutter pub get
 dart run build_runner build
 flutter run -d <ios|android|macos> --dart-define-from-file=.dev.env
 ```
 
-> Compile-time variables (`SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, `GOOGLE_WEB_CLIENT_ID`, `API_BASE_URL`)
-> live in `.dev.env` (debug) / `.prod.env` (release) and are injected via `--dart-define-from-file`.
-> Both files are gitignored — do not commit them. `.prod.env` uses the same keys with the production `API_BASE_URL`.
+> Supabase, Google, and other compile-time settings live in `.dev.env` (debug) / `.prod.env`
+> (release) and are injected via `--dart-define-from-file`. Both files are gitignored.
+> The global API defaults to `https://www.echo-loop.top` and can be overridden at compile time
+> with `API_BASE_URL`. The model CDN addresses are configured in
+> `lib/config/regional_service_endpoints.dart`.
+> The China API defaults to `https://www.echo-loop.cn` and can be overridden with
+> `API_CHINA_BASE_URL`. Local builds can override them in `.prod.env`; GitHub Actions CI/Release
+> passes the corresponding GitHub Variables directly to the build commands.
+> release builds use one `isChinaUser` result: China Apple Storefront, device country, or
+> `/api/v1/client/config` `context.countryCode` set to `CN`/`CHN` selects China, so one package
+> contains both global and China API candidates and serves both regions. When there is no China
+> evidence, the first API request uses the global endpoint. When the region conclusion changes,
+> the app keeps its current API endpoint while a
+> config request probes the new preference. It tries the other region once on a network error or
+> 5xx. A successful probe activates the preferred region; alternate success keeps API requests on
+> the available endpoint for the session, and a later config refresh probes the preference again.
+> Model CDN routing always follows `isChinaUser`; source API defaults apply when no override is set.
 
 </details>
 
@@ -362,7 +376,7 @@ dart run build_runner build
 **Build**
 
 ```bash
-# Compile-time variables are injected from an env file (.dev.env for debug, .prod.env for release)
+# Supabase / Google compile-time variables are injected from an env file (.prod.env for release)
 flutter build macos --dart-define-from-file=.prod.env
 flutter build apk   --dart-define-from-file=.prod.env
 flutter build ios   --dart-define-from-file=.prod.env

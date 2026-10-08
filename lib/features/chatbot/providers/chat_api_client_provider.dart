@@ -9,6 +9,7 @@ import '../../auth/providers/auth_providers.dart';
 import '../../../providers/package_info_provider.dart';
 import '../chatbot_flags.dart';
 import '../services/chat_api_client.dart';
+import '../../../services/runtime_endpoint_router.dart';
 import '../services/fake_chat_api_client.dart';
 
 part 'chat_api_client_provider.g.dart';
@@ -21,6 +22,7 @@ ChatApi chatApiClient(Ref ref) {
   if (kChatbotUseFakeApi) return const FakeChatApiClient();
   final client = ChatApiClient(
     baseUrl: apiBaseUrl,
+    endpointRouter: runtimeEndpointRouter,
     appVersion: readAppVersion(ref),
     tokenCoordinator: ref.read(supabaseTokenCoordinatorProvider),
   );

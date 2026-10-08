@@ -10,10 +10,8 @@ import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter_riverpod/flutter_riverpod.dart' show Ref;
 import 'package:riverpod_annotation/riverpod_annotation.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:universal_io/io.dart';
 
-import '../analytics/geo_interceptor.dart';
 import '../config/api_config.dart';
 import '../features/auth/providers/auth_providers.dart';
 import '../providers/package_info_provider.dart';
@@ -24,6 +22,7 @@ import 'dictionary/dictionary_source.dart';
 import 'ndjson_object_stream.dart';
 import 'ndjson_stream.dart';
 import 'supabase_token_coordinator.dart';
+import 'runtime_endpoint_router.dart';
 import '../models/sentence_ai_result.dart';
 import '../models/sense_group_result.dart';
 import '../models/retell_review_evaluation.dart';
@@ -116,11 +115,13 @@ class SentenceAiApiClient {
     required String baseUrl,
     String? appVersion,
     SupabaseTokenCoordinator? tokenCoordinator,
+    RuntimeEndpointRouter? endpointRouter,
     bool http2Enabled = aiHttp2EnabledByDefault,
     void Function(String message)? streamLogPrint,
   }) : _dio = createAuthenticatedBackendDio(
          tokenCoordinator: tokenCoordinator,
          baseUrl: baseUrl,
+         endpointRouter: endpointRouter,
          appVersion: appVersion,
          connectTimeout: const Duration(seconds: 15),
          // h2 下只约束「到首个响应头」（后端 NDJSON 响应头立即 flush，30s 极充裕）；
@@ -134,10 +135,6 @@ class SentenceAiApiClient {
       _dio,
       baseUrl: baseUrl,
       http2Enabled: http2Enabled,
-    );
-    // 异步添加 GeoInterceptor（SharedPreferences 在 main() 中已初始化，几乎同步返回）
-    SharedPreferences.getInstance().then(
-      (prefs) => _dio.interceptors.add(GeoInterceptor(prefs)),
     );
   }
 
@@ -666,6 +663,7 @@ class SentenceAiApiClient {
 SentenceAiApiClient sentenceAiApiClient(Ref ref) {
   final client = SentenceAiApiClient(
     baseUrl: apiBaseUrl,
+    endpointRouter: runtimeEndpointRouter,
     appVersion: readAppVersion(ref),
     tokenCoordinator: ref.read(supabaseTokenCoordinatorProvider),
   );

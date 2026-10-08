@@ -147,7 +147,6 @@ jobs:
         env:
           BUILD_NAME: ${{ steps.ver.outputs.name }}
           BUILD_NUMBER: ${{ steps.ver.outputs.number }}
-          API_BASE_URL: ${{ vars.API_BASE_URL }}
           POSTHOG_HOST: ${{ vars.POSTHOG_HOST }}
           POSTHOG_API_KEY: ${{ vars.POSTHOG_API_KEY }}
           SUPABASE_URL: ${{ vars.SUPABASE_URL }}
@@ -156,7 +155,8 @@ jobs:
         run: |
           flutter clean
           DART_DEFINES=(
-            "--dart-define=API_BASE_URL=${API_BASE_URL}"
+            "--dart-define=API_BASE_URL=${{ vars.API_BASE_URL }}"
+            "--dart-define=API_CHINA_BASE_URL=${{ vars.API_CHINA_BASE_URL }}"
             "--dart-define=POSTHOG_HOST=${POSTHOG_HOST}"
             "--dart-define=SUPABASE_URL=${SUPABASE_URL}"
             "--dart-define=SUPABASE_PUBLISHABLE_KEY=${SUPABASE_PUBLISHABLE_KEY}"
@@ -211,7 +211,6 @@ jobs:
         env:
           BUILD_NAME: ${{ steps.ver.outputs.name }}
           BUILD_NUMBER: ${{ steps.ver.outputs.number }}
-          API_BASE_URL: ${{ vars.API_BASE_URL }}
           POSTHOG_HOST: ${{ vars.POSTHOG_HOST }}
           POSTHOG_API_KEY: ${{ vars.POSTHOG_API_KEY }}
           SUPABASE_URL: ${{ vars.SUPABASE_URL }}
@@ -220,7 +219,8 @@ jobs:
           REVENUECAT_API_KEY_GOOGLE: ${{ vars.REVENUECAT_API_KEY_GOOGLE }}
         run: |
           DART_DEFINES=(
-            "--dart-define=API_BASE_URL=${API_BASE_URL}"
+            "--dart-define=API_BASE_URL=${{ vars.API_BASE_URL }}"
+            "--dart-define=API_CHINA_BASE_URL=${{ vars.API_CHINA_BASE_URL }}"
             "--dart-define=POSTHOG_HOST=${POSTHOG_HOST}"
             "--dart-define=SUPABASE_URL=${SUPABASE_URL}"
             "--dart-define=SUPABASE_PUBLISHABLE_KEY=${SUPABASE_PUBLISHABLE_KEY}"
@@ -344,7 +344,6 @@ jobs:
         env:
           BUILD_NAME: ${{ steps.ver.outputs.name }}
           BUILD_NUMBER: ${{ steps.ver.outputs.number }}
-          API_BASE_URL: ${{ vars.API_BASE_URL }}
           POSTHOG_HOST: ${{ vars.POSTHOG_HOST }}
           POSTHOG_API_KEY: ${{ vars.POSTHOG_API_KEY }}
           SUPABASE_URL: ${{ vars.SUPABASE_URL }}
@@ -355,7 +354,8 @@ jobs:
           # 避免 Homebrew rsync 抢占（Apple toolchain 需要系统 rsync）
           export PATH="/usr/bin:/bin:/usr/sbin:/sbin:$PATH"
           DART_DEFINES=(
-            "--dart-define=API_BASE_URL=${API_BASE_URL}"
+            "--dart-define=API_BASE_URL=${{ vars.API_BASE_URL }}"
+            "--dart-define=API_CHINA_BASE_URL=${{ vars.API_CHINA_BASE_URL }}"
             "--dart-define=POSTHOG_HOST=${POSTHOG_HOST}"
             "--dart-define=SUPABASE_URL=${SUPABASE_URL}"
             "--dart-define=SUPABASE_PUBLISHABLE_KEY=${SUPABASE_PUBLISHABLE_KEY}"

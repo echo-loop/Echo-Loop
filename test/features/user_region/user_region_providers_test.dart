@@ -1,10 +1,25 @@
 import 'dart:async';
 
+import 'package:dio/dio.dart';
+import 'package:echo_loop/config/client_distribution.dart'
+    show ClientPaymentChannel;
+import 'package:echo_loop/config/regional_service_endpoints.dart';
 import 'package:echo_loop/features/remote_config/remote_config.dart';
+import 'package:echo_loop/features/remote_config/remote_config_providers.dart';
+import 'package:echo_loop/features/remote_config/remote_config_service.dart';
+import 'package:echo_loop/features/remote_config/remote_config_store.dart';
 import 'package:echo_loop/features/subscription/services/purchase_service.dart';
+import 'package:echo_loop/features/subscription/services/revenuecat_purchase_service.dart'
+    show purchaseServiceProvider;
 import 'package:echo_loop/features/user_region/user_region.dart';
 import 'package:echo_loop/features/user_region/user_region_providers.dart';
+import 'package:echo_loop/services/runtime_endpoint_router.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mocktail/mocktail.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+class _MockDio extends Mock implements Dio {}
 
 class _FakePurchaseService extends StubPurchaseService {
   _FakePurchaseService(this._readStorefront);
@@ -69,6 +84,22 @@ void main() {
       );
       addTearDown(controller.dispose);
 
+      expect(controller.state.isChinaUser, isFalse);
+    });
+
+    test('Client Config 国家码未知时不伪造国家或命中中国', () {
+      final unknownConfig = RemoteConfig.fromJson({
+        'context': {'countryCode': null},
+      });
+      final controller = UserRegionController(
+        readPurchaseService: () => _FakePurchaseService(() async => null),
+        readDeviceCountryCode: () => null,
+        isAppleStoreChannel: false,
+        initialRemoteConfig: unknownConfig,
+      );
+      addTearDown(controller.dispose);
+
+      expect(controller.state.clientConfig.countryCode, isNull);
       expect(controller.state.isChinaUser, isFalse);
     });
 
@@ -155,5 +186,101 @@ void main() {
       ]);
       expect(service.storefrontReads, 1);
     });
+  });
+
+  test('冷启动缓存的中国配置设为首选且 CDN 立即切换', () {
+    final router = RuntimeEndpointRouter(
+      endpoints: const RegionalServiceEndpoints(
+        globalApiBaseUrl: 'https://global-api.example',
+        chinaApiBaseUrl: 'https://china-api.example',
+        globalModelCdnBaseUrl: 'https://global-cdn.example',
+        chinaModelCdnBaseUrl: 'https://china-cdn.example',
+      ),
+    );
+    final container = ProviderContainer(
+      overrides: [
+        initialRemoteConfigProvider.overrideWithValue(_config('CN')),
+        userRegionPaymentChannelProvider.overrideWithValue(
+          ClientPaymentChannel.web,
+        ),
+        userRegionDeviceCountryCodeProvider.overrideWithValue(() => 'US'),
+        userRegionEndpointRouterProvider.overrideWithValue(router),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    expect(container.read(isChinaUserProvider), isTrue);
+    expect(router.preferredApiRegion, ServiceEndpointRegion.china);
+    expect(router.apiRegion, ServiceEndpointRegion.global);
+    expect(router.modelCdnRegion, ServiceEndpointRegion.china);
+  });
+
+  test('Apple Storefront 国家更新通过 isChinaUser 切换 API 和 CDN', () async {
+    SharedPreferences.setMockInitialValues({});
+    final prefs = await SharedPreferences.getInstance();
+    final purchaseService = _FakePurchaseService(() async => 'CHN');
+    final router = RuntimeEndpointRouter(
+      endpoints: const RegionalServiceEndpoints(
+        globalApiBaseUrl: 'https://global-api.example',
+        chinaApiBaseUrl: 'https://china-api.example',
+        globalModelCdnBaseUrl: 'https://global-cdn.example',
+        chinaModelCdnBaseUrl: 'https://china-cdn.example',
+      ),
+    );
+    const configUrl = 'https://china-api.example/api/v1/client/config';
+    final dio = _MockDio();
+    when(
+      () => dio.get<Object?>(
+        configUrl,
+        queryParameters: any(named: 'queryParameters'),
+      ),
+    ).thenAnswer(
+      (_) async => Response<Object?>(
+        requestOptions: RequestOptions(path: configUrl),
+        statusCode: 200,
+        data: {
+          'version': 1,
+          'ttlSeconds': 120,
+          'context': {'countryCode': 'CN'},
+        },
+      ),
+    );
+    final service = RemoteConfigService(
+      dio: dio,
+      store: RemoteConfigStore(prefs),
+      endpointRouter: router,
+    );
+    final container = ProviderContainer(
+      overrides: [
+        initialRemoteConfigProvider.overrideWithValue(_config('US')),
+        remoteConfigServiceProvider.overrideWithValue(service),
+        userRegionPaymentChannelProvider.overrideWithValue(
+          ClientPaymentChannel.appleStore,
+        ),
+        userRegionDeviceCountryCodeProvider.overrideWithValue(() => 'US'),
+        userRegionEndpointRouterProvider.overrideWithValue(router),
+        purchaseServiceProvider.overrideWithValue(purchaseService),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    expect(container.read(isChinaUserProvider), isFalse);
+    expect(router.apiRegion, ServiceEndpointRegion.global);
+    expect(router.modelCdnRegion, ServiceEndpointRegion.global);
+
+    await container
+        .read(userRegionProvider.notifier)
+        .refresh(UserRegionRefreshTrigger.startup);
+    await pumpEventQueue();
+
+    expect(container.read(isChinaUserProvider), isTrue);
+    expect(router.apiRegion, ServiceEndpointRegion.china);
+    expect(router.modelCdnRegion, ServiceEndpointRegion.china);
+    verify(
+      () => dio.get<Object?>(
+        configUrl,
+        queryParameters: any(named: 'queryParameters'),
+      ),
+    ).called(1);
   });
 }

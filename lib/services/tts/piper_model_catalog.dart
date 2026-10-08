@@ -12,9 +12,6 @@ library;
 
 import 'tts_engine.dart';
 
-/// Piper 模型 CDN 基地址。
-const piperCdnBaseUrl = 'https://cdn.echo-loop.top';
-
 /// Piper 推理所需的固定文件名。
 const piperTokensFileName = 'tokens.txt';
 const piperDataDirectoryName = 'espeak-ng-data';

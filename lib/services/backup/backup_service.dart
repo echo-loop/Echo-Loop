@@ -1169,6 +1169,7 @@ Future<void> _restorePreferences(Map<String, Object?> data) async {
 bool _shouldSkipPreference(String key) {
   return _spBlacklist.contains(key) ||
       _spPrefixBlacklist.any(key.startsWith) ||
+      // 旧版本 GeoInterceptor 写入；避免无用的历史地区值进入备份。
       key == 'geo_country';
 }
 

@@ -63,7 +63,7 @@ import 'playback_settings_screen.dart';
 import 'preferences_viewer_screen.dart';
 import 'storage_browser_screen.dart';
 import 'reminder_settings_screen.dart';
-import '../config/api_config.dart';
+import '../services/runtime_endpoint_router.dart';
 import '../widgets/app_update_dialog.dart';
 
 const double _settingsLeadingIconExtent = 32;
@@ -582,10 +582,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           leading: _settingsThemedSvgIcon(context, 'assets/icon/group.svg'),
           title: Text(l10n.aboutCommunity),
           trailing: const Icon(Icons.chevron_right),
-          onTap: () {
+          onTap: () async {
             final isZh = Localizations.localeOf(context).languageCode == 'zh';
             final path = isZh ? '/zh-CN/social' : '/en/social';
-            launchUrl(Uri.parse('$apiBaseUrl$path'));
+            final uri = runtimeEndpointRouter.apiUri(path);
+            await launchUrl(uri);
           },
         ),
         ListTile(

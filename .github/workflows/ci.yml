@@ -184,6 +184,7 @@ jobs:
         run: |
           flutter build ios --release --no-codesign --flavor=prod \
             --dart-define=API_BASE_URL=${{ vars.API_BASE_URL }} \
+            --dart-define=API_CHINA_BASE_URL=${{ vars.API_CHINA_BASE_URL }} \
             --dart-define=POSTHOG_HOST=${{ vars.POSTHOG_HOST }} \
             --dart-define=SUPABASE_URL=${{ vars.SUPABASE_URL }} \
             --dart-define=SUPABASE_PUBLISHABLE_KEY=${{ vars.SUPABASE_PUBLISHABLE_KEY }} \
@@ -219,6 +220,7 @@ jobs:
           flutter build apk --release --flavor=prod \
             --target-platform android-arm64 \
             --dart-define=API_BASE_URL=${{ vars.API_BASE_URL }} \
+            --dart-define=API_CHINA_BASE_URL=${{ vars.API_CHINA_BASE_URL }} \
             --dart-define=POSTHOG_HOST=${{ vars.POSTHOG_HOST }} \
             --dart-define=SUPABASE_URL=${{ vars.SUPABASE_URL }} \
             --dart-define=SUPABASE_PUBLISHABLE_KEY=${{ vars.SUPABASE_PUBLISHABLE_KEY }} \

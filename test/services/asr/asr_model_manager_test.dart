@@ -7,25 +7,44 @@ import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
 
+import 'package:echo_loop/config/regional_service_endpoints.dart';
 import 'package:echo_loop/services/asr/asr_model_manager.dart';
+import 'package:echo_loop/services/runtime_endpoint_router.dart';
 
 class _Adapter implements HttpClientAdapter {
-  _Adapter(this.payload);
+  _Adapter(this.payload, {this.requestUris});
   final List<int> payload;
+  final List<Uri>? requestUris;
   @override
   Future<ResponseBody> fetch(
     RequestOptions options,
     Stream<List<int>>? _,
     Future<void>? __,
-  ) async => ResponseBody(
-    Stream.value(Uint8List.fromList(payload)),
-    200,
-    headers: {
-      'content-length': [payload.length.toString()],
-    },
-  );
+  ) async {
+    requestUris?.add(options.uri);
+    return ResponseBody(
+      Stream.value(Uint8List.fromList(payload)),
+      200,
+      headers: {
+        'content-length': [payload.length.toString()],
+      },
+    );
+  }
+
   @override
   void close({bool force = false}) {}
+}
+
+Future<RuntimeEndpointRouter> _routerWithChinaCdn() async {
+  final router = RuntimeEndpointRouter(
+    endpoints: const RegionalServiceEndpoints(
+      globalApiBaseUrl: 'https://global-api.example',
+      chinaApiBaseUrl: 'https://china-api.example',
+      globalModelCdnBaseUrl: 'https://global-cdn.example',
+      chinaModelCdnBaseUrl: 'https://china-cdn.example',
+    ),
+  );
+  return router..updateFromUserRegion(isChinaUser: true);
 }
 
 class _RangeAdapter implements HttpClientAdapter {
@@ -98,11 +117,13 @@ void main() {
     );
     await encoder.close();
     final payload = await archive.readAsBytes();
-    final dio = Dio()..httpClientAdapter = _Adapter(payload);
+    final requestedUris = <Uri>[];
+    final dio = Dio()
+      ..httpClientAdapter = _Adapter(payload, requestUris: requestedUris);
     final progress = <double>[];
     final manager = AsrModelManager(
       dio: dio,
-      baseUrlOverride: 'http://mock.local',
+      endpointRouter: await _routerWithChinaCdn(),
       modelsRootResolver: () async => p.join(root.path, 'models'),
       resourceRegistryOverride: {
         'test-model': AsrModelResourceSpec(
@@ -123,6 +144,8 @@ void main() {
       'test-model',
       onProgress: (value) => progress.add(value.progress),
     );
+    expect(requestedUris.single.host, 'china-cdn.example');
+    expect(requestedUris.single.path, '/model/asr/test-model.zip');
     final modelDir = await manager.modelDir('test-model');
     expect(File(p.join(modelDir, 'encoder.onnx')).existsSync(), isTrue);
     expect(

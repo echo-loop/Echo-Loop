@@ -18,6 +18,7 @@ import '../asr/asr_model_manager.dart'
 import '../reliable_http_downloader.dart';
 import '../resource_archive_installer.dart';
 import 'kokoro_model_catalog.dart';
+import '../runtime_endpoint_router.dart';
 import '../resource_install_manifest.dart';
 
 // 复用 ASR 的下载状态/进度类型（已是通用命名，避免重复定义）。
@@ -62,6 +63,8 @@ class KokoroModelManager {
   /// 本管理器绑定的模型规格（决定目录名/归档/SHA/模型文件名）。
   final KokoroModelSpec spec;
 
+  final RuntimeEndpointRouter _endpointRouter;
+
   /// 下载基地址覆盖（仅测试）。
   final String? baseUrlOverride;
 
@@ -73,7 +76,9 @@ class KokoroModelManager {
     KokoroModelSpec? spec,
     this.baseUrlOverride,
     this.modelsRootResolver,
-  }) : spec = spec ?? kokoroSpecOf(kokoroDefaultVariant) {
+    RuntimeEndpointRouter? endpointRouter,
+  }) : _endpointRouter = endpointRouter ?? runtimeEndpointRouter,
+       spec = spec ?? kokoroSpecOf(kokoroDefaultVariant) {
     // TTS 模型下载体积较大，但断网时不能无限等待；接收超时只限制长时间无数据。
     _dio =
         dio ??
@@ -173,10 +178,11 @@ class KokoroModelManager {
     CancelToken? cancelToken,
   }) async {
     final root = await _modelsRoot;
-    final baseUrl = baseUrlOverride ?? kokoroCdnBaseUrl;
-    final url = '$baseUrl/model/${spec.archivePath}';
+    final uri = baseUrlOverride == null
+        ? _endpointRouter.modelCdnUri('/model/${spec.archivePath}')
+        : Uri.parse('$baseUrlOverride/model/${spec.archivePath}');
     final target = Directory(await modelDir());
-    AppLogger.log('KokoroModel', '┌ downloadModel dir=${target.path} url=$url');
+    AppLogger.log('KokoroModel', '┌ downloadModel dir=${target.path} url=$uri');
 
     onProgress?.call(
       const AsrModelDownloadProgress(
@@ -189,7 +195,7 @@ class KokoroModelManager {
       target: target,
       resourceId: spec.id,
       archiveFileName: '_download_${spec.id}.tar.gz',
-      uri: Uri.parse(url),
+      uri: uri,
       expectedSha256: spec.sha256,
       cancelToken: cancelToken,
       onProgress: (progress) => onProgress?.call(

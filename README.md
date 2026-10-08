@@ -271,15 +271,25 @@ flowchart LR
 ```bash
 git clone git@github.com:echo-loop/Echo-Loop.git
 cd Echo-Loop
-cp .dev.env.template .dev.env   # 填入 Supabase / Google / API 地址等编译期变量
+cp .dev.env.template .dev.env   # 填入 Supabase / Google 等编译期变量
 flutter pub get
 dart run build_runner build
 flutter run -d <ios|android|macos> --dart-define-from-file=.dev.env
 ```
 
-> 编译期环境变量（`SUPABASE_URL`、`SUPABASE_PUBLISHABLE_KEY`、`GOOGLE_WEB_CLIENT_ID`、`API_BASE_URL`）
-> 统一放在 `.dev.env`（调试）/ `.prod.env`（发布），通过 `--dart-define-from-file` 注入。
-> 这两个文件已被 `.gitignore`，请勿提交。`.prod.env` 用相同的键，把 `API_BASE_URL` 换成生产地址即可。
+> Supabase 与 Google 等编译期配置放在 `.dev.env`（调试）/ `.prod.env`（发布），通过
+> `--dart-define-from-file` 注入。这两个文件已被 `.gitignore`，请勿提交。
+> 全球 API 默认地址与中国 API 地址可用编译期变量覆盖；全球和中国模型 CDN 地址配置在
+> `lib/config/regional_service_endpoints.dart`；
+> 全球 API 默认地址为 `https://www.echo-loop.top`，可通过 `API_BASE_URL` 编译期变量覆盖；
+> 中国 API 默认地址为 `https://www.echo-loop.cn`，可通过 `API_CHINA_BASE_URL` 编译期变量覆盖，
+> 本地构建可在 `.prod.env` 中覆盖；GitHub Actions CI/Release 会直接将对应 GitHub Variables 传给构建命令；
+> release 包通过统一的 `isChinaUser` 结论选择区域：中国 Apple Storefront、设备国家码或
+> `/api/v1/client/config` 的 `context.countryCode` 任一返回 `CN`/`CHN` 即选择中国，
+> 不需要按地区构建。同一个 release 包包含全球与中国 API 候选地址。首次没有中国地区证据时先使用全球 API；
+> 地区结论变化后先保留当前 API，并立即用配置请求探测新的首选区域；遇到网络错误或 5xx
+> 时尝试另一区域一次。探测成功后切换到首选区域；备用成功后当前会话 API 暂用可用地址，
+> 后续配置刷新会重新探测首选区域。模型 CDN 始终跟随 `isChinaUser`；未设置 API 覆盖变量时使用源码默认地址。
 
 </details>
 
@@ -386,7 +396,7 @@ dart run build_runner build
 **构建**
 
 ```bash
-# 编译期变量从 env 文件注入（dev 用 .dev.env，发布用 .prod.env）
+# Supabase / Google 等编译期变量从 env 文件注入（发布用 .prod.env）
 flutter build macos --dart-define-from-file=.prod.env
 flutter build apk   --dart-define-from-file=.prod.env
 flutter build ios   --dart-define-from-file=.prod.env

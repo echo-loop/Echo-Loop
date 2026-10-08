@@ -7,15 +7,18 @@ import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
 
+import 'package:echo_loop/config/regional_service_endpoints.dart';
 import 'package:echo_loop/services/reliable_http_downloader.dart';
+import 'package:echo_loop/services/runtime_endpoint_router.dart';
 import 'package:echo_loop/services/tts/piper_model_manager.dart';
 import 'package:echo_loop/services/tts/piper_model_catalog.dart';
 import 'package:echo_loop/services/tts/tts_engine.dart';
 
 /// 返回预置归档字节的 mock dio adapter（任何 .tar.gz 请求都返回该字节）。
 class _MockArchiveAdapter implements HttpClientAdapter {
-  _MockArchiveAdapter(this.payload);
+  _MockArchiveAdapter(this.payload, {this.requestUris});
   final List<int> payload;
+  final List<Uri>? requestUris;
 
   @override
   Future<ResponseBody> fetch(
@@ -23,6 +26,7 @@ class _MockArchiveAdapter implements HttpClientAdapter {
     Stream<List<int>>? requestStream,
     Future<void>? cancelFuture,
   ) async {
+    requestUris?.add(options.uri);
     if (!options.path.endsWith('.tar.gz')) {
       return ResponseBody(const Stream.empty(), 404, headers: {});
     }
@@ -37,6 +41,18 @@ class _MockArchiveAdapter implements HttpClientAdapter {
 
   @override
   void close({bool force = false}) {}
+}
+
+Future<RuntimeEndpointRouter> _routerWithChinaCdn() async {
+  final router = RuntimeEndpointRouter(
+    endpoints: const RegionalServiceEndpoints(
+      globalApiBaseUrl: 'https://global-api.example',
+      chinaApiBaseUrl: 'https://china-api.example',
+      globalModelCdnBaseUrl: 'https://global-cdn.example',
+      chinaModelCdnBaseUrl: 'https://china-cdn.example',
+    ),
+  );
+  return router..updateFromUserRegion(isChinaUser: true);
 }
 
 /// 对任何请求都返回 404 的 mock adapter，用于模拟归档下载的网络失败。
@@ -114,12 +130,22 @@ List<int> _buildArchive({
   return GZipEncoder().encodeBytes(tar);
 }
 
-PiperModelManager _manager(Directory root, List<int> archive, {String? sha}) {
+PiperModelManager _manager(
+  Directory root,
+  List<int> archive, {
+  String? sha,
+  RuntimeEndpointRouter? endpointRouter,
+  List<Uri>? requestUris,
+}) {
   final dio = Dio();
-  dio.httpClientAdapter = _MockArchiveAdapter(archive);
+  dio.httpClientAdapter = _MockArchiveAdapter(
+    archive,
+    requestUris: requestUris,
+  );
   return PiperModelManager(
     dio: dio,
-    baseUrlOverride: 'http://mock.local',
+    baseUrlOverride: endpointRouter == null ? 'http://mock.local' : null,
+    endpointRouter: endpointRouter,
     voice: PiperVoice(
       id: 'en_US-amy-medium',
       displayName: 'Amy',
@@ -134,6 +160,7 @@ PiperModelManager _manager(Directory root, List<int> archive, {String? sha}) {
 }
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
   late Directory root;
 
   setUp(() async {
@@ -145,11 +172,22 @@ void main() {
 
   test('下载 → 校验 → 解包：onnx/tokens/espeak-ng-data 就位，忽略 .onnx.json', () async {
     final archive = _buildArchive();
-    final manager = _manager(root, archive);
+    final requestedUris = <Uri>[];
+    final manager = _manager(
+      root,
+      archive,
+      endpointRouter: await _routerWithChinaCdn(),
+      requestUris: requestedUris,
+    );
 
     final progresses = <double>[];
     await manager.downloadModel(onProgress: (p) => progresses.add(p.progress));
 
+    expect(requestedUris.single.host, 'china-cdn.example');
+    expect(
+      requestedUris.single.path,
+      '/model/tts/vits-piper-en_US-amy-medium.tar.gz',
+    );
     expect(await manager.isModelDownloaded(), isTrue);
     final paths = await manager.piperConfigPaths();
     expect(p.basename(paths.model), 'en_US-amy-medium.onnx');

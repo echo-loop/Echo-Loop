@@ -22,6 +22,7 @@ import '../asr/asr_model_manager.dart'
 import '../reliable_http_downloader.dart';
 import '../resource_archive_installer.dart';
 import 'piper_model_catalog.dart';
+import '../runtime_endpoint_router.dart';
 import '../resource_install_manifest.dart';
 
 // 复用 ASR 的下载状态/进度类型（已是通用命名，避免重复定义）。
@@ -60,6 +61,8 @@ class PiperModelManager {
   /// 本管理器绑定的音色（决定目录名/归档/SHA）。
   final PiperVoice voice;
 
+  final RuntimeEndpointRouter _endpointRouter;
+
   /// 下载基地址覆盖（仅测试）。
   final String? baseUrlOverride;
 
@@ -71,7 +74,8 @@ class PiperModelManager {
     Dio? dio,
     this.baseUrlOverride,
     this.modelsRootResolver,
-  }) {
+    RuntimeEndpointRouter? endpointRouter,
+  }) : _endpointRouter = endpointRouter ?? runtimeEndpointRouter {
     // TTS 模型下载体积较大，但断网时不能无限等待；接收超时只限制长时间无数据。
     _dio =
         dio ??
@@ -171,10 +175,11 @@ class PiperModelManager {
     CancelToken? cancelToken,
   }) async {
     final root = await _modelsRoot;
-    final baseUrl = baseUrlOverride ?? piperCdnBaseUrl;
-    final url = '$baseUrl/model/${voice.archivePath}';
+    final uri = baseUrlOverride == null
+        ? _endpointRouter.modelCdnUri('/model/${voice.archivePath}')
+        : Uri.parse('$baseUrlOverride/model/${voice.archivePath}');
     final target = Directory(await modelDir());
-    AppLogger.log('PiperModel', '┌ downloadModel dir=${target.path} url=$url');
+    AppLogger.log('PiperModel', '┌ downloadModel dir=${target.path} url=$uri');
 
     onProgress?.call(
       const AsrModelDownloadProgress(
@@ -187,7 +192,7 @@ class PiperModelManager {
       target: target,
       resourceId: voice.id,
       archiveFileName: '_download_${voice.id}.tar.gz',
-      uri: Uri.parse(url),
+      uri: uri,
       expectedSha256: voice.sha256.isEmpty ? null : voice.sha256,
       cancelToken: cancelToken,
       onProgress: (progress) => onProgress?.call(

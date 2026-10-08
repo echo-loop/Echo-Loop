@@ -7,14 +7,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart' show Ref;
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
-import '../../../analytics/geo_interceptor.dart';
 import '../../../config/api_config.dart';
 import '../../../providers/package_info_provider.dart';
 import '../../../services/app_logger.dart';
 import '../../../services/backend_dio.dart';
 import '../../../services/refresh_coordinator.dart';
+import '../../../services/runtime_endpoint_router.dart';
 import '../../../utils/app_data_dir.dart';
 import '../models/podcast_catalog.dart';
 
@@ -58,19 +57,20 @@ class PodcastCatalogService {
   PodcastCatalogSnapshot? _cached;
   bool _hasInitialized = false;
 
-  PodcastCatalogService({required String baseUrl, String? appVersion})
-    : _dio = createBackendDio(
-        baseUrl: baseUrl,
-        appVersion: appVersion,
-        connectTimeout: const Duration(seconds: 15),
-        receiveTimeout: const Duration(seconds: 30),
-        apiLogTag: 'PODCAST-CATALOG',
-      ),
-      _resolveDir = _defaultDir {
+  PodcastCatalogService({
+    required String baseUrl,
+    String? appVersion,
+    RuntimeEndpointRouter? endpointRouter,
+  }) : _dio = createBackendDio(
+         baseUrl: baseUrl,
+         endpointRouter: endpointRouter,
+         appVersion: appVersion,
+         connectTimeout: const Duration(seconds: 15),
+         receiveTimeout: const Duration(seconds: 30),
+         apiLogTag: 'PODCAST-CATALOG',
+       ),
+       _resolveDir = _defaultDir {
     _refresh = RefreshCoordinator<String, PodcastCatalogRefreshOutcome>();
-    SharedPreferences.getInstance().then(
-      (prefs) => _dio.interceptors.add(GeoInterceptor(prefs)),
-    );
   }
 
   PodcastCatalogService.withDio({
@@ -274,6 +274,7 @@ class _LegacyPodcastCache {
 PodcastCatalogService podcastCatalogService(Ref ref) {
   return PodcastCatalogService(
     baseUrl: apiBaseUrl,
+    endpointRouter: runtimeEndpointRouter,
     appVersion: readAppVersion(ref),
   );
 }

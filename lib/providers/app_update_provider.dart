@@ -22,6 +22,7 @@ import '../models/app_update_info.dart';
 import '../services/app_logger.dart';
 import '../services/app_update_checker.dart';
 import '../services/refresh_coordinator.dart';
+import '../services/runtime_endpoint_router.dart';
 import '../utils/app_store_country.dart';
 import '../utils/version_compare.dart';
 import 'dev_version_override_provider.dart';
@@ -51,7 +52,10 @@ class AppUpdate extends _$AppUpdate {
   AppUpdateState build() {
     // bundleId 仅 iOS 路径使用（Lookup API），其他平台忽略
     final bundleId = ref.read(packageInfoProvider).packageName;
-    _checker = AppUpdateChecker(bundleId: bundleId);
+    _checker = AppUpdateChecker(
+      bundleId: bundleId,
+      endpointRouter: runtimeEndpointRouter,
+    );
     _refresh = RefreshCoordinator<String, AppUpdateInfo?>();
     ref.onDispose(() => _checker?.dispose());
     // build() 返回前 state 未初始化，checkInBackground 第一行就读 state 会抛

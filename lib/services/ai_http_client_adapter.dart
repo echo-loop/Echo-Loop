@@ -43,7 +43,7 @@ void configureAiHttpClientAdapter(
     idleTimeout: aiHttp2IdleTimeout,
   );
   // 仅 h2 路径挂载连接层重试：兜底 GOAWAY/空闲连接失效导致的瞬断（见拦截器说明）。
-  // 早于构造函数后续追加的 Geo/Log 拦截器，onError 优先命中。
+  // 添加到拦截器列表末尾，使其先于已有拦截器处理 onError。
   dio.interceptors.add(AiHttp2RetryInterceptor(dio));
 }
 

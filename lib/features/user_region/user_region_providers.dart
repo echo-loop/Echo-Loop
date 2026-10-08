@@ -11,6 +11,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../config/client_distribution.dart';
 import '../../services/app_logger.dart';
+import '../../services/runtime_endpoint_router.dart';
 import '../remote_config/remote_config.dart';
 import '../remote_config/remote_config_providers.dart';
 import '../subscription/services/purchase_service.dart';
@@ -25,6 +26,11 @@ final userRegionPaymentChannelProvider = Provider<ClientPaymentChannel>(
   (ref) => clientPaymentChannel,
 );
 
+/// 当前服务端点路由器；测试可注入隔离的路由状态。
+final userRegionEndpointRouterProvider = Provider<RuntimeEndpointRouter>(
+  (ref) => runtimeEndpointRouter,
+);
+
 /// 系统地区读取 seam；生产读取 OS locale，测试可注入固定值或异常。
 final userRegionDeviceCountryCodeProvider = Provider<String? Function()>(
   (ref) =>
@@ -34,6 +40,7 @@ final userRegionDeviceCountryCodeProvider = Provider<String? Function()>(
 /// 当前用户地区的缓存状态。
 final userRegionProvider =
     StateNotifierProvider<UserRegionController, UserRegionState>((ref) {
+      final endpointRouter = ref.watch(userRegionEndpointRouterProvider);
       final controller = UserRegionController(
         readPurchaseService: () => ref.read(purchaseServiceProvider),
         readDeviceCountryCode: ref.read(userRegionDeviceCountryCodeProvider),
@@ -42,6 +49,24 @@ final userRegionProvider =
             ClientPaymentChannel.appleStore,
         initialRemoteConfig: ref.read(remoteConfigProvider),
       );
+      var previousIsChinaUser = controller.isChinaUser;
+      final removeEndpointListener = controller.addListener((state) {
+        final previous = previousIsChinaUser;
+        final regionChanged = state.isChinaUser != previous;
+        previousIsChinaUser = state.isChinaUser;
+        endpointRouter.updateFromUserRegion(isChinaUser: state.isChinaUser);
+        if (regionChanged) {
+          AppLogger.log(
+            _logTag,
+            'isChinaUser changed from=$previous to=${state.isChinaUser}; '
+            'forcing client config refresh',
+          );
+          unawaited(
+            ref.read(remoteConfigProvider.notifier).refreshIfStale(force: true),
+          );
+        }
+      }, fireImmediately: true);
+      ref.onDispose(removeEndpointListener);
       // Client Config 的网络请求完全由已有 controller 调度。远端值真正改变后，
       // 这里只重算已缓存证据，不重复访问 Storefront 或系统 region。
       ref.listen<RemoteConfig>(remoteConfigProvider, (_, next) {
@@ -76,13 +101,18 @@ class UserRegionController extends StateNotifier<UserRegionState> {
            clientConfig: _clientConfigResult(initialRemoteConfig),
            isRefreshing: false,
          ),
-       );
+       ) {
+    _logResult('initialized');
+  }
 
   final PurchaseService Function() _readPurchaseService;
   final String? Function() _readDeviceCountryCode;
   final bool _isAppleStoreChannel;
   final DateTime Function() _now;
   Future<void>? _refreshInFlight;
+
+  /// 当前唯一地区结论，供 provider 适配层检测地区是否发生变化。
+  bool get isChinaUser => state.isChinaUser;
 
   /// 刷新 Storefront 与系统地区；并发的启动/resume 调用复用同一个任务。
   Future<void> refresh(UserRegionRefreshTrigger trigger) {
@@ -98,8 +128,13 @@ class UserRegionController extends StateNotifier<UserRegionState> {
 
   /// Client Config 已由其自身节流策略刷新后，只重算这一项缓存证据。
   void updateClientConfig(RemoteConfig config) {
+    final previousCountryCode = state.clientConfig.countryCode;
+    final previousIsChinaUser = state.isChinaUser;
     state = state.copyWith(clientConfig: _clientConfigResult(config));
-    _logResult('clientConfigUpdated');
+    _logResult(
+      'clientConfigUpdated previousCountry=${previousCountryCode ?? "unknown"} '
+      'previousIsChinaUser=$previousIsChinaUser',
+    );
   }
 
   Future<void> _refresh(UserRegionRefreshTrigger trigger) async {

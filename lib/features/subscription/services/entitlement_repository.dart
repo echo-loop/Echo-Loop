@@ -14,6 +14,7 @@ import '../../../services/supabase_token_coordinator.dart';
 import '../../../providers/package_info_provider.dart';
 import '../../../services/app_logger.dart';
 import '../../../services/backend_dio.dart';
+import '../../../services/runtime_endpoint_router.dart';
 import '../models/entitlement.dart';
 import '../models/entitlement_source.dart';
 import '../models/subscription_plan.dart';
@@ -65,9 +66,11 @@ class BackendEntitlementRepository implements EntitlementRepository {
     required String baseUrl,
     String? appVersion,
     SupabaseTokenCoordinator? tokenCoordinator,
+    RuntimeEndpointRouter? endpointRouter,
   }) : _dio = createAuthenticatedBackendDio(
          tokenCoordinator: tokenCoordinator,
          baseUrl: baseUrl,
+         endpointRouter: endpointRouter,
          appVersion: appVersion,
          connectTimeout: const Duration(seconds: 10),
          receiveTimeout: const Duration(seconds: 15),
@@ -180,6 +183,7 @@ class BackendEntitlementRepository implements EntitlementRepository {
 final entitlementRepositoryProvider = Provider<EntitlementRepository>((ref) {
   return BackendEntitlementRepository(
     baseUrl: apiBaseUrl,
+    endpointRouter: runtimeEndpointRouter,
     appVersion: readAppVersion(ref),
     tokenCoordinator: ref.read(supabaseTokenCoordinatorProvider),
   );

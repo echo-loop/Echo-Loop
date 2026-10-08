@@ -17,19 +17,20 @@ enum RemoteFeature {
 
 class RemoteConfigContext {
   const RemoteConfigContext({
-    this.countryCode = 'US',
+    this.countryCode,
     this.platform = '',
     this.channel = '',
   });
 
-  final String countryCode;
+  /// Client Config 返回的国家码；服务端未提供有效值时保留为未知。
+  final String? countryCode;
   final String platform;
   final String channel;
 
   factory RemoteConfigContext.fromJson(Object? json) {
     if (json is! Map) return const RemoteConfigContext();
     return RemoteConfigContext(
-      countryCode: _readString(json, 'countryCode') ?? 'US',
+      countryCode: _readCountryCode(json),
       platform: _readString(json, 'platform') ?? '',
       channel: _readString(json, 'channel') ?? '',
     );
@@ -219,6 +220,16 @@ class RemoteConfig {
 String? _readString(Map<Object?, Object?> json, String key) {
   final value = json[key];
   return value is String ? value : null;
+}
+
+String? _readCountryCode(Map<Object?, Object?> json) {
+  final countryCode = _readString(json, 'countryCode')?.trim();
+  if (countryCode == null ||
+      countryCode.isEmpty ||
+      countryCode.toLowerCase() == 'unknown') {
+    return null;
+  }
+  return countryCode;
 }
 
 bool? _readBool(Map<Object?, Object?> json, String key) {

@@ -50,6 +50,7 @@ import 'features/onboarding_survey/providers/onboarding_survey_provider.dart';
 import 'features/auth/providers/auth_providers.dart';
 import 'features/remote_config/remote_config_providers.dart';
 import 'features/remote_config/remote_config_service.dart';
+import 'features/user_region/user_region_providers.dart';
 import 'features/subscription/providers/subscription_controller.dart';
 import 'features/subscription/providers/subscription_plans_provider.dart';
 import 'features/subscription/services/paddle_deep_link_handler.dart';
@@ -242,6 +243,8 @@ class _EchoLoopAppState extends ConsumerState<EchoLoopApp>
   void initState() {
     super.initState();
     activeStartupTrace?.mark('app_widget_init_state');
+    // 在本地启动任务可能发起后端请求前，初始化统一地区判定及其端点路由监听。
+    ref.read(userRegionProvider);
     _localStartupSubscription = ref.listenManual<AsyncValue<StartupReport>>(
       localStartupProvider,
       (_, next) {
