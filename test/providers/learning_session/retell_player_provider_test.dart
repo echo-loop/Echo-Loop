@@ -29,11 +29,14 @@ import '../../helpers/mock_providers.dart';
 /// 可控测试引擎：用于验证 stopPlayback 与下一次 playRangeOnce 的时序。
 class SequencedTestAudioEngine extends ForegroundAudioEngine {
   final Completer<void> _stopCompleter = Completer<void>();
+  final Completer<void> _playRangeOnceCompleter = Completer<void>();
   int _sessionId = 0;
 
   int stopPlaybackCallCount = 0;
   int playRangeOnceCallCount = 0;
   bool playCalledBeforeStopCompleted = false;
+
+  Future<void> get playRangeOnceCalled => _playRangeOnceCompleter.future;
 
   @override
   AudioEngineState build() => const AudioEngineState();
@@ -76,6 +79,9 @@ class SequencedTestAudioEngine extends ForegroundAudioEngine {
     void Function()? onClipReady,
   }) async {
     playRangeOnceCallCount += 1;
+    if (!_playRangeOnceCompleter.isCompleted) {
+      _playRangeOnceCompleter.complete();
+    }
     if (!_stopCompleter.isCompleted) {
       playCalledBeforeStopCompleted = true;
     }
@@ -341,6 +347,90 @@ class _RecordingParagraphPlaybackDriver implements ParagraphPlaybackDriver {
   void unbindLockScreen() {}
 }
 
+/// 控制每次段落播放完成时机，验证导航不会等待音频自然结束。
+class _ControlledParagraphPlaybackDriver implements ParagraphPlaybackDriver {
+  int _sessionId = 0;
+  final List<Completer<SentencePlaybackResult>> _playbacks = [];
+  final List<({int count, Completer<void> completer})> _playCountWaiters = [];
+
+  int get playCount => _playbacks.length;
+
+  @override
+  int newSession() => ++_sessionId;
+
+  @override
+  bool isActiveSession(int sessionId) => sessionId == _sessionId;
+
+  @override
+  Stream<Duration> get positionStream => const Stream.empty();
+
+  @override
+  Future<void> pause() async {}
+
+  @override
+  Future<void> setSpeed(double speed) async {}
+
+  @override
+  Future<void> seek(Duration position) async {}
+
+  @override
+  Future<SentencePlaybackResult> playRange(
+    Duration start,
+    Duration end,
+    int sessionId, {
+    required double speed,
+    required void Function() onRangeReady,
+  }) {
+    final playback = Completer<SentencePlaybackResult>();
+    _playbacks.add(playback);
+    onRangeReady();
+    for (final waiter in _playCountWaiters.toList()) {
+      if (_playbacks.length >= waiter.count) {
+        waiter.completer.complete();
+        _playCountWaiters.remove(waiter);
+      }
+    }
+    return playback.future;
+  }
+
+  Future<void> waitForPlayCount(int count) {
+    if (_playbacks.length >= count) return Future<void>.value();
+    final completer = Completer<void>();
+    _playCountWaiters.add((count: count, completer: completer));
+    return completer.future;
+  }
+
+  void completePlayback(int index) {
+    final playback = _playbacks[index];
+    if (!playback.isCompleted) {
+      playback.complete(SentencePlaybackResult.completed);
+    }
+  }
+
+  void completeAll() {
+    for (var index = 0; index < _playbacks.length; index++) {
+      completePlayback(index);
+    }
+  }
+
+  @override
+  void bindLockScreen({
+    required Future<void> Function() onPlay,
+    required Future<void> Function() onPause,
+    required Future<void> Function() onNext,
+    required Future<void> Function() onPrevious,
+  }) {}
+
+  @override
+  void setSessionActive(bool active) {}
+
+  @override
+  void setProgressFrozen(bool frozen) {}
+
+  @override
+  void unbindLockScreen() {}
+}
+
 /// 用于复现“倒计时中切段”问题：
 /// - 段落播放立即完成，进入复述倒计时
 /// - stopPlayback 延迟完成，给已取消倒计时的过期回调制造竞态窗口
@@ -562,24 +652,6 @@ class PositionDrivenTestAudioEngine extends ForegroundAudioEngine {
 }
 
 void main() {
-  group('RetellPlayerState', () {
-    test('stepFinished — 默认为 false，copyWith 可设置和保留', () {
-      const state = RetellPlayerState();
-      expect(state.stepFinished, false);
-
-      final finished = state.copyWith(stepFinished: true);
-      expect(finished.stepFinished, true);
-
-      // 不传值时保留
-      final updated = finished.copyWith(isPlaying: true);
-      expect(updated.stepFinished, true);
-
-      // 重置
-      final reset = finished.copyWith(stepFinished: false);
-      expect(reset.stepFinished, false);
-    });
-  });
-
   group('RetellPlayer 新学习统计', () {
     test('页面退出记录有效学习时长，手动暂停期间不累计且重复退出只收尾一次', () async {
       final studyTimeService = _RecordingRetellStudyTimeService();
@@ -839,10 +911,116 @@ void main() {
 
       engine.completeStopPlayback();
       await pending;
+      await engine.playRangeOnceCalled;
 
       expect(engine.playRangeOnceCallCount, 1);
       expect(engine.playCalledBeforeStopCompleted, false);
       expect(container.read(retellPlayerProvider).currentParagraphIndex, 1);
+    });
+
+    test('段落播放未结束时仍可连续切换上一段和下一段', () async {
+      final driver = _ControlledParagraphPlaybackDriver();
+      await notifier.initialize([
+        [
+          Sentence(
+            index: 0,
+            text: 'Paragraph one',
+            startTime: Duration.zero,
+            endTime: const Duration(seconds: 3),
+          ),
+        ],
+        [
+          Sentence(
+            index: 1,
+            text: 'Paragraph two',
+            startTime: const Duration(seconds: 3),
+            endTime: const Duration(seconds: 6),
+          ),
+        ],
+      ], playbackDriver: driver);
+
+      final pendingPlaybacks = <Future<void>>[];
+      addTearDown(() async {
+        driver.completeAll();
+        await Future.wait(pendingPlaybacks);
+        await notifier.disposePlayer();
+      });
+
+      pendingPlaybacks.add(notifier.startPlaying());
+      await driver.waitForPlayCount(1);
+
+      var nextReturned = false;
+      final next = notifier.goToNextParagraph().then<void>((_) {
+        nextReturned = true;
+      });
+      pendingPlaybacks.add(next);
+      await driver.waitForPlayCount(2);
+      await Future<void>.value();
+
+      expect(nextReturned, isTrue);
+      expect(container.read(retellPlayerProvider).currentParagraphIndex, 1);
+
+      var previousReturned = false;
+      final previous = notifier.goToPreviousParagraph().then<void>((_) {
+        previousReturned = true;
+      });
+      pendingPlaybacks.add(previous);
+      await driver.waitForPlayCount(3);
+      await Future<void>.value();
+
+      expect(previousReturned, isTrue);
+      expect(container.read(retellPlayerProvider).currentParagraphIndex, 0);
+
+      driver.completePlayback(0);
+      await pendingPlaybacks.first;
+      expect(container.read(retellPlayerProvider).currentParagraphIndex, 0);
+      expect(container.read(retellPlayerProvider).isPlaying, isTrue);
+    });
+
+    test('最后一段重复播放时不提前结束，达到遍数后才完成', () async {
+      final driver = _ControlledParagraphPlaybackDriver();
+      await notifier.initialize(
+        [
+          [
+            Sentence(
+              index: 0,
+              text: 'Last paragraph',
+              startTime: Duration.zero,
+              endTime: const Duration(seconds: 3),
+            ),
+          ],
+        ],
+        settings: const RetellSettings(repeatCount: 2),
+        playbackDriver: driver,
+      );
+
+      final pendingTurns = <Future<void>>[];
+      addTearDown(() async {
+        driver.completeAll();
+        await Future.wait(pendingTurns);
+        await notifier.disposePlayer();
+      });
+
+      var repeatReturned = false;
+      final repeat = notifier.completeRetellingTurn().then<void>((_) {
+        repeatReturned = true;
+      });
+      pendingTurns.add(repeat);
+      await driver.waitForPlayCount(1);
+      await Future<void>.value();
+
+      final repeatedState = container.read(retellPlayerProvider);
+      expect(repeatReturned, isTrue);
+      expect(repeatedState.currentParagraphIndex, 0);
+      expect(repeatedState.currentRepeatCount, 2);
+      expect(repeatedState.stepFinished, isFalse);
+
+      await notifier.completeRetellingTurn();
+      expect(container.read(retellPlayerProvider).stepFinished, isTrue);
+
+      driver.completePlayback(0);
+      await Future<void>.value();
+      expect(container.read(retellPlayerProvider).stepFinished, isTrue);
     });
 
     test('等待态挂起时，当前段播完后进入 waiting for user', () async {

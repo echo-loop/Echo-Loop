@@ -1287,8 +1287,8 @@ class _RetellPlayerScreenState extends ConsumerState<RetellPlayerScreen>
         await ref.read(retellPlayerProvider.notifier).goToNextParagraph();
       }
 
-      // 最后一段 → 直接触发完成处理
-      if (isLastParagraph) {
+      // 最后一段仍可能需要重播；仅在 Provider 确认完成后处理完成弹窗。
+      if (isLastParagraph && ref.read(retellPlayerProvider).stepFinished) {
         _handleCompleted();
       }
     } finally {

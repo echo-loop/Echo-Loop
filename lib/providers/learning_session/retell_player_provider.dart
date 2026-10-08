@@ -543,7 +543,7 @@ class RetellPlayer extends _$RetellPlayer {
     if (effectiveRepeatCount == 0 ||
         state.currentRepeatCount < effectiveRepeatCount) {
       state = state.copyWith(currentRepeatCount: state.currentRepeatCount + 1);
-      await _playCurrentParagraph();
+      unawaited(_playCurrentParagraph());
     } else {
       await goToNextParagraph();
     }
@@ -749,7 +749,8 @@ class RetellPlayer extends _$RetellPlayer {
       isCountdownFastForward: false,
     );
 
-    await _playCurrentParagraph();
+    // 与 seekToSentence 一致：等待取消完成后启动播放，立即返回以接受后续切段。
+    unawaited(_playCurrentParagraph());
   }
 
   /// 跳转到上一段
@@ -770,7 +771,8 @@ class RetellPlayer extends _$RetellPlayer {
       isCountdownFastForward: false,
     );
 
-    await _playCurrentParagraph();
+    // 播放完成由 session 校验处理，切段入口不等待整段音频结束。
+    unawaited(_playCurrentParagraph());
   }
 
   /// 暂停倒计时
