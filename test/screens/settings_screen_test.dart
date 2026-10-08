@@ -30,6 +30,7 @@ import 'package:echo_loop/features/subscription/models/entitlement.dart';
 import 'package:echo_loop/features/subscription/providers/subscription_availability.dart';
 import 'package:echo_loop/features/subscription/providers/subscription_controller.dart';
 import 'package:echo_loop/features/subscription/state/entitlement_state.dart';
+import 'package:echo_loop/features/user_region/user_region_providers.dart';
 import 'package:echo_loop/providers/listening_practice/listening_practice_provider.dart';
 import 'package:echo_loop/providers/audio_engine/audio_engine_provider.dart';
 import 'package:echo_loop/providers/package_info_provider.dart';
@@ -97,6 +98,8 @@ void main() {
     OfflineAsrSettingsState? offlineAsrState,
     TtsSettings ttsSettings = const TtsSettings(),
     PackageInfo? packageInfo,
+    bool isChinaUser = false,
+    StateProvider<bool>? simulatedChinaUserProvider,
     // 测试宿主（macOS/无 key）默认不支持订阅，这里默认置 true 以覆盖订阅入口 UI。
     bool subscriptionAvailable = true,
   }) {
@@ -125,6 +128,12 @@ void main() {
       packageInfoProvider.overrideWithValue(packageInfo ?? testPackageInfo),
       appUpdateProvider.overrideWith(() => TestAppUpdate()),
       subscriptionAvailabilityProvider.overrideWithValue(subscriptionAvailable),
+      isChinaUserProvider.overrideWith((ref) {
+        final simulatedProvider = simulatedChinaUserProvider;
+        return simulatedProvider == null
+            ? isChinaUser
+            : ref.watch(simulatedProvider);
+      }),
       analyticsOverride(),
     ];
   }
@@ -162,6 +171,50 @@ void main() {
     }
 
     group('渲染', () {
+      testWidgets('仅中国区路由显示账号行国旗角标', (tester) async {
+        await tester.pumpWidget(
+          createTestScreen(
+            const SettingsScreen(),
+            overrides: buildOverrides(isChinaUser: true),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(findSvgAsset('assets/icon/china_flag.svg'), findsOneWidget);
+        expect(
+          find.byTooltip('Using China region service routing'),
+          findsOneWidget,
+        );
+      });
+
+      testWidgets('地区状态改变时更新账号行国旗角标', (tester) async {
+        final simulatedChinaUserProvider = StateProvider<bool>((ref) => false);
+        await tester.pumpWidget(
+          createTestScreen(
+            const SettingsScreen(),
+            overrides: buildOverrides(
+              simulatedChinaUserProvider: simulatedChinaUserProvider,
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(findSvgAsset('assets/icon/china_flag.svg'), findsNothing);
+
+        final container = ProviderScope.containerOf(
+          tester.element(find.byType(SettingsScreen)),
+        );
+        container.read(simulatedChinaUserProvider.notifier).state = true;
+        await tester.pumpAndSettle();
+
+        expect(findSvgAsset('assets/icon/china_flag.svg'), findsOneWidget);
+
+        container.read(simulatedChinaUserProvider.notifier).state = false;
+        await tester.pumpAndSettle();
+
+        expect(findSvgAsset('assets/icon/china_flag.svg'), findsNothing);
+      });
+
       test('设置页 SVG 图标统一使用 24x24 viewBox', () {
         for (final asset in settingsSvgAssets) {
           final content = File(asset).readAsStringSync();

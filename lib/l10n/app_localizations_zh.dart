@@ -362,6 +362,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get account => '账户';
 
   @override
+  String get chinaRoutingIndicatorTooltip => '当前使用中国区服务路由';
+
+  @override
   String get settings => '设置';
 
   @override

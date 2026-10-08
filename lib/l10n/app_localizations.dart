@@ -734,6 +734,12 @@ abstract class AppLocalizations {
   /// **'Account'**
   String get account;
 
+  /// No description provided for @chinaRoutingIndicatorTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Using China region service routing'**
+  String get chinaRoutingIndicatorTooltip;
+
   /// No description provided for @settings.
   ///
   /// In en, this message translates to:

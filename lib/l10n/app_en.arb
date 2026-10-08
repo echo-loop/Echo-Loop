@@ -195,6 +195,7 @@
   "practiceControlModeManual": "Manual",
   "player": "Player",
   "account": "Account",
+  "chinaRoutingIndicatorTooltip": "Using China region service routing",
   "settings": "Settings",
   "addAudio": "Add Audio",
   "noAudioYet": "No audio files yet",

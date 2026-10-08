@@ -379,6 +379,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get account => 'Account';
 
   @override
+  String get chinaRoutingIndicatorTooltip =>
+      'Using China region service routing';
+
+  @override
   String get settings => 'Settings';
 
   @override

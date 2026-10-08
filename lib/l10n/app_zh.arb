@@ -195,6 +195,7 @@
   "practiceControlModeManual": "手动",
   "player": "播放器",
   "account": "账户",
+  "chinaRoutingIndicatorTooltip": "当前使用中国区服务路由",
   "settings": "设置",
   "addAudio": "添加音频",
   "noAudioYet": "还没有音频文件",

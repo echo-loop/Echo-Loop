@@ -186,6 +186,7 @@ flutter:
     - assets/icon/refresh.svg
     - assets/icon/check-circle-3.svg
     - assets/icon/calendar-2.svg
+    - assets/icon/china_flag.svg
     - assets/icon/diamond.svg
     - assets/icon/diskette.svg
     - assets/icon/documents.svg

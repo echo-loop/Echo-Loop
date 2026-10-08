@@ -4,6 +4,7 @@
 
 ## 本次完成
 
+- [x] 为账号入口添加中国区路由角标（2026-10-08）：在“我的”页账号行图标右上角复用 `assets/icon/china_flag.svg`，仅 `isChinaUser` 为 true 时显示，并补充中英文无障碍提示与地区状态切换 Widget 回归测试。设置页测试 34 项通过，相关文件定向分析无问题，`git diff --check` 通过。未运行 `scripts/check.sh`：改动范围仅限设置页和资源注册；未运行 Maestro：查询已连接 iPhone 上的安装包时 CoreDevice 初始化超时，无法确认可运行的目标包。**完成时间**: 2026-10-08 18:23
 - [x] 移除 CI/Release API 地址必填校验（2026-10-08）：按用户要求删除 CI 中的校验及校验测试步骤、Release 中的校验步骤，并删除只服务于这些步骤的两个脚本；构建参数直接引用 GitHub Variables，不增加 API 地址的 `env` 映射。**完成时间**: 2026-10-08 16:39
 - [x] 为 CI/Release API 地址补齐必填校验并修正文档注释（2026-10-08）：CI 与 Release 在构建前通过共享脚本校验 `API_BASE_URL` 和 `API_CHINA_BASE_URL` 非空，避免缺变量时以空值覆盖 Dart 源码默认地址并静默关闭地区路由；为缺少两项、缺少任一项、纯空白及有效值添加脚本回归测试。修正 Client Config 端点回退、并发强制刷新和 Dio/HTTP2 拦截器的中文注释。脚本测试通过；远程配置测试 22 项通过；4 个改动 Dart 文件定向分析无问题；CI/Release YAML 解析、shell 语法检查和 `git diff --check` 通过。未运行 `scripts/check.sh`：改动局限于 workflow 必填校验和注释，定向验证覆盖其行为。**完成时间**: 2026-10-08 16:17
 - [x] 修复 Client Config 国家码缺失时默认填充 US（2026-10-06）：`countryCode` 改为可空；缺失、`null`、非字符串、空白和 `unknown` 均保留为未知，不再伪造 `US`。补充解析边界与 UserRegion 聚合回归测试。相关 2 个测试文件共 32 项通过，6 个 Dart 文件定向分析通过，`git diff --check` 通过。未运行 `scripts/check.sh`：改动限于远程配置国家码解析与地区判定，定向测试和分析覆盖修改范围。**完成时间**: 2026-10-06 19:57
