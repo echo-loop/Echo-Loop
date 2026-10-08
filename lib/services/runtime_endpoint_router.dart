@@ -13,7 +13,11 @@ class RuntimeEndpointRouter {
   ServiceEndpointRegion _preferredApiRegion = ServiceEndpointRegion.global;
   ServiceEndpointRegion _activeApiRegion = ServiceEndpointRegion.global;
   ServiceEndpointRegion _cdnRegion = ServiceEndpointRegion.global;
+  bool _isChinaUser = false;
   bool _apiFallbackActive = false;
+
+  /// 当前地区判定快照；不随 API 可用性回退而变化。
+  bool get isChinaUser => _isChinaUser;
 
   /// 当前实际承载后端 API 请求的区域，可能因故障回退而不同于用户首选区域。
   ServiceEndpointRegion get apiRegion => _activeApiRegion;
@@ -37,6 +41,7 @@ class RuntimeEndpointRouter {
   /// 地区结论变化后先保留当前 API，直到配置请求验证新的首选区域；用户地区
   /// 状态本身不受可用性回退影响。
   void updateFromUserRegion({required bool isChinaUser}) {
+    _isChinaUser = isChinaUser;
     final requestedRegion = isChinaUser
         ? ServiceEndpointRegion.china
         : ServiceEndpointRegion.global;

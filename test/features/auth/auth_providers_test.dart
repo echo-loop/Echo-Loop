@@ -1,7 +1,7 @@
 /// `supabaseSessionProvider` / `isAuthenticatedProvider` 基线测试。
 ///
 /// 步骤 0 阶段：Supabase 凭据未通过 `--dart-define` 注入，
-/// `isAuthConfigured == false`，provider 走 fallback 分支永远 emit `null`。
+/// 所选 Supabase 配置不完整时，provider 走 fallback 分支永远 emit `null`。
 /// 验证 fallback 分支不崩、行为合理，避免后续步骤回归。
 library;
 

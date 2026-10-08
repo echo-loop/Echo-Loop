@@ -187,6 +187,7 @@ jobs:
             --dart-define=API_CHINA_BASE_URL=${{ vars.API_CHINA_BASE_URL }} \
             --dart-define=POSTHOG_HOST=${{ vars.POSTHOG_HOST }} \
             --dart-define=SUPABASE_URL=${{ vars.SUPABASE_URL }} \
+            --dart-define=CHINA_SUPABASE_URL=${{ vars.CHINA_SUPABASE_URL }} \
             --dart-define=SUPABASE_PUBLISHABLE_KEY=${{ vars.SUPABASE_PUBLISHABLE_KEY }} \
             --dart-define=GOOGLE_WEB_CLIENT_ID=${{ vars.GOOGLE_WEB_CLIENT_ID }}
 
@@ -223,5 +224,6 @@ jobs:
             --dart-define=API_CHINA_BASE_URL=${{ vars.API_CHINA_BASE_URL }} \
             --dart-define=POSTHOG_HOST=${{ vars.POSTHOG_HOST }} \
             --dart-define=SUPABASE_URL=${{ vars.SUPABASE_URL }} \
+            --dart-define=CHINA_SUPABASE_URL=${{ vars.CHINA_SUPABASE_URL }} \
             --dart-define=SUPABASE_PUBLISHABLE_KEY=${{ vars.SUPABASE_PUBLISHABLE_KEY }} \
             --dart-define=GOOGLE_WEB_CLIENT_ID=${{ vars.GOOGLE_WEB_CLIENT_ID }}

@@ -10,7 +10,6 @@ import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../analytics/analytics_providers.dart';
-import '../../../config/auth_config.dart' as auth_config;
 import '../../../providers/startup_bootstrap_provider.dart';
 import '../../../services/app_logger.dart';
 import '../../../services/supabase_token_coordinator.dart';
@@ -211,7 +210,7 @@ Map<String, String> _appleUserMetadata(
 ///
 /// 未配置 Supabase 时调用动作会立刻抛错，避免页面误以为认证成功。
 final authRepositoryProvider = Provider<AuthRepository>((ref) {
-  if (!auth_config.isAuthConfigured || !ref.watch(supabaseSdkReadyProvider)) {
+  if (!ref.watch(supabaseSdkReadyProvider)) {
     throw AuthException('Supabase auth is not configured.');
   }
   return SupabaseAuthRepository(Supabase.instance.client.auth);
@@ -342,10 +341,10 @@ final authControllerProvider = Provider<AuthController>((ref) {
 /// 后续：该流的每个认证事件（signedIn / signedOut / tokenRefreshed 等都会带
 /// `session`）。不会把 SDK 恢复期间暂时为空的 `currentSession` 当作匿名首值。
 ///
-/// Supabase 未配置（`isAuthConfigured == false`）时永远 emit `null`，
+/// 当前进程所选 Supabase 配置不完整时永远 emit `null`，
 /// 等价于匿名态，调用方无需特殊判断。
 final supabaseSessionProvider = StreamProvider<Session?>((ref) {
-  if (!auth_config.isAuthConfigured) {
+  if (!ref.watch(supabaseAuthConfiguredProvider)) {
     return Stream<Session?>.value(null);
   }
 
@@ -393,7 +392,7 @@ final supabaseSessionProvider = StreamProvider<Session?>((ref) {
 final supabaseTokenCoordinatorProvider = Provider<SupabaseTokenCoordinator?>((
   ref,
 ) {
-  if (!auth_config.isAuthConfigured || !ref.watch(supabaseSdkReadyProvider)) {
+  if (!ref.watch(supabaseSdkReadyProvider)) {
     return null;
   }
   final coordinator = SupabaseTokenCoordinator(

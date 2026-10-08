@@ -103,7 +103,9 @@ if [[ -x "scripts/preflight.sh" ]]; then
 fi
 
 TEAM_ID="${IOS_TEAM_ID:-S8S968QAV3}"
-# Supabase、Google 等编译期变量从 .prod.env 读取；全球/中国 API 可用 API_BASE_URL 和 API_CHINA_BASE_URL 覆盖。
+# Supabase、Google 等编译期变量从 .prod.env 读取；Supabase 使用 SUPABASE_URL（全球）
+# 和 CHINA_SUPABASE_URL（中国）。
+# 全球/中国 API 可用 API_BASE_URL 和 API_CHINA_BASE_URL 覆盖。
 ENV_FILE=".prod.env"
 API_KEY_ID="${APP_STORE_API_KEY_ID:-5GB5KL75VZ}"
 API_ISSUER_ID="${APP_STORE_API_ISSUER_ID:-3ec439fe-b66c-4034-b8c2-16e133fc4d6b}"

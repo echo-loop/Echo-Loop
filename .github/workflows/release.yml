@@ -150,6 +150,7 @@ jobs:
           POSTHOG_HOST: ${{ vars.POSTHOG_HOST }}
           POSTHOG_API_KEY: ${{ vars.POSTHOG_API_KEY }}
           SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+          CHINA_SUPABASE_URL: ${{ vars.CHINA_SUPABASE_URL }}
           SUPABASE_PUBLISHABLE_KEY: ${{ vars.SUPABASE_PUBLISHABLE_KEY }}
           GOOGLE_WEB_CLIENT_ID: ${{ vars.GOOGLE_WEB_CLIENT_ID }}
         run: |
@@ -159,6 +160,7 @@ jobs:
             "--dart-define=API_CHINA_BASE_URL=${{ vars.API_CHINA_BASE_URL }}"
             "--dart-define=POSTHOG_HOST=${POSTHOG_HOST}"
             "--dart-define=SUPABASE_URL=${SUPABASE_URL}"
+            "--dart-define=CHINA_SUPABASE_URL=${CHINA_SUPABASE_URL}"
             "--dart-define=SUPABASE_PUBLISHABLE_KEY=${SUPABASE_PUBLISHABLE_KEY}"
             "--dart-define=GOOGLE_WEB_CLIENT_ID=${GOOGLE_WEB_CLIENT_ID}"
           )
@@ -214,6 +216,7 @@ jobs:
           POSTHOG_HOST: ${{ vars.POSTHOG_HOST }}
           POSTHOG_API_KEY: ${{ vars.POSTHOG_API_KEY }}
           SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+          CHINA_SUPABASE_URL: ${{ vars.CHINA_SUPABASE_URL }}
           SUPABASE_PUBLISHABLE_KEY: ${{ vars.SUPABASE_PUBLISHABLE_KEY }}
           GOOGLE_WEB_CLIENT_ID: ${{ vars.GOOGLE_WEB_CLIENT_ID }}
           REVENUECAT_API_KEY_GOOGLE: ${{ vars.REVENUECAT_API_KEY_GOOGLE }}
@@ -223,6 +226,7 @@ jobs:
             "--dart-define=API_CHINA_BASE_URL=${{ vars.API_CHINA_BASE_URL }}"
             "--dart-define=POSTHOG_HOST=${POSTHOG_HOST}"
             "--dart-define=SUPABASE_URL=${SUPABASE_URL}"
+            "--dart-define=CHINA_SUPABASE_URL=${CHINA_SUPABASE_URL}"
             "--dart-define=SUPABASE_PUBLISHABLE_KEY=${SUPABASE_PUBLISHABLE_KEY}"
             "--dart-define=GOOGLE_WEB_CLIENT_ID=${GOOGLE_WEB_CLIENT_ID}"
           )
@@ -347,6 +351,7 @@ jobs:
           POSTHOG_HOST: ${{ vars.POSTHOG_HOST }}
           POSTHOG_API_KEY: ${{ vars.POSTHOG_API_KEY }}
           SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+          CHINA_SUPABASE_URL: ${{ vars.CHINA_SUPABASE_URL }}
           SUPABASE_PUBLISHABLE_KEY: ${{ vars.SUPABASE_PUBLISHABLE_KEY }}
           GOOGLE_WEB_CLIENT_ID: ${{ vars.GOOGLE_WEB_CLIENT_ID }}
           REVENUECAT_API_KEY_APPLE: ${{ vars.REVENUECAT_API_KEY_APPLE }}
@@ -358,6 +363,7 @@ jobs:
             "--dart-define=API_CHINA_BASE_URL=${{ vars.API_CHINA_BASE_URL }}"
             "--dart-define=POSTHOG_HOST=${POSTHOG_HOST}"
             "--dart-define=SUPABASE_URL=${SUPABASE_URL}"
+            "--dart-define=CHINA_SUPABASE_URL=${CHINA_SUPABASE_URL}"
             "--dart-define=SUPABASE_PUBLISHABLE_KEY=${SUPABASE_PUBLISHABLE_KEY}"
             "--dart-define=GOOGLE_WEB_CLIENT_ID=${GOOGLE_WEB_CLIENT_ID}"
           )

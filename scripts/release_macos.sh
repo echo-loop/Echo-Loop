@@ -77,7 +77,9 @@ log "Cleaning..."
 flutter clean
 
 log "Building release app..."
-# Supabase、Google 等编译期变量从 .prod.env 读取；全球/中国 API 可用 API_BASE_URL 和 API_CHINA_BASE_URL 覆盖。
+# Supabase、Google 等编译期变量从 .prod.env 读取；Supabase 使用 SUPABASE_URL（全球）
+# 和 CHINA_SUPABASE_URL（中国）。
+# 全球/中国 API 可用 API_BASE_URL 和 API_CHINA_BASE_URL 覆盖。
 ENV_FILE=".prod.env"
 [[ -f "$ENV_FILE" ]] || fail "$ENV_FILE not found. Copy .dev.env.template to $ENV_FILE and fill in values."
 FLUTTER_ARGS=(

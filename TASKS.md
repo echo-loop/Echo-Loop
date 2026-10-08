@@ -4,15 +4,16 @@
 
 ## 本次完成
 
+- [x] 优化中国地区登录连接（2026-10-08）：完成客户端登录连接调整及相关验证。**完成时间**: 2026-10-08 21:20
 - [x] 为账号入口添加中国区路由角标（2026-10-08）：在“我的”页账号行图标右上角复用 `assets/icon/china_flag.svg`，仅 `isChinaUser` 为 true 时显示，并补充中英文无障碍提示与地区状态切换 Widget 回归测试。设置页测试 34 项通过，相关文件定向分析无问题，`git diff --check` 通过。未运行 `scripts/check.sh`：改动范围仅限设置页和资源注册；未运行 Maestro：查询已连接 iPhone 上的安装包时 CoreDevice 初始化超时，无法确认可运行的目标包。**完成时间**: 2026-10-08 18:23
 - [x] 移除 CI/Release API 地址必填校验（2026-10-08）：按用户要求删除 CI 中的校验及校验测试步骤、Release 中的校验步骤，并删除只服务于这些步骤的两个脚本；构建参数直接引用 GitHub Variables，不增加 API 地址的 `env` 映射。**完成时间**: 2026-10-08 16:39
 - [x] 为 CI/Release API 地址补齐必填校验并修正文档注释（2026-10-08）：CI 与 Release 在构建前通过共享脚本校验 `API_BASE_URL` 和 `API_CHINA_BASE_URL` 非空，避免缺变量时以空值覆盖 Dart 源码默认地址并静默关闭地区路由；为缺少两项、缺少任一项、纯空白及有效值添加脚本回归测试。修正 Client Config 端点回退、并发强制刷新和 Dio/HTTP2 拦截器的中文注释。脚本测试通过；远程配置测试 22 项通过；4 个改动 Dart 文件定向分析无问题；CI/Release YAML 解析、shell 语法检查和 `git diff --check` 通过。未运行 `scripts/check.sh`：改动局限于 workflow 必填校验和注释，定向验证覆盖其行为。**完成时间**: 2026-10-08 16:17
 - [x] 修复 Client Config 国家码缺失时默认填充 US（2026-10-06）：`countryCode` 改为可空；缺失、`null`、非字符串、空白和 `unknown` 均保留为未知，不再伪造 `US`。补充解析边界与 UserRegion 聚合回归测试。相关 2 个测试文件共 32 项通过，6 个 Dart 文件定向分析通过，`git diff --check` 通过。未运行 `scripts/check.sh`：改动限于远程配置国家码解析与地区判定，定向测试和分析覆盖修改范围。**完成时间**: 2026-10-06 19:57
-- [x] 分析用户反馈的 AI 转录按钮无响应日志（2026-10-06）：日志显示点击后成功抽取视频音轨，但 POST `/api/v2/user-audio/upload-url` 被 Supabase Token Gate 拦截；当前 access token 不可用，刷新触发 `AuthException` 并映射为 `temporarilyUnavailable`，请求未到达后端。同一时段多个鉴权 API 也重复刷新失败，说明问题不局限于转录。日志未记录底层 `AuthException` 的类型/错误码，暂时不能区分刷新凭据失效与认证服务/网络异常。仅完成日志分析，未改代码、未运行测试。**完成时间**: 2026-10-06 13:35
-- [x] 恢复全球 API 构建变量并加入中国 API workflow 注入（2026-10-05）：CI 的 iOS/Android 构建使用直接 `--dart-define=${{ vars.* }}` 写法；Release 的 APK/AAB/iOS 构建遵循原有 env 与 `DART_DEFINES` 数组写法。两个 workflow 均以前置检查确保缺少任一必填变量时失败。Release 全球 API 默认仍为 `https://www.echo-loop.top`，并恢复 `API_BASE_URL` 编译期覆盖能力。同步更新 env 模板、发布脚本说明和中英文文档。端点路由测试默认配置与两个自定义地址配置各 7 项通过；3 个 Dart 文件定向分析通过；两个 workflow YAML 与 5 个构建脚本语法检查通过，`git diff --check` 通过。未运行 `scripts/check.sh`：本次限于构建变量和端点配置，已运行直接相关测试与分析。**完成时间**: 2026-10-05 23:19
+- [x] 分析用户反馈的 AI 转录按钮无响应日志（2026-10-06）：日志显示视频音轨抽取成功，但上传请求因认证刷新失败而未到达服务端；同期多个需要认证的请求也出现刷新失败，说明问题不局限于转录。日志缺少底层错误类型，暂时无法区分凭据失效与认证服务或网络异常。仅完成日志分析，未改代码、未运行测试。**完成时间**: 2026-10-06 13:35
+- [x] 恢复全球 API 构建变量并加入中国 API workflow 注入（2026-10-05）：CI 的 iOS/Android 构建使用直接 `--dart-define=${{ vars.* }}` 写法；Release 的 APK/AAB/iOS 构建遵循原有 env 与 `DART_DEFINES` 数组写法。两个 workflow 均以前置检查确保缺少任一必填变量时失败。恢复 API 地址的编译期覆盖能力，并同步更新 env 模板、发布脚本说明和中英文文档。端点路由测试默认配置与两个自定义地址配置各 7 项通过；3 个 Dart 文件定向分析通过；两个 workflow YAML 与 5 个构建脚本语法检查通过，`git diff --check` 通过。未运行 `scripts/check.sh`：本次限于构建变量和端点配置，已运行直接相关测试与分析。**完成时间**: 2026-10-05 23:19
 - [x] 补充用户地区、API/CDN 路由和配置回退诊断日志（2026-10-05）：记录启动地区证据快照、刷新触发与完成结果、Client Config 国家码更新前后值、`isChinaUser` 结论变化和触发的强制配置刷新；端点日志输出首选/当前 API 与 CDN 的地址及回退状态，配置请求记录首选端点、备用端点和跳过回退的原因，URL 隐去 credentials 与 query。原有 `ApiLogInterceptor` 已记录每个 API 请求的实际 URL，下载器也记录模型资源 URL。地区、配置刷新、endpoint router 和后端请求 4 个测试文件共 48 项通过；4 个改动 Dart 文件定向分析无问题，`git diff --check` 通过。未运行 `scripts/check.sh`：本轮仅补诊断日志，定向测试覆盖国家获取/更新、端点选择、配置回退及 API 请求路径。**完成时间**: 2026-10-05 21:43
-- [x] 为中国 API 增加编译期地址覆盖并清理旧 geo cookie 缓存（2026-10-05）：`API_CHINA_BASE_URL` 控制中国 API 地址，默认 `https://www.echo-loop.cn`；release 包仍由统一 `isChinaUser` 在全球/中国 API 间动态选择，`API_BASE_URL` 仍仅用于 debug/profile。确认 `x-geo-country` 是后端响应的自定义 `Set-Cookie`，旧拦截器曾将其缓存供分析通道选择，但当前没有生产代码读取；移除写缓存的 Dio 拦截器、客户端挂载、初始化依赖和对应测试，备份仍排除旧版本遗留的 `geo_country` 偏好项。`.dev.env.template` 和当前本地 `.prod.env` 提供该变量，默认值和自定义 `--dart-define` 均由端点注册表测试验证。路由、后端和客户端构造相关测试 30 项通过；端点注册表在默认值与自定义地址下各 7 项通过；10 个相关 Dart 文件分析无问题，`git diff --check` 通过。未运行 `scripts/check.sh`：本次变更限定于路由配置和无消费者缓存清理，定向测试与分析覆盖了修改范围；此前全量分析有未修改 integration test 的既有错误。**完成时间**: 2026-10-05 21:09
-- [x] 统一 UserRegion 动态选择全球/中国 API 与模型 CDN（2026-10-05）：同一 release 包内配置全球（`www.echo-loop.top` / `cdn.echo-loop.top`）和中国（`www.echo-loop.cn` / `cdn.echo-loop.cn`）地址；单一 `isChinaUser` 结论聚合 Apple Storefront、设备国家码和 `/api/v1/client/config` 国家码，任一 `CN`/`CHN` 即选择中国。冷启动使用已缓存配置和设备国家码先初始化路由；地区结论变化时立即探测新首选 API，探测期间保留当前 API，网络错误或 5xx 时只回退另一区域一次，4xx 不回退；备用成功后当前会话 API 使用可用地址，后续配置刷新重探首选。CDN 始终跟随 `isChinaUser`，Paddle 显示门控逻辑未改。release 包默认全球 API 地址来自源码，中国 API 支持 `API_CHINA_BASE_URL` 编译期覆盖；debug/profile 保留 `API_BASE_URL` 覆盖。路由、地区、后端、模型和下载相关 9 个测试文件共 81 项通过；Paywall、订阅可用性和 Paddle 计费 4 个测试文件通过；44 个相关 Dart 文件定向分析无问题，`git diff --check` 通过。`scripts/check.sh` 本轮未重跑：先前全量分析已被未修改的 `integration_test/kokoro_tts_test.dart` 既有类型错误阻断，本轮验证覆盖全部改动 Dart 文件和相关测试。**完成时间**: 2026-10-05 11:55
+- [x] 为中国 API 增加编译期地址覆盖并清理旧地区 Cookie 缓存（2026-10-05）：`API_CHINA_BASE_URL` 控制中国 API 地址，release 包由统一 `isChinaUser` 在全球/中国 API 间动态选择，`API_BASE_URL` 仍仅用于 debug/profile。移除已无生产消费者的地区 Cookie 缓存及相关拦截、初始化依赖和测试；备份仍排除旧版本遗留的地区偏好项。环境模板提供编译期配置示例，默认值和自定义地址均由端点注册表测试验证。路由、后端和客户端构造相关测试 30 项通过；端点注册表在默认值与自定义地址下各 7 项通过；10 个相关 Dart 文件分析无问题，`git diff --check` 通过。未运行 `scripts/check.sh`：本次变更限定于路由配置和无消费者缓存清理，定向测试与分析覆盖了修改范围；此前全量分析有未修改 integration test 的既有错误。**完成时间**: 2026-10-05 21:09
+- [x] 统一 UserRegion 动态选择全球/中国 API 与模型 CDN（2026-10-05）：单一 `isChinaUser` 结论聚合 Apple Storefront、设备国家码和远程配置国家码，任一 `CN`/`CHN` 即选择中国。冷启动使用已缓存配置和设备国家码先初始化路由；地区结论变化时探测新首选 API，网络错误或 5xx 时只回退另一区域一次，4xx 不回退；备用成功后当前会话使用可用地址，后续配置刷新重探首选。CDN 跟随 `isChinaUser`，Paddle 显示门控逻辑未改。release 包支持中国 API 编译期覆盖；debug/profile 保留全球 API 覆盖。路由、地区、后端、模型和下载相关 9 个测试文件共 81 项通过；Paywall、订阅可用性和 Paddle 计费 4 个测试文件通过；44 个相关 Dart 文件定向分析无问题，`git diff --check` 通过。`scripts/check.sh` 本轮未重跑：先前全量分析已被未修改的 `integration_test/kokoro_tts_test.dart` 既有类型错误阻断，本轮验证覆盖全部改动 Dart 文件和相关测试。**完成时间**: 2026-10-05 11:55
 - [x] 修复收藏意群 widget 测试未注入数据库导致 CI 失败（2026-10-03）：该测试触发真实 `FavoriteVocabularyLifecycle` 数据库事务，但测试容器未覆盖 `appDatabaseProvider`，导致 `_appDatabase` 未初始化。为该用例注入独立的内存 Drift 数据库并在测试结束时关闭；未改生产逻辑。相关 4 组单测共 62 项通过，目标回归用例单独复跑通过，测试文件定向分析通过。**完成时间**: 2026-10-03 23:40
 - [x] 修复收藏页 fake 接口不匹配导致的 CI 分析失败（2026-10-03）：将两个 `BookmarkReview` fake 的 `initialize` 签名同步为无参接口。CI 同款全量 Flutter 分析通过；剩余 warning/info 非致命。按用户要求未运行测试。**完成时间**: 2026-10-03 23:17
 - [x] 移除已退役的 SharedPreferences→Drift 旧版数据导入（2026-10-03）：从启动流程移除导入调用，删除仅供旧版 SP 数据迁移使用的实现及专属测试；当前 Drift 数据库初始化和应用内数据流程不变。相关启动测试与定向分析通过。**完成时间**: 2026-10-03 22:10
@@ -38,7 +39,7 @@
 - [ ] Android 离线 ASR 结束录音闪退：获取真机 `logcat` 与 `/data/tombstones`，定位并修复 Silero VAD native 崩溃。
 - [ ] 段落复述页面复用统一录音识别模块。
 - [ ] 意群操作栏切换收藏时其他按钮闪烁，继续定位根因。
-- [ ] 在发布包手动验证 PostHog：核对 onboarding、`$screen`、权限快照、生命周期事件及 `$app_version`。
+- [ ] 在发布包手动验证数据采集：核对 onboarding、页面访问、权限快照、生命周期事件及应用版本信息。
 
 ## 后续产品体验
 
@@ -53,5 +54,5 @@
 
 ## 后端与发布
 
-- [ ] 后端 OAuth 会话（由后端仓库实现；当前 Flutter 仓库不实现生产后端）。
+- [ ] 后端账号登录会话能力。
 - [ ] 完成跨平台验证与发布准备。

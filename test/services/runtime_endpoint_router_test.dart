@@ -71,12 +71,14 @@ void main() {
   test('isChinaUser selects China API and CDN', () {
     final router = RuntimeEndpointRouter(endpoints: _testEndpoints)
       ..updateFromUserRegion(isChinaUser: true);
+    expect(router.isChinaUser, isTrue);
     expect(router.preferredApiRegion, ServiceEndpointRegion.china);
     expect(router.apiRegion, ServiceEndpointRegion.global);
 
     router.markApiRegionAvailable(ServiceEndpointRegion.china);
 
     expect(router.apiRegion, ServiceEndpointRegion.china);
+    expect(router.isChinaUser, isTrue);
     expect(router.modelCdnRegion, ServiceEndpointRegion.china);
     expect(router.apiUri('/api/v1/client/config').host, 'china-api.example');
     expect(
@@ -89,6 +91,7 @@ void main() {
     final router = RuntimeEndpointRouter(endpoints: _testEndpoints)
       ..updateFromUserRegion(isChinaUser: false);
 
+    expect(router.isChinaUser, isFalse);
     expect(router.apiRegion, ServiceEndpointRegion.global);
     expect(router.modelCdnRegion, ServiceEndpointRegion.global);
     expect(router.apiUri('/health').host, 'global-api.example');
@@ -98,6 +101,7 @@ void main() {
     );
 
     router.updateFromUserRegion(isChinaUser: false);
+    expect(router.isChinaUser, isFalse);
     expect(router.apiRegion, ServiceEndpointRegion.global);
     expect(router.modelCdnRegion, ServiceEndpointRegion.global);
   });
@@ -123,6 +127,7 @@ void main() {
       ..updateFromUserRegion(isChinaUser: true);
 
     expect(router.preferredApiRegion, ServiceEndpointRegion.china);
+    expect(router.isChinaUser, isTrue);
     expect(router.apiRegion, ServiceEndpointRegion.global);
 
     expect(router.markApiRegionAvailable(ServiceEndpointRegion.china), isTrue);
@@ -151,6 +156,7 @@ void main() {
 
     router.updateFromUserRegion(isChinaUser: false);
 
+    expect(router.isChinaUser, isFalse);
     expect(router.preferredApiRegion, ServiceEndpointRegion.global);
     expect(router.apiRegion, ServiceEndpointRegion.china);
     expect(router.modelCdnRegion, ServiceEndpointRegion.global);

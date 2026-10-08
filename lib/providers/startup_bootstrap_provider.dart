@@ -87,6 +87,14 @@ final startupBootstrapperProvider = Provider<StartupBootstrapper>((ref) {
     prefs: ref.read(sharedPreferencesProvider),
     isDemoMode: ref.read(startupDemoModeProvider),
     analyticsService: ref.read(analyticsServiceProvider),
+    supabaseUrl: ref.read(supabaseUrlForThisRunProvider),
+  );
+});
+
+/// 冷启动时按地区判定选择一次 Supabase URL，并在本进程内保持不变。
+final supabaseUrlForThisRunProvider = Provider<String?>((_) {
+  return auth_config.supabaseUrlForRegion(
+    isChinaUser: runtimeEndpointRouter.isChinaUser,
   );
 });
 
@@ -158,15 +166,18 @@ class DefaultStartupBootstrapper implements StartupBootstrapper {
     required SharedPreferences prefs,
     required bool isDemoMode,
     required AnalyticsService analyticsService,
+    required String? supabaseUrl,
   }) : _database = database,
        _prefs = prefs,
        _isDemoMode = isDemoMode,
-       _analyticsService = analyticsService;
+       _analyticsService = analyticsService,
+       _supabaseUrl = supabaseUrl;
 
   final AppDatabase _database;
   final SharedPreferences _prefs;
   final bool _isDemoMode;
   final AnalyticsService _analyticsService;
+  final String? _supabaseUrl;
 
   /// 执行本地数据初始化；失败会向上抛出，由首页以降级状态承接。
   @override
@@ -236,11 +247,13 @@ class DefaultStartupBootstrapper implements StartupBootstrapper {
 
     var supabaseReady = false;
     String? restoredUserId;
-    if (auth_config.isAuthConfigured) {
+    final selectedSupabaseUrl = _supabaseUrl;
+    if (selectedSupabaseUrl != null &&
+        auth_config.isAuthConfiguredForUrl(selectedSupabaseUrl)) {
       try {
         await _trace('supabase_initialize', () {
           return Supabase.initialize(
-            url: auth_config.supabaseUrl,
+            url: selectedSupabaseUrl,
             anonKey: auth_config.supabasePublishableKey,
           );
         });
@@ -252,7 +265,10 @@ class DefaultStartupBootstrapper implements StartupBootstrapper {
     } else {
       activeStartupTrace?.mark(
         'step_skipped',
-        fields: {'step': 'supabase_initialize', 'reason': 'not_configured'},
+        fields: {
+          'step': 'supabase_initialize',
+          'reason': 'selected_url_or_publishable_key_missing',
+        },
       );
     }
 
