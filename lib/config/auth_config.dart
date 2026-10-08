@@ -36,6 +36,21 @@ String? supabaseUrlForRegion({
   return selectedUrl.isEmpty ? null : selectedUrl;
 }
 
+/// 生成 Supabase 入口日志标签，仅保留 origin，避免输出 URL 路径、凭据或查询参数。
+String supabaseEndpointLabelForLog(String? url) {
+  final normalized = url?.trim() ?? '';
+  if (normalized.isEmpty) return 'unconfigured';
+
+  final uri = Uri.tryParse(normalized);
+  if (uri == null ||
+      !uri.hasAuthority ||
+      uri.host.isEmpty ||
+      (uri.scheme != 'http' && uri.scheme != 'https')) {
+    return 'invalid';
+  }
+  return uri.origin;
+}
+
 /// 判断所选 Supabase 地址与公开客户端 key 是否都已配置。
 bool isAuthConfiguredForUrl(String? url, {String? publishableKey}) {
   return (url?.trim().isNotEmpty ?? false) &&

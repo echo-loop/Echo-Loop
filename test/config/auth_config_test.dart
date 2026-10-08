@@ -35,6 +35,20 @@ void main() {
     );
   });
 
+  test('Supabase log endpoint excludes credentials, path, and query', () {
+    expect(
+      supabaseEndpointLabelForLog(
+        'https://user:password@auth.example:8443/project?token=secret#section',
+      ),
+      'https://auth.example:8443',
+    );
+  });
+
+  test('Supabase log endpoint labels missing or invalid URLs', () {
+    expect(supabaseEndpointLabelForLog(null), 'unconfigured');
+    expect(supabaseEndpointLabelForLog('not-a-url'), 'invalid');
+  });
+
   test('auth requires both selected URL and publishable key', () {
     expect(
       isAuthConfiguredForUrl(

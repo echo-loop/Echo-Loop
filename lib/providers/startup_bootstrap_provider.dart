@@ -93,9 +93,28 @@ final startupBootstrapperProvider = Provider<StartupBootstrapper>((ref) {
 
 /// 冷启动时按地区判定选择一次 Supabase URL，并在本进程内保持不变。
 final supabaseUrlForThisRunProvider = Provider<String?>((_) {
-  return auth_config.supabaseUrlForRegion(
-    isChinaUser: runtimeEndpointRouter.isChinaUser,
+  final isChinaUser = runtimeEndpointRouter.isChinaUser;
+  final selectedUrl = auth_config.supabaseUrlForRegion(
+    isChinaUser: isChinaUser,
   );
+  final selectionReady = auth_config.isAuthConfiguredForUrl(selectedUrl);
+  final skipReason = selectedUrl == null
+      ? 'selected_url_missing'
+      : auth_config.supabasePublishableKey.trim().isEmpty
+      ? 'publishable_key_missing'
+      : null;
+  AppLogger.log(
+    'Supabase',
+    'url selection region=${isChinaUser ? "china" : "global"} '
+        'endpoint=${auth_config.supabaseEndpointLabelForLog(selectedUrl)} '
+        'globalUrlConfigured=${auth_config.supabaseUrl.trim().isNotEmpty} '
+        'chinaUrlConfigured=${auth_config.chinaSupabaseUrl.trim().isNotEmpty} '
+        'publishableKeyConfigured='
+        '${auth_config.supabasePublishableKey.trim().isNotEmpty} '
+        'action=${selectionReady ? "initialize" : "skip"}'
+        '${skipReason == null ? "" : " reason=$skipReason"}',
+  );
+  return selectedUrl;
 });
 
 /// 本地数据初始化状态。首次构建先等待首帧，再运行关键本地初始化。
@@ -248,8 +267,15 @@ class DefaultStartupBootstrapper implements StartupBootstrapper {
     var supabaseReady = false;
     String? restoredUserId;
     final selectedSupabaseUrl = _supabaseUrl;
+    final supabaseEndpointLabel = auth_config.supabaseEndpointLabelForLog(
+      selectedSupabaseUrl,
+    );
     if (selectedSupabaseUrl != null &&
         auth_config.isAuthConfiguredForUrl(selectedSupabaseUrl)) {
+      AppLogger.log(
+        'Supabase',
+        'initialize start endpoint=$supabaseEndpointLabel',
+      );
       try {
         await _trace('supabase_initialize', () {
           return Supabase.initialize(
@@ -259,15 +285,34 @@ class DefaultStartupBootstrapper implements StartupBootstrapper {
         });
         supabaseReady = true;
         restoredUserId = Supabase.instance.client.auth.currentSession?.user.id;
+        AppLogger.log(
+          'Supabase',
+          'initialize success endpoint=$supabaseEndpointLabel '
+              'sessionRestored=${restoredUserId != null}',
+        );
       } catch (error, stackTrace) {
+        AppLogger.log(
+          'Supabase',
+          'initialize failed endpoint=$supabaseEndpointLabel '
+              'errorType=${error.runtimeType}',
+        );
         _recordIssue(issues, 'supabase_initialize', error, stackTrace);
       }
     } else {
+      final skipReason = selectedSupabaseUrl == null
+          ? 'selected_url_missing'
+          : 'publishable_key_missing';
+      AppLogger.log(
+        'Supabase',
+        'initialize skipped endpoint=$supabaseEndpointLabel '
+            'reason=$skipReason',
+      );
       activeStartupTrace?.mark(
         'step_skipped',
         fields: {
           'step': 'supabase_initialize',
-          'reason': 'selected_url_or_publishable_key_missing',
+          'reason': skipReason,
+          'endpoint': supabaseEndpointLabel,
         },
       );
     }
