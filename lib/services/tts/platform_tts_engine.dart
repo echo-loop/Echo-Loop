@@ -84,12 +84,9 @@ class PlatformTtsEngine implements TtsEngine {
     'top.echo-loop/tts_synth',
   );
 
+  /// 所有平台的文件合成都使用 WAV，供统一播放链路读取。
   static String _defaultFormat() {
-    if (kIsWeb) return 'wav';
-    // media_kit_libs_video 的 macOS 精简 FFmpeg 构建未启用 CAF demuxer；
-    // 原生 TTS 改写 WAV，继续复用统一 media_kit 播放链路。
-    if (Platform.isMacOS) return 'wav';
-    return Platform.isAndroid ? 'wav' : 'caf';
+    return 'wav';
   }
 
   /// 仅 macOS 走自家原生合成（iOS/Android 的 flutter_tts synthesizeToFile 正常）。

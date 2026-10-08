@@ -76,6 +76,34 @@ void main() {
   });
 
   group('synthesize', () {
+    test('默认合成格式使用 WAV', () async {
+      final tempDir = await Directory.systemTemp.createTemp('synth_default');
+      addTearDown(() => tempDir.delete(recursive: true));
+      when(() => tts.synthesizeToFile(any(), any(), any())).thenAnswer((
+        _,
+      ) async {
+        await File('${tempDir.path}/abc.wav').writeAsBytes([1, 2, 3]);
+        return 1;
+      });
+
+      final engine = PlatformTtsEngine(
+        ttsFactory: () => tts,
+        useNativeMacosSynth: () => false,
+      );
+      final result = await engine.synthesize(
+        'Hello',
+        outputDir: tempDir.path,
+        baseName: 'abc',
+      );
+
+      expect(result, isNotNull);
+      expect(result?.format, 'wav');
+      expect(result?.filePath, '${tempDir.path}/abc.wav');
+      verify(
+        () => tts.synthesizeToFile('Hello', '${tempDir.path}/abc.wav', true),
+      ).called(1);
+    });
+
     test('成功写盘 → 返回结果(路径+格式)', () async {
       final tempDir = await Directory.systemTemp.createTemp('synth_ok');
       addTearDown(() => tempDir.delete(recursive: true));

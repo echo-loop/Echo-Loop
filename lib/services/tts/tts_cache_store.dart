@@ -57,7 +57,8 @@ class TtsCacheStore {
 
   /// 由发音参数派生稳定缓存键。
   ///
-  /// 同一文本在不同引擎/音色/语速/格式下生成不同键，互不串音。
+  /// 同一文本在不同引擎/音色/语速下生成不同键，互不串音。
+  /// 输出格式策略变更时升级命名空间，避免继续命中不兼容的旧缓存文件。
   String deriveKey({
     required String text,
     required TtsEngineKind engine,
@@ -66,9 +67,9 @@ class TtsCacheStore {
     String? modelTag,
   }) {
     final raw = [
-      // 输出格式兼容性发生变化时，旧文件不能继续命中（例如 macOS CAF → WAV）。
+      // iOS 平台 TTS 从 CAF 改为 WAV，升级命名空间让旧文件不再命中。
       // 旧索引/文件无需迁移，后续清理会将不再引用的文件作为孤儿回收。
-      'tts-cache-v2',
+      'tts-cache-v3',
       hashText(text),
       engine.name,
       voiceId,

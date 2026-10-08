@@ -92,17 +92,18 @@ void main() {
       expect(p, isNot(k));
     });
 
-    test('缓存命名空间升级 → 旧 CAF key 不会继续命中', () {
+    test('缓存命名空间升级 → v2 CAF key 不会继续命中', () {
       final current = store.deriveKey(
         text: 'Hello',
         engine: TtsEngineKind.platform,
         voiceId: 'en-US',
         speed: 0.45,
       );
-      final legacy = sha256
+      final previous = sha256
           .convert(
             utf8.encode(
               [
+                'tts-cache-v2',
                 hashText('Hello'),
                 TtsEngineKind.platform.name,
                 'en-US',
@@ -111,7 +112,7 @@ void main() {
             ),
           )
           .toString();
-      expect(current, isNot(legacy));
+      expect(current, isNot(previous));
     });
   });
 
