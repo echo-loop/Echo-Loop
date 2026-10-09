@@ -21,8 +21,6 @@ import '../services/runtime_endpoint_router.dart';
 import '../database/providers.dart';
 import '../features/podcast/podcast_refresh_controller.dart';
 import '../features/remote_config/remote_config_providers.dart';
-import '../features/user_region/user_region.dart';
-import '../features/user_region/user_region_providers.dart';
 import '../providers/app_update_provider.dart';
 import '../providers/audio_library_provider.dart';
 import '../providers/collection_provider.dart';
@@ -202,7 +200,7 @@ class _MainShellState extends ConsumerState<MainShell> with RouteAware {
   void _startPostLocalTasks() {
     if (!mounted || _didStartPostLocalTasks) return;
     _didStartPostLocalTasks = true;
-    // AppUpdate 和 UserRegion 都会读取 storefront，必须晚于第三方 SDK 初始化。
+    // AppUpdate 读取 storefront，必须晚于第三方 SDK 初始化。
     unawaited(_startPostThirdPartyTasks());
   }
 
@@ -248,11 +246,6 @@ class _MainShellState extends ConsumerState<MainShell> with RouteAware {
           .read(notificationPermissionServiceProvider)
           .syncSystemAuthorizationStatus();
       _remoteConfigController.startPeriodicRefresh(forceFirst: true);
-      unawaited(
-        ref
-            .read(userRegionProvider.notifier)
-            .refresh(UserRegionRefreshTrigger.startup),
-      );
 
       AppLogger.log('StartupLoad', 'study bootstrap start');
       activeStartupTrace?.mark('study_bootstrap_start');
@@ -581,18 +574,6 @@ class _MainShellState extends ConsumerState<MainShell> with RouteAware {
     }
     unawaited(_refreshSubscribedPodcastsInBackground());
     ref.read(remoteConfigProvider.notifier).startPeriodicRefresh();
-    if (ref.read(thirdPartyStartupProvider).hasValue) {
-      unawaited(
-        ref
-            .read(userRegionProvider.notifier)
-            .refresh(UserRegionRefreshTrigger.resume),
-      );
-    } else {
-      AppLogger.log(
-        'UserRegion',
-        'onAppResume skipped: third-party startup pending',
-      );
-    }
     // 回前台时同步系统通知权限状态，覆盖用户在系统设置中手动变更的情况
     unawaited(
       ref

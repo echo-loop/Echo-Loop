@@ -114,9 +114,19 @@ class RuntimeApiEndpointInterceptor extends Interceptor {
       handler.next(options);
       return;
     }
-    final baseUrl = _router.apiBaseUrl;
-    if (baseUrl.isNotEmpty) options.baseUrl = baseUrl;
-    handler.next(options);
+    try {
+      options.baseUrl = _router.apiBaseUrl;
+      handler.next(options);
+    } catch (error, stackTrace) {
+      handler.reject(
+        DioException(
+          requestOptions: options,
+          error: error,
+          stackTrace: stackTrace,
+          type: DioExceptionType.unknown,
+        ),
+      );
+    }
   }
 }
 

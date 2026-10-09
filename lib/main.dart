@@ -243,8 +243,8 @@ class _EchoLoopAppState extends ConsumerState<EchoLoopApp>
   void initState() {
     super.initState();
     activeStartupTrace?.mark('app_widget_init_state');
-    // 在本地启动任务可能发起后端请求前，初始化统一地区判定及其端点路由监听。
-    ref.read(userRegionProvider);
+    // 在订阅任何启动 provider 前同步系统 Region 与路由，避免首批请求误发全球站。
+    _syncUserRegionRoute();
     _localStartupSubscription = ref.listenManual<AsyncValue<StartupReport>>(
       localStartupProvider,
       (_, next) {
@@ -443,6 +443,18 @@ class _EchoLoopAppState extends ConsumerState<EchoLoopApp>
       case AppLifecycleState.hidden:
       // no-op
     }
+  }
+
+  /// 冷启动时读取系统 Region，并固定本进程内自家服务的区域选择。
+  void _syncUserRegionRoute() {
+    final isChinaUser = ref.read(isChinaUserProvider);
+    ref
+        .read(userRegionEndpointRouterProvider)
+        .updateFromUserRegion(isChinaUser: isChinaUser);
+    AppLogger.log(
+      'UserRegion',
+      'system Region applied for this process isChinaUser=$isChinaUser',
+    );
   }
 
   /// 全局唯一社区合集同步入口；后台调用由 service 统一执行 2h 节流。

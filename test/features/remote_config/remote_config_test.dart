@@ -3,14 +3,13 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
-import 'package:echo_loop/config/client_distribution.dart'
-    show ClientPaymentChannel;
 import 'package:echo_loop/config/regional_service_endpoints.dart';
 import 'package:echo_loop/features/remote_config/remote_config.dart';
 import 'package:echo_loop/features/remote_config/remote_config_providers.dart';
 import 'package:echo_loop/features/remote_config/remote_config_service.dart';
 import 'package:echo_loop/features/remote_config/remote_config_store.dart';
 import 'package:echo_loop/features/user_region/user_region_providers.dart';
+import 'package:echo_loop/services/backend_dio.dart';
 import 'package:echo_loop/services/runtime_endpoint_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -422,7 +421,7 @@ void main() {
     });
 
     test(
-      'preferred API failure falls back, then a later refresh probes preference',
+      '503 from the selected China API does not retry another region',
       () async {
         SharedPreferences.setMockInitialValues({});
         final prefs = await SharedPreferences.getInstance();
@@ -436,27 +435,22 @@ void main() {
         )..updateFromUserRegion(isChinaUser: true);
         final adapter = _QueueAdapter([
           _QueuedResponse(statusCode: 503, body: {'error': 'unavailable'}),
-          _QueuedResponse(statusCode: 200, body: _remoteConfigBody('CN')),
-          _QueuedResponse(statusCode: 200, body: _remoteConfigBody('CN')),
         ]);
-        final dio = Dio()..httpClientAdapter = adapter;
+        final dio = createBackendDio(
+          baseUrl: 'https://global-api.example',
+          endpointRouter: router,
+        )..httpClientAdapter = adapter;
         addTearDown(dio.close);
         final service = RemoteConfigService(
           dio: dio,
           store: RemoteConfigStore(prefs),
-          endpointRouter: router,
         );
 
-        await service.fetchRemote();
+        await expectLater(service.fetchRemote(), throwsA(isA<DioException>()));
+
         expect(adapter.requestUris.map((uri) => uri.host), [
           'china-api.example',
-          'global-api.example',
         ]);
-        expect(router.preferredApiRegion, ServiceEndpointRegion.china);
-        expect(router.apiRegion, ServiceEndpointRegion.global);
-
-        await service.fetchRemote();
-        expect(adapter.requestUris.last.host, 'china-api.example');
         expect(router.apiRegion, ServiceEndpointRegion.china);
       },
     );
@@ -475,23 +469,24 @@ void main() {
       final adapter = _QueueAdapter([
         _QueuedResponse(statusCode: 401, body: {'error': 'unauthorized'}),
       ]);
-      final dio = Dio()..httpClientAdapter = adapter;
+      final dio = createBackendDio(
+        baseUrl: 'https://global-api.example',
+        endpointRouter: router,
+      )..httpClientAdapter = adapter;
       addTearDown(dio.close);
       final service = RemoteConfigService(
         dio: dio,
         store: RemoteConfigStore(prefs),
-        endpointRouter: router,
       );
 
       await expectLater(service.fetchRemote(), throwsA(isA<DioException>()));
 
       expect(adapter.requestUris, hasLength(1));
       expect(adapter.requestUris.single.host, 'china-api.example');
-      expect(router.preferredApiRegion, ServiceEndpointRegion.china);
-      expect(router.apiRegion, ServiceEndpointRegion.global);
+      expect(router.apiRegion, ServiceEndpointRegion.china);
     });
 
-    test('transport failure falls back to the alternate API', () async {
+    test('transport failure does not retry the alternate API', () async {
       SharedPreferences.setMockInitialValues({});
       final prefs = await SharedPreferences.getInstance();
       final router = RuntimeEndpointRouter(
@@ -504,33 +499,30 @@ void main() {
       )..updateFromUserRegion(isChinaUser: true);
       final adapter = _QueueAdapter([
         _QueuedResponse(errorType: DioExceptionType.connectionError),
-        _QueuedResponse(body: _remoteConfigBody('CN')),
       ]);
-      final dio = Dio()..httpClientAdapter = adapter;
+      final dio = createBackendDio(
+        baseUrl: 'https://global-api.example',
+        endpointRouter: router,
+      )..httpClientAdapter = adapter;
       addTearDown(dio.close);
       final service = RemoteConfigService(
         dio: dio,
         store: RemoteConfigStore(prefs),
-        endpointRouter: router,
       );
 
-      await service.fetchRemote();
+      await expectLater(service.fetchRemote(), throwsA(isA<DioException>()));
 
-      expect(adapter.requestUris.map((uri) => uri.host), [
-        'china-api.example',
-        'global-api.example',
-      ]);
-      expect(router.preferredApiRegion, ServiceEndpointRegion.china);
-      expect(router.apiRegion, ServiceEndpointRegion.global);
+      expect(adapter.requestUris.map((uri) => uri.host), ['china-api.example']);
+      expect(router.apiRegion, ServiceEndpointRegion.china);
     });
 
     test(
-      'both API regions failing preserves the active route and cached config',
+      'selected API failure preserves the cached config without crossing regions',
       () async {
         SharedPreferences.setMockInitialValues({});
         final prefs = await SharedPreferences.getInstance();
         final store = RemoteConfigStore(prefs);
-        await store.write(_config('US'));
+        await store.write(_config('US'), now: DateTime(2026, 1));
         final router = RuntimeEndpointRouter(
           endpoints: const RegionalServiceEndpoints(
             globalApiBaseUrl: 'https://global-api.example',
@@ -539,23 +531,26 @@ void main() {
             chinaModelCdnBaseUrl: 'https://china-cdn.example',
           ),
         )..updateFromUserRegion(isChinaUser: true);
-        router.markApiRegionAvailable(ServiceEndpointRegion.global);
         final adapter = _QueueAdapter([
           _QueuedResponse(statusCode: 503, body: {'error': 'unavailable'}),
-          _QueuedResponse(statusCode: 503, body: {'error': 'unavailable'}),
         ]);
-        final dio = Dio()..httpClientAdapter = adapter;
+        final dio = createBackendDio(
+          baseUrl: 'https://global-api.example',
+          endpointRouter: router,
+        )..httpClientAdapter = adapter;
         addTearDown(dio.close);
         final service = RemoteConfigService(
           dio: dio,
           store: store,
-          endpointRouter: router,
+          now: () => DateTime(2026, 1, 1, 0, 3),
         );
 
-        await expectLater(service.fetchRemote(), throwsA(isA<DioException>()));
+        final config = await service.load();
 
-        expect(adapter.requestUris, hasLength(2));
-        expect(router.apiRegion, ServiceEndpointRegion.global);
+        expect(adapter.requestUris, hasLength(1));
+        expect(adapter.requestUris.single.host, 'china-api.example');
+        expect(router.apiRegion, ServiceEndpointRegion.china);
+        expect(config.context.countryCode, 'US');
         expect(store.readCached(allowExpired: true)?.context.countryCode, 'US');
       },
     );
@@ -731,7 +726,7 @@ void main() {
       );
     });
 
-    test('Client Config 刷新通过 isChinaUser 更新 API 和 CDN 区域', () async {
+    test('Client Config 国家码不会覆盖系统 Region 路由', () async {
       SharedPreferences.setMockInitialValues({});
       final prefs = await SharedPreferences.getInstance();
       final router = RuntimeEndpointRouter(
@@ -741,28 +736,24 @@ void main() {
           globalModelCdnBaseUrl: 'https://global-cdn.example',
           chinaModelCdnBaseUrl: 'https://china-cdn.example',
         ),
-      );
+      )..updateFromUserRegion(isChinaUser: false);
       final adapter = _QueueAdapter([
         _QueuedResponse(body: _remoteConfigBody('CN')),
-        _QueuedResponse(statusCode: 503, body: {'error': 'unavailable'}),
-        _QueuedResponse(body: _remoteConfigBody('CN')),
       ]);
-      final dio = Dio()..httpClientAdapter = adapter;
+      final dio = createBackendDio(
+        baseUrl: 'https://global-api.example',
+        endpointRouter: router,
+      )..httpClientAdapter = adapter;
       addTearDown(dio.close);
       final service = RemoteConfigService(
         dio: dio,
         store: RemoteConfigStore(prefs),
-        endpointRouter: router,
       );
       final container = ProviderContainer(
         overrides: [
           initialRemoteConfigProvider.overrideWithValue(_config('US')),
           remoteConfigServiceProvider.overrideWithValue(service),
           userRegionDeviceCountryCodeProvider.overrideWithValue(() => 'US'),
-          userRegionPaymentChannelProvider.overrideWithValue(
-            ClientPaymentChannel.web,
-          ),
-          userRegionEndpointRouterProvider.overrideWithValue(router),
         ],
       );
       addTearDown(container.dispose);
@@ -775,15 +766,13 @@ void main() {
           .read(remoteConfigProvider.notifier)
           .refreshIfStale(force: true);
 
-      expect(container.read(isChinaUserProvider), isTrue);
+      expect(container.read(remoteConfigProvider).context.countryCode, 'CN');
+      expect(container.read(isChinaUserProvider), isFalse);
       expect(adapter.requestUris.map((uri) => uri.host), [
         'global-api.example',
-        'china-api.example',
-        'global-api.example',
       ]);
-      expect(router.preferredApiRegion, ServiceEndpointRegion.china);
       expect(router.apiRegion, ServiceEndpointRegion.global);
-      expect(router.modelCdnRegion, ServiceEndpointRegion.china);
+      expect(router.modelCdnRegion, ServiceEndpointRegion.global);
     });
 
     test('transcription limits provider 暴露远程限制值', () {

@@ -77,7 +77,7 @@ class _RecordingAdapter implements HttpClientAdapter {
 
 void main() {
   group('createBackendDio', () {
-    test('API 区域跟随 UserRegion 更新', () async {
+    test('所有后端请求立即跟随系统 Region 选择的 API 区域', () async {
       final router = RuntimeEndpointRouter(
         endpoints: const RegionalServiceEndpoints(
           globalApiBaseUrl: 'https://global-api.example',
@@ -93,15 +93,45 @@ void main() {
       )..httpClientAdapter = adapter;
 
       await dio.get<Object?>('/before-routing-change');
-      await dio.get<Object?>('/after-routing-change');
       router.updateFromUserRegion(isChinaUser: true);
-      router.markApiRegionAvailable(ServiceEndpointRegion.china);
-      await dio.get<Object?>('/after-user-region-update');
+      await dio.get<Object?>('/after-china-region-update');
+      router.updateFromUserRegion(isChinaUser: false);
+      await dio.get<Object?>('/after-global-region-update');
 
       expect(adapter.requestUris[0].host, 'global-api.example');
-      expect(adapter.requestUris[1].host, 'global-api.example');
-      expect(adapter.requestUris[2].host, 'china-api.example');
+      expect(adapter.requestUris[1].host, 'china-api.example');
+      expect(adapter.requestUris[2].host, 'global-api.example');
       dio.close();
+    });
+
+    test('所选地区 API 未配置时请求失败且不会访问全球 API', () async {
+      final router = RuntimeEndpointRouter(
+        endpoints: const RegionalServiceEndpoints(
+          globalApiBaseUrl: 'https://global-api.example',
+          chinaApiBaseUrl: '',
+          globalModelCdnBaseUrl: 'https://global-cdn.example',
+          chinaModelCdnBaseUrl: '',
+        ),
+      )..updateFromUserRegion(isChinaUser: true);
+      final adapter = _RecordingAdapter([]);
+      final dio = createBackendDio(
+        baseUrl: 'https://global-api.example',
+        endpointRouter: router,
+      )..httpClientAdapter = adapter;
+      addTearDown(dio.close);
+
+      await expectLater(
+        dio.get<Object?>('/request'),
+        throwsA(
+          isA<DioException>().having(
+            (error) => error.error,
+            'error',
+            isA<StateError>(),
+          ),
+        ),
+      );
+
+      expect(adapter.requestUris, isEmpty);
     });
 
     test('BaseOptions.headers 与 clientInfoHeaders 一致（携带平台/渠道/版本）', () {
