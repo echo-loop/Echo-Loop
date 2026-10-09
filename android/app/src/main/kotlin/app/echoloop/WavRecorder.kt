@@ -3,6 +3,7 @@ package app.echoloop
 import android.media.AudioFormat
 import android.media.AudioRecord
 import android.media.MediaRecorder
+import android.os.SystemClock
 import android.util.Log
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -14,6 +15,7 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeoutOrNull
 import java.io.File
 import java.io.RandomAccessFile
+import java.util.concurrent.atomic.AtomicLong
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.sqrt
@@ -26,6 +28,8 @@ import kotlin.math.sqrt
  */
 class WavRecorder {
 
+    data class WavFileMetrics(val fileBytes: Long, val audioDurationMs: Long)
+
     /** 每个 buffer 的回调（RMS, 帧数），在 IO 线程上调用。 */
     var onBuffer: ((Float, Int) -> Unit)? = null
 
@@ -33,7 +37,16 @@ class WavRecorder {
     private var recordingJob: Job? = null
     private var wavFile: RandomAccessFile? = null
     private var currentFilePath: String? = null
-    private var totalDataBytes: Int = 0
+    @Volatile private var totalDataBytes: Int = 0
+    private val positiveReadFrames = AtomicLong(0)
+    private val zeroReadCount = AtomicLong(0)
+    private val errorReadCount = AtomicLong(0)
+    @Volatile private var lastNonPositiveReadResult: Int? = null
+    @Volatile private var recordingStartElapsedMs: Long? = null
+    @Volatile private var recordingStartState: Int? = null
+    @Volatile private var recordingStartAttempted = false
+    @Volatile private var recordingStarted = false
+    @Volatile private var stopJoinTimedOut = false
 
     /** 是否已初始化 AudioRecord。 */
     val isInitialized: Boolean get() = audioRecord != null
@@ -97,6 +110,7 @@ class WavRecorder {
      * @param filePath WAV 输出路径。
      */
     fun startRecording(filePath: String) {
+        recordingStartAttempted = true
         val recorder = audioRecord ?: return
         currentFilePath = filePath
         totalDataBytes = 0
@@ -106,12 +120,25 @@ class WavRecorder {
         wavFile = raf
 
         recorder.startRecording()
+        recordingStarted = true
+        recordingStartState = recorder.recordingState
+        recordingStartElapsedMs = SystemClock.elapsedRealtime()
 
         recordingJob = CoroutineScope(Dispatchers.IO).launch {
             val buffer = ShortArray(BUFFER_SIZE_FRAMES)
             while (isActive) {
                 val read = recorder.read(buffer, 0, buffer.size)
-                if (read <= 0) continue
+                if (read == 0) {
+                    zeroReadCount.incrementAndGet()
+                    lastNonPositiveReadResult = read
+                    continue
+                }
+                if (read < 0) {
+                    errorReadCount.incrementAndGet()
+                    lastNonPositiveReadResult = read
+                    continue
+                }
+                positiveReadFrames.addAndGet(read.toLong())
 
                 val rms = computeRms(buffer, read)
                 onBuffer?.invoke(rms, read)
@@ -129,9 +156,18 @@ class WavRecorder {
         // 先等录音协程真正退出，再操作 AudioRecord 和文件，避免 read() 与 stop() 并发。
         // 录音中 read() 最多阻塞一个 buffer 周期（~64ms）必然返回，join 不会卡死；
         // withTimeoutOrNull 兜底：极端情况（麦克风 hang）超时后退回原 stop() 行为，不劣于现状。
-        runBlocking {
-            withTimeoutOrNull(500) { recordingJob?.cancelAndJoin() }
+        val job = recordingJob
+        val recordingJobJoined = runBlocking {
+            if (job == null) {
+                true
+            } else {
+                withTimeoutOrNull(500) {
+                    job.cancelAndJoin()
+                    true
+                } ?: false
+            }
         }
+        stopJoinTimedOut = !recordingJobJoined
         recordingJob = null
 
         try {
@@ -145,6 +181,56 @@ class WavRecorder {
         wavFile = null
 
         return currentFilePath
+    }
+
+    /** 返回本轮采集统计，不包含录音内容。 */
+    fun captureDiagnostics(): String {
+        val readFrames = positiveReadFrames.get()
+        val writtenBytes = totalDataBytes.toLong()
+        val elapsedMs = recordingStartElapsedMs?.let {
+            (SystemClock.elapsedRealtime() - it).coerceAtLeast(0L)
+        }
+        val writtenDurationMs =
+            (writtenBytes / BYTES_PER_SAMPLE * 1000L) / SAMPLE_RATE
+
+        return "audioRecordInitialized=${isInitialized} " +
+            "startAttempted=$recordingStartAttempted " +
+            "startSucceeded=$recordingStarted " +
+            "recordingStateAtStart=${recordingStartState ?: "unknown"} " +
+            "stopJoinTimedOut=$stopJoinTimedOut " +
+            "positiveReadFrames=$readFrames " +
+            "zeroReadCount=${zeroReadCount.get()} " +
+            "errorReadCount=${errorReadCount.get()} " +
+            "lastNonPositiveRead=$lastNonPositiveReadResult " +
+            "writtenDataBytes=$writtenBytes " +
+            "writtenDurationMs=$writtenDurationMs " +
+            "captureElapsedMs=${elapsedMs ?: -1}"
+    }
+
+    /** 读取 WAV 文件大小与 PCM 时长，供录音结束诊断使用。 */
+    fun wavFileMetrics(filePath: String): WavFileMetrics? {
+        val file = File(filePath)
+        if (!file.exists()) return null
+
+        val fileBytes = file.length()
+        val dataBytes = (fileBytes - WAV_HEADER_SIZE).coerceAtLeast(0L)
+        val frames = dataBytes / BYTES_PER_SAMPLE
+        val durationMs = frames * 1000L / SAMPLE_RATE
+        return WavFileMetrics(fileBytes = fileBytes, audioDurationMs = durationMs)
+    }
+
+    /** 新会话开始时清空上轮统计，即使本轮 AudioRecord 初始化失败也不会复用旧数据。 */
+    fun resetCaptureDiagnostics() {
+        totalDataBytes = 0
+        positiveReadFrames.set(0)
+        zeroReadCount.set(0)
+        errorReadCount.set(0)
+        lastNonPositiveReadResult = null
+        recordingStartElapsedMs = null
+        recordingStartState = null
+        recordingStartAttempted = false
+        recordingStarted = false
+        stopJoinTimedOut = false
     }
 
     /** 释放 AudioRecord 和所有资源。 */

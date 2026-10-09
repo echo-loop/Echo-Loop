@@ -151,7 +151,10 @@ class SpeechPracticeStopResult {
   /// 临时录音文件路径。
   final String? filePath;
 
-  const SpeechPracticeStopResult({this.filePath});
+  /// 原生录音诊断摘要；不包含录音内容。
+  final String? diagnostics;
+
+  const SpeechPracticeStopResult({this.filePath, this.diagnostics});
 }
 
 /// 文本比对结果。

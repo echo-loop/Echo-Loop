@@ -308,6 +308,10 @@ class RecordingService {
       );
     }
     final filePath = stopResult.filePath ?? _currentFilePath;
+    final diagnostics = stopResult.diagnostics;
+    if (diagnostics != null) {
+      AppLogger.log('RecordingDiag', 'promptId=$promptId $diagnostics');
+    }
     _recordingPromptId = null;
     _recordingStartedAt = null;
     AppLogger.log(

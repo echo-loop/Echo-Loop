@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:echo_loop/models/speech_practice_models.dart';
+import 'package:echo_loop/services/app_logger.dart';
 import 'package:echo_loop/services/recording_service.dart';
 import 'package:echo_loop/services/speech_practice_platform.dart';
 
@@ -12,6 +13,7 @@ class _Backend implements SpeechPracticeBackend {
   int startCalls = 0;
   int cancelCalls = 0;
   int shutdownCalls = 0;
+  String? stopDiagnostics;
 
   @override
   bool get isSupported => true;
@@ -56,6 +58,7 @@ class _Backend implements SpeechPracticeBackend {
   Future<SpeechPracticeStopResult> stopSession() async =>
       SpeechPracticeStopResult(
         filePath: '/tmp/${activePromptId ?? 'none'}.caf',
+        diagnostics: stopDiagnostics,
       );
 
   @override
@@ -113,6 +116,28 @@ void main() {
     final result = await wait;
 
     expect(result.errorCode, 'cancelled');
+    await service.dispose();
+    await backend.dispose();
+  });
+
+  test('停止录音时将原生诊断记录到应用日志', () async {
+    const promptId = 'diagnostics:round';
+    final backend = _Backend()..stopDiagnostics = 'errorReadCount=2';
+    final service = RecordingService(backend);
+
+    await service.startRecording(promptId: promptId);
+    await service.stopSession(promptId: promptId);
+
+    expect(
+      AppLogger.instance.entries.any(
+        (entry) =>
+            entry.tag == 'RecordingDiag' &&
+            entry.message.contains('promptId=$promptId') &&
+            entry.message.contains('errorReadCount=2'),
+      ),
+      isTrue,
+    );
+
     await service.dispose();
     await backend.dispose();
   });

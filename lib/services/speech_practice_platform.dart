@@ -225,8 +225,10 @@ class SpeechPracticePlatform implements SpeechPracticeBackend {
     _ensureSupported();
     AppLogger.log('SpeechPlatform', '┌ stopSession');
     final result = await _invokeMap('stopSession');
+    final diagnosticsValue = result['diagnostics'];
     final stopResult = SpeechPracticeStopResult(
       filePath: result['filePath'] as String?,
+      diagnostics: diagnosticsValue is String ? diagnosticsValue : null,
     );
     AppLogger.log(
       'SpeechPlatform',

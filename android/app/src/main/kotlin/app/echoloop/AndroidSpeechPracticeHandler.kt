@@ -222,6 +222,7 @@ class AndroidSpeechPracticeHandler(
     }
 
     private fun doStartSession(promptId: String, result: MethodChannel.Result) {
+        wavRecorder.resetCaptureDiagnostics()
         cleanupSentenceState()
         resetSentenceState(promptId)
 
@@ -249,9 +250,17 @@ class AndroidSpeechPracticeHandler(
             currentFilePath
         }
 
+        val wavBeforeTrim = filePath?.let(wavRecorder::wavFileMetrics)
+
         // 裁剪首尾静音（对齐 iOS/macOS）。
         if (!filePath.isNullOrEmpty()) {
             wavRecorder.trimSilence(filePath)
+        }
+        val wavAfterTrim = filePath?.let(wavRecorder::wavFileMetrics)
+        val diagnostics = buildString {
+            append(wavRecorder.captureDiagnostics())
+            append(" wavBeforeTrim=$wavBeforeTrim")
+            append(" wavAfterTrim=$wavAfterTrim")
         }
 
         // 确保 Dart 侧总能收到 finalTranscriptReady，避免等超时。
@@ -264,7 +273,12 @@ class AndroidSpeechPracticeHandler(
             ))
         }
 
-        result.success(mapOf("filePath" to (filePath ?: "")))
+        result.success(
+            mapOf(
+                "filePath" to (filePath ?: ""),
+                "diagnostics" to diagnostics,
+            ),
+        )
     }
 
     private fun cancelSession(result: MethodChannel.Result) {
