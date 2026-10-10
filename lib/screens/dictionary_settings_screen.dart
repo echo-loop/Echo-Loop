@@ -37,11 +37,21 @@ class DictionarySettingsScreen extends ConsumerWidget {
         ),
         children: [
           Card(
-            child: SwitchListTile(
-              secondary: const Icon(Icons.volume_up_outlined),
-              title: Text(l10n.dictionaryAutoSpeakOnLookup),
-              value: settings.autoSpeakOnLookup,
-              onChanged: notifier.setAutoSpeakOnLookup,
+            child: Column(
+              children: [
+                SwitchListTile(
+                  secondary: const Icon(Icons.volume_up_outlined),
+                  title: Text(l10n.dictionaryAutoSpeakOnLookup),
+                  value: settings.autoSpeakOnLookup,
+                  onChanged: notifier.setAutoSpeakOnLookup,
+                ),
+                SwitchListTile(
+                  secondary: const Icon(Icons.block_outlined),
+                  title: Text(l10n.dictionaryAdFilterTitle),
+                  value: settings.adFilteringEnabled,
+                  onChanged: notifier.setAdFilteringEnabled,
+                ),
+              ],
             ),
           ),
           const SizedBox(height: AppSpacing.m),

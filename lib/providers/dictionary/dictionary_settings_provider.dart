@@ -54,6 +54,12 @@ class DictionarySettingsNotifier extends _$DictionarySettingsNotifier {
     await _persist(state.copyWith(autoSpeakOnLookup: enabled));
   }
 
+  /// 设置网页词典广告过滤开关。
+  Future<void> setAdFilteringEnabled(bool enabled) async {
+    if (state.adFilteringEnabled == enabled) return;
+    await _persist(state.copyWith(adFilteringEnabled: enabled));
+  }
+
   /// 启用/禁用某词典源
   ///
   /// 禁用前校验该源 `canBeDisabled`；禁用当前默认源时默认自动回退。

@@ -55,12 +55,16 @@ class WebDictionaryView extends StatefulWidget {
   /// 可选：站点专用 cookie 接受 JS（为 null 用通用默认）
   final String? acceptCookieJs;
 
+  /// 可选：网页广告过滤器生成的原生规则。
+  final List<ContentBlocker> contentBlockers;
+
   const WebDictionaryView({
     super.key,
     required this.sourceId,
     required this.url,
     this.tidyCss,
     this.acceptCookieJs,
+    this.contentBlockers = const [],
   });
 
   @override
@@ -174,6 +178,7 @@ class _WebDictionaryViewState extends State<WebDictionaryView> {
               initialSettings: InAppWebViewSettings(
                 cacheEnabled: true,
                 transparentBackground: true,
+                contentBlockers: widget.contentBlockers,
                 // 优先移动端布局：preferredContentMode 在 macOS 默认桌面、
                 // 且部分词典站只按 UA 判定，故再显式注入移动端 UA 双保险。
                 preferredContentMode: UserPreferredContentMode.MOBILE,

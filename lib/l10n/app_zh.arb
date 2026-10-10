@@ -2109,6 +2109,7 @@
   "dictionarySources": "词典源",
   "dictionarySourcesDescription": "关闭的词典不会出现在查词切换器中",
   "dictionaryAutoSpeakOnLookup": "查词时自动播放发音",
+  "dictionaryAdFilterTitle": "屏蔽网页词典广告",
   "dictSourceLocal": "本地词典",
   "dictSourceAi": "AI 词典",
   "dictSourceCambridge": "Cambridge",

@@ -9152,6 +9152,12 @@ abstract class AppLocalizations {
   /// **'Auto-play Pronunciation'**
   String get dictionaryAutoSpeakOnLookup;
 
+  /// No description provided for @dictionaryAdFilterTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Block ads in web dictionaries'**
+  String get dictionaryAdFilterTitle;
+
   /// No description provided for @dictSourceLocal.
   ///
   /// In en, this message translates to:

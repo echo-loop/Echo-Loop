@@ -5226,6 +5226,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get dictionaryAutoSpeakOnLookup => 'Auto-play Pronunciation';
 
   @override
+  String get dictionaryAdFilterTitle => 'Block ads in web dictionaries';
+
+  @override
   String get dictSourceLocal => 'Local Dictionary';
 
   @override

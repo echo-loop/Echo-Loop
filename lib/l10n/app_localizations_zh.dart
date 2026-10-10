@@ -4985,6 +4985,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get dictionaryAutoSpeakOnLookup => '查词时自动播放发音';
 
   @override
+  String get dictionaryAdFilterTitle => '屏蔽网页词典广告';
+
+  @override
   String get dictSourceLocal => '本地词典';
 
   @override

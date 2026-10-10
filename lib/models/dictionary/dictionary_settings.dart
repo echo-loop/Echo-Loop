@@ -21,6 +21,9 @@ class DictionarySettings {
   /// 查词面板打开或切换到新词时是否自动播放发音
   final bool autoSpeakOnLookup;
 
+  /// 是否在网页词典中启用通用广告过滤
+  final bool adFilteringEnabled;
+
   /// 默认源 id 缺省值
   static const defaultId = 'local';
 
@@ -28,22 +31,26 @@ class DictionarySettings {
     this.defaultSourceId = defaultId,
     Set<String> disabledIds = const {},
     this.autoSpeakOnLookup = true,
+    this.adFilteringEnabled = false,
   }) : disabledIds = UnmodifiableSetView(Set.of(disabledIds));
 
   DictionarySettings copyWith({
     String? defaultSourceId,
     Set<String>? disabledIds,
     bool? autoSpeakOnLookup,
+    bool? adFilteringEnabled,
   }) => DictionarySettings(
     defaultSourceId: defaultSourceId ?? this.defaultSourceId,
     disabledIds: disabledIds ?? this.disabledIds,
     autoSpeakOnLookup: autoSpeakOnLookup ?? this.autoSpeakOnLookup,
+    adFilteringEnabled: adFilteringEnabled ?? this.adFilteringEnabled,
   );
 
   Map<String, dynamic> toJson() => {
     'defaultSourceId': defaultSourceId,
     'disabledIds': disabledIds.toList(),
     'autoSpeakOnLookup': autoSpeakOnLookup,
+    'adFilteringEnabled': adFilteringEnabled,
   };
 
   /// 防御性解析：字段缺失/类型不符回退缺省
@@ -51,6 +58,7 @@ class DictionarySettings {
     final rawDefault = json['defaultSourceId'];
     final rawDisabled = json['disabledIds'];
     final rawAutoSpeak = json['autoSpeakOnLookup'];
+    final rawAdFilteringEnabled = json['adFilteringEnabled'];
     return DictionarySettings(
       defaultSourceId: rawDefault is String && rawDefault.isNotEmpty
           ? rawDefault
@@ -59,6 +67,9 @@ class DictionarySettings {
           ? rawDisabled.whereType<String>().toSet()
           : const {},
       autoSpeakOnLookup: rawAutoSpeak is bool ? rawAutoSpeak : true,
+      adFilteringEnabled: rawAdFilteringEnabled is bool
+          ? rawAdFilteringEnabled
+          : false,
     );
   }
 
@@ -69,13 +80,15 @@ class DictionarySettings {
           runtimeType == other.runtimeType &&
           defaultSourceId == other.defaultSourceId &&
           _setEquals(disabledIds, other.disabledIds) &&
-          autoSpeakOnLookup == other.autoSpeakOnLookup;
+          autoSpeakOnLookup == other.autoSpeakOnLookup &&
+          adFilteringEnabled == other.adFilteringEnabled;
 
   @override
   int get hashCode => Object.hash(
     defaultSourceId,
     Object.hashAllUnordered(disabledIds),
     autoSpeakOnLookup,
+    adFilteringEnabled,
   );
 
   static bool _setEquals(Set<String> a, Set<String> b) =>
