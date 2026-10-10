@@ -2,8 +2,8 @@
 ///
 /// 网页词典（Cambridge / Oxford / Longman / Britannica / Merriam-Webster / Collins /
 /// Vocabulary.com / Wiktionary / OZDIC / PlayPhrase / YouGlish / Forvo /
-/// WordReference / Etymonline / 有道）本质相同——不抓取/解析 HTML，只按词构造 URL，
-/// 交给内置 WebView 显示。差异仅在 URL 模板与品牌展示，故抽象为一份 [WebDictConfig]
+/// WordReference / Etymonline / 有道 / 欧路词典）本质相同——不抓取/解析 HTML，
+/// 只按词构造 URL，交给内置 WebView 显示。差异仅在 URL 模板与品牌展示，故抽象为一份 [WebDictConfig]
 /// 配置 + 一个通用 [WebDictionarySource]：新增一个网页词典只需往 [kWebDictConfigs]
 /// 加一行配置。
 library;
@@ -193,6 +193,13 @@ const List<WebDictConfig> kWebDictConfigs = [
     color: Color(0xFFEA4B35), // 有道暖红（与 M-W 冷红拉开）
     buildUrl: _youdaoUrl,
   ),
+  WebDictConfig(
+    id: 'eudic',
+    displayName: '欧路词典',
+    icon: Icons.menu_book_rounded,
+    color: Color(0xFF2D6FA3), // 欧路词典蓝
+    buildUrl: _eudicUrl,
+  ),
 ];
 
 // URL 模板（顶层函数，便于 const 配置引用）。`w` 为已 URL 编码的查询词。
@@ -216,3 +223,4 @@ String _wordReferenceUrl(String w) =>
     'https://www.wordreference.com/definition/$w';
 String _etymonlineUrl(String w) => 'https://www.etymonline.com/search?q=$w';
 String _youdaoUrl(String w) => 'https://m.youdao.com/dict?le=eng&q=$w';
+String _eudicUrl(String w) => 'https://dict.eudic.net/dicts/en/$w';

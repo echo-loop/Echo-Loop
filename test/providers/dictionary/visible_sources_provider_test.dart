@@ -49,6 +49,14 @@ void main() {
     return c;
   }
 
+  ProviderContainer makeRegistryContainer() {
+    final c = ProviderContainer(
+      overrides: [sharedPreferencesProvider.overrideWithValue(prefs)],
+    );
+    addTearDown(c.dispose);
+    return c;
+  }
+
   setUp(() async {
     SharedPreferences.setMockInitialValues({});
     prefs = await SharedPreferences.getInstance();
@@ -58,6 +66,28 @@ void main() {
     final c = makeContainer();
     final visible = c.read(visibleDictionarySourcesProvider);
     expect(visible.map((s) => s.id), ['local', 'ai', 'cambridge']);
+  });
+
+  test('欧路词典默认可见并可禁用', () async {
+    final c = makeRegistryContainer();
+    expect(
+      c
+          .read(visibleDictionarySourcesProvider)
+          .any((source) => source.id == 'eudic'),
+      isTrue,
+    );
+
+    await c
+        .read(dictionarySettingsNotifierProvider.notifier)
+        .setDisabled('eudic', true);
+
+    expect(
+      c
+          .read(visibleDictionarySourcesProvider)
+          .any((source) => source.id == 'eudic'),
+      isFalse,
+    );
+    expect(c.read(dictionarySettingsNotifierProvider).defaultSourceId, 'local');
   });
 
   test('禁用 cambridge → 可见列表排除它', () async {

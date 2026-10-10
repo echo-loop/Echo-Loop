@@ -17,7 +17,7 @@ void main() {
     expect(ids.indexOf('britannica'), greaterThan(ids.indexOf('collins')));
   });
 
-  test('已确认的 15 个网页源都在、Macmillan/欧陆 不在', () {
+  test('已确认的 16 个网页源都在、Macmillan 不在', () {
     final ids = kWebDictConfigs.map((c) => c.id).toSet();
     expect(ids, {
       'cambridge',
@@ -35,9 +35,9 @@ void main() {
       'wordReference',
       'etymonline',
       'youdao',
+      'eudic',
     });
     expect(ids.contains('macmillan'), isFalse);
-    expect(ids.contains('eudic'), isFalse);
   });
 
   test('Britannica Dictionary 使用词条页 URL 模板', () async {
@@ -53,6 +53,22 @@ void main() {
       (result! as WebDictResult).url.toString(),
       'https://www.britannica.com/dictionary/ice%20cream',
     );
+  });
+
+  test('欧路词典使用英汉词条 URL 并编码词组空格', () async {
+    final source = WebDictionarySource(
+      kWebDictConfigs.singleWhere((config) => config.id == 'eudic'),
+    );
+    final result = await source.lookup(
+      const DictionaryLookupRequest(word: 'ice cream'),
+    );
+
+    if (result case WebDictResult(:final sourceId, :final url)) {
+      expect(sourceId, 'eudic');
+      expect(url.toString(), 'https://dict.eudic.net/dicts/en/ice%20cream');
+    } else {
+      fail('Expected an Eudic web dictionary result.');
+    }
   });
 
   for (final config in kWebDictConfigs) {
