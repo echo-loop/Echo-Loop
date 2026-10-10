@@ -15,6 +15,101 @@ typedef BackgroundFileDownloadProgress =
 typedef BackgroundFileDownloadBatchProgress =
     void Function(String taskId, int receivedBytes, int? totalBytes);
 
+const _backgroundDownloadProgressUpdateInterval = Duration(milliseconds: 100);
+
+/// 合并后台下载的高频进度通知，限制应用状态最多每 100 毫秒更新一次。
+///
+/// 每个任务单独限频；任务完成或失败时立即发布最新字节数，避免最终进度被丢弃。
+class _BackgroundDownloadProgressThrottler {
+  _BackgroundDownloadProgressThrottler(this._callback);
+
+  final BackgroundFileDownloadBatchProgress? _callback;
+  final Stopwatch _clock = Stopwatch()..start();
+  final Map<String, _DownloadProgressSnapshot> _snapshots = {};
+
+  /// 接收平台进度，并在达到间隔或确定完成时转发给应用层。
+  void report(
+    String taskId,
+    int receivedBytes,
+    int? totalBytes, {
+    bool force = false,
+  }) {
+    final callback = _callback;
+    if (callback == null) return;
+
+    final snapshot = _snapshots.putIfAbsent(
+      taskId,
+      _DownloadProgressSnapshot.new,
+    );
+    snapshot.latestReceivedBytes = receivedBytes;
+    snapshot.latestTotalBytes = totalBytes;
+
+    final now = _clock.elapsed;
+    final reachedEnd =
+        totalBytes != null && totalBytes > 0 && receivedBytes >= totalBytes;
+    final lastPublishedAt = snapshot.lastPublishedAt;
+    if (!force &&
+        !reachedEnd &&
+        lastPublishedAt != null &&
+        now - lastPublishedAt < _backgroundDownloadProgressUpdateInterval) {
+      return;
+    }
+    _publish(callback, taskId, snapshot, receivedBytes, totalBytes, now);
+  }
+
+  /// 发布任务结束时的最终进度；平台未提供最终字节数时使用最后一次事件。
+  void finish(String taskId, BackgroundDownloadResult result) {
+    final snapshot = _snapshots[taskId];
+    final receivedBytes = result.receivedBytes ?? snapshot?.latestReceivedBytes;
+    if (receivedBytes == null) {
+      flush(taskId);
+      return;
+    }
+    report(
+      taskId,
+      receivedBytes,
+      result.expectedBytes ?? snapshot?.latestTotalBytes,
+      force: true,
+    );
+  }
+
+  /// 异常结束时转发尚未发布的最后进度。
+  void flush(String taskId) {
+    final snapshot = _snapshots[taskId];
+    final receivedBytes = snapshot?.latestReceivedBytes;
+    if (receivedBytes == null) return;
+    report(taskId, receivedBytes, snapshot?.latestTotalBytes, force: true);
+  }
+
+  void _publish(
+    BackgroundFileDownloadBatchProgress callback,
+    String taskId,
+    _DownloadProgressSnapshot snapshot,
+    int receivedBytes,
+    int? totalBytes,
+    Duration now,
+  ) {
+    if (snapshot.lastPublishedReceivedBytes == receivedBytes &&
+        snapshot.lastPublishedTotalBytes == totalBytes) {
+      return;
+    }
+    snapshot
+      ..lastPublishedAt = now
+      ..lastPublishedReceivedBytes = receivedBytes
+      ..lastPublishedTotalBytes = totalBytes;
+    callback(taskId, receivedBytes, totalBytes);
+  }
+}
+
+/// 记录单个任务最新收到的进度和最近一次已通知的进度。
+class _DownloadProgressSnapshot {
+  int? latestReceivedBytes;
+  int? latestTotalBytes;
+  Duration? lastPublishedAt;
+  int? lastPublishedReceivedBytes;
+  int? lastPublishedTotalBytes;
+}
+
 /// 用户文件后台下载通知使用的本地化状态标题。
 class BackgroundFileDownloadNotificationLabels {
   const BackgroundFileDownloadNotificationLabels({
@@ -182,8 +277,9 @@ class BackgroundFileDownloadService {
   }) async {
     if (requests.isEmpty) return const <BackgroundFileDownloadItemResult>[];
 
+    final progressThrottler = _BackgroundDownloadProgressThrottler(onProgress);
     for (final request in requests) {
-      onProgress?.call(request.id, 0, null);
+      progressThrottler.report(request.id, 0, null, force: true);
       AppLogger.log(
         'BackgroundFileDownload',
         'download queued host=${request.uri.host} '
@@ -199,16 +295,20 @@ class BackgroundFileDownloadService {
         results = await batchRunner.enqueueBatch(
           requests: requests,
           cancelToken: cancelToken,
-          onProgress: onProgress,
+          onProgress: (taskId, received, total) =>
+              progressThrottler.report(taskId, received, total),
         );
       } else {
         results = await _enqueueSerially(
           requests,
           cancelToken: cancelToken,
-          onProgress: onProgress,
+          progressThrottler: progressThrottler,
         );
       }
     } on Object catch (error) {
+      for (final request in requests) {
+        progressThrottler.flush(request.id);
+      }
       return [
         for (final request in requests)
           BackgroundFileDownloadItemResult(
@@ -219,6 +319,9 @@ class BackgroundFileDownloadService {
     }
 
     if (results.length != requests.length) {
+      for (final request in requests) {
+        progressThrottler.flush(request.id);
+      }
       final error = BackgroundFileDownloadException(
         'The download queue returned an incomplete batch result.',
       );
@@ -232,6 +335,7 @@ class BackgroundFileDownloadService {
     for (var index = 0; index < requests.length; index++) {
       final request = requests[index];
       final result = results[index];
+      progressThrottler.finish(request.id, result);
       final error = await _validateResult(request, result);
       if (error != null) _logFailure(request, error);
       outcomes.add(
@@ -244,7 +348,7 @@ class BackgroundFileDownloadService {
   Future<List<BackgroundDownloadResult>> _enqueueSerially(
     List<BackgroundFileDownloadRequest> requests, {
     required CancelToken? cancelToken,
-    required BackgroundFileDownloadBatchProgress? onProgress,
+    required _BackgroundDownloadProgressThrottler progressThrottler,
   }) async {
     final results = <BackgroundDownloadResult>[];
     for (final request in requests) {
@@ -258,19 +362,21 @@ class BackgroundFileDownloadService {
         continue;
       }
       try {
-        results.add(
-          await _runner.enqueue(
-            uri: request.uri,
-            savePath: request.savePath,
-            displayName: request.displayName,
-            headers: request.headers,
-            cancelToken: cancelToken,
-            onProgress: (received, total) =>
-                onProgress?.call(request.id, received, total),
-          ),
+        final result = await _runner.enqueue(
+          uri: request.uri,
+          savePath: request.savePath,
+          displayName: request.displayName,
+          headers: request.headers,
+          cancelToken: cancelToken,
+          onProgress: (received, total) =>
+              progressThrottler.report(request.id, received, total),
         );
+        progressThrottler.finish(request.id, result);
+        results.add(result);
       } on Object catch (error) {
-        results.add(_resultFromError(error));
+        final result = _resultFromError(error);
+        progressThrottler.finish(request.id, result);
+        results.add(result);
       }
     }
     return results;

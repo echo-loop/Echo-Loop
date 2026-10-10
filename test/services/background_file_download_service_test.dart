@@ -158,12 +158,14 @@ class _FakeRunner implements BackgroundDownloadRunner {
     this.bytes = const <int>[1, 2],
     this.createFile = true,
     this.totalBytes,
+    this.progressEvents,
   });
 
   final BackgroundDownloadResult result;
   final List<int> bytes;
   final bool createFile;
   final int? totalBytes;
+  final List<(int, int?)>? progressEvents;
   Uri? uri;
   String? savePath;
   Map<String, String>? headers;
@@ -180,7 +182,14 @@ class _FakeRunner implements BackgroundDownloadRunner {
     this.uri = uri;
     this.savePath = savePath;
     this.headers = headers;
-    onProgress?.call(totalBytes == null ? 0 : bytes.length, totalBytes);
+    final events = progressEvents;
+    if (events == null) {
+      onProgress?.call(totalBytes == null ? 0 : bytes.length, totalBytes);
+    } else {
+      for (final (received, total) in events) {
+        onProgress?.call(received, total);
+      }
+    }
     if (createFile && result.status == BackgroundDownloadStatus.complete) {
       await File(savePath).parent.create(recursive: true);
       await File(savePath).writeAsBytes(bytes);
@@ -273,6 +282,39 @@ void main() {
         'Authorization': 'Bearer token',
       });
       expect(progress, (0, null));
+    },
+  );
+
+  test(
+    'coalesces progress bursts and publishes the final byte counts',
+    () async {
+      const finalBytes = 1000;
+      final progressEvents = List<(int, int?)>.generate(
+        finalBytes,
+        (index) => (index + 1, null),
+        growable: false,
+      );
+      final runner = _FakeRunner(
+        bytes: List<int>.filled(finalBytes, 0),
+        progressEvents: progressEvents,
+        result: const BackgroundDownloadResult(
+          status: BackgroundDownloadStatus.complete,
+          receivedBytes: finalBytes,
+          expectedBytes: finalBytes,
+        ),
+      );
+      final service = BackgroundFileDownloadService(runner: runner);
+      final progress = <(int, int?)>[];
+
+      await service.download(
+        uri: Uri.parse('https://example.com/audio.mp3'),
+        savePath: '${dataDir.path}/audio.mp3',
+        onProgress: (received, total) => progress.add((received, total)),
+      );
+
+      expect(progress.length, lessThan(progressEvents.length));
+      expect(progress.first, (0, null));
+      expect(progress.last, (finalBytes, finalBytes));
     },
   );
 
