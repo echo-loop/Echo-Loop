@@ -9,11 +9,17 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
 
 class _QueuedResponse {
-  const _QueuedResponse(this.statusCode, this.body, {this.headers = const {}});
+  const _QueuedResponse(
+    this.statusCode,
+    this.body, {
+    this.headers = const {},
+    this.chunks,
+  });
 
   final int statusCode;
   final List<int> body;
   final Map<String, List<String>> headers;
+  final List<List<int>>? chunks;
 }
 
 /// 排队的连接层异常（模拟超时/连接失败，不经过 HTTP 状态码）。
@@ -25,11 +31,27 @@ class _QueuedError {
 
 /// 排队的“响应头正常但流中途失败”场景，模拟已建立连接后网络中断。
 class _QueuedStreamFailure {
-  const _QueuedStreamFailure(this.statusCode, this.headers, this.error);
+  const _QueuedStreamFailure(
+    this.statusCode,
+    this.headers,
+    this.error, {
+    this.chunksBeforeError = const [],
+  });
 
   final int statusCode;
   final Map<String, List<String>> headers;
   final Object error;
+  final List<List<int>> chunksBeforeError;
+}
+
+Stream<Uint8List> _chunksThenError(
+  List<List<int>> chunks,
+  Object error,
+) async* {
+  for (final chunk in chunks) {
+    yield Uint8List.fromList(chunk);
+  }
+  throw error;
 }
 
 class _RecordingAdapter implements HttpClientAdapter {
@@ -53,14 +75,16 @@ class _RecordingAdapter implements HttpClientAdapter {
     }
     if (next is _QueuedStreamFailure) {
       return ResponseBody(
-        Stream<Uint8List>.error(next.error),
+        _chunksThenError(next.chunksBeforeError, next.error),
         next.statusCode,
         headers: next.headers,
       );
     }
     final response = next as _QueuedResponse;
     return ResponseBody(
-      Stream<Uint8List>.fromIterable([Uint8List.fromList(response.body)]),
+      Stream<Uint8List>.fromIterable(
+        (response.chunks ?? [response.body]).map(Uint8List.fromList),
+      ),
       response.statusCode,
       headers: response.headers,
     );
@@ -152,6 +176,87 @@ void main() {
       expect(await File('${target.path}.part.meta.json').exists(), isFalse);
       expect(result.bytesWritten, 3);
       expect(result.resumed, isFalse);
+    });
+
+    test('多块下载在每次进度回调前已有续传身份元数据', () async {
+      final target = targetFile('lesson.mp3');
+      final metadataAtProgress = <String?>[];
+      final receivedBytes = <int>[];
+      final adapter = _RecordingAdapter([
+        const _QueuedResponse(
+          200,
+          [],
+          chunks: [
+            [1, 2],
+            [3, 4],
+          ],
+          headers: {
+            'content-length': ['4'],
+          },
+        ),
+      ]);
+
+      final result = await downloaderWith(adapter).download(
+        uri: Uri.parse('https://example.com/lesson.mp3'),
+        savePath: target.path,
+        expectedSize: 4,
+        identityKey: 'file:1',
+        onProgress: (received, _) {
+          receivedBytes.add(received);
+          final metadataFile = File('${target.path}.part.meta.json');
+          metadataAtProgress.add(
+            metadataFile.existsSync() ? metadataFile.readAsStringSync() : null,
+          );
+        },
+      );
+
+      expect(metadataAtProgress, hasLength(2));
+      expect(
+        metadataAtProgress,
+        everyElement(contains('"identityKey":"file:1"')),
+      );
+      expect(receivedBytes, [2, 4]);
+      expect(result.bytesWritten, 4);
+      expect(await target.readAsBytes(), [1, 2, 3, 4]);
+    });
+
+    test('流中断后按 part 实际长度自动 Range 续传并拼接', () async {
+      final target = targetFile('lesson.mp3');
+      final adapter = _RecordingAdapter([
+        _QueuedStreamFailure(
+          200,
+          const {},
+          DioException(
+            requestOptions: RequestOptions(path: '/'),
+            type: DioExceptionType.connectionError,
+          ),
+          chunksBeforeError: const [
+            [1, 2],
+          ],
+        ),
+        const _QueuedResponse(
+          206,
+          [3, 4],
+          headers: {
+            'content-range': ['bytes 2-3/4'],
+            'content-length': ['2'],
+          },
+        ),
+      ]);
+
+      final result = await downloaderWith(adapter).download(
+        uri: Uri.parse('https://example.com/lesson.mp3'),
+        savePath: target.path,
+        expectedSize: 4,
+        identityKey: 'file:1',
+      );
+
+      expect(adapter.requestHeaders[0].containsKey('Range'), isFalse);
+      expect(adapter.requestHeaders[1]['Range'], 'bytes=2-');
+      expect(await target.readAsBytes(), [1, 2, 3, 4]);
+      expect(result.bytesWritten, 4);
+      expect(result.resumed, isTrue);
+      expect(await File('${target.path}.part.meta.json').exists(), isFalse);
     });
 
     test('已有匹配 part 时发送 Range 并按 206 追加续传', () async {

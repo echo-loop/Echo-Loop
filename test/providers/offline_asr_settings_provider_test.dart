@@ -69,6 +69,28 @@ class _DelayedAsrModelManager extends _FakeAsrModelManager {
   }
 }
 
+class _BurstProgressAsrModelManager extends _FakeAsrModelManager {
+  _BurstProgressAsrModelManager() : super(downloaded: false, localSizeBytes: 0);
+
+  @override
+  Future<String> downloadModel(
+    String modelId, {
+    void Function(AsrModelDownloadProgress)? onProgress,
+    CancelToken? cancelToken,
+  }) async {
+    const callbackCount = 10000;
+    for (var i = 1; i <= callbackCount; i++) {
+      onProgress?.call(
+        AsrModelDownloadProgress(
+          status: AsrModelDownloadStatus.downloading,
+          progress: i / callbackCount,
+        ),
+      );
+    }
+    throw StateError('simulated download failure after progress burst');
+  }
+}
+
 void main() {
   const recommendedModel = AsrModelInfo(
     id: 'whisper-base-en-int8',
@@ -112,6 +134,45 @@ void main() {
     );
 
     expect(state.downloadStatus, AsrModelDownloadStatus.notDownloaded);
+  });
+
+  test('高频下载进度只发布有限 UI 状态更新', () async {
+    SharedPreferences.setMockInitialValues(<String, Object>{});
+    final manager = _BurstProgressAsrModelManager();
+    final initialState = OfflineAsrSettingsState(
+      backend: AsrBackend.offline,
+      recommendedModel: recommendedModel,
+    );
+    final container = ProviderContainer(
+      overrides: [
+        asrModelManagerProvider.overrideWithValue(manager),
+        offlineAsrSettingsProvider.overrideWith(
+          () => _TestOfflineAsrSettingsNotifier(initialState),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    final publishedProgress = <double>[];
+    final subscription = container.listen(offlineAsrSettingsProvider, (
+      previous,
+      next,
+    ) {
+      if (next.downloadStatus == AsrModelDownloadStatus.downloading &&
+          next.downloadProgress > 0) {
+        publishedProgress.add(next.downloadProgress);
+      }
+    });
+    addTearDown(subscription.close);
+
+    await container.read(offlineAsrSettingsProvider.notifier).retryDownload();
+
+    expect(publishedProgress, hasLength(lessThan(100)));
+    expect(publishedProgress.last, 1);
+    expect(
+      container.read(offlineAsrSettingsProvider).downloadStatus,
+      AsrModelDownloadStatus.failed,
+    );
   });
 
   test('无效持久化模型选择回退到推荐模型', () async {

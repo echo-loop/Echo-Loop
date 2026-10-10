@@ -365,12 +365,6 @@ class DioReliableHttpDownloader implements ReliableHttpDownloader {
       if (statusCode == 416) {
         final existingLength = await _lengthIfExists(partFile);
         if (expectedSize != null && existingLength == expectedSize) {
-          await _writeMeta(
-            metaFile: metaFile,
-            identityKey: identityKey,
-            expectedSize: expectedSize,
-            downloadedBytes: existingLength,
-          );
           await _replaceWithPart(partFile: partFile, targetFile: targetFile);
           await _deleteIfExists(metaFile);
           onProgress?.call(existingLength, expectedSize);
@@ -414,6 +408,17 @@ class DioReliableHttpDownloader implements ReliableHttpDownloader {
         state.rangeUnsupported = true;
       }
 
+      try {
+        await _writeResumeMetadata(
+          metaFile: metaFile,
+          identityKey: identityKey,
+          allowResume: allowResume,
+        );
+      } on ReliableDownloadException {
+        await _cancelResponseBody(body);
+        rethrow;
+      }
+
       final initialBytes = append ? resumableBytes : 0;
       final totalBytes = _totalBytesFor(
         response: response,
@@ -427,9 +432,6 @@ class DioReliableHttpDownloader implements ReliableHttpDownloader {
         initialBytes: initialBytes,
         totalBytes: totalBytes,
         onProgress: onProgress,
-        metaFile: metaFile,
-        identityKey: identityKey,
-        expectedSize: expectedSize,
       );
       if (expectedSize != null && bytesWritten != expectedSize) {
         throw ReliableDownloadException(
@@ -611,19 +613,33 @@ class DioReliableHttpDownloader implements ReliableHttpDownloader {
     return null;
   }
 
-  Future<void> _writeMeta({
+  /// 在读取响应体前只保存一次续传身份，避免逐块写入小型元数据文件。
+  ///
+  /// 续传字节偏移始终取自 `.part` 文件长度；身份缺失或不允许续传时无需 sidecar。
+  Future<void> _writeResumeMetadata({
     required File metaFile,
     required String? identityKey,
-    required int? expectedSize,
-    required int downloadedBytes,
+    required bool allowResume,
   }) async {
-    final data = <String, Object?>{
-      'identityKey': identityKey,
-      'expectedSize': expectedSize,
-      'downloadedBytes': downloadedBytes,
-      'updatedAt': DateTime.now().toUtc().toIso8601String(),
-    };
-    await metaFile.writeAsString(jsonEncode(data));
+    if (!allowResume || identityKey == null || identityKey.isEmpty) return;
+    try {
+      await metaFile.writeAsString(jsonEncode({'identityKey': identityKey}));
+    } on FileSystemException catch (error) {
+      throw ReliableDownloadException(
+        'Failed to save download resume metadata.',
+        kind: ReliableDownloadFailure.storage,
+        cause: error,
+      );
+    }
+  }
+
+  /// 元数据落盘失败时取消尚未消费的响应流，释放底层连接。
+  Future<void> _cancelResponseBody(ResponseBody body) async {
+    try {
+      await body.stream.listen((_) {}).cancel();
+    } on Object catch (error) {
+      AppLogger.log(_logTag, '取消未消费响应流失败 errorType=${error.runtimeType}');
+    }
   }
 
   /// 校验续传响应的 Content-Range 起点，起点缺失/不一致说明本地 `.part` 与
@@ -679,9 +695,6 @@ class DioReliableHttpDownloader implements ReliableHttpDownloader {
     required int initialBytes,
     required int? totalBytes,
     required void Function(int receivedBytes, int? totalBytes)? onProgress,
-    required File metaFile,
-    required String? identityKey,
-    required int? expectedSize,
   }) async {
     var received = initialBytes;
     IOSink? sink;
@@ -693,12 +706,6 @@ class DioReliableHttpDownloader implements ReliableHttpDownloader {
         received += chunk.length;
         sink.add(chunk);
         onProgress?.call(received, totalBytes);
-        await _writeMeta(
-          metaFile: metaFile,
-          identityKey: identityKey,
-          expectedSize: expectedSize,
-          downloadedBytes: received,
-        );
       }
       await sink.flush();
       await sink.close();

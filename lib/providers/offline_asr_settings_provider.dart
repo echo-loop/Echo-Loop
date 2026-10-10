@@ -484,6 +484,11 @@ class OfflineAsrSettingsNotifier extends Notifier<OfflineAsrSettingsState> {
     final cancelToken = CancelToken();
     _downloadCancelTokens[modelId] = cancelToken;
     final modelManager = ref.read(asrModelManagerProvider);
+    // 网络流可能每个小数据块都回报进度；限制 UI 状态最多每 100ms 更新一次。
+    // 下载完成的 100% 进度仍立即发布，避免进度条和完成状态落后。
+    const progressUpdateInterval = Duration(milliseconds: 100);
+    final progressUpdateClock = Stopwatch()..start();
+    var lastProgressUpdateAt = Duration.zero;
 
     try {
       await modelManager.downloadModel(
@@ -494,11 +499,17 @@ class OfflineAsrSettingsNotifier extends Notifier<OfflineAsrSettingsState> {
               !identical(_downloadCancelTokens[modelId], cancelToken)) {
             return;
           }
+          final now = progressUpdateClock.elapsed;
+          if (progress.progress < 1.0 &&
+              now - lastProgressUpdateAt < progressUpdateInterval) {
+            return;
+          }
+          final currentState = state.modelStateOf(modelId);
+          if (progress.progress == currentState.downloadProgress) return;
+          lastProgressUpdateAt = now;
           state = state.withModelState(
             modelId,
-            state
-                .modelStateOf(modelId)
-                .copyWith(downloadProgress: progress.progress),
+            currentState.copyWith(downloadProgress: progress.progress),
           );
         },
       );
