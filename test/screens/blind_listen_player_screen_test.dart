@@ -196,6 +196,45 @@ void main() {
       expect(starts, 1);
     });
 
+    testWidgets('音频启动复用加载托管层且不展示视频画布', (tester) async {
+      final load = Completer<MediaLoadResult>();
+      var starts = 0;
+      final session = TestLearningSession(
+        const LearningSessionState(
+          learningMode: LearningMode.blindListen,
+          playbackChain: LearningPlaybackChain.mediaEngine,
+        ),
+      );
+      await tester.pumpWidget(
+        createTestWidget(
+          mediaStartup: MediaLearningStartup(
+            loadKey: 'audio-1',
+            showVideoLoading: false,
+            load: () => load.future,
+            cancel: () async {},
+          ),
+          playerFactory: (state) =>
+              _StaticBlindListenPlayer(state)..onStart = () => starts += 1,
+          extraOverrides: [learningSessionProvider.overrideWith(() => session)],
+        ),
+      );
+      await tester.pump();
+
+      expect(find.text('Loading video…'), findsNothing);
+      expect(
+        find.byKey(const ValueKey('managed-media-overlay-canvas')),
+        findsNothing,
+      );
+      expect(find.byKey(const ValueKey('media-video-canvas')), findsNothing);
+      expect(starts, 0);
+
+      load.complete(MediaLoadResult.ready);
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const ValueKey('media-video-canvas')), findsNothing);
+      expect(starts, 1);
+    });
+
     testWidgets('只渲染一套底部播放控制', (tester) async {
       await tester.pumpWidget(createTestWidget());
       await tester.pumpAndSettle();

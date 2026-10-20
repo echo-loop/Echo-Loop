@@ -27,7 +27,6 @@ import '../providers/learning_progress_provider.dart';
 import '../providers/learning_session/blind_listen_player_provider.dart';
 import '../providers/learning_session/learning_session_provider.dart';
 import '../providers/media_engine/media_engine_provider.dart';
-import '../providers/audio_engine/audio_engine_provider.dart';
 import '../providers/media_engine/media_sense_group_range_playback.dart';
 import '../providers/listening_practice/listening_practice_provider.dart';
 import '../providers/new_user_guide_provider.dart';
@@ -58,7 +57,7 @@ class BlindListenPlayerScreen extends ConsumerStatefulWidget {
   /// 音频项 ID
   final String audioItemId;
 
-  /// 视频盲听在路由进入后延迟加载媒体，音频任务保持 null。
+  /// 音视频盲听共用的路由后媒体启动；仅视频显示媒体画面和视频加载样式。
   final MediaLearningStartup? mediaStartup;
 
   const BlindListenPlayerScreen({
@@ -156,6 +155,7 @@ class _BlindListenPlayerScreenState
       load: startup.load,
       cancel: startup.cancel,
       onReady: _handleMediaStartupReady,
+      showVideoLoading: startup.showVideoLoading,
       child: child,
     );
   }
@@ -217,7 +217,9 @@ class _BlindListenPlayerScreenState
 
     final lpState = ref.read(listeningPracticeProvider);
     final audioName = lpState.currentAudioItem?.name ?? '';
-    final usesMedia = widget.mediaStartup != null && _mediaStartupReady;
+    final mediaReady = widget.mediaStartup != null && _mediaStartupReady;
+    final usesVideo =
+        widget.mediaStartup?.showVideoLoading == true && _mediaStartupReady;
     await AppRoutes.pushNested(
       context,
       AppRoutes.sentenceDetailSegment,
@@ -231,9 +233,9 @@ class _BlindListenPlayerScreenState
             .totalSentenceCount,
         startTimeMs: sentence.startTime.inMilliseconds,
         endTimeMs: sentence.endTime.inMilliseconds,
-        rangePlayback: usesMedia ? _blindMediaRangePlayback : null,
+        rangePlayback: mediaReady ? _blindMediaRangePlayback : null,
         wordHighlightSource: _wordHighlightSource(),
-        mediaSession: usesMedia ? _buildMediaSession() : null,
+        mediaSession: usesVideo ? _buildMediaSession() : null,
       ),
     );
 
@@ -253,21 +255,11 @@ class _BlindListenPlayerScreenState
       );
 
   WordHighlightSource _wordHighlightSource() {
-    if (widget.mediaStartup != null && _mediaStartupReady) {
-      final engine = ref.read(mediaEngineProvider.notifier);
-      return WordHighlightSource(
-        audioItemId: widget.audioItemId,
-        positionStream: engine.wordHighlightPositionStream,
-        currentPosition: engine.wordHighlightPosition,
-        playbackStatus: engine.wordHighlightPlaybackStatus,
-        playbackStatusStream: engine.wordHighlightPlaybackStatusStream,
-      );
-    }
-    final engine = ref.read(audioEngineProvider.notifier);
+    final engine = ref.read(mediaEngineProvider.notifier);
     return WordHighlightSource(
       audioItemId: widget.audioItemId,
-      positionStream: engine.absolutePositionStream,
-      currentPosition: engine.absoluteCurrentPosition,
+      positionStream: engine.wordHighlightPositionStream,
+      currentPosition: engine.wordHighlightPosition,
       playbackStatus: engine.wordHighlightPlaybackStatus,
       playbackStatusStream: engine.wordHighlightPlaybackStatusStream,
     );
@@ -600,6 +592,7 @@ class _BlindListenPlayerScreenState
         child: PracticeMediaPresentationHost(
           enabled:
               mediaReady &&
+              widget.mediaStartup?.showVideoLoading == true &&
               ref.read(learningSessionProvider).playbackChain ==
                   LearningPlaybackChain.mediaEngine,
           suppressVisualView: _isNavigatingToDetail,

@@ -441,8 +441,9 @@ void main() {
     expect(backend.pauseCalls, 2);
   });
 
-  test('播放器提前 completed 时返回 failed，不能伪装成区间完成', () async {
+  test('媒体时长不足以覆盖区间时自然结束仍返回 failed', () async {
     final engine = container.read(mediaEngineProvider.notifier);
+    backend.setDuration(const Duration(seconds: 2));
     await engine.loadMedia(item(), 1.0);
 
     final playing = engine.playRange(
@@ -456,6 +457,26 @@ void main() {
 
     expect(await playing, SentencePlaybackResult.failed);
     expect(backend.pauseCalls, 1);
+  });
+
+  test('媒体自然结束且实际时长覆盖区间时忽略滞后的位置缓存', () async {
+    final engine = container.read(mediaEngineProvider.notifier);
+    await engine.loadMedia(item(), 1.0);
+
+    final playing = engine.playRange(
+      const Duration(seconds: 8),
+      const Duration(milliseconds: 9950),
+      speed: 1.0,
+    );
+    await Future<void>.delayed(Duration.zero);
+
+    // media_kit 的 EOF 事件先于最后一个 time-pos 更新到达；实际时长 10s
+    // 已覆盖区间终点，但缓存位置仍落后 213ms。
+    backend.setPositionWithoutEvent(const Duration(milliseconds: 9737));
+    backend.emitCompleted();
+
+    expect(await playing, SentencePlaybackResult.completed);
+    expect(backend.pauseCalls, 2);
   });
 
   test('区间起播失败时清理结束监听，避免共享 backend 保留订阅', () async {

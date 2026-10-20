@@ -79,8 +79,7 @@ const _durationDebugLogTag = 'MediaDuration';
 
 /// 统一打开音频或视频盲听任务，避免首次学习与复习入口各自维护媒体分流。
 ///
-/// 自由练习的补做目标只在视频加载成功或音频初始化完成后写入，加载失败和取消
-/// 不会提前改变学习进度语义。
+/// 自由练习的补做目标只在媒体加载成功后写入，加载失败和取消不会提前改变学习进度语义。
 Future<void> _openBlindListenPractice({
   required BuildContext context,
   required WidgetRef ref,
@@ -96,45 +95,30 @@ Future<void> _openBlindListenPractice({
 }) async {
   final session = ref.read(learningSessionProvider.notifier);
   final route = AppRoutes.blindListenPlayer(collectionId, audioItem.id);
-  if (audioItem.isVideo) {
-    if (!context.mounted) return;
-    context.push(
-      route,
-      extra: MediaLearningStartup(
-        loadKey: loadKey,
-        load: () async {
-          final result = await session.enterMediaBlindListenMode(
-            audioItem,
-            paragraphs: paragraphs,
-            settings: settings,
-            stage: stage,
-            isFreePlay: isFreePlay,
-          );
-          if (result == MediaLoadResult.ready &&
-              catchUpStage != null &&
-              catchUpSubStage != null) {
-            session.setCatchUp(catchUpStage, catchUpSubStage);
-          }
-          return result;
-        },
-        cancel: session.cancelMediaBlindListenEntry,
-      ),
-    );
-    return;
-  }
-
-  await session.enterBlindListenMode(
-    audioItem.id,
-    paragraphs: paragraphs,
-    settings: settings,
-    stage: stage,
-    isFreePlay: isFreePlay,
-  );
-  if (catchUpStage != null && catchUpSubStage != null) {
-    session.setCatchUp(catchUpStage, catchUpSubStage);
-  }
   if (!context.mounted) return;
-  context.push(route);
+  context.push(
+    route,
+    extra: MediaLearningStartup(
+      loadKey: loadKey,
+      showVideoLoading: audioItem.isVideo,
+      load: () async {
+        final result = await session.enterBlindListenMode(
+          audioItem,
+          paragraphs: paragraphs,
+          settings: settings,
+          stage: stage,
+          isFreePlay: isFreePlay,
+        );
+        if (result == MediaLoadResult.ready &&
+            catchUpStage != null &&
+            catchUpSubStage != null) {
+          session.setCatchUp(catchUpStage, catchUpSubStage);
+        }
+        return result;
+      },
+      cancel: session.cancelBlindListenEntry,
+    ),
+  );
 }
 
 /// 统一打开音频或视频复述任务，保持所有计划入口的分流与补做参数一致。

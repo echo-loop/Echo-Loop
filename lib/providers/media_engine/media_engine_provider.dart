@@ -959,13 +959,7 @@ class MediaEngine extends _$MediaEngine {
       if (!_isActiveRangeRequest(requestId)) {
         unawaited(finish(SentencePlaybackResult.cancelled));
       } else {
-        unawaited(
-          finish(
-            backend.position >= end
-                ? SentencePlaybackResult.completed
-                : SentencePlaybackResult.failed,
-          ),
-        );
+        unawaited(finish(_rangeResultOnMediaCompletion(backend, end)));
       }
     });
     guard = Timer.periodic(const Duration(milliseconds: 200), (_) {
@@ -978,6 +972,22 @@ class MediaEngine extends _$MediaEngine {
     return _RangeWaiter(completer.future, () async {
       await finish(SentencePlaybackResult.cancelled);
     });
+  }
+
+  /// 根据媒体自然结束事件判定区间结果。
+  ///
+  /// media_kit 的 EOF 事件可能先于最后一条位置事件到达。若媒体时长已覆盖区间
+  /// 终点，自然结束就能证明区间已播完；媒体时长不足时仍按失败处理。
+  SentencePlaybackResult _rangeResultOnMediaCompletion(
+    MediaPlayerBackend backend,
+    Duration end,
+  ) {
+    if (backend.position >= end) return SentencePlaybackResult.completed;
+
+    final mediaDuration = backend.duration ?? state.totalDuration;
+    return mediaDuration != null && end <= mediaDuration
+        ? SentencePlaybackResult.completed
+        : SentencePlaybackResult.failed;
   }
 
   /// 以位置流确认 seek 起点已进入时间轴。

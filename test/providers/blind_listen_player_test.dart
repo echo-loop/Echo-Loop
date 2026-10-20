@@ -8,52 +8,81 @@ import 'package:echo_loop/models/blind_listen_settings.dart';
 import 'package:echo_loop/models/intensive_listen_settings.dart'
     show ShadowingControlMode;
 import 'package:echo_loop/models/sentence.dart';
-import 'package:echo_loop/providers/audio_engine/audio_engine_provider.dart';
+import 'package:echo_loop/models/sentence_playback_result.dart';
 import 'package:echo_loop/providers/learning_session/blind_listen_player_provider.dart';
 import 'package:echo_loop/providers/learning_session/learning_session_provider.dart';
+import 'package:echo_loop/providers/learning_session/paragraph_playback_driver.dart';
 import '../helpers/mock_providers.dart';
 
-/// 测试用 AudioEngine：支持 session 管理和模拟播放
-class _TestAudioEngine extends TestAudioEngine {
+/// 测试用段落驱动器：支持 session 管理和模拟播放。
+class _TestParagraphPlaybackDriver implements ParagraphPlaybackDriver {
   int _sessionId = 0;
 
   @override
-  int newSession() {
-    _sessionId += 1;
-    return _sessionId;
-  }
+  int newSession() => ++_sessionId;
 
   @override
   bool isActiveSession(int id) => id == _sessionId;
 
   @override
-  Future<void> playRangeOnce(
+  Stream<Duration> get positionStream => const Stream.empty();
+
+  @override
+  Future<void> pause() async {}
+
+  @override
+  Future<void> setSpeed(double speed) async {}
+
+  @override
+  Future<void> seek(Duration position) async {}
+
+  @override
+  Future<SentencePlaybackResult> playRange(
     Duration start,
     Duration end,
     int sessionId, {
-    void Function()? onClipReady,
+    required double speed,
+    required void Function() onRangeReady,
   }) async {
-    if (!isActiveSession(sessionId)) return;
+    if (!isActiveSession(sessionId)) return SentencePlaybackResult.cancelled;
     await Future<void>.delayed(const Duration(milliseconds: 10));
+    return isActiveSession(sessionId)
+        ? SentencePlaybackResult.completed
+        : SentencePlaybackResult.cancelled;
   }
 
   @override
-  Future<void> stopPlayback() async {}
+  void bindLockScreen({
+    required Future<void> Function() onPlay,
+    required Future<void> Function() onPause,
+    required Future<void> Function() onNext,
+    required Future<void> Function() onPrevious,
+  }) {}
 
   @override
-  Stream<Duration> get absolutePositionStream => const Stream.empty();
+  void setSessionActive(bool active) {}
+
+  @override
+  void setProgressFrozen(bool frozen) {}
+
+  @override
+  void unbindLockScreen() {}
 }
 
-class _DelayedAudioEngine extends _TestAudioEngine {
+class _DelayedParagraphPlaybackDriver extends _TestParagraphPlaybackDriver {
   @override
-  Future<void> playRangeOnce(
+  Future<SentencePlaybackResult> playRange(
     Duration start,
     Duration end,
     int sessionId, {
-    void Function()? onClipReady,
+    required double speed,
+    required void Function() onRangeReady,
   }) async {
-    if (!isActiveSession(sessionId)) return;
+    if (!isActiveSession(sessionId)) return SentencePlaybackResult.cancelled;
     await Future<void>.delayed(const Duration(milliseconds: 20));
+    return isActiveSession(sessionId)
+        ? SentencePlaybackResult.completed
+        : SentencePlaybackResult.cancelled;
   }
 }
 
@@ -96,7 +125,6 @@ void main() {
     setUp(() async {
       container = ProviderContainer(
         overrides: [
-          audioEngineProvider.overrideWith(() => _TestAudioEngine()),
           learningSessionProvider.overrideWith(() => TestLearningSession()),
           analyticsOverride(),
           ...studyTimeOverrides(),
@@ -106,6 +134,7 @@ void main() {
       await notifier.initializeParagraphs(
         paragraphs,
         const BlindListenSettings(controlMode: ShadowingControlMode.manual),
+        playbackDriver: _TestParagraphPlaybackDriver(),
       );
     });
 
@@ -159,7 +188,6 @@ void main() {
     test('等待态挂起时，当前段播完后进入 waiting for user', () async {
       final delayedContainer = ProviderContainer(
         overrides: [
-          audioEngineProvider.overrideWith(() => _DelayedAudioEngine()),
           learningSessionProvider.overrideWith(() => TestLearningSession()),
           analyticsOverride(),
           ...studyTimeOverrides(),
@@ -173,6 +201,7 @@ void main() {
       await delayedNotifier.initializeParagraphs(
         paragraphs,
         const BlindListenSettings(controlMode: ShadowingControlMode.auto),
+        playbackDriver: _DelayedParagraphPlaybackDriver(),
       );
 
       final pending = delayedNotifier.startPlaying();

@@ -103,9 +103,10 @@ class _TestBookmarkDao implements BookmarkDao {
   }
 }
 
-/// 模拟视频文件加载失败，并记录失败后的独立媒体链路释放。
+/// 模拟媒体文件加载失败，并记录失败后的媒体链路释放。
 class _FailingMediaEngine extends MediaEngine {
   int releaseCalls = 0;
+  bool failRelease = false;
 
   @override
   MediaEngineState build() => const MediaEngineState();
@@ -120,6 +121,7 @@ class _FailingMediaEngine extends MediaEngine {
   @override
   Future<void> releaseFromScreen() async {
     releaseCalls += 1;
+    if (failRelease) throw StateError('media release failed');
   }
 }
 
@@ -184,6 +186,7 @@ class _OverlappingMediaEngine extends MediaEngine {
 class _SuccessfulMediaEngine extends MediaEngine {
   int subtitleClearCalls = 0;
   int releaseCalls = 0;
+  bool failRelease = false;
   final List<model.AudioItem> loadedItems = [];
 
   @override
@@ -207,6 +210,7 @@ class _SuccessfulMediaEngine extends MediaEngine {
   @override
   Future<void> releaseFromScreen() async {
     releaseCalls += 1;
+    if (failRelease) throw StateError('media release failed');
   }
 }
 
@@ -563,7 +567,6 @@ void main() {
       final container = ProviderContainer(
         overrides: [
           appDatabaseProvider.overrideWithValue(_createTestDb()),
-          audioEngineProvider.overrideWith(() => TestAudioEngine()),
           listeningPracticeProvider.overrideWith(() => TestListeningPractice()),
           learningProgressNotifierProvider.overrideWith(
             () => TestLearningProgressNotifier(),
@@ -613,7 +616,6 @@ void main() {
       final container = ProviderContainer(
         overrides: [
           appDatabaseProvider.overrideWithValue(_createTestDb()),
-          audioEngineProvider.overrideWith(() => TestAudioEngine()),
           listeningPracticeProvider.overrideWith(() => TestListeningPractice()),
           learningProgressNotifierProvider.overrideWith(
             () => TestLearningProgressNotifier(),
@@ -638,7 +640,7 @@ void main() {
 
       final result = await container
           .read(learningSessionProvider.notifier)
-          .enterMediaBlindListenMode(
+          .enterBlindListenMode(
             model.AudioItem(
               id: 'video-blind-bookmarks',
               name: 'Video',
@@ -654,10 +656,178 @@ void main() {
 
       expect(result, MediaLoadResult.ready);
       expect(player.state.bookmarkedSentenceIndices, {0, 2, 4});
+      expect(player.lastPlaybackDriver, isA<MediaParagraphPlaybackDriver>());
       expect(
         videoSentences.map((sentence) => sentence.isBookmarked),
         everyElement(isFalse),
       );
+    });
+
+    test('音频盲听同样加载 MediaEngine 并注入媒体段落驱动器', () async {
+      final player = TestBlindListenPlayer();
+      final mediaEngine = _SuccessfulMediaEngine();
+      final practice = TestListeningPractice();
+      final container = ProviderContainer(
+        overrides: [
+          appDatabaseProvider.overrideWithValue(_createTestDb()),
+          listeningPracticeProvider.overrideWith(() => practice),
+          learningProgressNotifierProvider.overrideWith(
+            () => TestLearningProgressNotifier(),
+          ),
+          blindListenPlayerProvider.overrideWith(() => player),
+          dailyStudyTimeProvider.overrideWith(() => TestDailyStudyTime()),
+          mediaEngineProvider.overrideWith(() => mediaEngine),
+          analyticsOverride(),
+        ],
+      );
+      addTearDown(container.dispose);
+      final item = model.AudioItem(
+        id: 'audio-blind-media',
+        name: 'Audio',
+        audioPath: 'audio.mp3',
+        addedDate: DateTime(2026, 8, 14),
+      );
+
+      final result = await container
+          .read(learningSessionProvider.notifier)
+          .enterBlindListenMode(
+            item,
+            paragraphs: [sentences],
+            settings: const BlindListenSettings(playbackSpeed: 1.25),
+          );
+
+      expect(result, MediaLoadResult.ready);
+      expect(mediaEngine.loadedItems.single.id, item.id);
+      expect(mediaEngine.subtitleClearCalls, 1);
+      expect(player.lastPlaybackDriver, isA<MediaParagraphPlaybackDriver>());
+      expect(practice.listenersSuspended, isTrue);
+      expect(
+        container.read(learningSessionProvider).playbackChain,
+        LearningPlaybackChain.mediaEngine,
+      );
+
+      await container
+          .read(learningSessionProvider.notifier)
+          .cancelBlindListenEntry();
+      expect(practice.listenersSuspended, isFalse);
+      expect(practice.syncBookmarksCalls, 1);
+      expect(mediaEngine.releaseCalls, 1);
+    });
+
+    test('盲听媒体加载失败会释放会话并恢复 ListeningPractice 监听', () async {
+      final mediaEngine = _FailingMediaEngine();
+      final practice = TestListeningPractice();
+      final container = createContainer(
+        TestLearningProgressNotifier(),
+        mediaEngine: mediaEngine,
+        listeningPractice: practice,
+      );
+      addTearDown(container.dispose);
+      final result = await container
+          .read(learningSessionProvider.notifier)
+          .enterBlindListenMode(
+            model.AudioItem(
+              id: 'audio-blind-failure',
+              name: 'Audio',
+              audioPath: 'audio.mp3',
+              addedDate: DateTime(2026, 8, 14),
+            ),
+            paragraphs: [sentences],
+          );
+
+      expect(result, MediaLoadResult.failure);
+      expect(mediaEngine.releaseCalls, 1);
+      expect(practice.listenersSuspended, isFalse);
+      expect(container.read(learningSessionProvider).isInLearningMode, isFalse);
+    });
+
+    test('盲听加载失败且媒体释放报错时仍恢复 ListeningPractice 监听', () async {
+      final mediaEngine = _FailingMediaEngine()..failRelease = true;
+      final practice = TestListeningPractice();
+      final container = createContainer(
+        TestLearningProgressNotifier(),
+        mediaEngine: mediaEngine,
+        listeningPractice: practice,
+      );
+      addTearDown(container.dispose);
+
+      final result = await container
+          .read(learningSessionProvider.notifier)
+          .enterBlindListenMode(
+            model.AudioItem(
+              id: 'audio-blind-release-failure',
+              name: 'Audio',
+              audioPath: 'audio.mp3',
+              addedDate: DateTime(2026, 8, 14),
+            ),
+            paragraphs: [sentences],
+          );
+
+      expect(result, MediaLoadResult.failure);
+      expect(mediaEngine.releaseCalls, 1);
+      expect(practice.listenersSuspended, isFalse);
+      expect(container.read(learningSessionProvider).isInLearningMode, isFalse);
+    });
+
+    test('退出盲听时媒体释放报错也恢复监听并清空学习状态', () async {
+      final mediaEngine = _SuccessfulMediaEngine()..failRelease = true;
+      final practice = TestListeningPractice();
+      final container = createContainer(
+        TestLearningProgressNotifier(),
+        mediaEngine: mediaEngine,
+        listeningPractice: practice,
+      );
+      addTearDown(container.dispose);
+      final session = container.read(learningSessionProvider.notifier);
+
+      final result = await session.enterBlindListenMode(
+        model.AudioItem(
+          id: 'audio-blind-exit-release-failure',
+          name: 'Audio',
+          audioPath: 'audio.mp3',
+          addedDate: DateTime(2026, 8, 14),
+        ),
+        paragraphs: [sentences],
+      );
+      expect(result, MediaLoadResult.ready);
+      expect(practice.listenersSuspended, isTrue);
+
+      await session.cancelBlindListenEntry();
+
+      expect(mediaEngine.releaseCalls, 1);
+      expect(practice.listenersSuspended, isFalse);
+      expect(container.read(learningSessionProvider).isInLearningMode, isFalse);
+    });
+
+    test('盲听加载取消后丢弃迟到结果并恢复 ListeningPractice 监听', () async {
+      final mediaEngine = _BlockingMediaEngine();
+      final practice = TestListeningPractice();
+      final container = createContainer(
+        TestLearningProgressNotifier(),
+        mediaEngine: mediaEngine,
+        listeningPractice: practice,
+      );
+      addTearDown(container.dispose);
+      final session = container.read(learningSessionProvider.notifier);
+      final entry = session.enterBlindListenMode(
+        model.AudioItem(
+          id: 'audio-blind-cancelled',
+          name: 'Audio',
+          audioPath: 'audio.mp3',
+          addedDate: DateTime(2026, 8, 14),
+        ),
+        paragraphs: [sentences],
+      );
+      await mediaEngine.loadStarted.future;
+
+      expect(practice.listenersSuspended, isTrue);
+      await session.cancelBlindListenEntry();
+      expect(practice.listenersSuspended, isFalse);
+      mediaEngine.loadResult.complete(const Duration(minutes: 1));
+
+      expect(await entry, MediaLoadResult.cancelled);
+      expect(mediaEngine.releaseCalls, 1);
+      expect(container.read(learningSessionProvider).isInLearningMode, isFalse);
     });
 
     test('精听加载中取消后迟到成功被丢弃并释放媒体链路', () async {
@@ -724,7 +894,7 @@ void main() {
       );
     });
 
-    test('视频盲听旧加载不能释放后一次进入的媒体会话', () async {
+    test('盲听旧加载不能释放后一次进入的媒体会话', () async {
       final mediaEngine = _OverlappingMediaEngine();
       final container = createContainer(
         TestLearningProgressNotifier(),
@@ -733,26 +903,26 @@ void main() {
       addTearDown(container.dispose);
       final session = container.read(learningSessionProvider.notifier);
       final firstItem = model.AudioItem(
-        id: 'video-blind-first',
-        name: 'First video',
-        audioPath: 'first.mp4',
+        id: 'audio-blind-first',
+        name: 'First audio',
+        audioPath: 'first.mp3',
         addedDate: DateTime(2026, 8, 14),
       );
       final secondItem = model.AudioItem(
-        id: 'video-blind-second',
-        name: 'Second video',
-        audioPath: 'second.mp4',
+        id: 'audio-blind-second',
+        name: 'Second audio',
+        audioPath: 'second.mp3',
         addedDate: DateTime(2026, 8, 14),
       );
 
-      final firstEntry = session.enterMediaBlindListenMode(
+      final firstEntry = session.enterBlindListenMode(
         firstItem,
         paragraphs: [sentences],
         settings: const BlindListenSettings(),
       );
       await mediaEngine.loadStarted[0].future;
 
-      final secondEntry = session.enterMediaBlindListenMode(
+      final secondEntry = session.enterBlindListenMode(
         secondItem,
         paragraphs: [sentences],
         settings: const BlindListenSettings(),
@@ -873,12 +1043,12 @@ void main() {
       final c = ProviderContainer(
         overrides: [
           appDatabaseProvider.overrideWithValue(_createTestDb()),
-          audioEngineProvider.overrideWith(() => TestAudioEngine()),
           listeningPracticeProvider.overrideWith(() => TestListeningPractice()),
           learningProgressNotifierProvider.overrideWith(
             () => TestLearningProgressNotifier(),
           ),
           blindListenPlayerProvider.overrideWith(() => TestBlindListenPlayer()),
+          mediaEngineProvider.overrideWith(() => _SuccessfulMediaEngine()),
           dailyStudyTimeProvider.overrideWith(() => TestDailyStudyTime()),
           analyticsOverride(),
         ],
@@ -896,7 +1066,20 @@ void main() {
       container = createContainer();
       final s = session(container);
 
-      await s.enterBlindListenMode('audio-1', paragraphs: const []);
+      final result = await s.enterBlindListenMode(
+        model.AudioItem(
+          id: 'audio-1',
+          name: 'Audio',
+          audioPath: 'audio.mp3',
+          addedDate: DateTime(2026, 3, 11),
+        ),
+        paragraphs: const [],
+      );
+      expect(result, MediaLoadResult.ready);
+      expect(
+        container.read(learningSessionProvider).playbackChain,
+        LearningPlaybackChain.mediaEngine,
+      );
     });
   });
 

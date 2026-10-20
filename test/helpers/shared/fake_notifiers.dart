@@ -983,25 +983,10 @@ class FakeLearningSession extends LearningSession {
   LearningSessionState build() => initialState;
 
   @override
-  Future<void> enterBlindListenMode(
-    String audioItemId, {
-    bool isFreePlay = false,
-    required List<List<Sentence>> paragraphs,
-    BlindListenSettings? settings,
-    LearningStage? stage,
-  }) async {
-    state = state.copyWith(
-      learningMode: LearningMode.blindListen,
-      audioItemId: audioItemId,
-      isFreePlay: isFreePlay,
-    );
-  }
-
-  @override
-  Future<MediaLoadResult> enterMediaBlindListenMode(
+  Future<MediaLoadResult> enterBlindListenMode(
     AudioItem mediaItem, {
     required List<List<Sentence>> paragraphs,
-    required BlindListenSettings settings,
+    BlindListenSettings settings = const BlindListenSettings(),
     LearningStage? stage,
     bool isFreePlay = false,
   }) async {
@@ -1015,7 +1000,7 @@ class FakeLearningSession extends LearningSession {
   }
 
   @override
-  Future<void> cancelMediaBlindListenEntry() async {}
+  Future<void> cancelBlindListenEntry() async {}
 
   @override
   Future<MediaLoadResult> enterIntensiveListenMode(
@@ -1120,6 +1105,7 @@ class FakeLearningSession extends LearningSession {
 /// 测试用 BlindListenPlayer — 不依赖音频引擎
 class FakeBlindListenPlayer extends BlindListenPlayer {
   final BlindListenPlayerState initialState;
+  ParagraphPlaybackDriver? lastPlaybackDriver;
 
   FakeBlindListenPlayer([this.initialState = const BlindListenPlayerState()]);
 
@@ -1170,8 +1156,9 @@ class FakeBlindListenPlayer extends BlindListenPlayer {
     int startParagraphIndex = 0,
     int startSentenceLocalIndex = 0,
     String? settingsSlot,
-    ParagraphPlaybackDriver? playbackDriver,
+    required ParagraphPlaybackDriver playbackDriver,
   }) async {
+    lastPlaybackDriver = playbackDriver;
     final safeIndex = paragraphs.isEmpty
         ? 0
         : startParagraphIndex.clamp(0, paragraphs.length - 1);

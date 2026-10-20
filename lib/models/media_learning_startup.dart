@@ -2,7 +2,7 @@ import 'media_load_result.dart';
 
 /// 学习任务进入页面后才执行的媒体准备命令。
 ///
-/// 逐句精听与难句跟读共用该协议，页面只负责托管 loading / retry / cancel，
+/// 盲听、逐句精听与难句跟读共用该协议，页面只负责托管 loading / retry / cancel，
 /// 具体任务状态仍由各自 controller 初始化。
 class MediaLearningStartup {
   const MediaLearningStartup({

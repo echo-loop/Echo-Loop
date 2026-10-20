@@ -431,6 +431,50 @@ void main() {
       expect(find.text('Listen without subtitles'), findsOneWidget);
     });
 
+    testWidgets('音频条目：计划内盲听也延迟启动并使用共享媒体会话', (tester) async {
+      final now = DateTime(2026, 8, 11, 10);
+      final sentences = createTestSentences();
+      final lp = _RecordingListeningPractice(
+        ListeningPracticeState(
+          currentAudioItem: testAudioItem,
+          sentences: sentences,
+        ),
+      );
+      final progressState = LearningProgressState(
+        progressMap: {
+          testAudioItem.id: LearningProgress(
+            audioItemId: testAudioItem.id,
+            currentStage: LearningStage.review1,
+            currentSubStage: SubStageType.blindListen,
+            lastStageCompletedAt: now.subtract(const Duration(days: 1)),
+            updatedAt: now,
+          ),
+        },
+      );
+      await tester.pumpWidget(
+        createTestWidget(
+          audioItem: testAudioItem,
+          progressState: progressState,
+          fixedNow: now,
+          listeningPracticeOverride: () => lp,
+        ),
+      );
+      await tester.pumpAndSettle();
+      final planContext = tester.element(find.byType(LearningPlanScreen));
+      final container = ProviderScope.containerOf(planContext);
+
+      await tester.tap(find.text('Continue practicing'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Start Practicing'));
+      await tester.pumpAndSettle();
+
+      final session = container.read(learningSessionProvider);
+      expect(session.learningMode, LearningMode.blindListen);
+      expect(session.playbackChain, LearningPlaybackChain.mediaEngine);
+      expect(session.audioItemId, testAudioItem.id);
+      expect(find.text('Listen without subtitles'), findsOneWidget);
+    });
+
     testWidgets('视频条目：已完成复习盲听可用媒体链路自由练习并保留补做目标', (tester) async {
       final now = DateTime(2026, 8, 11, 10);
       final lp = _RecordingListeningPractice();
@@ -2060,6 +2104,8 @@ class _MediaStartupTestScreenState extends State<_MediaStartupTestScreen> {
 ///
 /// 用于验证视频条目不进入听力练习引擎：_maybeLoadAudio 对视频早退，loadAudio 不被调用。
 class _RecordingListeningPractice extends TestListeningPractice {
+  _RecordingListeningPractice([super.initialState]);
+
   final List<AudioItem> loadAudioCalls = [];
 
   @override

@@ -5,180 +5,92 @@ import 'package:fake_async/fake_async.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter/widgets.dart';
-import 'package:just_audio/just_audio.dart' as ja;
 
 import 'package:echo_loop/database/enums.dart';
 import 'package:echo_loop/database/providers.dart';
-import 'package:echo_loop/models/audio_engine_state.dart';
 import 'package:echo_loop/models/blind_listen_settings.dart';
 import 'package:echo_loop/models/intensive_listen_settings.dart';
 import 'package:echo_loop/models/learning_progress.dart';
 import 'package:echo_loop/models/sentence.dart';
+import 'package:echo_loop/models/sentence_playback_result.dart';
 import 'package:echo_loop/models/study_stage.dart';
-import 'package:echo_loop/providers/audio_engine/audio_engine_provider.dart';
 import 'package:echo_loop/providers/learning_progress_provider.dart';
 import 'package:echo_loop/providers/settings_provider.dart';
 import 'package:echo_loop/providers/learning_session/blind_listen_player_provider.dart';
 import 'package:echo_loop/providers/learning_session/learning_session_provider.dart';
+import 'package:echo_loop/providers/learning_session/paragraph_playback_driver.dart';
 import 'package:echo_loop/services/study_activity_gate.dart';
 import 'package:echo_loop/services/study_time_service.dart';
 
 import '../../helpers/mock_providers.dart';
 
-/// 立即结束 playRangeOnce 的测试引擎，
+/// 播放一调用后立即取消 session 的测试驱动，
 /// 同时使 session 失效避免触发后续段间倒计时 / 完成态推进。
-// 继承 TestAudioEngine(→FakeAudioEngine) 以复用其锁屏/保活方法的 no-op 实现
-// （setTransportHandlers/setSkipHandlers/setLogicalPlaying/startKeepAlive/stopKeepAlive），
-// 避免后台播放接入后触达未初始化的全局 handler。会话计数等仍用下方自定义覆写。
-class _FastTestAudioEngine extends TestAudioEngine {
-  int _sessionId = 0;
-
-  int playRangeOnceCallCount = 0;
+class _FastParagraphPlaybackDriver extends _TestParagraphPlaybackDriver {
+  int playRangeCallCount = 0;
   Duration? lastPlayStart;
   int lastPlaySessionId = -1;
 
   @override
-  AudioEngineState build() => const AudioEngineState();
-
-  @override
-  Stream<Duration> get absolutePositionStream => const Stream.empty();
-
-  @override
-  Stream<ja.PlayerState> get playerStateStream => const Stream.empty();
-
-  @override
-  bool get isPlaying => false;
-
-  @override
-  Duration get currentPosition => Duration.zero;
-
-  @override
-  int newSession() {
-    _sessionId += 1;
-    return _sessionId;
-  }
-
-  @override
-  bool isActiveSession(int id) => id == _sessionId;
-
-  @override
-  Future<void> stopPlayback() async {}
-
-  @override
-  Future<void> setSpeed(double speed) async {}
-
-  @override
-  Future<void> playRangeOnce(
+  Future<SentencePlaybackResult> playRange(
     Duration start,
     Duration end,
     int sessionId, {
-    void Function()? onClipReady,
+    required double speed,
+    required void Function() onRangeReady,
   }) async {
-    playRangeOnceCallCount += 1;
+    playRangeCallCount += 1;
     lastPlayStart = start;
     lastPlaySessionId = sessionId;
-    // 失效当前 session，避免后续手动模式 / 段间停顿被触发，保持测试稳定
-    _sessionId += 1;
+    invalidateSession();
+    return SentencePlaybackResult.cancelled;
   }
 }
 
 /// 立即结束播放且保持 session 有效，用于测试自然播完后的段间倒计时。
-class _CompletingBlindTestAudioEngine extends TestAudioEngine {
-  int _sessionId = 0;
+class _CompletingBlindTestDriver extends _TestParagraphPlaybackDriver {
   Duration? lastPlayStart;
 
   @override
-  AudioEngineState build() => const AudioEngineState();
-
-  @override
-  Stream<Duration> get absolutePositionStream => const Stream.empty();
-
-  @override
-  Stream<ja.PlayerState> get playerStateStream => const Stream.empty();
-
-  @override
-  bool get isPlaying => true;
-
-  @override
-  Duration get currentPosition => Duration.zero;
-
-  @override
-  int newSession() {
-    _sessionId += 1;
-    return _sessionId;
-  }
-
-  @override
-  bool isActiveSession(int id) => id == _sessionId;
-
-  @override
-  Future<void> pauseKeepSession() async {}
-
-  @override
-  Future<void> setSpeed(double speed) async {}
-
-  @override
-  Future<void> playRangeOnce(
+  Future<SentencePlaybackResult> playRange(
     Duration start,
     Duration end,
     int sessionId, {
-    void Function()? onClipReady,
+    required double speed,
+    required void Function() onRangeReady,
   }) async {
     lastPlayStart = start;
-    onClipReady?.call();
+    onRangeReady();
+    return SentencePlaybackResult.completed;
   }
 }
 
-/// 位置流驱动测试引擎：`playRangeOnce` 在 `onClipReady` 时通知调用方订阅位置流，
+/// 位置流驱动测试适配器：`playRange` 在 ready 回调后通知调用方订阅位置流，
 /// 随后挂起（保持 session 活跃 / listening 阶段），由测试用 [emitPosition] 手动推位置。
 /// 用于验证「clip 落定前后的陈旧/越界 position 被丢弃」。
-class _PositionDrivenBlindTestAudioEngine extends TestAudioEngine {
-  int _sessionId = 0;
+class _PositionDrivenBlindTestDriver extends _TestParagraphPlaybackDriver {
   final StreamController<Duration> _posController =
       StreamController<Duration>.broadcast();
   final Completer<void> _playGate = Completer<void>();
   Duration? lastPlayStart;
 
   @override
-  AudioEngineState build() => const AudioEngineState();
+  Stream<Duration> get positionStream => _posController.stream;
 
   @override
-  Stream<Duration> get absolutePositionStream => _posController.stream;
-
-  @override
-  Stream<ja.PlayerState> get playerStateStream => const Stream.empty();
-
-  @override
-  bool get isPlaying => true;
-
-  @override
-  Duration get currentPosition => Duration.zero;
-
-  @override
-  int newSession() {
-    _sessionId += 1;
-    return _sessionId;
-  }
-
-  @override
-  bool isActiveSession(int id) => id == _sessionId;
-
-  @override
-  Future<void> stopPlayback() async {}
-
-  @override
-  Future<void> setSpeed(double speed) async {}
-
-  @override
-  Future<void> playRangeOnce(
+  Future<SentencePlaybackResult> playRange(
     Duration start,
     Duration end,
     int sessionId, {
-    void Function()? onClipReady,
+    required double speed,
+    required void Function() onRangeReady,
   }) async {
     lastPlayStart = start;
-    onClipReady?.call(); // 模拟 clip+seek(0) 落定后通知调用方订阅
+    onRangeReady(); // 模拟 seek 完成后通知调用方订阅
     await _playGate.future; // 挂住，保持 session 活跃 / listening 阶段
+    return isActiveSession(sessionId)
+        ? SentencePlaybackResult.completed
+        : SentencePlaybackResult.cancelled;
   }
 
   /// 推一个位置事件并让监听器有机会处理。
@@ -188,13 +100,94 @@ class _PositionDrivenBlindTestAudioEngine extends TestAudioEngine {
   }
 
   /// 使当前 session 失效，放行 gate 后 `_playCurrentParagraph` 走 early return。
+  @override
   void invalidateSession() {
-    _sessionId += 1;
+    super.invalidateSession();
   }
 
   void release() {
     if (!_playGate.isCompleted) _playGate.complete();
     if (!_posController.isClosed) _posController.close();
+  }
+}
+
+/// 为盲听状态机测试提供 MediaEngine 无关的段落驱动替身。
+abstract class _TestParagraphPlaybackDriver implements ParagraphPlaybackDriver {
+  int _sessionId = 0;
+  Future<void> Function()? lastOnPlay;
+  Future<void> Function()? lastOnPause;
+  Future<void> Function()? lastOnNext;
+  Future<void> Function()? lastOnPrevious;
+  bool? logicalPlaying;
+  bool progressFrozen = false;
+  int startKeepAliveCount = 0;
+  int stopKeepAliveCount = 0;
+
+  @override
+  int newSession() => ++_sessionId;
+
+  @override
+  bool isActiveSession(int sessionId) => sessionId == _sessionId;
+
+  @override
+  Stream<Duration> get positionStream => const Stream<Duration>.empty();
+
+  @override
+  Future<void> pause() async {}
+
+  @override
+  Future<void> setSpeed(double speed) async {}
+
+  @override
+  Future<void> seek(Duration position) async {}
+
+  @override
+  Future<SentencePlaybackResult> playRange(
+    Duration start,
+    Duration end,
+    int sessionId, {
+    required double speed,
+    required void Function() onRangeReady,
+  }) async => SentencePlaybackResult.cancelled;
+
+  @override
+  void bindLockScreen({
+    required Future<void> Function() onPlay,
+    required Future<void> Function() onPause,
+    required Future<void> Function() onNext,
+    required Future<void> Function() onPrevious,
+  }) {
+    lastOnPlay = onPlay;
+    lastOnPause = onPause;
+    lastOnNext = onNext;
+    lastOnPrevious = onPrevious;
+  }
+
+  @override
+  void setSessionActive(bool active) {
+    logicalPlaying = active;
+    if (active) {
+      startKeepAliveCount += 1;
+    } else {
+      stopKeepAliveCount += 1;
+    }
+  }
+
+  @override
+  void setProgressFrozen(bool frozen) => progressFrozen = frozen;
+
+  @override
+  void unbindLockScreen() {
+    lastOnPlay = null;
+    lastOnPause = null;
+    lastOnNext = null;
+    lastOnPrevious = null;
+    logicalPlaying = null;
+    progressFrozen = false;
+  }
+
+  void invalidateSession() {
+    _sessionId += 1;
   }
 }
 
@@ -257,7 +250,7 @@ List<List<Sentence>> _buildParagraphs({
 }
 
 ProviderContainer _buildContainer({
-  required TestAudioEngine engine,
+  required ParagraphPlaybackDriver engine,
   TestLearningProgressNotifier? progressNotifier,
   bool isFreePlay = false,
   StudyTimeService? studyTimeService,
@@ -267,7 +260,6 @@ ProviderContainer _buildContainer({
   final notifier = progressNotifier ?? TestLearningProgressNotifier();
   return ProviderContainer(
     overrides: [
-      audioEngineProvider.overrideWith(() => engine),
       learningSessionProvider.overrideWith(
         () => TestLearningSession(
           LearningSessionState(
@@ -498,7 +490,7 @@ void main() {
 
   group('BlindListenPlayer seekToSentence', () {
     test('同段 seek 保留 currentRepeatCount 和 displayMode', () async {
-      final engine = _FastTestAudioEngine();
+      final engine = _FastParagraphPlaybackDriver();
       final container = _buildContainer(engine: engine);
       addTearDown(container.dispose);
       final notifier = container.read(blindListenPlayerProvider.notifier);
@@ -511,6 +503,7 @@ void main() {
       await notifier.initializeParagraphs(
         paragraphs,
         const BlindListenSettings(repeatCount: 3),
+        playbackDriver: engine,
       );
       // 模拟正处于第 2 遍 + 用户已切到 showAll
       notifier.setDisplayMode(BlindListenDisplayMode.showAll);
@@ -532,7 +525,7 @@ void main() {
     });
 
     test('跨段 seek 重置 currentRepeatCount 和 displayMode', () async {
-      final engine = _FastTestAudioEngine();
+      final engine = _FastParagraphPlaybackDriver();
       final container = _buildContainer(engine: engine);
       addTearDown(container.dispose);
       final notifier = container.read(blindListenPlayerProvider.notifier);
@@ -544,6 +537,7 @@ void main() {
       await notifier.initializeParagraphs(
         paragraphs,
         const BlindListenSettings(repeatCount: 3),
+        playbackDriver: engine,
       );
       notifier.setDisplayMode(BlindListenDisplayMode.showAll);
       await notifier.startPlaying();
@@ -560,7 +554,7 @@ void main() {
     });
 
     test('seekToParagraph 跳到目标段首句，越界则不动', () async {
-      final engine = _FastTestAudioEngine();
+      final engine = _FastParagraphPlaybackDriver();
       final container = _buildContainer(engine: engine);
       addTearDown(container.dispose);
       final notifier = container.read(blindListenPlayerProvider.notifier);
@@ -572,6 +566,7 @@ void main() {
       await notifier.initializeParagraphs(
         paragraphs,
         const BlindListenSettings(repeatCount: 3),
+        playbackDriver: engine,
       );
       await notifier.startPlaying();
 
@@ -600,7 +595,7 @@ void main() {
     });
 
     test('短段 (<10s) seek 仍能从指定句开播（绕过 10s 阈值）', () async {
-      final engine = _FastTestAudioEngine();
+      final engine = _FastParagraphPlaybackDriver();
       final container = _buildContainer(engine: engine);
       addTearDown(container.dispose);
       final notifier = container.read(blindListenPlayerProvider.notifier);
@@ -614,6 +609,7 @@ void main() {
       await notifier.initializeParagraphs(
         paragraphs,
         const BlindListenSettings(),
+        playbackDriver: engine,
       );
       await notifier.startPlaying();
 
@@ -625,7 +621,7 @@ void main() {
     });
 
     test('无限重复不会在段间停顿后自动完成当前段', () async {
-      final engine = _FastTestAudioEngine();
+      final engine = _FastParagraphPlaybackDriver();
       final container = _buildContainer(engine: engine);
       addTearDown(container.dispose);
       final notifier = container.read(blindListenPlayerProvider.notifier);
@@ -637,6 +633,7 @@ void main() {
       await notifier.initializeParagraphs(
         paragraphs,
         const BlindListenSettings(repeatCount: 0),
+        playbackDriver: engine,
       );
 
       await notifier.startPlaying();
@@ -662,7 +659,7 @@ void main() {
           },
         ),
       );
-      final engine = _FastTestAudioEngine();
+      final engine = _FastParagraphPlaybackDriver();
       final container = _buildContainer(
         engine: engine,
         progressNotifier: progressNotifier,
@@ -677,6 +674,7 @@ void main() {
       await notifier.initializeParagraphs(
         paragraphs,
         const BlindListenSettings(),
+        playbackDriver: engine,
       );
       await notifier.startPlaying();
       await Future<void>.delayed(const Duration(milliseconds: 1));
@@ -708,7 +706,7 @@ void main() {
             },
           ),
         );
-        final engine = _FastTestAudioEngine();
+        final engine = _FastParagraphPlaybackDriver();
         final container = _buildContainer(
           engine: engine,
           progressNotifier: progressNotifier,
@@ -723,6 +721,7 @@ void main() {
         await notifier.initializeParagraphs(
           paragraphs,
           const BlindListenSettings(),
+          playbackDriver: engine,
         );
 
         // 通过 seekToSentence 进入第 3 句的播放状态
@@ -737,14 +736,14 @@ void main() {
         expect(progressNotifier.savedIndices, isEmpty);
 
         // resume 应从同一句（globalIdx=3）开播，验证 _resumeStartLocalSentenceIndex 写入
-        engine.playRangeOnceCallCount = 0;
+        engine.playRangeCallCount = 0;
         await notifier.resume();
         expect(engine.lastPlayStart, paragraphs[0][3].startTime);
       },
     );
 
     test('pause → resume 从当前句开头开播（短段也生效，forceOffset 路径）', () async {
-      final engine = _FastTestAudioEngine();
+      final engine = _FastParagraphPlaybackDriver();
       final container = _buildContainer(engine: engine);
       addTearDown(container.dispose);
       final notifier = container.read(blindListenPlayerProvider.notifier);
@@ -758,6 +757,7 @@ void main() {
       await notifier.initializeParagraphs(
         paragraphs,
         const BlindListenSettings(),
+        playbackDriver: engine,
       );
 
       await notifier.seekToSentence(2);
@@ -770,7 +770,7 @@ void main() {
     });
 
     test('pause → goToNextParagraph 下一段从段首开播（不污染）', () async {
-      final engine = _FastTestAudioEngine();
+      final engine = _FastParagraphPlaybackDriver();
       final container = _buildContainer(engine: engine);
       addTearDown(container.dispose);
       final notifier = container.read(blindListenPlayerProvider.notifier);
@@ -782,6 +782,7 @@ void main() {
       await notifier.initializeParagraphs(
         paragraphs,
         const BlindListenSettings(),
+        playbackDriver: engine,
       );
 
       // 进入段 0 的第 3 句，然后 pause
@@ -799,7 +800,7 @@ void main() {
     });
 
     test('pause → goToPreviousParagraph 上一段从段首开播（不污染）', () async {
-      final engine = _FastTestAudioEngine();
+      final engine = _FastParagraphPlaybackDriver();
       final container = _buildContainer(engine: engine);
       addTearDown(container.dispose);
       final notifier = container.read(blindListenPlayerProvider.notifier);
@@ -811,6 +812,7 @@ void main() {
       await notifier.initializeParagraphs(
         paragraphs,
         const BlindListenSettings(),
+        playbackDriver: engine,
       );
 
       // 先到段 1，再到第 3 句，pause，再回段 0
@@ -824,8 +826,8 @@ void main() {
       expect(engine.lastPlayStart, paragraphs[0][0].startTime);
     });
 
-    test('段间停顿期 goToPreviousParagraph 重播当前段，不跳到上一段', () async {
-      final engine = _CompletingBlindTestAudioEngine();
+    test('段间停顿期 goToPreviousParagraph 跳转到上一段', () async {
+      final engine = _CompletingBlindTestDriver();
       final container = _buildContainer(engine: engine);
       addTearDown(container.dispose);
       final notifier = container.read(blindListenPlayerProvider.notifier);
@@ -841,6 +843,7 @@ void main() {
           fixedPauseSeconds: 1,
         ),
         startParagraphIndex: 1,
+        playbackDriver: engine,
       );
 
       await notifier.startPlaying();
@@ -851,12 +854,12 @@ void main() {
       await notifier.goToPreviousParagraph();
 
       final state = container.read(blindListenPlayerProvider);
-      expect(state.currentParagraphIndex, 1);
-      expect(engine.lastPlayStart, paragraphs[1][0].startTime);
+      expect(state.currentParagraphIndex, 0);
+      expect(engine.lastPlayStart, paragraphs[0][0].startTime);
     });
 
     test('初始 playingSentenceIndex == -1 时 pause 不写脏断点', () async {
-      final engine = _FastTestAudioEngine();
+      final engine = _FastParagraphPlaybackDriver();
       final container = _buildContainer(engine: engine);
       addTearDown(container.dispose);
       final notifier = container.read(blindListenPlayerProvider.notifier);
@@ -868,6 +871,7 @@ void main() {
       await notifier.initializeParagraphs(
         paragraphs,
         const BlindListenSettings(),
+        playbackDriver: engine,
       );
 
       // 未开播直接 pause
@@ -881,7 +885,7 @@ void main() {
 
   group('BlindListenPlayer currentSentenceGlobalIndex', () {
     test('未开播退化为当前段首句的全局索引', () async {
-      final engine = _FastTestAudioEngine();
+      final engine = _FastParagraphPlaybackDriver();
       final container = _buildContainer(engine: engine);
       addTearDown(container.dispose);
       final notifier = container.read(blindListenPlayerProvider.notifier);
@@ -893,6 +897,7 @@ void main() {
       await notifier.initializeParagraphs(
         paragraphs,
         const BlindListenSettings(),
+        playbackDriver: engine,
       );
 
       // 段 0 段首句 globalIdx = 0
@@ -900,7 +905,7 @@ void main() {
     });
 
     test('段为空时返回 null', () {
-      final engine = _FastTestAudioEngine();
+      final engine = _FastParagraphPlaybackDriver();
       final container = _buildContainer(engine: engine);
       addTearDown(container.dispose);
       final notifier = container.read(blindListenPlayerProvider.notifier);
@@ -910,7 +915,7 @@ void main() {
     });
 
     test('seek 后返回目标句全局索引', () async {
-      final engine = _FastTestAudioEngine();
+      final engine = _FastParagraphPlaybackDriver();
       final container = _buildContainer(engine: engine);
       addTearDown(container.dispose);
       final notifier = container.read(blindListenPlayerProvider.notifier);
@@ -922,6 +927,7 @@ void main() {
       await notifier.initializeParagraphs(
         paragraphs,
         const BlindListenSettings(),
+        playbackDriver: engine,
       );
 
       await notifier.seekToSentence(5);
@@ -933,13 +939,14 @@ void main() {
 
   group('BlindListenPlayer 后台播放 / 锁屏接入', () {
     test('startPlaying 接管锁屏（注册播放/暂停/切段回调）并进入活跃会话（逻辑播放态+保活）', () async {
-      final engine = _FastTestAudioEngine();
+      final engine = _FastParagraphPlaybackDriver();
       final container = _buildContainer(engine: engine);
       addTearDown(container.dispose);
       final notifier = container.read(blindListenPlayerProvider.notifier);
       await notifier.initializeParagraphs(
         _buildParagraphs(paragraphCount: 2, sentencesPerParagraph: 3),
         const BlindListenSettings(),
+        playbackDriver: engine,
       );
 
       await notifier.startPlaying();
@@ -953,13 +960,14 @@ void main() {
     });
 
     test('pause 停保活、逻辑播放态=false，但保留回调槽（锁屏可续播）', () async {
-      final engine = _FastTestAudioEngine();
+      final engine = _FastParagraphPlaybackDriver();
       final container = _buildContainer(engine: engine);
       addTearDown(container.dispose);
       final notifier = container.read(blindListenPlayerProvider.notifier);
       await notifier.initializeParagraphs(
         _buildParagraphs(paragraphCount: 2, sentencesPerParagraph: 3),
         const BlindListenSettings(),
+        playbackDriver: engine,
       );
       await notifier.startPlaying();
 
@@ -973,13 +981,14 @@ void main() {
     });
 
     test('disposePlayer 清空锁屏回调并恢复逻辑播放态为 null（不破坏 Free Player）', () async {
-      final engine = _FastTestAudioEngine();
+      final engine = _FastParagraphPlaybackDriver();
       final container = _buildContainer(engine: engine);
       addTearDown(container.dispose);
       final notifier = container.read(blindListenPlayerProvider.notifier);
       await notifier.initializeParagraphs(
         _buildParagraphs(paragraphCount: 2, sentencesPerParagraph: 3),
         const BlindListenSettings(),
+        playbackDriver: engine,
       );
       await notifier.startPlaying();
 
@@ -1001,7 +1010,7 @@ void main() {
         withClock(async.getClock(DateTime(2026, 9, 14, 14)), () {
           binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
           final activityGate = StudyActivityGate();
-          final engine = _PositionDrivenBlindTestAudioEngine();
+          final engine = _PositionDrivenBlindTestDriver();
           final studyTimeService = _RecordingStudyTimeService();
           final container = _buildContainer(
             engine: engine,
@@ -1015,6 +1024,7 @@ void main() {
               .initializeParagraphs(
                 _buildParagraphs(paragraphCount: 1, sentencesPerParagraph: 1),
                 const BlindListenSettings(),
+                playbackDriver: engine,
               )
               .then((_) => initialized = true);
           async.flushMicrotasks();
@@ -1050,7 +1060,7 @@ void main() {
     test('持续播放超过 idle timeout 仍累计页面学习时长', () {
       fakeAsync((async) {
         withClock(async.getClock(DateTime(2026, 9, 14, 14)), () {
-          final engine = _PositionDrivenBlindTestAudioEngine();
+          final engine = _PositionDrivenBlindTestDriver();
           final studyTimeService = _RecordingStudyTimeService();
           final container = _buildContainer(
             engine: engine,
@@ -1063,6 +1073,7 @@ void main() {
               .initializeParagraphs(
                 _buildParagraphs(paragraphCount: 1, sentencesPerParagraph: 1),
                 const BlindListenSettings(),
+                playbackDriver: engine,
               )
               .then((_) => initialized = true);
           async.flushMicrotasks();
@@ -1088,7 +1099,7 @@ void main() {
     });
 
     test('完整句子结束时立即逐句提交输入统计', () async {
-      final engine = _PositionDrivenBlindTestAudioEngine();
+      final engine = _PositionDrivenBlindTestDriver();
       final studyTimeService = _RecordingStudyTimeService();
       final container = _buildContainer(
         engine: engine,
@@ -1104,6 +1115,7 @@ void main() {
       await notifier.initializeParagraphs(
         paragraphs,
         const BlindListenSettings(),
+        playbackDriver: engine,
       );
       final playing = notifier.startPlaying();
       await Future<void>.delayed(Duration.zero);
@@ -1128,7 +1140,7 @@ void main() {
     });
 
     test('中途暂停只提交已经完整播放的句子', () async {
-      final engine = _PositionDrivenBlindTestAudioEngine();
+      final engine = _PositionDrivenBlindTestDriver();
       final studyTimeService = _RecordingStudyTimeService();
       final container = _buildContainer(
         engine: engine,
@@ -1143,6 +1155,7 @@ void main() {
       await notifier.initializeParagraphs(
         _buildParagraphs(paragraphCount: 1, sentencesPerParagraph: 2),
         const BlindListenSettings(),
+        playbackDriver: engine,
       );
       final playing = notifier.startPlaying();
       await Future<void>.delayed(Duration.zero);
@@ -1157,7 +1170,7 @@ void main() {
     });
 
     test('取消段落播放不提交输入统计', () async {
-      final engine = _PositionDrivenBlindTestAudioEngine();
+      final engine = _PositionDrivenBlindTestDriver();
       final studyTimeService = _RecordingStudyTimeService();
       final container = _buildContainer(
         engine: engine,
@@ -1172,6 +1185,7 @@ void main() {
       await notifier.initializeParagraphs(
         _buildParagraphs(paragraphCount: 1, sentencesPerParagraph: 2),
         const BlindListenSettings(),
+        playbackDriver: engine,
       );
       final playing = notifier.startPlaying();
       await Future<void>.delayed(Duration.zero);
@@ -1186,7 +1200,7 @@ void main() {
     test('退出刷写总学习时长且重复销毁不重复写入', () async {
       var now = DateTime(2026, 9, 12, 12);
       await withClock(Clock(() => now), () async {
-        final engine = _FastTestAudioEngine();
+        final engine = _FastParagraphPlaybackDriver();
         final studyTimeService = _RecordingStudyTimeService();
         final container = _buildContainer(
           engine: engine,
@@ -1198,6 +1212,7 @@ void main() {
         await notifier.initializeParagraphs(
           _buildParagraphs(paragraphCount: 1, sentencesPerParagraph: 1),
           const BlindListenSettings(),
+          playbackDriver: engine,
         );
         now = now.add(const Duration(seconds: 3));
 
@@ -1226,10 +1241,9 @@ void main() {
           },
         ),
       );
-      final posEngine = _PositionDrivenBlindTestAudioEngine();
+      final posEngine = _PositionDrivenBlindTestDriver();
       final container = ProviderContainer(
         overrides: [
-          audioEngineProvider.overrideWith(() => posEngine),
           learningSessionProvider.overrideWith(
             () => TestLearningSession(
               const LearningSessionState(
@@ -1266,6 +1280,7 @@ void main() {
         [para],
         const BlindListenSettings(),
         startSentenceLocalIndex: 2,
+        playbackDriver: posEngine,
       );
 
       final playing = notifier.startPlaying(); // 挂在 playGate

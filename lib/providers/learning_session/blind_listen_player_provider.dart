@@ -3,7 +3,7 @@
 /// 参考 RetellPlayer 的段落播放模式，去掉复述相关逻辑。
 /// 核心功能：
 /// - 段落播放（首句 startTime → 末句 endTime）
-/// - 播放期间句子高亮（监听 absolutePositionStream + 二分查找）
+/// - 播放期间句子高亮（监听段落驱动器的位置流 + 二分查找）
 /// - 段间停顿倒计时（段落播放完→倒计时→重复或下一段）
 /// - 遍数循环（播完段落→倒计时为一遍，达到遍数后推进下一段）
 /// - 文本显示模式切换（全部隐藏/全部显示）
@@ -26,7 +26,6 @@ import '../../services/silence_skip_detector.dart';
 import '../../services/study_session_timer.dart';
 import '../../services/study_time_service.dart';
 import '../../utils/word_counter.dart';
-import '../audio_engine/audio_engine_provider.dart';
 import '../learning_progress_provider.dart';
 import '../blind_listen_prefs_provider.dart';
 import '../listening_practice/bookmark_manager.dart';
@@ -194,7 +193,7 @@ class BlindListenPlayer extends _$BlindListenPlayer {
   /// 可控倒计时控制器
   final CountdownController _countdown = CountdownController();
 
-  /// 当前 AudioEngine sessionId
+  /// 当前段落播放 sessionId
   int _sessionId = -1;
 
   /// 当前段落播放 session 下一个待记录的本地句子索引。
@@ -206,11 +205,16 @@ class BlindListenPlayer extends _$BlindListenPlayer {
   /// 当前播放 session 开始时的句子索引，用于输出段落完成日志中的数量。
   int _statsStartSentenceLocalIndex = 0;
 
-  /// 默认保持音频驱动；视频入口在媒体加载成功后显式注入独立驱动。
+  /// 盲听页面只在媒体加载成功后初始化，并显式注入 MediaEngine 驱动。
   ParagraphPlaybackDriver? _playbackDriver;
 
-  ParagraphPlaybackDriver get _playback => _playbackDriver ??=
-      AudioParagraphPlaybackDriver(ref.read(audioEngineProvider.notifier));
+  ParagraphPlaybackDriver get _playback {
+    final driver = _playbackDriver;
+    if (driver == null) {
+      throw StateError('Blind listen playback driver is not initialized.');
+    }
+    return driver;
+  }
 
   /// 倒计时运行版本号
   int _countdownRunId = 0;
@@ -254,7 +258,7 @@ class BlindListenPlayer extends _$BlindListenPlayer {
     int startParagraphIndex = 0,
     int startSentenceLocalIndex = 0,
     String? settingsSlot,
-    ParagraphPlaybackDriver? playbackDriver,
+    required ParagraphPlaybackDriver playbackDriver,
   }) async {
     if (_playbackDriver != null) {
       await _cancelAll();
@@ -484,23 +488,8 @@ class BlindListenPlayer extends _$BlindListenPlayer {
     await _playCurrentParagraph();
   }
 
-  /// 跳转到上一段
+  /// 跳转到上一段；倒计时期间也按上一段导航，不重播刚完成的当前段。
   Future<void> goToPreviousParagraph() async {
-    if (state.isPauseCountdown) {
-      await _cancelAll();
-      _resumeStartLocalSentenceIndex = 0;
-      state = state.copyWith(
-        currentRepeatCount: 1,
-        hasCompletedCurrentParagraphPlayback: false,
-        playingSentenceIndex: -1,
-        isPauseCountdown: false,
-        isCountdownPaused: false,
-        displayMode: BlindListenDisplayMode.hideAll,
-      );
-      await _playCurrentParagraph();
-      return;
-    }
-
     if (state.currentParagraphIndex <= 0) return;
 
     await _cancelAll();
