@@ -65,7 +65,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get aiQuotaFeatureRetellReview => 'AI 复述评估';
 
   @override
-  String get aiQuotaExceededMessage => '升级会员，获得更多 AI 额度和 AI 功能。';
+  String get aiQuotaExceededMessage => '升级会员，获得无限 AI 额度和 AI 功能。';
 
   @override
   String get aiQuotaUnsupportedGenericTitle => '免费版暂不支持此 AI 功能';
@@ -3126,7 +3126,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String recentCompletions(int count) {
-    return '最近完成 ($count)';
+    return '最近完成任务 ($count)';
   }
 
   @override

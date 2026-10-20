@@ -68,7 +68,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get aiQuotaExceededMessage =>
-      'Upgrade for more AI access and features.';
+      'Upgrade to Premium for unlimited AI quota and AI features.';
 
   @override
   String get aiQuotaUnsupportedGenericTitle =>
@@ -3259,7 +3259,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String recentCompletions(int count) {
-    return 'Recently Completed ($count)';
+    return 'Recently Completed Tasks ($count)';
   }
 
   @override

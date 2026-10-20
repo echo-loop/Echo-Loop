@@ -4,6 +4,7 @@
 
 ## 本次完成
 
+- [x] 更新 AI 额度提示和最近完成任务标题文案（2026-10-20）：中文提示改为“升级会员，获得无限 AI 额度和 AI 功能。”、标题改为“最近完成任务”；英文对应改为“Upgrade to Premium for unlimited AI quota and AI features.”和“Recently Completed Tasks”。本地化代码已重新生成，学习页测试中的英文标题查找同步更新。`study_screen_test.dart` 23 项通过，相关 Dart 文件静态分析通过。**完成时间**: 2026-10-20 14:45
 - [x] 精听讲解页按模式显示“继续”或“下一句”（2026-10-18）：自动模式保留“继续”重播与自动推进；手动模式使用共享页脚现有下一句导航，推进时沿用原切句动画和手动播放设置。新增精听页交互回归测试，并将 Provider 测试更新为覆盖手动从讲解页切句。播放器 Provider 与页面定向测试共 106 项通过；3 个相关 Dart 文件定向分析无问题，格式检查与 `git diff --check` 通过。未运行 `scripts/check.sh`：改动限于精听讲解页控件选择和现有导航复用。未运行 Maestro：Android ADB server 启动被 `Operation not permitted` 阻止。**完成时间**: 2026-10-18 18:30
 - [x] 精听手动模式支持循环次数和停顿设置（2026-10-18）：设置面板在手动模式下继续复用现有循环、停顿控件与偏好；精听沿用 `BlindPracticeFlowEngine`，按所选次数循环并在循环间停顿，结束后停在当前句等待用户切句，重听从第一遍开始，无限循环可由用户切句打断。共享遍数提示统一显示手动/自动模式与当前遍数，本地化说明同步更新。新增设置面板、播放器流程、遍数提示及精听页回归测试。4 个定向测试文件共 86 项通过，精听页测试 51 项通过，13 个相关 Dart 文件 `flutter analyze --no-pub` 无问题，`flutter gen-l10n` 与 `git diff --check` 通过。未运行 `scripts/check.sh`：改动范围局限于精听设置和共享循环/提示组件，定向检查已覆盖。未运行 Maestro：Android ADB 服务启动被 `Operation not permitted` 阻止；iOS Maestro CLI 初始化因无法修改工作区外依赖权限而失败，且现有 Flow 会清理应用状态。**完成时间**: 2026-10-18 17:51
 - [x] 修复逐句播放中调整速度未即时生效（2026-10-18）：`MediaSentencePlaybackDriver.setSpeed` 更新保存速度的同时调用 MediaEngine，使当前播放立即采用新速度，后续句子继续沿用该速度。新增回归测试覆盖播放中变速和下一句速度继承。`test/providers/media_engine/media_engine_provider_test.dart` 25 项通过，两个相关 Dart 文件定向分析无问题，格式与 `git diff --check` 通过。未运行 `scripts/check.sh`：改动局限于播放速度驱动与对应回归测试，已完成定向验证。

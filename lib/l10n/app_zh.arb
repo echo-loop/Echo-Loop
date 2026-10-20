@@ -23,7 +23,7 @@
   "aiQuotaFeatureTranscription": "AI 转录",
   "aiQuotaFeatureChat": "AI 助手",
   "aiQuotaFeatureRetellReview": "AI 复述评估",
-  "aiQuotaExceededMessage": "升级会员，获得更多 AI 额度和 AI 功能。",
+  "aiQuotaExceededMessage": "升级会员，获得无限 AI 额度和 AI 功能。",
   "aiQuotaUnsupportedGenericTitle": "免费版暂不支持此 AI 功能",
   "aiQuotaUnsupportedTitle": "免费版暂不支持 {feature}",
   "@aiQuotaUnsupportedTitle": {
@@ -1383,7 +1383,7 @@
   "notificationNotGrantedBanner": "允许通知，按时收到每日复习提醒。",
   "notificationNotGrantedBannerCta": "开启",
 
-  "recentCompletions": "最近完成 ({count})",
+  "recentCompletions": "最近完成任务 ({count})",
   "recentCompletionsSummary": "过去24小时",
   "timeAgoJustNow": "刚刚",
   "timeAgoMinutes": "{minutes}分钟前",

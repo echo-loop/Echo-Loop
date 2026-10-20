@@ -863,7 +863,7 @@ void main() {
     await tester.pumpAndSettle();
 
     // 折叠区标题可见
-    expect(find.textContaining('Recently Completed (2)'), findsOneWidget);
+    expect(find.textContaining('Recently Completed Tasks (2)'), findsOneWidget);
     // 摘要文案可见
     expect(find.text('Past 24 hours'), findsOneWidget);
 
@@ -871,7 +871,7 @@ void main() {
     expect(find.text('Listen without subtitles'), findsNothing);
 
     // 展开后子项可见
-    await tester.tap(find.textContaining('Recently Completed (2)'));
+    await tester.tap(find.textContaining('Recently Completed Tasks (2)'));
     await tester.pumpAndSettle();
     // 相对时间出现在最近完成区段中
     expect(find.text('2h ago'), findsOneWidget);
@@ -944,7 +944,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.tap(find.textContaining('Recently Completed (1)'));
+    await tester.tap(find.textContaining('Recently Completed Tasks (1)'));
     await tester.pumpAndSettle();
 
     expect(find.text('Recently Completed Video'), findsOneWidget);

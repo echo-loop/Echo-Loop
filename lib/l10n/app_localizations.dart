@@ -209,7 +209,7 @@ abstract class AppLocalizations {
   /// No description provided for @aiQuotaExceededMessage.
   ///
   /// In en, this message translates to:
-  /// **'Upgrade for more AI access and features.'**
+  /// **'Upgrade to Premium for unlimited AI quota and AI features.'**
   String get aiQuotaExceededMessage;
 
   /// No description provided for @aiQuotaUnsupportedGenericTitle.
@@ -5729,7 +5729,7 @@ abstract class AppLocalizations {
   /// No description provided for @recentCompletions.
   ///
   /// In en, this message translates to:
-  /// **'Recently Completed ({count})'**
+  /// **'Recently Completed Tasks ({count})'**
   String recentCompletions(int count);
 
   /// No description provided for @recentCompletionsSummary.

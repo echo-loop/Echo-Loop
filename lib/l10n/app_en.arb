@@ -23,7 +23,7 @@
   "aiQuotaFeatureTranscription": "AI subtitle transcription",
   "aiQuotaFeatureChat": "AI assistant",
   "aiQuotaFeatureRetellReview": "AI retell review",
-  "aiQuotaExceededMessage": "Upgrade for more AI access and features.",
+  "aiQuotaExceededMessage": "Upgrade to Premium for unlimited AI quota and AI features.",
   "aiQuotaUnsupportedGenericTitle": "The free plan doesn't support this AI feature",
   "aiQuotaUnsupportedTitle": "The free plan doesn't support {feature}",
   "@aiQuotaUnsupportedTitle": {
@@ -1741,7 +1741,7 @@
   "notificationNotGrantedBanner": "Allow notifications to receive daily review reminders.",
   "notificationNotGrantedBannerCta": "Turn on",
 
-  "recentCompletions": "Recently Completed ({count})",
+  "recentCompletions": "Recently Completed Tasks ({count})",
   "@recentCompletions": {
     "placeholders": {
       "count": { "type": "int" }
