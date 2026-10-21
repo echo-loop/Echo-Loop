@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:echo_loop/database/daos/bookmark_dao.dart';
 import 'package:echo_loop/database/providers.dart';
-import 'package:echo_loop/features/onboarding_survey/providers/onboarding_survey_provider.dart';
 import 'package:echo_loop/features/remote_config/remote_config.dart';
 import 'package:echo_loop/features/user_region/user_region_bootstrapper.dart';
 import 'package:echo_loop/features/user_region/user_region_providers.dart';
@@ -22,6 +21,7 @@ import 'package:echo_loop/providers/dictionary/visible_sources_provider.dart';
 import 'package:echo_loop/providers/learning_session/bookmark_review_provider.dart';
 import 'package:echo_loop/providers/bookmark_review_settings_provider.dart';
 import 'package:echo_loop/providers/favorite_review_settings_provider.dart';
+import 'package:echo_loop/providers/learning_settings_provider.dart';
 import 'package:echo_loop/providers/sentence_ai_provider.dart';
 import 'package:echo_loop/providers/short_audio_player_provider.dart';
 import 'package:echo_loop/screens/bookmark_review_screen.dart';
@@ -299,6 +299,54 @@ void main() {
     expect(find.text('Hidden sentence'), findsNothing);
     expect(find.byKey(const Key('bookmark-review-progress')), findsOneWidget);
     expect(find.byKey(const Key('bookmark-review-status-bar')), findsOneWidget);
+  });
+
+  testWidgets('sentence review uses its AI auto-display settings', (
+    tester,
+  ) async {
+    await _sharedPreferences.clear();
+    await _sharedPreferences.setBool(
+      LearningSettingsKeys.autoShowAiExplanation,
+      false,
+    );
+    addTearDown(_sharedPreferences.clear);
+    await tester.pumpWidget(_app());
+    await tester.pump();
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(BookmarkReviewScreen)),
+    );
+    expect(
+      container.read(learningSettingsProvider).autoShowAiExplanation,
+      isFalse,
+    );
+    await tester.tap(find.byKey(const Key('bookmark-review-reveal-zone')));
+    await tester.pump();
+
+    final defaultExplanation = tester.widget<SentenceExplanationView>(
+      find.byType(SentenceExplanationView),
+    );
+    expect(defaultExplanation.autoShowAiExplanation, isTrue);
+
+    final settings = container.read(bookmarkReviewSettingsProvider);
+    await container
+        .read(bookmarkReviewSettingsProvider.notifier)
+        .update(
+          settings.copyWith(
+            autoShowAiExplanation: false,
+            autoShowAiAnalysis: true,
+            autoShowAiTranslation: true,
+            autoShowAiSenseGroups: true,
+          ),
+        );
+    await tester.pump();
+
+    final explanation = tester.widget<SentenceExplanationView>(
+      find.byType(SentenceExplanationView),
+    );
+    expect(explanation.autoShowAiExplanation, isFalse);
+    expect(explanation.autoShowAiAnalysis, isTrue);
+    expect(explanation.autoShowAiTranslation, isTrue);
+    expect(explanation.autoShowAiSenseGroups, isTrue);
   });
 
   testWidgets('unsaving the final sentence shows the completion summary', (

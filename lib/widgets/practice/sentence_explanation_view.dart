@@ -127,6 +127,18 @@ class SentenceExplanationView extends ConsumerStatefulWidget {
   /// 不能让上一轮阅读位置裁切工具栏。
   final bool isActiveSentence;
 
+  /// AI 自动展示总开关覆盖；未传入时沿用全局学习任务设置。
+  final bool? autoShowAiExplanation;
+
+  /// AI 句子解析自动展示覆盖；未传入时沿用全局学习任务设置。
+  final bool? autoShowAiAnalysis;
+
+  /// AI 句子翻译自动展示覆盖；未传入时沿用全局学习任务设置。
+  final bool? autoShowAiTranslation;
+
+  /// AI 意群自动展示覆盖；未传入时沿用全局学习任务设置。
+  final bool? autoShowAiSenseGroups;
+
   const SentenceExplanationView({
     super.key,
     this.text,
@@ -148,6 +160,10 @@ class SentenceExplanationView extends ConsumerStatefulWidget {
     this.explanationContext,
     this.showTranscript = true,
     this.isActiveSentence = true,
+    this.autoShowAiExplanation,
+    this.autoShowAiAnalysis,
+    this.autoShowAiTranslation,
+    this.autoShowAiSenseGroups,
   });
 
   @override
@@ -284,6 +300,15 @@ class _SentenceExplanationViewState
   @override
   void didUpdateWidget(SentenceExplanationView oldWidget) {
     super.didUpdateWidget(oldWidget);
+    // 自动展示设置变化时重建内部卡片，收起旧结果并取消旧卡片的 AI 流。
+    if (widget.autoShowAiExplanation != oldWidget.autoShowAiExplanation ||
+        widget.autoShowAiAnalysis != oldWidget.autoShowAiAnalysis ||
+        widget.autoShowAiTranslation != oldWidget.autoShowAiTranslation ||
+        widget.autoShowAiSenseGroups != oldWidget.autoShowAiSenseGroups) {
+      _cardKey = GlobalKey<SentenceAnnotationCardState>();
+      _resetSenseGroups();
+      _dismissActionBar();
+    }
     // 切句时重建 GlobalKey + 重置意群数据 + 关闭工具条
     if (_text != (oldWidget.text ?? '')) {
       _cardKey = GlobalKey<SentenceAnnotationCardState>();
@@ -383,8 +408,11 @@ class _SentenceExplanationViewState
 
     if (sgLoaded) {
       final settings = ref.read(learningSettingsProvider);
-      final autoExpand =
-          settings.autoShowAiExplanation && settings.autoShowAiSenseGroups;
+      final autoShowAiExplanation =
+          widget.autoShowAiExplanation ?? settings.autoShowAiExplanation;
+      final autoShowAiSenseGroups =
+          widget.autoShowAiSenseGroups ?? settings.autoShowAiSenseGroups;
+      final autoExpand = autoShowAiExplanation && autoShowAiSenseGroups;
       if (!autoExpand) return;
       final result = ai.getCachedSenseGroups(_text);
       if (result != null && result.medium.isNotEmpty) {
@@ -932,13 +960,19 @@ class _SentenceExplanationViewState
       appSettingsProvider.select((s) => s.nativeLanguage),
     );
     final learningSettings = ref.watch(learningSettingsProvider);
-    final autoShowAiExplanation = learningSettings.autoShowAiExplanation;
+    final autoShowAiExplanation =
+        widget.autoShowAiExplanation ?? learningSettings.autoShowAiExplanation;
     final autoShowAiAnalysis =
-        autoShowAiExplanation && learningSettings.autoShowAiAnalysis;
+        autoShowAiExplanation &&
+        (widget.autoShowAiAnalysis ?? learningSettings.autoShowAiAnalysis);
     final autoShowAiTranslation =
-        autoShowAiExplanation && learningSettings.autoShowAiTranslation;
+        autoShowAiExplanation &&
+        (widget.autoShowAiTranslation ??
+            learningSettings.autoShowAiTranslation);
     final autoShowAiSenseGroups =
-        autoShowAiExplanation && learningSettings.autoShowAiSenseGroups;
+        autoShowAiExplanation &&
+        (widget.autoShowAiSenseGroups ??
+            learningSettings.autoShowAiSenseGroups);
     // watch 共享字幕投影：撑起其 autoDispose 生命周期（视图在屏则常驻）+ 同步取前后句。
     // 翻译缓存 key 包含前后句，必须等字幕投影就绪后才允许自动翻译；
     // 否则首帧会用 null/null 写入无上下文 key，返回页面时再用带上下文 key 读取就会 miss。

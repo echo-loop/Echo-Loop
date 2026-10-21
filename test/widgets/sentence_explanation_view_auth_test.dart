@@ -29,6 +29,7 @@ import 'package:echo_loop/models/sentence.dart';
 import 'package:echo_loop/models/sentence_ai_result.dart';
 import 'package:echo_loop/providers/audio_sentences_provider.dart';
 import 'package:echo_loop/providers/audio_engine/audio_engine_provider.dart';
+import 'package:echo_loop/providers/learning_settings_provider.dart';
 import 'package:echo_loop/providers/sentence_ai_provider.dart';
 import 'package:echo_loop/router/app_router.dart';
 import 'package:echo_loop/services/sentence_ai_api_client.dart';
@@ -107,11 +108,33 @@ class _RecordingSentenceAiNotifier extends SentenceAiNotifier {
   _RecordingSentenceAiNotifier({
     required super.cacheDao,
     required super.apiClient,
+    this.returnCachedResults = false,
   });
 
+  final bool returnCachedResults;
   final translationRequests = <({String? previous, String? next})>[];
   var analysisRequests = 0;
   var senseGroupRequests = 0;
+
+  @override
+  SentenceTranslation? getCachedTranslation(
+    String text, {
+    String? previous,
+    String? next,
+    String? targetLanguage,
+  }) => returnCachedResults
+      ? const SentenceTranslation(translation: 'cached fixture translation')
+      : null;
+
+  @override
+  SentenceAnalysis? getCachedAnalysis(String text, {String? targetLanguage}) =>
+      returnCachedResults
+      ? const SentenceAnalysis(
+          grammar: [
+            GrammarPoint(point: 'fixture grammar', note: 'fixture note'),
+          ],
+        )
+      : null;
 
   @override
   Stream<SentenceTranslation> getTranslationStream(
@@ -268,6 +291,10 @@ void main() {
     bool autoShowAiAnalysis = true,
     bool autoShowAiTranslation = true,
     bool autoShowAiSenseGroups = false,
+    bool? sentenceAutoShowAiExplanation,
+    bool? sentenceAutoShowAiAnalysis,
+    bool? sentenceAutoShowAiTranslation,
+    bool? sentenceAutoShowAiSenseGroups,
     bool useProviderAiNotifier = false,
     bool wrapDictionaryPanelHost = false,
     Widget? content,
@@ -278,6 +305,22 @@ void main() {
   }) async {
     SharedPreferences.setMockInitialValues({});
     final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(
+      LearningSettingsKeys.autoShowAiExplanation,
+      autoShowAiExplanation,
+    );
+    await prefs.setBool(
+      LearningSettingsKeys.autoShowAiAnalysis,
+      autoShowAiAnalysis,
+    );
+    await prefs.setBool(
+      LearningSettingsKeys.autoShowAiTranslation,
+      autoShowAiTranslation,
+    );
+    await prefs.setBool(
+      LearningSettingsKeys.autoShowAiSenseGroups,
+      autoShowAiSenseGroups,
+    );
     final savedWordDao = _MockSavedWordDao();
     when(savedWordDao.watchAll).thenAnswer((_) => const Stream.empty());
     when(
@@ -297,6 +340,10 @@ void main() {
               audioItemId: audioItemId,
               sentenceIndex: sentenceIndex,
               senseGroupRangePlayback: senseGroupRangePlayback,
+              autoShowAiExplanation: sentenceAutoShowAiExplanation,
+              autoShowAiAnalysis: sentenceAutoShowAiAnalysis,
+              autoShowAiTranslation: sentenceAutoShowAiTranslation,
+              autoShowAiSenseGroups: sentenceAutoShowAiSenseGroups,
               aiNotifier: useProviderAiNotifier
                   ? null
                   : aiNotifier ??
@@ -1010,6 +1057,39 @@ void main() {
     expect(aiNotifier.translationRequests, isEmpty);
     expect(aiNotifier.analysisRequests, 0);
     expect(aiNotifier.senseGroupRequests, 0);
+  });
+
+  testWidgets('显式 AI 自动展示设置优先于全局学习设置', (tester) async {
+    final cacheDao = _MockCacheDao();
+    final savedSenseGroupDao = _MockSavedSenseGroupDao();
+    when(() => cacheDao.getByHash(any(), any())).thenAnswer((_) async => null);
+    when(
+      savedSenseGroupDao.watchSavedPhraseTexts,
+    ).thenAnswer((_) => Stream<Set<String>>.value(const {}));
+    final aiNotifier = _RecordingSentenceAiNotifier(
+      cacheDao: cacheDao,
+      apiClient: _NoopSentenceAiApiClient(),
+      returnCachedResults: true,
+    );
+
+    await pumpAuthTestApp(
+      tester,
+      cacheDao: cacheDao,
+      savedSenseGroupDao: savedSenseGroupDao,
+      signedIn: true,
+      sentenceAutoShowAiExplanation: false,
+      sentenceAutoShowAiAnalysis: true,
+      sentenceAutoShowAiTranslation: true,
+      sentenceAutoShowAiSenseGroups: true,
+      aiNotifier: aiNotifier,
+    );
+    await tester.pumpAndSettle();
+
+    expect(aiNotifier.translationRequests, isEmpty);
+    expect(aiNotifier.analysisRequests, 0);
+    expect(aiNotifier.senseGroupRequests, 0);
+    expect(find.text('cached fixture translation'), findsNothing);
+    expect(find.text('fixture grammar'), findsNothing);
   });
 
   testWidgets('只开启意群子开关时自动请求意群，不请求解析和翻译', (tester) async {

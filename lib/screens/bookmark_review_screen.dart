@@ -15,6 +15,7 @@ import '../l10n/app_localizations.dart';
 import '../database/providers.dart';
 import '../models/bookmark_sentence.dart';
 import '../models/word_highlight_binding.dart';
+import '../providers/bookmark_review_settings_provider.dart';
 import '../providers/favorite_review_settings_provider.dart';
 import '../providers/short_audio_player_provider.dart';
 import '../providers/learning_session/bookmark_review_provider.dart';
@@ -575,6 +576,7 @@ class _ReviewAnswer extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final l10n = AppLocalizations.of(context)!;
+    final sentenceSettings = ref.watch(bookmarkReviewSettingsProvider);
     final actions = [
       FlashcardRatingAction(
         rating: MemoryRating.again,
@@ -642,6 +644,10 @@ class _ReviewAnswer extends ConsumerWidget {
                 senseGroupRangePlaybackProvider,
               ),
               enableGuide: false,
+              autoShowAiExplanation: sentenceSettings.autoShowAiExplanation,
+              autoShowAiAnalysis: sentenceSettings.autoShowAiAnalysis,
+              autoShowAiTranslation: sentenceSettings.autoShowAiTranslation,
+              autoShowAiSenseGroups: sentenceSettings.autoShowAiSenseGroups,
             ),
           ),
         ),

@@ -625,6 +625,25 @@ void main() {
     expect(find.text('查看智能释义与例句'), findsNothing);
   });
 
+  testWidgets('自动显示 AI 查词关闭时翻面保持折叠', (tester) async {
+    await tester.pumpWidget(_app(autoShowAiLookup: false));
+    await tester.pump();
+    await tester.tap(
+      find.byKey(const Key('favorite-vocabulary-review-reveal-zone')),
+    );
+    await tester.pump();
+
+    expect(
+      find.byWidgetPredicate(
+        (widget) =>
+            widget is Semantics &&
+            widget.properties.label == '显示 AI 查词' &&
+            widget.properties.toggled == false,
+      ),
+      findsOneWidget,
+    );
+  });
+
   testWidgets('来源句、来源材料和 AI 查词入口使用分组内容层级', (tester) async {
     await tester.pumpWidget(_app(withSource: true));
     await tester.pump();
