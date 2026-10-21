@@ -4,6 +4,7 @@
 
 ## 本次完成
 
+- [x] 修复 GitHub Actions 全量测试失败（2026-10-21）：设置弹窗 Widget 测试改为验证设置展示与状态更新，不再断言已迁移掉的 AudioEngine 速度同步；盲听 fake 显式处理设置更新，并新增速度传给段落播放驱动的回归测试；聊天气泡测试同步当前额度本地化文案。5 个定向测试文件 56 项通过，5 个改动 Dart 文件 `flutter analyze --no-pub` 无问题；CI 同款串行全量测试 5573 项通过、11 项跳过，`git diff --check` 通过。未运行 `scripts/check.sh`：CI 同款全量测试和相关分析已覆盖本次修复。**完成时间**: 2026-10-21
 - [x] 升级应用版本至 1.0.43（2026-10-21）：将 `pubspec.yaml` 中的版本从 1.0.42 提升至 1.0.43。版本元数据变更已通过 `git diff --check`，无需运行测试；未运行 `scripts/check.sh`。**完成时间**: 2026-10-21
 - [x] 统一段落复述音视频学习链路到 MediaEngine（2026-10-21）：音频和视频复述入口共用 `MediaLearningStartup`、`MediaEngine` 与 `MediaParagraphPlaybackDriver`；复述状态机必须注入共享驱动，移除前台专用段落驱动，详情播放和逐词高亮统一读取 MediaEngine。复核修复：音频进入时停止默认 AudioEngine，清理遗留系统媒体卡片但不让 MediaEngine 发布系统控制；新进入正确接管监听恢复 lease；退出会使等待中的播放器初始化失效；设置快照只解析一次。音视频入口、加载失败/取消/退出和监听恢复均有回归覆盖。6 个定向测试文件共 221 项通过、4 项跳过；14 个相关 Dart 文件 `flutter analyze` 无问题，`git diff --check` 通过。Android dev APK 构建、安装成功；不清理 App 状态的 Maestro 启动 Flow 通过。未运行 `scripts/check.sh`：定向测试和分析覆盖本次复核修复范围。**完成时间**: 2026-10-21
 - [x] 记录难句补练跟读统计口径（2026-10-21）：在统计回调注释中明确学习统计只累计有效跟读时长，不累计跟读词数或总次数；录音完成次数由 UsageTracker 独立计数。仅补充注释，未改变行为。**完成时间**: 2026-10-21

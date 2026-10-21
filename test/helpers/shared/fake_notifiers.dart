@@ -1140,6 +1140,11 @@ class FakeBlindListenPlayer extends BlindListenPlayer {
   }
 
   @override
+  void updateSettings(BlindListenSettings newSettings) {
+    state = state.copyWith(settings: newSettings);
+  }
+
+  @override
   Future<void> initializeParagraphs(
     List<List<Sentence>> paragraphs,
     BlindListenSettings settings, {

@@ -17,6 +17,7 @@ import '../helpers/mock_providers.dart';
 /// 测试用段落驱动器：支持 session 管理和模拟播放。
 class _TestParagraphPlaybackDriver implements ParagraphPlaybackDriver {
   int _sessionId = 0;
+  final speeds = <double>[];
 
   @override
   int newSession() => ++_sessionId;
@@ -31,7 +32,9 @@ class _TestParagraphPlaybackDriver implements ParagraphPlaybackDriver {
   Future<void> pause() async {}
 
   @override
-  Future<void> setSpeed(double speed) async {}
+  Future<void> setSpeed(double speed) async {
+    speeds.add(speed);
+  }
 
   @override
   Future<void> seek(Duration position) async {}
@@ -96,6 +99,7 @@ void main() {
   group('BlindListenPlayer 手动模式', () {
     late ProviderContainer container;
     late BlindListenPlayer notifier;
+    late _TestParagraphPlaybackDriver playbackDriver;
 
     final paragraphs = [
       [
@@ -131,14 +135,26 @@ void main() {
         ],
       );
       notifier = container.read(blindListenPlayerProvider.notifier);
+      playbackDriver = _TestParagraphPlaybackDriver();
       await notifier.initializeParagraphs(
         paragraphs,
         const BlindListenSettings(controlMode: ShadowingControlMode.manual),
-        playbackDriver: _TestParagraphPlaybackDriver(),
+        playbackDriver: playbackDriver,
       );
     });
 
     tearDown(() => container.dispose());
+
+    test('更新播放速度时同步到段落播放驱动', () async {
+      notifier.updateSettings(
+        container
+            .read(blindListenPlayerProvider)
+            .settings
+            .copyWith(playbackSpeed: 1.25),
+      );
+
+      expect(playbackDriver.speeds, [1.25]);
+    });
 
     test('手动模式下播放段落完成后停止，不启动倒计时', () async {
       await notifier.startPlaying();
