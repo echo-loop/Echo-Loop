@@ -4,6 +4,10 @@
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../features/user_preferences/domain/user_preferences_sync_events.dart';
+import '../features/onboarding_survey/providers/onboarding_survey_provider.dart'
+    show sharedPreferencesProvider;
+
 part 'audio_list_settings_provider.g.dart';
 
 /// 音频列表排序方式持久化存储键
@@ -51,31 +55,49 @@ class AudioListSettingsState {
 
 @riverpod
 class AudioListSettings extends _$AudioListSettings {
+  int _loadGeneration = 0;
+
   @override
   AudioListSettingsState build() {
-    // 异步恢复持久化的排序方式（prefs 为真相源，autoDispose 重建后会重新读回）
-    _loadSortType();
-    return const AudioListSettingsState();
+    final generation = ++_loadGeneration;
+    try {
+      return _readFromPrefs(ref.read(sharedPreferencesProvider));
+    } on UnimplementedError {
+      _loadSortType(generation);
+      return const AudioListSettingsState();
+    }
   }
 
-  /// 从 SharedPreferences 恢复上次选择的排序方式
-  ///
-  /// 非法或缺省值回退到默认 [AudioSortType.dateDesc]。
-  Future<void> _loadSortType() async {
+  AudioListSettingsState _readFromPrefs(SharedPreferences prefs) {
+    return AudioListSettingsState(
+      sortType: audioSortTypeFromName(prefs.getString(_audioSortTypeKey)),
+    );
+  }
+
+  /// 云端写回 SharedPreferences 后同步刷新内存状态。
+  void reloadFromPrefs() {
+    final generation = ++_loadGeneration;
     try {
-      final prefs = await SharedPreferences.getInstance();
-      state = state.copyWith(
-        sortType: audioSortTypeFromName(prefs.getString(_audioSortTypeKey)),
-      );
-    } catch (_) {
-      // 读取失败（如 prefs 不可用）：保持默认排序
+      state = _readFromPrefs(ref.read(sharedPreferencesProvider));
+    } on UnimplementedError {
+      _loadSortType(generation);
     }
+  }
+
+  Future<void> _loadSortType(int generation) async {
+    final prefs = await SharedPreferences.getInstance();
+    if (generation != _loadGeneration) return;
+    state = AudioListSettingsState(
+      sortType: audioSortTypeFromName(prefs.getString(_audioSortTypeKey)),
+    );
   }
 
   /// 设置并持久化排序方式
   Future<void> setSortType(AudioSortType type) async {
+    _loadGeneration++;
     state = state.copyWith(sortType: type);
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_audioSortTypeKey, type.name);
+    userPreferencesSyncEvents.notifyLocalChange();
   }
 }

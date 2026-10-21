@@ -34,6 +34,8 @@ const _spPrefixBlacklist = [
   'sb-',
   // GoTrue PKCE code verifier 等临时认证状态。
   'supabase.auth.',
+  // 本机同步基线与待同步快照，不应跨设备导入。
+  'user_preferences_sync_',
 ];
 
 const _dbFileName = 'echo_loop.db';

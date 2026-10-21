@@ -53,6 +53,10 @@ class RetellPrefsNotifier extends SlotPrefsNotifier<RetellPrefs> {
   @override
   Map<String, dynamic> encodePrefs(RetellPrefs prefs) => prefs.toJson();
 
+  @override
+  SlotPrefs<RetellPrefs> readPrefs(SharedPreferences preferences) =>
+      retellPrefsFromPrefsSync(preferences);
+
   /// 按当前难度算出的 [smartSpeed]/[smartRatio],叠加该槽位偏好得到完整设置。
   RetellSettings resolve(
     String slot, {

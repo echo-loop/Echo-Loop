@@ -58,6 +58,10 @@ class BlindListenPrefsNotifier extends SlotPrefsNotifier<BlindListenPrefs> {
   @override
   Map<String, dynamic> encodePrefs(BlindListenPrefs prefs) => prefs.toJson();
 
+  @override
+  SlotPrefs<BlindListenPrefs> readPrefs(SharedPreferences preferences) =>
+      blindListenPrefsFromPrefsSync(preferences);
+
   /// 按当前难度算出的 [smartSpeed],叠加该槽位偏好得到完整设置。
   BlindListenSettings resolve(String slot, {required double smartSpeed}) =>
       prefsFor(slot).resolve(smartSpeed: smartSpeed);

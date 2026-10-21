@@ -187,6 +187,7 @@ void main() {
         'sb-project-ref-auth-token': '{"refresh_token":"secret"}',
         'supabase.auth.token-code-verifier': 'pkce-secret',
         'SUPABASE_PERSIST_SESSION_KEY': 'legacy-session',
+        'user_preferences_sync_state_v1': 'device-local-metadata',
       });
 
       final backupPath = await service.exportData(
@@ -214,10 +215,14 @@ void main() {
       expect(settings, isNot(contains('sb-project-ref-auth-token')));
       expect(settings, isNot(contains('supabase.auth.token-code-verifier')));
       expect(settings, isNot(contains('SUPABASE_PERSIST_SESSION_KEY')));
+      expect(settings, isNot(contains('user_preferences_sync_state_v1')));
     });
 
     test('恢复时从 manifest 版本继续执行应用迁移', () async {
-      SharedPreferences.setMockInitialValues({appUpdateMigrationVersionKey: 4});
+      SharedPreferences.setMockInitialValues({
+        appUpdateMigrationVersionKey: 4,
+        'user_preferences_sync_state_v1': 'current-device-metadata',
+      });
       final backupPath = await service.exportData(
         outputDir: outputDir.path,
         appVersion: '1.0.0',
@@ -225,6 +230,7 @@ void main() {
       );
       SharedPreferences.setMockInitialValues({
         appUpdateMigrationVersionKey: currentAppUpdateMigrationVersion,
+        'user_preferences_sync_state_v1': 'current-device-metadata',
       });
       int? restoredFromVersion;
       service = BackupService(
@@ -250,6 +256,10 @@ void main() {
       expect(
         preferences.getInt(appUpdateMigrationVersionKey),
         currentAppUpdateMigrationVersion,
+      );
+      expect(
+        preferences.getString('user_preferences_sync_state_v1'),
+        'current-device-metadata',
       );
     });
 

@@ -65,6 +65,10 @@ class DifficultPracticePrefsNotifier
   Map<String, dynamic> encodePrefs(DifficultPracticePrefs prefs) =>
       prefs.toJson();
 
+  @override
+  SlotPrefs<DifficultPracticePrefs> readPrefs(SharedPreferences preferences) =>
+      difficultPracticePrefsFromPrefsSync(preferences);
+
   /// 按当前难度算出的 [smartSpeed],叠加该槽位偏好得到完整设置。
   DifficultPracticeSettings resolve(
     String slot, {

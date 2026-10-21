@@ -58,6 +58,10 @@ class IntensiveListenPrefsNotifier
   Map<String, dynamic> encodePrefs(IntensiveListenPrefs prefs) =>
       prefs.toJson();
 
+  @override
+  SlotPrefs<IntensiveListenPrefs> readPrefs(SharedPreferences preferences) =>
+      intensiveListenPrefsFromPrefsSync(preferences);
+
   /// 按当前难度算出的 [smartSpeed]/[smartRepeatCount],叠加该槽位偏好得到完整设置。
   IntensiveListenSettings resolve(
     String slot, {

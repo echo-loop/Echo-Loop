@@ -15,6 +15,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../features/onboarding_survey/providers/onboarding_survey_provider.dart'
     show sharedPreferencesProvider;
 import '../services/app_logger.dart';
+import '../features/user_preferences/domain/user_preferences_sync_events.dart';
 
 export '../features/onboarding_survey/providers/onboarding_survey_provider.dart'
     show sharedPreferencesProvider;
@@ -217,7 +218,15 @@ class LearningSettings {
 /// 反向 read progress notifier 避免双向耦合。
 class LearningSettingsNotifier extends Notifier<LearningSettings> {
   @override
-  LearningSettings build() => ref.read(initialLearningSettingsProvider);
+  LearningSettings build() {
+    try {
+      return LearningSettings.fromPrefsSync(
+        ref.read(sharedPreferencesProvider),
+      );
+    } on UnimplementedError {
+      return ref.read(initialLearningSettingsProvider);
+    }
+  }
 
   /// 从当前 [SharedPreferences] 重新读取全部学习设置并刷新 state。
   ///
@@ -240,6 +249,7 @@ class LearningSettingsNotifier extends Notifier<LearningSettings> {
         LearningSettingsKeys.autoExpandCachedAnnotation,
         enabled,
       );
+      userPreferencesSyncEvents.notifyLocalChange();
     } catch (e) {
       AppLogger.log(
         'LearningSettings',
@@ -255,6 +265,7 @@ class LearningSettingsNotifier extends Notifier<LearningSettings> {
     try {
       final prefs = ref.read(sharedPreferencesProvider);
       await prefs.setBool(LearningSettingsKeys.autoShowAiExplanation, enabled);
+      userPreferencesSyncEvents.notifyLocalChange();
     } catch (e) {
       AppLogger.log('LearningSettings', 'setAutoShowAiExplanation 写 SP 失败: $e');
     }
@@ -267,6 +278,7 @@ class LearningSettingsNotifier extends Notifier<LearningSettings> {
     try {
       final prefs = ref.read(sharedPreferencesProvider);
       await prefs.setBool(LearningSettingsKeys.autoShowAiAnalysis, enabled);
+      userPreferencesSyncEvents.notifyLocalChange();
     } catch (e) {
       AppLogger.log('LearningSettings', 'setAutoShowAiAnalysis 写 SP 失败: $e');
     }
@@ -279,6 +291,7 @@ class LearningSettingsNotifier extends Notifier<LearningSettings> {
     try {
       final prefs = ref.read(sharedPreferencesProvider);
       await prefs.setBool(LearningSettingsKeys.autoShowAiTranslation, enabled);
+      userPreferencesSyncEvents.notifyLocalChange();
     } catch (e) {
       AppLogger.log('LearningSettings', 'setAutoShowAiTranslation 写 SP 失败: $e');
     }
@@ -291,6 +304,7 @@ class LearningSettingsNotifier extends Notifier<LearningSettings> {
     try {
       final prefs = ref.read(sharedPreferencesProvider);
       await prefs.setBool(LearningSettingsKeys.autoShowAiSenseGroups, enabled);
+      userPreferencesSyncEvents.notifyLocalChange();
     } catch (e) {
       AppLogger.log('LearningSettings', 'setAutoShowAiSenseGroups 写 SP 失败: $e');
     }
@@ -306,6 +320,7 @@ class LearningSettingsNotifier extends Notifier<LearningSettings> {
         LearningSettingsKeys.autoPlayRetellRecordingAfterCompletion,
         enabled,
       );
+      userPreferencesSyncEvents.notifyLocalChange();
     } catch (e) {
       AppLogger.log(
         'LearningSettings',
@@ -324,6 +339,7 @@ class LearningSettingsNotifier extends Notifier<LearningSettings> {
         LearningSettingsKeys.listenAndRepeatRatingEnabled,
         enabled,
       );
+      userPreferencesSyncEvents.notifyLocalChange();
     } catch (e) {
       AppLogger.log(
         'LearningSettings',
@@ -339,6 +355,7 @@ class LearningSettingsNotifier extends Notifier<LearningSettings> {
     try {
       final prefs = ref.read(sharedPreferencesProvider);
       await prefs.setBool(LearningSettingsKeys.retellRatingEnabled, enabled);
+      userPreferencesSyncEvents.notifyLocalChange();
     } catch (e) {
       AppLogger.log('LearningSettings', 'setRetellRatingEnabled 写 SP 失败: $e');
     }
@@ -386,6 +403,7 @@ class LearningSettingsNotifier extends Notifier<LearningSettings> {
     try {
       final prefs = ref.read(sharedPreferencesProvider);
       await prefs.setBool(LearningSettingsKeys.autoSkipRetell, enabled);
+      userPreferencesSyncEvents.notifyLocalChange();
     } catch (e) {
       AppLogger.log('LearningSettings', 'setAutoSkipRetell 写 SP 失败: $e');
     }

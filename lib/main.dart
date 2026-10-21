@@ -54,6 +54,7 @@ import 'features/subscription/providers/subscription_controller.dart';
 import 'features/subscription/providers/subscription_plans_provider.dart';
 import 'features/subscription/services/paddle_deep_link_handler.dart';
 import 'features/user_region/user_region_bootstrapper.dart';
+import 'features/user_preferences/providers/user_preferences_sync_providers.dart';
 
 void main() async {
   final startupTrace = StartupTrace();
@@ -385,6 +386,19 @@ class _EchoLoopAppState extends ConsumerState<EchoLoopApp>
     _authSessionSubscription = ref.listenManual<AsyncValue<Session?>>(
       supabaseSessionProvider,
       (previous, next) {
+        if (next.hasValue) {
+          unawaited(
+            ref
+                .read(userPreferencesSyncServiceProvider)
+                .onSessionChanged(next.valueOrNull?.user.id)
+                .catchError((Object error, StackTrace stackTrace) {
+                  AppLogger.log(
+                    'UserPreferencesSync',
+                    '更新登录用户状态失败: $error\n$stackTrace',
+                  );
+                }),
+          );
+        }
         unawaited(
           ref
               .read(authAnalyticsSyncProvider)
@@ -427,6 +441,12 @@ class _EchoLoopAppState extends ConsumerState<EchoLoopApp>
       case AppLifecycleState.resumed:
         if (ref.read(localStartupProvider).hasValue) {
           _triggerCommunitySync();
+        }
+        final session = ref.read(supabaseSessionProvider).valueOrNull;
+        if (session != null) {
+          unawaited(
+            ref.read(userPreferencesSyncServiceProvider).onAppResumed(),
+          );
         }
         // 回前台时条件重对账订阅权益（E8）。单一来源下每次刷新都是真实后端请求
         // （不再有 RC SDK 客户端缓存兜着），且退款/退订分歧主要靠 E6/E7 在后端
