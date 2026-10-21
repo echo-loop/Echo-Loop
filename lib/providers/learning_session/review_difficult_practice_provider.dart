@@ -25,14 +25,14 @@ import '../../models/study_stage.dart';
 import '../../services/app_logger.dart';
 import '../../services/study_session_timer.dart';
 import '../../services/study_time_service.dart';
-import '../audio_engine/foreground_audio_engine_provider.dart';
-import '../audio_engine/foreground_sense_group_range_playback.dart';
 import '../blind_flow/blind_practice_flow_engine.dart';
 import '../blind_flow/blind_practice_flow_phase.dart';
 import '../blind_flow/blind_practice_flow_state.dart';
 import '../learning_progress_provider.dart';
 import '../difficult_practice_prefs_provider.dart';
 import '../favorite_sentence_lifecycle_provider.dart';
+import '../media_engine/media_engine_provider.dart';
+import '../media_engine/media_sense_group_range_playback.dart';
 import '../repeat_flow/repeat_flow_engine.dart';
 import '../repeat_flow/repeat_flow_phase.dart';
 import '../repeat_flow/repeat_flow_state.dart';
@@ -127,8 +127,8 @@ class ReviewDifficultPracticeState {
   /// 盲听模式下的流程状态（blind mode 时有值）
   final BlindPracticeFlowState? blindFlowState;
 
-  /// 当前任务是否由独立 MediaEngine 提供原句播放。
-  final bool usesMediaEngine;
+  /// 当前材料是否为视频；所有原句均由共享 MediaEngine 播放。
+  final bool hasVideo;
 
   /// 是否处于手动模式
   bool get isManualMode => settings.isManualMode || isManualForSentence;
@@ -153,7 +153,7 @@ class ReviewDifficultPracticeState {
     this.isManualForSentence = false,
     this.repeatFlowState,
     this.blindFlowState,
-    this.usesMediaEngine = false,
+    this.hasVideo = false,
   });
 
   ReviewDifficultPracticeState copyWith({
@@ -176,7 +176,7 @@ class ReviewDifficultPracticeState {
     bool? isManualForSentence,
     RepeatFlowState? repeatFlowState,
     BlindPracticeFlowState? blindFlowState,
-    bool? usesMediaEngine,
+    bool? hasVideo,
     bool clearRepeatFlowState = false,
     bool clearBlindFlowState = false,
   }) {
@@ -206,7 +206,7 @@ class ReviewDifficultPracticeState {
       blindFlowState: clearBlindFlowState
           ? null
           : (blindFlowState ?? this.blindFlowState),
-      usesMediaEngine: usesMediaEngine ?? this.usesMediaEngine,
+      hasVideo: hasVideo ?? this.hasVideo,
     );
   }
 }
@@ -266,8 +266,8 @@ class ReviewDifficultPractice extends _$ReviewDifficultPractice {
     _studyTimeService = ref.read(studyTimeServiceProvider);
     _speechController = ref.read(speechRecordingControllerProvider.notifier);
 
-    _playback = ForegroundSentencePlaybackDriver(
-      ref.read(foregroundAudioEngineProvider.notifier),
+    _playback = MediaSentencePlaybackDriver(
+      ref.read(mediaEngineProvider.notifier),
     );
     _blindEngine = _createBlindEngine();
 
@@ -292,25 +292,22 @@ class ReviewDifficultPractice extends _$ReviewDifficultPractice {
     String? settingsSlot,
     SentencePlaybackDriver? playbackDriver,
     SenseGroupRangePlayback? senseGroupRangePlayback,
-    bool usesMediaEngine = false,
+    bool hasVideo = false,
   }) async {
     _studySessionGeneration += 1;
     await _disposeStudySessionTimer();
     _settingsSlot = settingsSlot;
     await _playback.invalidateSession();
+    _playback.unbindLockScreen();
     _playback =
         playbackDriver ??
-        ForegroundSentencePlaybackDriver(
-          ref.read(foregroundAudioEngineProvider.notifier),
-        );
+        MediaSentencePlaybackDriver(ref.read(mediaEngineProvider.notifier));
     _senseGroupRangePlayback =
         senseGroupRangePlayback ??
-        (usesMediaEngine
-            ? null
-            : ForegroundSenseGroupRangePlayback(
-                engine: ref.read(foregroundAudioEngineProvider.notifier),
-                playbackSpeed: () => state.settings.playbackSpeed,
-              ));
+        MediaSenseGroupRangePlayback(
+          engine: ref.read(mediaEngineProvider.notifier),
+          playbackSpeed: () => state.settings.playbackSpeed,
+        );
     _blindEngine.dispose();
     _blindEngine = _createBlindEngine();
     _repeatEngine?.dispose();
@@ -326,7 +323,7 @@ class ReviewDifficultPractice extends _$ReviewDifficultPractice {
       totalSentences: _sentences.length,
       // [settings] 已由调用方从按槽位偏好 resolve 出(默认+记忆),直接 seed。
       settings: settings,
-      usesMediaEngine: usesMediaEngine,
+      hasVideo: hasVideo,
     );
     _prepareBlindFlow(startIndex: validIndex);
     ref.read(analyticsServiceProvider).track(Events.difficultPracticeStart, {
@@ -337,6 +334,12 @@ class ReviewDifficultPractice extends _$ReviewDifficultPractice {
     final sessionGeneration = _studySessionGeneration;
     _speechController.setRecordingCompletionHandler(
       (duration) => _recordSpeechRecognition(duration, sessionGeneration),
+    );
+    _playback.bindLockScreen(
+      onPlay: resume,
+      onPause: () async => pause(),
+      onNext: goToNext,
+      onPrevious: goToPrevious,
     );
 
     final timer = StudySessionTimer(
@@ -351,7 +354,7 @@ class ReviewDifficultPractice extends _$ReviewDifficultPractice {
     AppLogger.log(
       'ReviewDifficultPracticeStats',
       'session.ready sentenceCount=${_sentences.length} '
-          'usesMediaEngine=$usesMediaEngine',
+          'hasVideo=$hasVideo',
     );
   }
 
@@ -379,7 +382,7 @@ class ReviewDifficultPractice extends _$ReviewDifficultPractice {
       state.settings,
       newSettings,
     );
-    // 速度变化无需重启会话：直接推给 AudioEngine 即可。
+    // 速度变化无需重启会话：直接推给 MediaEngine 即可。
     // 其它字段变化沿用现有重启逻辑。
     final old = state.settings;
     final speedOnly =
@@ -506,7 +509,7 @@ class ReviewDifficultPractice extends _$ReviewDifficultPractice {
     AppLogger.log(
       'RDP-Navigation',
       'event=annotation-enter sentenceIndex=${state.currentSentenceIndex} '
-          'fromMode=blind media=${state.usesMediaEngine}',
+          'fromMode=blind media=true',
     );
     unawaited(_playback.invalidateSession());
     _blindEngine.stopSession();
@@ -633,7 +636,7 @@ class ReviewDifficultPractice extends _$ReviewDifficultPractice {
       'event=request id=$requestId source=goToSentence mode=$mode '
           'fromIndex=$fromIndex requestedIndex=$index targetIndex=$target '
           'totalSentences=${state.totalSentences} '
-          'media=${state.usesMediaEngine}',
+          'media=true',
     );
     if (target == fromIndex) {
       AppLogger.log(
@@ -667,7 +670,7 @@ class ReviewDifficultPractice extends _$ReviewDifficultPractice {
       'RDP-Navigation',
       'event=commit-start id=$requestId fromIndex=$fromIndex '
           'targetIndex=$target fromMode=$fromMode '
-          'media=${state.usesMediaEngine}',
+          'media=true',
     );
     _exitAnnotationMode();
     _blindEngine.stopSession();
@@ -763,6 +766,7 @@ class ReviewDifficultPractice extends _$ReviewDifficultPractice {
             'error=$error\n$stackTrace',
       );
     }
+    _playback.unbindLockScreen();
     _blindEngine.stopSession();
     _repeatEngine?.dispose();
     _repeatEngine = null;
@@ -806,6 +810,7 @@ class ReviewDifficultPractice extends _$ReviewDifficultPractice {
     _blindEngine.dispose();
     _repeatEngine?.dispose();
     _repeatEngine = null;
+    _playback.unbindLockScreen();
     try {
       await _playback.invalidateSession();
     } catch (error, stackTrace) {
@@ -843,6 +848,9 @@ class ReviewDifficultPractice extends _$ReviewDifficultPractice {
   }
 
   /// 记录一次有效跟读录音，并丢弃退出后的迟到回调。
+  ///
+  /// 难句补练的学习统计只累计有效跟读时长，不累计跟读词数或总次数；
+  /// 录音完成次数由 UsageTracker 单独计数，不走此统计入口。
   void _recordSpeechRecognition(Duration duration, int sessionGeneration) {
     if (sessionGeneration != _studySessionGeneration ||
         _studySessionTimer == null) {
@@ -875,6 +883,8 @@ class ReviewDifficultPractice extends _$ReviewDifficultPractice {
     state = ReviewDifficultPracticeState(
       currentSentenceIndex: 0,
       totalSentences: _sentences.length,
+      settings: state.settings,
+      hasVideo: state.hasVideo,
     );
     _prepareBlindFlow();
     await startPlaying();
@@ -955,6 +965,9 @@ class ReviewDifficultPractice extends _$ReviewDifficultPractice {
       AppLogger.log('RDP', '跟读完成 → 直接进入下一句');
       unawaited(_advanceAfterAnnotationCompleted());
     }
+    final interval = flowState.isInPause;
+    _playback.setSessionActive(flowState.phase is PlayingPrompt || interval);
+    _playback.setProgressFrozen(interval);
   }
 
   /// 退出跟读模式（停止引擎）
@@ -1135,7 +1148,7 @@ class ReviewDifficultPractice extends _$ReviewDifficultPractice {
       'RDP-Navigation',
       'event=playback-invalidation-start navigationId=$navigationId '
           'sentenceIndex=${state.currentSentenceIndex} '
-          'driver=${state.usesMediaEngine ? 'media' : 'foreground-audio'}',
+          'driver=media',
     );
     try {
       await _playback.invalidateSession();
@@ -1197,8 +1210,9 @@ class ReviewDifficultPractice extends _$ReviewDifficultPractice {
       isManualForSentence: sentenceChanged ? false : state.isManualForSentence,
     );
 
-    // 难句补练属录音类任务：经前台引擎播放、物理上不接系统媒体会话，故无锁屏卡片、
-    // 不进后台、不启保活（见 PLAN.md ADR-7）。
+    final inInterval = interval != null;
+    _playback.setSessionActive(phase is BlindPlayingPrompt || inInterval);
+    _playback.setProgressFrozen(inInterval);
 
     if (phase is BlindSessionCompleted) {
       _trackDifficultPracticeComplete();
@@ -1220,7 +1234,7 @@ class ReviewDifficultPractice extends _$ReviewDifficultPractice {
       'RDP-Blind',
       'event=play-request-start sentenceIndex=${sentence.index} '
           'flowToken=$flowToken playbackSessionId=$sessionId '
-          'driver=${state.usesMediaEngine ? 'media' : 'foreground-audio'}',
+          'driver=media',
     );
     late final SentencePlaybackResult result;
     try {

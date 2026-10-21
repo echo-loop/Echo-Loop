@@ -1129,8 +1129,9 @@ void main() {
           dailyStudyTimeProvider.overrideWith(() => TestDailyStudyTime()),
           bookmarkDaoProvider.overrideWithValue(_TestBookmarkDao({1, 3})),
           analyticsOverride(),
-          if (mediaEngine != null)
-            mediaEngineProvider.overrideWith(() => mediaEngine),
+          mediaEngineProvider.overrideWith(
+            () => mediaEngine ?? _SuccessfulMediaEngine(),
+          ),
         ],
       );
     }
@@ -1158,10 +1159,23 @@ void main() {
 
       await container
           .read(learningSessionProvider.notifier)
-          .enterReviewDifficultPracticeMode('audio-1', sentences);
+          .enterReviewDifficultPracticeMode(
+            model.AudioItem(
+              id: 'audio-1',
+              name: 'Audio review',
+              audioPath: 'audio.mp3',
+              addedDate: DateTime(2026, 8, 11),
+            ),
+            sentences,
+          );
 
       final playerState = container.read(reviewDifficultPracticeProvider);
       expect(playerState.currentSentenceIndex, 0);
+      expect(
+        container.read(learningSessionProvider).playbackChain,
+        LearningPlaybackChain.mediaEngine,
+      );
+      expect(playerState.hasVideo, isFalse);
     });
 
     test('难句补练自由练习恢复已保存句子断点', () async {
@@ -1183,7 +1197,12 @@ void main() {
       await container
           .read(learningSessionProvider.notifier)
           .enterReviewDifficultPracticeMode(
-            'audio-1',
+            model.AudioItem(
+              id: 'audio-1',
+              name: 'Audio review',
+              audioPath: 'audio.mp3',
+              addedDate: DateTime(2026, 8, 11),
+            ),
             sentences,
             isFreePlay: true,
           );
@@ -1192,7 +1211,7 @@ void main() {
       expect(playerState.currentSentenceIndex, 1);
     });
 
-    test('视频难句补练加载成功后使用独立媒体链路和共享播放器状态', () async {
+    test('视频难句补练加载成功后使用共享媒体链路和播放器状态', () async {
       final mediaEngine = _SuccessfulMediaEngine();
       final container = createContainer(
         TestLearningProgressNotifier(),
@@ -1202,7 +1221,7 @@ void main() {
 
       final result = await container
           .read(learningSessionProvider.notifier)
-          .enterMediaReviewDifficultPracticeMode(
+          .enterReviewDifficultPracticeMode(
             model.AudioItem(
               id: 'video-review',
               name: 'Video review',
@@ -1218,7 +1237,7 @@ void main() {
         LearningPlaybackChain.mediaEngine,
       );
       final playerState = container.read(reviewDifficultPracticeProvider);
-      expect(playerState.usesMediaEngine, isTrue);
+      expect(playerState.hasVideo, isTrue);
       expect(playerState.totalSentences, 2);
       expect(
         container
@@ -1240,7 +1259,7 @@ void main() {
 
       final result = await container
           .read(learningSessionProvider.notifier)
-          .enterMediaReviewDifficultPracticeMode(
+          .enterReviewDifficultPracticeMode(
             model.AudioItem(
               id: 'video-review-failure',
               name: 'Video review',
@@ -1264,7 +1283,7 @@ void main() {
       addTearDown(container.dispose);
       final session = container.read(learningSessionProvider.notifier);
 
-      final entry = session.enterMediaReviewDifficultPracticeMode(
+      final entry = session.enterReviewDifficultPracticeMode(
         model.AudioItem(
           id: 'video-review-cancelled',
           name: 'Video review',
@@ -1275,7 +1294,7 @@ void main() {
       );
       await mediaEngine.loadStarted.future;
 
-      await session.cancelMediaReviewDifficultPracticeEntry();
+      await session.cancelReviewDifficultPracticeEntry();
       mediaEngine.loadResult.complete(const Duration(minutes: 1));
 
       expect(await entry, MediaLoadResult.cancelled);

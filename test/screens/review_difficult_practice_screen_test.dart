@@ -214,7 +214,7 @@ void main() {
     Duration pauseDuration = Duration.zero,
     bool isCountdownPaused = false,
     bool isCountdownFastForward = false,
-    bool usesMediaEngine = false,
+    bool hasVideo = false,
   }) {
     final repeatFlowState = isAnnotationMode
         ? RepeatFlowState(
@@ -255,7 +255,7 @@ void main() {
       isCountdownPaused: isCountdownPaused,
       isCountdownFastForward: isCountdownFastForward,
       repeatFlowState: repeatFlowState,
-      usesMediaEngine: usesMediaEngine,
+      hasVideo: hasVideo,
     );
   }
 
@@ -389,7 +389,7 @@ void main() {
       final load = Completer<MediaLoadResult>();
       await tester.pumpWidget(
         createTestWidget(
-          playerState: createPlayerState(usesMediaEngine: true),
+          playerState: createPlayerState(hasVideo: true),
           mediaStartup: MediaLearningStartup(
             loadKey: 'video-review-1',
             load: () => load.future,

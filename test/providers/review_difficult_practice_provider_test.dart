@@ -110,11 +110,20 @@ class _PassiveLearningSession extends TestLearningSession {
 }
 
 class _RecordingPlaybackDriver implements SentencePlaybackDriver {
+  _RecordingPlaybackDriver({this.playbackDelay = Duration.zero});
+
+  final Duration playbackDelay;
   int _sessionId = 0;
   int pauseCalls = 0;
   SentencePlaybackResult playResult = SentencePlaybackResult.completed;
   final List<double> speeds = [];
   final List<Sentence> playedSentences = [];
+  final List<bool> activeStates = [];
+  final List<bool> frozenStates = [];
+  Future<void> Function()? onPlay;
+  Future<void> Function()? onPause;
+  Future<void> Function()? onNext;
+  Future<void> Function()? onPrevious;
 
   @override
   int newSession() => ++_sessionId;
@@ -143,6 +152,9 @@ class _RecordingPlaybackDriver implements SentencePlaybackDriver {
     Sentence sentence,
     int sessionId,
   ) async {
+    if (playbackDelay > Duration.zero) {
+      await Future<void>.delayed(playbackDelay);
+    }
     if (isActiveSession(sessionId)) playedSentences.add(sentence);
     return isActiveSession(sessionId)
         ? playResult
@@ -164,16 +176,26 @@ class _RecordingPlaybackDriver implements SentencePlaybackDriver {
     required Future<void> Function() onPause,
     required Future<void> Function() onNext,
     required Future<void> Function() onPrevious,
-  }) {}
+  }) {
+    this.onPlay = onPlay;
+    this.onPause = onPause;
+    this.onNext = onNext;
+    this.onPrevious = onPrevious;
+  }
 
   @override
-  void setProgressFrozen(bool frozen) {}
+  void setProgressFrozen(bool frozen) => frozenStates.add(frozen);
 
   @override
-  void setSessionActive(bool active) {}
+  void setSessionActive(bool active) => activeStates.add(active);
 
   @override
-  void unbindLockScreen() {}
+  void unbindLockScreen() {
+    onPlay = null;
+    onPause = null;
+    onNext = null;
+    onPrevious = null;
+  }
 }
 
 class _GatedInvalidationPlaybackDriver extends _RecordingPlaybackDriver {
@@ -552,17 +574,88 @@ void main() {
           playbackSpeed: 1.25,
         ),
         playbackDriver: playback,
-        usesMediaEngine: true,
+        hasVideo: true,
       );
 
       await notifier.startPlaying();
 
-      expect(
-        container.read(reviewDifficultPracticeProvider).usesMediaEngine,
-        isTrue,
-      );
+      expect(container.read(reviewDifficultPracticeProvider).hasVideo, isTrue);
       expect(playback.playedSentences.single.text, 'Video sentence');
       expect(playback.speeds, contains(1.25));
+    });
+
+    test('媒体练习绑定系统控制并随流程更新后台播放状态', () async {
+      final playback = _RecordingPlaybackDriver(
+        playbackDelay: const Duration(milliseconds: 1),
+      );
+      final container = ProviderContainer(
+        overrides: [
+          learningProgressNotifierProvider.overrideWith(
+            () => _RecordingLearningProgressNotifier(
+              const LearningProgressState(),
+            ),
+          ),
+          learningSessionProvider.overrideWith(
+            () => _PassiveLearningSession(
+              const LearningSessionState(
+                learningMode: LearningMode.reviewDifficultPractice,
+                audioItemId: 'audio-1',
+                playbackChain: LearningPlaybackChain.mediaEngine,
+              ),
+            ),
+          ),
+          analyticsOverride(),
+          ...studyTimeOverrides(),
+        ],
+      );
+      addTearDown(container.dispose);
+      _listenToReviewDifficultPractice(container);
+
+      final notifier = container.read(reviewDifficultPracticeProvider.notifier);
+      await notifier.initialize(
+        [
+          Sentence(
+            index: 0,
+            text: 'First sentence',
+            startTime: Duration.zero,
+            endTime: const Duration(seconds: 1),
+          ),
+          Sentence(
+            index: 1,
+            text: 'Second sentence',
+            startTime: const Duration(seconds: 2),
+            endTime: const Duration(seconds: 3),
+          ),
+        ],
+        settings: const DifficultPracticeSettings(
+          controlMode: ShadowingControlMode.manual,
+        ),
+        playbackDriver: playback,
+      );
+
+      final onPlay = playback.onPlay;
+      final onPause = playback.onPause;
+      final onNext = playback.onNext;
+      expect(onPlay, isNotNull);
+      expect(onPause, isNotNull);
+      expect(onNext, isNotNull);
+      if (onPlay == null || onPause == null || onNext == null) return;
+
+      await onPlay();
+      expect(playback.activeStates, contains(true));
+      expect(playback.activeStates.last, isFalse);
+
+      await onNext();
+      expect(
+        container.read(reviewDifficultPracticeProvider).currentSentenceIndex,
+        1,
+      );
+      await onPause();
+      expect(
+        container.read(reviewDifficultPracticeProvider).blindFlowState?.phase,
+        isA<BlindWaitingForUser>(),
+      );
+      expect(playback.activeStates.last, isFalse);
     });
 
     test('startPlaying 会异步保存当前句索引', () async {
@@ -770,14 +863,19 @@ void main() {
       _listenToReviewDifficultPractice(container);
 
       final notifier = container.read(reviewDifficultPracticeProvider.notifier);
-      await notifier.initialize([
-        Sentence(
-          index: 0,
-          text: 'First sentence',
-          startTime: Duration.zero,
-          endTime: const Duration(seconds: 1),
+      await notifier.initialize(
+        [
+          Sentence(
+            index: 0,
+            text: 'First sentence',
+            startTime: Duration.zero,
+            endTime: const Duration(seconds: 1),
+          ),
+        ],
+        playbackDriver: _RecordingPlaybackDriver(
+          playbackDelay: const Duration(milliseconds: 80),
         ),
-      ]);
+      );
 
       unawaited(notifier.startPlaying());
       await Future<void>.delayed(const Duration(milliseconds: 10));
@@ -832,7 +930,10 @@ void main() {
         ),
       ];
 
-      await notifier.initialize(sentences);
+      final playback = _RecordingPlaybackDriver(
+        playbackDelay: const Duration(milliseconds: 80),
+      );
+      await notifier.initialize(sentences, playbackDriver: playback);
       unawaited(notifier.startPlaying());
       await Future<void>.delayed(const Duration(milliseconds: 10));
       expect(
@@ -842,7 +943,7 @@ void main() {
 
       await notifier.disposePlayer();
 
-      await notifier.initialize(sentences);
+      await notifier.initialize(sentences, playbackDriver: playback);
       unawaited(notifier.startPlaying());
       await Future<void>.delayed(const Duration(milliseconds: 10));
 
@@ -903,7 +1004,7 @@ void main() {
           startTime: const Duration(seconds: 2),
           endTime: const Duration(seconds: 3),
         ),
-      ]);
+      ], playbackDriver: _RecordingPlaybackDriver());
 
       await notifier.updateSettings(
         container
@@ -952,14 +1053,19 @@ void main() {
       _listenToReviewDifficultPractice(container);
 
       final notifier = container.read(reviewDifficultPracticeProvider.notifier);
-      await notifier.initialize([
-        Sentence(
-          index: 0,
-          text: 'First sentence',
-          startTime: Duration.zero,
-          endTime: const Duration(seconds: 1),
+      await notifier.initialize(
+        [
+          Sentence(
+            index: 0,
+            text: 'First sentence',
+            startTime: Duration.zero,
+            endTime: const Duration(seconds: 1),
+          ),
+        ],
+        playbackDriver: _RecordingPlaybackDriver(
+          playbackDelay: const Duration(milliseconds: 80),
         ),
-      ]);
+      );
 
       notifier.enterAnnotationMode();
       await Future<void>.delayed(const Duration(milliseconds: 10));

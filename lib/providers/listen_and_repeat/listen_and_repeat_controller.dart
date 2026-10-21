@@ -30,7 +30,6 @@ import '../../services/study_session_timer.dart';
 import '../../services/study_time_service.dart';
 import '../audio_engine/audio_engine_provider.dart';
 import '../audio_engine/foreground_audio_engine_provider.dart';
-import '../audio_engine/foreground_sense_group_range_playback.dart';
 import '../daily_study_time_provider.dart';
 import '../study_duration_provider.dart';
 import '../study_stats_provider.dart';
@@ -67,18 +66,16 @@ class ListenAndRepeatController extends _$ListenAndRepeatController {
 
   /// 当前会话句子列表（包含页面级业务字段，如 bookmark 状态）
   List<Sentence> _sentences = [];
-  bool _usesMediaEngine = false;
-  int _mediaEntryGeneration = 0;
-  bool _mediaSessionReady = false;
+  bool _hasVideo = false;
   bool _sessionPrepared = false;
   MediaEngine? _ownedMediaEngine;
   int? _ownedMediaGeneration;
+  int? _suspendedListenersGeneration;
   SenseGroupRangePlayback? _senseGroupRangePlayback;
   late StudyTimeService _studyTimeService;
   StudySessionTimer? _studySessionTimer;
   Future<void>? _exitInFlight;
   String? _studyAudioItemId;
-  bool _manageForegroundAudioEngine = true;
   int _studySessionGeneration = 0;
   int _entryGeneration = 0;
 
@@ -144,88 +141,131 @@ class ListenAndRepeatController extends _$ListenAndRepeatController {
 
   // ========== 初始化 ==========
 
-  /// 初始化跟读任务（从 DB 读数据 + 启动学习计时 + 准备会话）
+  /// 通过 MediaEngine 初始化音频或视频跟读任务。
   ///
   /// [smartSpeed] 按当前难度/阶段算出的动态默认速度;用户未在偏好里设过速度时用它。
   /// 句间停顿/遍数等其余设置由按槽位偏好 [intensiveListenPrefsProvider] resolve 出。
-  Future<void> initialize({
-    required String audioItemId,
+  Future<MediaLoadResult> initialize({
+    required AudioItem mediaItem,
     required List<Sentence> allSentences,
     required bool isFreePlay,
     ListenAndRepeatScope scope = ListenAndRepeatScope.difficultOnly,
     double smartSpeed = 1.0,
     LearningStage? stage,
-    SentencePlaybackDriver? playbackDriver,
-    SenseGroupRangePlayback? senseGroupRangePlayback,
-    bool usesMediaEngine = false,
   }) async {
+    final generation = ++_entryGeneration;
+    bool isCurrentEntry() => generation == _entryGeneration;
+    final audioItemId = mediaItem.id;
     AppLogger.log(
       'L&R Session',
       'event=open_begin audioItemId=$audioItemId isFreePlay=$isFreePlay '
-          'usesMediaEngine=$usesMediaEngine',
+          'hasVideo=${mediaItem.isVideo} generation=$generation',
     );
     try {
-      await _initialize(
+      final practice = ref.read(listeningPracticeProvider.notifier);
+      await practice.pause();
+      if (!isCurrentEntry()) return MediaLoadResult.cancelled;
+      practice.suspendListeners();
+      _suspendedListenersGeneration = generation;
+
+      // 清除自由播放器遗留的系统媒体卡片，再由 MediaEngine 接管当前材料。
+      await ref.read(audioEngineProvider.notifier).stop();
+      if (!isCurrentEntry()) return MediaLoadResult.cancelled;
+
+      final settingsSlot = stageSlotKey(
+        StageSettingsSlots.listenAndRepeat,
+        stage ?? LearningStage.firstLearn,
+      );
+      final entrySettings = ref
+          .read(intensiveListenPrefsProvider.notifier)
+          .resolve(settingsSlot, smartSpeed: smartSpeed);
+      final mediaEngine = ref.read(mediaEngineProvider.notifier);
+      _ownedMediaEngine = mediaEngine;
+      _ownedMediaGeneration = generation;
+      final duration = await mediaEngine.loadMedia(
+        mediaItem,
+        entrySettings.playbackSpeed,
+      );
+      if (!isCurrentEntry()) {
+        await _releaseOwnedMediaEngine(mediaEngine, generation);
+        return MediaLoadResult.cancelled;
+      }
+      if (duration == null) {
+        AppLogger.log(
+          'L&R MediaEntry',
+          'event=load-failed audioItemId=$audioItemId generation=$generation',
+        );
+        await _releaseOwnedMediaEngine(mediaEngine, generation);
+        await _restoreListeningPractice(generation);
+        return MediaLoadResult.failure;
+      }
+
+      // 跟随精听约定，视频字幕轨默认关闭，由用户通过 CC 按需启用。
+      await mediaEngine.setSubtitleTrackData(null);
+      if (!isCurrentEntry()) {
+        await _releaseOwnedMediaEngine(mediaEngine, generation);
+        return MediaLoadResult.cancelled;
+      }
+
+      await _initializeSession(
+        entryGeneration: generation,
         audioItemId: audioItemId,
         allSentences: allSentences,
         isFreePlay: isFreePlay,
         scope: scope,
         smartSpeed: smartSpeed,
         stage: stage,
-        playbackDriver: playbackDriver,
-        senseGroupRangePlayback: senseGroupRangePlayback,
-        usesMediaEngine: usesMediaEngine,
+        mediaEngine: mediaEngine,
+        hasVideo: mediaItem.isVideo,
       );
+      if (!isCurrentEntry()) {
+        if (_sessionPrepared) {
+          await _exitLearningModeInternal(expectedGeneration: generation);
+        }
+        return MediaLoadResult.cancelled;
+      }
+      if (!_sessionPrepared) {
+        await _releaseOwnedMediaEngine(mediaEngine, generation);
+        await _restoreListeningPractice(generation);
+        return MediaLoadResult.cancelled;
+      }
+      return MediaLoadResult.ready;
     } catch (error, stackTrace) {
       AppLogger.log(
         'L&R Session',
-        'event=open_failed audioItemId=$audioItemId '
-            'usesMediaEngine=$usesMediaEngine error=$error\n$stackTrace',
+        'event=open_failed audioItemId=$audioItemId generation=$generation '
+            'error=$error\n$stackTrace',
       );
+      await _exitLearningModeInternal(expectedGeneration: generation);
       rethrow;
     }
   }
 
-  Future<void> _initialize({
+  Future<void> _initializeSession({
+    required int entryGeneration,
     required String audioItemId,
     required List<Sentence> allSentences,
     required bool isFreePlay,
+    required MediaEngine mediaEngine,
+    required bool hasVideo,
     ListenAndRepeatScope scope = ListenAndRepeatScope.difficultOnly,
     double smartSpeed = 1.0,
     LearningStage? stage,
-    SentencePlaybackDriver? playbackDriver,
-    SenseGroupRangePlayback? senseGroupRangePlayback,
-    bool usesMediaEngine = false,
   }) async {
-    final entryGeneration = ++_entryGeneration;
     bool isCurrentEntry() => entryGeneration == _entryGeneration;
     await _disposeStudySessionTimer();
     if (!isCurrentEntry()) return;
     _studySessionGeneration += 1;
     _studyAudioItemId = audioItemId;
-    _manageForegroundAudioEngine = !usesMediaEngine;
     _sessionPrepared = false;
     _isFreePlay = isFreePlay;
-    _usesMediaEngine = usesMediaEngine;
-    _senseGroupRangePlayback =
-        senseGroupRangePlayback ??
-        (usesMediaEngine
-            ? null
-            : ForegroundSenseGroupRangePlayback(
-                engine: ref.read(foregroundAudioEngineProvider.notifier),
-                playbackSpeed: () =>
-                    ref.read(listenAndRepeatSettingsProvider).playbackSpeed,
-              ));
-    _playback =
-        playbackDriver ??
-        ForegroundSentencePlaybackDriver(
-          ref.read(foregroundAudioEngineProvider.notifier),
-        );
-
-    // 录音类任务用前台引擎播放原句、不上锁屏。进任务停掉媒体引擎，清除上一个媒体任务
-    // （精听/盲听/Free Player）残留的锁屏/通知栏卡片（非idle→idle → stopService）。
-    await ref.read(audioEngineProvider.notifier).stop();
-    if (!isCurrentEntry()) return;
+    _hasVideo = hasVideo;
+    _playback = MediaSentencePlaybackDriver(mediaEngine);
+    _senseGroupRangePlayback = MediaSenseGroupRangePlayback(
+      engine: mediaEngine,
+      playbackSpeed: () =>
+          ref.read(listenAndRepeatSettingsProvider).playbackSpeed,
+    );
 
     // 从 DB 读难句索引
     final bookmarkDao = ref.read(bookmarkDaoProvider);
@@ -281,13 +321,6 @@ class ListenAndRepeatController extends _$ListenAndRepeatController {
     ref
         .read(listenAndRepeatSettingsProvider.notifier)
         .initialize(settings, slot);
-
-    // 跟读页面独占前台学习资源，避免自由播放器在页面内继续响应播放事件。
-    ref.read(listeningPracticeProvider.notifier).suspendListeners();
-    if (_manageForegroundAudioEngine) {
-      await _ensureForegroundAudioLoaded(audioItemId);
-      if (!isCurrentEntry()) return;
-    }
 
     final studySessionGeneration = _studySessionGeneration;
     ref
@@ -347,7 +380,7 @@ class ListenAndRepeatController extends _$ListenAndRepeatController {
       'L&R Session',
       'event=ready sessionId=${state.sessionId} audioItemId=$audioItemId '
           'sentenceCount=${practiceSentences.length} '
-          'isFreePlay=$isFreePlay usesMediaEngine=$usesMediaEngine',
+          'isFreePlay=$isFreePlay hasVideo=$hasVideo',
     );
     ref.read(analyticsServiceProvider).track(Events.learningStart, {
       ...ref.audioEventParams(audioItemId),
@@ -366,125 +399,26 @@ class ListenAndRepeatController extends _$ListenAndRepeatController {
     });
   }
 
-  /// 使用逐句精听同一 MediaEngine 初始化视频难句跟读。
-  Future<MediaLoadResult> initializeMedia({
-    required AudioItem mediaItem,
-    required List<Sentence> allSentences,
-    required bool isFreePlay,
-    ListenAndRepeatScope scope = ListenAndRepeatScope.difficultOnly,
-    double smartSpeed = 1.0,
-    LearningStage? stage,
-  }) async {
-    final generation = ++_mediaEntryGeneration;
-    bool isCurrent() => generation == _mediaEntryGeneration;
-    AppLogger.log(
-      'L&R MediaEntry',
-      '开始加载: mediaId=${mediaItem.id}, generation=$generation',
-    );
-
-    await ref.read(audioEngineProvider.notifier).stop();
-    if (!isCurrent()) return MediaLoadResult.cancelled;
-
-    final settingsSlot = stageSlotKey(
-      StageSettingsSlots.listenAndRepeat,
-      stage ?? LearningStage.firstLearn,
-    );
-    final settings = ref
-        .read(intensiveListenPrefsProvider.notifier)
-        .resolve(settingsSlot, smartSpeed: smartSpeed);
-    final mediaEngine = ref.read(mediaEngineProvider.notifier);
-    _ownedMediaEngine = mediaEngine;
-    _ownedMediaGeneration = generation;
-    final duration = await mediaEngine.loadMedia(
-      mediaItem,
-      settings.playbackSpeed,
-    );
-    if (!isCurrent()) {
-      AppLogger.log(
-        'L&R MediaEntry',
-        '加载结果已过期，释放媒体: mediaId=${mediaItem.id}, generation=$generation',
-      );
-      await _releaseOwnedMediaEngine(mediaEngine, generation);
-      return MediaLoadResult.cancelled;
-    }
-    if (duration == null) {
-      AppLogger.log(
-        'L&R MediaEntry',
-        '加载失败，释放媒体: mediaId=${mediaItem.id}, generation=$generation',
-      );
-      await _releaseOwnedMediaEngine(mediaEngine, generation);
-      return MediaLoadResult.failure;
-    }
-
-    // 与逐句精听的呈现规则一致：视频字幕轨默认关闭，用户点 CC 后再按需加载。
-    await mediaEngine.setSubtitleTrackData(null);
-    if (!isCurrent()) {
-      AppLogger.log(
-        'L&R MediaEntry',
-        '字幕初始化后任务已取消: mediaId=${mediaItem.id}, generation=$generation',
-      );
-      await _releaseOwnedMediaEngine(mediaEngine, generation);
-      return MediaLoadResult.cancelled;
-    }
-
-    final senseGroupRangePlayback = MediaSenseGroupRangePlayback(
-      engine: mediaEngine,
-      playbackSpeed: () =>
-          ref.read(listenAndRepeatSettingsProvider).playbackSpeed,
-    );
-    await initialize(
-      audioItemId: mediaItem.id,
-      allSentences: allSentences,
-      isFreePlay: isFreePlay,
-      scope: scope,
-      smartSpeed: smartSpeed,
-      stage: stage,
-      playbackDriver: MediaSentencePlaybackDriver(mediaEngine),
-      senseGroupRangePlayback: senseGroupRangePlayback,
-      usesMediaEngine: true,
-    );
-    if (!isCurrent()) {
-      AppLogger.log(
-        'L&R MediaEntry',
-        '业务初始化后任务已取消: mediaId=${mediaItem.id}, generation=$generation',
-      );
-      await exitLearningMode();
-      return MediaLoadResult.cancelled;
-    }
-    _mediaSessionReady = true;
-    AppLogger.log(
-      'L&R MediaEntry',
-      '加载完成: mediaId=${mediaItem.id}, generation=$generation',
-    );
-    return MediaLoadResult.ready;
-  }
-
-  /// 取消正在进入的视频跟读；迟到结果由 generation guard 丢弃。
-  Future<void> cancelMediaEntry() async {
+  /// 取消媒体跟读进入流程；迟到的初始化结果不得重新建立会话。
+  Future<void> cancelEntry() async {
+    final ownedGeneration = _ownedMediaGeneration;
     ++_entryGeneration;
-    final generation = ++_mediaEntryGeneration;
-    AppLogger.log(
-      'L&R MediaEntry',
-      '取消进入: generation=$generation, ready=$_mediaSessionReady',
-    );
-    if (_mediaSessionReady) {
-      await exitLearningMode();
+    AppLogger.log('L&R Session', 'event=startup_cancelled');
+    if (ownedGeneration == null) {
+      final suspendedGeneration = _suspendedListenersGeneration;
+      if (suspendedGeneration != null) {
+        await _restoreListeningPractice(suspendedGeneration);
+      }
+      return;
+    }
+    if (_sessionPrepared || _studyAudioItemId != null) {
+      await _exitLearningModeInternal(expectedGeneration: ownedGeneration);
     } else {
       final mediaEngine = _ownedMediaEngine;
-      final mediaGeneration = _ownedMediaGeneration;
-      if (mediaEngine != null && mediaGeneration != null) {
-        await _releaseOwnedMediaEngine(mediaEngine, mediaGeneration);
+      if (mediaEngine != null) {
+        await _releaseOwnedMediaEngine(mediaEngine, ownedGeneration);
       }
-    }
-  }
-
-  /// 取消音频或视频跟读进入流程；迟到的初始化结果不得重新建立会话。
-  Future<void> cancelEntry() async {
-    ++_entryGeneration;
-    ++_mediaEntryGeneration;
-    AppLogger.log('L&R Session', 'event=startup_cancelled');
-    if (_sessionPrepared || _studyAudioItemId != null) {
-      await exitLearningMode();
+      await _restoreListeningPractice(ownedGeneration);
     }
   }
 
@@ -515,7 +449,7 @@ class ListenAndRepeatController extends _$ListenAndRepeatController {
   /// 开始播放
   Future<void> startPlaying() async => _engine.startPlaying();
 
-  /// 将速度应用到当前实际播放驱动，音频仍委托原前台引擎。
+  /// 将速度应用到当前实际播放驱动。
   Future<void> applyPlaybackSpeed(double speed) => _playback.setSpeed(speed);
 
   /// 进入等待用户操作状态
@@ -717,21 +651,6 @@ class ListenAndRepeatController extends _$ListenAndRepeatController {
   /// 句子列表
   List<Sentence> get sentences => List.unmodifiable(_sentences);
 
-  /// 确保前台音频引擎已经加载当前学习材料。
-  Future<void> _ensureForegroundAudioLoaded(String audioItemId) async {
-    final engineState = ref.read(foregroundAudioEngineProvider);
-    if (engineState.currentAudioId == audioItemId && !engineState.isLoading) {
-      return;
-    }
-    final practice = ref.read(listeningPracticeProvider);
-    final audioItem = practice.currentAudioItem;
-    if (audioItem != null && audioItem.id == audioItemId) {
-      await ref
-          .read(foregroundAudioEngineProvider.notifier)
-          .loadAudio(audioItem, practice.settings.playbackSpeed);
-    }
-  }
-
   /// 仅释放仍由指定 generation 持有的媒体，避免旧异步回调释放新会话。
   Future<void> _releaseOwnedMediaEngine(
     MediaEngine mediaEngine,
@@ -744,6 +663,31 @@ class ListenAndRepeatController extends _$ListenAndRepeatController {
     _ownedMediaEngine = null;
     _ownedMediaGeneration = null;
     await mediaEngine.releaseFromScreen();
+  }
+
+  /// 恢复本次进入时暂停的自由播放器监听，并同步练习期间的书签变化。
+  Future<void> _restoreListeningPractice(int generation) async {
+    if (_suspendedListenersGeneration != generation) return;
+    _suspendedListenersGeneration = null;
+    final practice = ref.read(listeningPracticeProvider.notifier);
+    try {
+      practice.resumeListeners();
+    } catch (error, stackTrace) {
+      AppLogger.log(
+        'StudyExit',
+        'listen and repeat listener restore failed '
+            'generation=$generation error=$error\n$stackTrace',
+      );
+    }
+    try {
+      await practice.syncBookmarks();
+    } catch (error, stackTrace) {
+      AppLogger.log(
+        'StudyExit',
+        'listen and repeat bookmark sync failed '
+            'generation=$generation error=$error\n$stackTrace',
+      );
+    }
   }
 
   /// 记录一次跟读录音的有效输出时长，并丢弃退出后的迟到回调。
@@ -800,14 +744,19 @@ class ListenAndRepeatController extends _$ListenAndRepeatController {
     }
   }
 
-  Future<void> _exitLearningModeInternal() async {
+  Future<void> _exitLearningModeInternal({int? expectedGeneration}) async {
+    if (expectedGeneration != null &&
+        _ownedMediaGeneration != expectedGeneration &&
+        _suspendedListenersGeneration != expectedGeneration) {
+      return;
+    }
     final audioItemId = _studyAudioItemId;
     final wasPrepared = _sessionPrepared;
     final studyDuration = elapsed;
     final timer = _studySessionTimer;
     final sessionId = state.sessionId;
-    final usesMediaEngine = _usesMediaEngine;
-    final manageForegroundAudioEngine = _manageForegroundAudioEngine;
+    final mediaEngine = _ownedMediaEngine;
+    final mediaGeneration = _ownedMediaGeneration;
     AppLogger.log(
       'L&R Session',
       'event=close_begin sessionId=$sessionId '
@@ -815,9 +764,10 @@ class ListenAndRepeatController extends _$ListenAndRepeatController {
           'timerReady=${timer != null}',
     );
 
-    _entryGeneration += 1;
+    if (expectedGeneration == null || _entryGeneration == expectedGeneration) {
+      _entryGeneration += 1;
+    }
     _studySessionGeneration += 1;
-    _mediaEntryGeneration += 1;
 
     if (wasPrepared && audioItemId != null) {
       ref.read(analyticsServiceProvider).track(Events.listenRepeatComplete, {
@@ -896,37 +846,20 @@ class ListenAndRepeatController extends _$ListenAndRepeatController {
     ref
         .read(speechRecordingControllerProvider.notifier)
         .setRecordingCompletionHandler(null);
-    if (manageForegroundAudioEngine) {
-      final foreground = ref.read(foregroundAudioEngineProvider.notifier);
-      try {
-        await foreground.clearClip();
-      } catch (error, stackTrace) {
-        AppLogger.log(
-          'StudyExit',
-          'listen and repeat foreground clip cleanup failed '
-              'error=$error\n$stackTrace',
-        );
-      }
-      try {
-        await foreground.stop();
-      } catch (error, stackTrace) {
-        AppLogger.log(
-          'StudyExit',
-          'listen and repeat foreground playback cleanup failed '
-              'error=$error\n$stackTrace',
-        );
-      }
-    }
-
-    final practice = ref.read(listeningPracticeProvider.notifier);
-    practice.resumeListeners();
     try {
-      await practice.syncBookmarks();
+      if (mediaEngine != null && mediaGeneration != null) {
+        await _releaseOwnedMediaEngine(mediaEngine, mediaGeneration);
+      }
     } catch (error, stackTrace) {
       AppLogger.log(
         'StudyExit',
-        'listen and repeat bookmark sync failed error=$error\n$stackTrace',
+        'listen and repeat media cleanup failed error=$error\n$stackTrace',
       );
+    }
+    final restoreGeneration =
+        expectedGeneration ?? _suspendedListenersGeneration;
+    if (restoreGeneration != null) {
+      await _restoreListeningPractice(restoreGeneration);
     }
 
     ref.invalidate(dailyStudyTimeProvider);
@@ -941,28 +874,9 @@ class ListenAndRepeatController extends _$ListenAndRepeatController {
       );
     }
 
-    if (usesMediaEngine) {
-      final mediaEngine = _ownedMediaEngine;
-      final mediaGeneration = _ownedMediaGeneration;
-      if (mediaEngine != null && mediaGeneration != null) {
-        try {
-          await _releaseOwnedMediaEngine(mediaEngine, mediaGeneration);
-        } catch (error, stackTrace) {
-          AppLogger.log(
-            'StudyExit',
-            'listen and repeat media cleanup failed '
-                'error=$error\n$stackTrace',
-          );
-        }
-      }
-    }
-
-    _mediaSessionReady = false;
-    _usesMediaEngine = false;
-    _ownedMediaEngine = null;
-    _ownedMediaGeneration = null;
     _senseGroupRangePlayback = null;
     _sessionPrepared = false;
+    _hasVideo = false;
     _studyAudioItemId = null;
     _sentences = [];
     state = const ListenAndRepeatSessionState();
@@ -986,7 +900,7 @@ class ListenAndRepeatController extends _$ListenAndRepeatController {
       flowState,
       isFreePlay: _isFreePlay,
       currentSentenceBookmarked: isBookmarked,
-      usesMediaEngine: _usesMediaEngine,
+      hasVideo: _hasVideo,
     );
     final interval = flowState.phase is WaitingInterval;
     final active = flowState.phase is PlayingPrompt || interval;

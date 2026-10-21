@@ -33,7 +33,6 @@ import '../providers/listen_and_repeat/listen_and_repeat_controller.dart';
 import '../providers/listen_and_repeat/listen_and_repeat_phase.dart';
 import '../providers/listen_and_repeat/listen_and_repeat_settings_provider.dart';
 import '../providers/listen_and_repeat/listen_and_repeat_session_state.dart';
-import '../providers/audio_engine/foreground_audio_engine_provider.dart';
 import '../providers/media_engine/media_engine_provider.dart';
 import '../providers/repeat_flow/repeat_flow_state.dart';
 import '../providers/sentence_ai_provider.dart';
@@ -66,7 +65,7 @@ class ListenAndRepeatPlayerScreen extends ConsumerStatefulWidget {
   /// 音频项 ID
   final String audioItemId;
 
-  /// 视频入口的延迟启动命令；音频或已初始化路由为 null。
+  /// 媒体入口的延迟启动命令；普通或已初始化路由为 null。
   final MediaLearningStartup? mediaStartup;
 
   const ListenAndRepeatPlayerScreen({
@@ -84,22 +83,12 @@ class ListenAndRepeatPlayerScreen extends ConsumerStatefulWidget {
 class _ListenAndRepeatPlayerScreenState
     extends ConsumerState<ListenAndRepeatPlayerScreen>
     with WakelockMixin {
-  WordHighlightSource _wordHighlightSource(bool usesMediaEngine) {
-    if (usesMediaEngine) {
-      final engine = ref.read(mediaEngineProvider.notifier);
-      return WordHighlightSource(
-        audioItemId: widget.audioItemId,
-        positionStream: engine.wordHighlightPositionStream,
-        currentPosition: engine.wordHighlightPosition,
-        playbackStatus: engine.wordHighlightPlaybackStatus,
-        playbackStatusStream: engine.wordHighlightPlaybackStatusStream,
-      );
-    }
-    final engine = ref.read(foregroundAudioEngineProvider.notifier);
+  WordHighlightSource _wordHighlightSource() {
+    final engine = ref.read(mediaEngineProvider.notifier);
     return WordHighlightSource(
       audioItemId: widget.audioItemId,
-      positionStream: engine.absolutePositionStream,
-      currentPosition: engine.absoluteCurrentPosition,
+      positionStream: engine.wordHighlightPositionStream,
+      currentPosition: engine.wordHighlightPosition,
       playbackStatus: engine.wordHighlightPlaybackStatus,
       playbackStatusStream: engine.wordHighlightPlaybackStatusStream,
     );
@@ -231,7 +220,7 @@ class _ListenAndRepeatPlayerScreenState
     // initialize(settings) 会先发布偏好，再 prepare RepeatFlowEngine；此窗口内
     // 不得读取尚未赋值的 engine.config。
     if (prev == null || _isExiting || !controller.isSessionPrepared) return;
-    // 速度变化无需重启当前句：直接把新速度推给 AudioEngine 即可。
+    // 速度变化无需重启当前句：直接把新速度推给 MediaEngine 即可。
     // 其它字段变化仍走 applySettingsChange（会重建当前句配置）。
     // IntensiveListenSettings 无 == 重载，逐字段比对（除 speed 外全相等即"仅速度变了"）。
     final speedOnly =
@@ -527,7 +516,7 @@ class _ListenAndRepeatPlayerScreenState
               : false,
           s.recordingScore,
           s.currentSentenceBookmarked,
-          s.usesMediaEngine,
+          s.hasVideo,
         ),
       ),
     );
@@ -603,7 +592,7 @@ class _ListenAndRepeatPlayerScreenState
               }
             },
             child: PracticeMediaPresentationHost(
-              enabled: ctrlState.usesMediaEngine,
+              enabled: ctrlState.hasVideo,
               audioItemId: widget.audioItemId,
               isPlaying: isPlaying,
               onPlayPause: _handleCenter,
@@ -661,7 +650,7 @@ class _ListenAndRepeatPlayerScreenState
                           key: _dictPanelHostKey,
                           child: Column(
                             children: [
-                              if (ctrlState.usesMediaEngine) mediaSurface,
+                              if (ctrlState.hasVideo) mediaSurface,
                               PracticeProgressBar(
                                 current: ctrlState.sentenceIndex + 1,
                                 total: ctrlState.totalSentences,
@@ -716,9 +705,7 @@ class _ListenAndRepeatPlayerScreenState
                                         sentenceIndex ==
                                         ctrlState.sentenceIndex;
                                     final wordHighlightSource = isActive
-                                        ? _wordHighlightSource(
-                                            ctrlState.usesMediaEngine,
-                                          )
+                                        ? _wordHighlightSource()
                                         : null;
                                     return Column(
                                       children: [

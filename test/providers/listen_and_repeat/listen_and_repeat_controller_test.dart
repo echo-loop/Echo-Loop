@@ -317,7 +317,7 @@ void main() {
         listenAndRepeatControllerProvider.notifier,
       );
 
-      final result = await mediaController.initializeMedia(
+      final result = await mediaController.initialize(
         mediaItem: mediaItem(),
         allSentences: createTestSentences(count: 2),
         isFreePlay: false,
@@ -337,13 +337,13 @@ void main() {
         listenAndRepeatControllerProvider.notifier,
       );
 
-      final entry = mediaController.initializeMedia(
+      final entry = mediaController.initialize(
         mediaItem: mediaItem(),
         allSentences: createTestSentences(count: 2),
         isFreePlay: false,
       );
       await mediaEngine.loadStarted.future;
-      await mediaController.cancelMediaEntry();
+      await mediaController.cancelEntry();
       mediaEngine.blockingLoad?.complete(const Duration(minutes: 1));
 
       expect(await entry, MediaLoadResult.cancelled);
@@ -359,7 +359,7 @@ void main() {
         listenAndRepeatControllerProvider.notifier,
       );
 
-      final result = await mediaController.initializeMedia(
+      final result = await mediaController.initialize(
         mediaItem: mediaItem(),
         allSentences: createTestSentences(count: 2),
         isFreePlay: false,
@@ -367,14 +367,14 @@ void main() {
       expect(result, MediaLoadResult.ready);
       expect(mediaEngine.subtitleCalls, 1);
       expect(
-        mediaContainer.read(listenAndRepeatControllerProvider).usesMediaEngine,
+        mediaContainer.read(listenAndRepeatControllerProvider).hasVideo,
         isTrue,
       );
 
       await mediaController.exitLearningMode();
 
       expect(
-        mediaContainer.read(listenAndRepeatControllerProvider).usesMediaEngine,
+        mediaContainer.read(listenAndRepeatControllerProvider).hasVideo,
         isFalse,
       );
       expect(mediaEngine.releaseCalls, 1);
@@ -389,7 +389,7 @@ void main() {
       );
 
       expect(
-        await mediaController.initializeMedia(
+        await mediaController.initialize(
           mediaItem: mediaItem(),
           allSentences: createTestSentences(count: 2),
           isFreePlay: false,
@@ -422,7 +422,7 @@ void main() {
         listenAndRepeatControllerProvider.notifier,
       );
       expect(
-        await mediaController.initializeMedia(
+        await mediaController.initialize(
           mediaItem: mediaItem(),
           allSentences: createTestSentences(count: 2),
           isFreePlay: false,
@@ -494,6 +494,7 @@ void main() {
             () => _InstantAudioEngine(),
           ),
           audioEngineProvider.overrideWith(TestAudioEngine.new),
+          mediaEngineProvider.overrideWith(() => _ControlledMediaEngine()),
           bookmarkDaoProvider.overrideWithValue(bookmarkDao),
           learningProgressNotifierProvider.overrideWith(
             TestLearningProgressNotifier.new,
@@ -514,7 +515,12 @@ void main() {
       );
 
       await statsController.initialize(
-        audioItemId: 'test-audio',
+        mediaItem: model.AudioItem(
+          id: 'test-audio',
+          name: 'Test Audio',
+          audioPath: 'test-audio.mp3',
+          addedDate: DateTime(2026, 8, 3),
+        ),
         allSentences: createTestSentences(count: 1),
         isFreePlay: false,
         scope: ListenAndRepeatScope.fullText,
@@ -796,6 +802,7 @@ void main() {
             () => _InstantAudioEngine(),
           ),
           audioEngineProvider.overrideWith(TestAudioEngine.new),
+          mediaEngineProvider.overrideWith(() => _ControlledMediaEngine()),
           bookmarkDaoProvider.overrideWithValue(bookmarkDao),
           learningProgressNotifierProvider.overrideWith(
             TestLearningProgressNotifier.new,
@@ -815,10 +822,14 @@ void main() {
         listenAndRepeatControllerProvider.notifier,
       );
       await initializedController.initialize(
-        audioItemId: 'test-audio',
+        mediaItem: model.AudioItem(
+          id: 'test-audio',
+          name: 'Test Audio',
+          audioPath: 'test-audio.mp3',
+          addedDate: DateTime(2026, 8, 3),
+        ),
         allSentences: createTestSentences(count: 2),
         isFreePlay: false,
-        usesMediaEngine: true,
       );
 
       expect(
@@ -845,6 +856,7 @@ void main() {
             () => _InstantAudioEngine(),
           ),
           audioEngineProvider.overrideWith(TestAudioEngine.new),
+          mediaEngineProvider.overrideWith(() => _ControlledMediaEngine()),
           bookmarkDaoProvider.overrideWithValue(bookmarkDao),
           learningProgressNotifierProvider.overrideWith(
             TestLearningProgressNotifier.new,
@@ -863,16 +875,21 @@ void main() {
       await fullTextContainer
           .read(listenAndRepeatControllerProvider.notifier)
           .initialize(
-            audioItemId: 'test-audio',
+            mediaItem: model.AudioItem(
+              id: 'test-audio',
+              name: 'Test Audio',
+              audioPath: 'test-audio.mp3',
+              addedDate: DateTime(2026, 8, 3),
+            ),
             allSentences: createTestSentences(count: 2),
             isFreePlay: false,
             scope: ListenAndRepeatScope.fullText,
-            usesMediaEngine: true,
           );
 
       final state = fullTextContainer.read(listenAndRepeatControllerProvider);
       expect(state.totalSentences, 2);
       expect(state.sentenceIndex, 0);
+      expect(state.hasVideo, isFalse);
     });
 
     test('切句后旧回调被丢弃', () async {

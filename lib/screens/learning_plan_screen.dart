@@ -33,7 +33,6 @@ import '../providers/blind_listen_prefs_provider.dart';
 import '../providers/retell_prefs_provider.dart';
 import '../providers/difficult_practice_prefs_provider.dart';
 import '../providers/listen_and_repeat/listen_and_repeat_controller.dart';
-import '../providers/learning_session/review_difficult_practice_provider.dart';
 import '../providers/listening_practice/listening_practice_provider.dart';
 import '../providers/new_user_guide_provider.dart';
 import '../providers/settings_provider.dart';
@@ -1085,47 +1084,20 @@ class _LearningPlanScreenState extends ConsumerState<LearningPlanScreen> {
       widget.collectionId,
       widget.audioItemId,
     );
-    if (audioItem.isVideo) {
-      context.push(
-        route,
-        extra: MediaLearningStartup(
-          loadKey:
-              '${audioItem.id}:review-difficult:${stage?.key ?? 'current'}:planned',
-          load: () => ref
-              .read(learningSessionProvider.notifier)
-              .enterMediaReviewDifficultPracticeMode(
-                audioItem,
-                sentences,
-                settings: settings,
-                stage: stage,
-              ),
-          cancel: () => ref
-              .read(learningSessionProvider.notifier)
-              .cancelMediaReviewDifficultPracticeEntry(),
-        ),
-      );
-      return;
-    }
-
     context.push(
       route,
       extra: MediaLearningStartup(
         loadKey:
-            '${widget.audioItemId}:review-difficult:${stage?.key ?? 'current'}:planned',
-        showVideoLoading: false,
-        load: () async {
-          await ref
-              .read(learningSessionProvider.notifier)
-              .enterReviewDifficultPracticeMode(
-                widget.audioItemId,
-                sentences,
-                settings: settings,
-                stage: stage,
-              );
-          return ref.read(reviewDifficultPracticeProvider).totalSentences > 0
-              ? MediaLoadResult.ready
-              : MediaLoadResult.cancelled;
-        },
+            '${audioItem.id}:review-difficult:${stage?.key ?? 'current'}:planned',
+        showVideoLoading: audioItem.isVideo,
+        load: () => ref
+            .read(learningSessionProvider.notifier)
+            .enterReviewDifficultPracticeMode(
+              audioItem,
+              sentences,
+              settings: settings,
+              stage: stage,
+            ),
         cancel: () => ref
             .read(learningSessionProvider.notifier)
             .cancelReviewDifficultPracticeEntry(),
@@ -1547,32 +1519,6 @@ class _LearningPlanScreenState extends ConsumerState<LearningPlanScreen> {
           );
           return;
         }
-        if (audioItem.isVideo) {
-          if (!context.mounted) return;
-          context.push(
-            AppRoutes.listenAndRepeatPlayer(
-              widget.collectionId,
-              widget.audioItemId,
-            ),
-            extra: MediaLearningStartup(
-              loadKey: '${audioItem.id}:listen-and-repeat:planned',
-              load: () => ref
-                  .read(listenAndRepeatControllerProvider.notifier)
-                  .initializeMedia(
-                    mediaItem: audioItem,
-                    allSentences: sentences,
-                    isFreePlay: false,
-                    scope: scope,
-                    smartSpeed: smartSpeed,
-                    stage: stage,
-                  ),
-              cancel: () => ref
-                  .read(listenAndRepeatControllerProvider.notifier)
-                  .cancelMediaEntry(),
-            ),
-          );
-          return;
-        }
         context.push(
           AppRoutes.listenAndRepeatPlayer(
             widget.collectionId,
@@ -1580,23 +1526,17 @@ class _LearningPlanScreenState extends ConsumerState<LearningPlanScreen> {
           ),
           extra: MediaLearningStartup(
             loadKey: '${audioItem.id}:listen-and-repeat:planned',
-            showVideoLoading: false,
-            load: () async {
-              final controller = ref.read(
-                listenAndRepeatControllerProvider.notifier,
-              );
-              await controller.initialize(
-                audioItemId: widget.audioItemId,
-                allSentences: sentences,
-                isFreePlay: false,
-                scope: scope,
-                smartSpeed: smartSpeed,
-                stage: stage,
-              );
-              return controller.isSessionPrepared
-                  ? MediaLoadResult.ready
-                  : MediaLoadResult.cancelled;
-            },
+            showVideoLoading: audioItem.isVideo,
+            load: () => ref
+                .read(listenAndRepeatControllerProvider.notifier)
+                .initialize(
+                  mediaItem: audioItem,
+                  allSentences: sentences,
+                  isFreePlay: false,
+                  scope: scope,
+                  smartSpeed: smartSpeed,
+                  stage: stage,
+                ),
             cancel: () => ref
                 .read(listenAndRepeatControllerProvider.notifier)
                 .cancelEntry(),
@@ -2973,69 +2913,33 @@ class _FirstStudySection extends ConsumerWidget {
           );
           return;
         }
-        if (audioItem.isVideo) {
-          if (!context.mounted) return;
-          context.push(
-            AppRoutes.listenAndRepeatPlayer(collectionId, audioItemId),
-            extra: MediaLearningStartup(
-              loadKey: '${audioItem.id}:listen-and-repeat:free-play',
-              load: () async {
-                final result = await ref
-                    .read(listenAndRepeatControllerProvider.notifier)
-                    .initializeMedia(
-                      mediaItem: audioItem,
-                      allSentences: sentences,
-                      isFreePlay: true,
-                      scope: scope,
-                      smartSpeed: smartSpeed,
-                    );
-                if (result == MediaLoadResult.ready) {
-                  ref
-                      .read(learningSessionProvider.notifier)
-                      .setCatchUp(
-                        LearningStage.firstLearn,
-                        SubStageType.listenAndRepeat,
-                      );
-                }
-                return result;
-              },
-              cancel: () => ref
-                  .read(listenAndRepeatControllerProvider.notifier)
-                  .cancelMediaEntry(),
-            ),
-          );
-          return;
-        }
         context.push(
           AppRoutes.listenAndRepeatPlayer(collectionId, audioItemId),
           extra: MediaLearningStartup(
             loadKey: '${audioItem.id}:listen-and-repeat:free-play',
-            showVideoLoading: false,
             load: () async {
-              final controller = ref.read(
-                listenAndRepeatControllerProvider.notifier,
-              );
-              await controller.initialize(
-                audioItemId: audioItemId,
-                allSentences: sentences,
-                isFreePlay: true,
-                scope: scope,
-                smartSpeed: smartSpeed,
-              );
-              if (!controller.isSessionPrepared) {
-                return MediaLoadResult.cancelled;
-              }
+              final result = await ref
+                  .read(listenAndRepeatControllerProvider.notifier)
+                  .initialize(
+                    mediaItem: audioItem,
+                    allSentences: sentences,
+                    isFreePlay: true,
+                    scope: scope,
+                    smartSpeed: smartSpeed,
+                  );
+              if (result != MediaLoadResult.ready) return result;
               ref
                   .read(learningSessionProvider.notifier)
                   .setCatchUp(
                     LearningStage.firstLearn,
                     SubStageType.listenAndRepeat,
                   );
-              return MediaLoadResult.ready;
+              return result;
             },
             cancel: () => ref
                 .read(listenAndRepeatControllerProvider.notifier)
                 .cancelEntry(),
+            showVideoLoading: audioItem.isVideo,
           ),
         );
       },
@@ -3769,67 +3673,30 @@ class _ReviewRoundSection extends ConsumerWidget {
         final settings = ref
             .read(difficultPracticePrefsProvider.notifier)
             .resolve(slot, smartSpeed: smartSpeed);
-        if (audioItem.isVideo) {
-          if (!context.mounted) return;
-          context.push(
-            AppRoutes.reviewDifficultPractice(collectionId, audioItemId),
-            extra: MediaLearningStartup(
-              loadKey:
-                  '${audioItem.id}:review-difficult:${review.stage.key}:free-play',
-              load: () async {
-                final result = await ref
-                    .read(learningSessionProvider.notifier)
-                    .enterMediaReviewDifficultPracticeMode(
-                      audioItem,
-                      sentences,
-                      isFreePlay: true,
-                      settings: settings,
-                      stage: review.stage,
-                    );
-                if (result == MediaLoadResult.ready) {
-                  ref
-                      .read(learningSessionProvider.notifier)
-                      .setCatchUp(
-                        review.stage,
-                        SubStageType.reviewDifficultPractice,
-                      );
-                }
-                return result;
-              },
-              cancel: () => ref
-                  .read(learningSessionProvider.notifier)
-                  .cancelMediaReviewDifficultPracticeEntry(),
-            ),
-          );
-          return;
-        }
         context.push(
           AppRoutes.reviewDifficultPractice(collectionId, audioItemId),
           extra: MediaLearningStartup(
             loadKey:
                 '${audioItem.id}:review-difficult:${review.stage.key}:free-play',
-            showVideoLoading: false,
+            showVideoLoading: audioItem.isVideo,
             load: () async {
-              await ref
+              final result = await ref
                   .read(learningSessionProvider.notifier)
                   .enterReviewDifficultPracticeMode(
-                    audioItemId,
+                    audioItem,
                     sentences,
                     isFreePlay: true,
                     settings: settings,
                     stage: review.stage,
                   );
-              final player = ref.read(reviewDifficultPracticeProvider);
-              if (player.totalSentences == 0) {
-                return MediaLoadResult.cancelled;
-              }
+              if (result != MediaLoadResult.ready) return result;
               ref
                   .read(learningSessionProvider.notifier)
                   .setCatchUp(
                     review.stage,
                     SubStageType.reviewDifficultPractice,
                   );
-              return MediaLoadResult.ready;
+              return result;
             },
             cancel: () => ref
                 .read(learningSessionProvider.notifier)

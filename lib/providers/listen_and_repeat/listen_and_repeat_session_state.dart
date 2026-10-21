@@ -18,8 +18,8 @@ class ListenAndRepeatSessionState extends RepeatFlowState {
   /// 当前句是否仍被标记为难句
   final bool currentSentenceBookmarked;
 
-  /// 当前会话是否使用共享 MediaEngine（视频材料）。
-  final bool usesMediaEngine;
+  /// 当前媒体是否为视频；播放始终由共享 MediaEngine 提供。
+  final bool hasVideo;
 
   const ListenAndRepeatSessionState({
     super.sessionId,
@@ -38,7 +38,7 @@ class ListenAndRepeatSessionState extends RepeatFlowState {
     super.isTransitioning,
     this.isFreePlay = false,
     this.currentSentenceBookmarked = false,
-    this.usesMediaEngine = false,
+    this.hasVideo = false,
   });
 
   /// 从 [RepeatFlowState] 和 [isFreePlay] 构建
@@ -46,7 +46,7 @@ class ListenAndRepeatSessionState extends RepeatFlowState {
     RepeatFlowState flow, {
     bool isFreePlay = false,
     bool currentSentenceBookmarked = false,
-    bool usesMediaEngine = false,
+    bool hasVideo = false,
   }) {
     return ListenAndRepeatSessionState(
       sessionId: flow.sessionId,
@@ -65,7 +65,7 @@ class ListenAndRepeatSessionState extends RepeatFlowState {
       isTransitioning: flow.isTransitioning,
       isFreePlay: isFreePlay,
       currentSentenceBookmarked: currentSentenceBookmarked,
-      usesMediaEngine: usesMediaEngine,
+      hasVideo: hasVideo,
     );
   }
 
@@ -87,7 +87,7 @@ class ListenAndRepeatSessionState extends RepeatFlowState {
     bool? isTransitioning,
     bool? isFreePlay,
     bool? currentSentenceBookmarked,
-    bool? usesMediaEngine,
+    bool? hasVideo,
   }) {
     return ListenAndRepeatSessionState(
       sessionId: sessionId ?? this.sessionId,
@@ -112,7 +112,7 @@ class ListenAndRepeatSessionState extends RepeatFlowState {
       isFreePlay: isFreePlay ?? this.isFreePlay,
       currentSentenceBookmarked:
           currentSentenceBookmarked ?? this.currentSentenceBookmarked,
-      usesMediaEngine: usesMediaEngine ?? this.usesMediaEngine,
+      hasVideo: hasVideo ?? this.hasVideo,
     );
   }
 }

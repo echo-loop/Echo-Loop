@@ -32,7 +32,6 @@ import '../providers/learning_progress_provider.dart';
 import '../providers/learning_settings_provider.dart';
 import '../providers/learning_session/learning_session_provider.dart';
 import '../providers/learning_session/review_difficult_practice_provider.dart';
-import '../providers/audio_engine/foreground_audio_engine_provider.dart';
 import '../providers/media_engine/media_engine_provider.dart';
 import '../providers/speech/speech_recording_controller.dart';
 import '../utils/wakelock_mixin.dart';
@@ -71,7 +70,7 @@ class ReviewDifficultPracticeScreen extends ConsumerStatefulWidget {
   /// 音频项 ID
   final String audioItemId;
 
-  /// 视频入口的延迟启动命令；音频或已初始化路由为 null。
+  /// 媒体入口的延迟启动命令；普通或已初始化路由为 null。
   final MediaLearningStartup? mediaStartup;
 
   const ReviewDifficultPracticeScreen({
@@ -89,22 +88,12 @@ class ReviewDifficultPracticeScreen extends ConsumerStatefulWidget {
 class _ReviewDifficultPracticeScreenState
     extends ConsumerState<ReviewDifficultPracticeScreen>
     with WakelockMixin {
-  WordHighlightSource _wordHighlightSource(bool usesMediaEngine) {
-    if (usesMediaEngine) {
-      final engine = ref.read(mediaEngineProvider.notifier);
-      return WordHighlightSource(
-        audioItemId: widget.audioItemId,
-        positionStream: engine.wordHighlightPositionStream,
-        currentPosition: engine.wordHighlightPosition,
-        playbackStatus: engine.wordHighlightPlaybackStatus,
-        playbackStatusStream: engine.wordHighlightPlaybackStatusStream,
-      );
-    }
-    final engine = ref.read(foregroundAudioEngineProvider.notifier);
+  WordHighlightSource _wordHighlightSource() {
+    final engine = ref.read(mediaEngineProvider.notifier);
     return WordHighlightSource(
       audioItemId: widget.audioItemId,
-      positionStream: engine.absolutePositionStream,
-      currentPosition: engine.absoluteCurrentPosition,
+      positionStream: engine.wordHighlightPositionStream,
+      currentPosition: engine.wordHighlightPosition,
       playbackStatus: engine.wordHighlightPlaybackStatus,
       playbackStatusStream: engine.wordHighlightPlaybackStatusStream,
     );
@@ -527,7 +516,7 @@ class _ReviewDifficultPracticeScreenState
           s.repeatFlowState?.isReviewPlaybackActive,
           s.repeatFlowState?.recordingScore,
           s.blindFlowState?.phase.runtimeType,
-          s.usesMediaEngine,
+          s.hasVideo,
         ),
       ),
     );
@@ -594,7 +583,7 @@ class _ReviewDifficultPracticeScreenState
               mediaReady ? _handleExit() : _handleMediaStartupExit();
             },
             child: PracticeMediaPresentationHost(
-              enabled: playerState.usesMediaEngine,
+              enabled: playerState.hasVideo,
               audioItemId: widget.audioItemId,
               isPlaying: _isCurrentPlaybackActive(playerState),
               onPlayPause: _handleCenter,
@@ -653,7 +642,7 @@ class _ReviewDifficultPracticeScreenState
                           key: _dictPanelHostKey,
                           child: Column(
                             children: [
-                              if (playerState.usesMediaEngine) mediaSurface,
+                              if (playerState.hasVideo) mediaSurface,
                               // 进度区域
                               PracticeProgressBar(
                                 current: playerState.currentSentenceIndex + 1,
@@ -711,9 +700,7 @@ class _ReviewDifficultPracticeScreenState
                                         sentenceIndex ==
                                         playerState.currentSentenceIndex;
                                     final wordHighlightSource = isActivePage
-                                        ? _wordHighlightSource(
-                                            playerState.usesMediaEngine,
-                                          )
+                                        ? _wordHighlightSource()
                                         : null;
                                     final wordHighlightBinding =
                                         wordHighlightSource == null

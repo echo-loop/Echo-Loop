@@ -1037,22 +1037,7 @@ class FakeLearningSession extends LearningSession {
   }
 
   @override
-  Future<void> enterReviewDifficultPracticeMode(
-    String audioItemId,
-    List<Sentence> allSentences, {
-    bool isFreePlay = false,
-    DifficultPracticeSettings settings = const DifficultPracticeSettings(),
-    LearningStage? stage,
-  }) async {
-    state = state.copyWith(
-      learningMode: LearningMode.reviewDifficultPractice,
-      audioItemId: audioItemId,
-      isFreePlay: isFreePlay,
-    );
-  }
-
-  @override
-  Future<MediaLoadResult> enterMediaReviewDifficultPracticeMode(
+  Future<MediaLoadResult> enterReviewDifficultPracticeMode(
     AudioItem mediaItem,
     List<Sentence> allSentences, {
     bool isFreePlay = false,
@@ -1069,7 +1054,7 @@ class FakeLearningSession extends LearningSession {
   }
 
   @override
-  Future<void> cancelMediaReviewDifficultPracticeEntry() async {}
+  Future<void> cancelReviewDifficultPracticeEntry() async {}
 
   @override
   Future<void> enterRetellMode(
@@ -1798,7 +1783,7 @@ class FakeReviewDifficultPractice extends ReviewDifficultPractice {
     String? settingsSlot,
     SentencePlaybackDriver? playbackDriver,
     SenseGroupRangePlayback? senseGroupRangePlayback,
-    bool usesMediaEngine = false,
+    bool hasVideo = false,
   }) async {
     testSentences = List.of(sentences);
     final validIndex = testSentences.isEmpty
@@ -1808,7 +1793,7 @@ class FakeReviewDifficultPractice extends ReviewDifficultPractice {
       currentSentenceIndex: validIndex,
       totalSentences: sentences.length,
       settings: settings,
-      usesMediaEngine: usesMediaEngine,
+      hasVideo: hasVideo,
     );
   }
 

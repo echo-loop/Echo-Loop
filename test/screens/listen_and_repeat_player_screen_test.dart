@@ -16,7 +16,9 @@ import 'package:echo_loop/models/sentence.dart';
 import 'package:echo_loop/models/intensive_listen_settings.dart';
 import 'package:echo_loop/models/media_learning_startup.dart';
 import 'package:echo_loop/models/media_load_result.dart';
+import 'package:echo_loop/models/media_engine_state.dart';
 import 'package:echo_loop/providers/audio_engine/audio_engine_provider.dart';
+import 'package:echo_loop/providers/media_engine/media_engine_provider.dart';
 import 'package:echo_loop/providers/learning_progress_provider.dart';
 import 'package:echo_loop/providers/learning_session/learning_session_provider.dart';
 import 'package:echo_loop/providers/listen_and_repeat/listen_and_repeat_controller.dart';
@@ -46,6 +48,15 @@ class _MockAudioItemDao extends Mock implements AudioItemDao {}
 
 class _MockNotificationPermissionService extends Mock
     implements NotificationPermissionService {}
+
+class _VideoViewMediaEngine extends MediaEngine {
+  @override
+  MediaEngineState build() => const MediaEngineState();
+
+  @override
+  Widget buildVideoView({required Size viewportSize}) =>
+      const ColoredBox(color: Colors.black);
+}
 
 class _FakeSpeechPermissionService implements SpeechPermissionService {
   @override
@@ -258,6 +269,7 @@ Widget _createTestWidget({
         _FakeSpeechPermissionService(),
       ),
       audioEngineProvider.overrideWith(() => TestAudioEngine()),
+      mediaEngineProvider.overrideWith(_VideoViewMediaEngine.new),
       learningProgressNotifierProvider.overrideWith(
         () => TestLearningProgressNotifier(),
       ),
@@ -356,7 +368,7 @@ void main() {
     int repeatIndex = 0,
     int totalRepeats = 3,
     bool isReviewPlaybackActive = false,
-    bool usesMediaEngine = false,
+    bool hasVideo = false,
     bool isFreePlay = false,
   }) {
     return ListenAndRepeatSessionState(
@@ -368,7 +380,7 @@ void main() {
       isReviewPlaybackActive: isReviewPlaybackActive,
       flowToken: 1,
       currentSentenceBookmarked: true,
-      usesMediaEngine: usesMediaEngine,
+      hasVideo: hasVideo,
       isFreePlay: isFreePlay,
     );
   }
@@ -396,7 +408,7 @@ void main() {
     testWidgets('视频启动任务未完成时显示加载态，完成后显示共享画面', (tester) async {
       final load = Completer<MediaLoadResult>();
       final controller = _TestListenAndRepeatController(
-        createState(usesMediaEngine: true),
+        createState(hasVideo: true),
         createTestSentences(count: 5),
         startPlayingNoop: true,
       );
@@ -463,7 +475,7 @@ void main() {
 
     testWidgets('视频画面位于进度条上方', (tester) async {
       final controller = _TestListenAndRepeatController(
-        createState(usesMediaEngine: true),
+        createState(hasVideo: true),
         createTestSentences(count: 5),
         startPlayingNoop: true,
       );
