@@ -31,9 +31,6 @@ class AnalyticsService {
   }) : _channel = channel,
        _consent = consent;
 
-  /// 当前通道名称（调试用）
-  String get channelName => _channel.name;
-
   /// 记录事件
   ///
   /// 如果用户未同意数据采集，事件将被静默丢弃。

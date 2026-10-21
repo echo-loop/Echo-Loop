@@ -27,7 +27,6 @@ import '../features/subscription/models/ai_quota_rejection.dart';
 import '../models/audio_item.dart';
 import '../models/word_timestamp.dart';
 import '../providers/audio_library_provider.dart';
-import '../providers/settings_provider.dart';
 import '../services/app_logger.dart';
 import '../services/subtitle_auto_align_service.dart';
 import '../services/transcription_api_client.dart';
@@ -667,16 +666,6 @@ class TranscriptionTaskManager extends _$TranscriptionTaskManager {
         transcript.words == null ||
         transcript.words!.isEmpty ||
         transcript.sentences.isEmpty) {
-      return transcript.sentences;
-    }
-
-    // 开发者选项：关闭自动校准时直接使用后端分句结果。
-    final settings = ref.read(appSettingsProvider);
-    if (!settings.subtitleAutoAlignEnabled) {
-      AppLogger.log(
-        'SubtitleAutoAlign',
-        'skip auto-align: disabled via developer options',
-      );
       return transcript.sentences;
     }
 

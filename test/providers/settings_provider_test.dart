@@ -98,6 +98,31 @@ void main() {
       SharedPreferences.setMockInitialValues({});
     });
 
+    test('加载设置时清理旧字幕校准偏好并保留正常设置', () async {
+      SharedPreferences.setMockInitialValues({
+        'developer_subtitle_auto_align_enabled': false,
+        'theme_mode': 'dark',
+        'word_highlight_enabled': false,
+      });
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      final settingsReady = Completer<void>();
+      container.listen(appSettingsProvider, (_, next) {
+        if (next.themeMode == ThemeMode.dark && !settingsReady.isCompleted) {
+          settingsReady.complete();
+        }
+      });
+      await settingsReady.future;
+
+      final prefs = await SharedPreferences.getInstance();
+      expect(
+        prefs.containsKey('developer_subtitle_auto_align_enabled'),
+        isFalse,
+      );
+      expect(container.read(appSettingsProvider).themeMode, ThemeMode.dark);
+      expect(container.read(appSettingsProvider).wordHighlightEnabled, isFalse);
+    });
+
     test('加载已保存的未来时光机时间', () async {
       final expected = DateTime(2027, 3, 11, 21, 30);
       SharedPreferences.setMockInitialValues({

@@ -147,7 +147,6 @@ catalog 返回；checkout completion 只进入等待态，必须等 `/api/entitl
 
 **注意：**
 - 本模式只测「购买 UI / Paywall 门禁 / 权益状态流转」，**不验证 RC → entitlement 端到端映射**；后者必须走第 5 节真实 Sandbox 账号。
-- 只测会员 UI、连购买都不想发起时，用 App 内「开发者选项 → 订阅调试 → 手动覆盖权益」更省事（连 `.storekit` 都不用挂）。
 - release 构建禁止注入 `USE_LOCAL_STOREKIT`。
 
 ---

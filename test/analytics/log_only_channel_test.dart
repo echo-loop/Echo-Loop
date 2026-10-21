@@ -11,10 +11,6 @@ void main() {
       AppLogger.instance.clear();
     });
 
-    test('name 返回 LogOnly', () {
-      expect(channel.name, 'LogOnly');
-    });
-
     test('initialize 记录日志', () async {
       await channel.initialize();
 

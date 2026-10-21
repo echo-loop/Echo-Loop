@@ -12,7 +12,8 @@ const _nativeLanguageKey = 'native_language';
 const _timeMachineDateTimeKey = 'developer_time_machine_at_ms';
 const _legacyUnlockAllReviewsKey = 'unlock_all_reviews';
 const _demoModeKey = 'demo_mode';
-const _subtitleAutoAlignEnabledKey = 'developer_subtitle_auto_align_enabled';
+const _legacySubtitleAutoAlignEnabledKey =
+    'developer_subtitle_auto_align_enabled';
 const _skipSilenceEnabledKey = 'skip_silence_enabled';
 const _silenceThresholdSecondsKey = 'silence_threshold_seconds';
 const _aiTranscriptionAutoMergeEnabledKey =
@@ -110,12 +111,6 @@ class AppSettingsState {
   /// 演示模式切换中的加载状态。
   final bool isDemoModeLoading;
 
-  /// 开发者选项：字幕自动校准开关。
-  ///
-  /// 默认开启。关闭后 AI 转录完成不再调用 `SubtitleAutoAlignService`，
-  /// 直接使用后端返回的句边界。仅开发者选项可见，不暴露给普通用户。
-  final bool subtitleAutoAlignEnabled;
-
   /// 自动跳过静音段开关（默认开启）。
   ///
   /// 开启后，盲听 / 复述等段落级播放会按字幕时间戳自动跳过较长的静音段，
@@ -143,7 +138,6 @@ class AppSettingsState {
     this.timeMachineDateTime,
     this.isDemoMode = false,
     this.isDemoModeLoading = false,
-    this.subtitleAutoAlignEnabled = true,
     this.skipSilenceEnabled = true,
     this.silenceThresholdSeconds = silenceThresholdDefaultSeconds,
     this.aiTranscriptionAutoMergeEnabled = true,
@@ -159,7 +153,6 @@ class AppSettingsState {
     bool clearTimeMachineDateTime = false,
     bool? isDemoMode,
     bool? isDemoModeLoading,
-    bool? subtitleAutoAlignEnabled,
     bool? skipSilenceEnabled,
     int? silenceThresholdSeconds,
     bool? aiTranscriptionAutoMergeEnabled,
@@ -174,8 +167,6 @@ class AppSettingsState {
           : timeMachineDateTime ?? this.timeMachineDateTime,
       isDemoMode: isDemoMode ?? this.isDemoMode,
       isDemoModeLoading: isDemoModeLoading ?? this.isDemoModeLoading,
-      subtitleAutoAlignEnabled:
-          subtitleAutoAlignEnabled ?? this.subtitleAutoAlignEnabled,
       skipSilenceEnabled: skipSilenceEnabled ?? this.skipSilenceEnabled,
       silenceThresholdSeconds:
           silenceThresholdSeconds ?? this.silenceThresholdSeconds,
@@ -247,6 +238,11 @@ class AppSettings extends _$AppSettings {
   Future<void> _loadSettings() async {
     final prefs = await SharedPreferences.getInstance();
 
+    // 字幕校准已统一开启，移除旧调试偏好，避免升级后保留失效的关闭状态。
+    if (prefs.containsKey(_legacySubtitleAutoAlignEnabledKey)) {
+      await prefs.remove(_legacySubtitleAutoAlignEnabledKey);
+    }
+
     final themeModeString = prefs.getString(_themeModeKey) ?? 'system';
     final themeMode = switch (themeModeString) {
       'light' => ThemeMode.light,
@@ -264,8 +260,6 @@ class AppSettings extends _$AppSettings {
 
     final timeMachineDateTime = await _loadTimeMachineDateTime(prefs);
     final isDemoMode = prefs.getBool(_demoModeKey) ?? false;
-    final subtitleAutoAlignEnabled =
-        prefs.getBool(_subtitleAutoAlignEnabledKey) ?? true;
     final skipSilenceEnabled = prefs.getBool(_skipSilenceEnabledKey) ?? true;
     final storedThreshold = prefs.getInt(_silenceThresholdSecondsKey);
     final silenceThresholdSeconds =
@@ -285,7 +279,6 @@ class AppSettings extends _$AppSettings {
       nativeLanguage: nativeLanguage,
       timeMachineDateTime: timeMachineDateTime,
       isDemoMode: isDemoMode,
-      subtitleAutoAlignEnabled: subtitleAutoAlignEnabled,
       skipSilenceEnabled: skipSilenceEnabled,
       silenceThresholdSeconds: silenceThresholdSeconds,
       aiTranscriptionAutoMergeEnabled: aiTranscriptionAutoMergeEnabled,
@@ -410,14 +403,6 @@ class AppSettings extends _$AppSettings {
 
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_demoModeKey, enabled);
-  }
-
-  /// 设置字幕自动校准开关（开发者选项，默认开启）。
-  Future<void> setSubtitleAutoAlignEnabled(bool enabled) async {
-    state = state.copyWith(subtitleAutoAlignEnabled: enabled);
-
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(_subtitleAutoAlignEnabledKey, enabled);
   }
 
   /// 设置静音跳过开关（默认开启）。

@@ -50,9 +50,6 @@ class _RecordingChannel implements AnalyticsChannel {
   final List<Map<String, Object>> superPropertiesCalls = [];
 
   @override
-  String get name => 'Recording';
-
-  @override
   Future<void> initialize() async {}
 
   @override

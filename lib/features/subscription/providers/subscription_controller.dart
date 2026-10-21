@@ -12,7 +12,6 @@ library;
 import 'dart:async';
 
 import 'package:clock/clock.dart';
-import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../../config/client_distribution.dart';
@@ -69,10 +68,6 @@ class SubscriptionController extends _$SubscriptionController {
   /// 当前身份同步任务。外部 refresh 必须等待它完成，避免 RevenueCat logIn 尚未
   /// 生效时读取到旧匿名用户 / 旧账号的 CustomerInfo。
   Future<void>? _identitySync;
-
-  /// 调试用权益覆盖（仅 debug 构建）。非 null 时 [refresh] 短路为该状态，
-  /// 用于不发起真实购买即测试会员 UI / Paywall 门禁。release 不暴露入口。
-  EntitlementStatus? _debugOverride;
 
   /// 当前权益到期刷新计时器。只在 premium 且存在未来 expiresAt 时启用。
   Timer? _expiryRefreshTimer;
@@ -214,12 +209,6 @@ class SubscriptionController extends _$SubscriptionController {
   /// 执行实际在线对账（全渠道单一来源）。调用方必须保证需要绑定购买身份时
   /// 已完成 identify。
   Future<void> _refreshOnline({bool force = false}) async {
-    // 调试覆盖生效时跳过在线对账，保持人为设定的状态。
-    final override = _debugOverride;
-    if (override != null) {
-      _setEntitlementState(_stateForOverride(override));
-      return;
-    }
     final generation = ++_generation;
     final identity = _identity;
     final userId = identity.userId;
@@ -600,51 +589,6 @@ class SubscriptionController extends _$SubscriptionController {
       '后端配额拒绝与本地 premium 分歧，触发权益对账: context=$context',
     );
     unawaited(refresh());
-  }
-
-  /// 清本地权益缓存 + 失效平台 SDK 缓存后强制重对账（调试用）。
-  ///
-  /// 解决「后台已删订阅但 App 仍显示已订阅」：本地 secure_storage 缓存与
-  /// RevenueCat SDK 的 CustomerInfo 缓存都会让旧权益继续生效，这里一并清掉
-  /// 再回源对账。同时解除调试覆盖，回到真实在线结果。
-  Future<void> clearLocalCacheAndRefresh() async {
-    _debugOverride = null;
-    _generation++; // 作废在途对账。
-    await _cache.clear();
-    await _purchases.invalidateCustomerInfoCache();
-    // force 会等待被 generation 作废的普通刷新结束，并保证补执行一次新对账。
-    await refresh(force: true);
-  }
-
-  /// 手动覆盖权益状态（仅 debug 构建）。传 null 解除覆盖并重新对账。
-  ///
-  /// 用于不发起真实购买即验证会员 UI / Paywall 门禁；release 构建无入口。
-  void debugOverrideEntitlement(EntitlementStatus? status) {
-    if (!kDebugMode) return;
-    _debugOverride = status;
-    if (status == null) {
-      // 解除覆盖后必须真实回源；不能合并进可能已被作废的普通刷新。
-      unawaited(refresh(force: true));
-      return;
-    }
-    _generation++; // 作废在途对账，避免被真实结果覆盖。
-    _setEntitlementState(_stateForOverride(status));
-  }
-
-  /// 由覆盖状态构造对应的 [EntitlementState]。
-  EntitlementState _stateForOverride(EntitlementStatus status) {
-    return switch (status) {
-      EntitlementStatus.premium => EntitlementState(
-        status: EntitlementStatus.premium,
-        entitlement: const Entitlement(
-          isPremium: true,
-          productId: 'debug_override',
-        ),
-        isStale: false,
-      ),
-      EntitlementStatus.free => const EntitlementState.free(),
-      EntitlementStatus.unknown => const EntitlementState.unknown(),
-    };
   }
 
   /// 成交后回源收敛：force 绕过后端节流读取 RC 最新权益。

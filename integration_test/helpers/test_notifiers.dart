@@ -291,8 +291,6 @@ Future<void> safeSettle(
 /// 空操作分析通道（集成测试用）
 class _NoOpChannel implements AnalyticsChannel {
   @override
-  String get name => 'NoOp';
-  @override
   Future<void> initialize() async {}
   @override
   Future<void> logEvent(String name, Map<String, Object>? parameters) async {}

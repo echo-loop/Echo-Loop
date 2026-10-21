@@ -67,12 +67,6 @@ class _FakePurchaseService implements PurchaseService {
   Future<bool> ensureIdentified(String userId) async => true;
 
   @override
-  Future<void> invalidateCustomerInfoCache() async {}
-
-  @override
-  Future<Map<String, Object?>> debugCustomerInfoSnapshot() async => const {};
-
-  @override
   Future<Entitlement> purchase(String planId) async => Entitlement.free;
 
   @override

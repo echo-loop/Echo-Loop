@@ -4,6 +4,7 @@ import 'package:echo_loop/analytics/analytics_channel.dart';
 import 'package:echo_loop/analytics/analytics_providers.dart';
 import 'package:echo_loop/analytics/analytics_service.dart';
 import 'package:echo_loop/analytics/consent_manager.dart';
+import 'package:echo_loop/services/app_logger.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -37,20 +38,34 @@ void main() {
       channelFactory: () => channel,
     );
 
-    expect(service.channelName, 'Recording');
+    await service.track('startup_probe', {'source': 'test'});
+
+    expect(channel.events, hasLength(1));
+    expect(channel.events.single.name, 'startup_probe');
+    expect(channel.events.single.parameters, {'source': 'test'});
     expect(channel.initializeCalls, 1);
     expect(channel.superProperties, isEmpty);
   });
 
   test('channel 初始化失败时降级为 LogOnly', () async {
     final prefs = await SharedPreferences.getInstance();
+    AppLogger.instance.clear();
 
     final service = await initializeAnalyticsWithFallback(
       prefs,
       channelFactory: _FailingChannel.new,
     );
 
-    expect(service.channelName, 'LogOnly');
+    await service.track('fallback_probe', {'source': 'test'});
+
+    expect(
+      AppLogger.instance.entries.any(
+        (entry) =>
+            entry.tag == 'Analytics' &&
+            entry.message == 'Event: fallback_probe {source=test}',
+      ),
+      isTrue,
+    );
   });
 
   test('延迟匿名 ID 完成后才注册 super property', () async {
@@ -76,9 +91,7 @@ void main() {
 class _RecordingChannel implements AnalyticsChannel {
   var initializeCalls = 0;
   final superProperties = <String, Object>{};
-
-  @override
-  String get name => 'Recording';
+  final events = <({String name, Map<String, Object>? parameters})>[];
 
   @override
   Future<void> initialize() async {
@@ -86,7 +99,9 @@ class _RecordingChannel implements AnalyticsChannel {
   }
 
   @override
-  Future<void> logEvent(String name, Map<String, Object>? parameters) async {}
+  Future<void> logEvent(String name, Map<String, Object>? parameters) async {
+    events.add((name: name, parameters: parameters));
+  }
 
   @override
   Future<void> registerSuperProperties(Map<String, Object> properties) async {

@@ -16,9 +16,6 @@ class FirebaseChannel implements AnalyticsChannel {
   late final FirebaseAnalytics _analytics;
 
   @override
-  String get name => 'Firebase';
-
-  @override
   Future<void> initialize() async {
     _analytics = FirebaseAnalytics.instance;
     await _analytics.setAnalyticsCollectionEnabled(true);

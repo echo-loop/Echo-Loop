@@ -2,6 +2,7 @@
 //
 // 测试转录任务的完整生命周期、状态转换、错误处理和取消逻辑。
 // 通过 mock TranscriptionApiClient 和 TranscriptionFileOps 避免真实 I/O。
+import 'dart:async';
 import 'dart:io';
 
 import 'package:dio/dio.dart';
@@ -10,6 +11,7 @@ import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:echo_loop/database/app_database.dart' as db;
 import 'package:echo_loop/database/providers.dart';
@@ -81,19 +83,6 @@ class _FakeAudioExtractor extends TranscriptionAudioExtractor {
   }
 }
 
-/// 测试用 AppSettings：返回默认开启的 subtitleAutoAlignEnabled，不触达 SharedPreferences。
-class _FakeAppSettings extends AppSettings {
-  @override
-  AppSettingsState build() => const AppSettingsState();
-}
-
-/// 测试用：关闭自动校准开关。
-class _DisabledAutoAlignAppSettings extends AppSettings {
-  @override
-  AppSettingsState build() =>
-      const AppSettingsState(subtitleAutoAlignEnabled: false);
-}
-
 // ─── 测试辅助 ──────────────────────────────────────────────
 
 /// 创建测试用 AudioItem
@@ -135,8 +124,6 @@ ProviderContainer _createContainer({
     transcriptionFileOpsProvider.overrideWithValue(mockFileOps),
     appDatabaseProvider.overrideWithValue(database),
     audioLibraryProvider.overrideWith(TestAudioLibrary.new),
-    // 避免测试触达 SharedPreferences（需要 Flutter binding）。
-    appSettingsProvider.overrideWith(() => _FakeAppSettings()),
     // 避免 402 路径实例化真实订阅栈（E7 收敛信号在测试中默认 no-op）。
     entitlementQuotaDivergenceHandlerProvider.overrideWithValue(
       quotaDivergenceHandler ?? (_) {},
@@ -228,7 +215,7 @@ void main() {
   });
 
   /// 桩：音频已存在 + 字幕缓存命中（返回「Hello world」），用于直达保存流程。
-  void stubCachedTranscript() {
+  void stubCachedTranscript({TranscriptResult? transcript}) {
     when(
       () => mockApi.getUploadUrl(
         sha256: any(named: 'sha256'),
@@ -257,16 +244,18 @@ void main() {
     ).thenAnswer(
       (_) async => SubmitTranscriptionResponse(
         cached: true,
-        transcript: TranscriptResult(
-          sentences: [
-            TranscriptSentence(
-              text: 'Hello world',
-              startTime: Duration.zero,
-              endTime: const Duration(seconds: 2),
+        transcript:
+            transcript ??
+            TranscriptResult(
+              sentences: [
+                TranscriptSentence(
+                  text: 'Hello world',
+                  startTime: Duration.zero,
+                  endTime: const Duration(seconds: 2),
+                ),
+              ],
+              fullText: 'Hello world',
             ),
-          ],
-          fullText: 'Hello world',
-        ),
       ),
     );
   }
@@ -1049,7 +1038,11 @@ void main() {
       container.dispose();
     });
 
-    test('开发者选项关闭自动校准时，不调用 SubtitleAutoAlignService', () async {
+    test('旧偏好关闭字幕校准时，转录后仍自动校准', () async {
+      SharedPreferences.setMockInitialValues({
+        'developer_subtitle_auto_align_enabled': false,
+        'native_language': 'zh-TW',
+      });
       final audioItem = _testAudioItem(audioSha256: 'abc123');
 
       when(() => mockFileOps.getFileSize(any())).thenAnswer((_) async => 1024);
@@ -1109,24 +1102,30 @@ void main() {
         ),
       );
 
-      // 覆盖 appSettings 让 subtitleAutoAlignEnabled=false。
+      // 加载真实历史偏好，验证旧调试开关不再影响正式转录。
+      final audioLibrary = TestAudioLibrary();
       final container = ProviderContainer(
         overrides: [
           transcriptionApiClientProvider.overrideWithValue(mockApi),
           transcriptionFileOpsProvider.overrideWithValue(mockFileOps),
           appDatabaseProvider.overrideWithValue(database),
-          audioLibraryProvider.overrideWith(TestAudioLibrary.new),
+          audioLibraryProvider.overrideWith(() => audioLibrary),
           subtitleAutoAlignServiceProvider.overrideWithValue(
             mockAutoAlignService,
-          ),
-          appSettingsProvider.overrideWith(
-            () => _DisabledAutoAlignAppSettings(),
           ),
           analyticsOverride(),
         ],
       );
-      (container.read(audioLibraryProvider.notifier) as TestAudioLibrary)
-          .setItems([audioItem]);
+      addTearDown(container.dispose);
+      final settingsReady = Completer<void>();
+      container.listen(appSettingsProvider, (_, next) {
+        if (next.nativeLanguage == 'zh-TW' && !settingsReady.isCompleted) {
+          settingsReady.complete();
+        }
+      });
+      await settingsReady.future;
+      container.read(audioLibraryProvider);
+      audioLibrary.setItems([audioItem]);
 
       final notifier = container.read(
         transcriptionTaskManagerProvider.notifier,
@@ -1134,16 +1133,98 @@ void main() {
 
       await notifier.startTranscription(audioItem, 'en', accessToken: 'token');
 
-      verifyNever(
+      verify(
         () => mockAutoAlignService.alignIfPossible(
           audioPath: any(named: 'audioPath'),
           sentences: any(named: 'sentences'),
           words: any(named: 'words'),
         ),
-      );
-
-      container.dispose();
+      ).called(1);
     });
+
+    for (final hasWords in [false, true]) {
+      test(hasWords ? '字幕校准失败仍保存原始句边界并完成转录' : '缺少词级时间戳时跳过校准并保存字幕', () async {
+        final audioItem = _testAudioItem(audioSha256: 'abc123');
+        await _seedAudioRows(database, [audioItem]);
+        final sentences = [
+          TranscriptSentence(
+            text: 'Hello world',
+            startTime: const Duration(milliseconds: 200),
+            endTime: const Duration(milliseconds: 800),
+            startWordIndex: 0,
+            endWordIndex: 0,
+          ),
+        ];
+        stubCachedTranscript(
+          transcript: TranscriptResult(
+            sentences: sentences,
+            words: hasWords
+                ? const [
+                    WordTimestamp(
+                      word: 'Hello',
+                      startTime: Duration(milliseconds: 250),
+                      endTime: Duration(milliseconds: 500),
+                    ),
+                  ]
+                : null,
+            fullText: 'Hello world',
+          ),
+        );
+        when(
+          () => mockFileOps.getFileSize(any()),
+        ).thenAnswer((_) async => 1024);
+        when(
+          () => mockAutoAlignService.alignIfPossible(
+            audioPath: any(named: 'audioPath'),
+            sentences: any(named: 'sentences'),
+            words: any(named: 'words'),
+          ),
+        ).thenThrow(StateError('校准失败'));
+        final container = _createContainer(
+          mockApi: mockApi,
+          mockFileOps: mockFileOps,
+          database: database,
+          mockAutoAlignService: mockAutoAlignService,
+          audioItems: [audioItem],
+        );
+        addTearDown(container.dispose);
+        final notifier = container.read(
+          transcriptionTaskManagerProvider.notifier,
+        );
+
+        await notifier.startTranscription(
+          audioItem,
+          'en',
+          accessToken: 'token',
+        );
+
+        expect(
+          notifier.getTaskState(audioItem.id),
+          isA<TranscriptionCompleted>(),
+        );
+        final saved = await (database.select(
+          database.audioItems,
+        )..where((row) => row.id.equals(audioItem.id))).getSingle();
+        expect(saved.transcriptSrt, generateSrtContent(sentences));
+        if (hasWords) {
+          verify(
+            () => mockAutoAlignService.alignIfPossible(
+              audioPath: any(named: 'audioPath'),
+              sentences: any(named: 'sentences'),
+              words: any(named: 'words'),
+            ),
+          ).called(1);
+        } else {
+          verifyNever(
+            () => mockAutoAlignService.alignIfPossible(
+              audioPath: any(named: 'audioPath'),
+              sentences: any(named: 'sentences'),
+              words: any(named: 'words'),
+            ),
+          );
+        }
+      });
+    }
 
     test('社区音频 AI 字幕不会尝试自动校准', () async {
       final audioItem = _testAudioItem(

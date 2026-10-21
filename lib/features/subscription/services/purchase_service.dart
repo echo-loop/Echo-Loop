@@ -101,19 +101,6 @@ abstract class PurchaseService {
   /// 未就绪 / 不匹配 / 异常一律返回 false，调用方据此中止购买。
   Future<bool> ensureIdentified(String userId);
 
-  /// 使平台 SDK 的 CustomerInfo 本地缓存失效，强制下次回源服务端。
-  ///
-  /// 调试用：后台删除订阅后，SDK 仍会优先返回本地缓存的 CustomerInfo，
-  /// 导致权益看似仍生效。失效后配合 [currentEntitlement] 重新对账可看到真实结果。
-  Future<void> invalidateCustomerInfoCache();
-
-  /// 返回平台 SDK 的原始权益诊断快照（调试面板展示用）。
-  ///
-  /// 暴露 activeEntitlements / allEntitlements / activeSubscriptions /
-  /// originalAppUserId / 期望的 entitlementId 等原始字段，便于定位
-  /// 「商品没挂 entitlement」「entitlement 标识没对上」等配置问题。
-  Future<Map<String, Object?>> debugCustomerInfoSnapshot();
-
   /// 当前 App Store / 商店账号所在 storefront 的国家码（ISO 3166-1 alpha-3，
   /// 如 `USA` / `CHN`）。用于按用户真实商店区判定行为（如更新检查查哪个区的
   /// Lookup），口径与本地化价格一致。取不到（未配置 / 无 storefront 概念）返回
@@ -153,12 +140,6 @@ class StubPurchaseService implements PurchaseService {
 
   @override
   Future<bool> ensureIdentified(String userId) async => false;
-
-  @override
-  Future<void> invalidateCustomerInfoCache() async {}
-
-  @override
-  Future<Map<String, Object?>> debugCustomerInfoSnapshot() async => const {};
 
   @override
   Future<String?> storefrontCountryCode() async => null;

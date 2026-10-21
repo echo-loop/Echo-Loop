@@ -207,37 +207,6 @@ class RevenueCatPurchaseService implements PurchaseService {
     }
   }
 
-  @override
-  Future<void> invalidateCustomerInfoCache() async {
-    await Purchases.invalidateCustomerInfoCache();
-    AppLogger.log('Subscription', 'invalidateCustomerInfoCache: 已使 RC 缓存失效');
-  }
-
-  @override
-  Future<Map<String, Object?>> debugCustomerInfoSnapshot() async {
-    final info = await Purchases.getCustomerInfo();
-    return {
-      'lookForEntitlementId': _entitlementId,
-      'activeEntitlements': info.entitlements.active.keys.toList(),
-      'allEntitlements': info.entitlements.all.keys.toList(),
-      'entitlementDetails': info.entitlements.all.values
-          .map(revenueCatEntitlementInfoSnapshot)
-          .toList(),
-      'activeSubscriptions': info.activeSubscriptions.toList(),
-      'allPurchasedProductIdentifiers': info.allPurchasedProductIdentifiers
-          .toList(),
-      'allExpirationDates': info.allExpirationDates,
-      'allPurchaseDates': info.allPurchaseDates,
-      'originalAppUserId': info.originalAppUserId,
-      'firstSeen': info.firstSeen,
-      'requestDate': info.requestDate,
-      'managementURL': info.managementURL,
-      'latestExpirationDate': info.latestExpirationDate,
-      'originalPurchaseDate': info.originalPurchaseDate,
-      'originalApplicationVersion': info.originalApplicationVersion,
-    };
-  }
-
   // ── 映射：SDK 类型 → 业务模型 ──────────────────────────────
 
   Future<Package?> _findPackage(String planId) async {

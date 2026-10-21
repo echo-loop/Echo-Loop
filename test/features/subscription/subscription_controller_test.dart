@@ -103,9 +103,6 @@ class FakePurchaseService implements PurchaseService {
   /// restore 后返回的 RevenueCat 原始 App User ID。
   String? restoreOriginalAppUserId;
 
-  /// invalidateCustomerInfoCache 调用次数（验证清缓存动作）。
-  int invalidateCalls = 0;
-
   @override
   Future<List<SubscriptionPlan>> fetchPlans({
     bool force = false,
@@ -168,12 +165,6 @@ class FakePurchaseService implements PurchaseService {
     if (error != null) throw error;
     return ensureIdentifiedResult;
   }
-
-  @override
-  Future<void> invalidateCustomerInfoCache() async => invalidateCalls++;
-
-  @override
-  Future<Map<String, Object?>> debugCustomerInfoSnapshot() async => const {};
 
   @override
   Future<String?> storefrontCountryCode() async => null;
@@ -1326,77 +1317,6 @@ void main() {
     });
   });
 
-  test('clearLocalCacheAndRefresh：清缓存 + 失效 RC 缓存 + 回源重对账', () async {
-    await withClock(Clock.fixed(now), () async {
-      final cache = FakeEntitlementCache()..stored = cached(proEntitlement);
-      final purchases = FakePurchaseService()..currentResult = Entitlement.free;
-      final container = makeContainer(
-        identity: signedIn,
-        repo: FakeEntitlementRepository((_) async => Entitlement.free),
-        cache: cache,
-        purchases: purchases,
-      );
-      container.read(subscriptionControllerProvider);
-      await pumpEventQueue();
-
-      await container
-          .read(subscriptionControllerProvider.notifier)
-          .clearLocalCacheAndRefresh();
-      await pumpEventQueue();
-
-      // RC 缓存被失效、本地缓存被清，回源得到 free。
-      expect(purchases.invalidateCalls, greaterThanOrEqualTo(1));
-      expect(cache.clears, greaterThanOrEqualTo(1));
-      expect(
-        container.read(subscriptionControllerProvider).status,
-        EntitlementStatus.free,
-      );
-    });
-  });
-
-  test('debugOverrideEntitlement：强制 Pro/Free 覆盖在线对账，传 null 解除', () async {
-    await withClock(Clock.fixed(now), () async {
-      final container = makeContainer(
-        identity: signedIn,
-        // 在线源恒为 free，验证覆盖确实压过在线结果。
-        repo: FakeEntitlementRepository((_) async => Entitlement.free),
-        cache: FakeEntitlementCache(),
-      );
-      final controller = container.read(
-        subscriptionControllerProvider.notifier,
-      );
-      await pumpEventQueue();
-
-      controller.debugOverrideEntitlement(EntitlementStatus.premium);
-      expect(
-        container.read(subscriptionControllerProvider).status,
-        EntitlementStatus.premium,
-      );
-
-      // 覆盖期间即便重对账也保持覆盖状态。
-      await controller.refresh();
-      await pumpEventQueue();
-      expect(
-        container.read(subscriptionControllerProvider).status,
-        EntitlementStatus.premium,
-      );
-
-      controller.debugOverrideEntitlement(EntitlementStatus.free);
-      expect(
-        container.read(subscriptionControllerProvider).status,
-        EntitlementStatus.free,
-      );
-
-      // 解除覆盖 → 回到在线 free。
-      controller.debugOverrideEntitlement(null);
-      await pumpEventQueue();
-      expect(
-        container.read(subscriptionControllerProvider).status,
-        EntitlementStatus.free,
-      );
-    });
-  });
-
   // Paddle 来源的会员权益样本（Bug1/Bug3/R2 用）。
   final paddlePremium = Entitlement(
     isPremium: true,
@@ -1924,43 +1844,4 @@ void main() {
     expect(repo.forceCalls, [false, true]);
     expect(container.read(subscriptionControllerProvider).isActive, isTrue);
   });
-
-  test(
-    'clearLocalCacheAndRefresh 作废在途普通刷新后补执行 force 且不残留 refreshing',
-    () async {
-      final normalGate = Completer<Entitlement?>();
-      var call = 0;
-      final repo = FakeEntitlementRepository((_) {
-        final current = call++;
-        if (current == 0) return Future.value(Entitlement.free);
-        if (current == 1) return normalGate.future;
-        return Future.value(proEntitlement);
-      });
-      final container = makeContainer(
-        identity: signedIn,
-        repo: repo,
-        cache: FakeEntitlementCache(),
-      );
-      container.read(subscriptionControllerProvider);
-      await pumpEventQueue();
-      repo.calls.clear();
-      repo.forceCalls.clear();
-
-      final controller = container.read(
-        subscriptionControllerProvider.notifier,
-      );
-      final normal = controller.refresh();
-      await pumpEventQueue();
-      final cleared = controller.clearLocalCacheAndRefresh();
-      await pumpEventQueue();
-      expect(repo.forceCalls, [false]);
-
-      normalGate.complete(Entitlement.free);
-      await Future.wait([normal, cleared]);
-      expect(repo.forceCalls, [false, true]);
-      final state = container.read(subscriptionControllerProvider);
-      expect(state.isActive, isTrue);
-      expect(state.isRefreshing, isFalse);
-    },
-  );
 }

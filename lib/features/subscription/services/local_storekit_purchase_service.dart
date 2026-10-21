@@ -7,7 +7,7 @@
 /// 让 app 一直显示已订阅」。
 ///
 /// 重置：在 Xcode「Debug ▸ StoreKit ▸ Manage Transactions」删交易（或取消订阅 + 加速
-/// 续期使其到期）后，调「恢复购买 / 清缓存强刷」即重建活跃集合、正确降级，无需重启。
+/// 续期使其到期）后，调「恢复购买」即重建活跃集合、正确降级，无需重启。
 ///
 /// 仅供本地开发联调；release 构建不应启用本服务。
 library;
@@ -184,17 +184,11 @@ class LocalStoreKitPurchaseService implements PurchaseService {
     return true;
   }
 
-  @override
-  Future<void> invalidateCustomerInfoCache() async {
-    // 无 RC 缓存可失效；以重建活跃集合作为「回源刷新」（删交易/取消后能正确降级）。
-    await _rebuildActiveFromStore();
-  }
-
   /// 从 StoreKit 重建活跃订阅集合。
   ///
   /// **先清空再恢复**：`restorePurchases` 只会重新投递「当前仍有效」的订阅，
   /// 已取消/过期/删除的交易不再投递，集合自然收敛。这样在 Xcode 删交易或订阅到期后，
-  /// 调一次本方法（恢复购买 / 清缓存强刷）即可正确降级，**无需重启 App**。
+  /// 调一次本方法（恢复购买）即可正确降级，**无需重启 App**。
   Future<Entitlement> _rebuildActiveFromStore() async {
     _activeProductIds.clear();
     await _iap.restorePurchases();
@@ -205,16 +199,6 @@ class LocalStoreKitPurchaseService implements PurchaseService {
       '本地 StoreKit 重建活跃集合: ${_activeProductIds.toList()}',
     );
     return _currentEntitlement();
-  }
-
-  @override
-  Future<Map<String, Object?>> debugCustomerInfoSnapshot() async {
-    return {
-      'mode': 'localStoreKit（已绕开 RevenueCat）',
-      'lookForEntitlementId': _entitlementId,
-      'activeProductIds': _activeProductIds.toList(),
-      'isPremium': _activeProductIds.isNotEmpty,
-    };
   }
 
   @override

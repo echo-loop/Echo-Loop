@@ -75,11 +75,5 @@ class PaddlePurchaseService implements PurchaseService {
   }
 
   @override
-  Future<void> invalidateCustomerInfoCache() async {}
-
-  @override
-  Future<Map<String, Object?>> debugCustomerInfoSnapshot() async => const {};
-
-  @override
   Future<String?> storefrontCountryCode() async => null;
 }

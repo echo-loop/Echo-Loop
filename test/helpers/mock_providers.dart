@@ -154,9 +154,6 @@ class TestSavedWordDao extends FakeSavedWordDao {}
 /// 测试用 AnalyticsChannel — 不做任何操作
 class NoOpAnalyticsChannel implements AnalyticsChannel {
   @override
-  String get name => 'NoOp';
-
-  @override
   Future<void> initialize() async {}
 
   @override

@@ -20,8 +20,3 @@ final offlineAsrEngineProvider = Provider<OfflineAsrEngine>((ref) {
   ref.onDispose(() => engine.dispose());
   return engine;
 });
-
-/// 所有可用的离线 ASR 模型列表。
-final availableAsrModelsProvider = Provider<List<AsrModelInfo>>((ref) {
-  return availableModels;
-});

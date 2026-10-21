@@ -18,9 +18,6 @@ class MockChannel implements AnalyticsChannel {
   bool throwOnRegister = false;
 
   @override
-  String get name => 'Mock';
-
-  @override
   Future<void> initialize() async {}
 
   @override
@@ -152,10 +149,6 @@ void main() {
       expect(channel.userProperties, hasLength(1));
       expect(channel.userProperties.first.name, 'install_source');
       expect(channel.userProperties.first.value, 'play');
-    });
-
-    test('channelName 返回通道名', () {
-      expect(service.channelName, 'Mock');
     });
 
     test('registerSuperProperties 转发到 channel', () async {

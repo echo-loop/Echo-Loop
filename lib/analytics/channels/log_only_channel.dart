@@ -12,9 +12,6 @@ class LogOnlyChannel implements AnalyticsChannel {
   static const _tag = 'Analytics';
 
   @override
-  String get name => 'LogOnly';
-
-  @override
   Future<void> initialize() async {
     AppLogger.log(_tag, 'LogOnlyChannel initialized (debug mode)');
   }

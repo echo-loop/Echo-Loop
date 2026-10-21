@@ -15,7 +15,6 @@ import '../database/providers.dart';
 import '../l10n/app_localizations.dart';
 import '../models/app_update_info.dart';
 import '../providers/app_update_provider.dart';
-import '../providers/dev_version_override_provider.dart';
 import '../providers/developer_options_provider.dart';
 import '../providers/offline_asr_settings_provider.dart';
 import '../providers/tts/tts_settings_provider.dart';
@@ -38,7 +37,6 @@ import '../features/user_region/user_region_providers.dart';
 import '../features/subscription/providers/subscription_availability.dart';
 import '../features/subscription/providers/subscription_controller.dart';
 import '../services/app_update_launcher.dart';
-import '../features/subscription/screens/subscription_debug_screen.dart';
 import '../router/app_router.dart';
 import '../features/onboarding_survey/providers/onboarding_survey_provider.dart';
 import '../services/app_network_image_cache.dart';
@@ -55,7 +53,6 @@ import '../providers/dictionary/dictionary_registry.dart';
 import '../providers/dictionary/visible_sources_provider.dart';
 import '../widgets/dictionary/dict_source_presentation.dart';
 import 'asr_settings_screen.dart';
-import 'asr_test_screen.dart';
 import 'dictionary_settings_screen.dart';
 import 'tts_settings_screen.dart';
 import 'learning_settings_screen.dart';
@@ -789,82 +786,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     }
   }
 
-  /// 弹出版本号覆盖对话框（开发者选项）
-  ///
-  /// 输入框预填当前生效的版本号（已覆盖则为覆盖值，否则为真实版本号）。
-  /// 确定后写入 [devVersionOverrideProvider]，下次检查更新即按此版本比较；
-  /// 清除则恢复使用真实版本号。
-  Future<void> _showVersionOverrideDialog(
-    BuildContext context,
-    WidgetRef ref,
-  ) async {
-    final realVersion = ref.read(packageInfoProvider).version;
-    final current = ref.read(devVersionOverrideProvider);
-    final textController = TextEditingController(text: current ?? realVersion);
-
-    final result = await showDialog<String?>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('版本号覆盖'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('真实版本号：$realVersion'),
-            const SizedBox(height: 12),
-            TextField(
-              controller: textController,
-              autofocus: true,
-              decoration: const InputDecoration(
-                labelText: '模拟版本号',
-                hintText: '如 1.0.0',
-                border: OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              '设为低于远程 minimumVersion 触发强制更新，'
-              '低于 latestVersion 触发可选更新。',
-              style: TextStyle(fontSize: 12),
-            ),
-          ],
-        ),
-        actions: [
-          // 清除覆盖：返回空串作为清除信号
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(''),
-            child: const Text('清除覆盖'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(null),
-            child: const Text('取消'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(context).pop(textController.text),
-            child: const Text('确定'),
-          ),
-        ],
-      ),
-    );
-
-    textController.dispose();
-    // null = 取消，不改动；'' = 清除；其它 = 设置覆盖
-    if (result == null) return;
-    ref.read(devVersionOverrideProvider.notifier).setOverride(result);
-    if (!context.mounted) return;
-    ScaffoldMessenger.of(context)
-      ..clearSnackBars()
-      ..showSnackBar(
-        SnackBar(
-          content: Text(
-            result.isEmpty
-                ? '已清除版本号覆盖，恢复真实版本 $realVersion'
-                : '已覆盖版本号为 $result，可点"检查更新"测试',
-          ),
-        ),
-      );
-  }
-
   /// 构建开发者选项区域
   Widget _buildDeveloperSection(
     BuildContext context,
@@ -907,40 +828,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ),
         ),
         ListTile(
-          leading: _emojiIcon('🏷'),
-          title: const Text('版本号覆盖'),
-          subtitle: const Text('模拟旧版本以测试更新弹窗，重启后自动重置'),
-          trailing: _trailingValue(
-            context,
-            ref.watch(devVersionOverrideProvider) ?? '真实版本',
-          ),
-          onTap: () => _showVersionOverrideDialog(context, ref),
-        ),
-        ListTile(
-          leading: _emojiIcon('🎙'),
-          title: const Text('ASR 引擎测试'),
-          trailing: const Icon(Icons.chevron_right),
-          onTap: () => Navigator.of(context).push(
-            MaterialPageRoute<void>(builder: (_) => const AsrTestScreen()),
-          ),
-        ),
-        ListTile(
           leading: _emojiIcon('📋'),
           title: const Text('日志'),
           trailing: const Icon(Icons.chevron_right),
           onTap: () => Navigator.of(context).push(
             MaterialPageRoute<void>(builder: (_) => const LogViewerScreen()),
-          ),
-        ),
-        ListTile(
-          leading: _emojiIcon('💳'),
-          title: const Text('订阅调试'),
-          subtitle: const Text('诊断权益、清缓存强刷、覆盖 Pro/Free'),
-          trailing: const Icon(Icons.chevron_right),
-          onTap: () => Navigator.of(context).push(
-            MaterialPageRoute<void>(
-              builder: (_) => const SubscriptionDebugScreen(),
-            ),
           ),
         ),
         ListTile(
@@ -952,23 +844,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           leading: _emojiIcon('📝'),
           title: Text(l10n.resetOnboarding),
           onTap: () => _resetOnboarding(context, ref, l10n),
-        ),
-        ListTile(
-          leading: _emojiIcon('📊'),
-          title: const Text('Analytics'),
-          trailing: _trailingValue(
-            context,
-            ref.read(analyticsServiceProvider).channelName,
-          ),
-          onTap: () {
-            final service = ref.read(analyticsServiceProvider);
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('当前通道: ${service.channelName}'),
-                duration: const Duration(seconds: 2),
-              ),
-            );
-          },
         ),
         ListTile(
           leading: _emojiIcon('🎭'),
@@ -984,17 +859,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   onChanged: (value) =>
                       _toggleDemoMode(context, ref, controller, value),
                 ),
-        ),
-        ListTile(
-          leading: _emojiIcon('🎯'),
-          title: const Text('字幕自动校准'),
-          subtitle: const Text('AI 转录完成后按本地音频静音微调句边界'),
-          trailing: Switch(
-            value: settings.subtitleAutoAlignEnabled,
-            onChanged: (value) => ref
-                .read(appSettingsProvider.notifier)
-                .setSubtitleAutoAlignEnabled(value),
-          ),
         ),
         ListTile(
           leading: _emojiIcon('📖'),

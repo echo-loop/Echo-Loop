@@ -35,9 +35,6 @@ class PostHogChannel implements AnalyticsChannel {
   static bool get isConfigured => true;
 
   @override
-  String get name => 'PostHog';
-
-  @override
   Future<void> initialize() async {
     final config = PostHogConfig(_apiKey)
       ..host = _host

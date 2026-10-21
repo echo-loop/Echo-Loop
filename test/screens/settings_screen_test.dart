@@ -817,6 +817,50 @@ void main() {
         expect(find.text('Time Machine'), findsNothing);
       });
 
+      testWidgets('开发者区域仅保留选定工具，已删除功能不再出现', (tester) async {
+        await tester.pumpWidget(
+          createTestScreen(const SettingsScreen(), overrides: buildOverrides()),
+        );
+        await tester.pumpAndSettle();
+
+        final titles = <String>{};
+        // 遍历至开发者区域末尾，避免未构建的离屏入口造成误判。
+        for (var step = 0; step < 30; step++) {
+          for (final tile in tester.widgetList<ListTile>(
+            find.byType(ListTile),
+          )) {
+            if (tile.title case Text(:final data?)) titles.add(data);
+          }
+          if (titles.contains('内部存储')) break;
+          await tester.drag(find.byType(ListView).first, const Offset(0, -300));
+          await tester.pumpAndSettle();
+        }
+
+        expect(
+          titles,
+          containsAll([
+            'Time Machine',
+            '日志',
+            'Reset New User Guide',
+            'Reset Onboarding Survey',
+            'Demo Mode',
+            '词典查询',
+            '偏好设置',
+            '内部存储',
+          ]),
+        );
+        expect(
+          titles.intersection({
+            'Analytics',
+            '版本号覆盖',
+            'ASR 引擎测试',
+            '字幕自动校准',
+            '订阅调试',
+          }),
+          isEmpty,
+        );
+      });
+
       testWidgets('开发者选项开启且未设置时时显示系统时间文案', (tester) async {
         await tester.pumpWidget(
           createTestScreen(const SettingsScreen(), overrides: buildOverrides()),
