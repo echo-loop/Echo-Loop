@@ -1,5 +1,7 @@
 # 段落复述视频链路实施计划
 
+> **状态（2026-10-21）**：本文件记录的是视频链路建设时的历史方案。用户随后要求音频和视频复述统一到 MediaEngine；当前实现与维护应以统一链路为准：两种媒体都经 `MediaLearningStartup`、`LearningSession.enterRetellMode` 和 `MediaParagraphPlaybackDriver`。音频复述仍不发布系统媒体控制，也不启用后台保活。下文中“音频继续使用 ForegroundAudioEngine”及音视频分流入口等要求已被取代，不再作为实现规范。
+
 ## 目标
 
 为首次学习、复习和自由练习中的段落复述/全文复述补齐视频链路。视频复述复用全文盲听已经建立的媒体启动、段落播放、视频呈现、全屏、CC、句子讲解和生命周期机制。

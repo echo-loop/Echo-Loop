@@ -201,8 +201,9 @@ class LearningSession extends _$LearningSession {
   /// 视频精听进入流程 generation；退出或重试会使旧异步结果失效。
   int _intensiveListenEntryGeneration = 0;
 
-  /// 视频复述进入流程 generation；取消、重试或退出会使旧异步结果失效。
-  int _mediaRetellEntryGeneration = 0;
+  /// 复述媒体进入流程 generation；取消、重试或退出会使旧异步结果失效。
+  int _retellEntryGeneration = 0;
+  int? _suspendedRetellEntryGeneration;
 
   /// 难句补练进入流程 generation；音视频共用同一媒体会话入口。
   int _reviewDifficultEntryGeneration = 0;
@@ -855,177 +856,227 @@ class LearningSession extends _$LearningSession {
     _trackSessionStart();
   }
 
-  /// 进入段落复述模式
+  /// 进入音频或视频段落复述，共用 MediaEngine 媒体会话与段落播放器。
   ///
-  /// 1. 保存当前用户播放设置
-  /// 2. 暂停 LP 的 stream 监听
-  /// 3. 初始化 RetellPlayer（段落分组 + 按音频难度自动算可见词比例 + 断点索引）
-  ///
-  /// 可见词比例：
-  /// - [overrideKeywordRatio] 非空时使用（用户在 briefing 弹窗中手动选了某档）
-  /// - 否则按 `progress.difficulty` + 阶段映射自动算
-  Future<void> enterRetellMode(
-    String audioItemId,
-    List<List<Sentence>> paragraphs, {
-    bool isFreePlay = false,
-    LearningStage? catchUpStage,
-    SubStageType? catchUpSubStage,
-  }) async {
-    final practice = ref.read(listeningPracticeProvider.notifier);
-    final currentSettings = ref.read(listeningPracticeProvider).settings;
-
-    // 各自读取独立字段 + 校验过期时间
-    final progress = await ref
-        .read(learningProgressNotifierProvider.notifier)
-        .getLatestOrEnsureProgress(audioItemId);
-    final startSentenceIndex = _retellStartSentenceIndex(progress, isFreePlay);
-
-    state = state.copyWith(
-      learningMode: LearningMode.retell,
-      blindListenCompleted: false,
-      audioItemId: audioItemId,
-      savedSettings: currentSettings,
-      isFreePlay: isFreePlay,
-      catchUpStage: catchUpStage,
-      catchUpSubStage: catchUpSubStage,
-      clearCatchUp: catchUpStage == null,
-      playbackChain: LearningPlaybackChain.audioEngine,
-    );
-
-    // 暂停 LP 的 stream 监听
-    practice.suspendListeners();
-    // 录音类任务（复述）用前台引擎播放、不上锁屏：① 停掉媒体引擎，清除上一个媒体任务
-    // （盲听/精听）残留在锁屏/通知栏的 now-playing 卡片（非idle→idle 跳变 → stopService）；
-    // ② 音频加载到**前台引擎**（foreground:true），物理上不碰系统媒体会话。见 ADR-7。
-    await ref.read(audioEngineProvider.notifier).stop();
-    await _ensureForegroundAudioLoaded(audioItemId);
-
-    final retellSentences = paragraphs.expand((p) => p).toList();
-    _logEnterMode(
-      'enterRetellMode',
-      audioItemId,
-      sentenceCount: retellSentences.length,
-      firstSentenceText: retellSentences.isNotEmpty
-          ? retellSentences.first.text
-          : null,
-    );
-
-    // 复述按 子阶段×轮次 记忆(轮次取本次会话的有效阶段);自由练习与按计划共用同槽位。
-    // 补练场景按 catchUpStage 算曲线(补练 firstLearn 走 firstLearn)。briefing 选择已由
-    // 屏幕落入偏好,这里按动态默认(速度/可见词比例)resolve 出完整设置(单一真相源)。
-    await _initializeRetellPlayer(
-      paragraphs,
-      progress: progress,
-      startSentenceIndex: startSentenceIndex,
-      effectiveStage: catchUpStage ?? progress.currentStage,
-    );
-    _trackSessionStart();
-  }
-
-  /// 进入视频复述：媒体加载与音频复述完全分离，共用同一复述状态机。
-  Future<MediaLoadResult> enterMediaRetellMode(
+  /// 媒体加载完成后才提交学习状态；取消、重试或其他媒体会话接管时，
+  /// 旧请求只释放自己仍持有的媒体会话。
+  Future<MediaLoadResult> enterRetellMode(
     AudioItem mediaItem,
     List<List<Sentence>> paragraphs, {
     bool isFreePlay = false,
     LearningStage? catchUpStage,
     SubStageType? catchUpSubStage,
   }) async {
-    final generation = ++_mediaRetellEntryGeneration;
-    bool isCurrentGeneration() => generation == _mediaRetellEntryGeneration;
-
-    final progress = await ref
-        .read(learningProgressNotifierProvider.notifier)
-        .getLatestOrEnsureProgress(mediaItem.id);
-    if (!isCurrentGeneration()) return MediaLoadResult.cancelled;
-    final bookmarkedIndices = await BookmarkManager.loadBookmarks(
-      mediaItem.id,
-      dao: ref.read(bookmarkDaoProvider),
-    );
-    if (!isCurrentGeneration()) return MediaLoadResult.cancelled;
-    final sessionParagraphs = BookmarkManager.createParagraphBookmarkSnapshot(
-      paragraphs,
-      bookmarkedIndices,
-    );
-
-    final effectiveStage = catchUpStage ?? progress.currentStage;
-    final settings = _resolveRetellSettings(progress, effectiveStage).settings;
-    await ref.read(audioEngineProvider.notifier).pause();
-    if (!isCurrentGeneration()) return MediaLoadResult.cancelled;
-
-    final mediaEngine = ref.read(mediaEngineProvider.notifier);
-    final duration = await mediaEngine.loadMedia(
-      mediaItem,
-      settings.playbackSpeed,
-    );
-    if (!isCurrentGeneration()) {
-      await mediaEngine.releaseFromScreen();
-      return MediaLoadResult.cancelled;
+    final generation = ++_retellEntryGeneration;
+    // 新入口接管尚未恢复的自由播放器监听；旧请求随后完成时不能抢先恢复它。
+    if (_suspendedRetellEntryGeneration != null) {
+      _suspendedRetellEntryGeneration = generation;
     }
-    if (duration == null) {
-      AppLogger.log(
-        'Session',
-        '✗ enterMediaRetellMode load failed: ${mediaItem.id}',
+    bool isCurrentGeneration() => generation == _retellEntryGeneration;
+    final practice = ref.read(listeningPracticeProvider.notifier);
+    final mediaEngine = ref.read(mediaEngineProvider.notifier);
+    var mediaSessionId = 0;
+    var hasMediaSession = false;
+    bool ownsMediaSession() =>
+        hasMediaSession && mediaEngine.isActiveSession(mediaSessionId);
+
+    Future<void> releaseOwnedMediaSession(String reason) async {
+      if (!ownsMediaSession()) return;
+      await _releaseMediaSessionSafely(
+        mediaEngine,
+        scope: 'Retell',
+        reason: reason,
+        itemId: mediaItem.id,
+        generation: generation,
       );
-      await mediaEngine.releaseFromScreen();
+    }
+
+    AppLogger.log(
+      'Retell',
+      'event=entry-start generation=$generation itemId=${mediaItem.id} '
+          'mediaType=${mediaItem.isVideo ? 'video' : 'audio'} '
+          'source=${isFreePlay ? 'free-practice' : 'planned'} '
+          'paragraphCount=${paragraphs.length}',
+    );
+
+    try {
+      final progress = await ref
+          .read(learningProgressNotifierProvider.notifier)
+          .getLatestOrEnsureProgress(mediaItem.id);
+      if (!isCurrentGeneration()) return MediaLoadResult.cancelled;
+      final bookmarkedIndices = await BookmarkManager.loadBookmarks(
+        mediaItem.id,
+        dao: ref.read(bookmarkDaoProvider),
+      );
+      if (!isCurrentGeneration()) return MediaLoadResult.cancelled;
+      final sessionParagraphs = BookmarkManager.createParagraphBookmarkSnapshot(
+        paragraphs,
+        bookmarkedIndices,
+      );
+      final effectiveStage = catchUpStage ?? progress.currentStage;
+      final resolvedSettings = _resolveRetellSettings(progress, effectiveStage);
+
+      // 移交自由播放器会话，避免旧播放与媒体加载并行。
+      await practice.pause();
+      if (!isCurrentGeneration()) return MediaLoadResult.cancelled;
+      practice.suspendListeners();
+      _suspendedRetellEntryGeneration = generation;
+
+      // 音频复述不注册系统媒体会话，因此需先停止默认 AudioService handler，
+      // 清掉自由播放器留下的 Now Playing 卡片。视频复述保留默认音频会话暂停态。
+      if (!mediaItem.isVideo) {
+        await ref.read(audioEngineProvider.notifier).stop();
+        if (!isCurrentGeneration()) return MediaLoadResult.cancelled;
+      }
+
+      mediaSessionId = mediaEngine.newSession();
+      hasMediaSession = true;
+      final duration = await mediaEngine.loadMedia(
+        mediaItem,
+        resolvedSettings.settings.playbackSpeed,
+        // 音频复述保留无系统媒体控制的现状；视频复述沿用既有媒体会话行为。
+        publishToSystemMediaSession: mediaItem.isVideo,
+      );
+      if (!isCurrentGeneration() || !ownsMediaSession()) {
+        await releaseOwnedMediaSession('stale-entry-after-media-load');
+        return MediaLoadResult.cancelled;
+      }
+      if (duration == null) {
+        AppLogger.log(
+          'Retell',
+          'event=entry-failed generation=$generation stage=media-load '
+              'itemId=${mediaItem.id} '
+              'error=${mediaEngine.state.errorMessage ?? 'duration-unavailable'}',
+        );
+        await releaseOwnedMediaSession('entry-failed-media-load');
+        await _restoreRetellListeners(generation);
+        return MediaLoadResult.failure;
+      }
+
+      await mediaEngine.setSubtitleTrackData(null);
+      if (!isCurrentGeneration() || !ownsMediaSession()) {
+        await releaseOwnedMediaSession('stale-entry-after-subtitle-setup');
+        return MediaLoadResult.cancelled;
+      }
+
+      state = state.copyWith(
+        learningMode: LearningMode.retell,
+        blindListenCompleted: false,
+        audioItemId: mediaItem.id,
+        isFreePlay: isFreePlay,
+        catchUpStage: catchUpStage,
+        catchUpSubStage: catchUpSubStage,
+        clearCatchUp: catchUpStage == null,
+        playbackChain: LearningPlaybackChain.mediaEngine,
+        clearSavedSettings: true,
+      );
+
+      final retellSentences = sessionParagraphs
+          .expand((paragraph) => paragraph)
+          .toList();
+      _logEnterMode(
+        'enterRetellMode',
+        mediaItem.id,
+        sentenceCount: retellSentences.length,
+        firstSentenceText: retellSentences.isNotEmpty
+            ? retellSentences.first.text
+            : null,
+      );
+      await ref
+          .read(retellPlayerProvider.notifier)
+          .initialize(
+            sessionParagraphs,
+            startSentenceIndex: _retellStartSentenceIndex(progress, isFreePlay),
+            settings: resolvedSettings.settings,
+            settingsSlot: resolvedSettings.slot,
+            playbackDriver: MediaParagraphPlaybackDriver(mediaEngine),
+          );
+      if (!isCurrentGeneration() || !ownsMediaSession()) {
+        if (ownsMediaSession() &&
+            state.learningMode == LearningMode.retell &&
+            state.audioItemId == mediaItem.id &&
+            state.playbackChain == LearningPlaybackChain.mediaEngine) {
+          await exitLearningMode();
+        } else {
+          await releaseOwnedMediaSession('stale-entry-after-player-initialize');
+        }
+        return MediaLoadResult.cancelled;
+      }
+
+      _trackSessionStart();
+      AppLogger.log(
+        'Retell',
+        'event=entry-ready generation=$generation itemId=${mediaItem.id} '
+            'mediaType=${mediaItem.isVideo ? 'video' : 'audio'} '
+            'source=${isFreePlay ? 'free-practice' : 'planned'} '
+            'mediaSessionId=$mediaSessionId '
+            'paragraphCount=${sessionParagraphs.length} '
+            'sentenceCount=${retellSentences.length}',
+      );
+      return MediaLoadResult.ready;
+    } catch (error, stackTrace) {
+      AppLogger.log(
+        'Retell',
+        'event=entry-failed generation=$generation itemId=${mediaItem.id} '
+            'error=$error\n$stackTrace',
+      );
+      final ownsSession = ownsMediaSession();
+      final isActiveRetellSession =
+          state.learningMode == LearningMode.retell &&
+          state.audioItemId == mediaItem.id &&
+          state.playbackChain == LearningPlaybackChain.mediaEngine;
+      if (isCurrentGeneration() && ownsSession && isActiveRetellSession) {
+        await exitLearningMode();
+      } else {
+        await releaseOwnedMediaSession('entry-failed');
+        await _restoreRetellListeners(generation);
+      }
       return MediaLoadResult.failure;
     }
-
-    await mediaEngine.setSubtitleTrackData(null);
-    if (!isCurrentGeneration()) {
-      await mediaEngine.releaseFromScreen();
-      return MediaLoadResult.cancelled;
-    }
-
-    state = state.copyWith(
-      learningMode: LearningMode.retell,
-      blindListenCompleted: false,
-      audioItemId: mediaItem.id,
-      isFreePlay: isFreePlay,
-      catchUpStage: catchUpStage,
-      catchUpSubStage: catchUpSubStage,
-      clearCatchUp: catchUpStage == null,
-      playbackChain: LearningPlaybackChain.mediaEngine,
-      clearSavedSettings: true,
-    );
-
-    final retellSentences = sessionParagraphs
-        .expand((paragraph) => paragraph)
-        .toList();
-    _logEnterMode(
-      'enterMediaRetellMode',
-      mediaItem.id,
-      sentenceCount: retellSentences.length,
-      firstSentenceText: retellSentences.isNotEmpty
-          ? retellSentences.first.text
-          : null,
-    );
-    await _initializeRetellPlayer(
-      sessionParagraphs,
-      progress: progress,
-      startSentenceIndex: _retellStartSentenceIndex(progress, isFreePlay),
-      effectiveStage: effectiveStage,
-      playbackDriver: MediaParagraphPlaybackDriver(mediaEngine),
-    );
-    if (!isCurrentGeneration()) {
-      await exitLearningMode();
-      return MediaLoadResult.cancelled;
-    }
-
-    _trackSessionStart();
-    AppLogger.log(
-      'Session',
-      '🎬 enterMediaRetellMode: targetId=${mediaItem.id}, '
-          'paragraphs=${paragraphs.length}',
-    );
-    return MediaLoadResult.ready;
   }
 
-  /// 取消尚未完成的视频复述进入任务，或退出已建立的媒体复述会话。
-  Future<void> cancelMediaRetellEntry() async {
-    _mediaRetellEntryGeneration += 1;
+  /// 取消尚未完成的复述媒体加载，或退出已建立的复述会话。
+  Future<void> cancelRetellEntry() async {
+    final suspendedGeneration = _suspendedRetellEntryGeneration;
+    _retellEntryGeneration += 1;
     if (state.learningMode == LearningMode.retell &&
         state.playbackChain == LearningPlaybackChain.mediaEngine) {
       await exitLearningMode();
+    } else {
+      if (suspendedGeneration != null) {
+        await _restoreRetellListeners(suspendedGeneration);
+      }
+    }
+  }
+
+  Future<void> _restoreRetellListeners(
+    int generation, {
+    bool allowActiveRetell = false,
+  }) async {
+    if (_suspendedRetellEntryGeneration != generation) return;
+    if (state.learningMode != null &&
+        !(allowActiveRetell && state.learningMode == LearningMode.retell)) {
+      return;
+    }
+    _suspendedRetellEntryGeneration = null;
+    final practice = ref.read(listeningPracticeProvider.notifier);
+    try {
+      practice.resumeListeners();
+    } catch (error, stackTrace) {
+      AppLogger.log(
+        'Retell',
+        'event=free-player-listener-restore-failed generation=$generation '
+            'error=$error\n$stackTrace',
+      );
+    }
+    try {
+      await practice.syncBookmarks();
+    } catch (error, stackTrace) {
+      AppLogger.log(
+        'Retell',
+        'event=free-player-bookmark-sync-failed generation=$generation '
+            'error=$error\n$stackTrace',
+      );
     }
   }
 
@@ -1059,25 +1110,6 @@ class LearningSession extends _$LearningSession {
           ),
         );
     return (slot: slot, settings: settings);
-  }
-
-  Future<void> _initializeRetellPlayer(
-    List<List<Sentence>> paragraphs, {
-    required LearningProgress progress,
-    required int? startSentenceIndex,
-    required LearningStage effectiveStage,
-    ParagraphPlaybackDriver? playbackDriver,
-  }) {
-    final resolved = _resolveRetellSettings(progress, effectiveStage);
-    return ref
-        .read(retellPlayerProvider.notifier)
-        .initialize(
-          paragraphs,
-          startSentenceIndex: startSentenceIndex,
-          settings: resolved.settings,
-          settingsSlot: resolved.slot,
-          playbackDriver: playbackDriver,
-        );
   }
 
   /// 通过共享 MediaEngine 进入音频或视频难句补练。
@@ -1303,6 +1335,9 @@ class LearningSession extends _$LearningSession {
     final difficultPracticePlayer = mode == LearningMode.reviewDifficultPractice
         ? ref.read(reviewDifficultPracticeProvider.notifier)
         : null;
+    final suspendedRetellGeneration = mode == LearningMode.retell
+        ? _suspendedRetellEntryGeneration
+        : null;
     _trackSessionEnd(
       durationMs:
           intensivePlayer?.elapsed.inMilliseconds ??
@@ -1328,7 +1363,7 @@ class LearningSession extends _$LearningSession {
     final usesMediaEngine =
         state.playbackChain == LearningPlaybackChain.mediaEngine;
     if (mode == LearningMode.retell && usesMediaEngine) {
-      _mediaRetellEntryGeneration += 1;
+      _retellEntryGeneration += 1;
     }
     if (mode == LearningMode.blindListen && usesMediaEngine) {
       _blindListenEntryGeneration += 1;
@@ -1372,7 +1407,12 @@ class LearningSession extends _$LearningSession {
           itemId: itemId ?? 'unknown',
           generation: null,
         );
-        if (mode == LearningMode.intensiveListen ||
+        if (mode == LearningMode.retell && suspendedRetellGeneration != null) {
+          await _restoreRetellListeners(
+            suspendedRetellGeneration,
+            allowActiveRetell: true,
+          );
+        } else if (mode == LearningMode.intensiveListen ||
             mode == LearningMode.blindListen) {
           final freePlayer = ref.read(listeningPracticeProvider.notifier);
           try {

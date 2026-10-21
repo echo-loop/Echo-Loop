@@ -128,6 +128,21 @@ void main() {
     );
   });
 
+  test('前台播放可加载媒体但不发布系统媒体控制信息', () async {
+    final engine = container.read(mediaEngineProvider.notifier);
+
+    final duration = await engine.loadMedia(
+      item(),
+      1.0,
+      publishToSystemMediaSession: false,
+    );
+
+    expect(duration, const Duration(seconds: 10));
+    expect(backend.openCalls, [mediaFile.path]);
+    expect(router.isRouted, isFalse);
+    expect(router.mediaItem.value, isNull);
+  });
+
   test('自然播放结束关闭逐词高亮，定位后重新启用', () async {
     final engine = container.read(mediaEngineProvider.notifier);
     await engine.loadMedia(item(), 1.0);

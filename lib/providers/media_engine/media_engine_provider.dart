@@ -252,19 +252,27 @@ class MediaEngine extends _$MediaEngine {
     }
   }
 
+  /// 加载媒体；[publishToSystemMediaSession] 控制是否发布系统媒体控制信息。
   Future<Duration?> loadMedia(
     AudioItem item,
     double speed, {
     Duration initialPosition = Duration.zero,
+    bool publishToSystemMediaSession = true,
   }) => _enqueueLifecycle(
     'load-${item.id}',
-    () => _loadMedia(item, speed, initialPosition: initialPosition),
+    () => _loadMedia(
+      item,
+      speed,
+      initialPosition: initialPosition,
+      publishToSystemMediaSession: publishToSystemMediaSession,
+    ),
   );
 
   Future<Duration?> _loadMedia(
     AudioItem item,
     double speed, {
     required Duration initialPosition,
+    required bool publishToSystemMediaSession,
   }) async {
     _wordHighlightCompletionSessionId = null;
     _wordHighlightPlaybackStatus.reset();
@@ -277,7 +285,7 @@ class MediaEngine extends _$MediaEngine {
     await ensureChain();
     // media_kit 前台播放不依赖 AudioService；测试 fake backend 也不应触发
     // 真实平台媒体会话初始化，否则 flutter_tester 会访问不存在的平台插件。
-    if (_backend is MediaKitPlayerBackend) {
+    if (publishToSystemMediaSession && _backend is MediaKitPlayerBackend) {
       retryEchoLoopAudioServiceOnPlayback();
     }
     state = state.copyWith(
@@ -307,13 +315,14 @@ class MediaEngine extends _$MediaEngine {
       );
       return null;
     }
+    final router = _router;
+    if (!publishToSystemMediaSession) router?.deactivate(handler);
     try {
       handler.setNowPlaying(id: item.id, title: item.name);
       await backend.open(path, initialPosition: initialPosition);
       await backend.setRate(speed);
-      final router = _router;
-      router?.activate(handler);
-      if (router != null) {
+      if (publishToSystemMediaSession) router?.activate(handler);
+      if (publishToSystemMediaSession && router != null) {
         await _waitForSystemMediaState(router, item.id);
       }
       final duration =

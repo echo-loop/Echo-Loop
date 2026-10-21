@@ -120,7 +120,7 @@ Future<void> _openBlindListenPractice({
   );
 }
 
-/// 统一打开音频或视频复述任务，保持所有计划入口的分流与补做参数一致。
+/// 通过统一媒体启动链路打开音频或视频复述任务。
 Future<void> _openRetellPractice({
   required BuildContext context,
   required WidgetRef ref,
@@ -133,34 +133,22 @@ Future<void> _openRetellPractice({
   SubStageType? catchUpSubStage,
 }) async {
   final session = ref.read(learningSessionProvider.notifier);
-  if (audioItem.isVideo) {
-    if (!context.mounted) return;
-    context.push(
-      AppRoutes.retellPlayer(collectionId, audioItem.id),
-      extra: MediaLearningStartup(
-        loadKey: loadKey,
-        load: () => session.enterMediaRetellMode(
-          audioItem,
-          paragraphs,
-          isFreePlay: isFreePlay,
-          catchUpStage: catchUpStage,
-          catchUpSubStage: catchUpSubStage,
-        ),
-        cancel: session.cancelMediaRetellEntry,
-      ),
-    );
-    return;
-  }
-
-  await session.enterRetellMode(
-    audioItem.id,
-    paragraphs,
-    isFreePlay: isFreePlay,
-    catchUpStage: catchUpStage,
-    catchUpSubStage: catchUpSubStage,
-  );
   if (!context.mounted) return;
-  context.push(AppRoutes.retellPlayer(collectionId, audioItem.id));
+  context.push(
+    AppRoutes.retellPlayer(collectionId, audioItem.id),
+    extra: MediaLearningStartup(
+      loadKey: loadKey,
+      showVideoLoading: audioItem.isVideo,
+      load: () => session.enterRetellMode(
+        audioItem,
+        paragraphs,
+        isFreePlay: isFreePlay,
+        catchUpStage: catchUpStage,
+        catchUpSubStage: catchUpSubStage,
+      ),
+      cancel: session.cancelRetellEntry,
+    ),
+  );
 }
 
 /// 学习计划大阶段完成标记图标。

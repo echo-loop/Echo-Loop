@@ -22,7 +22,8 @@ import 'package:echo_loop/providers/new_user_guide_provider.dart';
 import 'package:echo_loop/providers/listening_practice/listening_practice_provider.dart';
 import 'package:echo_loop/providers/audio_engine/audio_engine_provider.dart';
 import 'package:echo_loop/providers/audio_engine/foreground_audio_engine_provider.dart';
-import 'package:echo_loop/providers/audio_engine/foreground_sense_group_range_playback.dart';
+import 'package:echo_loop/providers/media_engine/media_engine_provider.dart';
+import 'package:echo_loop/providers/media_engine/media_sense_group_range_playback.dart';
 import 'package:echo_loop/providers/learning_progress_provider.dart';
 import 'package:echo_loop/providers/learning_session/learning_session_provider.dart';
 import 'package:echo_loop/providers/learning_session/retell_player_provider.dart';
@@ -270,6 +271,7 @@ void main() {
         foregroundAudioEngineProvider.overrideWith(
           () => TestForegroundAudioEngine(),
         ),
+        mediaEngineProvider.overrideWith(MediaEngine.new),
         learningProgressNotifierProvider.overrideWith(
           () => TestLearningProgressNotifier(),
         ),
@@ -1270,7 +1272,7 @@ void main() {
       expect(trackingPlayer.seekCalls, 0);
     });
 
-    testWidgets('纯音频复述详情的播放与高亮来源都使用前台音频引擎', (tester) async {
+    testWidgets('纯音频复述详情的播放与高亮来源都使用媒体引擎', (tester) async {
       final testParagraphs = createTestParagraphs();
       final initialState = RetellPlayerState(
         currentParagraphIndex: 0,
@@ -1307,14 +1309,14 @@ void main() {
       final extra = GoRouterState.of(detailContext).extra;
       expect(extra, isA<SentenceDetailArgs>());
       if (extra case final SentenceDetailArgs args) {
-        final foregroundEngine = ProviderScope.containerOf(
+        final mediaEngine = ProviderScope.containerOf(
           detailContext,
-        ).read(foregroundAudioEngineProvider.notifier);
-        expect(args.rangePlayback, isA<ForegroundSenseGroupRangePlayback>());
+        ).read(mediaEngineProvider.notifier);
+        expect(args.rangePlayback, isA<MediaSenseGroupRangePlayback>());
         expect(args.wordHighlightSource.audioItemId, 'a1');
         expect(
           args.wordHighlightSource.currentPosition,
-          foregroundEngine.absoluteCurrentPosition,
+          mediaEngine.wordHighlightPosition,
         );
       }
     });

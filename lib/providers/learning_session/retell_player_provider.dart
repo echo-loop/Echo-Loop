@@ -1,9 +1,9 @@
 /// 复述专用播放器 Provider
 ///
-/// 段落复述播放器，直接操作 AudioEngine。
+/// 段落复述状态机通过注入的段落播放驱动播放原文媒体。
 /// 核心功能：
 /// - 段落播放（首句 startTime → 末句 endTime）
-/// - 播放期间句子高亮（监听 absolutePositionStream + 二分查找）
+/// - 播放期间句子高亮（监听媒体位置流 + 二分查找）
 /// - 复述倒计时（段落播放完→倒计时→下一段）
 /// - 遍数循环（播放→复述为一遍，达到遍数后推进下一段）
 /// - 文本遮盖/关键词显示模式切换
@@ -28,7 +28,6 @@ import '../../services/study_session_timer.dart';
 import '../../services/study_time_service.dart';
 import '../../utils/keyword_extraction.dart';
 import '../../utils/word_counter.dart';
-import '../audio_engine/foreground_audio_engine_provider.dart';
 import '../listening_practice/bookmark_manager.dart';
 import '../favorite_sentence_lifecycle_provider.dart';
 import '../learning_settings_provider.dart';
@@ -209,19 +208,25 @@ class RetellPlayer extends _$RetellPlayer {
   /// 可控倒计时控制器
   final CountdownController _countdown = CountdownController();
 
-  /// 当前 AudioEngine sessionId
+  /// 当前段落播放驱动的 sessionId。
   int _sessionId = -1;
+
+  /// 复述初始化代际；退出或后续初始化会使等待中的旧初始化失效。
+  int _initializationGeneration = 0;
 
   /// 当前播放 session 下一条待统计的段内句子索引。
   int _nextStatsSentenceLocalIndex = 0;
 
-  /// 当前复述会话的段落播放驱动；音频默认使用独立前台引擎，视频由入口注入。
+  /// 当前复述会话的段落播放驱动，由学习会话入口注入。
   ParagraphPlaybackDriver? _playbackDriver;
 
-  ParagraphPlaybackDriver get _playback =>
-      _playbackDriver ??= ForegroundParagraphPlaybackDriver(
-        ref.read(foregroundAudioEngineProvider.notifier),
-      );
+  ParagraphPlaybackDriver get _playback {
+    final playback = _playbackDriver;
+    if (playback == null) {
+      throw StateError('RetellPlayer must be initialized before playback.');
+    }
+    return playback;
+  }
 
   /// 倒计时运行版本号
   ///
@@ -252,6 +257,7 @@ class RetellPlayer extends _$RetellPlayer {
       onStateChange: _handleAppLifecycleChange,
     );
     ref.onDispose(() {
+      _initializationGeneration += 1;
       lifecycleListener.dispose();
       _positionSub?.cancel();
       _invalidateRetellCountdown();
@@ -296,11 +302,13 @@ class RetellPlayer extends _$RetellPlayer {
             'countdown=${state.isRetellCountdown}',
       );
 
-      // 停止段落音频播放
-      final playback = _playback;
-      _sessionId = playback.newSession();
-      _positionSub?.cancel();
-      playback.pause();
+      // 初始化完成后才有媒体驱动；启动遮罩期间进入后台仍安全取消倒计时。
+      final playback = _playbackDriver;
+      if (playback != null) {
+        _sessionId = playback.newSession();
+        _positionSub?.cancel();
+        unawaited(playback.pause());
+      }
 
       // 取消倒计时
       if (state.isRetellCountdown) {
@@ -333,22 +341,27 @@ class RetellPlayer extends _$RetellPlayer {
     int? startSentenceIndex,
     RetellSettings settings = const RetellSettings(),
     String? settingsSlot,
-    ParagraphPlaybackDriver? playbackDriver,
+    required ParagraphPlaybackDriver playbackDriver,
   }) async {
+    final initializationGeneration = ++_initializationGeneration;
     if (_playbackDriver != null) {
       await _cancelAll();
     }
     await _disposeStudySessionTimer();
     await _flushStudyStatistics();
+    if (initializationGeneration != _initializationGeneration) {
+      AppLogger.log(
+        'RetellPlayer',
+        'initialize discarded: generation=$initializationGeneration '
+            'current=$_initializationGeneration',
+      );
+      return;
+    }
     _studySessionGeneration += 1;
     final studySessionGeneration = _studySessionGeneration;
     _settingsSlot = settingsSlot;
     _cleanup();
-    _playbackDriver =
-        playbackDriver ??
-        ForegroundParagraphPlaybackDriver(
-          ref.read(foregroundAudioEngineProvider.notifier),
-        );
+    _playbackDriver = playbackDriver;
     _paragraphs = paragraphs;
     _allSentences = paragraphs.expand((p) => p).toList();
 
@@ -991,6 +1004,7 @@ class RetellPlayer extends _$RetellPlayer {
   }
 
   Future<void> _disposePlayerInternal() async {
+    _initializationGeneration += 1;
     _studySessionGeneration += 1;
     AppLogger.log(
       'RetellPlayer',

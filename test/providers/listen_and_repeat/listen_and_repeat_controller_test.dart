@@ -115,6 +115,7 @@ class _ControlledMediaEngine extends MediaEngine {
     model.AudioItem item,
     double speed, {
     Duration initialPosition = Duration.zero,
+    bool publishToSystemMediaSession = true,
   }) {
     if (!loadStarted.isCompleted) loadStarted.complete();
     return blockingLoad?.future ?? Future<Duration?>.value(duration);

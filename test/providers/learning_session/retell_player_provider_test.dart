@@ -212,6 +212,21 @@ class _RecordingRetellStudyTimeService extends FakeStudyTimeService {
   Future<void> flush() async => flushCount += 1;
 }
 
+/// 可分别放行初始化与退出刷写，复现退出先完成、旧初始化后恢复的竞态。
+class _GatedRetellStudyTimeService extends _RecordingRetellStudyTimeService {
+  final flushStarted = [Completer<void>(), Completer<void>()];
+  final flushResults = [Completer<void>(), Completer<void>()];
+  var _flushCallCount = 0;
+
+  @override
+  Future<void> flush() {
+    final callIndex = _flushCallCount++;
+    if (callIndex >= flushStarted.length) return super.flush();
+    flushStarted[callIndex].complete();
+    return flushResults[callIndex].future;
+  }
+}
+
 /// 立即完成段落播放，供统计测试精确验证完整播放和断点后缀。
 class _CompletingParagraphPlaybackDriver implements ParagraphPlaybackDriver {
   int _sessionId = 0;
@@ -244,6 +259,69 @@ class _CompletingParagraphPlaybackDriver implements ParagraphPlaybackDriver {
   }) async {
     onRangeReady();
     return SentencePlaybackResult.completed;
+  }
+
+  @override
+  void bindLockScreen({
+    required Future<void> Function() onPlay,
+    required Future<void> Function() onPause,
+    required Future<void> Function() onNext,
+    required Future<void> Function() onPrevious,
+  }) {}
+
+  @override
+  void setSessionActive(bool active) {}
+
+  @override
+  void setProgressFrozen(bool frozen) {}
+
+  @override
+  void unbindLockScreen() {}
+}
+
+/// 将前台引擎测试替身适配到段落播放契约，供状态机时序测试使用。
+class _ForegroundTestParagraphPlaybackDriver
+    implements ParagraphPlaybackDriver {
+  _ForegroundTestParagraphPlaybackDriver(this._engine);
+
+  final ForegroundAudioEngine _engine;
+
+  @override
+  int newSession() => _engine.newSession();
+
+  @override
+  bool isActiveSession(int sessionId) => _engine.isActiveSession(sessionId);
+
+  @override
+  Stream<Duration> get positionStream => _engine.absolutePositionStream;
+
+  @override
+  Future<void> pause() => _engine.stopPlayback();
+
+  @override
+  Future<void> setSpeed(double speed) => _engine.setSpeed(speed);
+
+  @override
+  Future<void> seek(Duration position) => _engine.seekToAbsolute(position);
+
+  @override
+  Future<SentencePlaybackResult> playRange(
+    Duration start,
+    Duration end,
+    int sessionId, {
+    required double speed,
+    required void Function() onRangeReady,
+  }) async {
+    await _engine.setSpeed(speed);
+    await _engine.playRangeOnce(
+      start,
+      end,
+      sessionId,
+      onClipReady: onRangeReady,
+    );
+    return _engine.isActiveSession(sessionId)
+        ? SentencePlaybackResult.completed
+        : SentencePlaybackResult.cancelled;
   }
 
   @override
@@ -652,6 +730,37 @@ class PositionDrivenTestAudioEngine extends ForegroundAudioEngine {
 }
 
 void main() {
+  group('RetellPlayer 初始化生命周期', () {
+    test('退出先于等待中的初始化完成时，旧初始化不会重新写入播放器状态', () async {
+      final studyTimeService = _GatedRetellStudyTimeService();
+      final container = _createRetellStatsContainer(studyTimeService);
+      addTearDown(container.dispose);
+      final notifier = container.read(retellPlayerProvider.notifier);
+      final initialization = notifier.initialize([
+        [
+          Sentence(
+            index: 0,
+            text: 'A paragraph',
+            startTime: Duration.zero,
+            endTime: const Duration(seconds: 2),
+          ),
+        ],
+      ], playbackDriver: _CompletingParagraphPlaybackDriver());
+
+      await studyTimeService.flushStarted[0].future;
+      final disposal = notifier.disposePlayer();
+      await studyTimeService.flushStarted[1].future;
+
+      studyTimeService.flushResults[1].complete();
+      await disposal;
+      studyTimeService.flushResults[0].complete();
+      await initialization;
+
+      expect(container.read(retellPlayerProvider), const RetellPlayerState());
+      expect(notifier.paragraphs, isEmpty);
+    });
+  });
+
   group('RetellPlayer 新学习统计', () {
     test('页面退出记录有效学习时长，手动暂停期间不累计且重复退出只收尾一次', () async {
       final studyTimeService = _RecordingRetellStudyTimeService();
@@ -799,14 +908,20 @@ void main() {
           ),
         ],
       ];
-      await notifier.initialize(paragraphs);
+      await notifier.initialize(
+        paragraphs,
+        playbackDriver: _CompletingParagraphPlaybackDriver(),
+      );
       final oldHandler = recordingController.recordingCompletionHandler;
       recordingController.emitRecordingCompleted(
         const Duration(milliseconds: 1200),
       );
       expect(studyTimeService.speechRecognitions, hasLength(1));
 
-      await notifier.initialize(paragraphs);
+      await notifier.initialize(
+        paragraphs,
+        playbackDriver: _CompletingParagraphPlaybackDriver(),
+      );
       oldHandler?.call(const Duration(seconds: 3));
 
       expect(studyTimeService.speechRecognitions, hasLength(1));
@@ -901,7 +1016,7 @@ void main() {
       await notifier.initialize([
         [sentences[0]],
         [sentences[1]],
-      ]);
+      ], playbackDriver: _ForegroundTestParagraphPlaybackDriver(engine));
 
       final pending = notifier.goToNextParagraph();
       await Future<void>.delayed(Duration.zero);
@@ -1040,6 +1155,9 @@ void main() {
       final delayedNotifier = delayedContainer.read(
         retellPlayerProvider.notifier,
       );
+      final delayedEngine = delayedContainer.read(
+        foregroundAudioEngineProvider.notifier,
+      );
       await delayedNotifier.initialize([
         [
           Sentence(
@@ -1049,7 +1167,7 @@ void main() {
             endTime: const Duration(seconds: 3),
           ),
         ],
-      ]);
+      ], playbackDriver: _ForegroundTestParagraphPlaybackDriver(delayedEngine));
 
       final pending = delayedNotifier.startPlaying();
       delayedNotifier.enterWaitingForUser(afterCurrentParagraph: true);
@@ -1089,7 +1207,7 @@ void main() {
             endTime: const Duration(seconds: 3),
           ),
         ],
-      ]);
+      ], playbackDriver: _CompletingParagraphPlaybackDriver());
       notifier.updateSettings(const RetellSettings(repeatCount: 0));
       await notifier.completeRetellingTurn();
 
@@ -1142,7 +1260,7 @@ void main() {
             endTime: const Duration(seconds: 3),
           ),
         ],
-      ]);
+      ], playbackDriver: _CompletingParagraphPlaybackDriver());
 
       await saveNotifier.startPlaying();
       await Future<void>.delayed(const Duration(milliseconds: 1));
@@ -1196,7 +1314,7 @@ void main() {
             endTime: const Duration(seconds: 3),
           ),
         ],
-      ]);
+      ], playbackDriver: _CompletingParagraphPlaybackDriver());
 
       await saveNotifier.startPlaying();
       await Future<void>.delayed(const Duration(milliseconds: 1));
@@ -1273,7 +1391,11 @@ void main() {
         ),
       ];
       // 断点恢复到第 3 句（全局 index 2）
-      await posNotifier.initialize([para], startSentenceIndex: 2);
+      await posNotifier.initialize(
+        [para],
+        startSentenceIndex: 2,
+        playbackDriver: _ForegroundTestParagraphPlaybackDriver(posEngine),
+      );
 
       final playing = posNotifier.startPlaying(); // 挂在 playGate，session 保持活跃
       await posEngine.rangeReady.future;
@@ -1401,7 +1523,7 @@ void main() {
             endTime: const Duration(seconds: 8),
           ),
         ],
-      ]);
+      ], playbackDriver: _ForegroundTestParagraphPlaybackDriver(posEngine));
 
       final playing = notifier.startPlaying();
       await posEngine.rangeReady.future;
@@ -1448,32 +1570,36 @@ void main() {
       final countdownNotifier = countdownContainer.read(
         retellPlayerProvider.notifier,
       );
-      await countdownNotifier.initialize([
+      await countdownNotifier.initialize(
         [
-          Sentence(
-            index: 0,
-            text: 'Paragraph one',
-            startTime: Duration.zero,
-            endTime: const Duration(seconds: 3),
-          ),
+          [
+            Sentence(
+              index: 0,
+              text: 'Paragraph one',
+              startTime: Duration.zero,
+              endTime: const Duration(seconds: 3),
+            ),
+          ],
+          [
+            Sentence(
+              index: 1,
+              text: 'Paragraph two',
+              startTime: const Duration(seconds: 3),
+              endTime: const Duration(seconds: 6),
+            ),
+          ],
+          [
+            Sentence(
+              index: 2,
+              text: 'Paragraph three',
+              startTime: const Duration(seconds: 6),
+              endTime: const Duration(seconds: 9),
+            ),
+          ],
         ],
-        [
-          Sentence(
-            index: 1,
-            text: 'Paragraph two',
-            startTime: const Duration(seconds: 3),
-            endTime: const Duration(seconds: 6),
-          ),
-        ],
-        [
-          Sentence(
-            index: 2,
-            text: 'Paragraph three',
-            startTime: const Duration(seconds: 6),
-            endTime: const Duration(seconds: 9),
-          ),
-        ],
-      ], startSentenceIndex: 1);
+        startSentenceIndex: 1,
+        playbackDriver: _ForegroundTestParagraphPlaybackDriver(countdownEngine),
+      );
       await countdownNotifier.startPlaying();
       await Future<void>.delayed(const Duration(milliseconds: 20));
 
@@ -1527,16 +1653,21 @@ void main() {
         addTearDown(testContainer.dispose);
 
         final testNotifier = testContainer.read(retellPlayerProvider.notifier);
-        await testNotifier.initialize([
+        await testNotifier.initialize(
           [
-            Sentence(
-              index: 0,
-              text: 'Paragraph one',
-              startTime: Duration.zero,
-              endTime: const Duration(seconds: 3),
-            ),
+            [
+              Sentence(
+                index: 0,
+                text: 'Paragraph one',
+                startTime: Duration.zero,
+                endTime: const Duration(seconds: 3),
+              ),
+            ],
           ],
-        ]);
+          playbackDriver: _ForegroundTestParagraphPlaybackDriver(
+            countdownEngine,
+          ),
+        );
 
         // 开始播放（playRangeOnce 立即完成 → 自动进入 retelling phase）
         await testNotifier.startPlaying();
@@ -1605,16 +1736,19 @@ void main() {
       addTearDown(testContainer.dispose);
 
       final testNotifier = testContainer.read(retellPlayerProvider.notifier);
-      await testNotifier.initialize([
+      await testNotifier.initialize(
         [
-          Sentence(
-            index: 0,
-            text: 'Paragraph one',
-            startTime: Duration.zero,
-            endTime: const Duration(seconds: 3),
-          ),
+          [
+            Sentence(
+              index: 0,
+              text: 'Paragraph one',
+              startTime: Duration.zero,
+              endTime: const Duration(seconds: 3),
+            ),
+          ],
         ],
-      ]);
+        playbackDriver: _ForegroundTestParagraphPlaybackDriver(countdownEngine),
+      );
 
       // 开始播放 → 自动进入 retelling phase
       await testNotifier.startPlaying();
@@ -1661,32 +1795,35 @@ void main() {
       final countdownNotifier = countdownContainer.read(
         retellPlayerProvider.notifier,
       );
-      await countdownNotifier.initialize([
+      await countdownNotifier.initialize(
         [
-          Sentence(
-            index: 0,
-            text: 'Paragraph one',
-            startTime: Duration.zero,
-            endTime: const Duration(seconds: 3),
-          ),
+          [
+            Sentence(
+              index: 0,
+              text: 'Paragraph one',
+              startTime: Duration.zero,
+              endTime: const Duration(seconds: 3),
+            ),
+          ],
+          [
+            Sentence(
+              index: 1,
+              text: 'Paragraph two',
+              startTime: const Duration(seconds: 3),
+              endTime: const Duration(seconds: 6),
+            ),
+          ],
+          [
+            Sentence(
+              index: 2,
+              text: 'Paragraph three',
+              startTime: const Duration(seconds: 6),
+              endTime: const Duration(seconds: 9),
+            ),
+          ],
         ],
-        [
-          Sentence(
-            index: 1,
-            text: 'Paragraph two',
-            startTime: const Duration(seconds: 3),
-            endTime: const Duration(seconds: 6),
-          ),
-        ],
-        [
-          Sentence(
-            index: 2,
-            text: 'Paragraph three',
-            startTime: const Duration(seconds: 6),
-            endTime: const Duration(seconds: 9),
-          ),
-        ],
-      ]);
+        playbackDriver: _ForegroundTestParagraphPlaybackDriver(countdownEngine),
+      );
 
       await countdownNotifier.startPlaying();
       await Future<void>.delayed(const Duration(milliseconds: 20));
@@ -1772,7 +1909,12 @@ void main() {
         paragraphCount: 1,
         sentencesPerParagraph: 5,
       );
-      await notifier.initialize(paragraphs);
+      await notifier.initialize(
+        paragraphs,
+        playbackDriver: _ForegroundTestParagraphPlaybackDriver(
+          container.read(foregroundAudioEngineProvider.notifier),
+        ),
+      );
       notifier.setDisplayMode(RetellDisplayMode.showAll);
 
       await notifier.seekToSentence(2);
@@ -1812,7 +1954,12 @@ void main() {
         paragraphCount: 2,
         sentencesPerParagraph: 4,
       );
-      await notifier.initialize(paragraphs);
+      await notifier.initialize(
+        paragraphs,
+        playbackDriver: _ForegroundTestParagraphPlaybackDriver(
+          container.read(foregroundAudioEngineProvider.notifier),
+        ),
+      );
       notifier.setDisplayMode(RetellDisplayMode.showAll);
 
       // 跨段 seek 到段 1 第 2 句（globalIdx = 6）
@@ -1853,7 +2000,12 @@ void main() {
         paragraphCount: 3,
         sentencesPerParagraph: 4,
       );
-      await notifier.initialize(paragraphs);
+      await notifier.initialize(
+        paragraphs,
+        playbackDriver: _ForegroundTestParagraphPlaybackDriver(
+          container.read(foregroundAudioEngineProvider.notifier),
+        ),
+      );
 
       // 跳到第 3 段（index=2）→ 落在该段，listening phase
       await notifier.seekToParagraph(2);
@@ -1899,7 +2051,12 @@ void main() {
         paragraphCount: 1,
         sentencesPerParagraph: 5,
       );
-      await notifier.initialize(paragraphs);
+      await notifier.initialize(
+        paragraphs,
+        playbackDriver: _ForegroundTestParagraphPlaybackDriver(
+          container.read(foregroundAudioEngineProvider.notifier),
+        ),
+      );
 
       // 模拟用户在播放中进入"等待用户操作"，phase 切到 retelling
       notifier.enterWaitingForUser(stopImmediately: true);
@@ -1974,7 +2131,12 @@ void main() {
         paragraphCount: 2,
         sentencesPerParagraph: 5,
       );
-      await notifier.initialize(paragraphs);
+      await notifier.initialize(
+        paragraphs,
+        playbackDriver: _ForegroundTestParagraphPlaybackDriver(
+          container.read(foregroundAudioEngineProvider.notifier),
+        ),
+      );
 
       // 进入段 0 第 3 句，然后 pause
       await notifier.seekToSentence(3);

@@ -4,6 +4,7 @@
 
 ## 本次完成
 
+- [x] 统一段落复述音视频学习链路到 MediaEngine（2026-10-21）：音频和视频复述入口共用 `MediaLearningStartup`、`MediaEngine` 与 `MediaParagraphPlaybackDriver`；复述状态机必须注入共享驱动，移除前台专用段落驱动，详情播放和逐词高亮统一读取 MediaEngine。复核修复：音频进入时停止默认 AudioEngine，清理遗留系统媒体卡片但不让 MediaEngine 发布系统控制；新进入正确接管监听恢复 lease；退出会使等待中的播放器初始化失效；设置快照只解析一次。音视频入口、加载失败/取消/退出和监听恢复均有回归覆盖。6 个定向测试文件共 221 项通过、4 项跳过；14 个相关 Dart 文件 `flutter analyze` 无问题，`git diff --check` 通过。Android dev APK 构建、安装成功；不清理 App 状态的 Maestro 启动 Flow 通过。未运行 `scripts/check.sh`：定向测试和分析覆盖本次复核修复范围。**完成时间**: 2026-10-21
 - [x] 记录难句补练跟读统计口径（2026-10-21）：在统计回调注释中明确学习统计只累计有效跟读时长，不累计跟读词数或总次数；录音完成次数由 UsageTracker 独立计数。仅补充注释，未改变行为。**完成时间**: 2026-10-21
 - [x] 统一难句跟读与难句补练音视频学习链路到 MediaEngine（2026-10-20）：音视频难句跟读与难句补练共用 `MediaLearningStartup`、`MediaEngine` 和媒体句子/意群区间播放驱动；保留各自流程状态机、录音统计、断点和书签行为。系统媒体控制与后台播放状态接入共享驱动，视频画面仅视频条目显示；统一进入取消、加载失败和退出时的媒体清理及 ListeningPractice 监听恢复。6 个定向测试文件 172 项通过、9 项跳过；15 个相关 Dart 文件 `flutter analyze` 无问题，`git diff --check` 通过。Android 真机 dev 包构建并安装成功；Study Maestro Flow 在新手引导阶段因目标问卷题未显示而失败，未到达本次改动页面。未运行 `scripts/check.sh`：本次改动局限于两个学习任务的媒体进入链路和播放器驱动，定向测试与分析覆盖了相关范围。**完成时间**: 2026-10-20
 - [x] 修复盲听倒计时期间点上一段仍重播当前段（2026-10-20）：根因是 `goToPreviousParagraph` 在倒计时状态单独重播当前段，绕过正常的上一段导航。移除重复分支，倒计时取消继续由 `_cancelAll` 统一处理；更新回归测试，验证倒计时中从段落 1 点上一段会从段落 0 首句播放。盲听 Provider 测试 38 项通过，2 个相关 Dart 文件 `flutter analyze` 无问题，`dart format` 无改动。未运行 `scripts/check.sh`：改动仅涉及盲听上一段状态流，定向测试和分析覆盖了受影响范围。**完成时间**: 2026-10-20

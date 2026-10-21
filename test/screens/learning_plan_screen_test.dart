@@ -15,6 +15,7 @@ import 'package:echo_loop/models/audio_item.dart';
 import 'package:echo_loop/models/learning_progress.dart';
 import 'package:echo_loop/models/media_intensive_listen_startup.dart';
 import 'package:echo_loop/models/media_learning_startup.dart';
+import 'package:echo_loop/models/speech_practice_models.dart';
 import 'package:echo_loop/database/enums.dart';
 import 'package:echo_loop/providers/audio_library_provider.dart';
 import 'package:echo_loop/providers/audio_sentences_provider.dart';
@@ -27,6 +28,7 @@ import 'package:echo_loop/database/daos/bookmark_dao.dart';
 import 'package:echo_loop/database/app_database.dart' show Bookmark;
 import 'package:echo_loop/database/providers.dart';
 import 'package:echo_loop/providers/time_provider.dart';
+import 'package:echo_loop/services/speech_permission_service.dart';
 import 'package:echo_loop/features/auth/providers/auth_providers.dart';
 import 'package:echo_loop/theme/app_theme.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -43,6 +45,27 @@ class _EmptyBookmarkDao implements BookmarkDao {
 
   @override
   dynamic noSuchMethod(Invocation invocation) => Future<void>.value();
+}
+
+class _ReadySpeechPermissionService implements SpeechPermissionService {
+  const _ReadySpeechPermissionService();
+
+  @override
+  bool get isSupported => true;
+
+  @override
+  Future<SpeechPracticePermissionState> getStatus() async =>
+      const SpeechPracticePermissionState(
+        microphone: SpeechPracticePermissionStatus.granted,
+        speech: SpeechPracticePermissionStatus.granted,
+      );
+
+  @override
+  Future<SpeechPracticePermissionState> request({required bool onlyMic}) =>
+      getStatus();
+
+  @override
+  Future<void> openAppSettings() async {}
 }
 
 void main() {
@@ -180,6 +203,7 @@ void main() {
     LearningProgressState? progressState,
     AudioItem? audioItem,
     bool autoStart = false,
+    bool retellRatingEnabled = true,
     DateTime? fixedNow,
     ListeningPracticeState? lpState,
     TestListeningPractice Function()? listeningPracticeOverride,
@@ -227,6 +251,18 @@ void main() {
           },
         ),
         GoRoute(
+          path: '/collections/:collectionId/:audioId/retell',
+          builder: (context, state) {
+            final startup = state.extra;
+            return _MediaStartupTestScreen(
+              startup: startup is MediaLearningStartup ? startup : null,
+              label: startup is MediaLearningStartup
+                  ? 'Retell Startup ${startup.showVideoLoading}'
+                  : 'Retell Startup Missing',
+            );
+          },
+        ),
+        GoRoute(
           path: '/collections/:collectionId/:audioId/intensive-listen',
           builder: (context, state) {
             final startup = state.extra;
@@ -258,7 +294,7 @@ void main() {
         ...studyTimeOverrides(),
         sharedPreferencesProvider.overrideWithValue(prefs),
         // plan 静态全量；默认 autoSkipRetell=false（手动跳过路径）
-        ...learningSettingsOverrides(),
+        ...learningSettingsOverrides(retellRatingEnabled: retellRatingEnabled),
         audioLibraryProvider.overrideWith(
           () => TestAudioLibrary(AudioLibraryState(audioItems: [item])),
         ),
@@ -1500,6 +1536,74 @@ void main() {
           .firstWhere((w) => w.onTap != null, orElse: () => const InkWell());
       expect(inkWell.onTap, isNotNull, reason: '过去阶段跳过的复述卡应支持点击进入自由练习');
     });
+
+    for (final (item, isVideo) in [
+      (testAudioItem, false),
+      (testVideoItem, true),
+    ]) {
+      testWidgets('${isVideo ? '视频' : '音频'}复述补练通过统一媒体启动链路进入', (tester) async {
+        final progressState = LearningProgressState(
+          progressMap: {
+            item.id: LearningProgress(
+              audioItemId: item.id,
+              currentStage: LearningStage.review0,
+              currentSubStage: SubStageType.reviewDifficultPractice,
+              updatedAt: DateTime(2026, 1, 1),
+            ),
+          },
+          completionsByAudio: {
+            item.id: {
+              'firstLearn:blindListen',
+              'firstLearn:intensiveListen',
+              'firstLearn:listenAndRepeat',
+            },
+          },
+        );
+        await tester.pumpWidget(
+          createTestWidget(
+            audioItem: item,
+            progressState: progressState,
+            retellRatingEnabled: false,
+            videoSentences: isVideo ? createTestSentences() : null,
+            extraOverrides: [
+              speechPermissionServiceProvider.overrideWithValue(
+                const _ReadySpeechPermissionService(),
+              ),
+            ],
+          ),
+        );
+        await tester.pumpAndSettle();
+        final planContext = tester.element(find.byType(LearningPlanScreen));
+        final container = ProviderScope.containerOf(planContext);
+
+        await tester.tap(find.text('First Round'));
+        await tester.pumpAndSettle();
+        final retellCard = find.ancestor(
+          of: find.text('Listen & Retell').first,
+          matching: find.byType(InkWell),
+        );
+        final cardTap = tester
+            .widgetList<InkWell>(retellCard)
+            .map((widget) => widget.onTap)
+            .whereType<VoidCallback>()
+            .first;
+        cardTap();
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Start Practicing'));
+        await tester.pumpAndSettle();
+
+        expect(find.text('Retell Startup $isVideo'), findsOneWidget);
+        expect(
+          container.read(learningSessionProvider).learningMode,
+          LearningMode.retell,
+        );
+        expect(
+          container.read(learningSessionProvider).playbackChain,
+          LearningPlaybackChain.mediaEngine,
+        );
+        expect(container.read(learningSessionProvider).isFreePlay, isTrue);
+      });
+    }
 
     testWidgets('无字幕时显示警告横幅且开始按钮可点击', (tester) async {
       await tester.pumpWidget(

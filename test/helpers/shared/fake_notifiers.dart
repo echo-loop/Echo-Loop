@@ -1057,8 +1057,8 @@ class FakeLearningSession extends LearningSession {
   Future<void> cancelReviewDifficultPracticeEntry() async {}
 
   @override
-  Future<void> enterRetellMode(
-    String audioItemId,
+  Future<MediaLoadResult> enterRetellMode(
+    AudioItem mediaItem,
     List<List<Sentence>> paragraphs, {
     bool isFreePlay = false,
     LearningStage? catchUpStage,
@@ -1066,10 +1066,15 @@ class FakeLearningSession extends LearningSession {
   }) async {
     state = state.copyWith(
       learningMode: LearningMode.retell,
-      audioItemId: audioItemId,
+      audioItemId: mediaItem.id,
       isFreePlay: isFreePlay,
+      playbackChain: LearningPlaybackChain.mediaEngine,
     );
+    return MediaLoadResult.ready;
   }
+
+  @override
+  Future<void> cancelRetellEntry() async {}
 
   @override
   Future<void> replayBlindListen() async {
@@ -1506,7 +1511,7 @@ class FakeRetellPlayer extends RetellPlayer {
     int? startSentenceIndex,
     RetellSettings settings = const RetellSettings(),
     String? settingsSlot,
-    ParagraphPlaybackDriver? playbackDriver,
+    required ParagraphPlaybackDriver playbackDriver,
   }) async {
     lastPlaybackDriver = playbackDriver;
     testParagraphs = paragraphs;

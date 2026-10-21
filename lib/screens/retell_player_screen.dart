@@ -34,8 +34,6 @@ import '../providers/listening_practice/listening_practice_provider.dart';
 import '../providers/learning_session/learning_session_provider.dart';
 import '../providers/learning_session/retell_player_provider.dart';
 import '../providers/media_engine/media_engine_provider.dart';
-import '../providers/audio_engine/foreground_audio_engine_provider.dart';
-import '../providers/audio_engine/foreground_sense_group_range_playback.dart';
 import '../providers/media_engine/media_sense_group_range_playback.dart';
 import '../providers/new_user_guide_provider.dart';
 import '../widgets/common/recording_button.dart' show RecordingButtonMode;
@@ -84,7 +82,7 @@ class RetellPlayerScreen extends ConsumerStatefulWidget {
   /// 音频项 ID
   final String audioItemId;
 
-  /// 视频复述进入页面后延迟准备媒体；音频任务保持 null。
+  /// 进入页面后统一延迟准备音频或视频媒体。
   final MediaLearningStartup? mediaStartup;
 
   const RetellPlayerScreen({
@@ -196,10 +194,10 @@ class _RetellPlayerScreenState extends ConsumerState<RetellPlayerScreen>
     });
   }
 
-  /// 语音能力与视频媒体都 ready 后只启动一次；音频任务天然满足媒体条件。
+  /// 语音能力与媒体都 ready 后只启动一次。
   void _tryStartPlaying() {
     if (!mounted || !_speechReady || _didStartPlaying) return;
-    if (widget.mediaStartup != null && !_mediaStartupReady) return;
+    if (widget.mediaStartup == null || !_mediaStartupReady) return;
     _didStartPlaying = true;
     ref.read(retellPlayerProvider.notifier).startPlaying();
     final playerState = _latestPlayerState;
@@ -237,6 +235,7 @@ class _RetellPlayerScreenState extends ConsumerState<RetellPlayerScreen>
       load: startup.load,
       cancel: startup.cancel,
       onReady: _handleMediaStartupReady,
+      showVideoLoading: startup.showVideoLoading,
       child: child,
     );
   }
@@ -1424,7 +1423,10 @@ class _RetellPlayerScreenState extends ConsumerState<RetellPlayerScreen>
 
     final lpState = ref.read(listeningPracticeProvider);
     final audioName = lpState.currentAudioItem?.name ?? '';
-    final usesMedia = widget.mediaStartup != null && _mediaStartupReady;
+    final usesMedia =
+        _mediaStartupReady &&
+        ref.read(learningSessionProvider).playbackChain ==
+            LearningPlaybackChain.mediaEngine;
 
     await AppRoutes.pushNested(
       context,
@@ -1439,9 +1441,7 @@ class _RetellPlayerScreenState extends ConsumerState<RetellPlayerScreen>
             .totalSentenceCount,
         startTimeMs: sentence.startTime.inMilliseconds,
         endTimeMs: sentence.endTime.inMilliseconds,
-        rangePlayback: usesMedia
-            ? _retellMediaRangePlayback
-            : _retellAudioRangePlayback,
+        rangePlayback: _retellMediaRangePlayback,
         wordHighlightSource: _wordHighlightSource(),
         mediaSession: usesMedia ? _buildMediaSession() : null,
       ),
@@ -1463,29 +1463,12 @@ class _RetellPlayerScreenState extends ConsumerState<RetellPlayerScreen>
             ref.read(retellPlayerProvider).settings.playbackSpeed,
       );
 
-  late final ForegroundSenseGroupRangePlayback _retellAudioRangePlayback =
-      ForegroundSenseGroupRangePlayback(
-        engine: ref.read(foregroundAudioEngineProvider.notifier),
-        playbackSpeed: () =>
-            ref.read(retellPlayerProvider).settings.playbackSpeed,
-      );
-
   WordHighlightSource _wordHighlightSource() {
-    if (widget.mediaStartup != null && _mediaStartupReady) {
-      final engine = ref.read(mediaEngineProvider.notifier);
-      return WordHighlightSource(
-        audioItemId: widget.audioItemId,
-        positionStream: engine.wordHighlightPositionStream,
-        currentPosition: engine.wordHighlightPosition,
-        playbackStatus: engine.wordHighlightPlaybackStatus,
-        playbackStatusStream: engine.wordHighlightPlaybackStatusStream,
-      );
-    }
-    final engine = ref.read(foregroundAudioEngineProvider.notifier);
+    final engine = ref.read(mediaEngineProvider.notifier);
     return WordHighlightSource(
       audioItemId: widget.audioItemId,
-      positionStream: engine.absolutePositionStream,
-      currentPosition: engine.absoluteCurrentPosition,
+      positionStream: engine.wordHighlightPositionStream,
+      currentPosition: engine.wordHighlightPosition,
       playbackStatus: engine.wordHighlightPlaybackStatus,
       playbackStatusStream: engine.wordHighlightPlaybackStatusStream,
     );
@@ -1610,13 +1593,15 @@ class _RetellPlayerScreenState extends ConsumerState<RetellPlayerScreen>
       ),
     ];
 
-    final mediaReady = widget.mediaStartup == null || _mediaStartupReady;
+    final mediaStartup = widget.mediaStartup;
     return StudyActivityDetector(
       onActivity: player.markStudyActivity,
       child: wakelockBody(
         child: PracticeMediaPresentationHost(
           enabled:
-              mediaReady &&
+              mediaStartup != null &&
+              _mediaStartupReady &&
+              mediaStartup.showVideoLoading &&
               ref.read(learningSessionProvider).playbackChain ==
                   LearningPlaybackChain.mediaEngine,
           suppressVisualView: _isNavigatingToDetail,

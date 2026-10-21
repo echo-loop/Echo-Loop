@@ -17,6 +17,7 @@ import 'package:echo_loop/providers/learning_session/intensive_listen_playback_d
 import 'package:echo_loop/providers/learning_session/paragraph_playback_driver.dart';
 import 'package:echo_loop/providers/learning_session/review_difficult_practice_provider.dart';
 import 'package:echo_loop/providers/learning_session/retell_player_provider.dart';
+import 'package:echo_loop/providers/retell_recording_controller_provider.dart';
 import 'package:echo_loop/providers/audio_engine/audio_engine_provider.dart';
 import 'package:echo_loop/providers/media_engine/media_engine_provider.dart';
 import 'package:echo_loop/providers/listening_practice/listening_practice_provider.dart';
@@ -116,6 +117,7 @@ class _FailingMediaEngine extends MediaEngine {
     model.AudioItem item,
     double speed, {
     Duration initialPosition = Duration.zero,
+    bool publishToSystemMediaSession = true,
   }) async => null;
 
   @override
@@ -139,6 +141,7 @@ class _BlockingMediaEngine extends MediaEngine {
     model.AudioItem item,
     double speed, {
     Duration initialPosition = Duration.zero,
+    bool publishToSystemMediaSession = true,
   }) {
     loadStarted.complete();
     return loadResult.future;
@@ -171,6 +174,7 @@ class _OverlappingMediaEngine extends MediaEngine {
     model.AudioItem item,
     double speed, {
     Duration initialPosition = Duration.zero,
+    bool publishToSystemMediaSession = true,
   }) {
     final callIndex = loadCalls++;
     loadStarted[callIndex].complete();
@@ -188,6 +192,7 @@ class _SuccessfulMediaEngine extends MediaEngine {
   int releaseCalls = 0;
   bool failRelease = false;
   final List<model.AudioItem> loadedItems = [];
+  final List<bool> publishedSystemMediaSessions = [];
 
   @override
   MediaEngineState build() => const MediaEngineState();
@@ -197,8 +202,10 @@ class _SuccessfulMediaEngine extends MediaEngine {
     model.AudioItem item,
     double speed, {
     Duration initialPosition = Duration.zero,
+    bool publishToSystemMediaSession = true,
   }) async {
     loadedItems.add(item);
+    publishedSystemMediaSessions.add(publishToSystemMediaSession);
     return const Duration(minutes: 1);
   }
 
@@ -211,6 +218,23 @@ class _SuccessfulMediaEngine extends MediaEngine {
   Future<void> releaseFromScreen() async {
     releaseCalls += 1;
     if (failRelease) throw StateError('media release failed');
+  }
+}
+
+class _RecordingAudioEngine extends TestAudioEngine {
+  int pauseCalls = 0;
+  int stopCalls = 0;
+
+  @override
+  Future<void> pause() async {
+    pauseCalls += 1;
+    await super.pause();
+  }
+
+  @override
+  Future<void> stop() async {
+    stopCalls += 1;
+    await super.stop();
   }
 }
 
@@ -1114,17 +1138,26 @@ void main() {
     ProviderContainer createContainer(
       LearningProgressNotifier progressNotifier, {
       MediaEngine? mediaEngine,
+      TestListeningPractice? listeningPractice,
+      TestAudioEngine? audioEngine,
     }) {
       return ProviderContainer(
         overrides: [
           appDatabaseProvider.overrideWithValue(_createTestDb()),
-          audioEngineProvider.overrideWith(() => TestAudioEngine()),
-          listeningPracticeProvider.overrideWith(() => TestListeningPractice()),
+          audioEngineProvider.overrideWith(
+            () => audioEngine ?? TestAudioEngine(),
+          ),
+          listeningPracticeProvider.overrideWith(
+            () => listeningPractice ?? TestListeningPractice(),
+          ),
           learningProgressNotifierProvider.overrideWith(() => progressNotifier),
           reviewDifficultPracticeProvider.overrideWith(
             () => TestReviewDifficultPractice(),
           ),
           retellPlayerProvider.overrideWith(() => TestRetellPlayer()),
+          retellRecordingControllerProvider.overrideWith(
+            TestRetellRecordingController.new,
+          ),
           blindListenPlayerProvider.overrideWith(() => TestBlindListenPlayer()),
           dailyStudyTimeProvider.overrideWith(() => TestDailyStudyTime()),
           bookmarkDaoProvider.overrideWithValue(_TestBookmarkDao({1, 3})),
@@ -1314,19 +1347,57 @@ void main() {
         [sentences[0], sentences[1]],
         [sentences[2], sentences[3]],
       ];
+      final mediaEngine = _SuccessfulMediaEngine();
+      final practice = TestListeningPractice();
+      final audioEngine = _RecordingAudioEngine();
       final container = createContainer(
         TestLearningProgressNotifier(
           LearningProgressState(progressMap: {'audio-1': progress}),
         ),
+        mediaEngine: mediaEngine,
+        listeningPractice: practice,
+        audioEngine: audioEngine,
       );
       addTearDown(container.dispose);
 
-      await container
+      final result = await container
           .read(learningSessionProvider.notifier)
-          .enterRetellMode('audio-1', paragraphs);
+          .enterRetellMode(
+            model.AudioItem(
+              id: 'audio-1',
+              name: 'Audio',
+              audioPath: 'audio.mp3',
+              addedDate: DateTime(2026, 3, 11),
+            ),
+            paragraphs,
+          );
 
+      expect(result, MediaLoadResult.ready);
+      expect(mediaEngine.loadedItems.single.id, 'audio-1');
+      expect(mediaEngine.publishedSystemMediaSessions, [false]);
+      expect(audioEngine.stopCalls, 1);
+      expect(
+        container.read(learningSessionProvider).playbackChain,
+        LearningPlaybackChain.mediaEngine,
+      );
+      final retellPlayer = container.read(retellPlayerProvider.notifier);
+      if (retellPlayer case final TestRetellPlayer testPlayer) {
+        expect(
+          testPlayer.lastPlaybackDriver,
+          isA<MediaParagraphPlaybackDriver>(),
+        );
+      } else {
+        fail('The test container should use TestRetellPlayer.');
+      }
       final playerState = container.read(retellPlayerProvider);
       expect(playerState.currentParagraphIndex, 0);
+      expect(practice.listenersSuspended, isTrue);
+
+      await container.read(learningSessionProvider.notifier).exitLearningMode();
+
+      expect(mediaEngine.releaseCalls, 1);
+      expect(practice.listenersSuspended, isFalse);
+      expect(practice.syncBookmarksCalls, 1);
     });
 
     test('复述自由练习恢复段首句断点', () async {
@@ -1342,22 +1413,39 @@ void main() {
         [sentences[0], sentences[1]],
         [sentences[2], sentences[3]],
       ];
+      final mediaEngine = _SuccessfulMediaEngine();
       final container = createContainer(
         TestLearningProgressNotifier(
           LearningProgressState(progressMap: {'audio-1': progress}),
         ),
+        mediaEngine: mediaEngine,
       );
       addTearDown(container.dispose);
 
-      await container
+      final result = await container
           .read(learningSessionProvider.notifier)
-          .enterRetellMode('audio-1', paragraphs, isFreePlay: true);
+          .enterRetellMode(
+            model.AudioItem(
+              id: 'audio-1',
+              name: 'Audio',
+              audioPath: 'audio.mp3',
+              addedDate: DateTime(2026, 3, 11),
+            ),
+            paragraphs,
+            isFreePlay: true,
+          );
 
+      expect(result, MediaLoadResult.ready);
+      expect(mediaEngine.loadedItems.single.id, 'audio-1');
+      expect(
+        container.read(learningSessionProvider).playbackChain,
+        LearningPlaybackChain.mediaEngine,
+      );
       final playerState = container.read(retellPlayerProvider);
       expect(playerState.currentParagraphIndex, 1);
     });
 
-    test('视频复述进入媒体链路并复用段落播放驱动与自由练习断点', () async {
+    test('视频复述进入统一媒体链路并复用段落播放驱动与自由练习断点', () async {
       final progress = LearningProgress(
         audioItemId: 'video-retell',
         currentStage: LearningStage.review1,
@@ -1394,7 +1482,7 @@ void main() {
 
       final result = await container
           .read(learningSessionProvider.notifier)
-          .enterMediaRetellMode(
+          .enterRetellMode(
             model.AudioItem(
               id: 'video-retell',
               name: 'Video retell',
@@ -1406,6 +1494,7 @@ void main() {
           );
 
       expect(result, MediaLoadResult.ready);
+      expect(mediaEngine.publishedSystemMediaSessions, [true]);
       expect(
         container.read(learningSessionProvider).playbackChain,
         LearningPlaybackChain.mediaEngine,
@@ -1425,11 +1514,13 @@ void main() {
       expect(mediaEngine.subtitleClearCalls, 1);
     });
 
-    test('视频复述加载失败不进入会话，取消后迟到成功也被丢弃', () async {
+    test('复述媒体加载失败不进入会话，取消后迟到成功也被丢弃', () async {
       final failedEngine = _FailingMediaEngine();
+      final failedPractice = TestListeningPractice();
       final failedContainer = createContainer(
         TestLearningProgressNotifier(),
         mediaEngine: failedEngine,
+        listeningPractice: failedPractice,
       );
       addTearDown(failedContainer.dispose);
       final item = model.AudioItem(
@@ -1442,33 +1533,69 @@ void main() {
       expect(
         await failedContainer
             .read(learningSessionProvider.notifier)
-            .enterMediaRetellMode(item, [sentences]),
+            .enterRetellMode(item, [sentences]),
         MediaLoadResult.failure,
       );
       expect(failedEngine.releaseCalls, 1);
+      expect(failedPractice.listenersSuspended, isFalse);
+      expect(failedPractice.syncBookmarksCalls, 1);
       expect(
         failedContainer.read(learningSessionProvider).isInLearningMode,
         isFalse,
       );
 
       final blockingEngine = _BlockingMediaEngine();
+      final cancelledPractice = TestListeningPractice();
       final cancelledContainer = createContainer(
         TestLearningProgressNotifier(),
         mediaEngine: blockingEngine,
+        listeningPractice: cancelledPractice,
       );
       addTearDown(cancelledContainer.dispose);
       final session = cancelledContainer.read(learningSessionProvider.notifier);
-      final entry = session.enterMediaRetellMode(item, [sentences]);
+      final entry = session.enterRetellMode(item, [sentences]);
       await blockingEngine.loadStarted.future;
-      await session.cancelMediaRetellEntry();
+      await session.cancelRetellEntry();
       blockingEngine.loadResult.complete(const Duration(minutes: 1));
 
       expect(await entry, MediaLoadResult.cancelled);
       expect(blockingEngine.releaseCalls, 1);
+      expect(cancelledPractice.listenersSuspended, isFalse);
+      expect(cancelledPractice.syncBookmarksCalls, 1);
       expect(
         cancelledContainer.read(learningSessionProvider).isInLearningMode,
         isFalse,
       );
+    });
+
+    test('新复述进入被取消时恢复被旧进入挂起的自由播放器监听', () async {
+      final mediaEngine = _OverlappingMediaEngine();
+      final practice = TestListeningPractice();
+      final container = createContainer(
+        TestLearningProgressNotifier(),
+        mediaEngine: mediaEngine,
+        listeningPractice: practice,
+      );
+      addTearDown(container.dispose);
+      final session = container.read(learningSessionProvider.notifier);
+      final item = model.AudioItem(
+        id: 'audio-retell-overlap',
+        name: 'Audio',
+        audioPath: 'audio.mp3',
+        addedDate: DateTime(2026, 8, 11),
+      );
+
+      final firstEntry = session.enterRetellMode(item, [sentences]);
+      await mediaEngine.loadStarted[0].future;
+      final supersededEntry = session.enterRetellMode(item, [sentences]);
+      await session.cancelRetellEntry();
+      mediaEngine.loadResults[0].complete(const Duration(minutes: 1));
+
+      expect(await firstEntry, MediaLoadResult.cancelled);
+      expect(await supersededEntry, MediaLoadResult.cancelled);
+      expect(mediaEngine.releaseCalls, 1);
+      expect(practice.listenersSuspended, isFalse);
+      expect(practice.syncBookmarksCalls, 1);
     });
 
     // TODO: 旧 ListenAndRepeatPlayer 已删除，需要基于新播放器重写
