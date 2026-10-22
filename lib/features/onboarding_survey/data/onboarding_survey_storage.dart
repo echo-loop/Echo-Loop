@@ -9,6 +9,7 @@
 /// - `onboarding_exam_type` 仅当 goal == exam 时存在
 /// - `onboarding_goal_other_text` 历史字段，仅在 SP 中遗留时读取，新答案不再写入
 /// - 不引入冗余的 `onboarding_completed` bool，避免双写不一致
+/// - `onboarding_uploaded_v1` 仅记录云端上传是否成功
 library;
 
 import 'package:shared_preferences/shared_preferences.dart';
@@ -24,6 +25,7 @@ abstract final class OnboardingSurveyKeys {
   static const dailyMinutes = 'onboarding_daily_minutes';
   static const referralSource = 'onboarding_referral_source';
   static const completedAtMs = 'onboarding_completed_at_ms';
+  static const uploaded = 'onboarding_uploaded_v1';
 }
 
 /// SP 读写封装。
@@ -54,36 +56,59 @@ class OnboardingSurveyStorage {
   /// referralSource：本轮新增字段，老用户 SP 中可能不存在；缺失时返回 null
   /// 答案（视为不可用画像）但保留完成锚点，避免重复弹问卷。
   OnboardingAnswers? loadAnswers() {
+    final answers = loadAnswersForSync();
+    if (answers == null || !answers.isComplete) return null;
+    return answers;
+  }
+
+  /// 读取可用于云端补传的答案。
+  ///
+  /// 旧版本可能没有新增题目字段；只返回完成锚点存在且通过选项校验的
+  /// 已保存字段。没有任何有效答案时返回 null，避免发送空对象。
+  OnboardingAnswers? loadAnswersForSync() {
     if (!isCompleted) return null;
-    final goal = _prefs.getString(OnboardingSurveyKeys.goal);
-    final dailyMinutes = _prefs.getString(OnboardingSurveyKeys.dailyMinutes);
-    final referralSource = _prefs.getString(
+
+    final rawGoal = _prefs.getString(OnboardingSurveyKeys.goal);
+    final goal = rawGoal != null && OnboardingGoal.all.contains(rawGoal)
+        ? rawGoal
+        : null;
+
+    final rawDailyMinutes = _prefs.getString(OnboardingSurveyKeys.dailyMinutes);
+    final dailyMinutes =
+        rawDailyMinutes != null &&
+            OnboardingDailyMinutes.all.contains(rawDailyMinutes)
+        ? rawDailyMinutes
+        : null;
+
+    final rawReferralSource = _prefs.getString(
       OnboardingSurveyKeys.referralSource,
     );
-    if (goal == null || dailyMinutes == null || referralSource == null) {
-      return null;
-    }
-    if (!OnboardingGoal.all.contains(goal)) return null;
-    if (!OnboardingDailyMinutes.all.contains(dailyMinutes)) return null;
-    if (!OnboardingReferralSource.all.contains(referralSource)) return null;
+    final referralSource =
+        rawReferralSource != null &&
+            OnboardingReferralSource.all.contains(rawReferralSource)
+        ? rawReferralSource
+        : null;
 
     String? examType;
     if (goal == OnboardingGoal.exam) {
-      examType = _prefs.getString(OnboardingSurveyKeys.examType);
-      if (examType == null || !OnboardingExamType.all.contains(examType)) {
-        return null;
+      final rawExamType = _prefs.getString(OnboardingSurveyKeys.examType);
+      if (rawExamType != null && OnboardingExamType.all.contains(rawExamType)) {
+        examType = rawExamType;
       }
     }
 
-    final goalOtherText = _prefs.getString(OnboardingSurveyKeys.goalOtherText);
+    final goalOtherText = goal == OnboardingGoal.other
+        ? _prefs.getString(OnboardingSurveyKeys.goalOtherText)
+        : null;
 
-    return OnboardingAnswers(
+    final answers = OnboardingAnswers(
       goal: goal,
       examType: examType,
       goalOtherText: goalOtherText,
       dailyMinutes: dailyMinutes,
       referralSource: referralSource,
     );
+    return answers.toJson().isEmpty ? null : answers;
   }
 
   /// 完成时的时间戳；未完成返回 null。
@@ -135,5 +160,6 @@ class OnboardingSurveyStorage {
     await _prefs.remove(OnboardingSurveyKeys.dailyMinutes);
     await _prefs.remove(OnboardingSurveyKeys.referralSource);
     await _prefs.remove(OnboardingSurveyKeys.completedAtMs);
+    await _prefs.remove(OnboardingSurveyKeys.uploaded);
   }
 }

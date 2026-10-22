@@ -46,6 +46,7 @@ import 'features/community_collections/data/trigger_community_sync.dart';
 import 'features/community_collections/download/community_download_notifier.dart';
 import 'features/onboarding_survey/data/onboarding_survey_storage.dart';
 import 'features/onboarding_survey/providers/onboarding_survey_provider.dart';
+import 'features/onboarding_survey/providers/user_onboarding_sync_provider.dart';
 import 'features/auth/providers/auth_providers.dart';
 import 'features/remote_config/remote_config_providers.dart';
 import 'features/remote_config/remote_config_service.dart';
@@ -389,6 +390,11 @@ class _EchoLoopAppState extends ConsumerState<EchoLoopApp>
         if (next.hasValue) {
           unawaited(
             ref
+                .read(onboardingSyncProvider)
+                .onSessionChanged(isSignedIn: next.valueOrNull != null),
+          );
+          unawaited(
+            ref
                 .read(userPreferencesSyncServiceProvider)
                 .onSessionChanged(next.valueOrNull?.user.id)
                 .catchError((Object error, StackTrace stackTrace) {
@@ -444,6 +450,7 @@ class _EchoLoopAppState extends ConsumerState<EchoLoopApp>
         }
         final session = ref.read(supabaseSessionProvider).valueOrNull;
         if (session != null) {
+          unawaited(ref.read(onboardingSyncProvider).onAppResumed());
           unawaited(
             ref.read(userPreferencesSyncServiceProvider).onAppResumed(),
           );

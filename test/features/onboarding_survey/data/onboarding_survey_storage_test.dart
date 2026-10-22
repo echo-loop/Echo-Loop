@@ -78,6 +78,52 @@ void main() {
       );
     });
 
+    test('toJson 序列化答案并省略未填写字段', () {
+      const answers = OnboardingAnswers(
+        goal: OnboardingGoal.exam,
+        examType: OnboardingExamType.ielts,
+        dailyMinutes: OnboardingDailyMinutes.m20,
+        referralSource: OnboardingReferralSource.xiaohongshu,
+      );
+
+      expect(answers.toJson(), {
+        'goal': OnboardingGoal.exam,
+        'examType': OnboardingExamType.ielts,
+        'dailyMinutes': OnboardingDailyMinutes.m20,
+        'referralSource': OnboardingReferralSource.xiaohongshu,
+      });
+    });
+
+    test('同步读取保留旧用户已有的有效部分答案', () async {
+      SharedPreferences.setMockInitialValues({
+        OnboardingSurveyKeys.completedAtMs: DateTime(
+          2026,
+        ).millisecondsSinceEpoch,
+        OnboardingSurveyKeys.goal: OnboardingGoal.work,
+        OnboardingSurveyKeys.dailyMinutes: OnboardingDailyMinutes.m20,
+      });
+      final prefs = await SharedPreferences.getInstance();
+      final storage = OnboardingSurveyStorage(prefs);
+
+      expect(storage.loadAnswers(), isNull);
+      expect(storage.loadAnswersForSync()?.toJson(), {
+        'goal': OnboardingGoal.work,
+        'dailyMinutes': OnboardingDailyMinutes.m20,
+      });
+    });
+
+    test('没有有效答案时同步读取返回 null', () async {
+      SharedPreferences.setMockInitialValues({
+        OnboardingSurveyKeys.completedAtMs: DateTime(
+          2026,
+        ).millisecondsSinceEpoch,
+        OnboardingSurveyKeys.goal: 'invalid',
+      });
+      final prefs = await SharedPreferences.getInstance();
+
+      expect(OnboardingSurveyStorage(prefs).loadAnswersForSync(), isNull);
+    });
+
     test('exam → 切到非 exam 时 SP 清掉 examType 残留', () async {
       final prefs = await SharedPreferences.getInstance();
       final storage = OnboardingSurveyStorage(prefs);
@@ -249,11 +295,13 @@ void main() {
           referralSource: OnboardingReferralSource.reddit,
         ),
       );
+      await prefs.setBool(OnboardingSurveyKeys.uploaded, true);
       await storage.clear();
       expect(storage.isCompleted, isFalse);
       expect(storage.loadAnswers(), isNull);
       expect(prefs.getString(OnboardingSurveyKeys.examType), isNull);
       expect(prefs.getString(OnboardingSurveyKeys.referralSource), isNull);
+      expect(prefs.getBool(OnboardingSurveyKeys.uploaded), isNull);
     });
 
     test('readIsCompletedSync 静态方法可在 main() 同步调用', () async {

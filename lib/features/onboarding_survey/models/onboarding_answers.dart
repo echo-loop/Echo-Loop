@@ -33,6 +33,17 @@ class OnboardingAnswers {
     this.referralSource,
   });
 
+  /// 将已有答案序列化为后端 onboarding API 接受的 JSON 对象。
+  ///
+  /// 旧版本可能只保存了部分题目；序列化时省略未填写字段，不补造答案。
+  Map<String, Object?> toJson() => {
+    if (goal != null) 'goal': goal,
+    if (examType != null) 'examType': examType,
+    if (goalOtherText != null) 'goalOtherText': goalOtherText,
+    if (dailyMinutes != null) 'dailyMinutes': dailyMinutes,
+    if (referralSource != null) 'referralSource': referralSource,
+  };
+
   /// 全部必填项均已填齐：
   /// - goal、dailyMinutes、referralSource 必填
   /// - goal == exam 时 examType 必填
