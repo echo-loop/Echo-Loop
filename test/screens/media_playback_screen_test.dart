@@ -1946,6 +1946,95 @@ void main() {
     expect(remaining.data, '-1:50');
   });
 
+  testMediaWidgets('秒数字变化时单行时间标签和进度条宽度保持稳定', (tester) async {
+    backend.setDuration(const Duration(hours: 2));
+    await tester.pumpWidget(
+      createTestApp(
+        MediaPlaybackScreen(audioItem: item),
+        overrides: [
+          mediaBackendFactoryProvider.overrideWithValue(() => backend),
+          mediaSessionRouterProvider.overrideWithValue(router),
+        ],
+      ),
+    );
+    await pumpMediaReady(tester);
+
+    final progressBar = find.byKey(const ValueKey('media-progress-bar'));
+    final initialProgressWidth = tester.getSize(progressBar).width;
+    double? fixedElapsedLabelCenter;
+    for (final (position, expectedElapsed, expectedRemaining) in [
+      (const Duration(minutes: 9, seconds: 4), '9:04', '-1:50:56'),
+      (const Duration(minutes: 10, seconds: 4), '10:04', '-1:49:56'),
+      ...[4, 6, 7, 8, 9].map(
+        (seconds) => (
+          Duration(minutes: 59, seconds: seconds),
+          '59:0$seconds',
+          '-1:00:${(60 - seconds).toString().padLeft(2, '0')}',
+        ),
+      ),
+    ]) {
+      backend.emitPosition(position);
+      await tester.pump(const Duration(milliseconds: 16));
+
+      final elapsed = tester.widget<Text>(
+        find.byKey(const ValueKey('media-progress-elapsed-label')),
+      );
+      final remaining = tester.widget<Text>(
+        find.byKey(const ValueKey('media-progress-remaining-label')),
+      );
+      expect(elapsed.data, expectedElapsed);
+      expect(remaining.data, expectedRemaining);
+      final elapsedLabelRect = tester.getRect(
+        find.byKey(const ValueKey('media-progress-elapsed-label')),
+      );
+      final expectedElapsedLabelCenter = fixedElapsedLabelCenter;
+      if (expectedElapsedLabelCenter == null) {
+        fixedElapsedLabelCenter = elapsedLabelRect.center.dx;
+      } else {
+        expect(
+          elapsedLabelRect.center.dx,
+          closeTo(expectedElapsedLabelCenter, 0.5),
+        );
+      }
+      expect(elapsed.maxLines, 1);
+      expect(elapsed.softWrap, isFalse);
+      expect(remaining.maxLines, 1);
+      expect(remaining.softWrap, isFalse);
+      expect(tester.getSize(progressBar).width, initialProgressWidth);
+      final progressRect = tester.getRect(progressBar);
+      expect(
+        tester
+            .getRect(find.byKey(const ValueKey('media-progress-elapsed-slot')))
+            .center
+            .dy,
+        closeTo(progressRect.center.dy, 0.5),
+      );
+      expect(
+        tester
+            .getRect(
+              find.byKey(const ValueKey('media-progress-remaining-slot')),
+            )
+            .center
+            .dy,
+        closeTo(progressRect.center.dy, 0.5),
+      );
+      expect(
+        tester
+            .getSize(find.byKey(const ValueKey('media-progress-elapsed-slot')))
+            .width,
+        48,
+      );
+      expect(
+        tester
+            .getSize(
+              find.byKey(const ValueKey('media-progress-remaining-slot')),
+            )
+            .width,
+        48,
+      );
+    }
+  });
+
   testMediaWidgets('恢复断点后进度条按正确比例显示', (tester) async {
     final semanticsHandle = tester.ensureSemantics();
     final playbackStateDao = _MockPlaybackStateDao();
@@ -1982,7 +2071,7 @@ void main() {
     semanticsHandle.dispose();
   });
 
-  testMediaWidgets('进度条使用紧凑时间间距并尽量拉长', (tester) async {
+  testMediaWidgets('时间标签在固定列居中且进度条占据剩余宽度', (tester) async {
     backend.setDuration(const Duration(minutes: 2));
     await tester.pumpWidget(
       createTestApp(
@@ -2004,15 +2093,26 @@ void main() {
     final remainingRect = tester.getRect(
       find.byKey(const ValueKey('media-progress-remaining-label')),
     );
+    final elapsedSlotRect = tester.getRect(
+      find.byKey(const ValueKey('media-progress-elapsed-slot')),
+    );
+    final remainingSlotRect = tester.getRect(
+      find.byKey(const ValueKey('media-progress-remaining-slot')),
+    );
     final controlPanelRect = tester.getRect(
       find.byKey(const ValueKey('media-control-panel')),
     );
 
-    expect(elapsedRect.left, closeTo(controlPanelRect.left + 6, 1));
-    expect(remainingRect.right, closeTo(controlPanelRect.right - 6, 1));
+    expect(elapsedSlotRect.left, closeTo(controlPanelRect.left, 1));
+    expect(remainingSlotRect.right, closeTo(controlPanelRect.right, 1));
+    expect(elapsedSlotRect.width, 48);
+    expect(remainingSlotRect.width, 48);
+    expect(elapsedRect.center.dx, closeTo(elapsedSlotRect.center.dx, 0.5));
+    expect(remainingRect.center.dx, closeTo(remainingSlotRect.center.dx, 0.5));
     expect(barRect.left, closeTo(controlPanelRect.left + 48, 1));
-    expect(barRect.right, closeTo(controlPanelRect.right - 56, 1));
-    expect(barRect.width, closeTo(controlPanelRect.width - 104, 1));
+    expect(barRect.right, closeTo(controlPanelRect.right - 48, 1));
+    expect(barRect.width, closeTo(controlPanelRect.width - 96, 1));
+    expect(barRect.center.dx, closeTo(controlPanelRect.center.dx, 1));
   });
 
   testMediaWidgets('拖动进度圆点过程中实时刷新已播和剩余时间', (tester) async {

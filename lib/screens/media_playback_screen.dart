@@ -53,6 +53,7 @@ class _MediaPlaybackScreenState extends ConsumerState<MediaPlaybackScreen>
   ///
   /// 双栏复用同一基准，避免宽屏时把视频下方的控制区人为拉高。
   static const _singleColumnControlPanelHeight = 176.0;
+  static const _progressTimeLabelWidth = 48.0;
 
   late final TabController _playlistViewController;
   final _fullSentencePagerController = FreePlayerSentencePagerController();
@@ -789,21 +790,30 @@ class _MediaPlaybackScreenState extends ConsumerState<MediaPlaybackScreen>
     final controller = ref.read(mediaPlaybackProvider.notifier);
     final progress = _seekPreviewPosition ?? state.position;
     final total = state.duration ?? Duration.zero;
-    final labelStyle = AppTextStyles.caption(context);
+    final labelStyle = AppTextStyles.caption(
+      context,
+    ).copyWith(fontFeatures: const [FontFeature.tabularFigures()]);
     return Padding(
-      padding: const EdgeInsets.fromLTRB(6, 12, 6, 8),
+      padding: const EdgeInsets.fromLTRB(0, 12, 0, 8),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           SizedBox(
-            width: 34,
-            child: Text(
-              _formatMediaTime(progress),
-              key: const ValueKey('media-progress-elapsed-label'),
-              textAlign: TextAlign.start,
-              style: labelStyle,
+            key: const ValueKey('media-progress-elapsed-slot'),
+            width: _progressTimeLabelWidth,
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.center,
+              child: Text(
+                _formatMediaTime(progress),
+                key: const ValueKey('media-progress-elapsed-label'),
+                maxLines: 1,
+                softWrap: false,
+                textAlign: TextAlign.center,
+                style: labelStyle,
+              ),
             ),
           ),
-          const SizedBox(width: 8),
           Expanded(
             // audio_video_progress_bar 会先更新 progress 再更新 total。若进度先于
             // 总时长到达，内部会把进度钳成 0；总时长变化时重建 render object，
@@ -835,14 +845,20 @@ class _MediaPlaybackScreenState extends ConsumerState<MediaPlaybackScreen>
               ),
             ),
           ),
-          const SizedBox(width: 8),
           SizedBox(
-            width: 42,
-            child: Text(
-              _formatRemainingMediaTime(progress: progress, total: total),
-              key: const ValueKey('media-progress-remaining-label'),
-              textAlign: TextAlign.end,
-              style: labelStyle,
+            key: const ValueKey('media-progress-remaining-slot'),
+            width: _progressTimeLabelWidth,
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.center,
+              child: Text(
+                _formatRemainingMediaTime(progress: progress, total: total),
+                key: const ValueKey('media-progress-remaining-label'),
+                maxLines: 1,
+                softWrap: false,
+                textAlign: TextAlign.center,
+                style: labelStyle,
+              ),
             ),
           ),
         ],
