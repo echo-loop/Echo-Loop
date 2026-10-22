@@ -89,6 +89,20 @@ void main() {
     },
   );
 
+  test('GET sends a known revision and accepts an empty 304', () async {
+    final adapter = _ScriptedAdapter([ResponseBody.fromString('', 304)]);
+    final dio = Dio(BaseOptions(baseUrl: 'https://api.example'))
+      ..httpClientAdapter = adapter;
+    addTearDown(() => dio.close(force: true));
+
+    final result = await UserPreferencesApi(dio).getCurrent(knownRevision: 7);
+
+    expect(result.notModified, isTrue);
+    expect(result.revision, 7);
+    expect(result.document, isNull);
+    expect(adapter.requests.single.headers['If-Preference-Revision'], '7');
+  });
+
   test('GET rejects a response without a valid integer revision', () async {
     for (final body in <Map<String, Object?>>[
       {'preferences': null},

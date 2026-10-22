@@ -29,8 +29,12 @@ const _authRetryPolicyKey = 'authRetryPolicy';
 const _authRetryAttemptKey = 'authRetryAttempt';
 
 /// 为明确允许重放的端点标记一次鉴权重试。
-Options authRetryOnceOptions({Map<String, Object?>? headers}) => Options(
+Options authRetryOnceOptions({
+  Map<String, Object?>? headers,
+  ValidateStatus? validateStatus,
+}) => Options(
   headers: headers,
+  validateStatus: validateStatus,
   extra: const {_authRetryPolicyKey: AuthRetryPolicy.once},
 );
 

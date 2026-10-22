@@ -10,10 +10,12 @@ class UserPreferencesApiResult {
   const UserPreferencesApiResult({
     required this.document,
     required this.revision,
+    this.notModified = false,
   });
 
   final UserPreferencesDocument? document;
   final int revision;
+  final bool notModified;
 }
 
 class UserPreferencesConflict implements Exception {
@@ -23,7 +25,7 @@ class UserPreferencesConflict implements Exception {
 }
 
 abstract interface class UserPreferencesRemoteDataSource {
-  Future<UserPreferencesApiResult> getCurrent();
+  Future<UserPreferencesApiResult> getCurrent({int? knownRevision});
 
   Future<UserPreferencesApiResult> replace({
     required UserPreferencesDocument document,
@@ -37,11 +39,44 @@ class UserPreferencesApi implements UserPreferencesRemoteDataSource {
   final Dio _dio;
 
   @override
-  Future<UserPreferencesApiResult> getCurrent() async {
+  Future<UserPreferencesApiResult> getCurrent({int? knownRevision}) async {
+    if (knownRevision != null &&
+        (knownRevision < 0 || knownRevision > 2147483647)) {
+      throw ArgumentError.value(knownRevision, 'knownRevision');
+    }
+
+    AppLogger.log(
+      'UserPreferencesSync',
+      'GET request ifPreferenceRevision=$knownRevision',
+    );
     final response = await _dio.get<Object?>(
       '/api/v1/me/preferences',
-      options: authRetryOnceOptions(),
+      options: authRetryOnceOptions(
+        headers: knownRevision == null
+            ? null
+            : {'If-Preference-Revision': knownRevision.toString()},
+        validateStatus: (status) =>
+            status == 304 || (status != null && status >= 200 && status < 300),
+      ),
     );
+    if (response.statusCode == 304) {
+      if (knownRevision == null) {
+        throw const FormatException(
+          'Preference endpoint returned 304 without a known revision',
+        );
+      }
+      AppLogger.log(
+        'UserPreferencesSync',
+        'GET response status=304 revision=$knownRevision notModified=true '
+            'headers=${_diagnosticHeadersForLog(response.headers)}',
+      );
+      return UserPreferencesApiResult(
+        document: null,
+        revision: knownRevision,
+        notModified: true,
+      );
+    }
+
     final result = _parseResponse(response);
     AppLogger.log(
       'UserPreferencesSync',
@@ -66,7 +101,7 @@ class UserPreferencesApi implements UserPreferencesRemoteDataSource {
         '/api/v1/me/preferences',
         data: document.toJson(),
         options: authRetryOnceOptions(
-          // 用数据库 revision 做并发控制，避免压缩改变 ETag 后 If-Match 失效。
+          // 用服务端返回的数据库 revision 做条件写入。
           headers: {'If-Preference-Revision': expectedRevision.toString()},
         ),
       );

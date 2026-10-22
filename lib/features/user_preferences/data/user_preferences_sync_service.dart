@@ -164,7 +164,23 @@ class UserPreferencesSyncService {
     final localChangeAtGet = _localChangeGeneration;
     UserPreferencesApiResult current;
     try {
-      current = await _remote.getCurrent();
+      final knownRevision = record.base == null ? null : record.revision;
+      current = await _remote.getCurrent(knownRevision: knownRevision);
+      if (current.notModified) {
+        final savedBase = record.base;
+        if (savedBase == null || record.revision != current.revision) {
+          AppLogger.log('UserPreferencesSync', '收到无法匹配本地基线的 304，改为完整 GET');
+          current = await _remote.getCurrent();
+          if (current.notModified) {
+            throw StateError('Unconditional preference GET returned 304');
+          }
+        } else {
+          current = UserPreferencesApiResult(
+            document: savedBase,
+            revision: current.revision,
+          );
+        }
+      }
     } on Object catch (error, stackTrace) {
       AppLogger.log(
         'UserPreferencesSync',
@@ -232,7 +248,11 @@ class UserPreferencesSyncService {
       final baseline = _local.capture();
       await _metadata.saveRecord(
         userId,
-        _UserPreferencesAccountRecord(base: baseline, localSnapshot: baseline),
+        _UserPreferencesAccountRecord(
+          base: baseline,
+          revision: current.revision,
+          localSnapshot: baseline,
+        ),
       );
       return;
     }
@@ -281,6 +301,7 @@ class UserPreferencesSyncService {
             userId,
             _UserPreferencesAccountRecord(
               base: record.base,
+              revision: record.revision,
               pending: pendingDocument,
               initialLocal: record.initialLocal,
               localSnapshot: pendingDocument,
@@ -302,6 +323,7 @@ class UserPreferencesSyncService {
           userId,
           _UserPreferencesAccountRecord(
             base: record.base,
+            revision: record.revision,
             pending: pendingDocument,
             initialLocal: record.initialLocal,
             localSnapshot: pendingDocument,
@@ -327,6 +349,7 @@ class UserPreferencesSyncService {
       userId,
       _UserPreferencesAccountRecord(
         base: accepted,
+        revision: revision,
         pending: hasChangesAfterPut ? latestLocal : null,
         localSnapshot: latestLocal,
       ),
@@ -473,23 +496,27 @@ class _UserPreferencesSyncMetadata {
 class _UserPreferencesAccountRecord {
   const _UserPreferencesAccountRecord({
     this.base,
+    this.revision,
     this.pending,
     this.initialLocal,
     this.localSnapshot,
   });
 
   final UserPreferencesDocument? base;
+  final int? revision;
   final UserPreferencesDocument? pending;
   final UserPreferencesDocument? initialLocal;
   final UserPreferencesDocument? localSnapshot;
 
   _UserPreferencesAccountRecord copyWith({
     UserPreferencesDocument? base,
+    int? revision,
     UserPreferencesDocument? pending,
     UserPreferencesDocument? initialLocal,
     UserPreferencesDocument? localSnapshot,
   }) => _UserPreferencesAccountRecord(
     base: base ?? this.base,
+    revision: revision ?? this.revision,
     pending: pending,
     initialLocal: initialLocal,
     localSnapshot: localSnapshot ?? this.localSnapshot,
@@ -497,11 +524,13 @@ class _UserPreferencesAccountRecord {
 
   Map<String, Object?> toJson() {
     final base = this.base;
+    final revision = this.revision;
     final pending = this.pending;
     final initialLocal = this.initialLocal;
     final localSnapshot = this.localSnapshot;
     return {
       if (base != null) 'base': base.toJson(),
+      if (revision != null) 'revision': revision,
       if (pending != null) 'pending': pending.toJson(),
       if (initialLocal != null) 'initialLocal': initialLocal.toJson(),
       if (localSnapshot != null) 'localSnapshot': localSnapshot.toJson(),
@@ -512,8 +541,15 @@ class _UserPreferencesAccountRecord {
     UserPreferencesDocument? documentValue(Object? value) =>
         value == null ? null : UserPreferencesDocument.fromJson(value);
 
+    final rawRevision = raw['revision'];
+    final revision =
+        rawRevision is int && rawRevision >= 0 && rawRevision <= 2147483647
+        ? rawRevision
+        : null;
+
     return _UserPreferencesAccountRecord(
       base: documentValue(raw['base']),
+      revision: revision,
       pending: documentValue(raw['pending']),
       initialLocal: documentValue(raw['initialLocal']),
       localSnapshot: documentValue(raw['localSnapshot']),

@@ -21,12 +21,14 @@ class _MemoryLocalStore extends LocalUserPreferencesStore {
 
 class _FakeRemote implements UserPreferencesRemoteDataSource {
   final gets = <UserPreferencesApiResult>[];
+  final getRevisions = <int?>[];
   int failedGets = 0;
   final puts = <({UserPreferencesDocument document, int expectedRevision})>[];
   final putResults = <Object>[];
 
   @override
-  Future<UserPreferencesApiResult> getCurrent() async {
+  Future<UserPreferencesApiResult> getCurrent({int? knownRevision}) async {
+    getRevisions.add(knownRevision);
     if (failedGets > 0) {
       failedGets--;
       throw StateError('offline');
@@ -110,6 +112,38 @@ void main() {
       expect(remote.puts, hasLength(1));
     },
   );
+
+  test('304 reuses the saved snapshot without sending a PUT', () async {
+    SharedPreferences.setMockInitialValues({});
+    final prefs = await SharedPreferences.getInstance();
+    final baseline = UserPreferencesDocument({
+      'appearance': {'themeMode': 'dark'},
+    });
+    final local = _MemoryLocalStore(prefs, baseline);
+    final remote = _FakeRemote()
+      ..gets.add(UserPreferencesApiResult(document: baseline, revision: 4))
+      ..gets.add(
+        const UserPreferencesApiResult(
+          document: null,
+          revision: 4,
+          notModified: true,
+        ),
+      );
+    final service = UserPreferencesSyncService(
+      remote: remote,
+      local: local,
+      preferences: prefs,
+      apply: local.apply,
+    );
+    addTearDown(service.dispose);
+
+    await service.onSessionChanged('user-1');
+    await service.onAppResumed();
+
+    expect(remote.getRevisions, [null, 4]);
+    expect(remote.puts, isEmpty);
+    expect(local.document.toJson(), baseline.toJson());
+  });
 
   test('offline keeps local preferences and retries on foreground', () async {
     SharedPreferences.setMockInitialValues({});
