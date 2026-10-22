@@ -63,6 +63,7 @@ dependencies:
   sqlite3_flutter_libs: ^0.5.31
   scrollable_positioned_list: ^0.3.8
   package_info_plus: ^9.0.0
+  in_app_review: ^2.0.12
   universal_io: ^2.2.2
   go_router: ^17.1.0
   flutter_local_notifications: ^19.4.2

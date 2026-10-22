@@ -21,6 +21,8 @@ import 'package:echo_loop/providers/audio_library_provider.dart';
 import 'package:echo_loop/providers/audio_sentences_provider.dart';
 import 'package:echo_loop/providers/listening_practice/listening_practice_provider.dart';
 import 'package:echo_loop/providers/audio_engine/audio_engine_provider.dart';
+import 'package:echo_loop/providers/asr_model_installation_gate.dart';
+import 'package:echo_loop/providers/asr_model_installation_provider.dart';
 import 'package:echo_loop/providers/learning_progress_provider.dart';
 import 'package:echo_loop/models/sentence.dart';
 import 'package:echo_loop/providers/learning_session/learning_session_provider.dart';
@@ -66,6 +68,15 @@ class _ReadySpeechPermissionService implements SpeechPermissionService {
 
   @override
   Future<void> openAppSettings() async {}
+}
+
+/// 等待异步点击回调渲染目标控件；pumpAndSettle 不等待未调度新帧的 Future。
+Future<void> _pumpUntilFound(WidgetTester tester, Finder finder) async {
+  for (var pumpCount = 0; pumpCount < 20; pumpCount++) {
+    if (finder.evaluate().isNotEmpty) return;
+    await tester.pump();
+  }
+  expect(finder, findsOneWidget);
 }
 
 void main() {
@@ -1566,6 +1577,9 @@ void main() {
             retellRatingEnabled: false,
             videoSentences: isVideo ? createTestSentences() : null,
             extraOverrides: [
+              asrModelInstallationGateProvider.overrideWithValue(
+                AsrModelInstallationGate(({required shouldCommit}) async {}),
+              ),
               speechPermissionServiceProvider.overrideWithValue(
                 const _ReadySpeechPermissionService(),
               ),
@@ -1582,14 +1596,18 @@ void main() {
           of: find.text('Listen & Retell').first,
           matching: find.byType(InkWell),
         );
-        final cardTap = tester
+        final retellCardTap = tester
             .widgetList<InkWell>(retellCard)
             .map((widget) => widget.onTap)
             .whereType<VoidCallback>()
             .first;
-        cardTap();
+        retellCardTap();
+        final startPracticeButton = find.text('Start Practicing');
+        await _pumpUntilFound(tester, startPracticeButton);
         await tester.pumpAndSettle();
-        await tester.tap(find.text('Start Practicing'));
+        await tester.ensureVisible(startPracticeButton);
+        await tester.pumpAndSettle();
+        await tester.tap(startPracticeButton);
         await tester.pumpAndSettle();
 
         expect(find.text('Retell Startup $isVideo'), findsOneWidget);

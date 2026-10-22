@@ -17,6 +17,7 @@ import '../widgets/speech_permission_dialog.dart';
 import 'package:go_router/go_router.dart';
 import '../router/app_router.dart';
 import '../database/enums.dart';
+import '../models/practice_completion_result.dart';
 import '../features/chatbot/widgets/sentence_chat_button.dart';
 import '../models/intensive_listen_settings.dart';
 import '../models/media_learning_startup.dart';
@@ -373,7 +374,7 @@ class _ListenAndRepeatPlayerScreenState
               .recordCatchUpCompletionIfAny(widget.audioItemId);
           await ctrl.clearBreakpoint(isFreePlay: true);
           await ctrl.exitLearningMode();
-          if (mounted) context.pop();
+          if (mounted) context.pop(PracticeCompletionResult.completed);
         },
       );
       _isShowingDialog = false;
@@ -417,7 +418,7 @@ class _ListenAndRepeatPlayerScreenState
     if (result.action == StepCompleteAction.continueNext) {
       await _navigateBackToPlanAndAutoStart();
     } else {
-      context.pop();
+      context.pop(PracticeCompletionResult.completed);
     }
   }
 

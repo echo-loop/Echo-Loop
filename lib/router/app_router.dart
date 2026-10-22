@@ -53,12 +53,13 @@ import '../screens/favorite_vocabulary_review_screen.dart';
 import '../screens/activity_calendar_screen.dart';
 import '../screens/review_statistics_screen.dart';
 import 'main_shell.dart';
+import 'route_transition_observer.dart';
 
 /// 全局根导航器 key
 final rootNavigatorKey = GlobalKey<NavigatorState>();
 
 /// 监听 MainShell 所在 root route 被全屏页面覆盖与恢复。
-final rootRouteObserver = RouteObserver<ModalRoute<void>>();
+final rootRouteObserver = RouteTransitionObserver();
 
 /// 路由路径常量 + 类型安全的路径构建方法
 abstract class AppRoutes {

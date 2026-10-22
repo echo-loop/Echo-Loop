@@ -106,7 +106,7 @@ void main() {
   );
 
   group('RemoteConfig', () {
-    test('解析 V1 schema 并读取从网盘导入开关', () {
+    test('解析 V1 schema 并读取 feature 开关', () {
       final config = RemoteConfig.fromJson({
         'version': 1,
         'ttlSeconds': 600,
@@ -119,6 +119,7 @@ void main() {
           'cloudDriveImport': {'enabled': true, 'ignored': 'x'},
           'showStoreWebCheckoutFallback': {'enabled': true},
           'aiChatAssistant': {'enabled': false},
+          'inAppReview': {'enabled': true},
         },
         'limits': {
           'transcription': {
@@ -138,6 +139,22 @@ void main() {
         isTrue,
       );
       expect(config.isEnabled(RemoteFeature.aiChatAssistant), isFalse);
+      expect(config.isEnabled(RemoteFeature.inAppReview), isTrue);
+      expect(
+        RemoteConfig.fromJson(
+          config.toJson(),
+        ).isEnabled(RemoteFeature.inAppReview),
+        isTrue,
+      );
+      expect(
+        RemoteConfig.fromJson({
+          'version': 1,
+          'features': {
+            'inAppReview': {'enabled': 'yes'},
+          },
+        }).isEnabled(RemoteFeature.inAppReview),
+        isFalse,
+      );
       expect(config.transcriptionLimits.maxDurationSeconds, 3600);
       expect(config.transcriptionLimits.maxUploadBytes, 104857600);
     });
@@ -166,7 +183,7 @@ void main() {
       expect(validCountry.context.countryCode, 'CN');
     });
 
-    test('缺字段和未知版本回退本地默认，网盘导入和 AI 聊天入口默认开启', () {
+    test('缺字段和未知版本回退本地默认，评分提醒默认关闭', () {
       final missing = RemoteConfig.fromJson({'version': 1});
       expect(missing.isEnabled(RemoteFeature.cloudDriveImport), isTrue);
       expect(
@@ -174,6 +191,7 @@ void main() {
         isFalse,
       );
       expect(missing.isEnabled(RemoteFeature.aiChatAssistant), isTrue);
+      expect(missing.isEnabled(RemoteFeature.inAppReview), isFalse);
       expect(missing.ttlSeconds, RemoteConfig.defaultTtlSeconds);
       expect(RemoteConfig.defaultTtlSeconds, 86400);
       expect(
@@ -193,6 +211,7 @@ void main() {
       });
       expect(unknownVersion.isEnabled(RemoteFeature.cloudDriveImport), isTrue);
       expect(unknownVersion.isEnabled(RemoteFeature.aiChatAssistant), isTrue);
+      expect(unknownVersion.isEnabled(RemoteFeature.inAppReview), isFalse);
     });
 
     test('转录限制字段非法时逐项回退本地默认', () {
@@ -921,6 +940,29 @@ void main() {
           remoteFeatureEnabledProvider(RemoteFeature.aiChatAssistant),
         ),
         isFalse,
+      );
+    });
+
+    test('feature provider 暴露评分提醒开关', () {
+      final container = ProviderContainer(
+        overrides: [
+          initialRemoteConfigProvider.overrideWithValue(
+            const RemoteConfig(
+              version: 1,
+              ttlSeconds: 60,
+              context: RemoteConfigContext(),
+              features: RemoteConfigFeatures(
+                inAppReview: RemoteFeatureConfig(enabled: true),
+              ),
+            ),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      expect(
+        container.read(remoteFeatureEnabledProvider(RemoteFeature.inAppReview)),
+        isTrue,
       );
     });
 

@@ -13,6 +13,9 @@ enum RemoteFeature {
 
   /// 是否显示 AI 聊天助手入口；全球默认开启，远程配置可一键关闭。
   aiChatAssistant,
+
+  /// 是否启用原生评分提醒；默认关闭，需由远程配置显式开启。
+  inAppReview,
 }
 
 class RemoteConfigContext {
@@ -63,11 +66,13 @@ class RemoteConfigFeatures {
       enabled: false,
     ),
     this.aiChatAssistant = const RemoteFeatureConfig(enabled: true),
+    this.inAppReview = const RemoteFeatureConfig(enabled: false),
   });
 
   final RemoteFeatureConfig cloudDriveImport;
   final RemoteFeatureConfig showStoreWebCheckoutFallback;
   final RemoteFeatureConfig aiChatAssistant;
+  final RemoteFeatureConfig inAppReview;
 
   static const defaults = RemoteConfigFeatures();
 
@@ -86,6 +91,10 @@ class RemoteConfigFeatures {
         json['aiChatAssistant'],
         enabled: defaults.aiChatAssistant.enabled,
       ),
+      inAppReview: RemoteFeatureConfig.fromJson(
+        json['inAppReview'],
+        enabled: defaults.inAppReview.enabled,
+      ),
     );
   }
 
@@ -95,6 +104,7 @@ class RemoteConfigFeatures {
       RemoteFeature.showStoreWebCheckoutFallback =>
         showStoreWebCheckoutFallback.enabled,
       RemoteFeature.aiChatAssistant => aiChatAssistant.enabled,
+      RemoteFeature.inAppReview => inAppReview.enabled,
     };
   }
 
@@ -102,6 +112,7 @@ class RemoteConfigFeatures {
     'cloudDriveImport': cloudDriveImport.toJson(),
     'showStoreWebCheckoutFallback': showStoreWebCheckoutFallback.toJson(),
     'aiChatAssistant': aiChatAssistant.toJson(),
+    'inAppReview': inAppReview.toJson(),
   };
 }
 

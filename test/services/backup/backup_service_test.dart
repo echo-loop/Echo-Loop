@@ -188,6 +188,7 @@ void main() {
         'supabase.auth.token-code-verifier': 'pkce-secret',
         'SUPABASE_PERSIST_SESSION_KEY': 'legacy-session',
         'user_preferences_sync_state_v1': 'device-local-metadata',
+        'rating_prompt_last_attempt_ms_v1': 123456789,
       });
 
       final backupPath = await service.exportData(
@@ -216,6 +217,7 @@ void main() {
       expect(settings, isNot(contains('supabase.auth.token-code-verifier')));
       expect(settings, isNot(contains('SUPABASE_PERSIST_SESSION_KEY')));
       expect(settings, isNot(contains('user_preferences_sync_state_v1')));
+      expect(settings, isNot(contains('rating_prompt_last_attempt_ms_v1')));
     });
 
     test('恢复时从 manifest 版本继续执行应用迁移', () async {
@@ -230,6 +232,7 @@ void main() {
       );
       SharedPreferences.setMockInitialValues({
         appUpdateMigrationVersionKey: currentAppUpdateMigrationVersion,
+        'rating_prompt_last_attempt_ms_v1': 987654321,
         'user_preferences_sync_state_v1': 'current-device-metadata',
       });
       int? restoredFromVersion;
@@ -252,6 +255,12 @@ void main() {
       addTearDown(applied.rollback);
 
       expect(restoredFromVersion, 4);
+      expect(
+        (await SharedPreferences.getInstance()).getInt(
+          'rating_prompt_last_attempt_ms_v1',
+        ),
+        987654321,
+      );
       final preferences = await SharedPreferences.getInstance();
       expect(
         preferences.getInt(appUpdateMigrationVersionKey),
@@ -370,6 +379,7 @@ void main() {
           'supabase.auth.token-code-verifier',
           'current-pkce',
         );
+        await preferences.setInt('rating_prompt_last_attempt_ms_v1', 987654321);
         final currentDictionary = File(
           p.join(root.path, 'dictionary', 'legacy', 'dict.sqlite'),
         );
@@ -401,6 +411,11 @@ void main() {
         expect(
           preferences.getString('supabase.auth.token-code-verifier'),
           'current-pkce',
+        );
+
+        expect(
+          preferences.getInt('rating_prompt_last_attempt_ms_v1'),
+          987654321,
         );
 
         if (fixture.version == 2) {
@@ -748,6 +763,7 @@ Future<File> _createLegacyBackup({
       'preferences.json',
       jsonEncode({
         'theme_mode': 'legacy',
+        'rating_prompt_last_attempt_ms_v1': 111111111,
         'sb-project-ref-auth-token': 'backup-session',
         'supabase.auth.token-code-verifier': 'backup-pkce',
       }),

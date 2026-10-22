@@ -13,6 +13,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../database/enums.dart';
+import '../models/practice_completion_result.dart';
 import '../features/auth/sign_in_required_dialog.dart';
 import '../features/subscription/models/premium_feature.dart';
 import '../features/subscription/widgets/ai_quota_exceeded_dialog.dart';
@@ -1118,11 +1119,11 @@ class _RetellPlayerScreenState extends ConsumerState<RetellPlayerScreen>
   }
 
   /// 执行退出
-  Future<void> _exit() async {
+  Future<void> _exit({PracticeCompletionResult? result}) async {
     _isExiting = true;
     await ref.read(retellRecordingControllerProvider.notifier).fullReset();
     await ref.read(learningSessionProvider.notifier).exitLearningMode();
-    if (mounted) context.pop();
+    if (mounted) context.pop(result);
   }
 
   /// 获取当前步骤的上下文信息（按 plan 派生）
@@ -1202,7 +1203,7 @@ class _RetellPlayerScreenState extends ConsumerState<RetellPlayerScreen>
                 null,
                 isFreePlay: true,
               );
-          await _exit();
+          await _exit(result: PracticeCompletionResult.completed);
         },
       );
       _isShowingDialog = false;
@@ -1238,7 +1239,7 @@ class _RetellPlayerScreenState extends ConsumerState<RetellPlayerScreen>
       await ref
           .read(learningProgressNotifierProvider.notifier)
           .completeCurrentSubStage(widget.audioItemId);
-      await _exit();
+      await _exit(result: PracticeCompletionResult.completed);
     } else {
       // 关闭弹窗 → 留在页面，恢复页面级学习计时。
       player.resumeStudySession();

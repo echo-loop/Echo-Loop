@@ -36,6 +36,8 @@ const _spPrefixBlacklist = [
   'supabase.auth.',
   // 本机同步基线与待同步快照，不应跨设备导入。
   'user_preferences_sync_',
+  // 评分请求冷却只属于本机，导入时也必须保留本机现值。
+  'rating_prompt_',
 ];
 
 const _dbFileName = 'echo_loop.db';

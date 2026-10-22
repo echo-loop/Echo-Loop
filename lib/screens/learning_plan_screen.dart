@@ -13,6 +13,10 @@ import 'package:go_router/go_router.dart';
 import 'package:path/path.dart' as p;
 
 import '../database/enums.dart';
+import '../models/practice_completion_result.dart';
+import '../features/rating_prompt/domain/rating_prompt_policy.dart';
+import '../features/rating_prompt/rating_prompt_providers.dart';
+import '../features/rating_prompt/rating_prompt_presentation_guard.dart';
 import '../models/audio_item.dart';
 import '../models/learning_plan.dart';
 import '../models/learning_progress.dart';
@@ -134,8 +138,11 @@ Future<void> _openRetellPractice({
 }) async {
   final session = ref.read(learningSessionProvider.notifier);
   if (!context.mounted) return;
-  context.push(
+  await _pushPracticeAndWaitForTransition(
+    context,
     AppRoutes.retellPlayer(collectionId, audioItem.id),
+    ref: ref,
+    event: RatingPromptEvent.retellCompleted,
     extra: MediaLearningStartup(
       loadKey: loadKey,
       showVideoLoading: audioItem.isVideo,
@@ -149,6 +156,56 @@ Future<void> _openRetellPractice({
       cancel: session.cancelRetellEntry,
     ),
   );
+}
+
+/// 推入练习页，等待 root 退场完成后在原计划页仍可见时检查评分资格。
+Future<void> _pushPracticeAndWaitForTransition(
+  BuildContext context,
+  String route, {
+  Object? extra,
+  required WidgetRef ref,
+  required RatingPromptEvent event,
+}) async {
+  final transition = rootRouteObserver.watchNextPop();
+  final presentation = RatingPromptPresentationGuard(
+    context: context,
+    isRootRouteCurrent: () => transition.returnedToPreviousRoute,
+  );
+  try {
+    final result = await context.push<PracticeCompletionResult>(
+      route,
+      extra: extra,
+    );
+    if (result == PracticeCompletionResult.completed) {
+      await transition.completed;
+      if (!context.mounted) return;
+      await _requestRatingAfterPractice(
+        ref,
+        event,
+        canPresent: () => presentation.canPresent,
+      );
+    }
+  } finally {
+    transition.cancel();
+  }
+}
+
+/// 评分邀请失败由独立协调器处理，不改变练习完成后的导航行为。
+Future<void> _requestRatingAfterPractice(
+  WidgetRef ref,
+  RatingPromptEvent event, {
+  required bool Function() canPresent,
+}) async {
+  try {
+    await ref
+        .read(ratingPromptCoordinatorProvider)
+        .maybeRequest(event, canPresent: canPresent);
+  } catch (error, stackTrace) {
+    AppLogger.log(
+      'RatingPrompt',
+      'coordinator unavailable error=$error\n$stackTrace',
+    );
+  }
 }
 
 /// 学习计划大阶段完成标记图标。
@@ -1507,11 +1564,14 @@ class _LearningPlanScreenState extends ConsumerState<LearningPlanScreen> {
           );
           return;
         }
-        context.push(
+        await _pushPracticeAndWaitForTransition(
+          context,
           AppRoutes.listenAndRepeatPlayer(
             widget.collectionId,
             widget.audioItemId,
           ),
+          ref: ref,
+          event: RatingPromptEvent.shadowingCompleted,
           extra: MediaLearningStartup(
             loadKey: '${audioItem.id}:listen-and-repeat:planned',
             showVideoLoading: audioItem.isVideo,
@@ -2901,8 +2961,11 @@ class _FirstStudySection extends ConsumerWidget {
           );
           return;
         }
-        context.push(
+        await _pushPracticeAndWaitForTransition(
+          context,
           AppRoutes.listenAndRepeatPlayer(collectionId, audioItemId),
+          ref: ref,
+          event: RatingPromptEvent.shadowingCompleted,
           extra: MediaLearningStartup(
             loadKey: '${audioItem.id}:listen-and-repeat:free-play',
             load: () async {
