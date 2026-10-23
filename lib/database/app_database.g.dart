@@ -254,6 +254,17 @@ class $AudioItemsTable extends AudioItems
         type: DriftSqlType.dateTime,
         requiredDuringInsert: false,
       );
+  static const VerificationMeta _communityDifficultyMeta =
+      const VerificationMeta('communityDifficulty');
+  @override
+  late final GeneratedColumn<String> communityDifficulty =
+      GeneratedColumn<String>(
+        'community_difficulty',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
   static const VerificationMeta _importSourceTypeMeta = const VerificationMeta(
     'importSourceType',
   );
@@ -366,6 +377,7 @@ class $AudioItemsTable extends AudioItems
     remoteAudioId,
     originalDate,
     communityUnavailableAt,
+    communityDifficulty,
     importSourceType,
     importSourceUrl,
     podcastEpisodeGuid,
@@ -563,6 +575,15 @@ class $AudioItemsTable extends AudioItems
         ),
       );
     }
+    if (data.containsKey('community_difficulty')) {
+      context.handle(
+        _communityDifficultyMeta,
+        communityDifficulty.isAcceptableOrUnknown(
+          data['community_difficulty']!,
+          _communityDifficultyMeta,
+        ),
+      );
+    }
     if (data.containsKey('import_source_type')) {
       context.handle(
         _importSourceTypeMeta,
@@ -732,6 +753,10 @@ class $AudioItemsTable extends AudioItems
         DriftSqlType.dateTime,
         data['${effectivePrefix}community_unavailable_at'],
       ),
+      communityDifficulty: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}community_difficulty'],
+      ),
       importSourceType: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}import_source_type'],
@@ -859,6 +884,9 @@ class AudioItem extends DataClass implements Insertable<AudioItem> {
   /// 文件重新出现在 v2 列表后由同步清空。
   final DateTime? communityUnavailableAt;
 
+  /// 社区合集文件由服务端维护的 CEFR 难度（A1–C2）；普通媒体保持 NULL。
+  final String? communityDifficulty;
+
   /// 用户导入来源类型：local / direct_url / cloud_drive。
   ///
   /// 社区合集不使用该字段，继续由 remoteAudioId 和 collections.source 标识。
@@ -908,6 +936,7 @@ class AudioItem extends DataClass implements Insertable<AudioItem> {
     this.remoteAudioId,
     this.originalDate,
     this.communityUnavailableAt,
+    this.communityDifficulty,
     this.importSourceType,
     this.importSourceUrl,
     this.podcastEpisodeGuid,
@@ -969,6 +998,9 @@ class AudioItem extends DataClass implements Insertable<AudioItem> {
       map['community_unavailable_at'] = Variable<DateTime>(
         communityUnavailableAt,
       );
+    }
+    if (!nullToAbsent || communityDifficulty != null) {
+      map['community_difficulty'] = Variable<String>(communityDifficulty);
     }
     if (!nullToAbsent || importSourceType != null) {
       map['import_source_type'] = Variable<String>(importSourceType);
@@ -1047,6 +1079,9 @@ class AudioItem extends DataClass implements Insertable<AudioItem> {
       communityUnavailableAt: communityUnavailableAt == null && nullToAbsent
           ? const Value.absent()
           : Value(communityUnavailableAt),
+      communityDifficulty: communityDifficulty == null && nullToAbsent
+          ? const Value.absent()
+          : Value(communityDifficulty),
       importSourceType: importSourceType == null && nullToAbsent
           ? const Value.absent()
           : Value(importSourceType),
@@ -1110,6 +1145,9 @@ class AudioItem extends DataClass implements Insertable<AudioItem> {
       communityUnavailableAt: serializer.fromJson<DateTime?>(
         json['communityUnavailableAt'],
       ),
+      communityDifficulty: serializer.fromJson<String?>(
+        json['communityDifficulty'],
+      ),
       importSourceType: serializer.fromJson<String?>(json['importSourceType']),
       importSourceUrl: serializer.fromJson<String?>(json['importSourceUrl']),
       podcastEpisodeGuid: serializer.fromJson<String?>(
@@ -1156,6 +1194,7 @@ class AudioItem extends DataClass implements Insertable<AudioItem> {
       'communityUnavailableAt': serializer.toJson<DateTime?>(
         communityUnavailableAt,
       ),
+      'communityDifficulty': serializer.toJson<String?>(communityDifficulty),
       'importSourceType': serializer.toJson<String?>(importSourceType),
       'importSourceUrl': serializer.toJson<String?>(importSourceUrl),
       'podcastEpisodeGuid': serializer.toJson<String?>(podcastEpisodeGuid),
@@ -1190,6 +1229,7 @@ class AudioItem extends DataClass implements Insertable<AudioItem> {
     Value<String?> remoteAudioId = const Value.absent(),
     Value<DateTime?> originalDate = const Value.absent(),
     Value<DateTime?> communityUnavailableAt = const Value.absent(),
+    Value<String?> communityDifficulty = const Value.absent(),
     Value<String?> importSourceType = const Value.absent(),
     Value<String?> importSourceUrl = const Value.absent(),
     Value<String?> podcastEpisodeGuid = const Value.absent(),
@@ -1239,6 +1279,9 @@ class AudioItem extends DataClass implements Insertable<AudioItem> {
     communityUnavailableAt: communityUnavailableAt.present
         ? communityUnavailableAt.value
         : this.communityUnavailableAt,
+    communityDifficulty: communityDifficulty.present
+        ? communityDifficulty.value
+        : this.communityDifficulty,
     importSourceType: importSourceType.present
         ? importSourceType.value
         : this.importSourceType,
@@ -1314,6 +1357,9 @@ class AudioItem extends DataClass implements Insertable<AudioItem> {
       communityUnavailableAt: data.communityUnavailableAt.present
           ? data.communityUnavailableAt.value
           : this.communityUnavailableAt,
+      communityDifficulty: data.communityDifficulty.present
+          ? data.communityDifficulty.value
+          : this.communityDifficulty,
       importSourceType: data.importSourceType.present
           ? data.importSourceType.value
           : this.importSourceType,
@@ -1366,6 +1412,7 @@ class AudioItem extends DataClass implements Insertable<AudioItem> {
           ..write('remoteAudioId: $remoteAudioId, ')
           ..write('originalDate: $originalDate, ')
           ..write('communityUnavailableAt: $communityUnavailableAt, ')
+          ..write('communityDifficulty: $communityDifficulty, ')
           ..write('importSourceType: $importSourceType, ')
           ..write('importSourceUrl: $importSourceUrl, ')
           ..write('podcastEpisodeGuid: $podcastEpisodeGuid, ')
@@ -1402,6 +1449,7 @@ class AudioItem extends DataClass implements Insertable<AudioItem> {
     remoteAudioId,
     originalDate,
     communityUnavailableAt,
+    communityDifficulty,
     importSourceType,
     importSourceUrl,
     podcastEpisodeGuid,
@@ -1437,6 +1485,7 @@ class AudioItem extends DataClass implements Insertable<AudioItem> {
           other.remoteAudioId == this.remoteAudioId &&
           other.originalDate == this.originalDate &&
           other.communityUnavailableAt == this.communityUnavailableAt &&
+          other.communityDifficulty == this.communityDifficulty &&
           other.importSourceType == this.importSourceType &&
           other.importSourceUrl == this.importSourceUrl &&
           other.podcastEpisodeGuid == this.podcastEpisodeGuid &&
@@ -1470,6 +1519,7 @@ class AudioItemsCompanion extends UpdateCompanion<AudioItem> {
   final Value<String?> remoteAudioId;
   final Value<DateTime?> originalDate;
   final Value<DateTime?> communityUnavailableAt;
+  final Value<String?> communityDifficulty;
   final Value<String?> importSourceType;
   final Value<String?> importSourceUrl;
   final Value<String?> podcastEpisodeGuid;
@@ -1502,6 +1552,7 @@ class AudioItemsCompanion extends UpdateCompanion<AudioItem> {
     this.remoteAudioId = const Value.absent(),
     this.originalDate = const Value.absent(),
     this.communityUnavailableAt = const Value.absent(),
+    this.communityDifficulty = const Value.absent(),
     this.importSourceType = const Value.absent(),
     this.importSourceUrl = const Value.absent(),
     this.podcastEpisodeGuid = const Value.absent(),
@@ -1535,6 +1586,7 @@ class AudioItemsCompanion extends UpdateCompanion<AudioItem> {
     this.remoteAudioId = const Value.absent(),
     this.originalDate = const Value.absent(),
     this.communityUnavailableAt = const Value.absent(),
+    this.communityDifficulty = const Value.absent(),
     this.importSourceType = const Value.absent(),
     this.importSourceUrl = const Value.absent(),
     this.podcastEpisodeGuid = const Value.absent(),
@@ -1571,6 +1623,7 @@ class AudioItemsCompanion extends UpdateCompanion<AudioItem> {
     Expression<String>? remoteAudioId,
     Expression<DateTime>? originalDate,
     Expression<DateTime>? communityUnavailableAt,
+    Expression<String>? communityDifficulty,
     Expression<String>? importSourceType,
     Expression<String>? importSourceUrl,
     Expression<String>? podcastEpisodeGuid,
@@ -1608,6 +1661,8 @@ class AudioItemsCompanion extends UpdateCompanion<AudioItem> {
       if (originalDate != null) 'original_date': originalDate,
       if (communityUnavailableAt != null)
         'community_unavailable_at': communityUnavailableAt,
+      if (communityDifficulty != null)
+        'community_difficulty': communityDifficulty,
       if (importSourceType != null) 'import_source_type': importSourceType,
       if (importSourceUrl != null) 'import_source_url': importSourceUrl,
       if (podcastEpisodeGuid != null)
@@ -1646,6 +1701,7 @@ class AudioItemsCompanion extends UpdateCompanion<AudioItem> {
     Value<String?>? remoteAudioId,
     Value<DateTime?>? originalDate,
     Value<DateTime?>? communityUnavailableAt,
+    Value<String?>? communityDifficulty,
     Value<String?>? importSourceType,
     Value<String?>? importSourceUrl,
     Value<String?>? podcastEpisodeGuid,
@@ -1680,6 +1736,7 @@ class AudioItemsCompanion extends UpdateCompanion<AudioItem> {
       originalDate: originalDate ?? this.originalDate,
       communityUnavailableAt:
           communityUnavailableAt ?? this.communityUnavailableAt,
+      communityDifficulty: communityDifficulty ?? this.communityDifficulty,
       importSourceType: importSourceType ?? this.importSourceType,
       importSourceUrl: importSourceUrl ?? this.importSourceUrl,
       podcastEpisodeGuid: podcastEpisodeGuid ?? this.podcastEpisodeGuid,
@@ -1765,6 +1822,9 @@ class AudioItemsCompanion extends UpdateCompanion<AudioItem> {
         communityUnavailableAt.value,
       );
     }
+    if (communityDifficulty.present) {
+      map['community_difficulty'] = Variable<String>(communityDifficulty.value);
+    }
     if (importSourceType.present) {
       map['import_source_type'] = Variable<String>(importSourceType.value);
     }
@@ -1824,6 +1884,7 @@ class AudioItemsCompanion extends UpdateCompanion<AudioItem> {
           ..write('remoteAudioId: $remoteAudioId, ')
           ..write('originalDate: $originalDate, ')
           ..write('communityUnavailableAt: $communityUnavailableAt, ')
+          ..write('communityDifficulty: $communityDifficulty, ')
           ..write('importSourceType: $importSourceType, ')
           ..write('importSourceUrl: $importSourceUrl, ')
           ..write('podcastEpisodeGuid: $podcastEpisodeGuid, ')
@@ -15216,6 +15277,7 @@ typedef $$AudioItemsTableCreateCompanionBuilder =
       Value<String?> remoteAudioId,
       Value<DateTime?> originalDate,
       Value<DateTime?> communityUnavailableAt,
+      Value<String?> communityDifficulty,
       Value<String?> importSourceType,
       Value<String?> importSourceUrl,
       Value<String?> podcastEpisodeGuid,
@@ -15250,6 +15312,7 @@ typedef $$AudioItemsTableUpdateCompanionBuilder =
       Value<String?> remoteAudioId,
       Value<DateTime?> originalDate,
       Value<DateTime?> communityUnavailableAt,
+      Value<String?> communityDifficulty,
       Value<String?> importSourceType,
       Value<String?> importSourceUrl,
       Value<String?> podcastEpisodeGuid,
@@ -15564,6 +15627,11 @@ class $$AudioItemsTableFilterComposer
 
   ColumnFilters<DateTime> get communityUnavailableAt => $composableBuilder(
     column: $table.communityUnavailableAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get communityDifficulty => $composableBuilder(
+    column: $table.communityDifficulty,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -15927,6 +15995,11 @@ class $$AudioItemsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get communityDifficulty => $composableBuilder(
+    column: $table.communityDifficulty,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get importSourceType => $composableBuilder(
     column: $table.importSourceType,
     builder: (column) => ColumnOrderings(column),
@@ -16068,6 +16141,11 @@ class $$AudioItemsTableAnnotationComposer
 
   GeneratedColumn<DateTime> get communityUnavailableAt => $composableBuilder(
     column: $table.communityUnavailableAt,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get communityDifficulty => $composableBuilder(
+    column: $table.communityDifficulty,
     builder: (column) => column,
   );
 
@@ -16373,6 +16451,7 @@ class $$AudioItemsTableTableManager
                 Value<String?> remoteAudioId = const Value.absent(),
                 Value<DateTime?> originalDate = const Value.absent(),
                 Value<DateTime?> communityUnavailableAt = const Value.absent(),
+                Value<String?> communityDifficulty = const Value.absent(),
                 Value<String?> importSourceType = const Value.absent(),
                 Value<String?> importSourceUrl = const Value.absent(),
                 Value<String?> podcastEpisodeGuid = const Value.absent(),
@@ -16405,6 +16484,7 @@ class $$AudioItemsTableTableManager
                 remoteAudioId: remoteAudioId,
                 originalDate: originalDate,
                 communityUnavailableAt: communityUnavailableAt,
+                communityDifficulty: communityDifficulty,
                 importSourceType: importSourceType,
                 importSourceUrl: importSourceUrl,
                 podcastEpisodeGuid: podcastEpisodeGuid,
@@ -16439,6 +16519,7 @@ class $$AudioItemsTableTableManager
                 Value<String?> remoteAudioId = const Value.absent(),
                 Value<DateTime?> originalDate = const Value.absent(),
                 Value<DateTime?> communityUnavailableAt = const Value.absent(),
+                Value<String?> communityDifficulty = const Value.absent(),
                 Value<String?> importSourceType = const Value.absent(),
                 Value<String?> importSourceUrl = const Value.absent(),
                 Value<String?> podcastEpisodeGuid = const Value.absent(),
@@ -16471,6 +16552,7 @@ class $$AudioItemsTableTableManager
                 remoteAudioId: remoteAudioId,
                 originalDate: originalDate,
                 communityUnavailableAt: communityUnavailableAt,
+                communityDifficulty: communityDifficulty,
                 importSourceType: importSourceType,
                 importSourceUrl: importSourceUrl,
                 podcastEpisodeGuid: podcastEpisodeGuid,

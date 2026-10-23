@@ -156,6 +156,9 @@ class AudioItem {
   /// 社区合集文件从服务端消失的时间；文件恢复后清空。
   final DateTime? communityUnavailableAt;
 
+  /// 社区媒体从服务端目录同步的 CEFR 难度；非社区媒体保持 null。
+  final String? communityDifficulty;
+
   /// 用户导入来源类型。
   ///
   /// 仅用户导入音频使用；社区合集音频保持 null，避免和 v2 同步身份混淆。
@@ -204,6 +207,7 @@ class AudioItem {
     this.remoteAudioId,
     this.originalDate,
     this.communityUnavailableAt,
+    this.communityDifficulty,
     this.importSourceType,
     this.importSourceUrl,
     this.podcastEpisodeGuid,
@@ -270,6 +274,7 @@ class AudioItem {
     'remoteAudioId': remoteAudioId,
     'originalDate': originalDate?.toIso8601String(),
     'communityUnavailableAt': communityUnavailableAt?.toIso8601String(),
+    'communityDifficulty': communityDifficulty,
     'importSourceType': importSourceType?.storageValue,
     'importSourceUrl': importSourceUrl,
     'podcastEpisodeGuid': podcastEpisodeGuid,
@@ -302,6 +307,10 @@ class AudioItem {
     communityUnavailableAt: json['communityUnavailableAt'] == null
         ? null
         : DateTime.parse(json['communityUnavailableAt'] as String),
+    communityDifficulty: switch (json['communityDifficulty']) {
+      String value => value,
+      _ => null,
+    },
     importSourceType: AudioImportSourceType.fromStorageValue(
       json['importSourceType'] as String?,
     ),
@@ -332,6 +341,7 @@ class AudioItem {
     Object? remoteAudioId = _sentinel,
     Object? originalDate = _sentinel,
     Object? communityUnavailableAt = _sentinel,
+    Object? communityDifficulty = _sentinel,
     Object? importSourceType = _sentinel,
     Object? importSourceUrl = _sentinel,
     Object? podcastEpisodeGuid = _sentinel,
@@ -377,6 +387,10 @@ class AudioItem {
       communityUnavailableAt: communityUnavailableAt == _sentinel
           ? this.communityUnavailableAt
           : communityUnavailableAt as DateTime?,
+      communityDifficulty: _copyNullableString(
+        communityDifficulty,
+        this.communityDifficulty,
+      ),
       importSourceType: importSourceType == _sentinel
           ? this.importSourceType
           : importSourceType as AudioImportSourceType?,
@@ -403,4 +417,13 @@ class AudioItem {
           : podcastLink as String?,
     );
   }
+}
+
+String? _copyNullableString(Object? value, String? current) {
+  if (identical(value, _sentinel)) return current;
+  return switch (value) {
+    String string => string,
+    null => null,
+    _ => throw ArgumentError.value(value, 'communityDifficulty'),
+  };
 }

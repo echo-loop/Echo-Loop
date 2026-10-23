@@ -15,6 +15,7 @@ void main() {
       String? audioSha256,
       String? originalAudioSha256,
       String? transcriptLanguage,
+      String? communityDifficulty,
       AudioImportSourceType? importSourceType,
       String? importSourceUrl,
     }) {
@@ -32,6 +33,7 @@ void main() {
         audioSha256: audioSha256,
         originalAudioSha256: originalAudioSha256,
         transcriptLanguage: transcriptLanguage,
+        communityDifficulty: communityDifficulty,
         importSourceType: importSourceType,
         importSourceUrl: importSourceUrl,
       );
@@ -52,6 +54,15 @@ void main() {
         expect(restored.sentenceCount, item.sentenceCount);
         expect(restored.wordCount, item.wordCount);
         expect(restored.isPinned, item.isPinned);
+      });
+
+      test('社区材料难度往返一致，旧 JSON 缺失时保持为空', () {
+        final item = createSample(communityDifficulty: 'B1');
+        final restored = AudioItem.fromJson(item.toJson());
+        final oldJson = item.toJson()..remove('communityDifficulty');
+
+        expect(restored.communityDifficulty, 'B1');
+        expect(AudioItem.fromJson(oldJson).communityDifficulty, isNull);
       });
 
       test('导入来源字段往返一致', () {
@@ -129,6 +140,16 @@ void main() {
 
         expect(copied.importSourceType, isNull);
         expect(copied.importSourceUrl, isNull);
+      });
+
+      test('社区材料难度支持显式清空', () {
+        final item = createSample(communityDifficulty: 'B1');
+
+        expect(
+          item.copyWith(communityDifficulty: null).communityDifficulty,
+          isNull,
+        );
+        expect(item.copyWith().communityDifficulty, 'B1');
       });
 
       test('不传参数时保持原值', () {

@@ -106,6 +106,16 @@ class CommunityCollectionRepository {
               totalDuration: Value(file.durationSec ?? 0),
               remoteAudioId: Value(file.id),
               originalDate: Value(file.publishedAt),
+              communityDifficulty: Value(file.difficulty?.code),
+              updatedAt: Value(now),
+            ),
+          );
+        } else {
+          await (_db.update(
+            _db.audioItems,
+          )..where((row) => row.id.equals(audioId))).write(
+            db.AudioItemsCompanion(
+              communityDifficulty: Value(file.difficulty?.code),
               updatedAt: Value(now),
             ),
           );

@@ -26,6 +26,8 @@ import 'common/app_popup_menu.dart';
 import '../features/community_collections/download/download_progress.dart';
 import '../features/community_collections/download/community_download_notifier.dart';
 import '../features/community_collections/data/community_collection_api.dart';
+import '../features/community_collections/models/community_collection_models.dart';
+import '../features/community_collections/widgets/community_difficulty_badge.dart';
 import 'guide_flow.dart';
 import 'learning_progress_icon.dart';
 import '../providers/transcription_task_provider.dart';
@@ -107,6 +109,9 @@ class AudioListTile extends ConsumerWidget {
     final pinnedHighlightColor = theme.colorScheme.primary.withValues(
       alpha: 0.06,
     );
+    final communityDifficulty = _isCollectionContext && audioItem.isCommunity
+        ? CommunityDifficulty.fromCode(audioItem.communityDifficulty)
+        : null;
 
     // 精确订阅学习进度
     final progress = ref.watch(
@@ -208,6 +213,7 @@ class AudioListTile extends ConsumerWidget {
                                   tagData,
                                   transcriptionTask,
                                   downloadProgress,
+                                  communityDifficulty,
                                 ),
                               ],
                             ),
@@ -342,7 +348,7 @@ class AudioListTile extends ConsumerWidget {
 
   /// 构建标题下方的元数据与状态标签区域。
   ///
-  /// 第二行固定显示时长和日期；第三行仅在存在字幕、学习状态或其他标签时显示。
+  /// 第二行显示可用的难度、时长和日期；第三行仅在存在字幕、学习状态或其他标签时显示。
   Widget _buildSubtitle(
     BuildContext context,
     AppLocalizations l10n,
@@ -352,6 +358,7 @@ class AudioListTile extends ConsumerWidget {
     List<Tag> tagData,
     TranscriptionTaskState? transcriptionTask,
     double? downloadProgress,
+    CommunityDifficulty? communityDifficulty,
   ) {
     // 是否有进行中的转录任务
     final isTranscribing =
@@ -456,6 +463,10 @@ class AudioListTile extends ConsumerWidget {
           children: [
             if (hasCc) ...[
               _buildTranscriptBadge(theme, l10n.transcript),
+              const SizedBox(width: 8),
+            ],
+            if (communityDifficulty != null) ...[
+              CommunityDifficultyBadge(difficulty: communityDifficulty),
               const SizedBox(width: 8),
             ],
             Flexible(

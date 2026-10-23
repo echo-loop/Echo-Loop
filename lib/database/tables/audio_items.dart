@@ -96,6 +96,9 @@ class AudioItems extends Table {
   /// 文件重新出现在 v2 列表后由同步清空。
   DateTimeColumn get communityUnavailableAt => dateTime().nullable()();
 
+  /// 社区合集文件由服务端维护的 CEFR 难度（A1–C2）；普通媒体保持 NULL。
+  TextColumn get communityDifficulty => text().nullable()();
+
   /// 用户导入来源类型：local / direct_url / cloud_drive。
   ///
   /// 社区合集不使用该字段，继续由 remoteAudioId 和 collections.source 标识。

@@ -105,7 +105,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase(super.e);
 
   /// 当前 schema 版本（静态访问，用于导入前版本检查）
-  static const currentSchemaVersion = 59;
+  static const currentSchemaVersion = 60;
 
   @override
   int get schemaVersion => currentSchemaVersion;
@@ -264,6 +264,14 @@ class AppDatabase extends _$AppDatabase {
         // v58→v59：缓存社区合集封面的中国 CDN 镜像地址。
         if (from < 59) {
           await _addColumnIfNotExists('collections', 'cover_url_china', 'TEXT');
+        }
+        // v59→v60：缓存社区媒体的 CEFR 难度，普通媒体保持 NULL。
+        if (from < 60) {
+          await _addColumnIfNotExists(
+            'audio_items',
+            'community_difficulty',
+            'TEXT',
+          );
         }
         // v49→v50：为收藏单词/意群补稳定的记忆主体 ID，并把收藏句专属的每日
         // 入队去重表泛化为带 namespace 的通用表，供词汇复习共用同一张表。

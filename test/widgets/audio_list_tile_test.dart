@@ -123,10 +123,17 @@ Session _signedInSession() {
 
 void main() {
   group('AudioListTile 字幕标签', () {
-    Widget buildTile(AudioItem item) {
+    Widget buildTile(
+      AudioItem item, {
+      String? collectionId,
+      double width = 360,
+    }) {
       return createTestApp(
         Center(
-          child: SizedBox(width: 360, child: AudioListTile(audioItem: item)),
+          child: SizedBox(
+            width: width,
+            child: AudioListTile(audioItem: item, collectionId: collectionId),
+          ),
         ),
         overrides: [
           audioLibraryProvider.overrideWith(
@@ -194,6 +201,61 @@ void main() {
       expect(find.byKey(const Key('audio_list_tile_badge_row')), findsNothing);
       expect(find.byIcon(Icons.subtitles_outlined), findsNothing);
       expect(find.text('subtitles'), findsNothing);
+      expect(find.byKey(const Key('community_difficulty_badge')), findsNothing);
+    });
+
+    testWidgets('合集社区材料显示 CEFR 难度，窄屏长标题仍可布局', (tester) async {
+      final item = createTestAudioItem(
+        name:
+            'A very long community lesson title that needs to fit on a narrow screen',
+      ).copyWith(remoteAudioId: 'remote-1', communityDifficulty: 'B1');
+
+      await tester.pumpWidget(
+        buildTile(item, collectionId: 'collection-1', width: 300),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('B1'), findsOneWidget);
+      expect(
+        find.byKey(const Key('community_difficulty_badge')),
+        findsOneWidget,
+      );
+      final badge = find.byKey(const Key('community_difficulty_badge'));
+      final scheduleIcon = find.byIcon(Icons.schedule_outlined);
+      final metadataRow = find.byKey(const Key('audio_list_tile_metadata_row'));
+      expect(
+        tester.getCenter(badge).dy,
+        closeTo(tester.getCenter(metadataRow).dy, 1),
+      );
+      expect(
+        tester.getTopLeft(badge).dx,
+        lessThan(tester.getTopLeft(scheduleIcon).dx),
+      );
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('资源库全局列表不显示合集专属难度徽章', (tester) async {
+      final item = createTestAudioItem().copyWith(
+        remoteAudioId: 'remote-1',
+        communityDifficulty: 'B1',
+      );
+
+      await tester.pumpWidget(buildTile(item));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('community_difficulty_badge')), findsNothing);
+    });
+
+    testWidgets('资源库全局列表长标题仍可自然换行', (tester) async {
+      const title =
+          'A very long community lesson title that should keep wrapping naturally';
+      final item = createTestAudioItem(name: title);
+
+      await tester.pumpWidget(buildTile(item, width: 300));
+      await tester.pumpAndSettle();
+
+      expect(tester.widget<Text>(find.text(title)).maxLines, isNull);
+      expect(tester.takeException(), isNull);
     });
   });
 

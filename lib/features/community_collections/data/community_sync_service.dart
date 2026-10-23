@@ -413,6 +413,7 @@ class CommunitySyncService {
               remoteAudioId: Value(file.id),
               originalDate: Value(file.publishedAt),
               communityUnavailableAt: const Value(null),
+              communityDifficulty: Value(file.difficulty?.code),
               updatedAt: Value(now),
             ),
           );
@@ -463,6 +464,7 @@ class CommunitySyncService {
                 : Value(file.durationSec!),
             originalDate: Value(file.publishedAt),
             communityUnavailableAt: const Value(null),
+            communityDifficulty: Value(file.difficulty?.code),
             updatedAt: Value(_now()),
           ),
         );

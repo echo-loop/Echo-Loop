@@ -60,7 +60,7 @@ class _FakeCommunityApi extends CommunityCollectionApi {
           mediaType: CommunityMediaType.audio,
           durationSec: 45,
           fileSizeBytes: null,
-          difficulty: null,
+          difficulty: CommunityDifficulty.b1,
           publishedAt: DateTime(2026, 9, 21),
           sortOrder: 3,
           mediaUrl: 'https://example.com/episode-1.m4a',
@@ -109,6 +109,7 @@ void main() {
       expect(audio?.name, 'Episode 1');
       expect(audio?.totalDuration, 45);
       expect(audio?.originalDate, DateTime(2026, 9, 21));
+      expect(audio?.communityDifficulty, 'B1');
       expect(junction.sortOrder, 3);
     },
   );
@@ -153,6 +154,12 @@ void main() {
       expect(
         await database.audioItemDao.getByRemoteAudioId('file-1'),
         isNotNull,
+      );
+      expect(
+        (await database.audioItemDao.getByRemoteAudioId(
+          'file-1',
+        ))?.communityDifficulty,
+        'B1',
       );
     },
   );

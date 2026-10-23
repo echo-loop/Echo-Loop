@@ -15,6 +15,7 @@ import '../providers/community_collection_detail_provider.dart';
 import '../providers/community_enrollment_provider.dart';
 import '../providers/discover_community_collections_provider.dart';
 import '../widgets/community_collection_header.dart';
+import '../widgets/community_difficulty_badge.dart';
 
 /// 社区合集公开详情页；文件列表统一使用公开详情数据，订阅状态只决定底部操作。
 class CommunityCollectionDetailScreen extends ConsumerStatefulWidget {
@@ -288,11 +289,21 @@ class _PreviewList extends StatelessWidget {
                   ? Icons.videocam_outlined
                   : Icons.graphic_eq,
             ),
-            title: Text(
-              file.title,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontSize: 14),
+            title: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    file.title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontSize: 14),
+                  ),
+                ),
+                if (file.difficulty case final difficulty?) ...[
+                  const SizedBox(width: 8),
+                  CommunityDifficultyBadge(difficulty: difficulty),
+                ],
+              ],
             ),
             trailing: durationSec == null || durationSec <= 0
                 ? null

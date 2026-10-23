@@ -77,17 +77,34 @@ enum CommunityDifficulty {
   c1,
   c2;
 
+  /// CEFR 难度标签。
+  String get code => switch (this) {
+    CommunityDifficulty.a1 => 'A1',
+    CommunityDifficulty.a2 => 'A2',
+    CommunityDifficulty.b1 => 'B1',
+    CommunityDifficulty.b2 => 'B2',
+    CommunityDifficulty.c1 => 'C1',
+    CommunityDifficulty.c2 => 'C2',
+  };
+
+  /// 从已持久化的 CEFR 标签读取枚举；未知值不在列表中展示。
+  static CommunityDifficulty? fromCode(String? value) => switch (value) {
+    'A1' => CommunityDifficulty.a1,
+    'A2' => CommunityDifficulty.a2,
+    'B1' => CommunityDifficulty.b1,
+    'B2' => CommunityDifficulty.b2,
+    'C1' => CommunityDifficulty.c1,
+    'C2' => CommunityDifficulty.c2,
+    _ => null,
+  };
+
   static CommunityDifficulty? fromJson(Object? value) {
     if (value == null) return null;
-    return switch (value) {
-      'A1' => CommunityDifficulty.a1,
-      'A2' => CommunityDifficulty.a2,
-      'B1' => CommunityDifficulty.b1,
-      'B2' => CommunityDifficulty.b2,
-      'C1' => CommunityDifficulty.c1,
-      'C2' => CommunityDifficulty.c2,
-      _ => throw const FormatException('Invalid community difficulty'),
-    };
+    if (value case final String code) {
+      return fromCode(code) ??
+          (throw const FormatException('Invalid community difficulty'));
+    }
+    throw const FormatException('Invalid community difficulty');
   }
 }
 
@@ -143,15 +160,7 @@ class CommunityCollectionFile {
     'mediaType': mediaType.name,
     'durationSec': durationSec,
     'fileSizeBytes': fileSizeBytes,
-    'difficulty': switch (difficulty) {
-      null => null,
-      CommunityDifficulty.a1 => 'A1',
-      CommunityDifficulty.a2 => 'A2',
-      CommunityDifficulty.b1 => 'B1',
-      CommunityDifficulty.b2 => 'B2',
-      CommunityDifficulty.c1 => 'C1',
-      CommunityDifficulty.c2 => 'C2',
-    },
+    'difficulty': difficulty?.code,
     'publishedAt': publishedAt?.toIso8601String(),
     'sortOrder': sortOrder,
     'mediaUrl': mediaUrl,

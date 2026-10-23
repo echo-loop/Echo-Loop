@@ -21,7 +21,7 @@ void main() {
       mediaType: CommunityMediaType.audio,
       durationSec: 65,
       fileSizeBytes: null,
-      difficulty: null,
+      difficulty: CommunityDifficulty.b1,
       publishedAt: null,
       sortOrder: 0,
       mediaUrl: 'https://example.com/track-1.m4a',
@@ -193,6 +193,8 @@ void main() {
 
     expect(find.text('Add Collection First'), findsNothing);
     expect(find.text('Track 1'), findsOneWidget);
+    expect(find.text('B1'), findsOneWidget);
+    expect(find.byKey(const Key('community_difficulty_badge')), findsOneWidget);
   });
 
   testWidgets('未加入合集详情下拉时强制刷新且缓存内容仍可见', (tester) async {

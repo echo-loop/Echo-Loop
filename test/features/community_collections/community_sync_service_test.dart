@@ -181,6 +181,40 @@ void main() {
     expect(row?.totalDuration, 42);
   });
 
+  test('同步写入服务端难度并在服务端清空时移除本地难度', () async {
+    await _insertCollection(database, 'local-1', 'remote-1', 'One');
+    await _insertFile(database, 'local-1', 'file-1', 'Lesson');
+    final api = _FakeCommunityApi(
+      [_catalogEntry('remote-1', 'One')],
+      {
+        'remote-1': [
+          _file('file-1', 'Lesson', difficulty: CommunityDifficulty.b1),
+        ],
+      },
+    );
+    final service = CommunitySyncService(database: database, api: api);
+
+    await service.syncAll(force: true);
+    expect(
+      (await database.audioItemDao.getByRemoteAudioId(
+        'file-1',
+      ))?.communityDifficulty,
+      'B1',
+    );
+
+    api.filesByCollection['remote-1'] = [
+      _file('file-1', 'Lesson', difficulty: null),
+    ];
+    await service.syncAll(force: true);
+
+    expect(
+      (await database.audioItemDao.getByRemoteAudioId(
+        'file-1',
+      ))?.communityDifficulty,
+      isNull,
+    );
+  });
+
   test('后台同步会持久化社区合集作者昵称', () async {
     await _insertCollection(database, 'local-1', 'remote-1', 'One');
     final api = _FakeCommunityApi(
@@ -445,7 +479,12 @@ PublicCollectionCatalogEntry _catalogEntry(
   );
 }
 
-CommunityCollectionFile _file(String id, String title, {int? duration = 10}) {
+CommunityCollectionFile _file(
+  String id,
+  String title, {
+  int? duration = 10,
+  CommunityDifficulty? difficulty,
+}) {
   return CommunityCollectionFile(
     id: id,
     title: title,
@@ -453,7 +492,7 @@ CommunityCollectionFile _file(String id, String title, {int? duration = 10}) {
     mediaType: CommunityMediaType.audio,
     durationSec: duration,
     fileSizeBytes: null,
-    difficulty: null,
+    difficulty: difficulty,
     publishedAt: null,
     sortOrder: 0,
     mediaUrl: 'https://example.com/$id.m4a',
