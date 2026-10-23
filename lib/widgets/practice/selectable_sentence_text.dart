@@ -19,6 +19,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../features/chatbot/chatbot_flags.dart';
+import '../../features/chatbot/sentence_passage.dart';
 import '../../features/chatbot/widgets/sentence_chat_button.dart';
 import '../../features/remote_config/remote_config.dart';
 import '../../features/remote_config/remote_config_providers.dart';
@@ -288,7 +289,12 @@ class _SelectableSentenceTextState
     unawaited(
       showSentenceChatbotSheet(
         context: context,
-        sentenceText: sentenceText,
+        ref: ref,
+        target: SentenceChatTarget(
+          text: sentenceText,
+          audioItemId: widget.origin.audioItemId,
+          sentenceIndex: widget.origin.sentenceIndex,
+        ),
         initialQuote: trimmed,
       ),
     );

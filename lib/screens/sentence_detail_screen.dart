@@ -17,6 +17,7 @@ import '../features/usage/usage_event.dart';
 import '../features/usage/usage_providers.dart';
 import '../database/providers.dart';
 import '../features/chatbot/widgets/sentence_chat_button.dart';
+import '../features/chatbot/sentence_passage.dart';
 import '../l10n/app_localizations.dart';
 import '../models/audio_item.dart' as model;
 import '../models/media_playback_state.dart';
@@ -382,7 +383,15 @@ class _SentenceDetailScreenState extends ConsumerState<SentenceDetailScreen> {
               actionsPadding: const EdgeInsets.only(right: AppSpacing.s),
               title: Text(args.audioName),
               centerTitle: true,
-              actions: [SentenceChatButton(sentenceText: args.sentenceText)],
+              actions: [
+                SentenceChatButton(
+                  target: SentenceChatTarget(
+                    text: args.sentenceText,
+                    audioItemId: args.audioItemId,
+                    sentenceIndex: args.sentenceIndex,
+                  ),
+                ),
+              ],
             ),
       // 词典面板宿主：面板内嵌 body、非 modal（显示期间正文可继续点词）。
       // 页面自身无 PopScope，由宿主代管返回键（面板开着时先关面板）。

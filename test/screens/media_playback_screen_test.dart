@@ -1598,6 +1598,59 @@ void main() {
     expect(find.byKey(kBookmarkSingleSentenceSwipeAreaKey), findsOneWidget);
   });
 
+  testMediaWidgets('收藏精听讲解保留原文来源定位', (tester) async {
+    final fullTranscript = [
+      ...transcriptSentences,
+      Sentence(
+        index: 2,
+        text: 'Third sentence.',
+        startTime: const Duration(seconds: 7),
+        endTime: const Duration(seconds: 9),
+      ),
+      Sentence(
+        index: 3,
+        text: 'Fourth sentence.',
+        startTime: const Duration(seconds: 10),
+        endTime: const Duration(seconds: 12),
+      ),
+    ];
+    await tester.pumpWidget(
+      createTestApp(
+        MediaPlaybackScreen(audioItem: item),
+        overrides: mediaOverrides(
+          withTranscript: true,
+          transcriptOverride: fullTranscript,
+        ),
+      ),
+    );
+    await pumpMediaReady(tester);
+
+    final context = tester.element(find.byType(MediaPlaybackScreen));
+    final container = ProviderScope.containerOf(context);
+    final controller = container.read(mediaPlaybackProvider.notifier);
+    await controller.toggleBookmark(0);
+    await controller.toggleBookmark(3);
+    await controller.setPlaylistMode(PlaylistMode.bookmarks);
+    await controller.selectBookmarkedSentence(3, autoPlay: false);
+    await controller.updateSettings(
+      container
+          .read(mediaPlaybackProvider)
+          .bookmarkSettings
+          .copyWith(singleSentenceMode: true),
+    );
+    await tester.pumpAndSettle();
+
+    final pager = tester.widget<FreePlayerSentencePager>(
+      find.byType(FreePlayerSentencePager),
+    );
+    expect(pager.sentences.map((sentence) => sentence.index), [0, 3]);
+    final explanation = tester.widget<SentenceExplanationView>(
+      find.byType(SentenceExplanationView),
+    );
+    expect(explanation.audioItemId, item.id);
+    expect(explanation.sentenceIndex, 3);
+  });
+
   testMediaWidgets('320px 窄屏下五个底部控制按钮不溢出', (tester) async {
     final originalPhysicalSize = tester.view.physicalSize;
     final originalDevicePixelRatio = tester.view.devicePixelRatio;

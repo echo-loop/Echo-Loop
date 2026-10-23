@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../features/chatbot/widgets/sentence_chat_button.dart';
+import '../features/chatbot/sentence_passage.dart';
 import '../features/memory_scheduler/domain/memory_rating.dart';
 import '../features/memory_scheduler/domain/memory_scheduler_results.dart';
 import '../features/scheduled_flashcard/widgets/flashcard_rating_action_bar.dart';
@@ -164,7 +165,11 @@ class _BookmarkReviewScreenState extends ConsumerState<BookmarkReviewScreen>
               centerTitle: true,
               actions: [
                 SentenceChatButton(
-                  sentenceText: card?.sentence.text ?? '',
+                  target: SentenceChatTarget(
+                    text: card?.sentence.text ?? '',
+                    audioItemId: card?.audioItemId,
+                    sentenceIndex: card?.originalSentenceIndex,
+                  ),
                   onBeforeOpen: () => unawaited(player.interruptPlayback()),
                 ),
                 IconButton(

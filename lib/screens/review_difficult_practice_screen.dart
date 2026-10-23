@@ -25,6 +25,7 @@ import '../models/word_highlight_binding.dart';
 import '../widgets/speech_permission_dialog.dart';
 import '../database/enums.dart';
 import '../features/chatbot/widgets/sentence_chat_button.dart';
+import '../features/chatbot/sentence_passage.dart';
 import '../l10n/app_localizations.dart';
 import '../utils/playback_speed.dart';
 import '../providers/learning_plan_provider.dart';
@@ -606,7 +607,11 @@ class _ReviewDifficultPracticeScreenState
                             ? [
                                 // AI 助手入口：打开前暂停自动推进（同设置按钮的处理）。
                                 SentenceChatButton(
-                                  sentenceText: currentSentence?.text ?? '',
+                                  target: SentenceChatTarget(
+                                    text: currentSentence?.text ?? '',
+                                    audioItemId: widget.audioItemId,
+                                    sentenceIndex: currentSentence?.index,
+                                  ),
                                   onBeforeOpen: () {
                                     if (playerState.isAnnotationMode) {
                                       player.repeatEngine?.onUserInteraction();

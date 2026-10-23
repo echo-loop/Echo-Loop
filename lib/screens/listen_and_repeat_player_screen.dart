@@ -19,6 +19,7 @@ import '../router/app_router.dart';
 import '../database/enums.dart';
 import '../models/practice_completion_result.dart';
 import '../features/chatbot/widgets/sentence_chat_button.dart';
+import '../features/chatbot/sentence_passage.dart';
 import '../models/intensive_listen_settings.dart';
 import '../models/media_learning_startup.dart';
 import '../models/word_highlight_binding.dart';
@@ -616,7 +617,11 @@ class _ListenAndRepeatPlayerScreenState
                           // AI 助手入口：打开前暂停自动推进（同设置按钮的处理）。
                           if (mediaReady)
                             SentenceChatButton(
-                              sentenceText: currentSentence?.text ?? '',
+                              target: SentenceChatTarget(
+                                text: currentSentence?.text ?? '',
+                                audioItemId: widget.audioItemId,
+                                sentenceIndex: currentSentence?.index,
+                              ),
                               onBeforeOpen: () {
                                 ref
                                     .read(

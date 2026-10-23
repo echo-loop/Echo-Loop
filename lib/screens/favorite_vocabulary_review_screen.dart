@@ -9,6 +9,7 @@ import 'package:go_router/go_router.dart';
 
 import '../l10n/app_localizations.dart';
 import '../features/chatbot/widgets/sentence_chat_button.dart';
+import '../features/chatbot/sentence_passage.dart';
 import '../features/auth/sign_in_required_dialog.dart';
 import '../features/subscription/widgets/feature_gate.dart';
 import '../features/memory_scheduler/domain/memory_rating.dart';
@@ -169,7 +170,11 @@ class _FavoriteVocabularyReviewScreenState
               centerTitle: true,
               actions: [
                 SentenceChatButton(
-                  sentenceText: card?.displayText ?? '',
+                  target: SentenceChatTarget(
+                    text: card?.displayText ?? '',
+                    audioItemId: card?.audioItemId,
+                    sentenceIndex: card?.sentenceIndex,
+                  ),
                   onBeforeOpen: () => unawaited(player.interruptPlayback()),
                 ),
                 IconButton(

@@ -366,6 +366,7 @@ void main() {
         isFreePlay: false,
       );
       expect(result, MediaLoadResult.ready);
+      expect(mediaController.sentences, hasLength(1));
       expect(mediaEngine.subtitleCalls, 1);
       expect(
         mediaContainer.read(listenAndRepeatControllerProvider).hasVideo,

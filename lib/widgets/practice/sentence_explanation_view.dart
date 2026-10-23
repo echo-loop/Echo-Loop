@@ -17,6 +17,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../features/auth/providers/auth_providers.dart';
 import '../../features/auth/sign_in_required_dialog.dart';
 import '../../features/chatbot/chatbot_flags.dart';
+import '../../features/chatbot/sentence_passage.dart';
 import '../../features/chatbot/widgets/sentence_chat_button.dart';
 import '../../features/remote_config/remote_config.dart';
 import '../../features/remote_config/remote_config_providers.dart';
@@ -880,7 +881,12 @@ class _SentenceExplanationViewState
     unawaited(
       showSentenceChatbotSheet(
         context: context,
-        sentenceText: _text,
+        ref: ref,
+        target: SentenceChatTarget(
+          text: _text,
+          audioItemId: widget.audioItemId,
+          sentenceIndex: _sentenceIndex,
+        ),
         initialQuote: quote,
       ),
     );

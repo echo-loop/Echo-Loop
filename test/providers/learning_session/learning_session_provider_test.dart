@@ -1204,6 +1204,8 @@ void main() {
 
       final playerState = container.read(reviewDifficultPracticeProvider);
       expect(playerState.currentSentenceIndex, 0);
+      final player = container.read(reviewDifficultPracticeProvider.notifier);
+      expect(player.sentences.map((sentence) => sentence.index), [1, 3]);
       expect(
         container.read(learningSessionProvider).playbackChain,
         LearningPlaybackChain.mediaEngine,

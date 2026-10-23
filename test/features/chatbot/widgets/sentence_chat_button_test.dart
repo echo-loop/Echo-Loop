@@ -2,6 +2,8 @@
 library;
 
 import 'package:echo_loop/features/chatbot/widgets/sentence_chat_button.dart';
+import 'package:echo_loop/features/chatbot/models/chatbot_config.dart';
+import 'package:echo_loop/features/chatbot/sentence_passage.dart';
 import 'package:echo_loop/features/remote_config/remote_config.dart';
 import 'package:echo_loop/features/remote_config/remote_config_providers.dart';
 import 'package:flutter/material.dart';
@@ -51,10 +53,82 @@ void main() {
       ).overrideWithValue(enabled),
     ];
 
+    testWidgets('来源与上下文共同确定会话，空上下文保持单句请求', (tester) async {
+      ChatbotConfig? withPassage;
+      ChatbotConfig? withoutPassage;
+      ChatbotConfig? sameTarget;
+      ChatbotConfig? otherSource;
+      ChatbotConfig? emptyPassage;
+      await pumpChatWidget(
+        tester,
+        Builder(
+          builder: (context) {
+            withPassage = sentenceChatbotConfig(
+              context,
+              const SentenceChatTarget(
+                text: 'Current.',
+                audioItemId: 'audio-1',
+                sentenceIndex: 4,
+              ),
+              passage: 'Before.\nCurrent.\nAfter.',
+            );
+            withoutPassage = sentenceChatbotConfig(
+              context,
+              const SentenceChatTarget(
+                text: 'Current.',
+                audioItemId: 'audio-1',
+                sentenceIndex: 4,
+              ),
+              passage: '  ',
+            );
+            emptyPassage = sentenceChatbotConfig(
+              context,
+              const SentenceChatTarget(
+                text: 'Current.',
+                audioItemId: 'audio-1',
+                sentenceIndex: 4,
+              ),
+            );
+            sameTarget = sentenceChatbotConfig(
+              context,
+              const SentenceChatTarget(
+                text: 'Current.',
+                audioItemId: 'audio-1',
+                sentenceIndex: 4,
+              ),
+              passage: 'Before.\nCurrent.\nAfter.',
+            );
+            otherSource = sentenceChatbotConfig(
+              context,
+              const SentenceChatTarget(
+                text: 'Current.',
+                audioItemId: 'audio-2',
+                sentenceIndex: 4,
+              ),
+              passage: 'Before.\nCurrent.\nAfter.',
+            );
+            return const SizedBox.shrink();
+          },
+        ),
+      );
+
+      expect(withPassage?.context, {
+        'sentence': 'Current.',
+        'passage': 'Before.\nCurrent.\nAfter.',
+      });
+      expect(withoutPassage?.context, {'sentence': 'Current.'});
+      expect(withPassage?.sessionId, isNot(withoutPassage?.sessionId));
+      expect(emptyPassage?.sessionId, withoutPassage?.sessionId);
+      expect(sameTarget?.sessionId, withPassage?.sessionId);
+      expect(otherSource?.sessionId, isNot(withPassage?.sessionId));
+    });
+
     testWidgets('远程开关开启且句子非空时渲染按钮', (tester) async {
       await pumpChatWidget(
         tester,
-        const SentenceChatButton(sentenceText: 'Hello world.'),
+        const SentenceChatButton(
+          target: SentenceChatTarget(text: 'Hello world.'),
+        ),
         overrides: remoteOverride(enabled: true),
       );
       expect(find.byType(IconButton), findsOneWidget);
@@ -63,7 +137,9 @@ void main() {
     testWidgets('远程开关关闭时不渲染按钮', (tester) async {
       await pumpChatWidget(
         tester,
-        const SentenceChatButton(sentenceText: 'Hello world.'),
+        const SentenceChatButton(
+          target: SentenceChatTarget(text: 'Hello world.'),
+        ),
         overrides: remoteOverride(enabled: false),
       );
       expect(find.byType(IconButton), findsNothing);
@@ -72,7 +148,7 @@ void main() {
     testWidgets('句子为空（未就绪）时不渲染按钮', (tester) async {
       await pumpChatWidget(
         tester,
-        const SentenceChatButton(sentenceText: ''),
+        const SentenceChatButton(target: SentenceChatTarget(text: '')),
         overrides: remoteOverride(enabled: true),
       );
       expect(find.byType(IconButton), findsNothing);
@@ -83,7 +159,7 @@ void main() {
       await pumpChatWidget(
         tester,
         SentenceChatButton(
-          sentenceText: 'Hello world.',
+          target: const SentenceChatTarget(text: 'Hello world.'),
           onBeforeOpen: () => beforeOpenCalled = true,
         ),
         overrides: remoteOverride(enabled: true),

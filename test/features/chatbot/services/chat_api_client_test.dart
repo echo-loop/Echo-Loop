@@ -74,7 +74,7 @@ void main() {
     expect(frames.last.isFinal, isTrue);
   });
 
-  test('请求体组装：messages/context/targetLanguage + Bearer header', () async {
+  test('请求体组装：段落 context 与 messages/targetLanguage + Bearer header', () async {
     when(
       () => mockDio.post<ResponseBody>(
         endpoint,
@@ -82,7 +82,10 @@ void main() {
           'messages': [
             {'role': 'user', 'content': '这句话什么意思？'},
           ],
-          'context': {'sentence': 'The fox'},
+          'context': {
+            'sentence': 'The fox',
+            'passage': 'The fox\nJumped over a log.',
+          },
           'targetLanguage': 'zh-CN',
         },
         options: any(
@@ -99,7 +102,12 @@ void main() {
       (_) async => ndjsonResponse('${jsonEncode({'done': true})}\n'),
     );
 
-    await stream().toList();
+    await stream(
+      context: {
+        'sentence': 'The fox',
+        'passage': 'The fox\nJumped over a log.',
+      },
+    ).toList();
 
     verify(
       () => mockDio.post<ResponseBody>(
@@ -108,7 +116,10 @@ void main() {
           'messages': [
             {'role': 'user', 'content': '这句话什么意思？'},
           ],
-          'context': {'sentence': 'The fox'},
+          'context': {
+            'sentence': 'The fox',
+            'passage': 'The fox\nJumped over a log.',
+          },
           'targetLanguage': 'zh-CN',
         },
         options: any(named: 'options'),
