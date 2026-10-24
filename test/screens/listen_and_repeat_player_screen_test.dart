@@ -99,6 +99,8 @@ class _TestListenAndRepeatController extends ListenAndRepeatController {
   int nextSentenceCalls = 0;
   int previousSentenceCalls = 0;
   int goToSentenceCalls = 0;
+  int pausePlaybackCalls = 0;
+  int resumeOrReplayCalls = 0;
 
   @override
   ListenAndRepeatSessionState build() => _initialState;
@@ -139,6 +141,20 @@ class _TestListenAndRepeatController extends ListenAndRepeatController {
 
   @override
   Future<void> replayCurrentSentence() async {
+    state = state.copyWith(phase: const PlayingPrompt());
+  }
+
+  @override
+  void pausePlayback() {
+    pausePlaybackCalls += 1;
+    state = state.copyWith(
+      phase: const WaitingForUser(WaitingReason.userInteraction),
+    );
+  }
+
+  @override
+  Future<void> resumeOrReplayCurrentSentence() async {
+    resumeOrReplayCalls += 1;
     state = state.copyWith(phase: const PlayingPrompt());
   }
 
@@ -583,6 +599,26 @@ void main() {
       expect(find.byIcon(Icons.skip_previous_rounded), findsOneWidget);
       expect(find.byIcon(Icons.play_arrow_rounded), findsOneWidget);
       expect(find.byIcon(Icons.skip_next_rounded), findsOneWidget);
+    });
+
+    testWidgets('中途暂停和再次播放使用暂停续播控制器动作', (tester) async {
+      final controller = _TestListenAndRepeatController(
+        createState(phase: const PlayingPrompt()),
+        createTestSentences(count: 3),
+        startPlayingNoop: true,
+      );
+
+      await tester.pumpWidget(_createTestWidget(controller: controller));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 200));
+
+      await tester.tap(find.byIcon(Icons.pause_rounded));
+      await tester.pump();
+      expect(controller.pausePlaybackCalls, 1);
+
+      await tester.tap(find.byIcon(Icons.play_arrow_rounded));
+      await tester.pump();
+      expect(controller.resumeOrReplayCalls, 1);
     });
 
     testWidgets('上一句下一句按钮点击区域与播放按钮一样大', (tester) async {

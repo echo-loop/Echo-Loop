@@ -387,8 +387,28 @@ class ForegroundAudioEngine extends _$ForegroundAudioEngine {
   }
 
   // --- 句子级播放基元 ---
-  Future<void> playClipOnce(Sentence sentence, int sessionId) async {
+  Future<void> playClipOnce(Sentence sentence, int sessionId) =>
+      _playClipFromPosition(sentence, sessionId, sentence.startTime);
+
+  /// 从句子内部的位置播放，供暂停恢复使用。
+  Future<void> playClipFromPosition(
+    Sentence sentence,
+    int sessionId,
+    Duration startAt,
+  ) => _playClipFromPosition(sentence, sessionId, startAt);
+
+  Future<void> _playClipFromPosition(
+    Sentence sentence,
+    int sessionId,
+    Duration requestedStart,
+  ) async {
     if (!isActiveSession(sessionId)) return;
+
+    final clipStart =
+        requestedStart >= sentence.startTime &&
+            requestedStart < sentence.endTime
+        ? requestedStart
+        : sentence.startTime;
 
     _wordHighlightCompletionSessionId = null;
     _wordHighlightObservedPlayingSessionId = null;
@@ -397,10 +417,10 @@ class ForegroundAudioEngine extends _$ForegroundAudioEngine {
     AppLogger.log(
       'ForegroundAudioEngine',
       '▶ playClip: loadedAudio=${state.currentAudioId}, '
-          'clip=${sentence.startTime.inMilliseconds}-${sentence.endTime.inMilliseconds}ms',
+          'clip=${clipStart.inMilliseconds}-${sentence.endTime.inMilliseconds}ms',
     );
-    state = state.copyWith(clipStart: sentence.startTime, isClipActive: true);
-    await _player.setClip(start: sentence.startTime, end: sentence.endTime);
+    state = state.copyWith(clipStart: clipStart, isClipActive: true);
+    await _player.setClip(start: clipStart, end: sentence.endTime);
 
     if (!isActiveSession(sessionId)) {
       AppLogger.log(

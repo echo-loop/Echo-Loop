@@ -14,6 +14,7 @@ class _Backend implements SpeechPracticeBackend {
   int cancelCalls = 0;
   int shutdownCalls = 0;
   String? stopDiagnostics;
+  final List<String> deletedRecordings = [];
 
   @override
   bool get isSupported => true;
@@ -68,7 +69,9 @@ class _Backend implements SpeechPracticeBackend {
   }
 
   @override
-  Future<void> deleteRecording(String filePath) async {}
+  Future<void> deleteRecording(String filePath) async {
+    deletedRecordings.add(filePath);
+  }
 
   @override
   Future<void> shutdown() async {
@@ -116,6 +119,29 @@ void main() {
     final result = await wait;
 
     expect(result.errorCode, 'cancelled');
+    expect(backend.deletedRecordings, isEmpty);
+    await service.dispose();
+    await backend.dispose();
+  });
+
+  test('取消转录处理中回合时可丢弃已停止的录音文件', () async {
+    const promptId = 'round:processing';
+    final backend = _Backend();
+    final service = RecordingService(backend);
+    await service.startRecording(promptId: promptId);
+    final stopped = await service.stopSession(promptId: promptId);
+    final filePath = stopped.filePath;
+    expect(filePath, isNotEmpty);
+    final wait = service.waitForTranscript(
+      filePath: filePath ?? '',
+      timeout: const Duration(minutes: 1),
+    );
+
+    await service.cancelRecording(discardStoppedRecording: true);
+    final result = await wait;
+
+    expect(result.errorCode, 'cancelled');
+    expect(backend.deletedRecordings, [filePath]);
     await service.dispose();
     await backend.dispose();
   });

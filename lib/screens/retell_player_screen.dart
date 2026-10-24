@@ -1255,6 +1255,52 @@ class _RetellPlayerScreenState extends ConsumerState<RetellPlayerScreen>
     await ref.read(retellPlayerProvider.notifier).replayDuringCountdown();
   }
 
+  /// 主播放按钮统一先处理录音状态，再切换原文播放。
+  ///
+  /// 录音状态由独立 controller 管理，不能只根据播放器 phase 决定播放动作；
+  /// 录音中的播放点击应先取消录音，避免音频与麦克风同时工作。
+  Future<void> _handleMainPlaybackTap() async {
+    var playerState = ref.read(retellPlayerProvider);
+    final recordingState = ref.read(retellRecordingControllerProvider);
+
+    if (recordingState.phase == RetellRecordingPhase.recording) {
+      // 先阻止取消录音触发的 idle listener 自动重新开始录音。
+      _manualStoppedThisParagraph = true;
+      if (playerState.phase == RetellPhase.retelling) {
+        ref
+            .read(retellPlayerProvider.notifier)
+            .enterWaitingForUser(stopImmediately: true);
+      }
+
+      final recordingController = ref.read(
+        retellRecordingControllerProvider.notifier,
+      );
+      await recordingController.cancelActiveRecording();
+      await recordingController.clearRecording();
+      if (!mounted) return;
+
+      playerState = ref.read(retellPlayerProvider);
+      if (playerState.phase == RetellPhase.retelling) {
+        _manualStoppedThisParagraph = false;
+        await ref.read(retellPlayerProvider.notifier).replayDuringCountdown();
+        return;
+      }
+      _manualStoppedThisParagraph = false;
+    }
+
+    if (playerState.phase == RetellPhase.listening) {
+      final player = ref.read(retellPlayerProvider.notifier);
+      if (_isRetellMainPlaybackActive(playerState)) {
+        await player.pause();
+      } else {
+        await player.resume();
+      }
+      return;
+    }
+
+    await _handleReplay();
+  }
+
   /// 停止倒计时意味着当前段落后续都由用户手动接管。
   void _takeOverCountdown() {
     _manualStoppedThisParagraph = true;
@@ -1608,26 +1654,10 @@ class _RetellPlayerScreenState extends ConsumerState<RetellPlayerScreen>
           suppressVisualView: _isNavigatingToDetail,
           audioItemId: widget.audioItemId,
           isPlaying: state.isPlaying,
-          onPlayPause: () {
-            if (state.phase == RetellPhase.listening) {
-              state.isPlaying
-                  ? unawaited(player.pause())
-                  : unawaited(player.resume());
-            } else {
-              _handleReplay();
-            }
-          },
+          onPlayPause: () => unawaited(_handleMainPlaybackTap()),
           onSessionChanged: (session) => _mediaPresentationSession = session,
           builder: (context, presentation, mediaSurface) => LearningHotkeyScope(
-            onPlayPause: () {
-              if (state.phase == RetellPhase.listening) {
-                state.isPlaying ? player.pause() : player.resume();
-              } else if (state.isRetellCountdown) {
-                _handleReplay();
-              } else {
-                _handleReplay();
-              }
-            },
+            onPlayPause: _handleMainPlaybackTap,
             onPrevious: _goToPreviousParagraph,
             onNext: _goToNextParagraph,
             child: PopScope(
@@ -1751,11 +1781,7 @@ class _RetellPlayerScreenState extends ConsumerState<RetellPlayerScreen>
                       : Icons.play_arrow_rounded,
                   onPrevious: _goToPreviousParagraph,
                   onNext: _goToNextParagraph,
-                  onCenter: state.phase == RetellPhase.listening
-                      ? (_isRetellMainPlaybackActive(state)
-                            ? player.pause
-                            : player.resume)
-                      : _handleReplay,
+                  onCenter: () => unawaited(_handleMainPlaybackTap()),
                   isManualMode: state.settings.isManualMode,
                   playCountText: formatPracticePlayCount(
                     l10n,

@@ -417,10 +417,11 @@ class RecordingService {
     return waitForTranscript(filePath: filePath);
   }
 
-  /// 取消当前录音，删除录音文件，释放麦克风。
+  /// 取消当前录音并释放麦克风。
   ///
-  /// 取消的录音不计入说的时长。
-  Future<void> cancelRecording() async {
+  /// 活跃录音会删除录音文件；转录处理中可通过 [discardStoppedRecording]
+  /// 显式丢弃已停止的录音，避免取消等待后遗留临时文件。
+  Future<void> cancelRecording({bool discardStoppedRecording = false}) async {
     _cancelRequested = true;
     final startOperation = _startOperation;
     if (startOperation != null) {
@@ -432,7 +433,12 @@ class RecordingService {
     }
     final promptId = _recordingPromptId;
     if (promptId == null) {
+      final filePath = discardStoppedRecording ? _currentFilePath : null;
+      if (discardStoppedRecording) _currentFilePath = null;
       _completeTranscriptWaitAsCancelled();
+      if (filePath != null && filePath.isNotEmpty) {
+        await deleteRecording(filePath);
+      }
       await _shutdown();
       return;
     }

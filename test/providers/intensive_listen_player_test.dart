@@ -24,6 +24,7 @@ import '../helpers/mock_providers.dart';
 class _ReplayTestAudioEngine extends TestAudioEngine {
   int _playbackSessionId = 0;
   final List<int> playedSentenceIndices = [];
+  final List<Duration> playedStartPositions = [];
 
   @override
   int newSession() {
@@ -36,11 +37,23 @@ class _ReplayTestAudioEngine extends TestAudioEngine {
       playbackSessionId == _playbackSessionId;
 
   @override
-  Future<void> playClipOnce(Sentence sentence, int playbackSessionId) async {
+  Future<void> playClipOnce(
+    Sentence sentence,
+    int playbackSessionId, {
+    Duration? startAt,
+  }) async {
     if (!isActiveSession(playbackSessionId)) return;
     playedSentenceIndices.add(sentence.index);
+    playedStartPositions.add(startAt ?? sentence.startTime);
     await Future<void>.delayed(const Duration(milliseconds: 10));
   }
+}
+
+class _PositionedReplayTestAudioEngine extends _ReplayTestAudioEngine {
+  Duration position = Duration.zero;
+
+  @override
+  Duration get currentPosition => position;
 }
 
 class _OverlappingReplayAudioEngine extends TestAudioEngine {
@@ -55,7 +68,11 @@ class _OverlappingReplayAudioEngine extends TestAudioEngine {
       playbackSessionId == _playbackSessionId;
 
   @override
-  Future<void> playClipOnce(Sentence sentence, int playbackSessionId) {
+  Future<void> playClipOnce(
+    Sentence sentence,
+    int playbackSessionId, {
+    Duration? startAt,
+  }) {
     final completion = Completer<void>();
     _playbackCompletions[playbackSessionId] = completion;
     return completion.future;
@@ -85,7 +102,11 @@ class _DeferredBlindAudioEngine extends TestAudioEngine {
       playbackSessionId == _playbackSessionId;
 
   @override
-  Future<void> playClipOnce(Sentence sentence, int playbackSessionId) {
+  Future<void> playClipOnce(
+    Sentence sentence,
+    int playbackSessionId, {
+    Duration? startAt,
+  }) {
     playedSentenceIndices.add(sentence.index);
     final completer = Completer<void>();
     _sentenceCompletions[sentence.index] = completer;
@@ -106,6 +127,9 @@ class _TestAudioIntensiveListenPlaybackDriver
   _TestAudioIntensiveListenPlaybackDriver(this._audioEngine);
 
   final AudioEngine _audioEngine;
+
+  @override
+  Duration get currentPosition => _audioEngine.currentPosition;
 
   @override
   int newSession() => _audioEngine.newSession();
@@ -129,8 +153,12 @@ class _TestAudioIntensiveListenPlaybackDriver
   @override
   Future<SentencePlaybackResult> playSentence(
     Sentence sentence,
-    int playbackSessionId,
-  ) async {
+    int playbackSessionId, {
+    Duration? startAt,
+  }) async {
+    if (_audioEngine case _ReplayTestAudioEngine recordingEngine) {
+      recordingEngine.playedStartPositions.add(startAt ?? sentence.startTime);
+    }
     await _audioEngine.playClipOnce(sentence, playbackSessionId);
     return _audioEngine.isActiveSession(playbackSessionId)
         ? SentencePlaybackResult.completed
@@ -588,6 +616,96 @@ void main() {
 
       expect(studyTimeService.sentencePlaybacks, isEmpty);
       await notifier.disposePlayer();
+    });
+
+    test('进入讲解页后不沿用盲听暂停位置，播放按钮可开始讲解重播', () async {
+      final audioEngine = _PositionedReplayTestAudioEngine();
+      container = createContainer(audioEngine: audioEngine);
+      final notifier = container.read(intensiveListenPlayerProvider.notifier);
+      await _initializeWithTestAudio(
+        container,
+        notifier,
+        createTestSentences(count: 1),
+      );
+
+      final playback = notifier.startPlaying();
+      await Future<void>.delayed(Duration.zero);
+      expect(container.read(intensiveListenPlayerProvider).isPlaying, isTrue);
+      audioEngine.position = const Duration(milliseconds: 500);
+      await notifier.pause();
+      await playback;
+      expect(notifier.hasPausedPlaybackPosition, isTrue);
+
+      notifier.enterAnnotationMode();
+
+      expect(notifier.hasPausedPlaybackPosition, isFalse);
+      await notifier.replayInAnnotationMode();
+
+      expect(audioEngine.playedSentenceIndices, [0, 0]);
+      expect(
+        container.read(intensiveListenPlayerProvider).annotationState?.phase,
+        isA<InspectingAnnotation>(),
+      );
+    });
+
+    test('讲解页整句重播暂停后，从保存的精确位置继续', () async {
+      final audioEngine = _PositionedReplayTestAudioEngine();
+      container = createContainer(audioEngine: audioEngine);
+      final notifier = container.read(intensiveListenPlayerProvider.notifier);
+      final sentence = createTestSentences(count: 1).single;
+      await _initializeWithTestAudio(container, notifier, [sentence]);
+      notifier.enterAnnotationMode();
+
+      final firstReplay = notifier.replayInAnnotationMode();
+      await Future<void>.delayed(Duration.zero);
+      audioEngine.position = const Duration(milliseconds: 500);
+      await notifier.pause();
+      await firstReplay;
+
+      audioEngine.playedStartPositions.clear();
+      await notifier.resume();
+
+      expect(
+        audioEngine.playedStartPositions.first,
+        const Duration(milliseconds: 500),
+      );
+    });
+
+    test('讲解页句子自然播放完后再次播放仍从句首开始', () async {
+      final audioEngine = _PositionedReplayTestAudioEngine();
+      container = createContainer(audioEngine: audioEngine);
+      final notifier = container.read(intensiveListenPlayerProvider.notifier);
+      final sentence = createTestSentences(count: 1).single;
+      await _initializeWithTestAudio(container, notifier, [sentence]);
+      notifier.enterAnnotationMode();
+
+      await notifier.replayInAnnotationMode();
+      audioEngine.playedStartPositions.clear();
+      await notifier.replayInAnnotationMode();
+
+      expect(audioEngine.playedStartPositions.first, sentence.startTime);
+    });
+
+    test('重置到第一句时清除先前的盲听暂停位置', () async {
+      final audioEngine = _PositionedReplayTestAudioEngine();
+      container = createContainer(audioEngine: audioEngine);
+      final notifier = container.read(intensiveListenPlayerProvider.notifier);
+      await _initializeWithTestAudio(
+        container,
+        notifier,
+        createTestSentences(count: 1),
+      );
+
+      final playback = notifier.startPlaying();
+      await Future<void>.delayed(Duration.zero);
+      audioEngine.position = const Duration(milliseconds: 500);
+      await notifier.pause();
+      await playback;
+      expect(notifier.hasPausedPlaybackPosition, isTrue);
+
+      await notifier.resetToStart();
+
+      expect(notifier.hasPausedPlaybackPosition, isFalse);
     });
 
     test('讲解页完整重播写入输入统计', () async {

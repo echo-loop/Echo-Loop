@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:echo_loop/database/providers.dart';
 import 'package:echo_loop/models/word_highlight_binding.dart';
 import 'package:echo_loop/models/sense_group_range_playback.dart';
@@ -20,20 +22,53 @@ import '../helpers/test_app.dart';
 
 class _MockSentenceAiApiClient extends Mock implements SentenceAiApiClient {}
 
-class _RecordingRangePlayback implements SenseGroupRangePlayback {
+class _RecordingRangePlayback
+    implements SenseGroupRangePlayback, ResumableSentenceRangePlayback {
   Duration? start;
   Duration? end;
+  @override
+  Duration currentPosition = Duration.zero;
+  final playStarts = <Duration>[];
+  final resumedPositions = <Duration>[];
   int cancelCalls = 0;
+  bool holdNextPlay = false;
+  Completer<void>? _activePlay;
 
   @override
   Future<void> cancel() async {
     cancelCalls++;
+    final activePlay = _activePlay;
+    _activePlay = null;
+    if (activePlay != null && !activePlay.isCompleted) {
+      activePlay.complete();
+    }
   }
 
   @override
-  Future<void> play(String audioItemId, Duration start, Duration end) async {
+  Future<void> play(String audioItemId, Duration start, Duration end) {
+    playStarts.add(start);
+    return _recordPlay(start, end);
+  }
+
+  @override
+  Future<void> playFromPosition(
+    String audioItemId,
+    Duration start,
+    Duration end,
+    Duration position,
+  ) {
+    resumedPositions.add(position);
+    return _recordPlay(position, end);
+  }
+
+  Future<void> _recordPlay(Duration start, Duration end) {
     this.start = start;
     this.end = end;
+    if (!holdNextPlay) return Future<void>.value();
+    holdNextPlay = false;
+    final activePlay = Completer<void>();
+    _activePlay = activePlay;
+    return activePlay.future;
   }
 }
 
@@ -113,6 +148,61 @@ void main() {
 
     expect(rangePlayback.start, const Duration(seconds: 1));
     expect(rangePlayback.end, const Duration(seconds: 3));
+
+    await tester.tap(find.byIcon(Icons.play_arrow_rounded));
+    await tester.pump();
+    expect(rangePlayback.playStarts, [
+      const Duration(seconds: 1),
+      const Duration(seconds: 1),
+    ]);
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(milliseconds: 1));
+  });
+
+  testWidgets('句子讲解页暂停后从准确位置继续', (tester) async {
+    final rangePlayback = _RecordingRangePlayback()..holdNextPlay = true;
+    await tester.pumpWidget(
+      createTestApp(
+        SentenceDetailScreen(
+          args: SentenceDetailArgs(
+            audioItemId: 'media-item',
+            audioName: 'Media item',
+            sentenceText: 'A sentence for media playback.',
+            sentenceIndex: 0,
+            startTimeMs: 1000,
+            endTimeMs: 3000,
+            rangePlayback: rangePlayback,
+            wordHighlightSource: const WordHighlightSource(
+              audioItemId: 'media-item',
+              positionStream: Stream<Duration>.empty(),
+              currentPosition: Duration.zero,
+              playbackStatus: WordHighlightPlaybackStatus.idle,
+              playbackStatusStream: Stream<WordHighlightPlaybackStatus>.empty(),
+            ),
+          ),
+        ),
+        overrides: detailOverrides(),
+      ),
+    );
+    await tester.pump();
+
+    await tester.tap(find.byIcon(Icons.play_arrow_rounded));
+    await tester.pump();
+    expect(rangePlayback.start, const Duration(seconds: 1));
+
+    rangePlayback.currentPosition = const Duration(milliseconds: 1840);
+    await tester.tap(find.byIcon(Icons.stop_rounded));
+    await tester.pump();
+    expect(rangePlayback.cancelCalls, 1);
+
+    await tester.tap(find.byIcon(Icons.play_arrow_rounded));
+    await tester.pump();
+    expect(rangePlayback.resumedPositions, [
+      const Duration(milliseconds: 1840),
+    ]);
+    expect(rangePlayback.start, const Duration(milliseconds: 1840));
+    expect(rangePlayback.end, const Duration(seconds: 3));
+
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump(const Duration(milliseconds: 1));
   });

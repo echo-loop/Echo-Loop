@@ -54,9 +54,18 @@ class BlindPracticeFlowCallbacks {
   )
   playSentence;
 
+  /// 从暂停位置继续播放当前句；未提供时退回普通起播。
+  final Future<SentencePlaybackResult> Function(
+    Sentence sentence,
+    int flowToken,
+    Duration startAt,
+  )?
+  resumeSentence;
+
   const BlindPracticeFlowCallbacks({
     required this.pauseAudio,
     required this.playSentence,
+    this.resumeSentence,
   });
 }
 
@@ -168,6 +177,20 @@ class BlindPracticeFlowEngine {
     await _playCurrentSentence();
   }
 
+  /// 从给定媒体位置继续当前句，保留本轮重复次数和流程状态。
+  Future<void> resumeCurrentSentence(Duration startAt) async {
+    if (_disposed || currentSentence == null) return;
+    _waitAfterCurrentPrompt = false;
+    _stopActiveResources();
+    _updateState(
+      _state.copyWith(
+        phase: const BlindIdle(),
+        flowToken: _state.flowToken + 1,
+      ),
+    );
+    await _playCurrentSentence(startAt: startAt);
+  }
+
   Future<void> nextSentence() async {
     if (_disposed) return;
     if (_state.isLastSentence) return;
@@ -258,10 +281,13 @@ class BlindPracticeFlowEngine {
     _sentences = [];
   }
 
-  Future<void> _playCurrentSentence() async {
+  /// 播放当前句，并在异步前置检查后校验本次 flowToken。
+  /// [startAt] 仅属于本次启动，避免切句后串用旧的恢复位置。
+  Future<void> _playCurrentSentence({Duration? startAt}) async {
     if (_disposed) return;
     final sentence = currentSentence;
     if (sentence == null) return;
+    final initialFlowToken = _state.flowToken;
 
     if (sentence.duration <= Duration.zero) {
       await _advanceToNextSentence();
@@ -270,7 +296,7 @@ class BlindPracticeFlowEngine {
 
     final canStart =
         await _config.onBeforeSentenceStart?.call(_state.sentenceIndex) ?? true;
-    if (_disposed) return;
+    if (_disposed || initialFlowToken != _state.flowToken) return;
     if (!canStart) {
       await _skipCurrentSentence(reason: 'before-sentence-start-rejected');
       return;
@@ -286,7 +312,10 @@ class BlindPracticeFlowEngine {
       'flowToken=$token',
     );
 
-    final result = await callbacks.playSentence(sentence, token);
+    final resumeSentence = callbacks.resumeSentence;
+    final result = startAt != null && resumeSentence != null
+        ? await resumeSentence(sentence, token, startAt)
+        : await callbacks.playSentence(sentence, token);
     if (_disposed) return;
     final currentFlowToken = _state.flowToken;
     AppLogger.log(

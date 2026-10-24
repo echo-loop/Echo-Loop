@@ -4,7 +4,8 @@ import 'local_audio_clip_player.dart';
 import 'local_audio_range_player.dart';
 
 /// 使用共享短音频播放器执行句子复习中的意群区间试听。
-class LocalAudioSenseGroupRangePlayback implements SenseGroupRangePlayback {
+class LocalAudioSenseGroupRangePlayback
+    implements SenseGroupRangePlayback, ResumableSentenceRangePlayback {
   LocalAudioSenseGroupRangePlayback({
     required AudioItemDao audioItemDao,
     required LocalAudioClipPlayer audioClipPlayer,
@@ -18,7 +19,29 @@ class LocalAudioSenseGroupRangePlayback implements SenseGroupRangePlayback {
   final LocalAudioRangePlayer _rangePlayer;
 
   @override
-  Future<void> play(String audioItemId, Duration start, Duration end) async {
+  Duration get currentPosition => _audioClipPlayer.currentPosition;
+
+  @override
+  Future<void> play(String audioItemId, Duration start, Duration end) =>
+      _playRange(audioItemId, start, end);
+
+  @override
+  Future<void> playFromPosition(
+    String audioItemId,
+    Duration start,
+    Duration end,
+    Duration position,
+  ) => _playRange(
+    audioItemId,
+    position >= start && position < end ? position : start,
+    end,
+  );
+
+  Future<void> _playRange(
+    String audioItemId,
+    Duration start,
+    Duration end,
+  ) async {
     await _rangePlayer.play(
       audioItemId: audioItemId,
       start: start,

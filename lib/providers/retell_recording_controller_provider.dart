@@ -21,7 +21,6 @@ library;
 import 'dart:async';
 import 'dart:math' as math;
 
-import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/speech_practice_models.dart';
@@ -162,6 +161,9 @@ class RetellRecordingController extends Notifier<RetellRecordingState> {
 
   /// 当前仍在执行底层启动的回合，用于识别尚未完成 warmup 的录音。
   int? _startingGeneration;
+
+  /// 后台录音收尾完成前暂存取消 future，避免新回合加入旧启动操作。
+  Future<void>? _backgroundCancellation;
   bool _isStopping = false;
   bool _hasDetectedSpeech = false;
   String? _lastKnownTranscript;
@@ -195,11 +197,7 @@ class RetellRecordingController extends Notifier<RetellRecordingState> {
     final backend = ref.watch(speechPracticeBackendProvider);
     _recordingService = RecordingService(backend);
 
-    final lifecycleListener = AppLifecycleListener(
-      onStateChange: _handleAppLifecycleChange,
-    );
     ref.onDispose(() {
-      lifecycleListener.dispose();
       _cancelAllTimers();
       _eventSub?.cancel();
       _recordingCompletionHandler = null;
@@ -246,6 +244,11 @@ class RetellRecordingController extends Notifier<RetellRecordingState> {
     required String referenceText,
     Duration? referenceDuration,
   }) async {
+    final backgroundCancellation = _backgroundCancellation;
+    if (backgroundCancellation != null) {
+      await backgroundCancellation;
+    }
+
     final backend = ref.read(speechPracticeBackendProvider);
     if (state.promptId == promptId && state.isActive) {
       AppLogger.log('RetellRec', '⏭ startRecording 跳过: 已在录音中 ($promptId)');
@@ -1005,26 +1008,63 @@ class RetellRecordingController extends Notifier<RetellRecordingState> {
 
   // ── 生命周期 ──
 
-  void _handleAppLifecycleChange(AppLifecycleState appState) {
-    if (appState == AppLifecycleState.paused ||
-        appState == AppLifecycleState.hidden) {
-      AppLogger.log('RetellRec', 'App 进入后台 → idle (保留 currentAttempt)');
-      _cancelAllTimers();
-      _isStopping = false;
-      _hasDetectedSpeech = false;
-      _lastKnownTranscript = null;
-      _lastSilenceLogDesc = null;
-      _speechStartTime = null;
-      _eventSub?.cancel();
-      _eventSub = null;
-      // 取消录音但不 await（后台不可靠）
-      unawaited(_recordingService.cancelRecording());
-      // 保留 currentAttempt（评级 badge）和 permissions
-      state = RetellRecordingState(
-        permissions: state.permissions,
-        currentAttempt: state.currentAttempt,
-        awaitingSpeechTimedOut: true, // 阻止回前台后自动开始录音
-      );
+  /// 复述播放器进入后台时取消当前回合并丢弃其迟到结果。
+  Future<void> handleRetellSessionBackground() {
+    AppLogger.log('RetellRec', 'App 进入后台 → idle (保留 currentAttempt)');
+    final recordingOperationWasActive =
+        state.isActive || _startingGeneration != null;
+    ++_roundGeneration;
+    _cancelAllTimers();
+    _isStopping = false;
+    _hasDetectedSpeech = false;
+    _lastKnownTranscript = null;
+    _lastSilenceLogDesc = null;
+    _speechStartTime = null;
+    final eventSub = _eventSub;
+    _eventSub = null;
+    // 保留 currentAttempt（评级 badge）和 permissions
+    state = RetellRecordingState(
+      permissions: state.permissions,
+      currentAttempt: state.currentAttempt,
+      awaitingSpeechTimedOut: true, // 阻止回前台后自动开始录音
+    );
+
+    final pendingCancellation = _backgroundCancellation;
+    if (pendingCancellation != null) return pendingCancellation;
+    if (!recordingOperationWasActive && eventSub == null) {
+      return Future<void>.value();
+    }
+
+    late final Future<void> cancellation;
+    cancellation =
+        _cancelBackgroundResources(
+          eventSub: eventSub,
+          cancelRecording: recordingOperationWasActive,
+        ).whenComplete(() {
+          if (identical(_backgroundCancellation, cancellation)) {
+            _backgroundCancellation = null;
+          }
+        });
+    _backgroundCancellation = cancellation;
+    return cancellation;
+  }
+
+  /// 收尾后台中断的事件订阅与录音服务，并记录平台收尾错误。
+  Future<void> _cancelBackgroundResources({
+    required StreamSubscription<SpeechPracticeEvent>? eventSub,
+    required bool cancelRecording,
+  }) async {
+    try {
+      await eventSub?.cancel();
+    } catch (error, stackTrace) {
+      AppLogger.log('RetellRec', '后台取消录音事件订阅失败 error=$error\n$stackTrace');
+    }
+
+    if (!cancelRecording) return;
+    try {
+      await _recordingService.cancelRecording(discardStoppedRecording: true);
+    } catch (error, stackTrace) {
+      AppLogger.log('RetellRec', '后台取消录音失败 error=$error\n$stackTrace');
     }
   }
 

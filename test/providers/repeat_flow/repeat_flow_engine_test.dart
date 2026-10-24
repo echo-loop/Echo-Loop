@@ -9,6 +9,155 @@ import 'package:echo_loop/providers/repeat_flow/repeat_flow_phase.dart';
 import 'package:echo_loop/providers/repeat_flow/repeat_flow_state.dart';
 
 void main() {
+  test('暂停后的恢复使用精确位置且不增加重复次数或更换 prompt', () async {
+    final firstPlayback = Completer<SentencePlaybackResult>();
+    final resumeOffsets = <Duration>[];
+    final engine = RepeatFlowEngine(
+      onStateChanged: (_) {},
+      callbacks: RepeatFlowCallbacks(
+        pauseAudio: () {},
+        playSentence: (_, _) => firstPlayback.future,
+        resumeSentence: (_, _, startAt) async {
+          resumeOffsets.add(startAt);
+          return SentencePlaybackResult.completed;
+        },
+        startRecording:
+            ({
+              required promptId,
+              required referenceText,
+              required maxDuration,
+              referenceDuration,
+            }) {},
+        cancelRecording: () async {},
+        stopAndEvaluate: ({required referenceText}) async {},
+        clearRecording: () {},
+        setMaxRecordingDuration: (_) {},
+        hasDetectedSpeech: () => false,
+      ),
+    );
+    final sentence = Sentence(
+      index: 0,
+      text: 'Repeat this sentence.',
+      startTime: Duration.zero,
+      endTime: const Duration(seconds: 1),
+    );
+    engine.prepare(
+      sentences: [sentence],
+      config: RepeatFlowConfig(
+        audioItemId: 'audio-1',
+        getRepeatCount: (_) => 3,
+        getIntervalDuration: (_) => const Duration(seconds: 30),
+        isManualMode: () => false,
+      ),
+    );
+    final promptId = engine.currentPromptId;
+    final initialPlayback = engine.startPlaying();
+    await Future<void>.delayed(Duration.zero);
+    engine.enterWaitingForUser();
+
+    const pausedAt = Duration(milliseconds: 420);
+    await engine.resumeCurrentSentence(pausedAt);
+    firstPlayback.complete(SentencePlaybackResult.cancelled);
+    await initialPlayback;
+
+    expect(resumeOffsets, [pausedAt]);
+    expect(engine.state.repeatIndex, 0);
+    expect(engine.currentPromptId, promptId);
+    expect(engine.state.phase, isA<Recording>());
+    engine.dispose();
+  });
+
+  test('恢复检查等待期间切句不会把暂停位置用于新句', () async {
+    final firstPlayback = Completer<SentencePlaybackResult>();
+    final firstPlaybackStarted = Completer<void>();
+    final targetPlaybackStarted = Completer<void>();
+    final resumeStartReached = Completer<void>();
+    final resumeStartGate = Completer<void>();
+    final playedIndices = <int>[];
+    final resumedOffsets = <({int sentenceIndex, Duration startAt})>[];
+    var holdResumeStart = false;
+    final engine = RepeatFlowEngine(
+      onStateChanged: (_) {},
+      callbacks: RepeatFlowCallbacks(
+        pauseAudio: () {},
+        playSentence: (sentence, _) async {
+          playedIndices.add(sentence.index);
+          if (sentence.index == 0) {
+            if (!firstPlaybackStarted.isCompleted) {
+              firstPlaybackStarted.complete();
+            }
+            return firstPlayback.future;
+          }
+          targetPlaybackStarted.complete();
+          return SentencePlaybackResult.completed;
+        },
+        resumeSentence: (sentence, _, startAt) async {
+          resumedOffsets.add((sentenceIndex: sentence.index, startAt: startAt));
+          if (sentence.index == 1 && !targetPlaybackStarted.isCompleted) {
+            targetPlaybackStarted.complete();
+          }
+          return SentencePlaybackResult.completed;
+        },
+        startRecording:
+            ({
+              required promptId,
+              required referenceText,
+              required maxDuration,
+              referenceDuration,
+            }) {},
+        cancelRecording: () async {},
+        stopAndEvaluate: ({required referenceText}) async {},
+        clearRecording: () {},
+        setMaxRecordingDuration: (_) {},
+        hasDetectedSpeech: () => false,
+      ),
+    );
+    engine.prepare(
+      sentences: List<Sentence>.generate(
+        2,
+        (index) => Sentence(
+          index: index,
+          text: 'Sentence $index.',
+          startTime: Duration(seconds: index),
+          endTime: Duration(seconds: index + 1),
+        ),
+      ),
+      config: RepeatFlowConfig(
+        audioItemId: 'audio-1',
+        getRepeatCount: (_) => 1,
+        getIntervalDuration: (_) => Duration.zero,
+        isManualMode: () => false,
+        onBeforeSentenceStart: (_) async {
+          if (holdResumeStart) {
+            holdResumeStart = false;
+            resumeStartReached.complete();
+            await resumeStartGate.future;
+          }
+        },
+      ),
+    );
+
+    final initialPlay = engine.startPlaying();
+    await firstPlaybackStarted.future;
+    engine.enterWaitingForUser();
+
+    holdResumeStart = true;
+    const pausedAt = Duration(milliseconds: 420);
+    final resume = engine.resumeCurrentSentence(pausedAt);
+    await resumeStartReached.future;
+
+    await engine.nextSentence();
+    await targetPlaybackStarted.future;
+    resumeStartGate.complete();
+    firstPlayback.complete(SentencePlaybackResult.cancelled);
+    await Future.wait([resume, initialPlay]);
+
+    expect(playedIndices, [0, 1]);
+    expect(resumedOffsets, isEmpty);
+    expect(engine.state.sentenceIndex, 1);
+    engine.dispose();
+  });
+
   test('停止后重新准备会话不会继承上一句的用户接管状态', () async {
     RepeatFlowState? latestState;
     final engine = RepeatFlowEngine(

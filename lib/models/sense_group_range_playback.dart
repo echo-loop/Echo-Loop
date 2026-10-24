@@ -9,3 +9,20 @@ abstract interface class SenseGroupRangePlayback {
   /// 取消当前意群播放，并使迟到的异步回调失效。
   Future<void> cancel();
 }
+
+/// 支持句子讲解页暂停续播的区间播放能力。
+///
+/// 意群试听仍使用 [SenseGroupRangePlayback.play] 从区间起点播放；只有句子讲解页
+/// 显式调用 [playFromPosition] 时才从已有暂停位置继续。
+abstract interface class ResumableSentenceRangePlayback {
+  /// 当前媒体绝对位置。
+  Duration get currentPosition;
+
+  /// 从 [position] 继续播放到 [end]。
+  Future<void> playFromPosition(
+    String audioItemId,
+    Duration start,
+    Duration end,
+    Duration position,
+  );
+}

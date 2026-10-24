@@ -43,6 +43,7 @@ class MediaPlayback extends Notifier<MediaPlaybackState> {
   int _playbackGen = 0;
   int _playbackSessionId = -1;
   bool _activeSentenceDrivenPlayback = false;
+  Duration? _sentenceResumePosition;
   ({int index, Duration releaseAt})? _pendingFullSentenceFocus;
   bool _isInPlaybackInterval = false;
   int? _playbackIntervalGeneration;
@@ -669,12 +670,16 @@ class MediaPlayback extends Notifier<MediaPlaybackState> {
     }
     if (_usesSentenceDrivenPlayback) {
       AppLogger.log('MediaPlayback', 'play route: sentence playback');
+      final resumePosition = _sentenceResumePosition;
+      _sentenceResumePosition = null;
       _launchSentenceDriven(
         resetWholeLoops: resetWholeLoops,
-        resetSentenceRepeats: true,
+        resetSentenceRepeats: resumePosition == null,
+        startAt: resumePosition,
       );
       return;
     }
+    _sentenceResumePosition = null;
     await _startWholeDriven(resetWholeLoops: resetWholeLoops);
   }
 
@@ -685,6 +690,21 @@ class MediaPlayback extends Notifier<MediaPlaybackState> {
           'engineSession=${_engine.currentSessionId}',
     );
     _recordGaplessStatsThrough(_engine.currentPosition);
+    _sentenceResumePosition = null;
+    if (_activeSentenceDrivenPlayback) {
+      final playable = _playable;
+      final pos = _currentPos;
+      final sentence = pos != null && pos >= 0 && pos < playable.length
+          ? playable[pos]
+          : null;
+      final position = _engine.currentPosition;
+      _sentenceResumePosition =
+          sentence != null &&
+              position >= sentence.startTime &&
+              position < sentence.endTime
+          ? position
+          : null;
+    }
     _playbackGen++;
     _clearPlaybackInterval();
     _activeSentenceDrivenPlayback = false;
@@ -717,6 +737,7 @@ class MediaPlayback extends Notifier<MediaPlaybackState> {
   }
 
   Future<void> seekAbsolute(Duration target) async {
+    _sentenceResumePosition = null;
     if (target < Duration.zero) target = Duration.zero;
     final duration = state.duration;
     if (duration != null && target > duration) target = duration;
@@ -796,6 +817,7 @@ class MediaPlayback extends Notifier<MediaPlaybackState> {
 
   Future<void> selectFullSentence(int index, {bool autoPlay = true}) async {
     if (index < 0 || index >= state.sentences.length) return;
+    _sentenceResumePosition = null;
     final sentence = state.sentences[index];
     final wasPlaying = state.isPlaying;
     AppLogger.log(
@@ -840,6 +862,7 @@ class MediaPlayback extends Notifier<MediaPlaybackState> {
   }) async {
     if (index < 0 || index >= state.sentences.length) return;
     if (!state.bookmarkedIndices.contains(index)) return;
+    _sentenceResumePosition = null;
     _pendingFullSentenceFocus = null;
     final wasPlaying = state.isPlaying;
     AppLogger.log(
@@ -942,6 +965,7 @@ class MediaPlayback extends Notifier<MediaPlaybackState> {
   }
 
   Future<void> _moveToPosition(int pos) async {
+    _sentenceResumePosition = null;
     final playable = _playable;
     if (pos < 0 || pos >= playable.length) return;
     _pendingFullSentenceFocus = null;
@@ -1484,6 +1508,7 @@ class MediaPlayback extends Notifier<MediaPlaybackState> {
   void _launchSentenceDriven({
     required bool resetWholeLoops,
     required bool resetSentenceRepeats,
+    Duration? startAt,
   }) {
     final gen = ++_playbackGen;
     _clearPlaybackInterval();
@@ -1509,11 +1534,12 @@ class MediaPlayback extends Notifier<MediaPlaybackState> {
           'generation=$gen session=$_playbackSessionId',
     );
     _setPlaying(true);
-    unawaited(_playSentenceDriven(gen));
+    unawaited(_playSentenceDriven(gen, startAt: startAt));
   }
 
-  Future<void> _playSentenceDriven(int gen) async {
+  Future<void> _playSentenceDriven(int gen, {Duration? startAt}) async {
     var pos = _currentPos ?? 0;
+    var startFromPosition = startAt;
     while (gen == _playbackGen) {
       final playable = _playable;
       if (playable.isEmpty || pos < 0 || pos >= playable.length) {
@@ -1531,7 +1557,7 @@ class MediaPlayback extends Notifier<MediaPlaybackState> {
             'session=$_playbackSessionId',
       );
       final result = await _engine.playRange(
-        sentence.startTime,
+        startFromPosition ?? sentence.startTime,
         sentence.endTime,
         speed: state.settings.playbackSpeed,
         onRangeReady: () => AppLogger.log(
@@ -1554,6 +1580,7 @@ class MediaPlayback extends Notifier<MediaPlaybackState> {
       if (gen != _playbackGen || result != SentencePlaybackResult.completed) {
         return;
       }
+      startFromPosition = null;
       _recordCompletedSentenceStatistics(sentence);
       if (_pauseAfterPosition != null) {
         await pause();

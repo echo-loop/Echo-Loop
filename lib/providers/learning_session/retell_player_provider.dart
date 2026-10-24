@@ -183,6 +183,7 @@ class RetellPlayer extends _$RetellPlayer {
 
   /// 断点恢复的段内本地句子 index（仅首次播放该段时生效，用完清零）
   int _resumeStartLocalSentenceIndex = 0;
+  Duration? _resumePosition;
 
   /// 所有句子列表（用于重新生成关键词）
   List<Sentence> _allSentences = [];
@@ -291,10 +292,18 @@ class RetellPlayer extends _$RetellPlayer {
     return const RetellPlayerState();
   }
 
-  /// App 进入后台时取消倒计时和播放，回前台后等待用户操作。
+  /// 活动播放器进入后台时暂停播放并等待用户操作；已释放时忽略回调。
   void _handleAppLifecycleChange(AppLifecycleState appState) {
+    // Provider 会 keep-alive；播放器释放后忽略遗留的生命周期事件。
+    if (_playbackDriver == null) return;
+
     if (appState == AppLifecycleState.paused ||
         appState == AppLifecycleState.hidden) {
+      unawaited(
+        ref
+            .read(retellRecordingControllerProvider.notifier)
+            .handleRetellSessionBackground(),
+      );
       AppLogger.log(
         'RetellPlayer',
         'App 进入后台: '
@@ -641,6 +650,8 @@ class RetellPlayer extends _$RetellPlayer {
   Future<void> pause() async {
     // 先快照，避免 stopPlayback 期间异步事件污染 playingSentenceIndex
     final snapshotIdx = state.playingSentenceIndex;
+    final snapshotPosition = _playback.currentPosition;
+    _resumePosition = null;
     final playback = _playback;
     _sessionId = playback.newSession();
     _positionSub?.cancel();
@@ -648,6 +659,13 @@ class RetellPlayer extends _$RetellPlayer {
     await playback.pause();
     if (snapshotIdx >= 0) {
       _resumeStartLocalSentenceIndex = snapshotIdx;
+    }
+    final sentences = currentParagraphSentences;
+    if (state.phase == RetellPhase.listening &&
+        sentences.isNotEmpty &&
+        snapshotPosition >= sentences.first.startTime &&
+        snapshotPosition < sentences.last.endTime) {
+      _resumePosition = snapshotPosition;
     }
     state = state.copyWith(
       isPlaying: false,
@@ -658,6 +676,8 @@ class RetellPlayer extends _$RetellPlayer {
   }
 
   /// 恢复播放
+  ///
+  /// 听句中断时从精确暂停位置继续；复述阶段恢复剩余倒计时。
   Future<void> resume() async {
     if (state.phase == RetellPhase.listening) {
       // 短段（≤10s）也消费断点偏移，保证 pause 后从当前句开头开播
@@ -1115,11 +1135,26 @@ class RetellPlayer extends _$RetellPlayer {
     final sentences = currentParagraphSentences;
     if (sentences.isEmpty) return;
 
+    final resumePosition = _resumePosition;
+    _resumePosition = null;
+    final canResumePosition =
+        resumePosition != null &&
+        resumePosition >= sentences.first.startTime &&
+        resumePosition < sentences.last.endTime &&
+        forceOffset &&
+        startLocalIdxOverride == null;
     final int startLocalIdx;
     final bool fromOverride = startLocalIdxOverride != null;
     if (fromOverride) {
       startLocalIdx = startLocalIdxOverride.clamp(0, sentences.length - 1);
       _resumeStartLocalSentenceIndex = 0;
+      _resumePosition = null;
+    } else if (canResumePosition) {
+      startLocalIdx = sentences
+          .lastIndexWhere((sentence) => sentence.startTime <= resumePosition)
+          .clamp(0, sentences.length - 1);
+      _resumeStartLocalSentenceIndex = 0;
+      _resumePosition = null;
     } else {
       final paragraphDuration =
           sentences.last.endTime - sentences.first.startTime;
@@ -1151,7 +1186,9 @@ class RetellPlayer extends _$RetellPlayer {
     );
     _persistCurrentSentenceIndexAsync();
 
-    final start = sentences[startLocalIdx].startTime;
+    final start = canResumePosition
+        ? resumePosition
+        : sentences[startLocalIdx].startTime;
     final end = sentences.last.endTime;
 
     // seek 命令返回后、播放前订阅句子位置流。命令回执不代表时间轴已更新；

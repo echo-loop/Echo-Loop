@@ -9,6 +9,7 @@ import '../../services/app_logger.dart';
 /// 学习状态机只描述“播放一句”，不持有具体播放器；精听音频和视频共用
 /// [MediaSentencePlaybackDriver]，其他任务可继续使用各自的适配器。
 abstract interface class SentencePlaybackDriver {
+  Duration get currentPosition;
   int newSession();
   bool isActiveSession(int playbackSessionId);
 
@@ -19,8 +20,9 @@ abstract interface class SentencePlaybackDriver {
   Future<void> setSpeed(double speed);
   Future<SentencePlaybackResult> playSentence(
     Sentence sentence,
-    int playbackSessionId,
-  );
+    int playbackSessionId, {
+    Duration? startAt,
+  });
 
   /// 按指定速度完整播放一句；MediaEngine 实现自行管理底层播放请求。
   Future<SentencePlaybackResult> playSentenceWithSpeed(
@@ -57,6 +59,10 @@ class ForegroundSentencePlaybackDriver implements SentencePlaybackDriver {
   final ForegroundAudioEngine _foregroundAudioEngine;
 
   @override
+  Duration get currentPosition =>
+      _foregroundAudioEngine.absoluteCurrentPosition;
+
+  @override
   int newSession() => _foregroundAudioEngine.newSession();
 
   @override
@@ -78,9 +84,17 @@ class ForegroundSentencePlaybackDriver implements SentencePlaybackDriver {
   @override
   Future<SentencePlaybackResult> playSentence(
     Sentence sentence,
-    int playbackSessionId,
-  ) async {
-    await _foregroundAudioEngine.playClipOnce(sentence, playbackSessionId);
+    int playbackSessionId, {
+    Duration? startAt,
+  }) async {
+    final playback = startAt == null
+        ? _foregroundAudioEngine.playClipOnce(sentence, playbackSessionId)
+        : _foregroundAudioEngine.playClipFromPosition(
+            sentence,
+            playbackSessionId,
+            startAt,
+          );
+    await playback;
     return _foregroundAudioEngine.isActiveSession(playbackSessionId)
         ? SentencePlaybackResult.completed
         : SentencePlaybackResult.cancelled;
@@ -121,6 +135,9 @@ class MediaSentencePlaybackDriver implements IntensiveListenPlaybackDriver {
   double _playbackSpeed = 1.0;
 
   @override
+  Duration get currentPosition => _mediaEngine.currentPosition;
+
+  @override
   int newSession() => _mediaEngine.newSession();
 
   @override
@@ -155,17 +172,20 @@ class MediaSentencePlaybackDriver implements IntensiveListenPlaybackDriver {
   @override
   Future<SentencePlaybackResult> playSentence(
     Sentence sentence,
-    int playbackSessionId,
-  ) => _playSentenceWithDiagnostics(
+    int playbackSessionId, {
+    Duration? startAt,
+  }) => _playSentenceWithDiagnostics(
     sentence,
     _playbackSpeed,
     playbackSessionId: playbackSessionId,
+    startAt: startAt,
   );
 
   Future<SentencePlaybackResult> _playSentenceWithDiagnostics(
     Sentence sentence,
     double speed, {
     required int playbackSessionId,
+    Duration? startAt,
   }) async {
     AppLogger.log(
       'MediaSentencePlayback',
@@ -177,7 +197,7 @@ class MediaSentencePlaybackDriver implements IntensiveListenPlaybackDriver {
     final timer = Stopwatch()..start();
     try {
       final result = await _mediaEngine.playRange(
-        sentence.startTime,
+        startAt ?? sentence.startTime,
         sentence.endTime,
         speed: speed,
         sessionId: playbackSessionId,

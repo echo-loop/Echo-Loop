@@ -1194,7 +1194,11 @@ extension on _IntensiveListenPlayerScreenState {
       return;
     }
     if (playerState.isAnnotationMode) {
-      unawaited(player.replayInAnnotationMode());
+      if (player.hasPausedPlaybackPosition) {
+        unawaited(player.resume());
+      } else {
+        unawaited(player.replayInAnnotationMode());
+      }
       return;
     }
     unawaited(player.resume());

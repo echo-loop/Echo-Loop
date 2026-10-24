@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/widgets.dart' show AppLifecycleState;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -36,6 +37,10 @@ class _FakeSpeechPracticeBackend implements SpeechPracticeBackend {
   String? activePromptId;
   int counter = 0;
   bool failStopSession = false;
+  bool emitFinalTranscript = true;
+  int cancelSessionCalls = 0;
+  int shutdownCalls = 0;
+  final List<String> deletedRecordings = [];
 
   @override
   bool get isSupported => true;
@@ -71,7 +76,9 @@ class _FakeSpeechPracticeBackend implements SpeechPracticeBackend {
   Future<void> setRecognitionEnabled(bool enabled) async {}
 
   @override
-  Future<void> shutdown() async {}
+  Future<void> shutdown() async {
+    shutdownCalls += 1;
+  }
 
   @override
   Future<String> startSession({
@@ -89,25 +96,30 @@ class _FakeSpeechPracticeBackend implements SpeechPracticeBackend {
       throw StateError('stop failed');
     }
     final promptId = activePromptId ?? 'retell:a1:0';
-    scheduleMicrotask(() {
-      _controller.add(
-        SpeechPracticeEvent(
-          type: SpeechPracticeEventType.finalTranscriptReady,
-          promptId: promptId,
-          transcript: 'retell transcript',
-        ),
-      );
-    });
+    if (emitFinalTranscript) {
+      scheduleMicrotask(() {
+        _controller.add(
+          SpeechPracticeEvent(
+            type: SpeechPracticeEventType.finalTranscriptReady,
+            promptId: promptId,
+            transcript: 'retell transcript',
+          ),
+        );
+      });
+    }
     return SpeechPracticeStopResult(filePath: '/tmp/$promptId-$counter.caf');
   }
 
   @override
   Future<void> cancelSession() async {
+    cancelSessionCalls += 1;
     activePromptId = null;
   }
 
   @override
-  Future<void> deleteRecording(String filePath) async {}
+  Future<void> deleteRecording(String filePath) async {
+    deletedRecordings.add(filePath);
+  }
 
   void emitPartial(String transcript) {
     _controller.add(
@@ -157,6 +169,217 @@ void main() {
     await backend.dispose();
     container.dispose();
   }
+
+  test('非复述活动会话进入后台不会留下等待开口超时标记', () async {
+    final backend = _FakeSpeechPracticeBackend();
+    final container = ProviderContainer(
+      overrides: [
+        analyticsOverride(),
+        initialLearningSettingsProvider.overrideWithValue(
+          const LearningSettings(),
+        ),
+        speechPracticeBackendProvider.overrideWithValue(backend),
+        recommendedAsrModelProvider.overrideWithValue(_testAsrModel),
+        offlineAsrSettingsProvider.overrideWith(
+          () => _FakeOfflineAsrSettingsNotifier(),
+        ),
+      ],
+    );
+    final controller = container.read(
+      retellRecordingControllerProvider.notifier,
+    );
+    addTearDown(
+      () => disposeTestResources(
+        controller: controller,
+        container: container,
+        backend: backend,
+      ),
+    );
+
+    final binding = TestWidgetsFlutterBinding.ensureInitialized();
+    binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+    binding.handleAppLifecycleStateChanged(AppLifecycleState.hidden);
+
+    expect(controller.state.awaitingSpeechTimedOut, isFalse);
+
+    binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+    binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+  });
+
+  test('复述播放器通知进入后台后设置超时标记以阻止自动录音', () async {
+    final backend = _FakeSpeechPracticeBackend();
+    final container = ProviderContainer(
+      overrides: [
+        analyticsOverride(),
+        initialLearningSettingsProvider.overrideWithValue(
+          const LearningSettings(),
+        ),
+        speechPracticeBackendProvider.overrideWithValue(backend),
+        recommendedAsrModelProvider.overrideWithValue(_testAsrModel),
+        offlineAsrSettingsProvider.overrideWith(
+          () => _FakeOfflineAsrSettingsNotifier(),
+        ),
+      ],
+    );
+    final controller = container.read(
+      retellRecordingControllerProvider.notifier,
+    );
+    addTearDown(
+      () => disposeTestResources(
+        controller: controller,
+        container: container,
+        backend: backend,
+      ),
+    );
+
+    await controller.handleRetellSessionBackground();
+
+    expect(controller.state.awaitingSpeechTimedOut, isTrue);
+
+    await controller.clearRecording();
+  });
+
+  test('后台进入时会取消正在录音的回合', () async {
+    final backend = _FakeSpeechPracticeBackend();
+    final container = ProviderContainer(
+      overrides: [
+        analyticsOverride(),
+        initialLearningSettingsProvider.overrideWithValue(
+          const LearningSettings(),
+        ),
+        speechPracticeBackendProvider.overrideWithValue(backend),
+        recommendedAsrModelProvider.overrideWithValue(_testAsrModel),
+        offlineAsrSettingsProvider.overrideWith(
+          () => _FakeOfflineAsrSettingsNotifier(),
+        ),
+      ],
+    );
+    final controller = container.read(
+      retellRecordingControllerProvider.notifier,
+    );
+    addTearDown(
+      () => disposeTestResources(
+        controller: controller,
+        container: container,
+        backend: backend,
+      ),
+    );
+
+    await controller.startRecording(
+      promptId: 'retell:a1:0',
+      referenceText: 'first paragraph',
+    );
+
+    await controller.handleRetellSessionBackground();
+
+    expect(backend.cancelSessionCalls, 1);
+    expect(backend.shutdownCalls, 1);
+    expect(controller.state.phase, RetellRecordingPhase.idle);
+    expect(controller.state.awaitingSpeechTimedOut, isTrue);
+  });
+
+  test('后台进入会取消处理中识别并丢弃迟到结果', () async {
+    final backend = _FakeSpeechPracticeBackend()..emitFinalTranscript = false;
+    final container = ProviderContainer(
+      overrides: [
+        analyticsOverride(),
+        initialLearningSettingsProvider.overrideWithValue(
+          const LearningSettings(),
+        ),
+        speechPracticeBackendProvider.overrideWithValue(backend),
+        recommendedAsrModelProvider.overrideWithValue(_testAsrModel),
+        offlineAsrSettingsProvider.overrideWith(
+          () => _FakeOfflineAsrSettingsNotifier(),
+        ),
+      ],
+    );
+    final controller = container.read(
+      retellRecordingControllerProvider.notifier,
+    );
+    addTearDown(
+      () => disposeTestResources(
+        controller: controller,
+        container: container,
+        backend: backend,
+      ),
+    );
+    final processingStarted = Completer<void>();
+    final subscription = container.listen(retellRecordingControllerProvider, (
+      previous,
+      next,
+    ) {
+      if (next.phase == RetellRecordingPhase.processing &&
+          !processingStarted.isCompleted) {
+        processingStarted.complete();
+      }
+    });
+    addTearDown(subscription.close);
+
+    await controller.startRecording(
+      promptId: 'retell:a1:0',
+      referenceText: 'first paragraph',
+    );
+    final stopping = controller.stopAndEvaluate(
+      referenceText: 'first paragraph',
+    );
+    await processingStarted.future;
+    final shutdownCallsBeforeBackground = backend.shutdownCalls;
+
+    await controller.handleRetellSessionBackground();
+    await stopping;
+
+    expect(controller.state.phase, RetellRecordingPhase.idle);
+    expect(controller.state.awaitingSpeechTimedOut, isTrue);
+    expect(controller.state.currentAttempt, isNull);
+    expect(backend.shutdownCalls, greaterThan(shutdownCallsBeforeBackground));
+    expect(backend.deletedRecordings, ['/tmp/retell:a1:0-1.caf']);
+  });
+
+  test('后台取消尚未完成时的新录音等待旧启动收尾后再开始', () async {
+    final backend = _FakeSpeechPracticeBackend()..blockWarmup = true;
+    final container = ProviderContainer(
+      overrides: [
+        analyticsOverride(),
+        initialLearningSettingsProvider.overrideWithValue(
+          const LearningSettings(),
+        ),
+        speechPracticeBackendProvider.overrideWithValue(backend),
+        recommendedAsrModelProvider.overrideWithValue(_testAsrModel),
+        offlineAsrSettingsProvider.overrideWith(
+          () => _FakeOfflineAsrSettingsNotifier(),
+        ),
+      ],
+    );
+    final controller = container.read(
+      retellRecordingControllerProvider.notifier,
+    );
+    addTearDown(
+      () => disposeTestResources(
+        controller: controller,
+        container: container,
+        backend: backend,
+      ),
+    );
+
+    final oldStart = controller.startRecording(
+      promptId: 'retell:a1:0',
+      referenceText: 'first paragraph',
+    );
+    await backend.warmupStarted.future;
+
+    final backgroundCancellation = controller.handleRetellSessionBackground();
+    final newStart = controller.startRecording(
+      promptId: 'retell:a1:1',
+      referenceText: 'second paragraph',
+    );
+    backend.warmupGate.complete();
+    await Future.wait([oldStart, backgroundCancellation, newStart]);
+
+    expect(backend.activePromptId, 'retell:a1:1');
+    expect(controller.state.promptId, 'retell:a1:1');
+    expect(controller.state.phase, RetellRecordingPhase.recording);
+    expect(controller.state.awaitingSpeechTimedOut, isFalse);
+  });
 
   test('RetellRecordingController 在停止录音后触发有效录音时长回调', () async {
     final backend = _FakeSpeechPracticeBackend();

@@ -8,6 +8,7 @@ import '../media_engine/media_engine_provider.dart';
 /// 盲听与复述只依赖此接口，不感知具体播放器实现；音频和视频都通过 MediaEngine
 /// 实现该契约。
 abstract interface class ParagraphPlaybackDriver {
+  Duration get currentPosition;
   int newSession();
   bool isActiveSession(int sessionId);
   Stream<Duration> get positionStream;
@@ -36,6 +37,8 @@ abstract interface class ParagraphPlaybackDriver {
 class MediaParagraphPlaybackDriver implements ParagraphPlaybackDriver {
   MediaParagraphPlaybackDriver(this._engine);
   final MediaEngine _engine;
+  @override
+  Duration get currentPosition => _engine.currentPosition;
   @override
   int newSession() => _engine.newSession();
   @override

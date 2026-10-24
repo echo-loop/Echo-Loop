@@ -47,7 +47,11 @@ class _ReplayTestAudioEngine extends TestForegroundAudioEngine {
   bool isActiveSession(int id) => id == _sessionId;
 
   @override
-  Future<void> playClipOnce(Sentence sentence, int sessionId) async {
+  Future<void> playClipOnce(
+    Sentence sentence,
+    int sessionId, {
+    Duration? startAt,
+  }) async {
     if (!isActiveSession(sessionId)) return;
     await Future<void>.delayed(const Duration(milliseconds: 10));
   }
@@ -69,7 +73,11 @@ class _SlowBlindAudioEngine extends TestForegroundAudioEngine {
   bool isActiveSession(int id) => id == _sessionId;
 
   @override
-  Future<void> playClipOnce(Sentence sentence, int sessionId) async {
+  Future<void> playClipOnce(
+    Sentence sentence,
+    int sessionId, {
+    Duration? startAt,
+  }) async {
     if (!isActiveSession(sessionId)) return;
     await Future<void>.delayed(const Duration(milliseconds: 80));
   }
@@ -113,17 +121,23 @@ class _RecordingPlaybackDriver implements SentencePlaybackDriver {
   _RecordingPlaybackDriver({this.playbackDelay = Duration.zero});
 
   final Duration playbackDelay;
+  Duration position = Duration.zero;
   int _sessionId = 0;
   int pauseCalls = 0;
   SentencePlaybackResult playResult = SentencePlaybackResult.completed;
   final List<double> speeds = [];
   final List<Sentence> playedSentences = [];
+  final List<Duration> playedStartPositions = [];
+  final Completer<void> firstPlayStarted = Completer<void>();
   final List<bool> activeStates = [];
   final List<bool> frozenStates = [];
   Future<void> Function()? onPlay;
   Future<void> Function()? onPause;
   Future<void> Function()? onNext;
   Future<void> Function()? onPrevious;
+
+  @override
+  Duration get currentPosition => position;
 
   @override
   int newSession() => ++_sessionId;
@@ -150,8 +164,11 @@ class _RecordingPlaybackDriver implements SentencePlaybackDriver {
   @override
   Future<SentencePlaybackResult> playSentence(
     Sentence sentence,
-    int sessionId,
-  ) async {
+    int sessionId, {
+    Duration? startAt,
+  }) async {
+    playedStartPositions.add(startAt ?? sentence.startTime);
+    if (!firstPlayStarted.isCompleted) firstPlayStarted.complete();
     if (playbackDelay > Duration.zero) {
       await Future<void>.delayed(playbackDelay);
     }
@@ -212,10 +229,14 @@ class _GatedInvalidationPlaybackDriver extends _RecordingPlaybackDriver {
 
 class _ControlledPlaybackDriver implements SentencePlaybackDriver {
   int _sessionId = 0;
+  Duration position = Duration.zero;
   final List<Sentence> playedSentences = [];
   final List<Completer<SentencePlaybackResult>> _results = [];
   final StreamController<int> _playCountController =
       StreamController<int>.broadcast();
+
+  @override
+  Duration get currentPosition => position;
 
   @override
   int newSession() => ++_sessionId;
@@ -237,8 +258,9 @@ class _ControlledPlaybackDriver implements SentencePlaybackDriver {
   @override
   Future<SentencePlaybackResult> playSentence(
     Sentence sentence,
-    int sessionId,
-  ) {
+    int sessionId, {
+    Duration? startAt,
+  }) {
     playedSentences.add(sentence);
     final result = Completer<SentencePlaybackResult>();
     _results.add(result);
@@ -333,6 +355,173 @@ class _RecordingStudyTimeService extends FakeStudyTimeService {
 }
 
 void main() {
+  test('难句补练暂停后从当前句的精确位置继续', () async {
+    final playback = _RecordingPlaybackDriver(
+      playbackDelay: const Duration(milliseconds: 100),
+    );
+    final container = ProviderContainer(
+      overrides: [
+        learningProgressNotifierProvider.overrideWith(
+          () =>
+              _RecordingLearningProgressNotifier(const LearningProgressState()),
+        ),
+        learningSessionProvider.overrideWith(
+          () => _PassiveLearningSession(
+            const LearningSessionState(
+              learningMode: LearningMode.reviewDifficultPractice,
+              audioItemId: 'audio-1',
+              playbackChain: LearningPlaybackChain.mediaEngine,
+            ),
+          ),
+        ),
+        analyticsOverride(),
+        ...learningSettingsOverrides(),
+        ...studyTimeOverrides(),
+      ],
+    );
+    addTearDown(container.dispose);
+    final notifier = container.read(reviewDifficultPracticeProvider.notifier);
+    final sentence = Sentence(
+      index: 0,
+      text: 'Resume this sentence.',
+      startTime: const Duration(seconds: 1),
+      endTime: const Duration(seconds: 4),
+    );
+    await notifier.initialize(
+      [sentence],
+      settings: const DifficultPracticeSettings(
+        controlMode: ShadowingControlMode.manual,
+      ),
+      playbackDriver: playback,
+    );
+
+    final initialPlayback = notifier.startPlaying();
+    await playback.firstPlayStarted.future;
+    const pausedAt = Duration(milliseconds: 2350);
+    playback.position = pausedAt;
+    notifier.pause();
+    await notifier.resume();
+    await initialPlayback;
+
+    expect(playback.playedStartPositions, [sentence.startTime, pausedAt]);
+  });
+
+  test('暂停后导航到另一句时不复用旧句的暂停位置', () async {
+    final playback = _RecordingPlaybackDriver();
+    final container = ProviderContainer(
+      overrides: [
+        learningProgressNotifierProvider.overrideWith(
+          () =>
+              _RecordingLearningProgressNotifier(const LearningProgressState()),
+        ),
+        learningSessionProvider.overrideWith(
+          () => _PassiveLearningSession(
+            const LearningSessionState(
+              learningMode: LearningMode.reviewDifficultPractice,
+              audioItemId: 'audio-1',
+              playbackChain: LearningPlaybackChain.mediaEngine,
+            ),
+          ),
+        ),
+        analyticsOverride(),
+        ...learningSettingsOverrides(),
+        ...studyTimeOverrides(),
+      ],
+    );
+    addTearDown(container.dispose);
+    final notifier = container.read(reviewDifficultPracticeProvider.notifier);
+    final sentences = [
+      Sentence(
+        index: 0,
+        text: 'First sentence.',
+        startTime: const Duration(seconds: 1),
+        endTime: const Duration(seconds: 4),
+      ),
+      Sentence(
+        index: 1,
+        text: 'Second sentence.',
+        startTime: const Duration(seconds: 5),
+        endTime: const Duration(seconds: 8),
+      ),
+    ];
+    await notifier.initialize(
+      sentences,
+      settings: const DifficultPracticeSettings(
+        controlMode: ShadowingControlMode.manual,
+      ),
+      playbackDriver: playback,
+    );
+
+    final firstPlayback = notifier.startPlaying();
+    await playback.firstPlayStarted.future;
+    const pausedAt = Duration(milliseconds: 2350);
+    playback.position = pausedAt;
+    notifier.pause();
+    await firstPlayback;
+
+    await notifier.goToSentence(1);
+    await notifier.resume();
+
+    expect(playback.playedStartPositions, [
+      sentences[0].startTime,
+      sentences[1].startTime,
+      sentences[1].startTime,
+    ]);
+  });
+
+  test('从盲听切换到跟读时清除盲听暂停位置', () async {
+    final playback = _RecordingPlaybackDriver(
+      playbackDelay: const Duration(milliseconds: 100),
+    );
+    final container = ProviderContainer(
+      overrides: [
+        learningProgressNotifierProvider.overrideWith(
+          () =>
+              _RecordingLearningProgressNotifier(const LearningProgressState()),
+        ),
+        learningSessionProvider.overrideWith(
+          () => _PassiveLearningSession(
+            const LearningSessionState(
+              learningMode: LearningMode.reviewDifficultPractice,
+              audioItemId: 'audio-1',
+              playbackChain: LearningPlaybackChain.mediaEngine,
+            ),
+          ),
+        ),
+        analyticsOverride(),
+        ...learningSettingsOverrides(),
+        ...studyTimeOverrides(),
+      ],
+    );
+    addTearDown(container.dispose);
+    final notifier = container.read(reviewDifficultPracticeProvider.notifier);
+    await notifier.initialize(
+      [
+        Sentence(
+          index: 0,
+          text: 'Switch modes.',
+          startTime: const Duration(seconds: 1),
+          endTime: const Duration(seconds: 4),
+        ),
+      ],
+      settings: const DifficultPracticeSettings(
+        controlMode: ShadowingControlMode.manual,
+      ),
+      playbackDriver: playback,
+    );
+
+    final blindPlayback = notifier.startPlaying();
+    await playback.firstPlayStarted.future;
+    playback.position = const Duration(milliseconds: 2350);
+    notifier.pause();
+    await blindPlayback;
+    expect(notifier.hasPausedPlaybackPosition, isTrue);
+
+    notifier.enterAnnotationMode();
+
+    expect(notifier.hasPausedPlaybackPosition, isFalse);
+  });
+
   TestWidgetsFlutterBinding.ensureInitialized();
 
   setUp(() {

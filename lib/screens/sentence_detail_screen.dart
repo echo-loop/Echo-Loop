@@ -128,6 +128,8 @@ class _SentenceDetailScreenState extends ConsumerState<SentenceDetailScreen> {
   bool _bookmarkLoaded = false;
   bool _isTogglingBookmark = false;
   bool _mediaExpanded = false;
+  Duration? _resumePosition;
+  int _playbackGeneration = 0;
 
   /// 缓存 engine 引用，dispose 时 ref 已不可用
   late final AudioEngine _engine;
@@ -252,68 +254,73 @@ class _SentenceDetailScreenState extends ConsumerState<SentenceDetailScreen> {
   /// 播放该句子的原声片段
   Future<void> _playSentence() async {
     final rangePlayback = widget.args.rangePlayback;
-    if (rangePlayback != null) {
-      if (_isPlaying) {
-        AppLogger.log(
-          'SentenceDetailMedia',
-          '■ range cancel audio=${widget.args.audioItemId} '
-              'sentence=${widget.args.sentenceIndex}',
-        );
-        await rangePlayback.cancel();
-        if (mounted) setState(() => _isPlaying = false);
-        return;
-      }
+    if (_isPlaying) {
+      await _pauseSentencePlayback(rangePlayback);
+      return;
+    }
 
-      setState(() => _isPlaying = true);
+    final generation = ++_playbackGeneration;
+    final args = widget.args;
+    final sentenceStart = Duration(milliseconds: args.startTimeMs);
+    final sentenceEnd = Duration(milliseconds: args.endTimeMs);
+    final resumePosition = _takeResumePosition(sentenceStart, sentenceEnd);
+    if (mounted) setState(() => _isPlaying = true);
+
+    if (rangePlayback != null) {
+      final resumablePlayback = switch (rangePlayback) {
+        ResumableSentenceRangePlayback playback => playback,
+        _ => null,
+      };
       AppLogger.log(
         'SentenceDetailMedia',
-        '▶ range start audio=${widget.args.audioItemId} '
-            'sentence=${widget.args.sentenceIndex} '
-            '${widget.args.startTimeMs}-${widget.args.endTimeMs}ms',
+        '▶ range start audio=${args.audioItemId} '
+            'sentence=${args.sentenceIndex} '
+            'startMs=${(resumePosition ?? sentenceStart).inMilliseconds} '
+            'endMs=${sentenceEnd.inMilliseconds} '
+            'resuming=${resumePosition != null}',
       );
       try {
-        await rangePlayback.play(
-          widget.args.audioItemId,
-          Duration(milliseconds: widget.args.startTimeMs),
-          Duration(milliseconds: widget.args.endTimeMs),
-        );
+        if (resumePosition != null && resumablePlayback != null) {
+          await resumablePlayback.playFromPosition(
+            args.audioItemId,
+            sentenceStart,
+            sentenceEnd,
+            resumePosition,
+          );
+        } else {
+          await rangePlayback.play(
+            args.audioItemId,
+            sentenceStart,
+            sentenceEnd,
+          );
+        }
         AppLogger.log(
           'SentenceDetailMedia',
-          '✓ range complete audio=${widget.args.audioItemId} '
-              'sentence=${widget.args.sentenceIndex}',
+          '✓ range complete audio=${args.audioItemId} '
+              'sentence=${args.sentenceIndex}',
         );
       } catch (error) {
         AppLogger.log(
           'SentenceDetailMedia',
-          '✗ range failed audio=${widget.args.audioItemId} '
-              'sentence=${widget.args.sentenceIndex}: $error',
+          '✗ range failed audio=${args.audioItemId} '
+              'sentence=${args.sentenceIndex}: $error',
         );
       } finally {
-        if (mounted) setState(() => _isPlaying = false);
+        _setPlaybackStoppedIfCurrent(generation);
       }
       return;
     }
 
     final engine = ref.read(audioEngineProvider.notifier);
 
-    if (_isPlaying) {
-      engine.stop();
-      setState(() => _isPlaying = false);
-      return;
-    }
-
-    setState(() => _isPlaying = true);
-
     try {
       final engineState = ref.read(audioEngineProvider);
-      final args = widget.args;
 
       // 如果当前加载的不是同一音频，重新加载
       if (engineState.currentAudioId != args.audioItemId) {
         final dao = ref.read(audioItemDaoProvider);
         final row = await dao.getById(args.audioItemId);
         if (row == null || !mounted) {
-          setState(() => _isPlaying = false);
           return;
         }
 
@@ -341,15 +348,54 @@ class _SentenceDetailScreenState extends ConsumerState<SentenceDetailScreen> {
       if (!mounted) return;
 
       final sessionId = engine.newSession();
-      final start = Duration(milliseconds: args.startTimeMs);
-      final end = Duration(milliseconds: args.endTimeMs);
-      await engine.playRangeOnce(start, end, sessionId);
+      await engine.playRangeOnce(
+        resumePosition ?? sentenceStart,
+        sentenceEnd,
+        sessionId,
+      );
     } catch (_) {
       // 忽略播放错误（音频文件不存在等）
     } finally {
-      if (mounted) {
-        setState(() => _isPlaying = false);
-      }
+      _setPlaybackStoppedIfCurrent(generation);
+    }
+  }
+
+  /// 暂停时快照句子内的绝对位置，再取消本次播放请求。
+  Future<void> _pauseSentencePlayback(
+    SenseGroupRangePlayback? rangePlayback,
+  ) async {
+    final args = widget.args;
+    final start = Duration(milliseconds: args.startTimeMs);
+    final end = Duration(milliseconds: args.endTimeMs);
+    final position = switch (rangePlayback) {
+      ResumableSentenceRangePlayback playback => playback.currentPosition,
+      null => _engine.absoluteCurrentPosition,
+      _ => null,
+    };
+    _resumePosition = position != null && position >= start && position < end
+        ? position
+        : null;
+    _playbackGeneration++;
+    if (mounted) setState(() => _isPlaying = false);
+
+    if (rangePlayback != null) {
+      await rangePlayback.cancel();
+    } else {
+      await _engine.pause();
+    }
+  }
+
+  Duration? _takeResumePosition(Duration start, Duration end) {
+    final position = _resumePosition;
+    _resumePosition = null;
+    return position != null && position >= start && position < end
+        ? position
+        : null;
+  }
+
+  void _setPlaybackStoppedIfCurrent(int generation) {
+    if (mounted && generation == _playbackGeneration) {
+      setState(() => _isPlaying = false);
     }
   }
 
@@ -455,6 +501,8 @@ class _SentenceDetailScreenState extends ConsumerState<SentenceDetailScreen> {
                         sentenceStartMs: args.startTimeMs,
                         sentenceEndMs: args.endTimeMs,
                         onStopMainPlayer: () {
+                          _playbackGeneration++;
+                          _resumePosition = null;
                           final rangePlayback = args.rangePlayback;
                           if (rangePlayback != null) {
                             unawaited(rangePlayback.cancel());

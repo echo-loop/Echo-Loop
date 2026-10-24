@@ -177,6 +177,7 @@ class BlindListenPlayer extends _$BlindListenPlayer {
   /// `initializeParagraphs` 写入；`_playCurrentParagraph` 消费一次后清零。
   /// 段切换 / 重听等场景下保持为 0，从段头开播。
   int _resumeStartLocalSentenceIndex = 0;
+  Duration? _resumePosition;
 
   /// 当前页面使用的学习统计服务。
   late StudyTimeService _studyTimeService;
@@ -374,6 +375,8 @@ class BlindListenPlayer extends _$BlindListenPlayer {
   Future<void> pause() async {
     // 第一时间快照，避免 stopPlayback 期间的异步事件污染 playingSentenceIndex
     final snapshotIdx = state.playingSentenceIndex;
+    final snapshotPosition = _playback.currentPosition;
+    _resumePosition = null;
     _sessionId = _playback.newSession();
     _setStudyPlaybackActive(false);
     _positionSub?.cancel();
@@ -384,6 +387,12 @@ class BlindListenPlayer extends _$BlindListenPlayer {
     await _playback.pause();
     if (snapshotIdx >= 0) {
       _resumeStartLocalSentenceIndex = snapshotIdx;
+    }
+    final sentences = currentParagraphSentences;
+    if (sentences.isNotEmpty &&
+        snapshotPosition >= sentences.first.startTime &&
+        snapshotPosition < sentences.last.endTime) {
+      _resumePosition = snapshotPosition;
     }
     // 暂停：停保活 + 锁屏图标转暂停；保留回调槽，使锁屏播放可续播。
     _playback.setSessionActive(false);
@@ -396,8 +405,7 @@ class BlindListenPlayer extends _$BlindListenPlayer {
 
   /// 恢复播放
   ///
-  /// 短段（≤10s）也消费 `_resumeStartLocalSentenceIndex` 偏移，
-  /// 保证 pause 在短段中后段时 resume 仍从断点句开头开播。
+  /// 优先从本次暂停的精确媒体位置恢复；缺少有效位置时再按句索引续播。
   Future<void> resume() async {
     await _playCurrentParagraph(forceOffset: true);
   }
@@ -831,10 +839,25 @@ class BlindListenPlayer extends _$BlindListenPlayer {
     final sentences = currentParagraphSentences;
     if (sentences.isEmpty) return;
 
+    final resumePosition = _resumePosition;
+    _resumePosition = null;
+    final canResumePosition =
+        resumePosition != null &&
+        resumePosition >= sentences.first.startTime &&
+        resumePosition < sentences.last.endTime &&
+        forceOffset &&
+        startLocalIdxOverride == null;
     final int startLocalIdx;
     if (startLocalIdxOverride != null) {
       startLocalIdx = startLocalIdxOverride.clamp(0, sentences.length - 1);
       _resumeStartLocalSentenceIndex = 0;
+      _resumePosition = null;
+    } else if (canResumePosition) {
+      startLocalIdx = sentences
+          .lastIndexWhere((sentence) => sentence.startTime <= resumePosition)
+          .clamp(0, sentences.length - 1);
+      _resumeStartLocalSentenceIndex = 0;
+      _resumePosition = null;
     } else {
       final paragraphDuration =
           sentences.last.endTime - sentences.first.startTime;
@@ -870,7 +893,9 @@ class BlindListenPlayer extends _$BlindListenPlayer {
 
     _persistCurrentSentenceIndexAsync();
 
-    final start = sentences[startLocalIdx].startTime;
+    final start = canResumePosition
+        ? resumePosition
+        : sentences[startLocalIdx].startTime;
     final end = sentences.last.endTime;
 
     // seek 命令返回后、播放前订阅句子位置流。命令回执不代表时间轴已更新；

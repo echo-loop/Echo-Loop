@@ -1005,6 +1005,29 @@ void main() {
     expect(container.read(mediaPlaybackProvider).settings.loopSentence, isTrue);
   });
 
+  test('单句播放中暂停后再次播放从精确暂停位置继续', () async {
+    final controller = await loadController();
+    await controller.updateSettings(
+      container
+          .read(mediaPlaybackProvider)
+          .settings
+          .copyWith(loopSentence: true, sentenceLoopCount: 2),
+    );
+
+    unawaited(controller.play());
+    await waitUntil(() => backend.playCalls == 1);
+    const pausedAt = Duration(seconds: 46);
+    backend.emitPosition(pausedAt);
+    await waitUntil(() => backend.position == pausedAt);
+    await controller.pause();
+
+    unawaited(controller.play());
+    await waitUntil(() => backend.playCalls == 2);
+    expect(backend.seekCalls.last, pausedAt);
+    expect(container.read(mediaPlaybackProvider).sentenceRepeatsDone, 0);
+    await controller.pause();
+  });
+
   test('按句媒体播放自然完成后异步记录学习统计', () async {
     final controller = await loadController();
     final studyPageGeneration = controller.beginStudyPage();

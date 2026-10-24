@@ -205,6 +205,53 @@ class _ControlledAudioEngine extends TestForegroundAudioEngine {
   }
 }
 
+class _PauseResumeAudioEngine extends TestForegroundAudioEngine {
+  _PauseResumeAudioEngine({bool holdNextPlayback = true})
+    : _holdNextPlayback = holdNextPlayback;
+
+  int _sessionId = 0;
+  Duration position = Duration.zero;
+  bool _holdNextPlayback;
+  Completer<void>? activePlayback;
+  final sentenceStarts = <Duration>[];
+  final resumeStarts = <Duration>[];
+
+  @override
+  int newSession() => ++_sessionId;
+
+  @override
+  bool isActiveSession(int id) => id == _sessionId;
+
+  @override
+  Duration get absoluteCurrentPosition => position;
+
+  @override
+  Future<void> playClipOnce(Sentence sentence, int sessionId) async {
+    sentenceStarts.add(sentence.startTime);
+    if (!_holdNextPlayback) return;
+    _holdNextPlayback = false;
+    final playback = Completer<void>();
+    activePlayback = playback;
+    await playback.future;
+  }
+
+  @override
+  Future<void> playClipFromPosition(
+    Sentence sentence,
+    int sessionId,
+    Duration startAt,
+  ) async {
+    resumeStarts.add(startAt);
+  }
+
+  @override
+  Future<void> pause() async {
+    final playback = activePlayback;
+    activePlayback = null;
+    if (playback != null && !playback.isCompleted) playback.complete();
+  }
+}
+
 /// 测试用默认配置
 RepeatFlowConfig _testConfig({
   int repeatCount = 3,
@@ -1051,6 +1098,68 @@ void main() {
       expect(readState().repeatIndex, 3);
       expect(readState().totalRepeats, 3);
     });
+  });
+
+  test('暂停跟读句子后重新播放从暂停位置继续', () async {
+    final audioEngine = _PauseResumeAudioEngine();
+    container.dispose();
+    container = ProviderContainer(
+      overrides: [
+        appDatabaseProvider.overrideWithValue(database),
+        foregroundAudioEngineProvider.overrideWith(() => audioEngine),
+        audioEngineProvider.overrideWith(TestAudioEngine.new),
+        studyTimeServiceProvider.overrideWithValue(studyTimeService),
+        speechRecordingControllerProvider.overrideWith(
+          TestSpeechRecordingController.new,
+        ),
+      ],
+    );
+    listenToController(container);
+    controller = container.read(listenAndRepeatControllerProvider.notifier);
+    await controller.prepareSession(
+      sentences: createTestSentences(count: 2),
+      config: _testConfig(),
+    );
+
+    final playing = controller.startPlaying();
+    await Future<void>.delayed(Duration.zero);
+    audioEngine.position = const Duration(seconds: 2);
+    controller.pausePlayback();
+    await playing;
+
+    await controller.resumeOrReplayCurrentSentence();
+
+    expect(audioEngine.resumeStarts, [const Duration(seconds: 2)]);
+    expect(audioEngine.sentenceStarts, [Duration.zero]);
+    expect(readState().repeatIndex, 0);
+  });
+
+  test('句子自然播放完后再次播放仍从句首开始', () async {
+    final audioEngine = _PauseResumeAudioEngine(holdNextPlayback: false);
+    container.dispose();
+    container = ProviderContainer(
+      overrides: [
+        appDatabaseProvider.overrideWithValue(database),
+        foregroundAudioEngineProvider.overrideWith(() => audioEngine),
+        audioEngineProvider.overrideWith(TestAudioEngine.new),
+        studyTimeServiceProvider.overrideWithValue(studyTimeService),
+        speechRecordingControllerProvider.overrideWith(
+          TestSpeechRecordingController.new,
+        ),
+      ],
+    );
+    listenToController(container);
+    controller = container.read(listenAndRepeatControllerProvider.notifier);
+    await controller.prepareSession(
+      sentences: createTestSentences(count: 2),
+      config: _testConfig(),
+    );
+
+    await controller.startPlaying();
+    await controller.resumeOrReplayCurrentSentence();
+
+    expect(audioEngine.sentenceStarts, [Duration.zero, Duration.zero]);
+    expect(audioEngine.resumeStarts, isEmpty);
   });
 
   group('便捷 getter', () {

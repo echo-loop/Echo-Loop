@@ -114,6 +114,7 @@ class _PositionDrivenBlindTestDriver extends _TestParagraphPlaybackDriver {
 /// 为盲听状态机测试提供 MediaEngine 无关的段落驱动替身。
 abstract class _TestParagraphPlaybackDriver implements ParagraphPlaybackDriver {
   int _sessionId = 0;
+  Duration position = Duration.zero;
   Future<void> Function()? lastOnPlay;
   Future<void> Function()? lastOnPause;
   Future<void> Function()? lastOnNext;
@@ -122,6 +123,9 @@ abstract class _TestParagraphPlaybackDriver implements ParagraphPlaybackDriver {
   bool progressFrozen = false;
   int startKeepAliveCount = 0;
   int stopKeepAliveCount = 0;
+
+  @override
+  Duration get currentPosition => position;
 
   @override
   int newSession() => ++_sessionId;
@@ -691,58 +695,58 @@ void main() {
   });
 
   group('BlindListenPlayer pause 快照', () {
-    test(
-      'pause 把 playingSentenceIndex 写入 _resumeStartLocalSentenceIndex（不调写盘）',
-      () async {
-        final progressNotifier = _RecordingBlindProgressNotifier(
-          LearningProgressState(
-            progressMap: {
-              'audio-1': LearningProgress(
-                audioItemId: 'audio-1',
-                currentStage: LearningStage.firstLearn,
-                currentSubStage: SubStageType.blindListen,
-                updatedAt: DateTime(2026, 3, 11),
-              ),
-            },
-          ),
-        );
-        final engine = _FastParagraphPlaybackDriver();
-        final container = _buildContainer(
-          engine: engine,
-          progressNotifier: progressNotifier,
-        );
-        addTearDown(container.dispose);
-        final notifier = container.read(blindListenPlayerProvider.notifier);
+    test('pause 保存精确媒体位置且不调写盘', () async {
+      final progressNotifier = _RecordingBlindProgressNotifier(
+        LearningProgressState(
+          progressMap: {
+            'audio-1': LearningProgress(
+              audioItemId: 'audio-1',
+              currentStage: LearningStage.firstLearn,
+              currentSubStage: SubStageType.blindListen,
+              updatedAt: DateTime(2026, 3, 11),
+            ),
+          },
+        ),
+      );
+      final engine = _FastParagraphPlaybackDriver();
+      final container = _buildContainer(
+        engine: engine,
+        progressNotifier: progressNotifier,
+      );
+      addTearDown(container.dispose);
+      final notifier = container.read(blindListenPlayerProvider.notifier);
 
-        final paragraphs = _buildParagraphs(
-          paragraphCount: 1,
-          sentencesPerParagraph: 5,
-        );
-        await notifier.initializeParagraphs(
-          paragraphs,
-          const BlindListenSettings(),
-          playbackDriver: engine,
-        );
+      final paragraphs = _buildParagraphs(
+        paragraphCount: 1,
+        sentencesPerParagraph: 5,
+      );
+      await notifier.initializeParagraphs(
+        paragraphs,
+        const BlindListenSettings(),
+        playbackDriver: engine,
+      );
 
-        // 通过 seekToSentence 进入第 3 句的播放状态
-        await notifier.seekToSentence(3);
-        await Future<void>.delayed(const Duration(milliseconds: 10));
-        await Future<void>.delayed(const Duration(milliseconds: 1));
+      // 通过 seekToSentence 进入第 3 句的播放状态
+      await notifier.seekToSentence(3);
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+      await Future<void>.delayed(const Duration(milliseconds: 1));
 
-        progressNotifier.savedIndices.clear();
-        await notifier.pause();
+      progressNotifier.savedIndices.clear();
+      final pausedAt =
+          paragraphs[0][3].startTime + const Duration(milliseconds: 500);
+      engine.position = pausedAt;
+      await notifier.pause();
 
-        // pause 本身不调 saveBlindListenSentenceIndex
-        expect(progressNotifier.savedIndices, isEmpty);
+      // pause 本身不调 saveBlindListenSentenceIndex
+      expect(progressNotifier.savedIndices, isEmpty);
 
-        // resume 应从同一句（globalIdx=3）开播，验证 _resumeStartLocalSentenceIndex 写入
-        engine.playRangeCallCount = 0;
-        await notifier.resume();
-        expect(engine.lastPlayStart, paragraphs[0][3].startTime);
-      },
-    );
+      // resume 应从同一句的暂停位置继续，而不是句首。
+      engine.playRangeCallCount = 0;
+      await notifier.resume();
+      expect(engine.lastPlayStart, pausedAt);
+    });
 
-    test('pause → resume 从当前句开头开播（短段也生效，forceOffset 路径）', () async {
+    test('pause → resume 从暂停位置继续（短段也生效）', () async {
       final engine = _FastParagraphPlaybackDriver();
       final container = _buildContainer(engine: engine);
       addTearDown(container.dispose);
@@ -762,11 +766,13 @@ void main() {
 
       await notifier.seekToSentence(2);
       await Future<void>.delayed(const Duration(milliseconds: 10));
+      final pausedAt =
+          paragraphs[0][2].startTime + const Duration(milliseconds: 750);
+      engine.position = pausedAt;
       await notifier.pause();
       await notifier.resume();
 
-      // resume 后仍从 idx=2 开播（forceOffset 绕过 10s 阈值）
-      expect(engine.lastPlayStart, paragraphs[0][2].startTime);
+      expect(engine.lastPlayStart, pausedAt);
     });
 
     test('pause → goToNextParagraph 下一段从段首开播（不污染）', () async {

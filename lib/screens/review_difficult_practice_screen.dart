@@ -1081,12 +1081,11 @@ class _ReviewDifficultPracticeScreenState
     if (playerState.isAnnotationMode && engine != null) {
       final flowState = playerState.repeatFlowState;
       if (flowState?.isInPause ?? false) {
-        ref.read(speechRecordingControllerProvider.notifier).clearRecording();
-        unawaited(engine.replayCurrentSentence());
+        unawaited(player.resume());
       } else if (flowState?.phase is PlayingPrompt) {
-        engine.enterWaitingForUser();
+        player.pause();
       } else {
-        unawaited(engine.replayCurrentSentence());
+        unawaited(player.resume());
       }
       return;
     }

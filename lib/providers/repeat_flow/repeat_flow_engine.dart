@@ -86,6 +86,14 @@ class RepeatFlowCallbacks {
   )
   playSentence;
 
+  /// 从暂停位置继续播放当前句，不重置当前 prompt 的跟读状态。
+  final Future<SentencePlaybackResult> Function(
+    Sentence sentence,
+    int flowToken,
+    Duration startAt,
+  )?
+  resumeSentence;
+
   /// 开始录音
   final void Function({
     required String promptId,
@@ -113,6 +121,7 @@ class RepeatFlowCallbacks {
   const RepeatFlowCallbacks({
     required this.pauseAudio,
     required this.playSentence,
+    this.resumeSentence,
     required this.startRecording,
     required this.cancelRecording,
     required this.stopAndEvaluate,
@@ -485,6 +494,19 @@ class RepeatFlowEngine {
     await _playCurrentSentence();
   }
 
+  /// 从暂停位置恢复当前句，保留遍数、录音结果与 prompt 身份。
+  Future<void> resumeCurrentSentence(Duration startAt) async {
+    if (currentSentence == null) return;
+    _waitAfterCurrentPrompt = false;
+    callbacks.pauseAudio();
+    _countdown.cancel();
+    _playbackService.stop();
+    _updateState(
+      _state.copyWith(phase: const Idle(), flowToken: _state.flowToken + 1),
+    );
+    await _playCurrentSentence(startAt: startAt);
+  }
+
   /// 重新开始当前句子（设置变更后调用，从第一遍开始）
   ///
   /// 当 [autoplay] 为 false 时，仅刷新当前句配置并停留在等待态，
@@ -674,8 +696,8 @@ class RepeatFlowEngine {
     onStateChanged(newState);
   }
 
-  /// 播放当前句子
-  Future<void> _playCurrentSentence() async {
+  /// 播放当前句子；[startAt] 仅属于本次启动，避免切句后串用旧的恢复位置。
+  Future<void> _playCurrentSentence({Duration? startAt}) async {
     final sentence = currentSentence;
     if (sentence == null) return;
 
@@ -710,7 +732,10 @@ class RepeatFlowEngine {
       '第 ${_state.repeatIndex + 1}/${_state.totalRepeats} 遍',
     );
 
-    final result = await callbacks.playSentence(sentence, token);
+    final resumeSentence = callbacks.resumeSentence;
+    final result = startAt != null && resumeSentence != null
+        ? await resumeSentence(sentence, token, startAt)
+        : await callbacks.playSentence(sentence, token);
 
     AppLogger.log(
       logTag,

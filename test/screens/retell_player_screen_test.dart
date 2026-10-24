@@ -171,6 +171,33 @@ class _RecordingResultRetellController extends TestRetellRecordingController {
   }
 }
 
+class _TrackingRetellRecordingController extends TestRetellRecordingController {
+  _TrackingRetellRecordingController(super.initialState);
+
+  int cancelCalls = 0;
+  int startCalls = 0;
+
+  @override
+  Future<void> cancelActiveRecording() async {
+    cancelCalls += 1;
+    await super.cancelActiveRecording();
+  }
+
+  @override
+  Future<void> startRecording({
+    required String promptId,
+    required String referenceText,
+    Duration? referenceDuration,
+  }) async {
+    startCalls += 1;
+    await super.startRecording(
+      promptId: promptId,
+      referenceText: referenceText,
+      referenceDuration: referenceDuration,
+    );
+  }
+}
+
 class _SeenGuideRegistry extends GuideRegistry {
   @override
   Future<bool> isSeen(String flowId) async => true;
@@ -618,6 +645,92 @@ void main() {
 
       expect(find.text('Retell what you heard'), findsNothing);
       expect(find.text('Recording...'), findsOneWidget);
+    });
+
+    testWidgets('录音状态下点击主播放按钮先取消录音再继续播放', (tester) async {
+      final recordingController = _TrackingRetellRecordingController(
+        const RetellRecordingState(
+          phase: RetellRecordingPhase.recording,
+          promptId: 'retell:a1:0',
+        ),
+      );
+
+      await tester.pumpWidget(
+        createTestWidget(
+          playerState: RetellPlayerState(
+            currentParagraphIndex: 0,
+            totalParagraphs: 1,
+            phase: RetellPhase.listening,
+            isPlaying: false,
+            playingSentenceIndex: 0,
+            settings: const RetellSettings(
+              controlMode: ShadowingControlMode.manual,
+              keywordMethod: KeywordMethod.random,
+            ),
+          ),
+          playerFactory: _TrackingRetellPlayer.new,
+          extraOverrides: [
+            retellRecordingControllerProvider.overrideWith(
+              () => recordingController,
+            ),
+          ],
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      await tester.tap(find.byIcon(Icons.play_arrow_rounded));
+      await tester.pump();
+      await tester.pump();
+
+      expect(recordingController.cancelCalls, 1);
+      expect(
+        recordingController.state.phase,
+        RetellRecordingPhase.idle,
+        reason: '点击主播放后录音状态应结束',
+      );
+      expect(find.byIcon(Icons.pause_rounded), findsOneWidget);
+    });
+
+    testWidgets('复述录音中点击主播放不会在取消后自动重启录音', (tester) async {
+      final recordingController = _TrackingRetellRecordingController(
+        const RetellRecordingState(
+          phase: RetellRecordingPhase.recording,
+          promptId: 'retell:a1:0',
+        ),
+      );
+
+      await tester.pumpWidget(
+        createTestWidget(
+          playerState: RetellPlayerState(
+            currentParagraphIndex: 0,
+            totalParagraphs: 1,
+            phase: RetellPhase.retelling,
+            isPlaying: false,
+            settings: const RetellSettings(
+              controlMode: ShadowingControlMode.auto,
+              keywordMethod: KeywordMethod.random,
+            ),
+          ),
+          playerFactory: _TrackingRetellPlayer.new,
+          extraOverrides: [
+            retellRecordingControllerProvider.overrideWith(
+              () => recordingController,
+            ),
+          ],
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      await tester.tap(find.byIcon(Icons.play_arrow_rounded));
+      await tester.pump();
+      await tester.pump();
+
+      expect(recordingController.cancelCalls, 1);
+      expect(recordingController.state.phase, RetellRecordingPhase.idle);
+      expect(recordingController.startCalls, 0);
+      expect(find.byIcon(Icons.pause_rounded), findsOneWidget);
     });
 
     testWidgets('首次评估完成先弹窗，选择保持关闭后才启动倒计时', (tester) async {

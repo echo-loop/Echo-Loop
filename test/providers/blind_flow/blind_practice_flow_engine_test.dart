@@ -9,6 +9,102 @@ import 'package:echo_loop/providers/blind_flow/blind_practice_flow_engine.dart';
 import 'package:echo_loop/providers/blind_flow/blind_practice_flow_phase.dart';
 
 void main() {
+  test('恢复句子时传递精确位置且保留当前重复轮次', () async {
+    final firstPlayback = Completer<SentencePlaybackResult>();
+    final resumeOffsets = <Duration>[];
+    final engine = BlindPracticeFlowEngine(
+      onStateChanged: (_) {},
+      callbacks: BlindPracticeFlowCallbacks(
+        pauseAudio: () {},
+        playSentence: (_, _) => firstPlayback.future,
+        resumeSentence: (_, _, startAt) async {
+          resumeOffsets.add(startAt);
+          return SentencePlaybackResult.completed;
+        },
+      ),
+    );
+    engine.prepare(sentences: _sentences(), config: _manualConfig());
+    final initialPlayback = engine.startPlaying();
+    await Future<void>.delayed(Duration.zero);
+    engine.enterWaitingForUser();
+
+    const pausedAt = Duration(milliseconds: 420);
+    await engine.resumeCurrentSentence(pausedAt);
+    firstPlayback.complete(SentencePlaybackResult.cancelled);
+    await initialPlayback;
+
+    expect(resumeOffsets, [pausedAt]);
+    expect(engine.state.repeatIndex, 0);
+    expect(engine.state.phase, isA<BlindWaitingForUser>());
+    engine.dispose();
+  });
+
+  test('恢复检查等待期间切句不会把暂停位置用于新句', () async {
+    final firstPlayback = Completer<SentencePlaybackResult>();
+    final firstPlaybackStarted = Completer<void>();
+    final resumeStartReached = Completer<void>();
+    final resumeStartGate = Completer<bool>();
+    final playedIndices = <int>[];
+    final resumedOffsets = <({int sentenceIndex, Duration startAt})>[];
+    var holdResumeStart = false;
+    final engine = BlindPracticeFlowEngine(
+      onStateChanged: (_) {},
+      callbacks: BlindPracticeFlowCallbacks(
+        pauseAudio: () {},
+        playSentence: (sentence, _) async {
+          playedIndices.add(sentence.index);
+          if (sentence.index == 0) {
+            if (!firstPlaybackStarted.isCompleted) {
+              firstPlaybackStarted.complete();
+            }
+            return firstPlayback.future;
+          }
+          return SentencePlaybackResult.completed;
+        },
+        resumeSentence: (sentence, _, startAt) async {
+          resumedOffsets.add((sentenceIndex: sentence.index, startAt: startAt));
+          return SentencePlaybackResult.completed;
+        },
+      ),
+    );
+    engine.prepare(
+      sentences: _sentences(),
+      config: BlindPracticeFlowConfig(
+        getRepeatCount: (_) => 1,
+        getRepeatIntervalDuration: (_) => Duration.zero,
+        getSentenceIntervalDuration: (_) => Duration.zero,
+        onBeforeSentenceStart: (_) async {
+          if (holdResumeStart) {
+            holdResumeStart = false;
+            resumeStartReached.complete();
+            return resumeStartGate.future;
+          }
+          return true;
+        },
+        isManualMode: () => true,
+      ),
+    );
+
+    final initialPlay = engine.startPlaying();
+    await firstPlaybackStarted.future;
+    engine.enterWaitingForUser();
+
+    holdResumeStart = true;
+    const pausedAt = Duration(milliseconds: 420);
+    final resume = engine.resumeCurrentSentence(pausedAt);
+    await resumeStartReached.future;
+
+    await engine.nextSentence();
+    resumeStartGate.complete(true);
+    firstPlayback.complete(SentencePlaybackResult.cancelled);
+    await Future.wait([resume, initialPlay]);
+
+    expect(playedIndices, [0, 1]);
+    expect(resumedOffsets, isEmpty);
+    expect(engine.state.sentenceIndex, 1);
+    engine.dispose();
+  });
+
   test('手动模式完成设置的循环后等待用户，重听从第一遍开始', () {
     fakeAsync((async) {
       final playedIndices = <int>[];

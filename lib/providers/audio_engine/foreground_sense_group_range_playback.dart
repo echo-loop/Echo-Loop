@@ -7,7 +7,8 @@ import 'foreground_audio_engine_provider.dart';
 /// 区间播放前由 [ForegroundAudioEngine] 自动确认材料已加载；UI 不需要也不能
 /// 预先管理播放器状态。generation 让取消/重复点击后的旧异步调用失效；session 所有权
 /// 让迟到的取消只暂停本适配器仍在播放的区间，不会中断新句的主播放。
-class ForegroundSenseGroupRangePlayback implements SenseGroupRangePlayback {
+class ForegroundSenseGroupRangePlayback
+    implements SenseGroupRangePlayback, ResumableSentenceRangePlayback {
   ForegroundSenseGroupRangePlayback({
     required ForegroundAudioEngine engine,
     required double Function() playbackSpeed,
@@ -20,7 +21,29 @@ class ForegroundSenseGroupRangePlayback implements SenseGroupRangePlayback {
   int? _activeSessionId;
 
   @override
-  Future<void> play(String audioItemId, Duration start, Duration end) async {
+  Duration get currentPosition => _engine.absoluteCurrentPosition;
+
+  @override
+  Future<void> play(String audioItemId, Duration start, Duration end) =>
+      _playRange(audioItemId, start, end);
+
+  @override
+  Future<void> playFromPosition(
+    String audioItemId,
+    Duration start,
+    Duration end,
+    Duration position,
+  ) => _playRange(
+    audioItemId,
+    position >= start && position < end ? position : start,
+    end,
+  );
+
+  Future<void> _playRange(
+    String audioItemId,
+    Duration start,
+    Duration end,
+  ) async {
     final generation = ++_generation;
     int? startedSessionId;
     AppLogger.log(

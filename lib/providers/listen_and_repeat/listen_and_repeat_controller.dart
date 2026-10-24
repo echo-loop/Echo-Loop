@@ -78,6 +78,7 @@ class ListenAndRepeatController extends _$ListenAndRepeatController {
   String? _studyAudioItemId;
   int _studySessionGeneration = 0;
   int _entryGeneration = 0;
+  Duration? _pausedPromptPosition;
 
   @override
   ListenAndRepeatSessionState build() {
@@ -95,6 +96,7 @@ class ListenAndRepeatController extends _$ListenAndRepeatController {
         // 运行时读取当前驱动：媒体初始化会替换 [_playback]，不能捕获旧音频实例。
         pauseAudio: () => unawaited(_playback.pause()),
         playSentence: _playSentence,
+        resumeSentence: _resumeSentence,
         startRecording: _startRecording,
         cancelRecording: _cancelRecording,
         stopAndEvaluate: _stopAndEvaluate,
@@ -388,8 +390,8 @@ class ListenAndRepeatController extends _$ListenAndRepeatController {
       EventParams.isFreePractice: isFreePlay ? 1 : 0,
     });
     _playback.bindLockScreen(
-      onPlay: replayCurrentSentence,
-      onPause: () async => enterWaitingForUser(),
+      onPlay: resumeOrReplayCurrentSentence,
+      onPause: () async => pausePlayback(),
       onNext: nextSentence,
       onPrevious: previousSentence,
     );
@@ -431,6 +433,7 @@ class ListenAndRepeatController extends _$ListenAndRepeatController {
     int startIndex = 0,
     bool isFreePlay = false,
   }) async {
+    _pausedPromptPosition = null;
     _isFreePlay = isFreePlay;
     _sentences = sentences.map((s) => s.copyWith()).toList();
     _engine.prepare(
@@ -447,36 +450,81 @@ class ListenAndRepeatController extends _$ListenAndRepeatController {
   }
 
   /// 开始播放
-  Future<void> startPlaying() async => _engine.startPlaying();
+  Future<void> startPlaying() async {
+    _pausedPromptPosition = null;
+    await _engine.startPlaying();
+  }
+
+  /// 暂停当前句并保存句子范围内的位置，供下一次播放从该处续播。
+  void pausePlayback() {
+    _pausedPromptPosition = null;
+    final sentence = currentSentence;
+    final position = _playback.currentPosition;
+    if (state.phase is PlayingPrompt &&
+        sentence != null &&
+        position >= sentence.startTime &&
+        position < sentence.endTime) {
+      _pausedPromptPosition = position;
+    }
+    _engine.enterWaitingForUser();
+  }
+
+  /// 有显式暂停位置时续播，否则按原行为重播当前句。
+  Future<void> resumeOrReplayCurrentSentence() async {
+    final position = _pausedPromptPosition;
+    _pausedPromptPosition = null;
+    if (position != null) {
+      await _engine.resumeCurrentSentence(position);
+    } else {
+      await _engine.replayCurrentSentence();
+    }
+  }
 
   /// 将速度应用到当前实际播放驱动。
   Future<void> applyPlaybackSpeed(double speed) => _playback.setSpeed(speed);
 
   /// 进入等待用户操作状态
-  void enterWaitingForUser() => _engine.enterWaitingForUser();
+  void enterWaitingForUser() {
+    _pausedPromptPosition = null;
+    _engine.enterWaitingForUser();
+  }
 
   /// 当前原句播完后进入等待用户操作状态。
-  void enterWaitingForUserAfterCurrentPrompt() =>
-      _engine.enterWaitingForUser(afterCurrentPrompt: true);
+  void enterWaitingForUserAfterCurrentPrompt() {
+    _pausedPromptPosition = null;
+    _engine.enterWaitingForUser(afterCurrentPrompt: true);
+  }
 
   /// 用户交互（查词/翻译等）
-  void onUserInteraction() => _engine.onUserInteraction();
+  void onUserInteraction() {
+    _pausedPromptPosition = null;
+    _engine.onUserInteraction();
+  }
 
   /// 下一句
   Future<void> nextSentence({
     RepeatNavigationSource source = RepeatNavigationSource.nextArrow,
-  }) async => _engine.nextSentence(source: source);
+  }) async {
+    _pausedPromptPosition = null;
+    await _engine.nextSentence(source: source);
+  }
 
   /// 上一句
   Future<void> previousSentence({
     RepeatNavigationSource source = RepeatNavigationSource.previousArrow,
-  }) async => _engine.previousSentence(source: source);
+  }) async {
+    _pausedPromptPosition = null;
+    await _engine.previousSentence(source: source);
+  }
 
   /// 跳转到指定句子（0-based，供进度条拖动跳转使用）
   Future<void> goToSentence(
     int index, {
     RepeatNavigationSource source = RepeatNavigationSource.explicit,
-  }) async => _engine.goToSentence(index, source: source);
+  }) async {
+    _pausedPromptPosition = null;
+    await _engine.goToSentence(index, source: source);
+  }
 
   /// 录音按钮点击
   Future<void> onRecordButtonTapped() async => _engine.onRecordButtonTapped();
@@ -485,7 +533,10 @@ class ListenAndRepeatController extends _$ListenAndRepeatController {
   Future<void> togglePlayback() async => _engine.togglePlayback();
 
   /// 为播放录音回放做准备。
-  void prepareForPlayback() => _engine.prepareForPlayback();
+  void prepareForPlayback() {
+    _pausedPromptPosition = null;
+    _engine.prepareForPlayback();
+  }
 
   /// 手动开始录音
   void startManualRecording() => _engine.startManualRecording();
@@ -513,10 +564,16 @@ class ListenAndRepeatController extends _$ListenAndRepeatController {
   void resumeInterval() => _engine.resumeInterval();
 
   /// 重播当前句子
-  Future<void> replayCurrentSentence() async => _engine.replayCurrentSentence();
+  Future<void> replayCurrentSentence() async {
+    _pausedPromptPosition = null;
+    await _engine.replayCurrentSentence();
+  }
 
   /// 停止会话
-  void stopSession() => _engine.stopSession();
+  void stopSession() {
+    _pausedPromptPosition = null;
+    _engine.stopSession();
+  }
 
   /// 释放流程和录音资源。
   Future<void> disposeSession() async {
@@ -937,6 +994,32 @@ class ListenAndRepeatController extends _$ListenAndRepeatController {
         'sentencePlayback.discarded result=${result.name} '
             'sentenceIndex=${state.sentenceIndex} '
             'flowToken=$flowToken currentFlowToken=${state.flowToken}',
+      );
+    }
+    return result;
+  }
+
+  /// 使用当前会话驱动从句子内部的暂停位置恢复原声播放。
+  Future<SentencePlaybackResult> _resumeSentence(
+    Sentence sentence,
+    int flowToken,
+    Duration startAt,
+  ) async {
+    final driver = _playback;
+    await driver.setSpeed(
+      ref.read(listenAndRepeatSettingsProvider).playbackSpeed,
+    );
+    final result = await driver.playSentence(
+      sentence,
+      driver.newSession(),
+      startAt: startAt,
+    );
+    if (result == SentencePlaybackResult.completed &&
+        flowToken == state.flowToken) {
+      _studyTimeService.submitSentencePlayback(
+        duration: sentence.duration,
+        text: sentence.text,
+        stage: StudyStage.listenAndRepeat,
       );
     }
     return result;

@@ -194,6 +194,12 @@ class IntensiveListenPlayer extends _$IntensiveListenPlayer {
   int _annotationSessionId = -1;
   bool _refreshBlindConfigWhenWaiting = false;
   bool _annotationWaitAfterCurrentPlayback = false;
+  Duration? _blindResumePosition;
+  Duration? _annotationResumePosition;
+  int? _annotationResumePlayCount;
+
+  /// 标识当前讲解页整句重播会话，避免把区间试听误认为整句播放。
+  int? _annotationSentencePlaybackSessionId;
 
   /// 当前会话的偏好槽位(子阶段×轮次);🔧 面板改动按此槽位持久化。
   /// 逐句精听=`intensiveListen:firstLearn`、难句跟读=`listenAndRepeat:firstLearn`。
@@ -205,6 +211,7 @@ class IntensiveListenPlayer extends _$IntensiveListenPlayer {
       callbacks: BlindPracticeFlowCallbacks(
         pauseAudio: _playbackDriver.pause,
         playSentence: _playSentenceForBlind,
+        resumeSentence: _resumeSentenceForBlind,
       ),
       logTag: 'IntensiveBlind',
     );
@@ -340,11 +347,31 @@ class IntensiveListenPlayer extends _$IntensiveListenPlayer {
           'isPlaying=${state.isPlaying} annotation=${state.annotationState != null}',
     );
     if (state.annotationState != null) {
+      _annotationResumePosition = null;
+      _annotationResumePlayCount = null;
+      final sentence = currentSentence;
+      final position = _playbackDriver.currentPosition;
+      if (state.isPlaying &&
+          _annotationSentencePlaybackSessionId == _annotationSessionId &&
+          sentence != null &&
+          position >= sentence.startTime &&
+          position < sentence.endTime) {
+        _annotationResumePosition = position;
+        _annotationResumePlayCount = state.currentPlayCount;
+      }
       _cleanupAnnotationSession();
       _setAnnotationPhase(const WaitingAnnotationUser());
       return;
     }
 
+    _blindResumePosition = null;
+    final sentence = currentSentence;
+    final position = _playbackDriver.currentPosition;
+    if (sentence != null &&
+        position >= sentence.startTime &&
+        position < sentence.endTime) {
+      _blindResumePosition = position;
+    }
     _blindEngine.enterWaitingForUser();
     state = state.copyWith(
       isPlaying: false,
@@ -362,17 +389,33 @@ class IntensiveListenPlayer extends _$IntensiveListenPlayer {
           'annotation=${state.annotationState != null}',
     );
     if (state.annotationState != null) {
-      if (state.annotationState?.phase is ReplayingWithSubtitle) {
-        await _startInlineAnnotationReplay(
-          repeatCount: _annotationReplayRepeatCount,
-          advanceAfterReplay: false,
-          showReplayStatus: true,
-        );
-      }
+      final resumePosition = _annotationResumePosition;
+      if (resumePosition == null) return;
+      final resumePlayCount = _annotationResumePlayCount;
+      _annotationResumePosition = null;
+      _annotationResumePlayCount = null;
+      await _startInlineAnnotationReplay(
+        repeatCount: _annotationReplayRepeatCount,
+        advanceAfterReplay: false,
+        showReplayStatus: true,
+        startAt: resumePosition,
+        startingPlayCount: resumePlayCount,
+      );
       return;
     }
-    await _blindEngine.replayCurrentSentence();
+    final resumePosition = _blindResumePosition;
+    _blindResumePosition = null;
+    if (resumePosition != null) {
+      await _blindEngine.resumeCurrentSentence(resumePosition);
+    } else {
+      await _blindEngine.replayCurrentSentence();
+    }
   }
+
+  /// 当前播放模式自己的暂停位置，避免跨模式的旧检查点误导播放按钮分支。
+  bool get hasPausedPlaybackPosition => state.annotationState != null
+      ? _annotationResumePosition != null
+      : _blindResumePosition != null;
 
   Future<void> goToNext() async => goToSentence(state.currentSentenceIndex + 1);
 
@@ -427,6 +470,8 @@ class IntensiveListenPlayer extends _$IntensiveListenPlayer {
   void enterAnnotationMode() {
     if (state.annotationState != null) return;
 
+    // 进入讲解页后，盲听断点不再代表讲解回放的暂停位置。
+    _clearPlaybackResumePositions();
     _blindEngine.stopSession();
     _cleanupAnnotationSession();
     _playbackDriver.pause();
@@ -496,6 +541,8 @@ class IntensiveListenPlayer extends _$IntensiveListenPlayer {
   }
 
   Future<void> replayInAnnotationMode() async {
+    _annotationResumePosition = null;
+    _annotationResumePlayCount = null;
     if (state.annotationState == null ||
         state.annotationState?.phase is WaitingAnnotationPageTransition) {
       return;
@@ -527,6 +574,9 @@ class IntensiveListenPlayer extends _$IntensiveListenPlayer {
     int groupIndex,
   ) async {
     if (state.annotationState == null) return;
+    _annotationResumePosition = null;
+    _annotationResumePlayCount = null;
+    _annotationSentencePlaybackSessionId = null;
     final playbackDriver = _playbackDriver;
     _annotationSessionId = playbackDriver.newSession();
     final annotationSessionId = _annotationSessionId;
@@ -559,6 +609,9 @@ class IntensiveListenPlayer extends _$IntensiveListenPlayer {
 
   Future<void> playAllSenseGroups(List<SenseGroupTiming> timings) async {
     if (state.annotationState == null || timings.isEmpty) return;
+    _annotationResumePosition = null;
+    _annotationResumePlayCount = null;
+    _annotationSentencePlaybackSessionId = null;
     final playbackDriver = _playbackDriver;
     _annotationSessionId = playbackDriver.newSession();
     final annotationSessionId = _annotationSessionId;
@@ -740,6 +793,7 @@ class IntensiveListenPlayer extends _$IntensiveListenPlayer {
       'event=stop sentenceIndex=${state.currentSentenceIndex} '
           'isStepFinished=${state.stepFinished}',
     );
+    _clearPlaybackResumePositions();
     _blindEngine.stopSession();
     _cleanupAnnotationSession();
     state = state.copyWith(
@@ -759,6 +813,7 @@ class IntensiveListenPlayer extends _$IntensiveListenPlayer {
   }
 
   Future<void> resetToStart() async {
+    _clearPlaybackResumePositions();
     _blindEngine.stopSession();
     _cleanupAnnotationSession();
     state = state.copyWith(
@@ -1013,7 +1068,30 @@ class IntensiveListenPlayer extends _$IntensiveListenPlayer {
     return result;
   }
 
+  Future<SentencePlaybackResult> _resumeSentenceForBlind(
+    Sentence sentence,
+    int flowToken,
+    Duration startAt,
+  ) async {
+    if (sentence.duration <= Duration.zero) {
+      return SentencePlaybackResult.failed;
+    }
+    final playbackDriver = _playbackDriver;
+    final sessionId = playbackDriver.newSession();
+    await playbackDriver.setSpeed(state.settings.playbackSpeed);
+    final result = await playbackDriver.playSentence(
+      sentence,
+      sessionId,
+      startAt: startAt,
+    );
+    if (result == SentencePlaybackResult.completed) {
+      _recordCompletedSentencePlayback(sentence);
+    }
+    return result;
+  }
+
   Future<void> _goToSentence(int sentenceIndex) async {
+    _clearPlaybackResumePositions();
     _blindEngine.stopSession();
     _cleanupAnnotationSession();
 
@@ -1047,6 +1125,8 @@ class IntensiveListenPlayer extends _$IntensiveListenPlayer {
     required int repeatCount,
     required bool advanceAfterReplay,
     required bool showReplayStatus,
+    Duration? startAt,
+    int? startingPlayCount,
   }) async {
     final sentence = currentSentence;
     if (sentence == null || sentence.duration <= Duration.zero) {
@@ -1060,82 +1140,92 @@ class IntensiveListenPlayer extends _$IntensiveListenPlayer {
     final playbackDriver = _playbackDriver;
     _annotationSessionId = playbackDriver.newSession();
     final annotationSessionId = _annotationSessionId;
+    _annotationSentencePlaybackSessionId = annotationSessionId;
 
-    await playbackDriver.setSpeed(state.settings.playbackSpeed);
-    var playCount = 1;
-    while (repeatCount == 0 || playCount <= repeatCount) {
-      if (_annotationSessionId != annotationSessionId ||
-          !playbackDriver.isActiveSession(annotationSessionId)) {
-        _clearPlayingIfCurrentAnnotationSession(annotationSessionId);
-        return;
-      }
-
-      state = state.copyWith(currentPlayCount: playCount);
-      if (showReplayStatus) {
-        _setAnnotationPhase(
-          ReplayingWithSubtitle(
-            remaining: sentence.duration,
-            total: sentence.duration,
-          ),
-        );
-      } else {
-        // 播放按钮只是讲解页内重听：保留讲解态和“继续”按钮，不显示重听提示。
-        _setAnnotationPhase(const InspectingAnnotation());
-        state = state.copyWith(isPlaying: true);
-      }
-      final result = await playbackDriver.playSentence(
-        sentence,
-        annotationSessionId,
-      );
-
-      // 暂停会立即放弃当前讲解会话。即使底层播放器的取消回调晚到，
-      // 旧重播也不能进入倒计时或覆盖图中的“继续”等待态。
-      if (result != SentencePlaybackResult.completed ||
-          _annotationSessionId != annotationSessionId ||
-          !playbackDriver.isActiveSession(annotationSessionId)) {
-        _clearPlayingIfCurrentAnnotationSession(annotationSessionId);
-        return;
-      }
-
-      _recordCompletedSentencePlayback(sentence);
-      if (_annotationWaitAfterCurrentPlayback) {
-        _annotationWaitAfterCurrentPlayback = false;
-        _setAnnotationPhase(const WaitingAnnotationUser());
-        return;
-      }
-      if (repeatCount == 0 || playCount < repeatCount) {
-        final pauseDuration = calculatePauseDuration(
-          sentence.duration,
-          state.settings,
-        );
-        _setAnnotationPhase(
-          WaitingAnnotationInterval(
-            remaining: pauseDuration,
-            total: pauseDuration,
-          ),
-        );
-        if (!showReplayStatus) {
-          // 循环间停顿不属于“继续”流程，继续按钮仍保持可用。
-          state = state.copyWith(isPauseBetweenSentences: false);
-        }
-        await _annotationCountdown.start(pauseDuration);
+    try {
+      await playbackDriver.setSpeed(state.settings.playbackSpeed);
+      var playCount = startingPlayCount ?? 1;
+      var firstPlayback = true;
+      while (repeatCount == 0 || playCount <= repeatCount) {
         if (_annotationSessionId != annotationSessionId ||
-            !playbackDriver.isActiveSession(annotationSessionId) ||
-            state.annotationState?.phase is! WaitingAnnotationInterval) {
+            !playbackDriver.isActiveSession(annotationSessionId)) {
+          _clearPlayingIfCurrentAnnotationSession(annotationSessionId);
           return;
         }
-      }
-      playCount += 1;
-    }
 
-    if (_annotationSessionId != annotationSessionId ||
-        !playbackDriver.isActiveSession(annotationSessionId)) {
-      return;
-    }
-    if (advanceAfterReplay) {
-      await _finishAnnotationReplay();
-    } else {
-      _setAnnotationPhase(const InspectingAnnotation());
+        state = state.copyWith(currentPlayCount: playCount);
+        if (showReplayStatus) {
+          _setAnnotationPhase(
+            ReplayingWithSubtitle(
+              remaining: sentence.duration,
+              total: sentence.duration,
+            ),
+          );
+        } else {
+          // 播放按钮只是讲解页内重听：保留讲解态和“继续”按钮，不显示重听提示。
+          _setAnnotationPhase(const InspectingAnnotation());
+          state = state.copyWith(isPlaying: true);
+        }
+        final result = await playbackDriver.playSentence(
+          sentence,
+          annotationSessionId,
+          startAt: firstPlayback ? startAt : null,
+        );
+        firstPlayback = false;
+
+        // 暂停会立即放弃当前讲解会话。即使底层播放器的取消回调晚到，
+        // 旧重播也不能进入倒计时或覆盖图中的“继续”等待态。
+        if (result != SentencePlaybackResult.completed ||
+            _annotationSessionId != annotationSessionId ||
+            !playbackDriver.isActiveSession(annotationSessionId)) {
+          _clearPlayingIfCurrentAnnotationSession(annotationSessionId);
+          return;
+        }
+
+        _recordCompletedSentencePlayback(sentence);
+        if (_annotationWaitAfterCurrentPlayback) {
+          _annotationWaitAfterCurrentPlayback = false;
+          _setAnnotationPhase(const WaitingAnnotationUser());
+          return;
+        }
+        if (repeatCount == 0 || playCount < repeatCount) {
+          final pauseDuration = calculatePauseDuration(
+            sentence.duration,
+            state.settings,
+          );
+          _setAnnotationPhase(
+            WaitingAnnotationInterval(
+              remaining: pauseDuration,
+              total: pauseDuration,
+            ),
+          );
+          if (!showReplayStatus) {
+            // 循环间停顿不属于“继续”流程，继续按钮仍保持可用。
+            state = state.copyWith(isPauseBetweenSentences: false);
+          }
+          await _annotationCountdown.start(pauseDuration);
+          if (_annotationSessionId != annotationSessionId ||
+              !playbackDriver.isActiveSession(annotationSessionId) ||
+              state.annotationState?.phase is! WaitingAnnotationInterval) {
+            return;
+          }
+        }
+        playCount += 1;
+      }
+
+      if (_annotationSessionId != annotationSessionId ||
+          !playbackDriver.isActiveSession(annotationSessionId)) {
+        return;
+      }
+      if (advanceAfterReplay) {
+        await _finishAnnotationReplay();
+      } else {
+        _setAnnotationPhase(const InspectingAnnotation());
+      }
+    } finally {
+      if (_annotationSentencePlaybackSessionId == annotationSessionId) {
+        _annotationSentencePlaybackSessionId = null;
+      }
     }
   }
 
@@ -1238,8 +1328,15 @@ class IntensiveListenPlayer extends _$IntensiveListenPlayer {
   void _cleanupAnnotationSession() {
     _annotationCountdown.cancel();
     _annotationSessionId = -1;
+    _annotationSentencePlaybackSessionId = null;
     _annotationWaitAfterCurrentPlayback = false;
     _playbackDriver.pause();
+  }
+
+  void _clearPlaybackResumePositions() {
+    _blindResumePosition = null;
+    _annotationResumePosition = null;
+    _annotationResumePlayCount = null;
   }
 
   /// 仅允许当前讲解播放会话清除播放态。

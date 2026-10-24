@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:clock/clock.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter/widgets.dart' show AppLifecycleState;
 import 'package:just_audio/just_audio.dart' as ja;
 
 import 'package:echo_loop/database/enums.dart';
@@ -232,6 +233,9 @@ class _CompletingParagraphPlaybackDriver implements ParagraphPlaybackDriver {
   int _sessionId = 0;
 
   @override
+  Duration get currentPosition => Duration.zero;
+
+  @override
   int newSession() => ++_sessionId;
 
   @override
@@ -285,6 +289,9 @@ class _ForegroundTestParagraphPlaybackDriver
   _ForegroundTestParagraphPlaybackDriver(this._engine);
 
   final ForegroundAudioEngine _engine;
+
+  @override
+  Duration get currentPosition => _engine.absoluteCurrentPosition;
 
   @override
   int newSession() => _engine.newSession();
@@ -368,10 +375,14 @@ ProviderContainer _createRetellStatsContainer(
 /// 记录复述状态机对底层播放契约的调用，不依赖音频或视频实现。
 class _RecordingParagraphPlaybackDriver implements ParagraphPlaybackDriver {
   int _sessionId = 0;
+  Duration position = Duration.zero;
   final List<({Duration start, Duration end})> ranges = [];
   final List<double> speeds = [];
   final List<Duration> seeks = [];
   int pauseCalls = 0;
+
+  @override
+  Duration get currentPosition => position;
 
   @override
   int newSession() => ++_sessionId;
@@ -428,10 +439,14 @@ class _RecordingParagraphPlaybackDriver implements ParagraphPlaybackDriver {
 /// 控制每次段落播放完成时机，验证导航不会等待音频自然结束。
 class _ControlledParagraphPlaybackDriver implements ParagraphPlaybackDriver {
   int _sessionId = 0;
+  Duration position = Duration.zero;
   final List<Completer<SentencePlaybackResult>> _playbacks = [];
   final List<({int count, Completer<void> completer})> _playCountWaiters = [];
 
   int get playCount => _playbacks.length;
+
+  @override
+  Duration get currentPosition => position;
 
   @override
   int newSession() => ++_sessionId;
@@ -759,6 +774,88 @@ void main() {
       expect(container.read(retellPlayerProvider), const RetellPlayerState());
       expect(notifier.paragraphs, isEmpty);
     });
+
+    test('播放器释放后应用进入后台不会再修改播放器状态', () async {
+      final studyTimeService = _RecordingRetellStudyTimeService();
+      final container = _createRetellStatsContainer(studyTimeService);
+      addTearDown(container.dispose);
+      final notifier = container.read(retellPlayerProvider.notifier);
+      await notifier.initialize([
+        [
+          Sentence(
+            index: 0,
+            text: 'A paragraph',
+            startTime: Duration.zero,
+            endTime: const Duration(seconds: 2),
+          ),
+        ],
+      ], playbackDriver: _CompletingParagraphPlaybackDriver());
+      await notifier.disposePlayer();
+
+      final binding = TestWidgetsFlutterBinding.ensureInitialized();
+      binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+      binding.handleAppLifecycleStateChanged(AppLifecycleState.hidden);
+
+      expect(container.read(retellPlayerProvider), const RetellPlayerState());
+      expect(
+        container
+            .read(retellRecordingControllerProvider)
+            .awaitingSpeechTimedOut,
+        isFalse,
+      );
+
+      binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+      binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    });
+
+    test('活动播放器进入后台时仍暂停播放并等待用户操作', () async {
+      final studyTimeService = _RecordingRetellStudyTimeService();
+      final container = _createRetellStatsContainer(studyTimeService);
+      addTearDown(container.dispose);
+      final notifier = container.read(retellPlayerProvider.notifier);
+      final playbackDriver = _RecordingParagraphPlaybackDriver();
+      await notifier.initialize([
+        [
+          Sentence(
+            index: 0,
+            text: 'A paragraph',
+            startTime: Duration.zero,
+            endTime: const Duration(seconds: 2),
+          ),
+        ],
+      ], playbackDriver: playbackDriver);
+
+      final binding = TestWidgetsFlutterBinding.ensureInitialized();
+      binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+      binding.handleAppLifecycleStateChanged(AppLifecycleState.hidden);
+
+      expect(notifier.state.phase, RetellPhase.retelling);
+      expect(notifier.state.isWaitingForUser, isTrue);
+      expect(playbackDriver.pauseCalls, 1);
+      expect(
+        container
+            .read(retellRecordingControllerProvider)
+            .awaitingSpeechTimedOut,
+        isTrue,
+      );
+
+      binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+      binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+      await notifier.disposePlayer();
+      await container
+          .read(retellRecordingControllerProvider.notifier)
+          .clearRecording();
+      binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+      binding.handleAppLifecycleStateChanged(AppLifecycleState.hidden);
+      expect(
+        container
+            .read(retellRecordingControllerProvider)
+            .awaitingSpeechTimedOut,
+        isFalse,
+      );
+      binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+      binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    });
   });
 
   group('RetellPlayer 新学习统计', () {
@@ -995,6 +1092,28 @@ void main() {
       expect(driver.speeds, contains(1.25));
       expect(driver.pauseCalls, greaterThanOrEqualTo(2));
       expect(driver.ranges.last.start, const Duration(seconds: 2));
+    });
+
+    test('听句中暂停后从精确媒体位置继续', () async {
+      final driver = _RecordingParagraphPlaybackDriver();
+      final sentence = Sentence(
+        index: 0,
+        text: 'Resume this sentence.',
+        startTime: const Duration(seconds: 1),
+        endTime: const Duration(seconds: 4),
+      );
+      await notifier.initialize([
+        [sentence],
+      ], playbackDriver: driver);
+      await notifier.startPlaying();
+
+      const pausedAt = Duration(milliseconds: 2350);
+      driver.position = pausedAt;
+      await notifier.pause();
+      await notifier.resume();
+
+      expect(driver.ranges.last.start, pausedAt);
+      expect(driver.ranges.last.end, sentence.endTime);
     });
 
     test('goToNextParagraph 等待 stopPlayback 完成后才开始下一段播放', () async {

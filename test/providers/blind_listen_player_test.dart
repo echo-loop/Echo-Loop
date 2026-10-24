@@ -20,6 +20,9 @@ class _TestParagraphPlaybackDriver implements ParagraphPlaybackDriver {
   final speeds = <double>[];
 
   @override
+  Duration get currentPosition => Duration.zero;
+
+  @override
   int newSession() => ++_sessionId;
 
   @override

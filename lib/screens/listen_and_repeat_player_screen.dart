@@ -490,12 +490,10 @@ class _ListenAndRepeatPlayerScreenState
   void _handleCenter() {
     final state = ref.read(listenAndRepeatControllerProvider);
     final ctrl = ref.read(listenAndRepeatControllerProvider.notifier);
-    if (state.isInPause) {
-      unawaited(ctrl.replayCurrentSentence());
-    } else if (state.phase is PlayingPrompt) {
-      ctrl.enterWaitingForUser();
+    if (state.phase is PlayingPrompt) {
+      ctrl.pausePlayback();
     } else {
-      unawaited(ctrl.replayCurrentSentence());
+      unawaited(ctrl.resumeOrReplayCurrentSentence());
     }
   }
 
