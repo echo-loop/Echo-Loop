@@ -113,7 +113,6 @@ class CommunityDownload extends _$CommunityDownload {
     await _persistFileMetadata(
       database,
       audioItemId: audioItemId,
-      localCollectionId: collection.id,
       file: subtitle.file,
     );
     await ref.read(audioLibraryProvider.notifier).loadLibrary();
@@ -189,12 +188,7 @@ class CommunityDownload extends _$CommunityDownload {
       if (localCollection == null) {
         throw StateError('Community collection was removed during download');
       }
-      await _persistFileMetadata(
-        database,
-        audioItemId: item.id,
-        localCollectionId: localCollection.id,
-        file: file,
-      );
+      await _persistFileMetadata(database, audioItemId: item.id, file: file);
       await ref.read(audioLibraryProvider.notifier).loadLibrary();
       await ref.read(collectionListProvider.notifier).loadCollections();
       final srt = _toSrt(subtitle);
@@ -273,36 +267,26 @@ class CommunityDownload extends _$CommunityDownload {
     }
   }
 
+  /// 持久化文件详情中的音频元数据，不修改合集关联排序。
   Future<void> _persistFileMetadata(
     db.AppDatabase database, {
     required String audioItemId,
-    required String localCollectionId,
     required CommunityCollectionFile file,
   }) async {
     final duration = file.durationSec;
-    await database.transaction(() async {
-      await (database.update(
-        database.audioItems,
-      )..where((table) => table.id.equals(audioItemId))).write(
-        db.AudioItemsCompanion(
-          name: Value(file.title),
-          totalDuration: duration == null
-              ? const Value.absent()
-              : Value(duration),
-          originalDate: Value(file.publishedAt),
-          communityUnavailableAt: const Value(null),
-          updatedAt: Value(DateTime.now()),
-        ),
-      );
-      await (database.update(database.collectionAudioItems)..where(
-            (table) =>
-                table.collectionId.equals(localCollectionId) &
-                table.audioItemId.equals(audioItemId),
-          ))
-          .write(
-            db.CollectionAudioItemsCompanion(sortOrder: Value(file.sortOrder)),
-          );
-    });
+    await (database.update(
+      database.audioItems,
+    )..where((table) => table.id.equals(audioItemId))).write(
+      db.AudioItemsCompanion(
+        name: Value(file.title),
+        totalDuration: duration == null
+            ? const Value.absent()
+            : Value(duration),
+        originalDate: Value(file.publishedAt),
+        communityUnavailableAt: const Value(null),
+        updatedAt: Value(DateTime.now()),
+      ),
+    );
   }
 
   Future<void> _markFileUnavailable(

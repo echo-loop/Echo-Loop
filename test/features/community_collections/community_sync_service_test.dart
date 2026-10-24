@@ -161,9 +161,12 @@ void main() {
     expect(api.detailCalls, ['remote-1']);
   });
 
-  test('已有文件的远端空时长不会覆盖本地时长', () async {
+  test('合集同步更新列表排序，同时保留已有本地时长', () async {
     await _insertCollection(database, 'local-1', 'remote-1', 'One');
     await _insertFile(database, 'local-1', 'file-1', 'Old one', duration: 42);
+    await (database.update(database.collectionAudioItems)
+          ..where((row) => row.audioItemId.equals('local-file-1')))
+        .write(const db.CollectionAudioItemsCompanion(sortOrder: Value(220)));
 
     final api = _FakeCommunityApi(
       [_catalogEntry('remote-1', 'One')],
@@ -178,7 +181,11 @@ void main() {
     ).syncAll(force: true);
 
     final row = await database.audioItemDao.getByRemoteAudioId('file-1');
+    final collectionAudioItem = await (database.select(
+      database.collectionAudioItems,
+    )..where((row) => row.collectionId.equals('local-1'))).getSingle();
     expect(row?.totalDuration, 42);
+    expect(collectionAudioItem.sortOrder, 0);
   });
 
   test('同步写入服务端难度并在服务端清空时移除本地难度', () async {

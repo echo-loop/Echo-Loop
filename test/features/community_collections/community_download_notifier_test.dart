@@ -165,7 +165,7 @@ void main() {
     );
   });
 
-  test('社区文件大小元数据不准确时仍按后台任务完成状态入库', () async {
+  test('文件大小元数据不准仍完成下载，且详情排序不覆盖合集排序', () async {
     final database = db.AppDatabase(NativeDatabase.memory());
     final dataDirectory = await Directory.systemTemp.createTemp(
       'community-download-success-',
@@ -197,6 +197,7 @@ void main() {
             collectionId: const Value('collection-1'),
             audioItemId: const Value('audio-1'),
             addedAt: Value(DateTime(2026, 1, 1)),
+            sortOrder: const Value(220),
           ),
         );
 
@@ -241,5 +242,9 @@ void main() {
     expect(item?.totalDuration, 12);
     expect(item?.audioPath, 'audios/community/audio-1.mp3');
     expect(await File('${dataDirectory.path}/${item?.audioPath}').length(), 3);
+    final collectionAudioItem = await (database.select(
+      database.collectionAudioItems,
+    )..where((row) => row.collectionId.equals('collection-1'))).getSingle();
+    expect(collectionAudioItem.sortOrder, 220);
   });
 }
