@@ -172,7 +172,7 @@ Each piece of material is split into 1 first-pass session + 7 spaced reviews. In
 
 Practice English alongside other committed learners: share methods, give feedback, and be the first to hear about new features.
 
-- [Join the QQ group (665696118)](https://qm.qq.com/q/5STdrSJS36): Share learning methods and resources with other committed learners.
+- [Join the QQ group (1109595757)](https://qm.qq.com/q/f4YeczPPUc): Share learning methods and resources with other committed learners.
 - [Contact us on WeChat](https://i.postimg.cc/P5tVpPTV/echo-loop-wecom.jpg): Scan the QR code to contact Echo Loop.
 - [Follow us on Bilibili](https://space.bilibili.com/509449049/upload/video): Get English-learning content and feature updates.
 - [Follow us on Xiaohongshu](https://xhslink.cn/m/4zOdGUcDH4N): Get practical tips, feature updates, and English-learning content.

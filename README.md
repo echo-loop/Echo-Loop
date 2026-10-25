@@ -195,7 +195,7 @@ flowchart LR
 
 和其他认真练英语的伙伴一起：交流学习方法、分享学习资源、反馈使用体验、第一时间收到新功能更新。
 
-- [加入 QQ 群（665696118）](https://qm.qq.com/q/5STdrSJS36)：和其他认真练英语的伙伴交流学习方法、分享学习资源。
+- [加入 QQ 群（1109595757）](https://qm.qq.com/q/f4YeczPPUc)：和其他认真练英语的伙伴交流学习方法、分享学习资源。
 - [微信联系我们](https://i.postimg.cc/P5tVpPTV/echo-loop-wecom.jpg)：扫描二维码联系 Echo Loop。
 - [关注 B 站](https://space.bilibili.com/509449049/upload/video)：获取英语学习内容和功能更新。
 - [关注小红书](https://xhslink.cn/m/4zOdGUcDH4N)：获取使用技巧、功能更新和英语学习内容。
