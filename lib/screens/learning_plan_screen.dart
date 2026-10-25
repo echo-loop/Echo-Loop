@@ -52,6 +52,7 @@ import '../models/intensive_listen_settings.dart'
 import '../models/retell_settings.dart' show KeywordRatio, RetellSettings;
 import '../models/study_stage.dart';
 import '../utils/blind_listen_duration_estimator.dart';
+import '../utils/learning_duration_estimator.dart';
 import '../utils/paragraph_grouping.dart';
 import '../utils/playback_speed_default.dart';
 import '../utils/retell_duration_estimator.dart';
@@ -888,9 +889,6 @@ class _LearningPlanScreenState extends ConsumerState<LearningPlanScreen> {
         );
     if (!context.mounted) return;
 
-    // 预估时长
-    final estimatedDuration = _estimateReviewDuration(subStage);
-
     final reviewStage = progress.currentStage;
     final smartSpeed = defaultPlaybackSpeedFor(liveDifficulty, reviewStage);
 
@@ -902,6 +900,15 @@ class _LearningPlanScreenState extends ConsumerState<LearningPlanScreen> {
       );
       final dp = ref.read(difficultPracticePrefsProvider.notifier);
       final defaults = dp.resolve(slot, smartSpeed: smartSpeed);
+      final estimatedDuration = _estimateReviewDuration(
+        subStage,
+        difficultBlindListenRepeatCount: defaults.isManualMode
+            ? 1
+            : defaults.blindListenRepeatCount,
+        difficultShadowReadingRepeatCount: defaults.isManualMode
+            ? 1
+            : defaults.shadowReadingRepeatCount,
+      );
       showReviewBriefingSheet(
         context: context,
         stage: reviewStage,
@@ -937,6 +944,10 @@ class _LearningPlanScreenState extends ConsumerState<LearningPlanScreen> {
       smartSpeed: smartSpeed,
       smartRatio: smartRatio,
     );
+    final estimatedDuration = _estimateReviewDuration(
+      subStage,
+      retellRepeatCount: defaults.isManualMode ? 1 : defaults.repeatCount,
+    );
     showReviewBriefingSheet(
       context: context,
       stage: reviewStage,
@@ -953,7 +964,12 @@ class _LearningPlanScreenState extends ConsumerState<LearningPlanScreen> {
   }
 
   /// 预估复习子步骤时长
-  Duration? _estimateReviewDuration(SubStageType subStage) {
+  Duration? _estimateReviewDuration(
+    SubStageType subStage, {
+    int difficultBlindListenRepeatCount = 1,
+    int difficultShadowReadingRepeatCount = 3,
+    int retellRepeatCount = 1,
+  }) {
     switch (subStage) {
       case SubStageType.blindListen:
         // 盲听 = 跳过静音开启时按字幕有效时长，否则按音频总时长
@@ -963,22 +979,27 @@ class _LearningPlanScreenState extends ConsumerState<LearningPlanScreen> {
           skipSilenceEnabled: ref.read(appSettingsProvider).skipSilenceEnabled,
         );
       case SubStageType.reviewDifficultPractice:
-        // 难句补练 = 难句总时长 × 2（盲听 + 跟读）
+        // 难句补练按实际盲听和跟读遍数估时；无限循环不显示有限估时。
         final lpState = ref.read(listeningPracticeProvider);
         final difficultDuration = lpState.sentences
             .where((s) => s.isBookmarked)
             .fold<Duration>(Duration.zero, (sum, s) => sum + s.duration);
-        if (difficultDuration == Duration.zero) return null;
-        return difficultDuration * 2;
+        return estimateDifficultPracticeDuration(
+          difficultSentenceDuration: difficultDuration,
+          blindListenRepeatCount: difficultBlindListenRepeatCount,
+          shadowReadingRepeatCount: difficultShadowReadingRepeatCount,
+        );
       case SubStageType.reviewRetellSummary:
         // 全文复述 = 真实播放（字幕 wall-clock）+ smart 停顿
         // 全文作为单段，pauseMultiplier=-1 走 smart 模式
+        if (retellRepeatCount == 0) return null;
         final sentences = ref.read(listeningPracticeProvider).sentences;
         if (sentences.isEmpty) return null;
         return estimateRetellSessionDuration(
           sentences: sentences,
           targetSeconds: -1,
           pauseMultiplier: -1,
+          repeatCount: retellRepeatCount,
         );
       default:
         return null;
@@ -1270,6 +1291,9 @@ class _LearningPlanScreenState extends ConsumerState<LearningPlanScreen> {
       stageLabel: isReview ? reviewStageLabel(l10n, currentStage) : null,
       defaultKeywordRatio: progress != null ? prefill.ratio : null,
       defaultPlaybackSpeed: prefill.speed,
+      repeatCount: prefill.settings.isManualMode
+          ? 1
+          : prefill.settings.repeatCount,
       defaultPause: prefill.pause,
       onSelectionChanged: retellPrefsRecorder(ref, slot, prefill.settings),
       onStartPractice:
@@ -1408,12 +1432,10 @@ class _LearningPlanScreenState extends ConsumerState<LearningPlanScreen> {
       return;
     }
 
-    // 预估时长：每句 = 句子时长 × 2（听 + 停顿处理）
     final totalSentenceDuration = sentences.fold<Duration>(
       Duration.zero,
       (sum, s) => sum + s.duration,
     );
-    final intensiveEstimate = totalSentenceDuration * 2;
 
     // 单一真相源:逐句精听仅在首学,槽位 intensiveListen:firstLearn。
     final slot = stageSlotKey(
@@ -1422,6 +1444,10 @@ class _LearningPlanScreenState extends ConsumerState<LearningPlanScreen> {
     );
     final prefs = ref.read(intensiveListenPrefsProvider.notifier);
     final defaults = prefs.resolve(slot, smartSpeed: 1.0);
+    final intensiveEstimate = estimateIntensiveListenDuration(
+      sentenceDuration: totalSentenceDuration,
+      repeatCount: defaults.isManualMode ? 1 : defaults.repeatCount,
+    );
     showIntensiveListenBriefingSheet(
       context: context,
       sentenceCount: sentences.length,
@@ -1508,7 +1534,7 @@ class _LearningPlanScreenState extends ConsumerState<LearningPlanScreen> {
         .read(learningProgressNotifierProvider.notifier)
         .refreshDifficultyFromBookmarks(widget.audioItemId, sentences.length);
     if (!context.mounted) return;
-    final playCount = targetPlayCountForDifficulty(liveDifficulty.index);
+    final smartPlayCount = targetPlayCountForDifficulty(liveDifficulty.index);
 
     final difficultDuration = difficultIndices.fold<Duration>(
       Duration.zero,
@@ -1516,8 +1542,6 @@ class _LearningPlanScreenState extends ConsumerState<LearningPlanScreen> {
           sum +
           (idx < sentences.length ? sentences[idx].duration : Duration.zero),
     );
-    final repeatEstimate = difficultDuration * playCount * 2;
-
     const stage = LearningStage.firstLearn;
     final smartSpeed = progress != null
         ? defaultPlaybackSpeedFor(liveDifficulty, LearningStage.firstLearn)
@@ -1525,7 +1549,16 @@ class _LearningPlanScreenState extends ConsumerState<LearningPlanScreen> {
     // 难句跟读与逐句精听共用 IntensiveListenPrefs store,槽位 listenAndRepeat:firstLearn。
     final slot = stageSlotKey(StageSettingsSlots.listenAndRepeat, stage);
     final prefs = ref.read(intensiveListenPrefsProvider.notifier);
-    final defaults = prefs.resolve(slot, smartSpeed: smartSpeed);
+    // 以难度遍数作为动态默认；用户改过循环次数时，简报与练习使用同一设置。
+    final defaults = prefs.resolve(
+      slot,
+      smartSpeed: smartSpeed,
+      smartRepeatCount: smartPlayCount,
+    );
+    final playCount = defaults.repeatCount;
+    final repeatEstimate = playCount == 0
+        ? null
+        : difficultDuration * playCount * 2;
     final defaultScope = prefs.listenAndRepeatScopeFor(slot);
     final fullTextDuration = sentences.fold<Duration>(
       Duration.zero,
@@ -1537,7 +1570,9 @@ class _LearningPlanScreenState extends ConsumerState<LearningPlanScreen> {
       fullTextCount: sentences.length,
       playCount: playCount,
       difficultEstimatedDuration: repeatEstimate,
-      fullTextEstimatedDuration: fullTextDuration * playCount * 2,
+      fullTextEstimatedDuration: playCount == 0
+          ? null
+          : fullTextDuration * playCount * 2,
       defaultScope: defaultScope,
       defaultPlaybackSpeed: defaults.playbackSpeed,
       defaultPause: intensivePauseChoiceFromSettings(defaults),
@@ -1665,6 +1700,9 @@ class _LearningPlanScreenState extends ConsumerState<LearningPlanScreen> {
       defaultSeconds: prefill.seconds,
       defaultKeywordRatio: hasProgress ? prefill.ratio : null,
       defaultPlaybackSpeed: prefill.speed,
+      repeatCount: prefill.settings.isManualMode
+          ? 1
+          : prefill.settings.repeatCount,
       defaultPause: prefill.pause,
       onSelectionChanged: retellPrefsRecorder(ref, slot, prefill.settings),
       onStartPractice:
@@ -2825,12 +2863,10 @@ class _FirstStudySection extends ConsumerWidget {
         : ref.read(listeningPracticeProvider).sentences;
     if (sentences.isEmpty || !context.mounted) return;
 
-    // 预估时长：每句 = 句子时长 × 2（听 + 停顿处理）
     final totalSentenceDuration = sentences.fold<Duration>(
       Duration.zero,
       (sum, s) => sum + s.duration,
     );
-    final intensiveEstimate = totalSentenceDuration * 2;
 
     // 与按计划入口同一份偏好真相源、同一槽位:预填、改完即记、进入设置完全一致。
     final slot = stageSlotKey(
@@ -2839,6 +2875,10 @@ class _FirstStudySection extends ConsumerWidget {
     );
     final prefs = ref.read(intensiveListenPrefsProvider.notifier);
     final defaults = prefs.resolve(slot, smartSpeed: 1.0);
+    final intensiveEstimate = estimateIntensiveListenDuration(
+      sentenceDuration: totalSentenceDuration,
+      repeatCount: defaults.isManualMode ? 1 : defaults.repeatCount,
+    );
     showIntensiveListenBriefingSheet(
       context: context,
       sentenceCount: sentences.length,
@@ -2912,14 +2952,13 @@ class _FirstStudySection extends ConsumerWidget {
         .read(learningProgressNotifierProvider.notifier)
         .refreshDifficultyFromBookmarks(audioItemId, sentences.length);
     if (!context.mounted) return;
-    final playCount = targetPlayCountForDifficulty(liveDifficulty.index);
+    final smartPlayCount = targetPlayCountForDifficulty(liveDifficulty.index);
     final difficultDuration = difficultIndices.fold<Duration>(
       Duration.zero,
       (sum, idx) =>
           sum +
           (idx < sentences.length ? sentences[idx].duration : Duration.zero),
     );
-    final repeatEstimate = difficultDuration * playCount * 2;
 
     // 难句跟读只属于"首次学习"步骤,自由练习与按计划共用同一槽位偏好。
     final smartSpeed = progress != null
@@ -2930,7 +2969,16 @@ class _FirstStudySection extends ConsumerWidget {
       LearningStage.firstLearn,
     );
     final prefs = ref.read(intensiveListenPrefsProvider.notifier);
-    final defaults = prefs.resolve(slot, smartSpeed: smartSpeed);
+    // 以难度遍数作为动态默认；用户改过循环次数时，简报与练习使用同一设置。
+    final defaults = prefs.resolve(
+      slot,
+      smartSpeed: smartSpeed,
+      smartRepeatCount: smartPlayCount,
+    );
+    final playCount = defaults.repeatCount;
+    final repeatEstimate = playCount == 0
+        ? null
+        : difficultDuration * playCount * 2;
     final defaultScope = prefs.listenAndRepeatScopeFor(slot);
     final fullTextDuration = sentences.fold<Duration>(
       Duration.zero,
@@ -2942,7 +2990,9 @@ class _FirstStudySection extends ConsumerWidget {
       fullTextCount: sentences.length,
       playCount: playCount,
       difficultEstimatedDuration: repeatEstimate,
-      fullTextEstimatedDuration: fullTextDuration * playCount * 2,
+      fullTextEstimatedDuration: playCount == 0
+          ? null
+          : fullTextDuration * playCount * 2,
       defaultScope: defaultScope,
       defaultPlaybackSpeed: defaults.playbackSpeed,
       defaultPause: intensivePauseChoiceFromSettings(defaults),
@@ -3067,6 +3117,9 @@ class _FirstStudySection extends ConsumerWidget {
       defaultSeconds: prefill.seconds,
       defaultKeywordRatio: progressForDefault != null ? prefill.ratio : null,
       defaultPlaybackSpeed: prefill.speed,
+      repeatCount: prefill.settings.isManualMode
+          ? 1
+          : prefill.settings.repeatCount,
       defaultPause: prefill.pause,
       onSelectionChanged: retellPrefsRecorder(ref, slot, prefill.settings),
       onStartPractice:
@@ -3695,9 +3748,6 @@ class _ReviewRoundSection extends ConsumerWidget {
     final difficultDuration = sentences
         .where((s) => s.isBookmarked)
         .fold<Duration>(Duration.zero, (sum, s) => sum + s.duration);
-    final estimated = difficultDuration == Duration.zero
-        ? null
-        : difficultDuration * 2;
     // 按当前难句书签数实时重算难度，难度降低后速度随之回升
     final liveDifficulty = await ref
         .read(learningProgressNotifierProvider.notifier)
@@ -3712,6 +3762,15 @@ class _ReviewRoundSection extends ConsumerWidget {
     );
     final dp = ref.read(difficultPracticePrefsProvider.notifier);
     final defaults = dp.resolve(slot, smartSpeed: smartSpeed);
+    final estimated = estimateDifficultPracticeDuration(
+      difficultSentenceDuration: difficultDuration,
+      blindListenRepeatCount: defaults.isManualMode
+          ? 1
+          : defaults.blindListenRepeatCount,
+      shadowReadingRepeatCount: defaults.isManualMode
+          ? 1
+          : defaults.shadowReadingRepeatCount,
+    );
     showReviewBriefingSheet(
       context: context,
       stage: review.stage,
@@ -3830,6 +3889,9 @@ class _ReviewRoundSection extends ConsumerWidget {
       defaultSeconds: prefill.seconds,
       defaultKeywordRatio: progressForRetell != null ? prefill.ratio : null,
       defaultPlaybackSpeed: prefill.speed,
+      repeatCount: prefill.settings.isManualMode
+          ? 1
+          : prefill.settings.repeatCount,
       defaultPause: prefill.pause,
       onSelectionChanged: retellPrefsRecorder(ref, slot, prefill.settings),
       onStartPractice: (targetDuration, pause, keywordRatio, playbackSpeed) async {

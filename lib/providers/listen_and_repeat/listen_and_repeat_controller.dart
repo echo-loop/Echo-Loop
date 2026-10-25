@@ -583,7 +583,7 @@ class ListenAndRepeatController extends _$ListenAndRepeatController {
     await ref.read(speechRecordingControllerProvider.notifier).fullReset();
   }
 
-  /// 应用会话内设置变更，并立即按新配置重建当前句流程。
+  /// 应用会话内设置变更；延迟等待分支只刷新遍数，不打断当前原句。
   ///
   /// 设置面板是即时写回 Provider 的，因此这里不能等弹窗关闭后再处理。
   Future<void> applySettingsChange() async {
@@ -591,6 +591,7 @@ class ListenAndRepeatController extends _$ListenAndRepeatController {
         .read(speechRecordingControllerProvider.notifier)
         .setManualMode(_engine.config.isManualMode());
     if (_engine.willEnterWaitingAfterCurrentPrompt) {
+      _engine.refreshCurrentRepeatCount();
       return;
     }
     // 等待态只刷新当前句配置，不应立刻自动重播。

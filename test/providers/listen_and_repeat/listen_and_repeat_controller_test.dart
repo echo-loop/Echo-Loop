@@ -725,6 +725,7 @@ void main() {
 
     test('播放中修改设置不打断也不重播，播完后进入 WaitingForUser', () async {
       final audioEngine = _ControlledAudioEngine();
+      var repeatCount = 3;
       container.dispose();
       container = ProviderContainer(
         overrides: [
@@ -741,16 +742,25 @@ void main() {
 
       await controller.prepareSession(
         sentences: createTestSentences(count: 1),
-        config: _testConfig(),
+        config: RepeatFlowConfig(
+          audioItemId: 'test-audio',
+          getRepeatCount: (_) => repeatCount,
+          getIntervalDuration: (_) => const Duration(milliseconds: 100),
+          isManualMode: () => false,
+        ),
       );
 
       unawaited(controller.startPlaying());
       await Future<void>.delayed(const Duration(milliseconds: 10));
+      expect(readState().totalRepeats, 3);
 
       controller.onUserInteraction();
+      repeatCount = 5;
       await controller.applySettingsChange();
 
       expect(readState().phase, isA<PlayingPrompt>());
+      expect(readState().repeatIndex, 0);
+      expect(readState().totalRepeats, 5);
 
       audioEngine.playCompleter?.complete();
       await Future<void>.delayed(const Duration(milliseconds: 10));

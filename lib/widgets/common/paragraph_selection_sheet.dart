@@ -58,7 +58,7 @@ Future<void> showParagraphSelectionSheet({
   BriefingPauseChoice defaultPause = const BriefingPauseChoice.smart(),
   String? stageLabel,
   String? estimatedDurationText,
-  Duration Function(int targetSeconds, double pauseMultiplier)?
+  Duration? Function(int targetSeconds, double pauseMultiplier)?
   estimateDurationBuilder,
   KeywordRatio? defaultKeywordRatio,
   required void Function(
@@ -139,7 +139,7 @@ class _ParagraphSelectionSheet extends StatefulWidget {
   final BriefingPauseChoice defaultPause;
   final String? stageLabel;
   final String? estimatedDurationText;
-  final Duration Function(int targetSeconds, double pauseMultiplier)?
+  final Duration? Function(int targetSeconds, double pauseMultiplier)?
   estimateDurationBuilder;
   final KeywordRatio? defaultKeywordRatio;
   final void Function(
@@ -441,17 +441,15 @@ class _ParagraphSelectionSheetState extends State<_ParagraphSelectionSheet> {
           Builder(
             builder: (_) {
               final showParagraphCount = _targetSeconds != -1;
-              final dynamicText = widget.estimateDurationBuilder != null
-                  ? formatEstimatedDuration(
-                      l10n,
-                      widget.estimateDurationBuilder!(
-                        _targetSeconds,
-                        // 固定/自动 走 smart 估算(-1);仅倍数模式用真实倍数。
-                        // 固定模式的精确预估为次要,显示近似值可接受。
-                        _pause.legacyPauseMultiplier,
-                      ),
-                    )
-                  : null;
+              final estimatedDuration = widget.estimateDurationBuilder?.call(
+                _targetSeconds,
+                // 固定/自动 走 smart 估算(-1);仅倍数模式用真实倍数。
+                // 固定模式的精确预估为次要,显示近似值可接受。
+                _pause.legacyPauseMultiplier,
+              );
+              final dynamicText = estimatedDuration == null
+                  ? null
+                  : formatEstimatedDuration(l10n, estimatedDuration);
               final estimatedText = dynamicText ?? widget.estimatedDurationText;
               if (!showParagraphCount && estimatedText == null) {
                 return const SizedBox.shrink();

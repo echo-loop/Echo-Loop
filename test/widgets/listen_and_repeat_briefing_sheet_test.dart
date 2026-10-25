@@ -83,6 +83,33 @@ void main() {
     expect(actionRow.bottom, lessThanOrEqualTo(844 - 34));
   });
 
+  testWidgets('无限遍数显示无限状态且不显示预计时长', (tester) async {
+    await tester.pumpWidget(
+      createTestApp(
+        Builder(
+          builder: (context) => ElevatedButton(
+            onPressed: () => showListenAndRepeatBriefingSheet(
+              context: context,
+              difficultCount: 5,
+              fullTextCount: 12,
+              playCount: 0,
+              difficultEstimatedDuration: null,
+              fullTextEstimatedDuration: null,
+              onStartPractice: (_, _, _) {},
+            ),
+            child: const Text('Open'),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Open'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Infinite ∞'), findsOneWidget);
+    expect(find.byIcon(Icons.timer_outlined), findsNothing);
+  });
+
   testWidgets('入口面板默认显示 1.0x 播放速度下拉菜单', (tester) async {
     await tester.pumpWidget(
       createTestApp(

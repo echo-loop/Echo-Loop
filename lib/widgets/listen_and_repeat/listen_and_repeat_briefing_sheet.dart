@@ -344,7 +344,9 @@ class _ListenAndRepeatBriefingSheetState
                 ),
               ),
               Text(
-                l10n.listenAndRepeatBriefingPlayCount(widget.playCount),
+                widget.playCount == 0
+                    ? l10n.infiniteRepeat
+                    : l10n.listenAndRepeatBriefingPlayCount(widget.playCount),
                 style: theme.textTheme.bodyMedium?.copyWith(
                   color: theme.colorScheme.onSurfaceVariant,
                 ),

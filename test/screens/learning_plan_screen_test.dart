@@ -16,6 +16,8 @@ import 'package:echo_loop/models/learning_progress.dart';
 import 'package:echo_loop/models/media_intensive_listen_startup.dart';
 import 'package:echo_loop/models/media_learning_startup.dart';
 import 'package:echo_loop/models/speech_practice_models.dart';
+import 'package:echo_loop/models/stage_settings_overrides.dart'
+    show StageSettingsSlots, stageSlotKey;
 import 'package:echo_loop/database/enums.dart';
 import 'package:echo_loop/providers/audio_library_provider.dart';
 import 'package:echo_loop/providers/audio_sentences_provider.dart';
@@ -24,6 +26,7 @@ import 'package:echo_loop/providers/audio_engine/audio_engine_provider.dart';
 import 'package:echo_loop/providers/asr_model_installation_gate.dart';
 import 'package:echo_loop/providers/asr_model_installation_provider.dart';
 import 'package:echo_loop/providers/learning_progress_provider.dart';
+import 'package:echo_loop/providers/intensive_listen_prefs_provider.dart';
 import 'package:echo_loop/models/sentence.dart';
 import 'package:echo_loop/providers/learning_session/learning_session_provider.dart';
 import 'package:echo_loop/database/daos/bookmark_dao.dart';
@@ -33,6 +36,10 @@ import 'package:echo_loop/providers/time_provider.dart';
 import 'package:echo_loop/services/speech_permission_service.dart';
 import 'package:echo_loop/features/auth/providers/auth_providers.dart';
 import 'package:echo_loop/theme/app_theme.dart';
+import 'package:echo_loop/widgets/listen_and_repeat/listen_and_repeat_briefing_sheet.dart'
+    show ListenAndRepeatBriefingSheet;
+import 'package:echo_loop/widgets/intensive_listen/intensive_listen_briefing_sheet.dart'
+    show IntensiveListenBriefingSheet;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../helpers/mock_providers.dart';
@@ -2073,6 +2080,133 @@ void main() {
       expect(find.text('Listen sentence by sentence'), findsWidgets);
       expect(find.text('Start Practicing'), findsOneWidget);
     });
+
+    testWidgets('精听入口预计时长按已保存的重复遍数计算', (tester) async {
+      final progressState = LearningProgressState(
+        progressMap: {
+          'test-1': LearningProgress(
+            audioItemId: 'test-1',
+            currentStage: LearningStage.firstLearn,
+            currentSubStage: SubStageType.intensiveListen,
+            updatedAt: DateTime(2026, 5, 1),
+          ),
+        },
+      );
+      await tester.pumpWidget(createTestWidget(progressState: progressState));
+      await tester.pumpAndSettle();
+
+      final planContext = tester.element(find.byType(LearningPlanScreen));
+      final container = ProviderScope.containerOf(planContext);
+      final slot = stageSlotKey(
+        StageSettingsSlots.intensiveListen,
+        LearningStage.firstLearn,
+      );
+      await container
+          .read(intensiveListenPrefsProvider.notifier)
+          .setRepeatCount(slot, 4);
+
+      await tester.tap(find.text('Start practicing').last);
+      await tester.pumpAndSettle();
+
+      final briefingFinder = find.byType(IntensiveListenBriefingSheet);
+      expect(
+        tester
+            .widget<IntensiveListenBriefingSheet>(briefingFinder)
+            .estimatedDuration,
+        const Duration(seconds: 200),
+      );
+    });
+
+    for (final (isFreePlay, repeatCount) in <(bool, int?)>[
+      (false, 5),
+      (true, 5),
+      (false, 0),
+      (false, null),
+    ]) {
+      testWidgets('${isFreePlay ? '自由练习' : '计划学习'}入口摘要使用已保存的跟读遍数', (
+        tester,
+      ) async {
+        final currentSubStage = isFreePlay
+            ? SubStageType.retell
+            : SubStageType.listenAndRepeat;
+        final progressState = LearningProgressState(
+          progressMap: {
+            'test-1': LearningProgress(
+              audioItemId: 'test-1',
+              currentStage: LearningStage.firstLearn,
+              currentSubStage: currentSubStage,
+              updatedAt: DateTime(2026, 5, 1),
+            ),
+          },
+        );
+        await tester.pumpWidget(
+          createTestWidget(
+            progressState: progressState,
+            extraOverrides: [
+              bookmarkDaoProvider.overrideWithValue(_EmptyBookmarkDao()),
+              asrModelInstallationGateProvider.overrideWithValue(
+                AsrModelInstallationGate(({required shouldCommit}) async {}),
+              ),
+              speechPermissionServiceProvider.overrideWithValue(
+                const _ReadySpeechPermissionService(),
+              ),
+            ],
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        final planContext = tester.element(find.byType(LearningPlanScreen));
+        final container = ProviderScope.containerOf(planContext);
+        final slot = stageSlotKey(
+          StageSettingsSlots.listenAndRepeat,
+          LearningStage.firstLearn,
+        );
+        if (repeatCount != null) {
+          await container
+              .read(intensiveListenPrefsProvider.notifier)
+              .setRepeatCount(slot, repeatCount);
+        }
+
+        if (isFreePlay) {
+          await tester.tap(find.text('Listen & Repeat').first);
+        } else {
+          await tester.tap(find.text('Continue practicing'));
+        }
+        await _pumpUntilFound(
+          tester,
+          find.byType(ListenAndRepeatBriefingSheet),
+        );
+        await tester.pumpAndSettle();
+
+        final effectiveRepeatCount = repeatCount ?? 3;
+        if (effectiveRepeatCount == 0) {
+          expect(find.text('Infinite ∞'), findsOneWidget);
+          expect(find.byIcon(Icons.timer_outlined), findsNothing);
+        } else {
+          expect(
+            find.text('$effectiveRepeatCount plays per sentence'),
+            findsOneWidget,
+          );
+
+          await tester.tap(find.byType(DropdownButton<ListenAndRepeatScope>));
+          await tester.pumpAndSettle();
+          await tester.tap(find.text('Full Text').last);
+          await tester.pumpAndSettle();
+
+          final sheetContext = tester.element(
+            find.byType(ListenAndRepeatBriefingSheet),
+          );
+          expect(
+            find.text(
+              AppLocalizations.of(
+                sheetContext,
+              )!.estimatedMinutes(effectiveRepeatCount),
+            ),
+            findsOneWidget,
+          );
+        }
+      });
+    }
 
     // ====== Phase 3 Batch：从 integration_test 下沉的更多 case ======
 

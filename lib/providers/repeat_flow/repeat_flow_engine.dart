@@ -548,6 +548,16 @@ class RepeatFlowEngine {
     }
   }
 
+  /// 当前原句继续播放时刷新目标遍数，保留播放阶段和当前遍数。
+  void refreshCurrentRepeatCount() {
+    final sentence = currentSentence;
+    if (sentence == null) return;
+
+    final repeatCount = _config.getRepeatCount(sentence);
+    if (repeatCount == _state.totalRepeats) return;
+    _updateState(_state.copyWith(totalRepeats: repeatCount));
+  }
+
   /// 停止会话
   void stopSession() {
     _waitAfterCurrentPrompt = false;

@@ -78,6 +78,7 @@ Future<void> showRetellBriefingSheet({
   String? stageLabel,
   KeywordRatio? defaultKeywordRatio,
   double defaultPlaybackSpeed = 1.0,
+  int repeatCount = 1,
   BriefingPauseChoice defaultPause = const BriefingPauseChoice.smart(),
   VoidCallback? onSkip,
 }) {
@@ -101,11 +102,14 @@ Future<void> showRetellBriefingSheet({
     defaultPause: defaultPause,
     stageLabel: stageLabel,
     estimateDurationBuilder: (targetSeconds, pauseMultiplier) =>
-        estimateRetellSessionDuration(
-          sentences: sentences,
-          targetSeconds: targetSeconds,
-          pauseMultiplier: pauseMultiplier,
-        ),
+        repeatCount == 0
+        ? null
+        : estimateRetellSessionDuration(
+            sentences: sentences,
+            targetSeconds: targetSeconds,
+            pauseMultiplier: pauseMultiplier,
+            repeatCount: repeatCount,
+          ),
     defaultKeywordRatio: defaultKeywordRatio,
     onStartPractice: (_, _, _) {},
     onStartPracticeWithPlaybackSpeed:
