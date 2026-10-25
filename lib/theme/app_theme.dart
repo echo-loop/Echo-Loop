@@ -29,6 +29,12 @@ class AppTheme {
   /// 导航栏选中态颜色：明亮蓝
   static const Color navActiveColor = Color(0xFF3AA0FF);
 
+  /// 视频类型图标的紫色强调色；深色主题下提亮，维持可辨识度。
+  static Color videoMediaTypeColor(Brightness brightness) =>
+      brightness == Brightness.dark
+      ? const Color(0xFFB39DDB)
+      : const Color(0xFF7655A6);
+
   /// 学习页「为你推荐」区段的蓝紫强调色。
   static Color studyRecommendationAccentColor(Brightness brightness) =>
       brightness == Brightness.dark

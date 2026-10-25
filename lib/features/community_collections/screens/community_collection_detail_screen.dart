@@ -9,6 +9,7 @@ import '../../../l10n/app_localizations.dart';
 import '../../../models/collection.dart';
 import '../../../providers/collection_provider.dart';
 import '../../../router/app_router.dart';
+import '../../../theme/app_theme.dart';
 import '../models/community_collection_models.dart';
 import '../models/community_collection_paging.dart';
 import '../providers/community_collection_detail_provider.dart';
@@ -234,7 +235,7 @@ class _PreviewList extends StatelessWidget {
     final isEmpty = files.isEmpty && !hasMore;
     final footerCount = isLoadingMore || loadMoreError != null ? 1 : 0;
     final contentCount = isEmpty ? 1 : files.length + footerCount;
-    final itemCount = 2 + contentCount;
+    final itemCount = 1 + contentCount;
     return NotificationListener<ScrollNotification>(
       onNotification: (notification) {
         if (notification is UserScrollNotification &&
@@ -247,21 +248,25 @@ class _PreviewList extends StatelessWidget {
         physics: const AlwaysScrollableScrollPhysics(),
         itemCount: itemCount,
         separatorBuilder: (_, index) {
-          if (isEmpty || index == 0 || index >= files.length + 1) {
+          if (isEmpty || index >= files.length) {
             return const SizedBox.shrink();
           }
-          return const Divider(height: 1);
+          return Divider(
+            key: index == 0
+                ? const ValueKey('community-collection-files-start-divider')
+                : null,
+            height: 1,
+          );
         },
         itemBuilder: (context, index) {
           if (index == 0) return header;
-          if (index == 1) return const _PreviewListHeader();
           if (isEmpty) {
             return const SizedBox(
               height: 160,
               child: Center(child: Text('暂无文件')),
             );
           }
-          final fileIndex = index - 2;
+          final fileIndex = index - 1;
           if (fileIndex >= files.length) {
             if (isLoadingMore) {
               return const Padding(
@@ -277,69 +282,117 @@ class _PreviewList extends StatelessWidget {
             );
           }
           final file = files[fileIndex];
-          final durationSec = file.durationSec;
-          return ListTile(
-            contentPadding: const EdgeInsetsDirectional.symmetric(
-              horizontal: 16,
-            ),
-            minLeadingWidth: 24,
-            horizontalTitleGap: 12,
-            leading: Icon(
-              file.mediaType == CommunityMediaType.video
-                  ? Icons.videocam_outlined
-                  : Icons.graphic_eq,
-            ),
-            title: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    file.title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontSize: 14),
-                  ),
-                ),
-                if (file.difficulty case final difficulty?) ...[
-                  const SizedBox(width: 8),
-                  CommunityDifficultyBadge(difficulty: difficulty),
-                ],
-              ],
-            ),
-            trailing: durationSec == null || durationSec <= 0
-                ? null
-                : Text(
-                    _formatPreviewDuration(durationSec),
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-          );
+          return _CommunityCollectionPreviewTile(file: file);
         },
       ),
     );
   }
 }
 
-/// 未加入态预览列表的列标题，与旧版合集详情页保持一致。
-class _PreviewListHeader extends StatelessWidget {
-  const _PreviewListHeader();
+/// 独立构建单条预览素材，使文字与图标直接依赖当前主题并在主题切换时刷新。
+class _CommunityCollectionPreviewTile extends StatelessWidget {
+  const _CommunityCollectionPreviewTile({required this.file});
+
+  final CommunityCollectionFile file;
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final l10n = AppLocalizations.of(context)!;
-    final style = Theme.of(context).textTheme.labelSmall?.copyWith(
-      color: Theme.of(context).colorScheme.onSurfaceVariant,
-      fontWeight: FontWeight.w600,
-    );
-    return Padding(
-      // 与文件行的标题起点（16 + 图标宽 24 + 间距 12）及右侧留白对齐。
-      padding: const EdgeInsetsDirectional.fromSTEB(52, 8, 16, 8),
-      child: Row(
+    final durationSec = file.durationSec;
+    final difficulty = file.difficulty;
+    final mediaTypeLabel = switch (file.mediaType) {
+      CommunityMediaType.audio => l10n.exportAudioFile,
+      CommunityMediaType.video => l10n.exportVideoFile,
+    };
+    final mediaTypeIcon = switch (file.mediaType) {
+      CommunityMediaType.audio => Icons.graphic_eq,
+      CommunityMediaType.video => Icons.videocam_outlined,
+    };
+    final mediaTypeColor = switch (file.mediaType) {
+      CommunityMediaType.audio => theme.colorScheme.primary,
+      CommunityMediaType.video => AppTheme.videoMediaTypeColor(
+        theme.brightness,
+      ),
+    };
+    final durationLabel = durationSec == null || durationSec <= 0
+        ? null
+        : _formatPreviewDuration(durationSec);
+    final description = file.description?.trim();
+    final Widget? descriptionSubtitle =
+        description == null || description.isEmpty
+        ? null
+        : Text(
+            description,
+            key: ValueKey('community-collection-file-description-${file.id}'),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.bodySmall?.copyWith(
+              fontSize: 13,
+              fontWeight: FontWeight.w400,
+              color: Color.lerp(
+                theme.colorScheme.onSurfaceVariant,
+                theme.colorScheme.surface,
+                0.22,
+              ),
+              height: 1.3,
+            ),
+          );
+
+    return ListTile(
+      key: ValueKey(file.id),
+      contentPadding: const EdgeInsetsDirectional.symmetric(horizontal: 16),
+      title: Row(
         children: [
-          Expanded(child: Text(l10n.audioListColumnName, style: style)),
-          Text(l10n.audioListColumnDuration, style: style),
+          Semantics(
+            key: ValueKey('community-collection-file-type-${file.id}'),
+            label: mediaTypeLabel,
+            child: ExcludeSemantics(
+              child: SizedBox.square(
+                dimension: 24,
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Icon(mediaTypeIcon, size: 22, color: mediaTypeColor),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 4),
+          Flexible(
+            child: Text(
+              file.title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
         ],
       ),
+      subtitle: descriptionSubtitle,
+      trailing: difficulty == null && durationLabel == null
+          ? null
+          : Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                if (difficulty != null)
+                  CommunityDifficultyBadge(difficulty: difficulty),
+                if (difficulty != null && durationLabel != null)
+                  const SizedBox(height: 4),
+                if (durationLabel != null)
+                  Text(
+                    durationLabel,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.end,
+                    style: theme.textTheme.labelMedium?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+              ],
+            ),
     );
   }
 }

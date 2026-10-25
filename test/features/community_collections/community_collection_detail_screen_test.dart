@@ -6,6 +6,7 @@ import 'package:echo_loop/features/community_collections/screens/community_colle
 import 'package:echo_loop/features/community_collections/widgets/community_collection_header.dart';
 import 'package:echo_loop/models/collection.dart';
 import 'package:echo_loop/providers/collection_provider.dart';
+import 'package:echo_loop/theme/app_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -44,10 +45,22 @@ void main() {
     WidgetTester tester, {
     bool subscribed = false,
     _TestCommunityCollectionFiles? detailNotifier,
+    ValueNotifier<ThemeData>? themeNotifier,
   }) async {
+    Widget screen = const CommunityCollectionDetailScreen(
+      remoteId: 'collection-1',
+    );
+    if (themeNotifier case final notifier?) {
+      screen = ValueListenableBuilder<ThemeData>(
+        valueListenable: notifier,
+        child: screen,
+        builder: (context, theme, child) =>
+            Theme(data: theme, child: child ?? const SizedBox.shrink()),
+      );
+    }
     await tester.pumpWidget(
       createTestApp(
-        const CommunityCollectionDetailScreen(remoteId: 'collection-1'),
+        screen,
         overrides: [
           discoverCommunityCollectionsProvider.overrideWith(
             () => _TestDiscoverCommunityCollections(
@@ -113,32 +126,227 @@ void main() {
       tester.getTopLeft(find.byType(CommunityCollectionHeader)).dy,
       closeTo(tester.getBottomLeft(find.byType(AppBar)).dy, 1),
     );
-    expect(find.text('Name'), findsOneWidget);
-    expect(find.text('Duration'), findsOneWidget);
+    expect(find.text('Name'), findsNothing);
+    expect(find.text('Duration'), findsNothing);
+    expect(
+      find.byKey(const ValueKey('community-collection-files-start-divider')),
+      findsOneWidget,
+    );
     expect(find.text('1:05'), findsOneWidget);
     expect(find.text('Track 2'), findsOneWidget);
     expect(find.text('Add to My Collections'), findsOneWidget);
     expect(find.text('0s'), findsNothing);
     expect(
-      find.ancestor(of: find.text('Name'), matching: find.byType(ListView)),
-      findsOneWidget,
-    );
-    expect(
       tester.getTopLeft(find.byType(CommunityCollectionHeader)).dy,
-      lessThan(tester.getTopLeft(find.text('Name')).dy),
-    );
-    expect(
-      tester.getTopLeft(find.text('Name')).dy,
       lessThan(tester.getTopLeft(find.text('Track 1')).dy),
     );
-    expect(
-      tester.getTopLeft(find.text('Name')).dx,
-      closeTo(tester.getTopLeft(find.text('Track 1')).dx, 1),
+  });
+
+  testWidgets('合集详情停留时切换主题会立即更新素材文字颜色', (tester) async {
+    final themeNotifier = ValueNotifier(AppTheme.light());
+    addTearDown(themeNotifier.dispose);
+    final detailNotifier = _TestCommunityCollectionFiles([
+      const CommunityCollectionFile(
+        id: 'theme-aware-file',
+        title: 'Theme aware track',
+        description: 'Theme aware description',
+        mediaType: CommunityMediaType.audio,
+        durationSec: 65,
+        fileSizeBytes: null,
+        difficulty: null,
+        publishedAt: null,
+        sortOrder: 0,
+        mediaUrl: 'https://example.com/theme-aware-track.m4a',
+      ),
+    ]);
+
+    await pumpDetail(
+      tester,
+      detailNotifier: detailNotifier,
+      themeNotifier: themeNotifier,
+    );
+
+    final titleFinder = find.text('Theme aware track');
+    final descriptionFinder = find.byKey(
+      const ValueKey('community-collection-file-description-theme-aware-file'),
     );
     expect(
-      tester.getTopRight(find.text('Duration')).dx,
-      closeTo(tester.getTopRight(find.text('1:05')).dx, 1),
+      tester.widget<Text>(titleFinder).style?.color,
+      AppTheme.light().colorScheme.onSurface,
     );
+
+    themeNotifier.value = AppTheme.dark();
+    await tester.pumpAndSettle();
+
+    final darkTheme = AppTheme.dark();
+    expect(
+      tester.widget<Text>(titleFinder).style?.color,
+      darkTheme.colorScheme.onSurface,
+    );
+    expect(
+      tester.widget<Text>(descriptionFinder).style?.color,
+      Color.lerp(
+        darkTheme.colorScheme.onSurfaceVariant,
+        darkTheme.colorScheme.surface,
+        0.22,
+      ),
+    );
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('预览素材在名称下方显示简介，空白简介隐藏且长简介限制两行', (tester) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(390, 844);
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    const longDescription =
+        'This material introduces the story, its main characters, and the '
+        'language points learners can practice while listening to the full '
+        'recording.';
+    final detailNotifier = _TestCommunityCollectionFiles([
+      const CommunityCollectionFile(
+        id: 'file-with-description',
+        title: 'Described track',
+        description: longDescription,
+        mediaType: CommunityMediaType.audio,
+        durationSec: 125,
+        fileSizeBytes: null,
+        difficulty: CommunityDifficulty.b1,
+        publishedAt: null,
+        sortOrder: 0,
+        mediaUrl: 'https://example.com/described-track.m4a',
+      ),
+      const CommunityCollectionFile(
+        id: 'file-with-blank-description',
+        title: 'Track without description',
+        description: '   ',
+        mediaType: CommunityMediaType.audio,
+        durationSec: 80,
+        fileSizeBytes: null,
+        difficulty: null,
+        publishedAt: null,
+        sortOrder: 1,
+        mediaUrl: 'https://example.com/blank-description.m4a',
+      ),
+      const CommunityCollectionFile(
+        id: 'file-with-short-description',
+        title:
+            'A very long track title that should truncate before the type badge',
+        description: 'A short summary.',
+        mediaType: CommunityMediaType.video,
+        durationSec: null,
+        fileSizeBytes: null,
+        difficulty: null,
+        publishedAt: null,
+        sortOrder: 2,
+        mediaUrl: 'https://example.com/short-description.m4a',
+      ),
+    ]);
+
+    await pumpDetail(tester, detailNotifier: detailNotifier);
+
+    final descriptionFinder = find.byKey(
+      const ValueKey(
+        'community-collection-file-description-file-with-description',
+      ),
+    );
+    final descriptionWidget = tester.widget<Text>(descriptionFinder);
+    final titleWidget = tester.widget<Text>(find.text('Described track'));
+    expect(find.text('Described track'), findsOneWidget);
+    expect(find.text(longDescription), findsOneWidget);
+    expect(find.text('Track without description'), findsOneWidget);
+    expect(
+      find.byKey(
+        const ValueKey(
+          'community-collection-file-description-file-with-blank-description',
+        ),
+      ),
+      findsNothing,
+    );
+    expect(descriptionWidget.maxLines, 2);
+    expect(descriptionWidget.overflow, TextOverflow.ellipsis);
+    expect(
+      tester
+          .getSize(find.byKey(const ValueKey('file-with-description')))
+          .height,
+      greaterThan(
+        tester
+            .getSize(find.byKey(const ValueKey('file-with-short-description')))
+            .height,
+      ),
+    );
+    expect(
+      descriptionWidget.style?.fontSize,
+      lessThan(titleWidget.style?.fontSize ?? double.infinity),
+    );
+    expect(descriptionWidget.style?.fontWeight, FontWeight.w400);
+    expect(descriptionWidget.style?.color, isNot(titleWidget.style?.color));
+    final audioTypeFinder = find.byKey(
+      const ValueKey('community-collection-file-type-file-with-description'),
+    );
+    final videoTypeFinder = find.byKey(
+      const ValueKey(
+        'community-collection-file-type-file-with-short-description',
+      ),
+    );
+    expect(tester.widget<Semantics>(audioTypeFinder).properties.label, 'Audio');
+    expect(tester.widget<Semantics>(videoTypeFinder).properties.label, 'Video');
+    expect(tester.getSize(audioTypeFinder), const Size(24, 24));
+    expect(tester.getSize(videoTypeFinder), const Size(24, 24));
+    expect(
+      tester.getTopLeft(audioTypeFinder).dx,
+      lessThan(tester.getTopLeft(find.text('Described track')).dx),
+    );
+    expect(
+      tester.getTopLeft(audioTypeFinder).dx,
+      closeTo(tester.getTopLeft(descriptionFinder).dx, 1),
+    );
+    final audioIconFinder = find.descendant(
+      of: audioTypeFinder,
+      matching: find.byIcon(Icons.graphic_eq),
+    );
+    expect(
+      tester.getTopLeft(audioIconFinder).dx,
+      closeTo(tester.getTopLeft(descriptionFinder).dx, 1),
+    );
+    expect(
+      tester.getTopLeft(find.text('Described track')).dx -
+          tester.getTopRight(audioIconFinder).dx,
+      closeTo(6, 1),
+    );
+    expect(
+      tester.getTopLeft(find.text('Described track')).dx -
+          tester.getTopRight(audioTypeFinder).dx,
+      closeTo(4, 1),
+    );
+    expect(audioIconFinder, findsOneWidget);
+    expect(
+      find.descendant(
+        of: videoTypeFinder,
+        matching: find.byIcon(Icons.videocam_outlined),
+      ),
+      findsOneWidget,
+    );
+    final audioIcon = tester.widget<Icon>(
+      find.descendant(
+        of: audioTypeFinder,
+        matching: find.byIcon(Icons.graphic_eq),
+      ),
+    );
+    final videoIcon = tester.widget<Icon>(
+      find.descendant(
+        of: videoTypeFinder,
+        matching: find.byIcon(Icons.videocam_outlined),
+      ),
+    );
+    final colorScheme = Theme.of(tester.element(audioTypeFinder)).colorScheme;
+    expect(audioIcon.color, colorScheme.primary);
+    expect(videoIcon.color, AppTheme.videoMediaTypeColor(Brightness.light));
+    expect(videoIcon.color, isNot(audioIcon.color));
+    expect(find.text('B1'), findsOneWidget);
+    expect(find.text('2:05'), findsOneWidget);
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('详情接口返回的合集元数据更新信息头部和标题', (tester) async {
