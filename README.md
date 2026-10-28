@@ -191,6 +191,107 @@ flowchart LR
 
 ---
 
+## ❓ 常见问题
+
+<details>
+<summary><strong>Echo Loop 免费吗？</strong></summary>
+
+基础功能完全免费，不限次数、不限数量：
+
+- **无限导入素材**：本地文件、链接、百度网盘、播客订阅都能导入，数量不限
+- **无限收藏**：难句、单词、意群随便收藏，没有上限
+- **完整学习闭环**：精听、跟读、盲听、复述，加上 7 轮间隔复习和到点提醒
+- **难句专项复习 + 语境化闪卡**
+- **跟读评测**：用设备自带的语音识别，不计次数
+- **本地离线转录字幕**：下载模型后在本机生成字幕，不用登录
+- **离线词典、学习数据统计、导出 PDF 笔记、备份与恢复**
+
+AI 讲解类功能每月有一份免费额度，大多数用户日常学习够用。只有 AI 用得很多的用户，才需要在 App 内升级会员。
+
+</details>
+
+<details>
+<summary><strong>哪些功能会消耗 AI 额度？</strong></summary>
+
+只有「AI 讲解」类功能会消耗额度：AI 翻译、句子解析、意群拆分、词汇解析、AI 学习助手、复述评估和云端字幕转录。上面列的免费功能都不消耗额度。
+
+</details>
+
+<details>
+<summary><strong>免费额度用完了怎么办？</strong></summary>
+
+学习不受影响，照常练。AI 功能等下个月额度重置后就能继续用；等不及的话，可以在 App 内升级会员。
+
+</details>
+
+<details>
+<summary><strong>开源项目为什么还有付费？</strong></summary>
+
+代码完全开源（AGPL-3.0）。AI 功能每调用一次，都要向大模型服务商付费，会员收入用来支付这部分开销，让项目能持续维护下去。
+
+</details>
+
+<details>
+<summary><strong>支持哪些平台？</strong></summary>
+
+目前主力是 **iOS 和 Android**，在 App Store、Google Play 下载，或者在 [Releases](https://github.com/echo-loop/Echo-Loop/releases) 下载 Android APK。macOS 和 Windows 的桌面版正在开发中，以后会正式发布。
+
+想现在就在电脑上用，可以这样装：
+
+- **Mac（M 系列芯片）**：打开 Mac App Store 搜索 Echo Loop，直接安装 iOS 版
+- **Windows**：先安装腾讯应用宝，再在应用宝里安装 Echo Loop 的 Android APK
+
+</details>
+
+<details>
+<summary><strong>和其他英语 App 有什么不同？</strong></summary>
+
+其他 App 主要提供材料和工具，怎么练要靠你自己安排。Echo Loop 管的是「怎么练」：精听、跟读、盲听、复述、间隔复习串成一个流程，每一步都由 App 告诉你接下来做什么，你不用自己定计划、数遍数、记复习时间。详细对比见上方「🆚 和其他方案的差异」。
+
+</details>
+
+<details>
+<summary><strong>支持哪些学习材料？</strong></summary>
+
+- **音频**：mp3、m4a、wav、aac、flac
+- **视频**：mp4、mov、m4v、mkv（可隐藏画面当音频练）
+- **字幕**：srt、vtt、lrc，与音频同名会自动配对；没有字幕可以用 AI 转录生成
+- **来源**：本地文件、音频直链、百度网盘、播客订阅
+
+播客、TED、美剧片段、教材音频都可以，建议选**你感兴趣、难度略高于当前水平**的内容。
+
+</details>
+
+<details>
+<summary><strong>需要什么英语基础？</strong></summary>
+
+能借助字幕看懂材料大意就可以开始。遇到听不懂的句子，可以用意群拆分、AI 翻译和句子解析拆开理解。基础薄弱的话，先从慢速、短篇的材料练起。
+
+</details>
+
+<details>
+<summary><strong>多久能看到效果？</strong></summary>
+
+一段素材练完首次学习，你就能听懂这段内容，并用自己的话复述出来。之后的 7 轮间隔复习会持续大约 8 周，把它变成长期记忆。整体听说能力的提升靠积累，建议每天练 20～30 分钟，同时学 2～3 段素材，坚持几周会明显感到听得更轻松、说得更顺。
+
+</details>
+
+<details>
+<summary><strong>没有网络能用吗？</strong></summary>
+
+可以。学习流程、复习、收藏、跟读评测、本地转录都能离线使用，只有云端 AI 功能需要联网。
+
+</details>
+
+<details>
+<summary><strong>学习数据存在哪里？换手机怎么办？</strong></summary>
+
+学习数据默认存在本机。换手机或重装前，在「设置 → 备份与恢复」导出备份，到新设备上恢复即可。
+
+</details>
+
+---
+
 ## 💬 加入社群
 
 和其他认真练英语的伙伴一起：交流学习方法、分享学习资源、反馈使用体验、第一时间收到新功能更新。

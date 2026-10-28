@@ -168,6 +168,107 @@ Each piece of material is split into 1 first-pass session + 7 spaced reviews. In
 
 ---
 
+## ❓ FAQ
+
+<details>
+<summary><strong>Is Echo Loop free?</strong></summary>
+
+All core features are free, with no usage caps and no item limits:
+
+- **Unlimited imports**: local files, links, Baidu Netdisk and podcast subscriptions
+- **Unlimited favorites**: save as many hard sentences, words and sense groups as you like
+- **The full learning loop**: intensive listening, shadowing, blind listening and retelling, plus 7 rounds of spaced review with reminders
+- **Focused review of hard sentences + in-context flashcards**
+- **Shadowing evaluation**: runs on your device's built-in speech recognition, with no usage count
+- **Offline transcription**: download a model and generate subtitles on your device, no sign-in needed
+- **Offline dictionary, learning statistics, PDF note export, backup & restore**
+
+AI explanation features come with a free monthly quota, which covers everyday study for most people. Only heavy AI users need to upgrade to a membership in the app.
+
+</details>
+
+<details>
+<summary><strong>Which features use the AI quota?</strong></summary>
+
+Only the AI explanation features: AI translation, sentence analysis, sense-group splitting, word analysis, the AI study assistant, retelling evaluation and cloud transcription. None of the free features listed above use the quota.
+
+</details>
+
+<details>
+<summary><strong>What happens when the free quota runs out?</strong></summary>
+
+You can keep studying as usual. AI features come back when the quota resets next month, or you can upgrade to a membership in the app if you don't want to wait.
+
+</details>
+
+<details>
+<summary><strong>Why does an open-source project charge anything?</strong></summary>
+
+The code is fully open source (AGPL-3.0). Every AI request costs us money paid to the model provider, and memberships cover that cost so the project can keep going.
+
+</details>
+
+<details>
+<summary><strong>Which platforms are supported?</strong></summary>
+
+Right now the focus is **iOS and Android**: get it from the App Store or Google Play, or download the Android APK from [Releases](https://github.com/echo-loop/Echo-Loop/releases). Native macOS and Windows versions are in development and will be released later.
+
+To use it on a computer today:
+
+- **Mac (Apple silicon)**: search for Echo Loop in the Mac App Store and install the iOS version directly
+- **Windows**: install Tencent's YingYongBao (应用宝) app store, then install the Echo Loop Android APK inside it
+
+</details>
+
+<details>
+<summary><strong>How is it different from other English apps?</strong></summary>
+
+Other apps mostly give you materials and tools and leave it to you to work out how to practice. Echo Loop handles the *how*: intensive listening, shadowing, blind listening, retelling and spaced review run as a single flow, and the app tells you what to do at every step. You don't need to make a plan, count repetitions or track review dates. See "🆚 How it differs from other solutions" above for a detailed comparison.
+
+</details>
+
+<details>
+<summary><strong>What materials are supported?</strong></summary>
+
+- **Audio**: mp3, m4a, wav, aac, flac
+- **Video**: mp4, mov, m4v, mkv (you can hide the picture and practice with audio only)
+- **Subtitles**: srt, vtt, lrc; subtitle files with the same name as the audio are paired automatically. No subtitles? Generate them with AI transcription
+- **Sources**: local files, direct audio links, Baidu Netdisk, podcast subscriptions
+
+Podcasts, TED talks, TV clips and textbook audio all work. For best results, pick content **you're interested in and that's slightly above your current level**.
+
+</details>
+
+<details>
+<summary><strong>What English level do I need?</strong></summary>
+
+If you can follow the gist of a material with subtitles, you're ready. When a sentence is hard to follow, break it down with sense-group splitting, AI translation and sentence analysis. If you're still building your basics, start with short, slow-paced materials.
+
+</details>
+
+<details>
+<summary><strong>How soon will I see results?</strong></summary>
+
+After the first study session on a material, you'll understand it and be able to retell it in your own words. The 7 rounds of spaced review that follow take about 8 weeks and lock it into long-term memory. Overall listening and speaking skills build up over time: practice 20–30 minutes a day with 2–3 materials at once, and within a few weeks listening should feel easier and speaking more fluent.
+
+</details>
+
+<details>
+<summary><strong>Can I use it offline?</strong></summary>
+
+Yes. The learning flow, reviews, favorites, shadowing evaluation and local transcription all work offline. Only cloud AI features need a connection.
+
+</details>
+
+<details>
+<summary><strong>Where is my data stored? What if I switch phones?</strong></summary>
+
+Your learning data is stored on your device. Before switching phones or reinstalling, export a backup from **Settings → Backup & Restore**, then restore it on the new device.
+
+</details>
+
+---
+
 ## 💬 Join the community
 
 Practice English alongside other committed learners: share methods, give feedback, and be the first to hear about new features.
