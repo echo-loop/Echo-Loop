@@ -18,6 +18,7 @@ import '../../l10n/app_localizations.dart';
 import '../../models/retell_settings.dart';
 import '../../models/sentence.dart';
 import '../../models/word_highlight_binding.dart';
+import '../../providers/reading_text_prefs_provider.dart';
 import '../../providers/saved_word_provider.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/keyword_extraction.dart';
@@ -107,15 +108,24 @@ class MaskedSentenceTile extends ConsumerWidget {
       sentence.text,
       ref.watch(savedTextIndexProvider),
     );
+    // 字幕正文样式：主题正文 + 用户的学习内容字号/字体偏好（每句只算一次）
+    final textStyle = ref
+        .watch(readingTextPrefsNotifierProvider)
+        .applyTo(theme.textTheme.bodyMedium ?? const TextStyle());
     final words = tokenize(sentence.text);
     final binding = wordHighlightBinding;
     final Widget sentenceText = binding == null
-        ? _buildMaskedText(theme, words, savedSegments, null)
+        ? _buildMaskedText(theme, textStyle, words, savedSegments, null)
         : WordHighlightBuilder(
             text: sentence.text,
             binding: binding,
-            builder: (context, activeWordIndex) =>
-                _buildMaskedText(theme, words, savedSegments, activeWordIndex),
+            builder: (context, activeWordIndex) => _buildMaskedText(
+              theme,
+              textStyle,
+              words,
+              savedSegments,
+              activeWordIndex,
+            ),
           );
 
     return AnimatedContainer(
@@ -183,6 +193,7 @@ class MaskedSentenceTile extends ConsumerWidget {
   /// 构建遮盖文本
   Widget _buildMaskedText(
     ThemeData theme,
+    TextStyle textStyle,
     List<String> words,
     Map<int, List<(int, int, bool)>> savedSegments,
     int? activeWordIndex,
@@ -205,6 +216,7 @@ class MaskedSentenceTile extends ConsumerWidget {
         words,
         shouldMask,
         theme,
+        textStyle,
         savedSegments,
         activeWordIndex,
       ),
@@ -219,6 +231,7 @@ class MaskedSentenceTile extends ConsumerWidget {
     List<String> words,
     bool Function(int index) shouldMask,
     ThemeData theme,
+    TextStyle textStyle,
     Map<int, List<(int, int, bool)>> savedSegments,
     int? activeWordIndex,
   ) {
@@ -236,6 +249,7 @@ class MaskedSentenceTile extends ConsumerWidget {
               i < words.length - 1 && shouldMask(i) && shouldMask(i + 1),
           savedSegments: savedSegments[i],
           theme: theme,
+          textStyle: textStyle,
         ),
       );
       if (isWord) playbackWordIndex++;
@@ -420,11 +434,15 @@ class _WordBlock extends StatelessWidget {
 
   final ThemeData theme;
 
+  /// 正文样式（已叠加学习内容字号/字体偏好）；遮盖词仅改颜色，尺寸不变。
+  final TextStyle textStyle;
+
   const _WordBlock({
     required this.text,
     required this.isMasked,
     required this.isActiveWord,
     required this.theme,
+    required this.textStyle,
     this.isPrevMasked = false,
     this.isNextMasked = false,
     this.savedSegments,
@@ -446,9 +464,7 @@ class _WordBlock extends StatelessWidget {
             )
           : isActiveWord
           ? BoxDecoration(
-              color: AppTheme.wordHighlightBackgroundColor(
-                theme.colorScheme,
-              ),
+              color: AppTheme.wordHighlightBackgroundColor(theme.colorScheme),
               borderRadius: BorderRadius.circular(3),
             )
           : null,
@@ -479,7 +495,7 @@ class _WordBlock extends StatelessWidget {
   ///
   /// 下划线必须显式设 decorationColor（默认会跟随文字色）。
   Widget _buildText() {
-    final baseStyle = theme.textTheme.bodyMedium?.copyWith(
+    final baseStyle = textStyle.copyWith(
       color: isMasked ? Colors.transparent : null,
     );
     final segments = savedSegments;

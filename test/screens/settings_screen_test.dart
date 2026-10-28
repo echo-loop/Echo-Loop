@@ -439,6 +439,8 @@ void main() {
           createTestScreen(const SettingsScreen(), overrides: buildOverrides()),
         );
         await tester.pumpAndSettle();
+        await tester.scrollUntilVisible(find.text('Open Source Project'), 200);
+        await tester.pumpAndSettle();
 
         expect(find.text('About'), findsOneWidget);
         expect(find.text('Terms of Service'), findsOneWidget);
@@ -464,6 +466,7 @@ void main() {
             ),
           );
           await tester.pumpAndSettle();
+          await tester.scrollUntilVisible(find.text('Rate Us'), 200);
 
           expect(find.text('Rate Us'), findsOneWidget);
         } finally {

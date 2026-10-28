@@ -202,6 +202,9 @@ flutter:
     - assets/icon/play-pause.svg
     - assets/icon/speak.svg
     - assets/icon/speaker.svg
+    - assets/icon/text-decrease.svg
+    - assets/icon/text-increase.svg
+    - assets/icon/text-size.svg
     - assets/icon/trash-bin.svg
     - assets/icon/unlock.svg
     # 视频条目左侧媒体图标（资源库卡片区分音/视频）

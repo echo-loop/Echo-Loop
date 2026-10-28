@@ -519,6 +519,21 @@ class AppLocalizationsEn extends AppLocalizations {
   String get appearance => 'Appearance';
 
   @override
+  String get readingTextSettings => 'Text Size';
+
+  @override
+  String get readingTextPreview => 'Preview';
+
+  @override
+  String get readingFontSize => 'Text size';
+
+  @override
+  String get readingFontSizeDecrease => 'Smaller text';
+
+  @override
+  String get readingFontSizeIncrease => 'Larger text';
+
+  @override
   String get themeMode => 'Theme';
 
   @override

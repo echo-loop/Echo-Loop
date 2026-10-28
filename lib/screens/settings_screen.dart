@@ -61,6 +61,7 @@ import 'tts_settings_screen.dart';
 import 'learning_settings_screen.dart';
 import 'log_viewer_screen.dart';
 import 'playback_settings_screen.dart';
+import 'reading_text_settings_screen.dart';
 import 'preferences_viewer_screen.dart';
 import 'storage_browser_screen.dart';
 import 'reminder_settings_screen.dart';
@@ -111,6 +112,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 settings,
                 settingsController,
               ),
+              _buildReadingTextTile(context, l10n),
             ],
           ),
           const SizedBox(height: AppSpacing.m),
@@ -1299,6 +1301,20 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         ],
       ),
       onTap: () => _showThemeModeDialog(context, l10n, settings, controller),
+    );
+  }
+
+  /// 学习内容「文字大小与字体」入口。
+  Widget _buildReadingTextTile(BuildContext context, AppLocalizations l10n) {
+    return ListTile(
+      leading: _settingsThemedSvgIcon(context, 'assets/icon/text-size.svg'),
+      title: Text(l10n.readingTextSettings),
+      trailing: const Icon(Icons.chevron_right),
+      onTap: () => Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => const ReadingTextSettingsScreen(),
+        ),
+      ),
     );
   }
 

@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:echo_loop/features/onboarding_survey/providers/onboarding_survey_provider.dart'
+    show sharedPreferencesProvider;
 import 'package:echo_loop/models/retell_settings.dart';
 import 'package:echo_loop/models/sentence.dart';
 import 'package:echo_loop/providers/saved_word_provider.dart';
@@ -404,6 +407,52 @@ void main() {
 
       expect(underlinedSubstrings(tester, 'love'), ['love']);
       expect(tester.widget<Text>(find.text('you')).textSpan, isNull);
+    });
+  });
+
+  group('MaskedSentenceTile 学习内容字号', () {
+    Future<void> pumpWithPrefs(
+      WidgetTester tester,
+      Map<String, Object> stored,
+    ) async {
+      SharedPreferences.setMockInitialValues(stored);
+      final prefs = await SharedPreferences.getInstance();
+      await tester.pumpWidget(
+        createTestApp(
+          MaskedSentenceTile(
+            sentence: _sentence('I love you'),
+            displayMode: RetellDisplayMode.keywordsOnly,
+            keywordIndices: const {1},
+            isPlayingSentence: false,
+          ),
+          overrides: [sharedPreferencesProvider.overrideWithValue(prefs)],
+        ),
+      );
+      await tester.pumpAndSettle();
+    }
+
+    TextStyle? styleOf(WidgetTester tester, String word) =>
+        tester.widget<Text>(find.text(word)).style;
+
+    testWidgets('按用户字号渲染，可见词与遮盖词一致（布局不跳动）', (tester) async {
+      await pumpWithPrefs(tester, {'reading_font_scale': 1.5});
+
+      final base = Theme.of(
+        tester.element(find.byType(MaskedSentenceTile)),
+      ).textTheme.bodyMedium;
+      final visible = styleOf(tester, 'love');
+      expect(visible?.fontSize, (base?.fontSize ?? 14) * 1.5);
+      // 遮盖词只改颜色，尺寸必须和可见词相同
+      expect(styleOf(tester, 'you')?.fontSize, visible?.fontSize);
+    });
+
+    testWidgets('默认偏好保持主题正文样式', (tester) async {
+      await pumpWithPrefs(tester, {});
+
+      final base = Theme.of(
+        tester.element(find.byType(MaskedSentenceTile)),
+      ).textTheme.bodyMedium;
+      expect(styleOf(tester, 'love')?.fontSize, base?.fontSize);
     });
   });
 }

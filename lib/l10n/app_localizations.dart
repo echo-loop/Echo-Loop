@@ -998,6 +998,36 @@ abstract class AppLocalizations {
   /// **'Appearance'**
   String get appearance;
 
+  /// Settings entry and page title for learning-content text size
+  ///
+  /// In en, this message translates to:
+  /// **'Text Size'**
+  String get readingTextSettings;
+
+  /// No description provided for @readingTextPreview.
+  ///
+  /// In en, this message translates to:
+  /// **'Preview'**
+  String get readingTextPreview;
+
+  /// No description provided for @readingFontSize.
+  ///
+  /// In en, this message translates to:
+  /// **'Text size'**
+  String get readingFontSize;
+
+  /// No description provided for @readingFontSizeDecrease.
+  ///
+  /// In en, this message translates to:
+  /// **'Smaller text'**
+  String get readingFontSizeDecrease;
+
+  /// No description provided for @readingFontSizeIncrease.
+  ///
+  /// In en, this message translates to:
+  /// **'Larger text'**
+  String get readingFontSizeIncrease;
+
   /// No description provided for @themeMode.
   ///
   /// In en, this message translates to:
