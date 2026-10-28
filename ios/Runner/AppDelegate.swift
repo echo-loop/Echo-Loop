@@ -45,6 +45,8 @@ private final class IOSSpeechPracticeHandler: NSObject, FlutterStreamHandler {
   private var hasDetectedSpeech = false
   private var silenceStartAt: Date?
   private var lastReportedSilenceMs = -1
+  /// 有声判定门槛，按环境底噪自适应（替代旧固定门槛 0.015）。
+  private let vadThreshold = AdaptiveVadThreshold()
   private var recordedDurationMs = 0.0
   private var firstDetectedSpeechMs: Double?
   private var lastDetectedSpeechMs: Double?
@@ -429,7 +431,10 @@ private final class IOSSpeechPracticeHandler: NSObject, FlutterStreamHandler {
     if let fileURL = currentFileURL {
       trimRecordingIfNeeded(fileURL: fileURL)
     }
-    result(["filePath": currentFileURL?.path as Any])
+    result([
+      "filePath": currentFileURL?.path as Any,
+      "diagnostics": vadThreshold.describe(),
+    ])
 
     // 纯录音模式（无 ASR）：手动发空 finalTranscriptReady，与 Android 行为对齐。
     if !recognitionEnabled, let promptId = currentPromptId {
@@ -574,36 +579,9 @@ private final class IOSSpeechPracticeHandler: NSObject, FlutterStreamHandler {
     }
   }
 
+  /// 有声判定：buffer 原始 RMS 与自适应门槛比较（见 `AdaptiveVadThreshold`）。
   private func isSpeechDetected(in buffer: AVAudioPCMBuffer) -> Bool {
-    let threshold: Float = 0.015
-
-    if let channelData = buffer.floatChannelData {
-      let frameLength = Int(buffer.frameLength)
-      guard frameLength > 0 else { return false }
-      var sum: Float = 0
-      let channel = channelData[0]
-      for frame in 0..<frameLength {
-        let sample = channel[frame]
-        sum += sample * sample
-      }
-      let rms = sqrt(sum / Float(frameLength))
-      return rms >= threshold
-    }
-
-    if let channelData = buffer.int16ChannelData {
-      let frameLength = Int(buffer.frameLength)
-      guard frameLength > 0 else { return false }
-      var sum: Float = 0
-      let channel = channelData[0]
-      for frame in 0..<frameLength {
-        let normalized = Float(channel[frame]) / Float(Int16.max)
-        sum += normalized * normalized
-      }
-      let rms = sqrt(sum / Float(frameLength))
-      return rms >= threshold
-    }
-
-    return false
+    vadThreshold.isVoiced(rms: rmsLevel(of: buffer))
   }
 
   private func trimRecordingIfNeeded(fileURL: URL) {
@@ -787,6 +765,7 @@ private final class IOSSpeechPracticeHandler: NSObject, FlutterStreamHandler {
     recordedDurationMs = 0
     firstDetectedSpeechMs = nil
     lastDetectedSpeechMs = nil
+    vadThreshold.reset()
   }
 
   /// 引擎级清理：removeTap + engine.stop + 释放全部引擎资源 + 恢复 playback session。
@@ -813,6 +792,7 @@ private final class IOSSpeechPracticeHandler: NSObject, FlutterStreamHandler {
     recordedDurationMs = 0
     firstDetectedSpeechMs = nil
     lastDetectedSpeechMs = nil
+    vadThreshold.reset()
     self.audioFile = audioFile
     recognitionRequest = request
   }

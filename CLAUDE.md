@@ -437,3 +437,9 @@ flutter test integration_test -d macos
   三份 arb 逐 key diff，`HEAD == ece1a4da^ 且 ece1a4da 改过` 即判定为被静默回退，按 `ece1a4da`
   的值恢复；同一方法可扩展到检测任意「长分支落地覆盖主干独立改动」的问题，不限于 l10n。
 - **完成时间**：2026-08-06
+
+### 7.30 跟读实时 VAD：固定 RMS 门槛把小声用户判成静音 → 说话中途被自动结束录音
+
+- 根因：Android `AndroidSpeechPracticeHandler` 与 iOS/macOS `AppDelegate.swift` 都用固定门槛 0.015（**增益前** RMS；写入 WAV 时才 ×2.2，离线 ASR 日志里的 rms² 是增益后的值，换算时别搞混）。Android 离线 ASR 录音中无实时转写，自动停止只靠声学静音兜底，判错即截断。
+- 规则：门槛按底噪自适应（`AdaptiveVadThreshold`，Kotlin + Swift 三端同源，改参数必须三端同步），**必须有上限（= 旧门槛）和下限**；底噪只统计判为静音的 buffer。排查时对比 `[RecordingDiag]` 的 `vadThreshold/vadNoiseFloor/vadVoicedBuffers` 与 `[ASREngine] VAD: x → y` 是否矛盾。
+- 相关：跟读引擎的 `referenceDuration`/`maxDuration` 必须按播放倍速换算（`RepeatFlowConfig.playbackSpeed`），否则慢速播放时动态兜底降到 1s。

@@ -56,13 +56,15 @@ class AndroidSpeechPracticeHandler(
     private var firstDetectedSpeechMs: Double? = null
     private var lastDetectedSpeechMs: Double? = null
 
+    /** 有声判定门槛，按环境底噪自适应（替代旧固定门槛 0.015）。 */
+    private val vadThreshold = AdaptiveVadThreshold()
+
     // 权限请求回调
     private var pendingPermissionResult: MethodChannel.Result? = null
 
     companion object {
         private const val TAG = "SpeechPractice"
         private const val PERMISSION_REQUEST_CODE = 9001
-        private const val RMS_THRESHOLD = 0.015f
     }
 
     init {
@@ -259,6 +261,7 @@ class AndroidSpeechPracticeHandler(
         val wavAfterTrim = filePath?.let(wavRecorder::wavFileMetrics)
         val diagnostics = buildString {
             append(wavRecorder.captureDiagnostics())
+            append(" ${vadThreshold.describe()}")
             append(" wavBeforeTrim=$wavBeforeTrim")
             append(" wavAfterTrim=$wavAfterTrim")
         }
@@ -315,7 +318,7 @@ class AndroidSpeechPracticeHandler(
         val bufferStartMs = recordedDurationMs
         val bufferEndMs = bufferStartMs + bufferDurationMs
 
-        if (rms >= RMS_THRESHOLD) {
+        if (vadThreshold.isVoiced(rms)) {
             if (!hasDetectedSpeech) {
                 hasDetectedSpeech = true
                 emitEvent(mapOf("type" to "speechStarted", "promptId" to promptId))
@@ -367,6 +370,7 @@ class AndroidSpeechPracticeHandler(
         recordedDurationMs = 0.0
         firstDetectedSpeechMs = null
         lastDetectedSpeechMs = null
+        vadThreshold.reset()
     }
 
     private fun cleanupSentenceState() {
@@ -381,6 +385,7 @@ class AndroidSpeechPracticeHandler(
         recordedDurationMs = 0.0
         firstDetectedSpeechMs = null
         lastDetectedSpeechMs = null
+        vadThreshold.reset()
     }
 
     private fun emitEvent(event: Map<String, Any>) {
