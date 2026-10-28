@@ -30,6 +30,7 @@ void main() {
     expect(calls, ['https://china.example']);
     expect(result.isChinaUser, isFalse);
     expect(result.source, UserRegionDecisionSource.remoteConfig);
+    expect(result.configFetched, isTrue);
     expect(result.remoteConfig.context.countryCode, 'US');
   });
 
@@ -95,6 +96,7 @@ void main() {
     expect(calls, ['https://china.example', 'https://global.example']);
     expect(result.isChinaUser, isTrue);
     expect(result.source, UserRegionDecisionSource.systemFallback);
+    expect(result.configFetched, isFalse);
     expect(result.remoteConfig, cachedConfig);
   });
 
@@ -113,6 +115,53 @@ void main() {
     expect(result.isChinaUser, isFalse);
     expect(result.source, UserRegionDecisionSource.systemFallback);
     expect(result.remoteConfig.context.countryCode, 'unknown');
+  });
+
+  test('开发者强制中国区时只访问中国地址，并忽略 Config 国家码', () async {
+    final calls = <String>[];
+    final bootstrapper = UserRegionBootstrapper(
+      endpoints: endpoints,
+      fetchRemoteConfig: (baseUrl, _) async {
+        calls.add(baseUrl);
+        return _config('US');
+      },
+    );
+
+    final result = await bootstrapper.resolve(
+      systemIsChinaUser: false,
+      cachedConfig: RemoteConfig.defaults,
+      forcedRegion: ServiceEndpointRegion.china,
+    );
+
+    expect(calls, ['https://china.example']);
+    expect(result.isChinaUser, isTrue);
+    expect(result.source, UserRegionDecisionSource.developerOverride);
+    expect(result.configFetched, isTrue);
+    expect(result.remoteConfig.context.countryCode, 'US');
+  });
+
+  test('开发者强制全球区时 Config 拉取失败仍保持全球区并使用缓存', () async {
+    final calls = <String>[];
+    final bootstrapper = UserRegionBootstrapper(
+      endpoints: endpoints,
+      fetchRemoteConfig: (baseUrl, _) async {
+        calls.add(baseUrl);
+        throw StateError('unavailable');
+      },
+    );
+
+    final cachedConfig = _config('CN');
+    final result = await bootstrapper.resolve(
+      systemIsChinaUser: true,
+      cachedConfig: cachedConfig,
+      forcedRegion: ServiceEndpointRegion.global,
+    );
+
+    expect(calls, ['https://global.example']);
+    expect(result.isChinaUser, isFalse);
+    expect(result.source, UserRegionDecisionSource.developerOverride);
+    expect(result.configFetched, isFalse);
+    expect(result.remoteConfig, cachedConfig);
   });
 }
 

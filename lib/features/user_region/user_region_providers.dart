@@ -12,6 +12,7 @@ import '../../services/app_logger.dart';
 import '../../services/runtime_endpoint_router.dart';
 import 'user_region.dart';
 import 'user_region_bootstrapper.dart';
+import 'user_region_override.dart';
 
 /// 系统 Region 读取 seam；测试可注入固定国家码。
 final userRegionDeviceCountryCodeProvider = Provider<String? Function()>(
@@ -55,10 +56,12 @@ final userRegionBootstrapProvider = FutureProvider<UserRegionBootstrapResult>((
   try {
     final remoteConfigService = ref.read(remoteConfigServiceProvider);
     cachedConfig = remoteConfigService.loadInitialFromCache();
+    final override = await _readOverride(ref);
     final bootstrapper = ref.read(userRegionBootstrapperProvider);
     result = await bootstrapper.resolve(
       systemIsChinaUser: systemIsChinaUser,
       cachedConfig: cachedConfig,
+      forcedRegion: override.forcedRegion,
     );
   } catch (error, stackTrace) {
     AppLogger.log('UserRegion', 'bootstrap failed: $error');
@@ -84,6 +87,16 @@ final isChinaUserProvider = Provider<bool>((ref) {
   return result?.isChinaUser ??
       _readSystemRegionIsChina(ref.watch(userRegionDeviceCountryCodeProvider));
 });
+
+/// 读取开发者地区覆盖；读取失败时按自动判定处理，不阻断启动。
+Future<UserRegionOverride> _readOverride(Ref ref) async {
+  try {
+    return await ref.read(userRegionOverrideStoreProvider).load();
+  } catch (error) {
+    AppLogger.log('UserRegion', 'developer override read failed: $error');
+    return UserRegionOverride.auto;
+  }
+}
 
 bool _readSystemRegionIsChina(String? Function() readCountryCode) {
   try {

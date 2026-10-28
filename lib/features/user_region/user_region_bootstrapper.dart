@@ -6,7 +6,11 @@ import '../../services/app_logger.dart';
 import '../remote_config/remote_config.dart';
 
 /// 地区解析的来源，供启动诊断与 UI 状态共享。
-enum UserRegionDecisionSource { remoteConfig, systemFallback }
+enum UserRegionDecisionSource {
+  remoteConfig,
+  systemFallback,
+  developerOverride,
+}
 
 /// 本进程启动时采用的地区及对应远程配置。
 class UserRegionBootstrapResult {
@@ -14,11 +18,19 @@ class UserRegionBootstrapResult {
     required this.isChinaUser,
     required this.source,
     required this.remoteConfig,
-  });
+    bool? configFetched,
+  }) : _configFetched = configFetched;
 
   final bool isChinaUser;
   final UserRegionDecisionSource source;
   final RemoteConfig remoteConfig;
+  final bool? _configFetched;
+
+  /// 启动期是否已拿到本次网络返回的 Config；为 true 时首轮定时刷新可跳过请求。
+  ///
+  /// 未显式指定时，仅 [UserRegionDecisionSource.remoteConfig] 视为已拿到。
+  bool get configFetched =>
+      _configFetched ?? source == UserRegionDecisionSource.remoteConfig;
 }
 
 /// 远程配置候选地址读取接口，便于用确定性结果测试启动编排。
@@ -41,10 +53,17 @@ class UserRegionBootstrapper {
   final Duration requestTimeout;
 
   /// 先访问系统 Region 对应地址，再访问另一区域；无有效结果时保留系统判断。
+  ///
+  /// [forcedRegion] 非空时（开发者选项手动指定）只访问该区域并固定使用它，
+  /// 忽略系统 Region 与 Config 返回的国家码。
   Future<UserRegionBootstrapResult> resolve({
     required bool systemIsChinaUser,
     required RemoteConfig cachedConfig,
+    ServiceEndpointRegion? forcedRegion,
   }) async {
+    if (forcedRegion != null) {
+      return _resolveForced(forcedRegion, cachedConfig);
+    }
     final preferredRegion = systemIsChinaUser
         ? ServiceEndpointRegion.china
         : ServiceEndpointRegion.global;
@@ -118,6 +137,44 @@ class UserRegionBootstrapper {
       isChinaUser: systemIsChinaUser,
       source: UserRegionDecisionSource.systemFallback,
       remoteConfig: latestValidConfig ?? cachedConfig,
+    );
+  }
+
+  /// 开发者强制地区：只拉该区域的 Config，失败时用缓存，地区保持不变。
+  Future<UserRegionBootstrapResult> _resolveForced(
+    ServiceEndpointRegion region,
+    RemoteConfig cachedConfig,
+  ) async {
+    final isChinaUser = region == ServiceEndpointRegion.china;
+    var config = cachedConfig;
+    var fetched = false;
+    final baseUrl = _endpoints.apiBaseUrlFor(region);
+    if (baseUrl == null) {
+      AppLogger.log(
+        'UserRegion',
+        'developer override region=${region.name} endpoint unconfigured',
+      );
+    } else {
+      try {
+        config = await _fetchRemoteConfig(baseUrl, requestTimeout);
+        fetched = true;
+      } catch (error) {
+        AppLogger.log(
+          'UserRegion',
+          'developer override config failed errorType=${error.runtimeType}',
+        );
+      }
+    }
+    AppLogger.log(
+      'UserRegion',
+      'developer override decision region=${region.name} '
+          'china=$isChinaUser configFetched=$fetched',
+    );
+    return UserRegionBootstrapResult(
+      isChinaUser: isChinaUser,
+      source: UserRegionDecisionSource.developerOverride,
+      remoteConfig: config,
+      configFetched: fetched,
     );
   }
 

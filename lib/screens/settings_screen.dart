@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
@@ -33,7 +34,9 @@ import '../analytics/models/event_names.dart';
 import '../config/app_store_config.dart';
 import '../features/auth/providers/auth_providers.dart';
 import '../features/auth/screens/account_screen.dart';
+import '../features/user_region/user_region_override.dart';
 import '../features/user_region/user_region_providers.dart';
+import '../features/user_region/widgets/user_region_override_tile.dart';
 import '../features/subscription/providers/subscription_availability.dart';
 import '../features/subscription/providers/subscription_controller.dart';
 import '../services/app_update_launcher.dart';
@@ -810,9 +813,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           onChanged: (value) {
             if (!value) {
               ref.read(showDeveloperOptionsProvider.notifier).setEnabled(false);
+              // 关闭开发者选项后入口不可见，恢复自动地区，避免强制地区残留。
+              unawaited(
+                ref
+                    .read(userRegionOverrideStoreProvider)
+                    .save(UserRegionOverride.auto),
+              );
             }
           },
         ),
+        UserRegionOverrideTile(leading: _emojiIcon('🌏')),
         ListTile(
           leading: _emojiIcon('🔧'),
           title: Text(l10n.timeMachine),

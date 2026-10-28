@@ -21,7 +21,6 @@ import '../services/runtime_endpoint_router.dart';
 import '../database/providers.dart';
 import '../features/podcast/podcast_refresh_controller.dart';
 import '../features/remote_config/remote_config_providers.dart';
-import '../features/user_region/user_region_bootstrapper.dart';
 import '../features/user_region/user_region_providers.dart';
 import '../providers/app_update_provider.dart';
 import '../providers/audio_library_provider.dart';
@@ -248,8 +247,7 @@ class _MainShellState extends ConsumerState<MainShell> with RouteAware {
           .read(notificationPermissionServiceProvider)
           .syncSystemAuthorizationStatus();
       final regionResult = ref.read(userRegionBootstrapProvider).valueOrNull;
-      final startupConfigResolved =
-          regionResult?.source == UserRegionDecisionSource.remoteConfig;
+      final startupConfigResolved = regionResult?.configFetched ?? false;
       _remoteConfigController.startPeriodicRefresh(
         forceFirst: !startupConfigResolved,
         skipInitialRequest: startupConfigResolved,
