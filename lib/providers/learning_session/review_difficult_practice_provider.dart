@@ -954,6 +954,7 @@ class ReviewDifficultPractice extends _$ReviewDifficultPractice {
       config: RepeatFlowConfig(
         audioItemId: session.audioItemId ?? '',
         promptIdPrefix: 'rdp',
+        playbackSpeed: () => state.settings.playbackSpeed,
         getRepeatCount: (_) => state.targetRepeatCount,
         getIntervalDuration: (s) => listenAndRepeatPauseCalculator(s.duration),
         isManualMode: () => state.isManualMode,

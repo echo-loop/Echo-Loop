@@ -336,6 +336,8 @@ class ListenAndRepeatController extends _$ListenAndRepeatController {
     final config = RepeatFlowConfig(
       audioItemId: audioItemId,
       promptIdPrefix: 'lar',
+      playbackSpeed: () =>
+          ref.read(listenAndRepeatSettingsProvider).playbackSpeed,
       getRepeatCount: (_) =>
           ref.read(listenAndRepeatSettingsProvider).repeatCount,
       getIntervalDuration: (s) {

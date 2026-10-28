@@ -63,6 +63,12 @@ class RepeatFlowConfig {
   /// promptId 前缀（默认 'lar'，各页面可自定义）
   final String promptIdPrefix;
 
+  /// 当前播放倍速（默认 1.0）。
+  ///
+  /// 用户跟读的是按此倍速播放后的音频，录音的参考时长与最大时长都按
+  /// 「实际听到的时长」= 原句时长 ÷ 倍速 计算，避免慢速播放时提前截断录音。
+  final double Function()? playbackSpeed;
+
   const RepeatFlowConfig({
     required this.audioItemId,
     required this.getRepeatCount,
@@ -71,6 +77,7 @@ class RepeatFlowConfig {
     this.onBeforeSentenceStart,
     this.onSentencePlayed,
     this.promptIdPrefix = 'lar',
+    this.playbackSpeed,
   });
 }
 
@@ -820,21 +827,37 @@ class RepeatFlowEngine {
       'promptId=$promptId',
     );
 
+    final heardDuration = _heardDuration(sentence);
     final computed =
-        sentence.duration * kRecordingDurationMultiplier +
-        kRecordingTimeoutBase;
+        heardDuration * kRecordingDurationMultiplier + kRecordingTimeoutBase;
     final maxDuration = computed < kRecordingMinTimeout
         ? kRecordingMinTimeout
         : computed;
 
     callbacks.setMaxRecordingDuration(maxDuration);
 
-    AppLogger.log(logTag, '开始录音: $promptId');
+    AppLogger.log(
+      logTag,
+      '开始录音: $promptId referenceDuration=${heardDuration.inMilliseconds}ms '
+      '(原句${sentence.duration.inMilliseconds}ms) '
+      'maxDuration=${maxDuration.inMilliseconds}ms',
+    );
     callbacks.startRecording(
       promptId: promptId,
       referenceText: sentence.text,
       maxDuration: maxDuration,
-      referenceDuration: sentence.duration,
+      referenceDuration: heardDuration,
+    );
+  }
+
+  /// 用户实际听到的句子时长：原句时长 ÷ 播放倍速。
+  ///
+  /// 倍速未配置或非法（≤0、非有限值）时按 1.0x 处理。
+  Duration _heardDuration(Sentence sentence) {
+    final speed = _config.playbackSpeed?.call() ?? 1.0;
+    if (!speed.isFinite || speed <= 0) return sentence.duration;
+    return Duration(
+      microseconds: (sentence.duration.inMicroseconds / speed).round(),
     );
   }
 

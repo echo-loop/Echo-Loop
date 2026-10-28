@@ -496,4 +496,56 @@ void main() {
     await replay;
     expect(playCalls, 2);
   });
+
+  // 回归：0.8x 播放时用户跟读的是放慢后的音频，参考时长若仍按 1.0x 原句时长，
+  // 有声时长很快超过「原句时长」，动态静音兜底被压到 1s，把仍在说话的用户截断。
+  test('录音参考时长与最大时长按播放倍速换算为实际听到的时长', () async {
+    final recordings = <({Duration max, Duration? reference})>[];
+    final engine = RepeatFlowEngine(
+      onStateChanged: (_) {},
+      callbacks: RepeatFlowCallbacks(
+        pauseAudio: () {},
+        playSentence: (_, _) async => SentencePlaybackResult.completed,
+        startRecording:
+            ({
+              required promptId,
+              required referenceText,
+              required maxDuration,
+              referenceDuration,
+            }) {
+              recordings.add((max: maxDuration, reference: referenceDuration));
+            },
+        cancelRecording: () async {},
+        stopAndEvaluate: ({required referenceText}) async {},
+        clearRecording: () {},
+        setMaxRecordingDuration: (_) {},
+        hasDetectedSpeech: () => false,
+      ),
+    );
+    engine.prepare(
+      sentences: [
+        Sentence(
+          index: 0,
+          text: 'A slower sentence.',
+          startTime: Duration.zero,
+          endTime: const Duration(seconds: 4),
+        ),
+      ],
+      config: RepeatFlowConfig(
+        audioItemId: 'audio-1',
+        getRepeatCount: (_) => 1,
+        getIntervalDuration: (_) => Duration.zero,
+        isManualMode: () => false,
+        playbackSpeed: () => 0.8,
+      ),
+    );
+
+    await engine.startPlaying();
+
+    // 4s ÷ 0.8 = 5s；最大时长 = 5s × 2.5 + 5s = 17.5s
+    expect(recordings, hasLength(1));
+    expect(recordings.single.reference, const Duration(seconds: 5));
+    expect(recordings.single.max, const Duration(milliseconds: 17500));
+    engine.dispose();
+  });
 }
