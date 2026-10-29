@@ -198,6 +198,26 @@ class _TrackingRetellRecordingController extends TestRetellRecordingController {
   }
 }
 
+/// clearRecording 先置 idle、再等待原生清理（由 [releaseClear] 放行）。
+///
+/// 复现真实 controller 的时序：idle 先对外可见，清理完成前会跑过若干帧。
+class _SlowClearRetellRecordingController
+    extends _TrackingRetellRecordingController {
+  _SlowClearRetellRecordingController(super.initialState);
+
+  final Completer<void> _clearGate = Completer<void>();
+
+  void releaseClear() {
+    if (!_clearGate.isCompleted) _clearGate.complete();
+  }
+
+  @override
+  Future<void> clearRecording() async {
+    await super.clearRecording();
+    await _clearGate.future;
+  }
+}
+
 class _SeenGuideRegistry extends GuideRegistry {
   @override
   Future<bool> isSeen(String flowId) async => true;
@@ -731,6 +751,62 @@ void main() {
       expect(recordingController.state.phase, RetellRecordingPhase.idle);
       expect(recordingController.startCalls, 0);
       expect(find.byIcon(Icons.pause_rounded), findsOneWidget);
+    });
+
+    // 回归：评估中点主播放重听本段，录音清理期间跑过一帧时，
+    // 自动录音抢在原文播放前启动，把原音录了进去。
+    testWidgets('评估中点击主播放重听本段，清理录音期间不会自动开始录音', (tester) async {
+      final recordingController = _SlowClearRetellRecordingController(
+        const RetellRecordingState(
+          phase: RetellRecordingPhase.processing,
+          promptId: 'retell:a1:0',
+        ),
+      );
+      late _TrackingRetellPlayer player;
+
+      await tester.pumpWidget(
+        createTestWidget(
+          playerState: RetellPlayerState(
+            currentParagraphIndex: 0,
+            totalParagraphs: 1,
+            phase: RetellPhase.retelling,
+            isPlaying: false,
+            settings: const RetellSettings(
+              controlMode: ShadowingControlMode.auto,
+              keywordMethod: KeywordMethod.random,
+            ),
+          ),
+          playerFactory: (state, paragraphs, keywords) =>
+              player = _TrackingRetellPlayer(state, paragraphs, keywords),
+          extraOverrides: [
+            retellRecordingControllerProvider.overrideWith(
+              () => recordingController,
+            ),
+          ],
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      await tester.tap(find.byIcon(Icons.play_arrow_rounded));
+      // 清理尚未完成，先跑几帧，让 idle 触发的 post-frame 回调执行。
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 16));
+      await tester.pump(const Duration(milliseconds: 16));
+      recordingController.releaseClear();
+      await tester.pump();
+      await tester.pump();
+
+      expect(recordingController.startCalls, 0, reason: '重听原文期间不能开始录音');
+      expect(player.state.phase, RetellPhase.listening);
+
+      // 原文播完回到复述阶段，自动录音应恢复。
+      player.emit(
+        player.state.copyWith(phase: RetellPhase.retelling, isPlaying: false),
+      );
+      await tester.pump();
+      await tester.pump();
+      expect(recordingController.startCalls, 1);
     });
 
     testWidgets('首次评估完成先弹窗，选择保持关闭后才启动倒计时', (tester) async {

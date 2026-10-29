@@ -1247,11 +1247,18 @@ class _RetellPlayerScreenState extends ConsumerState<RetellPlayerScreen>
   }
 
   /// 重播当前段落
+  ///
+  /// clearRecording 会先把录音置为 idle 再等待原生清理，期间若跑过一帧，
+  /// idle 触发的自动录音会抢在原文播放前启动（把原音录进去）。
+  /// 因此清理期间先挡住自动录音，清理完、即将切到 listening 时再放开。
   Future<void> _handleReplay() async {
-    _manualStoppedThisParagraph = false;
+    _manualStoppedThisParagraph = true;
     AppLogger.log('RetellScreen', '重播当前段落');
     await _cancelRecordingAndPlayback();
     await ref.read(retellRecordingControllerProvider.notifier).clearRecording();
+    if (!mounted) return;
+    // replayDuringCountdown 同步切到 listening，之后残留的自动录音回调会跳过。
+    _manualStoppedThisParagraph = false;
     await ref.read(retellPlayerProvider.notifier).replayDuringCountdown();
   }
 
