@@ -630,9 +630,7 @@ void main() {
 
     test('听不懂自动收藏开启时，进入讲解页把当前句加入难句并标记为自动收藏', () async {
       container = createContainer(
-        learningSettings: const LearningSettings(
-          autoFavoriteOnCantUnderstand: true,
-        ),
+        learningSettings: const LearningSettings(autoSaveOnUnclear: true),
       );
       final notifier = container.read(intensiveListenPlayerProvider.notifier);
       await _initializeWithTestAudio(
@@ -650,9 +648,7 @@ void main() {
 
     test('听不懂自动收藏关闭时，进入讲解页不收藏当前句', () async {
       container = createContainer(
-        learningSettings: const LearningSettings(
-          autoFavoriteOnCantUnderstand: false,
-        ),
+        learningSettings: const LearningSettings(autoSaveOnUnclear: false),
       );
       final notifier = container.read(intensiveListenPlayerProvider.notifier);
       await _initializeWithTestAudio(

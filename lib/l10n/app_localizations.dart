@@ -2450,11 +2450,11 @@ abstract class AppLocalizations {
   /// **'Hide subtitles'**
   String get intensiveListenHideSubtitle;
 
-  /// No description provided for @intensiveListenCantUnderstand.
+  /// No description provided for @intensiveListenUnclear.
   ///
   /// In en, this message translates to:
   /// **'Unclear'**
-  String get intensiveListenCantUnderstand;
+  String get intensiveListenUnclear;
 
   /// No description provided for @intensiveListenAutoMarkedDifficult.
   ///
@@ -7748,17 +7748,53 @@ abstract class AppLocalizations {
   /// **'When off, your recording can still be played back, but scores aren\'t shown'**
   String get retellRatingSubtitle;
 
-  /// No description provided for @autoFavoriteOnCantUnderstandToggle.
+  /// No description provided for @autoSaveOnUnclearToggle.
   ///
   /// In en, this message translates to:
-  /// **'Auto-favorite when marked as hard to understand'**
-  String get autoFavoriteOnCantUnderstandToggle;
+  /// **'Auto-save when marked Unclear'**
+  String get autoSaveOnUnclearToggle;
 
-  /// No description provided for @autoFavoriteOnCantUnderstandSubtitle.
+  /// No description provided for @autoSaveOnUnclearSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'When on, tapping \"Hard to understand\" in intensive listening adds the sentence to favorites'**
-  String get autoFavoriteOnCantUnderstandSubtitle;
+  /// **'When on, tapping \"Unclear\" in intensive listening saves the sentence'**
+  String get autoSaveOnUnclearSubtitle;
+
+  /// No description provided for @unclearAutoSaveDialogTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto-save unclear sentences'**
+  String get unclearAutoSaveDialogTitle;
+
+  /// No description provided for @unclearAutoSaveDialogMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'When you tap \"Unclear\", the sentence is saved automatically so you can review it later.'**
+  String get unclearAutoSaveDialogMessage;
+
+  /// No description provided for @unclearAutoSaveSwitchOn.
+  ///
+  /// In en, this message translates to:
+  /// **'On'**
+  String get unclearAutoSaveSwitchOn;
+
+  /// No description provided for @unclearAutoSaveSwitchOff.
+  ///
+  /// In en, this message translates to:
+  /// **'Off'**
+  String get unclearAutoSaveSwitchOff;
+
+  /// No description provided for @unclearAutoSaveDialogHint.
+  ///
+  /// In en, this message translates to:
+  /// **'You can change this anytime in Me → Learning Settings.'**
+  String get unclearAutoSaveDialogHint;
+
+  /// No description provided for @unclearAutoSaveDialogConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Got it'**
+  String get unclearAutoSaveDialogConfirm;
 
   /// No description provided for @retellSkip.
   ///

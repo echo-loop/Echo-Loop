@@ -815,7 +815,7 @@ class _ReviewDifficultPracticeScreenState
                                           !playerState.isTextRevealed,
                                         );
                                       },
-                                      onCantUnderstand: () =>
+                                      onUnclear: () =>
                                           player.enterAnnotationMode(),
                                       onToggleMark: _handleToggleDifficult,
                                       isDifficult: sentence.isBookmarked,

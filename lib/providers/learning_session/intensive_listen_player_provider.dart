@@ -479,21 +479,21 @@ class IntensiveListenPlayer extends _$IntensiveListenPlayer {
 
     // 「听不太懂」自动收藏受学习设置控制；关闭时只进入讲解，不改收藏状态。
     // 持久化靠对比 difficultSentences 完成，因此不加入即不写库。
-    final autoFavoriteEnabled = ref
+    final autoSaveEnabled = ref
         .read(learningSettingsProvider)
-        .autoFavoriteOnCantUnderstand;
+        .autoSaveOnUnclear;
     final newDifficult = Set<int>.from(state.difficultSentences);
     final wasAlreadyDifficult = newDifficult.contains(
       state.currentSentenceIndex,
     );
-    final shouldAutoFavorite = autoFavoriteEnabled && !wasAlreadyDifficult;
-    if (shouldAutoFavorite) {
+    final shouldAutoSave = autoSaveEnabled && !wasAlreadyDifficult;
+    if (shouldAutoSave) {
       newDifficult.add(state.currentSentenceIndex);
     }
 
     state = state.copyWith(
       difficultSentences: newDifficult,
-      isCurrentSentenceAutoMarked: shouldAutoFavorite,
+      isCurrentSentenceAutoMarked: shouldAutoSave,
       isTextRevealed: false,
       playingSenseGroupIndex: null,
       playedSenseGroupIndices: const {},

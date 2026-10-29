@@ -21,6 +21,8 @@ import 'package:echo_loop/providers/learning_session/intensive_listen_player_pro
 import 'package:echo_loop/providers/intensive_annotation/intensive_annotation_phase.dart';
 import 'package:echo_loop/providers/intensive_annotation/intensive_annotation_state.dart';
 import 'package:echo_loop/providers/sentence_ai_provider.dart';
+import 'package:echo_loop/providers/learning_settings_provider.dart';
+import 'package:echo_loop/widgets/dialogs/unclear_auto_save_dialog.dart';
 import 'package:echo_loop/database/app_database.dart' show AudioItem, Bookmark;
 import 'package:echo_loop/database/daos/audio_item_dao.dart';
 import 'package:echo_loop/database/daos/bookmark_dao.dart';
@@ -213,6 +215,7 @@ void main() {
     _TestBookmarkDao? bookmarkDao,
     List<Override> extraOverrides = const [],
     bool startAtHome = false,
+    bool unclearReminderShown = true,
     MediaIntensiveListenStartup? mediaStartup,
     TestIntensiveListenPlayer Function(
       IntensiveListenState initialState,
@@ -259,7 +262,9 @@ void main() {
       overrides: [
         analyticsOverride(),
         ...studyTimeOverrides(),
-        ...learningSettingsOverrides(),
+        ...learningSettingsOverrides(
+          unclearAutoSaveReminderShown: unclearReminderShown,
+        ),
         listeningPracticeProvider.overrideWith(
           () => TestListeningPractice(
             ListeningPracticeState(sentences: sentences),
@@ -624,6 +629,61 @@ void main() {
       );
       expect(find.text('3s'), findsNothing);
       expect(find.text('Listen again to help it stick'), findsNothing);
+    });
+
+    testWidgets('首次点击听不懂先弹出自动收藏说明，确认后才进入讲解', (tester) async {
+      await tester.pumpWidget(
+        createTestWidget(
+          unclearReminderShown: false,
+          playerState: createPlayerState(isPlaying: true),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Unclear'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(UnclearAutoSaveDialog), findsOneWidget);
+      expect(find.byType(SentenceAnnotationCard), findsNothing);
+
+      await tester.tap(find.text('Got it'));
+      await tester.pumpAndSettle();
+
+      final container = ProviderScope.containerOf(
+        tester.element(find.byType(IntensiveListenPlayerScreen)),
+      );
+      expect(
+        container.read(learningSettingsProvider).unclearAutoSaveReminderShown,
+        isTrue,
+      );
+      expect(find.byType(UnclearAutoSaveDialog), findsNothing);
+      expect(find.byType(SentenceAnnotationCard), findsOneWidget);
+    });
+
+    testWidgets('说明弹窗里关闭自动收藏开关后再进入讲解，开关值被保存', (tester) async {
+      await tester.pumpWidget(
+        createTestWidget(
+          unclearReminderShown: false,
+          playerState: createPlayerState(isPlaying: true),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Unclear'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byType(SwitchListTile));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Got it'));
+      await tester.pumpAndSettle();
+
+      final container = ProviderScope.containerOf(
+        tester.element(find.byType(IntensiveListenPlayerScreen)),
+      );
+      expect(
+        container.read(learningSettingsProvider).autoSaveOnUnclear,
+        isFalse,
+      );
+      expect(find.byType(SentenceAnnotationCard), findsOneWidget);
     });
 
     testWidgets('详情重播时保留详情页并显示重播提示', (tester) async {

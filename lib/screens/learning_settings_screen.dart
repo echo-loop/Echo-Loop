@@ -257,18 +257,18 @@ class LearningSettingsScreen extends ConsumerWidget {
                   color: colorScheme.primary,
                 ),
               ),
-              title: Text(l10n.autoFavoriteOnCantUnderstandToggle),
+              title: Text(l10n.autoSaveOnUnclearToggle),
               subtitle: Text(
-                l10n.autoFavoriteOnCantUnderstandSubtitle,
+                l10n.autoSaveOnUnclearSubtitle,
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
                 ),
               ),
-              value: settings.autoFavoriteOnCantUnderstand,
+              value: settings.autoSaveOnUnclear,
               onChanged: (value) async {
                 await ref
                     .read(learningSettingsProvider.notifier)
-                    .setAutoFavoriteOnCantUnderstand(value);
+                    .setAutoSaveOnUnclear(value);
               },
             ),
           ),

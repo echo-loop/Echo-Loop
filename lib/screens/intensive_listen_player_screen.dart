@@ -36,7 +36,9 @@ import '../widgets/notification_permission_dialog.dart'
 import '../widgets/speech_permission_dialog.dart';
 import '../widgets/intensive_listen/intensive_listen_settings_sheet.dart';
 import '../services/app_logger.dart';
+import '../widgets/dialogs/unclear_auto_save_dialog.dart';
 import '../widgets/dialogs/free_play_complete_dialog.dart';
+import '../providers/learning_settings_provider.dart';
 import '../widgets/dialogs/step_complete_dialog.dart';
 import '../widgets/review/review_briefing_sheet.dart';
 import '../widgets/practice/selectable_sentence_text.dart';
@@ -450,6 +452,30 @@ class _IntensiveListenPlayerScreenState
       nextStepName: nextStepName,
       isLastStep: isLast,
     );
+  }
+
+  /// 「听不太懂」入口：首次点击先弹出自动收藏说明，关闭后再进入讲解。
+  ///
+  /// 弹窗期间先接管盲听流程，防止倒计时自动翻句；关闭后才记录「已提示」并进入讲解，
+  /// 进入讲解时才读取收藏开关，因此弹窗里改的值对本次点击立即生效。
+  Future<void> _handleUnclear() async {
+    final player = ref.read(intensiveListenPlayerProvider.notifier);
+    final reminderShown = ref
+        .read(learningSettingsProvider)
+        .unclearAutoSaveReminderShown;
+    if (reminderShown) {
+      player.enterAnnotationMode();
+      return;
+    }
+
+    player.enterWaitingForUserInBlindMode();
+    await showUnclearAutoSaveDialog(context);
+    if (!mounted) return;
+    await ref
+        .read(learningSettingsProvider.notifier)
+        .markUnclearAutoSaveReminderShown();
+    if (!mounted) return;
+    player.enterAnnotationMode();
   }
 
   /// 处理播放完成
@@ -894,8 +920,7 @@ class _IntensiveListenPlayerScreenState
                                             },
                                             onToggleMark:
                                                 _toggleAndSaveDifficult,
-                                            onCantUnderstand: () =>
-                                                player.enterAnnotationMode(),
+                                            onUnclear: () => _handleUnclear(),
                                             sentenceText: sentence.text,
                                             wordHighlightBinding:
                                                 wordHighlightBinding,

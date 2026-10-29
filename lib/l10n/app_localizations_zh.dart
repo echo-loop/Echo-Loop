@@ -1308,7 +1308,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get intensiveListenHideSubtitle => '隐藏字幕';
 
   @override
-  String get intensiveListenCantUnderstand => '听不太懂';
+  String get intensiveListenUnclear => '听不太懂';
 
   @override
   String get intensiveListenAutoMarkedDifficult => '已自动收藏';
@@ -4229,10 +4229,28 @@ class AppLocalizationsZh extends AppLocalizations {
   String get retellRatingSubtitle => '关闭后只保留录音回听，不再显示评分';
 
   @override
-  String get autoFavoriteOnCantUnderstandToggle => '听不懂时自动收藏';
+  String get autoSaveOnUnclearToggle => '听不懂时自动收藏';
 
   @override
-  String get autoFavoriteOnCantUnderstandSubtitle => '精听时点击「听不太懂」，自动把该句加入收藏';
+  String get autoSaveOnUnclearSubtitle => '精听时点击「听不太懂」，自动把该句加入收藏';
+
+  @override
+  String get unclearAutoSaveDialogTitle => '自动收藏听不懂的句子';
+
+  @override
+  String get unclearAutoSaveDialogMessage => '点「听不太懂」时，会自动收藏本句，方便你之后集中复习。';
+
+  @override
+  String get unclearAutoSaveSwitchOn => '开启';
+
+  @override
+  String get unclearAutoSaveSwitchOff => '关闭';
+
+  @override
+  String get unclearAutoSaveDialogHint => '随时可在「我的 → 学习设置」中修改。';
+
+  @override
+  String get unclearAutoSaveDialogConfirm => '知道了';
 
   @override
   String get retellSkip => '跳过';

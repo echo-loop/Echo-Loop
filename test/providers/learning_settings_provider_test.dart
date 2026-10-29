@@ -233,46 +233,38 @@ void main() {
       expect(prefs.getBool(LearningSettingsKeys.retellRatingEnabled), isFalse);
     });
 
-    test('setAutoFavoriteOnCantUnderstand(false) 写 SP + 翻转 state', () async {
+    test('setAutoSaveOnUnclear(false) 写 SP + 翻转 state', () async {
       SharedPreferences.setMockInitialValues({});
       final prefs = await SharedPreferences.getInstance();
       final container = makeContainer(prefs);
       addTearDown(container.dispose);
 
       expect(
-        container.read(learningSettingsProvider).autoFavoriteOnCantUnderstand,
+        container.read(learningSettingsProvider).autoSaveOnUnclear,
         isTrue,
       );
       await container
           .read(learningSettingsProvider.notifier)
-          .setAutoFavoriteOnCantUnderstand(false);
+          .setAutoSaveOnUnclear(false);
 
       expect(
-        container.read(learningSettingsProvider).autoFavoriteOnCantUnderstand,
+        container.read(learningSettingsProvider).autoSaveOnUnclear,
         isFalse,
       );
-      expect(
-        prefs.getBool(LearningSettingsKeys.autoFavoriteOnCantUnderstand),
-        isFalse,
-      );
+      expect(prefs.getBool(LearningSettingsKeys.autoSaveOnUnclear), isFalse);
     });
 
     test('SP 缺失时听不懂自动收藏默认开启，已关闭时启动读取为 false', () async {
       SharedPreferences.setMockInitialValues({});
       final prefs = await SharedPreferences.getInstance();
-      expect(
-        LearningSettings.fromPrefsSync(prefs).autoFavoriteOnCantUnderstand,
-        isTrue,
-      );
+      expect(LearningSettings.fromPrefsSync(prefs).autoSaveOnUnclear, isTrue);
 
       SharedPreferences.setMockInitialValues({
-        LearningSettingsKeys.autoFavoriteOnCantUnderstand: false,
+        LearningSettingsKeys.autoSaveOnUnclear: false,
       });
       final closedPrefs = await SharedPreferences.getInstance();
       expect(
-        LearningSettings.fromPrefsSync(
-          closedPrefs,
-        ).autoFavoriteOnCantUnderstand,
+        LearningSettings.fromPrefsSync(closedPrefs).autoSaveOnUnclear,
         isFalse,
       );
     });
@@ -366,6 +358,31 @@ void main() {
       );
       expect(
         prefs.getBool(LearningSettingsKeys.pdfExportReminderShown),
+        isTrue,
+      );
+    });
+
+    test('markUnclearAutoSaveReminderShown 写 SP + 翻转 state，重复调用幂等', () async {
+      SharedPreferences.setMockInitialValues({});
+      final prefs = await SharedPreferences.getInstance();
+      final container = makeContainer(prefs);
+      addTearDown(container.dispose);
+
+      final notifier = container.read(learningSettingsProvider.notifier);
+      expect(
+        container.read(learningSettingsProvider).unclearAutoSaveReminderShown,
+        isFalse,
+      );
+
+      await notifier.markUnclearAutoSaveReminderShown();
+      await notifier.markUnclearAutoSaveReminderShown();
+
+      expect(
+        container.read(learningSettingsProvider).unclearAutoSaveReminderShown,
+        isTrue,
+      );
+      expect(
+        prefs.getBool(LearningSettingsKeys.unclearAutoSaveReminderShown),
         isTrue,
       );
     });

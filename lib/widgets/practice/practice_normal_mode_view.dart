@@ -77,7 +77,7 @@ class PracticeNormalModeView extends StatelessWidget {
   final VoidCallback onPeekToggle;
 
   /// 听不懂（进入跟读/标注模式）
-  final VoidCallback onCantUnderstand;
+  final VoidCallback onUnclear;
 
   /// 切换标记（难句/收藏）
   final VoidCallback onToggleMark;
@@ -121,7 +121,7 @@ class PracticeNormalModeView extends StatelessWidget {
     this.countdown,
     this.alwaysShowToggleButton = true,
     required this.onPeekToggle,
-    required this.onCantUnderstand,
+    required this.onUnclear,
     required this.onToggleMark,
     this.isDifficult = true,
     this.sentenceText,
@@ -293,7 +293,7 @@ class PracticeNormalModeView extends StatelessWidget {
                       _buildToggleMarkButton(),
                       const SizedBox(width: AppSpacing.m),
                     ],
-                    _buildCantUnderstandButton(),
+                    _buildUnclearButton(),
                   ],
                 ),
               ),
@@ -311,9 +311,7 @@ class PracticeNormalModeView extends StatelessWidget {
   /// 两者会在同一个 Row 中按出现与否前后移位，必须用 key 绑定 element；
   /// 否则位置复用会把一个按钮的文字样式插值到另一个按钮，触发 TextStyle 插值异常。
   static const _toggleMarkButtonKey = ValueKey('practice-toggle-mark-button');
-  static const _cantUnderstandButtonKey = ValueKey(
-    'practice-cant-understand-button',
-  );
+  static const _unclearButtonKey = ValueKey('practice-cant-understand-button');
 
   /// 标记切换按钮
   ///
@@ -375,10 +373,10 @@ class PracticeNormalModeView extends StatelessWidget {
   }
 
   /// 听不太懂按钮（始终为 FilledTonal 蓝色填充）
-  Widget _buildCantUnderstandButton() {
+  Widget _buildUnclearButton() {
     final button = FilledButton.tonal(
-      key: _cantUnderstandButtonKey,
-      onPressed: onCantUnderstand,
+      key: _unclearButtonKey,
+      onPressed: onUnclear,
       style: FilledButton.styleFrom(
         shape: const StadiumBorder(),
         padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 12),
@@ -389,10 +387,7 @@ class PracticeNormalModeView extends StatelessWidget {
         children: [
           const Icon(Icons.question_mark, size: 16),
           const SizedBox(width: 6),
-          Text(
-            l10n.intensiveListenCantUnderstand,
-            style: theme.textTheme.titleSmall,
-          ),
+          Text(l10n.intensiveListenUnclear, style: theme.textTheme.titleSmall),
         ],
       ),
     );

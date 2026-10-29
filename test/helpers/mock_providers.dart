@@ -312,6 +312,7 @@ List<Override> learningSettingsOverrides({
   bool retellRatingEnabled = true,
   bool retellAutoPlaybackPromptShown = false,
   bool pdfExportReminderShown = false,
+  bool unclearAutoSaveReminderShown = false,
   SharedPreferences? prefs,
 }) {
   return [
@@ -328,6 +329,7 @@ List<Override> learningSettingsOverrides({
         retellRatingEnabled: retellRatingEnabled,
         retellAutoPlaybackPromptShown: retellAutoPlaybackPromptShown,
         pdfExportReminderShown: pdfExportReminderShown,
+        unclearAutoSaveReminderShown: unclearAutoSaveReminderShown,
       ),
     ),
     if (prefs != null) sharedPreferencesProvider.overrideWithValue(prefs),

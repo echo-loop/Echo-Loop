@@ -67,9 +67,9 @@ class _TestLearningSettingsNotifier extends Notifier<LearningSettings>
   }
 
   @override
-  Future<void> setAutoFavoriteOnCantUnderstand(bool enabled) async {
-    if (state.autoFavoriteOnCantUnderstand == enabled) return;
-    state = state.copyWith(autoFavoriteOnCantUnderstand: enabled);
+  Future<void> setAutoSaveOnUnclear(bool enabled) async {
+    if (state.autoSaveOnUnclear == enabled) return;
+    state = state.copyWith(autoSaveOnUnclear: enabled);
   }
 
   @override
@@ -118,6 +118,12 @@ class _TestLearningSettingsNotifier extends Notifier<LearningSettings>
   Future<void> markPdfExportReminderShown() async {
     if (state.pdfExportReminderShown) return;
     state = state.copyWith(pdfExportReminderShown: true);
+  }
+
+  @override
+  Future<void> markUnclearAutoSaveReminderShown() async {
+    if (state.unclearAutoSaveReminderShown) return;
+    state = state.copyWith(unclearAutoSaveReminderShown: true);
   }
 
   @override

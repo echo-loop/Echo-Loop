@@ -3,6 +3,7 @@
 > 当前待办与本次完成记录；此前完成任务已归档，详见 [2026-10-29 归档](./docs/tasks-archive/tasks-2026-10-29-completed.md)、[2026-09-29 归档](./docs/tasks-archive/tasks-2026-09-29-completed.md)。
 
 ## 本次完成
+- [x] 首次点「听不太懂」弹出自动收藏说明（一次性）：精听中第一次点击「听不太懂」，进入讲解页前弹窗说明该操作会自动收藏句子，弹窗内可直接切换「听不懂时自动收藏」开关（即时生效），并提示可在「学习设置」随时修改。已提示标记 `learning_cant_understand_auto_favorite_reminder_shown` 存 SP（仅本机，老用户升级后也会提示一次）。弹窗不可点外部关闭，保证标记必定落库。同时修正上一条英文文案为 Unclear / saved 用语。新增测试：provider 标记与幂等、弹窗开关写回与关闭路径、精听页首次弹窗后进入讲解、弹窗内关开关后进入讲解。精听页、学习设置 provider 与弹窗相关测试通过，改动文件 `flutter analyze` 无问题。**完成时间**: 2026-10-29
 - [x] 修复精听切换收藏时抛出 `Failed to interpolate TextStyles with different inherit values`：未收藏句子点「听不太懂」旁收藏后，`PracticeNormalModeView` 的 Row 子项按位置复用 `FilledButton` element，「听不太懂」的文字样式被插值到「取消标记」按钮。修复：两个按钮加稳定 `ValueKey`。新增回归测试（修复前复现插值异常，修复后通过）；相关 practice / 精听 / 复习页测试 205 项通过，改动文件 `flutter analyze` 无问题。**完成时间**: 2026-10-29
 - [x] 学习设置新增「听不懂时自动收藏」开关（偏好 `learning_auto_favorite_on_cant_understand`，默认开启，保持原行为）：关闭后精听点击「听不太懂」只进入讲解，不再把当前句加入收藏（不改动已收藏句）；走 `LearningSettings` 与云同步白名单。新增测试：provider setter 与启动读取、精听进入讲解页开启/关闭两条路径；`learning_settings_screen_test` 的两个引导用例因新增卡片把引导区挤出默认视口，改为加高测试视口后再点击（基线 14 项通过，改后仍 14 项通过）。相关测试 provider/精听/同步/设置页合计通过，改动文件 `flutter analyze` 无问题。**完成时间**: 2026-10-29
 - [x] 学习页「为你推荐」卡片可关闭，并新增设置入口「显示设置」：推荐卡标题行右侧加关闭按钮，点击弹确认框，确认后隐藏（偏好 `learning_show_study_recommendation`，默认开启，走 `LearningSettings` 与云同步白名单）；设置页「学习」分组新增「显示设置」页，可重新开启推荐卡片。新增测试：provider setter 与启动读取、同步白名单、学习页取消/确认/设置关闭三条路径、显示设置页开关。相关测试 119 项通过，改动文件 `flutter analyze` 无问题。**完成时间**: 2026-10-29

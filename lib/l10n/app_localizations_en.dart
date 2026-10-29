@@ -1348,7 +1348,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get intensiveListenHideSubtitle => 'Hide subtitles';
 
   @override
-  String get intensiveListenCantUnderstand => 'Unclear';
+  String get intensiveListenUnclear => 'Unclear';
 
   @override
   String get intensiveListenAutoMarkedDifficult => 'Auto-save, tap to undo';
@@ -4433,12 +4433,31 @@ class AppLocalizationsEn extends AppLocalizations {
       'When off, your recording can still be played back, but scores aren\'t shown';
 
   @override
-  String get autoFavoriteOnCantUnderstandToggle =>
-      'Auto-favorite when marked as hard to understand';
+  String get autoSaveOnUnclearToggle => 'Auto-save when marked Unclear';
 
   @override
-  String get autoFavoriteOnCantUnderstandSubtitle =>
-      'When on, tapping \"Hard to understand\" in intensive listening adds the sentence to favorites';
+  String get autoSaveOnUnclearSubtitle =>
+      'When on, tapping \"Unclear\" in intensive listening saves the sentence';
+
+  @override
+  String get unclearAutoSaveDialogTitle => 'Auto-save unclear sentences';
+
+  @override
+  String get unclearAutoSaveDialogMessage =>
+      'When you tap \"Unclear\", the sentence is saved automatically so you can review it later.';
+
+  @override
+  String get unclearAutoSaveSwitchOn => 'On';
+
+  @override
+  String get unclearAutoSaveSwitchOff => 'Off';
+
+  @override
+  String get unclearAutoSaveDialogHint =>
+      'You can change this anytime in Me → Learning Settings.';
+
+  @override
+  String get unclearAutoSaveDialogConfirm => 'Got it';
 
   @override
   String get retellSkip => 'Skip';
