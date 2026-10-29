@@ -4433,6 +4433,14 @@ class AppLocalizationsEn extends AppLocalizations {
       'When off, your recording can still be played back, but scores aren\'t shown';
 
   @override
+  String get autoFavoriteOnCantUnderstandToggle =>
+      'Auto-favorite when marked as hard to understand';
+
+  @override
+  String get autoFavoriteOnCantUnderstandSubtitle =>
+      'When on, tapping \"Hard to understand\" in intensive listening adds the sentence to favorites';
+
+  @override
   String get retellSkip => 'Skip';
 
   @override

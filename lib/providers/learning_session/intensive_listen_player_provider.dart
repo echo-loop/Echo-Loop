@@ -29,6 +29,7 @@ import '../intensive_annotation/intensive_annotation_phase.dart';
 import '../intensive_annotation/intensive_annotation_state.dart';
 import '../intensive_listen_prefs_provider.dart';
 import '../learning_progress_provider.dart';
+import '../learning_settings_provider.dart';
 import 'countdown_controller.dart';
 import 'learning_session_provider.dart';
 import 'intensive_listen_playback_driver.dart';
@@ -476,15 +477,23 @@ class IntensiveListenPlayer extends _$IntensiveListenPlayer {
     _cleanupAnnotationSession();
     _playbackDriver.pause();
 
+    // 「听不太懂」自动收藏受学习设置控制；关闭时只进入讲解，不改收藏状态。
+    // 持久化靠对比 difficultSentences 完成，因此不加入即不写库。
+    final autoFavoriteEnabled = ref
+        .read(learningSettingsProvider)
+        .autoFavoriteOnCantUnderstand;
     final newDifficult = Set<int>.from(state.difficultSentences);
     final wasAlreadyDifficult = newDifficult.contains(
       state.currentSentenceIndex,
     );
-    newDifficult.add(state.currentSentenceIndex);
+    final shouldAutoFavorite = autoFavoriteEnabled && !wasAlreadyDifficult;
+    if (shouldAutoFavorite) {
+      newDifficult.add(state.currentSentenceIndex);
+    }
 
     state = state.copyWith(
       difficultSentences: newDifficult,
-      isCurrentSentenceAutoMarked: !wasAlreadyDifficult,
+      isCurrentSentenceAutoMarked: shouldAutoFavorite,
       isTextRevealed: false,
       playingSenseGroupIndex: null,
       playedSenseGroupIndices: const {},

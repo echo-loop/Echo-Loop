@@ -67,6 +67,12 @@ class _TestLearningSettingsNotifier extends Notifier<LearningSettings>
   }
 
   @override
+  Future<void> setAutoFavoriteOnCantUnderstand(bool enabled) async {
+    if (state.autoFavoriteOnCantUnderstand == enabled) return;
+    state = state.copyWith(autoFavoriteOnCantUnderstand: enabled);
+  }
+
+  @override
   Future<void> setAutoExpandCachedAnnotation(bool enabled) async {
     if (state.autoExpandCachedAnnotation == enabled) return;
     state = state.copyWith(autoExpandCachedAnnotation: enabled);

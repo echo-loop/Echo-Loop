@@ -3,6 +3,8 @@
 > 当前待办与本次完成记录；此前完成任务已归档，详见 [2026-10-29 归档](./docs/tasks-archive/tasks-2026-10-29-completed.md)、[2026-09-29 归档](./docs/tasks-archive/tasks-2026-09-29-completed.md)。
 
 ## 本次完成
+- [x] 修复精听切换收藏时抛出 `Failed to interpolate TextStyles with different inherit values`：未收藏句子点「听不太懂」旁收藏后，`PracticeNormalModeView` 的 Row 子项按位置复用 `FilledButton` element，「听不太懂」的文字样式被插值到「取消标记」按钮。修复：两个按钮加稳定 `ValueKey`。新增回归测试（修复前复现插值异常，修复后通过）；相关 practice / 精听 / 复习页测试 205 项通过，改动文件 `flutter analyze` 无问题。**完成时间**: 2026-10-29
+- [x] 学习设置新增「听不懂时自动收藏」开关（偏好 `learning_auto_favorite_on_cant_understand`，默认开启，保持原行为）：关闭后精听点击「听不太懂」只进入讲解，不再把当前句加入收藏（不改动已收藏句）；走 `LearningSettings` 与云同步白名单。新增测试：provider setter 与启动读取、精听进入讲解页开启/关闭两条路径；`learning_settings_screen_test` 的两个引导用例因新增卡片把引导区挤出默认视口，改为加高测试视口后再点击（基线 14 项通过，改后仍 14 项通过）。相关测试 provider/精听/同步/设置页合计通过，改动文件 `flutter analyze` 无问题。**完成时间**: 2026-10-29
 - [x] 学习页「为你推荐」卡片可关闭，并新增设置入口「显示设置」：推荐卡标题行右侧加关闭按钮，点击弹确认框，确认后隐藏（偏好 `learning_show_study_recommendation`，默认开启，走 `LearningSettings` 与云同步白名单）；设置页「学习」分组新增「显示设置」页，可重新开启推荐卡片。新增测试：provider setter 与启动读取、同步白名单、学习页取消/确认/设置关闭三条路径、显示设置页开关。相关测试 119 项通过，改动文件 `flutter analyze` 无问题。**完成时间**: 2026-10-29
 - [x] 修复复述「重听本段」时录音把原音录进去（2026-10-29）：按用户日志（Android 1.0.40，64 次录音与原文播放重叠）与 macOS 实机复现定位：复述阶段点主播放重听本段走 `_handleReplay`，`clearRecording` 先把录音置为 idle 再等待原生清理，期间若跑过一帧（评估中点击时主线程被评估计算占用，间隔可达 200ms+），idle 触发的自动录音在播放器仍为 retelling 时抢先启动，随后才切到 listening 播放原文，原音整段录进去并被评估。修复：`_handleReplay` 清理期间置 `_manualStoppedThisParagraph = true` 挡住自动录音，清理完、同步切到 listening 前再放开（与「录音中点主播放」已有保护一致；1.0.43 起该分支已修，评估中/等开口超时/手动停止后点击仍有此漏洞）。新增页面回归测试（评估中点击 + 原生清理跨帧；修复前 startCalls=1，修复后为 0，且原文播完回到复述阶段自动录音恢复）。复述页面测试 26 项通过，定向 `flutter analyze` 无问题。**完成时间**: 2026-10-29
 

@@ -19,6 +19,7 @@ import 'package:echo_loop/providers/learning_progress_provider.dart';
 import 'package:echo_loop/providers/learning_session/intensive_listen_player_provider.dart';
 import 'package:echo_loop/providers/learning_session/intensive_listen_playback_driver.dart';
 import 'package:echo_loop/providers/learning_session/learning_session_provider.dart';
+import 'package:echo_loop/providers/learning_settings_provider.dart';
 import '../helpers/mock_providers.dart';
 
 class _ReplayTestAudioEngine extends TestAudioEngine {
@@ -562,12 +563,21 @@ void main() {
     late ProviderContainer container;
     late _RecordingStudyTimeService studyTimeService;
 
-    ProviderContainer createContainer({TestAudioEngine? audioEngine}) {
+    ProviderContainer createContainer({
+      TestAudioEngine? audioEngine,
+      LearningSettings? learningSettings,
+    }) {
       studyTimeService = _RecordingStudyTimeService();
       return ProviderContainer(
         overrides: [
+          initialLearningSettingsProvider.overrideWithValue(
+            const LearningSettings(),
+          ),
           audioEngineProvider.overrideWith(
             () => audioEngine ?? TestAudioEngine(),
+          ),
+          initialLearningSettingsProvider.overrideWithValue(
+            learningSettings ?? const LearningSettings(),
           ),
           learningSessionProvider.overrideWith(() => TestLearningSession()),
           analyticsOverride(),
@@ -616,6 +626,47 @@ void main() {
 
       expect(studyTimeService.sentencePlaybacks, isEmpty);
       await notifier.disposePlayer();
+    });
+
+    test('听不懂自动收藏开启时，进入讲解页把当前句加入难句并标记为自动收藏', () async {
+      container = createContainer(
+        learningSettings: const LearningSettings(
+          autoFavoriteOnCantUnderstand: true,
+        ),
+      );
+      final notifier = container.read(intensiveListenPlayerProvider.notifier);
+      await _initializeWithTestAudio(
+        container,
+        notifier,
+        createTestSentences(count: 1),
+      );
+
+      notifier.enterAnnotationMode();
+
+      final state = container.read(intensiveListenPlayerProvider);
+      expect(state.difficultSentences, {0});
+      expect(state.isCurrentSentenceAutoMarked, isTrue);
+    });
+
+    test('听不懂自动收藏关闭时，进入讲解页不收藏当前句', () async {
+      container = createContainer(
+        learningSettings: const LearningSettings(
+          autoFavoriteOnCantUnderstand: false,
+        ),
+      );
+      final notifier = container.read(intensiveListenPlayerProvider.notifier);
+      await _initializeWithTestAudio(
+        container,
+        notifier,
+        createTestSentences(count: 1),
+      );
+
+      notifier.enterAnnotationMode();
+
+      final state = container.read(intensiveListenPlayerProvider);
+      expect(state.annotationState, isNotNull);
+      expect(state.difficultSentences, isEmpty);
+      expect(state.isCurrentSentenceAutoMarked, isFalse);
     });
 
     test('进入讲解页后不沿用盲听暂停位置，播放按钮可开始讲解重播', () async {
@@ -756,6 +807,9 @@ void main() {
     setUp(() {
       container = ProviderContainer(
         overrides: [
+          initialLearningSettingsProvider.overrideWithValue(
+            const LearningSettings(),
+          ),
           audioEngineProvider.overrideWith(() => _ReplayTestAudioEngine()),
           learningSessionProvider.overrideWith(() => TestLearningSession()),
           analyticsOverride(),
@@ -828,6 +882,9 @@ void main() {
     setUp(() {
       container = ProviderContainer(
         overrides: [
+          initialLearningSettingsProvider.overrideWithValue(
+            const LearningSettings(),
+          ),
           audioEngineProvider.overrideWith(() => TestAudioEngine()),
           learningSessionProvider.overrideWith(() => TestLearningSession()),
           analyticsOverride(),
@@ -880,6 +937,9 @@ void main() {
       final audioEngine = _DeferredBlindAudioEngine();
       final container = ProviderContainer(
         overrides: [
+          initialLearningSettingsProvider.overrideWithValue(
+            const LearningSettings(),
+          ),
           audioEngineProvider.overrideWith(() => audioEngine),
           learningSessionProvider.overrideWith(() => TestLearningSession()),
           analyticsOverride(),
@@ -928,6 +988,9 @@ void main() {
       final audioEngine = _DeferredBlindAudioEngine();
       final container = ProviderContainer(
         overrides: [
+          initialLearningSettingsProvider.overrideWithValue(
+            const LearningSettings(),
+          ),
           audioEngineProvider.overrideWith(() => audioEngine),
           learningSessionProvider.overrideWith(() => TestLearningSession()),
           analyticsOverride(),
@@ -972,6 +1035,9 @@ void main() {
       final audioEngine = _DeferredBlindAudioEngine();
       final container = ProviderContainer(
         overrides: [
+          initialLearningSettingsProvider.overrideWithValue(
+            const LearningSettings(),
+          ),
           audioEngineProvider.overrideWith(() => audioEngine),
           learningSessionProvider.overrideWith(() => TestLearningSession()),
           analyticsOverride(),
@@ -1016,6 +1082,9 @@ void main() {
       final audioEngine = _DeferredBlindAudioEngine();
       final container = ProviderContainer(
         overrides: [
+          initialLearningSettingsProvider.overrideWithValue(
+            const LearningSettings(),
+          ),
           audioEngineProvider.overrideWith(() => audioEngine),
           learningSessionProvider.overrideWith(() => TestLearningSession()),
           analyticsOverride(),
@@ -1072,6 +1141,9 @@ void main() {
     setUp(() async {
       container = ProviderContainer(
         overrides: [
+          initialLearningSettingsProvider.overrideWithValue(
+            const LearningSettings(),
+          ),
           audioEngineProvider.overrideWith(() => _ReplayTestAudioEngine()),
           learningSessionProvider.overrideWith(() => TestLearningSession()),
           analyticsOverride(),
@@ -1147,6 +1219,9 @@ void main() {
       final audioEngine = _ReplayTestAudioEngine();
       final replayContainer = ProviderContainer(
         overrides: [
+          initialLearningSettingsProvider.overrideWithValue(
+            const LearningSettings(),
+          ),
           audioEngineProvider.overrideWith(() => audioEngine),
           learningSessionProvider.overrideWith(() => TestLearningSession()),
           analyticsOverride(),
@@ -1192,6 +1267,9 @@ void main() {
       final audioEngine = _ReplayTestAudioEngine();
       final replayContainer = ProviderContainer(
         overrides: [
+          initialLearningSettingsProvider.overrideWithValue(
+            const LearningSettings(),
+          ),
           audioEngineProvider.overrideWith(() => audioEngine),
           learningSessionProvider.overrideWith(() => TestLearningSession()),
           analyticsOverride(),
@@ -1268,6 +1346,9 @@ void main() {
       final audioEngine = _OverlappingReplayAudioEngine();
       final overlappingContainer = ProviderContainer(
         overrides: [
+          initialLearningSettingsProvider.overrideWithValue(
+            const LearningSettings(),
+          ),
           audioEngineProvider.overrideWith(() => audioEngine),
           learningSessionProvider.overrideWith(() => TestLearningSession()),
           analyticsOverride(),
@@ -1313,6 +1394,9 @@ void main() {
       final audioEngine = _OverlappingReplayAudioEngine();
       final pausedContainer = ProviderContainer(
         overrides: [
+          initialLearningSettingsProvider.overrideWithValue(
+            const LearningSettings(),
+          ),
           audioEngineProvider.overrideWith(() => audioEngine),
           learningSessionProvider.overrideWith(() => TestLearningSession()),
           analyticsOverride(),
@@ -1360,6 +1444,9 @@ void main() {
       );
       final container = ProviderContainer(
         overrides: [
+          initialLearningSettingsProvider.overrideWithValue(
+            const LearningSettings(),
+          ),
           audioEngineProvider.overrideWith(() => _ReplayTestAudioEngine()),
           learningProgressNotifierProvider.overrideWith(() => progressNotifier),
           learningSessionProvider.overrideWith(
@@ -1412,6 +1499,9 @@ void main() {
       );
       final container = ProviderContainer(
         overrides: [
+          initialLearningSettingsProvider.overrideWithValue(
+            const LearningSettings(),
+          ),
           audioEngineProvider.overrideWith(() => _ReplayTestAudioEngine()),
           learningProgressNotifierProvider.overrideWith(() => progressNotifier),
           learningSessionProvider.overrideWith(
@@ -1451,6 +1541,9 @@ void main() {
       final sentences = createTestSentences(count: 5);
       container = ProviderContainer(
         overrides: [
+          initialLearningSettingsProvider.overrideWithValue(
+            const LearningSettings(),
+          ),
           intensiveListenPlayerProvider.overrideWith(
             () => TestIntensiveListenPlayer(
               IntensiveListenState(
@@ -1577,6 +1670,9 @@ void main() {
     setUp(() async {
       container = ProviderContainer(
         overrides: [
+          initialLearningSettingsProvider.overrideWithValue(
+            const LearningSettings(),
+          ),
           audioEngineProvider.overrideWith(() => _ReplayTestAudioEngine()),
           learningSessionProvider.overrideWith(() => TestLearningSession()),
           analyticsOverride(),
@@ -1749,6 +1845,9 @@ void main() {
     test('自动推进到下一句时 isTextRevealed 重置为 false', () async {
       final container = ProviderContainer(
         overrides: [
+          initialLearningSettingsProvider.overrideWithValue(
+            const LearningSettings(),
+          ),
           audioEngineProvider.overrideWith(() => _ReplayTestAudioEngine()),
           learningSessionProvider.overrideWith(() => TestLearningSession()),
           analyticsOverride(),

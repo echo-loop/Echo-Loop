@@ -4229,6 +4229,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get retellRatingSubtitle => '关闭后只保留录音回听，不再显示评分';
 
   @override
+  String get autoFavoriteOnCantUnderstandToggle => '听不懂时自动收藏';
+
+  @override
+  String get autoFavoriteOnCantUnderstandSubtitle => '精听时点击「听不太懂」，自动把该句加入收藏';
+
+  @override
   String get retellSkip => '跳过';
 
   @override

@@ -1818,6 +1818,8 @@
   "listenAndRepeatRatingSubtitle": "关闭后保留录音回听，但不再识别和评分",
   "retellRatingToggle": "复述时显示评分",
   "retellRatingSubtitle": "关闭后只保留录音回听，不再显示评分",
+  "autoFavoriteOnCantUnderstandToggle": "听不懂时自动收藏",
+  "autoFavoriteOnCantUnderstandSubtitle": "精听时点击「听不太懂」，自动把该句加入收藏",
   "retellSkip": "跳过",
   "retellSkippedSuffix": "已跳过",
   "skipSilenceTitle": "自动跳过静音",

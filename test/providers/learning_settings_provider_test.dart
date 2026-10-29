@@ -233,6 +233,50 @@ void main() {
       expect(prefs.getBool(LearningSettingsKeys.retellRatingEnabled), isFalse);
     });
 
+    test('setAutoFavoriteOnCantUnderstand(false) 写 SP + 翻转 state', () async {
+      SharedPreferences.setMockInitialValues({});
+      final prefs = await SharedPreferences.getInstance();
+      final container = makeContainer(prefs);
+      addTearDown(container.dispose);
+
+      expect(
+        container.read(learningSettingsProvider).autoFavoriteOnCantUnderstand,
+        isTrue,
+      );
+      await container
+          .read(learningSettingsProvider.notifier)
+          .setAutoFavoriteOnCantUnderstand(false);
+
+      expect(
+        container.read(learningSettingsProvider).autoFavoriteOnCantUnderstand,
+        isFalse,
+      );
+      expect(
+        prefs.getBool(LearningSettingsKeys.autoFavoriteOnCantUnderstand),
+        isFalse,
+      );
+    });
+
+    test('SP 缺失时听不懂自动收藏默认开启，已关闭时启动读取为 false', () async {
+      SharedPreferences.setMockInitialValues({});
+      final prefs = await SharedPreferences.getInstance();
+      expect(
+        LearningSettings.fromPrefsSync(prefs).autoFavoriteOnCantUnderstand,
+        isTrue,
+      );
+
+      SharedPreferences.setMockInitialValues({
+        LearningSettingsKeys.autoFavoriteOnCantUnderstand: false,
+      });
+      final closedPrefs = await SharedPreferences.getInstance();
+      expect(
+        LearningSettings.fromPrefsSync(
+          closedPrefs,
+        ).autoFavoriteOnCantUnderstand,
+        isFalse,
+      );
+    });
+
     test('setShowStudyRecommendation(false) 写 SP + 翻转 state', () async {
       SharedPreferences.setMockInitialValues({});
       final prefs = await SharedPreferences.getInstance();

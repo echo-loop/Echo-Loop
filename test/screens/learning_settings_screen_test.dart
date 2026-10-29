@@ -18,6 +18,14 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../helpers/mock_providers.dart';
 
+/// 将测试视口加高，确保位于列表底部的新手引导区域可被点击。
+void _useTallViewport(WidgetTester tester) {
+  tester.view.physicalSize = const Size(1200, 1600);
+  tester.view.devicePixelRatio = 1;
+  addTearDown(tester.view.resetPhysicalSize);
+  addTearDown(tester.view.resetDevicePixelRatio);
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -357,6 +365,8 @@ void main() {
   });
 
   testWidgets('切换新手引导开关 → 翻转 state + 写 SP', (tester) async {
+    // 设置页已加入更多卡片，引导开关位于默认视口之外，这里加高视口以便点击。
+    _useTallViewport(tester);
     await tester.pumpWidget(await buildApp());
     await tester.pumpAndSettle();
 
@@ -371,6 +381,7 @@ void main() {
   });
 
   testWidgets('点击「重置」→ 清空 seen 状态并弹 snackbar', (tester) async {
+    _useTallViewport(tester);
     await tester.pumpWidget(await buildApp(seedGuideSeen: true));
     await tester.pumpAndSettle();
 

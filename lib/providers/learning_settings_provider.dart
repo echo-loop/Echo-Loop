@@ -47,6 +47,8 @@ abstract final class LearningSettingsKeys {
       'learning_retell_auto_playback_prompt_shown';
   static const pdfExportReminderShown = 'learning_pdf_export_reminder_shown';
   static const showStudyRecommendation = 'learning_show_study_recommendation';
+  static const autoFavoriteOnCantUnderstand =
+      'learning_auto_favorite_on_cant_understand';
 
   /// 历史 SP key，启动期会被清理。
   static const legacyOfflineAsrEnabled = 'offline_asr_enabled';
@@ -94,6 +96,9 @@ class LearningSettings {
   /// 是否在学习页展示「为你推荐」卡片（默认 true）。
   final bool showStudyRecommendation;
 
+  /// 精听点击「听不太懂」时是否自动收藏当前句（默认 true）。
+  final bool autoFavoriteOnCantUnderstand;
+
   const LearningSettings({
     this.autoSkipRetell = false,
     this.autoExpandCachedAnnotation = true,
@@ -107,6 +112,7 @@ class LearningSettings {
     this.retellAutoPlaybackPromptShown = false,
     this.pdfExportReminderShown = false,
     this.showStudyRecommendation = true,
+    this.autoFavoriteOnCantUnderstand = true,
   });
 
   /// 同步从 [SharedPreferences] 派生当前状态，用于启动期 override 注入。
@@ -142,6 +148,9 @@ class LearningSettings {
           prefs.getBool(LearningSettingsKeys.pdfExportReminderShown) ?? false,
       showStudyRecommendation:
           prefs.getBool(LearningSettingsKeys.showStudyRecommendation) ?? true,
+      autoFavoriteOnCantUnderstand:
+          prefs.getBool(LearningSettingsKeys.autoFavoriteOnCantUnderstand) ??
+          true,
     );
   }
 
@@ -158,6 +167,7 @@ class LearningSettings {
     bool? retellAutoPlaybackPromptShown,
     bool? pdfExportReminderShown,
     bool? showStudyRecommendation,
+    bool? autoFavoriteOnCantUnderstand,
   }) {
     return LearningSettings(
       autoSkipRetell: autoSkipRetell ?? this.autoSkipRetell,
@@ -182,6 +192,8 @@ class LearningSettings {
           pdfExportReminderShown ?? this.pdfExportReminderShown,
       showStudyRecommendation:
           showStudyRecommendation ?? this.showStudyRecommendation,
+      autoFavoriteOnCantUnderstand:
+          autoFavoriteOnCantUnderstand ?? this.autoFavoriteOnCantUnderstand,
     );
   }
 
@@ -203,7 +215,8 @@ class LearningSettings {
           retellAutoPlaybackPromptShown ==
               other.retellAutoPlaybackPromptShown &&
           pdfExportReminderShown == other.pdfExportReminderShown &&
-          showStudyRecommendation == other.showStudyRecommendation;
+          showStudyRecommendation == other.showStudyRecommendation &&
+          autoFavoriteOnCantUnderstand == other.autoFavoriteOnCantUnderstand;
 
   @override
   int get hashCode => Object.hash(
@@ -219,6 +232,7 @@ class LearningSettings {
     retellAutoPlaybackPromptShown,
     pdfExportReminderShown,
     showStudyRecommendation,
+    autoFavoriteOnCantUnderstand,
   );
 }
 
@@ -421,6 +435,25 @@ class LearningSettingsNotifier extends Notifier<LearningSettings> {
       AppLogger.log(
         'LearningSettings',
         'setShowStudyRecommendation 写 SP 失败: $e',
+      );
+    }
+  }
+
+  /// 切换精听「听不太懂」自动收藏，写 SP + 更新 state。
+  Future<void> setAutoFavoriteOnCantUnderstand(bool enabled) async {
+    if (state.autoFavoriteOnCantUnderstand == enabled) return;
+    state = state.copyWith(autoFavoriteOnCantUnderstand: enabled);
+    try {
+      final prefs = ref.read(sharedPreferencesProvider);
+      await prefs.setBool(
+        LearningSettingsKeys.autoFavoriteOnCantUnderstand,
+        enabled,
+      );
+      userPreferencesSyncEvents.notifyLocalChange();
+    } catch (e) {
+      AppLogger.log(
+        'LearningSettings',
+        'setAutoFavoriteOnCantUnderstand 写 SP 失败: $e',
       );
     }
   }

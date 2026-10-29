@@ -242,6 +242,37 @@ class LearningSettingsScreen extends ConsumerWidget {
             ),
           ),
           const SizedBox(height: AppSpacing.m),
+          Card(
+            child: SwitchListTile(
+              secondary: Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: colorScheme.primary.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(
+                  Icons.bookmark_added_rounded,
+                  size: 20,
+                  color: colorScheme.primary,
+                ),
+              ),
+              title: Text(l10n.autoFavoriteOnCantUnderstandToggle),
+              subtitle: Text(
+                l10n.autoFavoriteOnCantUnderstandSubtitle,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
+                ),
+              ),
+              value: settings.autoFavoriteOnCantUnderstand,
+              onChanged: (value) async {
+                await ref
+                    .read(learningSettingsProvider.notifier)
+                    .setAutoFavoriteOnCantUnderstand(value);
+              },
+            ),
+          ),
+          const SizedBox(height: AppSpacing.m),
           // 新手引导：总开关（默认开启）；开启时在开关左侧内联「重置」入口，
           // 关闭时不显示「重置」（关闭后不再弹任何引导气泡）。
           Card(

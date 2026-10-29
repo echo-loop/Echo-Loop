@@ -7748,6 +7748,18 @@ abstract class AppLocalizations {
   /// **'When off, your recording can still be played back, but scores aren\'t shown'**
   String get retellRatingSubtitle;
 
+  /// No description provided for @autoFavoriteOnCantUnderstandToggle.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto-favorite when marked as hard to understand'**
+  String get autoFavoriteOnCantUnderstandToggle;
+
+  /// No description provided for @autoFavoriteOnCantUnderstandSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'When on, tapping \"Hard to understand\" in intensive listening adds the sentence to favorites'**
+  String get autoFavoriteOnCantUnderstandSubtitle;
+
   /// No description provided for @retellSkip.
   ///
   /// In en, this message translates to:

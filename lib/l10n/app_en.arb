@@ -2292,6 +2292,8 @@
   "listenAndRepeatRatingSubtitle": "When off, recordings are kept but recognition and scoring are skipped",
   "retellRatingToggle": "Show rating after each retelling",
   "retellRatingSubtitle": "When off, your recording can still be played back, but scores aren't shown",
+  "autoFavoriteOnCantUnderstandToggle": "Auto-favorite when marked as hard to understand",
+  "autoFavoriteOnCantUnderstandSubtitle": "When on, tapping \"Hard to understand\" in intensive listening adds the sentence to favorites",
   "retellSkip": "Skip",
   "retellSkippedSuffix": "Skipped",
   "skipSilenceTitle": "Auto-skip Silence",
