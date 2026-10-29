@@ -443,3 +443,8 @@ flutter test integration_test -d macos
 - 根因：Android `AndroidSpeechPracticeHandler` 与 iOS/macOS `AppDelegate.swift` 都用固定门槛 0.015（**增益前** RMS；写入 WAV 时才 ×2.2，离线 ASR 日志里的 rms² 是增益后的值，换算时别搞混）。Android 离线 ASR 录音中无实时转写，自动停止只靠声学静音兜底，判错即截断。
 - 规则：门槛按底噪自适应（`AdaptiveVadThreshold`，Kotlin + Swift 三端同源，改参数必须三端同步），**必须有上限（= 旧门槛）和下限**；底噪只统计判为静音的 buffer。排查时对比 `[RecordingDiag]` 的 `vadThreshold/vadNoiseFloor/vadVoicedBuffers` 与 `[ASREngine] VAD: x → y` 是否矛盾。
 - 相关：跟读引擎的 `referenceDuration`/`maxDuration` 必须按播放倍速换算（`RepeatFlowConfig.playbackSpeed`），否则慢速播放时动态兜底降到 1s。
+
+### 7.31 复述重听本段：清理录音置 idle 触发自动录音，抢在原文播放前启动 → 原音被录进去
+
+- 根因：`clearRecording` 先同步置 idle 再 await 原生清理；期间跑过一帧时，idle 触发的自动录音在播放器仍为 retelling 时启动，随后才切 listening 放原文（评估中点击最易触发，主线程被评估占用）。
+- 规则：所有「取消/清理录音后播放原文」的入口，清理期间都要先挡住自动录音（`_manualStoppedThisParagraph = true`），清理完、同步切到 listening 前再放开。回归测试见 `retell_player_screen_test.dart`「评估中点击主播放重听本段…」。
