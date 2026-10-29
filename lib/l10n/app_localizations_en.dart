@@ -3844,6 +3844,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get guideDone => 'Done';
 
   @override
+  String get guideSkip => 'Skip';
+
+  @override
   String get guideLibraryCreateCollectionDescription =>
       'Tap here to create a new collection.';
 
@@ -3957,16 +3960,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get resetNewUserGuideDone => 'New user guide has been reset';
-
-  @override
-  String get newUserGuideToggle => 'New User Guide';
-
-  @override
-  String get newUserGuideSubtitle =>
-      'Show step-by-step tips on first use of each page';
-
-  @override
-  String get newUserGuideResetAction => 'Reset';
 
   @override
   String get resetOnboarding => 'Reset Onboarding Survey';

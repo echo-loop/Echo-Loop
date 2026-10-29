@@ -62,12 +62,10 @@ final guideRegistryProvider = Provider<GuideRegistry>((ref) {
   return GuideRegistry();
 });
 
-/// 新手引导总开关（默认开启）。
+/// 新手引导是否允许弹出（默认 true，仅本机保存，不参与云同步）。
 ///
-/// 同步从复用的 [sharedPreferencesProvider] 快照读初值，写回时持久化到
-/// [GuideRegistry.enabledKey]。作为「是否允许弹引导」的单一来源：
-/// - [GuideFlowSequenceHost] 启动 flow 前读此值，关闭时直接跳过；
-/// - 学习设置页据此渲染开关与「重置」入口。
+/// 用户在引导中点「跳过」时写为 false，之后所有页面的引导都不再启动；
+/// 「重置」时写回 true。[GuideFlowSequenceHost] 启动 flow 前读取此值。
 class GuideEnabledNotifier extends Notifier<bool> {
   @override
   bool build() {
@@ -75,7 +73,7 @@ class GuideEnabledNotifier extends Notifier<bool> {
     return prefs.getBool(GuideRegistry.enabledKey) ?? true;
   }
 
-  /// 切换新手引导总开关，持久化到 SP。
+  /// 写入新手引导是否允许弹出，持久化到 SP。
   Future<void> setEnabled(bool enabled) async {
     if (state == enabled) return;
     state = enabled;
@@ -209,6 +207,20 @@ class GuideController extends Notifier<GuideControllerState> {
     await ref.read(guideRegistryProvider).markSeen(flowId);
     state = GuideControllerState(resetGeneration: state.resetGeneration);
     AppLogger.log('Guide', 'complete flow=$flowId');
+  }
+
+  /// 用户在引导中点「跳过」：关闭之后所有页面的引导。
+  ///
+  /// 同步先写入开关，保证随后 showcase 结束触发的状态回调不会启动下一个 flow。
+  Future<void> skipAll() async {
+    await ref.read(guideEnabledProvider.notifier).setEnabled(false);
+    AppLogger.log('Guide', 'skipAll');
+  }
+
+  /// 重置新手引导：重新开启开关并清空所有 flow 的已看状态。
+  Future<void> resetAll() async {
+    await ref.read(guideEnabledProvider.notifier).setEnabled(true);
+    await resetFlows(GuideFlowIds.all);
   }
 
   Future<void> resetFlows(List<String> flowIds) async {

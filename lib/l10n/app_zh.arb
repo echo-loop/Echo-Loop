@@ -1607,6 +1607,7 @@
   "retry": "重试",
   "guideNext": "下一步",
   "guideDone": "知道了",
+  "guideSkip": "跳过",
   "guideLibraryCreateCollectionDescription": "点击这里，可以创建新的合集。",
   "guideCollectionAudioMenuDescription": "点击这里，可以管理该音频的字幕、所属合集、标签等信息。",
   "guideCollectionUploadDescription": "点击这里，可以上传你自己的音频。",
@@ -1638,9 +1639,6 @@
   "resetNewUserGuide": "重置新手引导",
   "resetNewUserGuideSubtitle": "清除所有引导已看过状态，方便测试",
   "resetNewUserGuideDone": "新手引导已重置",
-  "newUserGuideToggle": "新手引导",
-  "newUserGuideSubtitle": "开启后在各页面首次使用时显示操作引导",
-  "newUserGuideResetAction": "重置",
   "resetOnboarding": "重置 Onboarding 问卷",
   "resetOnboardingDone": "Onboarding 已重置，请重启 App 以重新进入问卷",
 

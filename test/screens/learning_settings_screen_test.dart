@@ -339,48 +339,37 @@ void main() {
     expect(ratingTile.value, isFalse);
   });
 
-  // 新手引导项为自定义 Row（非 SwitchListTile），按所在 Card 内的 Switch 定位。
-  Finder guideSwitchFinder() => find.descendant(
-    of: find.widgetWithText(Card, 'New User Guide'),
-    matching: find.byType(Switch),
-  );
-
-  testWidgets('新手引导默认开启，且显示「重置」按钮', (tester) async {
+  testWidgets('新手引导没有开关，整行是「重置」入口且无描述', (tester) async {
     await tester.pumpWidget(await buildApp());
     await tester.pumpAndSettle();
 
-    final guideSwitch = tester.widget<Switch>(guideSwitchFinder());
-    expect(guideSwitch.value, isTrue);
-    // 开启时「重置」按钮可见。
-    expect(find.widgetWithText(TextButton, 'Reset'), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.widgetWithText(Card, 'Reset New User Guide'),
+        matching: find.byType(Switch),
+      ),
+      findsNothing,
+    );
+    expect(
+      find.widgetWithText(ListTile, 'Reset New User Guide'),
+      findsOneWidget,
+    );
+    expect(find.textContaining('Tap Skip'), findsNothing);
   });
 
-  testWidgets('关闭新手引导后「重置」按钮消失', (tester) async {
+  testWidgets('跳过关闭引导后，点击整行重置会重新开启引导', (tester) async {
+    _useTallViewport(tester);
     await tester.pumpWidget(await buildApp(guideEnabled: false));
     await tester.pumpAndSettle();
 
-    final guideSwitch = tester.widget<Switch>(guideSwitchFinder());
-    expect(guideSwitch.value, isFalse);
-    expect(find.widgetWithText(TextButton, 'Reset'), findsNothing);
-  });
-
-  testWidgets('切换新手引导开关 → 翻转 state + 写 SP', (tester) async {
-    // 设置页已加入更多卡片，引导开关位于默认视口之外，这里加高视口以便点击。
-    _useTallViewport(tester);
-    await tester.pumpWidget(await buildApp());
+    await tester.tap(find.widgetWithText(ListTile, 'Reset New User Guide'));
     await tester.pumpAndSettle();
-
-    await tester.tap(guideSwitchFinder());
-    await tester.pumpAndSettle();
-
-    final guideSwitch = tester.widget<Switch>(guideSwitchFinder());
-    expect(guideSwitch.value, isFalse);
 
     final prefs = await SharedPreferences.getInstance();
-    expect(prefs.getBool(GuideRegistry.enabledKey), isFalse);
+    expect(prefs.getBool(GuideRegistry.enabledKey), isTrue);
   });
 
-  testWidgets('点击「重置」→ 清空 seen 状态并弹 snackbar', (tester) async {
+  testWidgets('点击整行重置 → 清空 seen 状态并弹 snackbar', (tester) async {
     _useTallViewport(tester);
     await tester.pumpWidget(await buildApp(seedGuideSeen: true));
     await tester.pumpAndSettle();
@@ -389,7 +378,7 @@ void main() {
     final prefs = await SharedPreferences.getInstance();
     expect(prefs.getBool(seenKey), isTrue);
 
-    await tester.tap(find.widgetWithText(TextButton, 'Reset'));
+    await tester.tap(find.widgetWithText(ListTile, 'Reset New User Guide'));
     await tester.pumpAndSettle();
 
     expect(prefs.getBool(seenKey), isNull);

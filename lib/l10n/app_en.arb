@@ -2081,6 +2081,7 @@
   "retry": "Retry",
   "guideNext": "Next",
   "guideDone": "Done",
+  "guideSkip": "Skip",
   "guideLibraryCreateCollectionDescription": "Tap here to create a new collection.",
   "guideCollectionAudioMenuDescription": "Tap here to manage this audio's subtitles, the collection it belongs to, tags, and more.",
   "guideCollectionUploadDescription": "Tap here to upload your own audio.",
@@ -2112,9 +2113,6 @@
   "resetNewUserGuide": "Reset New User Guide",
   "resetNewUserGuideSubtitle": "Clear all guide seen states for testing",
   "resetNewUserGuideDone": "New user guide has been reset",
-  "newUserGuideToggle": "New User Guide",
-  "newUserGuideSubtitle": "Show step-by-step tips on first use of each page",
-  "newUserGuideResetAction": "Reset",
   "resetOnboarding": "Reset Onboarding Survey",
   "resetOnboardingDone": "Onboarding reset; please restart the app to retake the survey",
 

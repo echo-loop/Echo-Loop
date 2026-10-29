@@ -37,6 +37,14 @@ void _registerTestShowcaseView() {
   addTearDown(view.unregister);
 }
 
+/// 等待 postFrame、启动延迟（500ms）与 tooltip 动画全部完成。
+Future<void> _pumpGuideStart(WidgetTester tester) async {
+  await tester.pump();
+  await tester.pump(const Duration(milliseconds: 100));
+  await tester.pump(const Duration(milliseconds: 200));
+  await tester.pump(const Duration(milliseconds: 200));
+}
+
 void main() {
   setUp(() {
     SharedPreferences.setMockInitialValues({});
@@ -310,5 +318,87 @@ void main() {
     await tester.pump(const Duration(milliseconds: 200));
     expect(container.read(guideControllerProvider).activeFlowId, 'flow_b');
     expect(ShowcaseView.get().getActiveShowcaseKey, same(keyB));
+  });
+
+  testWidgets('每一步都显示「跳过」，最后一步仍只显示「知道了」', (tester) async {
+    _registerTestShowcaseView();
+    final keyOnly = GlobalKey();
+    final prefs = await SharedPreferences.getInstance();
+    final container = ProviderContainer(
+      overrides: [
+        sharedPreferencesProvider.overrideWithValue(prefs),
+        guideRegistryProvider.overrideWithValue(GuideRegistry(prefs: prefs)),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    final only = GuideStep(key: keyOnly, title: 'Only', description: 'Only');
+    await tester.pumpWidget(
+      _wrap(
+        container: container,
+        child: GuideFlowSequenceHost(
+          flows: [
+            GuideFlow(flowId: 'single', shouldRun: true, steps: [only]),
+          ],
+          child: GuideTarget(step: only, child: const Text('T')),
+        ),
+      ),
+    );
+    await _pumpGuideStart(tester);
+
+    expect(ShowcaseView.get().isShowcaseRunning, isTrue);
+    expect(find.text('Skip'), findsOneWidget);
+    expect(find.text('Done'), findsOneWidget);
+  });
+
+  testWidgets('点「跳过」：结束当前 flow，关闭开关，后续 flow 不再启动', (tester) async {
+    _registerTestShowcaseView();
+    final keyA1 = GlobalKey();
+    final keyA2 = GlobalKey();
+    final keyB = GlobalKey();
+
+    final prefs = await SharedPreferences.getInstance();
+    final registry = GuideRegistry(prefs: prefs);
+    final container = ProviderContainer(
+      overrides: [
+        sharedPreferencesProvider.overrideWithValue(prefs),
+        guideRegistryProvider.overrideWithValue(registry),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    final a1 = GuideStep(key: keyA1, title: 'A1', description: 'A1 desc');
+    final a2 = GuideStep(key: keyA2, title: 'A2', description: 'A2 desc');
+    final b = GuideStep(key: keyB, title: 'B', description: 'B desc');
+
+    await tester.pumpWidget(
+      _wrap(
+        container: container,
+        child: GuideFlowSequenceHost(
+          flows: [
+            GuideFlow(flowId: 'flow_a', shouldRun: true, steps: [a1, a2]),
+            GuideFlow(flowId: 'flow_b', shouldRun: true, steps: [b]),
+          ],
+          child: Column(
+            children: [
+              GuideTarget(step: a1, child: const Text('T1')),
+              GuideTarget(step: a2, child: const Text('T2')),
+              GuideTarget(step: b, child: const Text('T3')),
+            ],
+          ),
+        ),
+      ),
+    );
+    await _pumpGuideStart(tester);
+
+    expect(container.read(guideControllerProvider).activeFlowId, 'flow_a');
+    await tester.tap(find.text('Skip'));
+    await _pumpGuideStart(tester);
+
+    expect(prefs.getBool(GuideRegistry.enabledKey), isFalse);
+    expect(await registry.isSeen('flow_a'), isTrue);
+    expect(container.read(guideControllerProvider).isActive, isFalse);
+    expect(ShowcaseView.get().isShowcaseRunning, isFalse);
+    expect(await registry.isSeen('flow_b'), isFalse);
   });
 }

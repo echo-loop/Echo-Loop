@@ -10,12 +10,26 @@ import '../../../providers/learning_settings_provider.dart';
 import '../domain/user_preferences_document.dart';
 
 /// 将当前仍使用的用户偏好映射到同步文档；设备/开发状态不在此白名单中。
+///
+/// 一次性提示标记也在白名单内（放在 `learning` 域），让多设备只展示一次。
+/// 新手引导的已看与跳过状态只保存在本机，不同步。
+/// 设备级状态（权限、版本忽略、评分弹窗时间）也不同步。
 class LocalUserPreferencesStore {
   LocalUserPreferencesStore(this._preferences);
 
   final SharedPreferences _preferences;
 
   static const syncMetadataKey = 'user_preferences_sync_state_v1';
+
+  /// 一次性提示标记。写回时只做「未展示 → 已展示」，云端 false 或缺失都不清除
+  /// 本地已展示状态，否则旧客户端或新设备首次同步会让提示再次弹出。
+  static const _promptMarkerFieldNames = <String, String>{
+    LearningSettingsKeys.retellAutoPlaybackPromptShown:
+        'retellAutoPlaybackPromptShown',
+    LearningSettingsKeys.pdfExportReminderShown: 'pdfExportReminderShown',
+    LearningSettingsKeys.unclearAutoSaveReminderShown:
+        'unclearAutoSaveReminderShown',
+  };
 
   static const _practiceKeys = <String, String>{
     'intensiveListen': 'intensive_listen_prefs_v2',
@@ -48,6 +62,8 @@ class LocalUserPreferencesStore {
       for (final entry in _learningDefaults.entries)
         _learningFieldName(entry.key):
             _preferences.getBool(entry.key) ?? entry.value,
+      for (final entry in _promptMarkerFieldNames.entries)
+        entry.value: _preferences.getBool(entry.key) ?? false,
     };
     final storedThreshold = _preferences.getInt('silence_threshold_seconds');
     final playback = <String, Object?>{
@@ -120,6 +136,9 @@ class LocalUserPreferencesStore {
         learning[_learningFieldName(entry.key)],
         entry.value,
       );
+    }
+    for (final entry in _promptMarkerFieldNames.entries) {
+      await _markShownIfTrue(entry.key, learning[entry.value]);
     }
 
     final playback = _group(groups, 'playback');
@@ -225,6 +244,12 @@ class LocalUserPreferencesStore {
       if (key is String) result[key] = entry.value;
     }
     return result;
+  }
+
+  /// 一次性标记只能单向前进：云端 true 才落盘，false 与缺失都不清除本地 true。
+  Future<void> _markShownIfTrue(String key, Object? value) async {
+    if (value != true) return;
+    await _preferences.setBool(key, true);
   }
 
   Future<void> _writeString(String key, Object? value, String fallback) async {

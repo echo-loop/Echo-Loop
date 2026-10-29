@@ -100,7 +100,7 @@ class LearningSettings {
   /// 精听点击「听不太懂」时是否自动收藏当前句（默认 true）。
   final bool autoSaveOnUnclear;
 
-  /// 是否已弹过「听不太懂自动收藏」说明弹窗（默认 false，仅本机记录）。
+  /// 是否已弹过「听不太懂自动收藏」说明弹窗（默认 false，参与跨设备同步）。
   final bool unclearAutoSaveReminderShown;
 
   const LearningSettings({
@@ -408,6 +408,7 @@ class LearningSettingsNotifier extends Notifier<LearningSettings> {
         LearningSettingsKeys.retellAutoPlaybackPromptShown,
         true,
       );
+      userPreferencesSyncEvents.notifyLocalChange();
     } catch (e) {
       AppLogger.log(
         'LearningSettings',
@@ -423,6 +424,7 @@ class LearningSettingsNotifier extends Notifier<LearningSettings> {
     try {
       final prefs = ref.read(sharedPreferencesProvider);
       await prefs.setBool(LearningSettingsKeys.pdfExportReminderShown, true);
+      userPreferencesSyncEvents.notifyLocalChange();
     } catch (e) {
       AppLogger.log(
         'LearningSettings',
@@ -433,7 +435,7 @@ class LearningSettingsNotifier extends Notifier<LearningSettings> {
 
   /// 标记「听不太懂自动收藏」说明弹窗已展示。
   ///
-  /// 仅本机记录，用于老用户升级后也只提醒一次。
+  /// 参与跨设备同步，多设备上只提醒一次。
   Future<void> markUnclearAutoSaveReminderShown() async {
     if (state.unclearAutoSaveReminderShown) return;
     state = state.copyWith(unclearAutoSaveReminderShown: true);
@@ -443,6 +445,7 @@ class LearningSettingsNotifier extends Notifier<LearningSettings> {
         LearningSettingsKeys.unclearAutoSaveReminderShown,
         true,
       );
+      userPreferencesSyncEvents.notifyLocalChange();
     } catch (e) {
       AppLogger.log(
         'LearningSettings',

@@ -6716,6 +6716,12 @@ abstract class AppLocalizations {
   /// **'Done'**
   String get guideDone;
 
+  /// No description provided for @guideSkip.
+  ///
+  /// In en, this message translates to:
+  /// **'Skip'**
+  String get guideSkip;
+
   /// No description provided for @guideLibraryCreateCollectionDescription.
   ///
   /// In en, this message translates to:
@@ -6901,24 +6907,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'New user guide has been reset'**
   String get resetNewUserGuideDone;
-
-  /// No description provided for @newUserGuideToggle.
-  ///
-  /// In en, this message translates to:
-  /// **'New User Guide'**
-  String get newUserGuideToggle;
-
-  /// No description provided for @newUserGuideSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Show step-by-step tips on first use of each page'**
-  String get newUserGuideSubtitle;
-
-  /// No description provided for @newUserGuideResetAction.
-  ///
-  /// In en, this message translates to:
-  /// **'Reset'**
-  String get newUserGuideResetAction;
 
   /// No description provided for @resetOnboarding.
   ///

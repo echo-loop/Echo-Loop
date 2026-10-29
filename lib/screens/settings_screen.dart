@@ -919,9 +919,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     WidgetRef ref,
     AppLocalizations l10n,
   ) async {
-    await ref
-        .read(guideControllerProvider.notifier)
-        .resetFlows(GuideFlowIds.all);
+    await ref.read(guideControllerProvider.notifier).resetAll();
 
     if (!context.mounted) return;
     ScaffoldMessenger.of(
