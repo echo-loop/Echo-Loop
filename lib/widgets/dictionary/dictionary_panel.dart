@@ -23,6 +23,7 @@ import '../../providers/dictionary/dictionary_registry.dart';
 import '../../providers/dictionary/dictionary_settings_provider.dart';
 import '../../providers/dictionary/lookup_controller.dart';
 import '../../providers/dictionary_provider.dart';
+import '../../providers/reading_text_prefs_provider.dart';
 import '../../providers/pronunciation/pronunciation_providers.dart';
 import '../../providers/saved_word_provider.dart';
 import '../../providers/saved_sense_group_provider.dart';
@@ -36,6 +37,7 @@ import '../animated_bookmark_icon.dart';
 import '../common/text_context_menu.dart';
 import 'dictionary_panel_host.dart';
 import 'dictionary_result_view.dart';
+import 'reading_text_scale.dart';
 import 'pronunciation_controls.dart';
 import 'source_switcher.dart';
 import '../common/prewarm_visibility.dart';
@@ -523,13 +525,16 @@ class _DictionaryPanelState extends ConsumerState<DictionaryPanel> {
     bool isWeb,
     bool isResizable,
   ) {
-    final resultView = DictionaryResultView(
-      sourceId: state.selectedSourceId,
-      state: state.current,
-      word: word,
-      onRetry: notifier.retry,
-      onSignIn: _openAiSignInPage,
-      onUpgrade: () => _handleUpgrade(lookupQuery),
+    // 学习内容字号偏好：整块结果区统一缩放主题文字（释义、例句、AI 解析等）
+    final resultView = ReadingTextScale(
+      child: DictionaryResultView(
+        sourceId: state.selectedSourceId,
+        state: state.current,
+        word: word,
+        onRetry: notifier.retry,
+        onSignIn: _openAiSignInPage,
+        onUpgrade: () => _handleUpgrade(lookupQuery),
+      ),
     );
     if (isWeb) {
       // 填满剩余高度且占满宽度，交由 WebView 自身渲染滚动
@@ -672,6 +677,7 @@ class _DictionaryPanelState extends ConsumerState<DictionaryPanel> {
   ) {
     // 收藏态统一读取两类底层收藏：对用户而言单词与意群没有状态差异，
     // 任一表命中即显示已收藏，避免多词在来源句查词时漏显收藏状态。
+    final textPrefs = ref.watch(readingTextPrefsNotifierProvider);
     final savedWords = ref.watch(savedWordTextsProvider).valueOrNull;
     final savedSenseGroups = ref
         .watch(savedSenseGroupTextsProvider)
@@ -692,7 +698,8 @@ class _DictionaryPanelState extends ConsumerState<DictionaryPanel> {
               softWrap: true,
               overflow: TextOverflow.visible,
               style: theme.textTheme.titleLarge?.copyWith(
-                fontSize: 17,
+                // 词头基准 17，随学习内容字号同比缩放
+                fontSize: 17 * textPrefs.fontScale,
                 height: 1.25,
                 fontWeight: FontWeight.w700,
                 color: theme.colorScheme.onSurface,

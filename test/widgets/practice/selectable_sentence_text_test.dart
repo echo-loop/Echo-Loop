@@ -345,6 +345,7 @@ void main() {
     Widget Function(Widget sentence)? layout,
     List<Override> overrides = const [],
     ThemeMode themeMode = ThemeMode.light,
+    TextStyle? style,
   }) => ProviderScope(
     // 调用方 overrides 置于列表末尾：Riverpod 重复 override 为 last-wins，
     // 保证调用方能覆盖同名默认 provider（与 createTestApp 约定一致）
@@ -389,6 +390,7 @@ void main() {
             builder: (context) {
               final sentence = SelectableSentenceText(
                 text: text,
+                style: style,
                 highlightedSegments: segments,
                 origin: origin,
                 onBeforeLookup: onBeforeLookup,
@@ -1375,6 +1377,31 @@ void main() {
     expect(selectionState(tester).selectionRange, isNull);
     expect(find.byKey(const Key('selection_handle_start')), findsNothing);
     expect(toolbarSurface, findsNothing);
+  });
+
+  testWidgets('学习内容字号：正文样式按偏好倍率放大', (tester) async {
+    await prefs.setDouble('reading_font_scale', 1.5);
+    await tester.pumpWidget(wrap(style: const TextStyle(fontSize: 16)));
+    await tester.pumpAndSettle();
+    expect(
+      tester
+          .widget<AppSelectableText>(find.byType(AppSelectableText))
+          .style
+          ?.fontSize,
+      24,
+    );
+  });
+
+  testWidgets('学习内容字号：默认倍率保持正文样式原样', (tester) async {
+    await tester.pumpWidget(wrap(style: const TextStyle(fontSize: 16)));
+    await tester.pumpAndSettle();
+    expect(
+      tester
+          .widget<AppSelectableText>(find.byType(AppSelectableText))
+          .style
+          ?.fontSize,
+      16,
+    );
   });
 
   testWidgets('评分片段染色仍生效（命中片段绿色）', (tester) async {

@@ -29,6 +29,7 @@ import '../router/app_router.dart';
 import '../widgets/dictionary/ai_dict_result_view.dart';
 import '../widgets/dictionary/local_dict_result_view.dart';
 import '../widgets/dictionary/pronunciation_controls.dart';
+import '../widgets/dictionary/reading_text_scale.dart';
 import '../widgets/dictionary/dictionary_panel_host.dart';
 import '../widgets/practice/selectable_sentence_text.dart';
 import '../services/dictionary/dictionary_source.dart';
@@ -707,18 +708,21 @@ class _VocabularyBackState extends ConsumerState<_VocabularyBack> {
                 ),
                 if (_showAi) ...[
                   const SizedBox(height: AppSpacing.s),
-                  AiDictResultView(
-                    state: aiLookup?.current,
-                    onRetry: () => ref
-                        .read(
-                          dictionaryLookupControllerProvider(
-                            card.displayText,
-                            preferredSourceId: 'ai',
-                          ).notifier,
-                        )
-                        .retry(),
-                    onSignIn: _openAiSignInPage,
-                    onUpgrade: () => unawaited(openPaywall(context, ref)),
+                  // AI 查词结果同样随学习内容字号缩放
+                  ReadingTextScale(
+                    child: AiDictResultView(
+                      state: aiLookup?.current,
+                      onRetry: () => ref
+                          .read(
+                            dictionaryLookupControllerProvider(
+                              card.displayText,
+                              preferredSourceId: 'ai',
+                            ).notifier,
+                          )
+                          .retry(),
+                      onSignIn: _openAiSignInPage,
+                      onUpgrade: () => unawaited(openPaywall(context, ref)),
+                    ),
                   ),
                 ],
               ],
@@ -1102,9 +1106,11 @@ class _LocalDictionarySectionState
                 ),
                 const SizedBox(height: AppSpacing.s),
               ],
-              LocalDictResultView(
-                state: LookupLoaded(result),
-                word: widget.word,
+              ReadingTextScale(
+                child: LocalDictResultView(
+                  state: LookupLoaded(result),
+                  word: widget.word,
+                ),
               ),
             ],
           );

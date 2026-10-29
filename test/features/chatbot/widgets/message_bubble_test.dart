@@ -9,6 +9,7 @@ import 'package:echo_loop/features/chatbot/models/chat_role.dart';
 import 'package:echo_loop/features/chatbot/widgets/markdown_message.dart';
 import 'package:echo_loop/features/chatbot/widgets/message_bubble.dart';
 import 'package:echo_loop/features/subscription/models/ai_quota_rejection.dart';
+import 'package:echo_loop/models/reading_text_prefs.dart';
 import 'package:echo_loop/widgets/selection/selectable_content.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -42,6 +43,27 @@ void main() {
     );
     expect(find.text('Hello'), findsOneWidget);
     expect(find.byType(MarkdownMessage), findsNothing);
+  });
+
+  testWidgets('学习内容字号：用户消息与助教标题同比放大，默认倍率不变', (tester) async {
+    await pumpChatWidget(
+      tester,
+      ChatMessageBubble(
+        message: msg(role: ChatRole.user, content: 'Hello'),
+        textPrefs: const ReadingTextPrefs(fontScale: 1.5),
+      ),
+    );
+    expect(tester.widget<Text>(find.text('Hello')).style?.fontSize, 21);
+
+    Future<double> headingSize(double scale) => _headingFontSize(
+      tester,
+      ChatMessageBubble(
+        message: msg(content: '# Title'),
+        textPrefs: ReadingTextPrefs(fontScale: scale),
+      ),
+    );
+    final base = await headingSize(1.0);
+    expect(await headingSize(1.5), closeTo(base * 1.5, 0.01));
   });
 
   testWidgets('assistant 消息用 markdown 渲染', (tester) async {
@@ -314,4 +336,26 @@ void main() {
     await tester.pump();
     expect(tester.takeException(), isNull);
   });
+}
+
+/// 渲染气泡并取标题 "Title" 文字段的生效字号（沿 span 树继承）。
+Future<double> _headingFontSize(WidgetTester tester, Widget bubble) async {
+  await pumpChatWidget(tester, bubble);
+  for (final rich in tester.widgetList<RichText>(find.byType(RichText))) {
+    final size = _effectiveFontSize(rich.text, null);
+    if (size != null) return size;
+  }
+  fail('未找到标题文字');
+}
+
+/// 在 span 树中找到包含 "Title" 的文字段，返回其生效字号。
+double? _effectiveFontSize(InlineSpan span, double? inherited) {
+  final size = span.style?.fontSize ?? inherited;
+  if (span is! TextSpan) return null;
+  if ((span.text ?? '').contains('Title')) return size;
+  for (final child in span.children ?? const <InlineSpan>[]) {
+    final found = _effectiveFontSize(child, size);
+    if (found != null) return found;
+  }
+  return null;
 }

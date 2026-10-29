@@ -183,7 +183,11 @@
     偏好单一来源 `readingTextPrefsNotifierProvider`（SP key `reading_font_scale`），字号 85%–175%、每档 5% 离散吸附；两端 A−/A+ 按钮逐档调整。设置页：上方字号卡，下方纯文本预览（放下方避免调字号时控件移位）。
 
     **完成时间**: 2026-10-28
-  - [ ] 推广：句子正文 `SelectableSentenceText`、AI 回答、词典结果、单句视图。
+  - [x] 推广：句子正文 `SelectableSentenceText`（精听/难句/收藏复习共用）、意群 `SenseGroupText`、句子解析与翻译、复述转写、词典结果面板（整块主题同比缩放，词头 17 基准随倍率）、AI 助教（气泡文字与 markdown 标题）。
+
+    统一规则：在样式进入渲染/选区组件之前缩放，选区几何随样式一致。标签、chip、输入框等 UI 文字不缩放。`PracticeNormalModeView` 的无查词来源静态分支目前无生产调用方，未接入。
+
+    **完成时间**: 2026-10-29
   - [ ] 云端偏好同步接入 `reading_font_scale`（需后端文档字段确认）。
 - [ ] 查词归一化 Unicode 化，并迁移已有收藏 key（需产品与数据决策）。
 - [ ] 计算并展示每个学习任务的预计/实际耗时。

@@ -2,7 +2,9 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../providers/reading_text_prefs_provider.dart';
 import '../../theme/app_theme.dart';
 import 'retell_review_rating_style.dart';
 
@@ -35,18 +37,18 @@ const _transcriptIconSize = 18.0;
 /// 不用 [ExpansionTile]：它折叠时完全看不到内容，而转录是后面每条判定的依据，
 /// 得先让用户瞥见自己说了什么。用 [TextPainter] 预判是否真的超过折叠行数——没超
 /// 就不给箭头也不可点，避免点了没有任何反应。
-class RetellReviewTranscriptCard extends StatefulWidget {
+class RetellReviewTranscriptCard extends ConsumerStatefulWidget {
   final String transcript;
 
   const RetellReviewTranscriptCard({required this.transcript});
 
   @override
-  State<RetellReviewTranscriptCard> createState() =>
+  ConsumerState<RetellReviewTranscriptCard> createState() =>
       RetellReviewTranscriptCardState();
 }
 
 class RetellReviewTranscriptCardState
-    extends State<RetellReviewTranscriptCard> {
+    extends ConsumerState<RetellReviewTranscriptCard> {
   bool _expanded = false;
 
   /// 以 [maxWidth] 排版后是否超过折叠行数。
@@ -62,7 +64,11 @@ class RetellReviewTranscriptCardState
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final bodyStyle = theme.textTheme.bodyMedium?.copyWith(height: 1.55);
+    final rawBodyStyle = theme.textTheme.bodyMedium?.copyWith(height: 1.55);
+    // 学习内容字号偏好：超行预判与正文渲染共用同一缩放后的样式
+    final bodyStyle = rawBodyStyle == null
+        ? null
+        : ref.watch(readingTextPrefsNotifierProvider).applyTo(rawBodyStyle);
     // 量高与实际渲染必须共用同一段文本和样式，否则超行判断会和渲染结果对不上。
     final span = TextSpan(text: widget.transcript, style: bodyStyle);
     return Container(

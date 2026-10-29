@@ -1,7 +1,7 @@
 // 学习内容文字偏好（字号）模型测试
 //
 // 验证：持久化值解析回退、字号吸附到档位、样式叠加规则。
-import 'package:flutter/painting.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:echo_loop/models/reading_text_prefs.dart';
 
@@ -63,6 +63,34 @@ void main() {
         fontScale: 1.5,
       ).applyTo(const TextStyle());
       expect(style.fontSize, 21);
+    });
+  });
+
+  group('ReadingTextPrefs.scaleTextTheme 主题缩放', () {
+    const base = TextTheme(
+      titleLarge: TextStyle(fontSize: 22, height: 1.2),
+      bodyMedium: TextStyle(fontSize: 14),
+      labelSmall: TextStyle(color: Color(0xFF000000)),
+    );
+
+    test('默认偏好原样返回', () {
+      expect(const ReadingTextPrefs().scaleTextTheme(base), base);
+    });
+
+    test('带字号的档位按倍率缩放，其余属性保留', () {
+      final scaled = const ReadingTextPrefs(
+        fontScale: 1.5,
+      ).scaleTextTheme(base);
+      expect(scaled.titleLarge?.fontSize, 33);
+      expect(scaled.titleLarge?.height, 1.2);
+      expect(scaled.bodyMedium?.fontSize, 21);
+    });
+
+    test('未声明字号的档位保持原样且不抛错', () {
+      final scaled = const ReadingTextPrefs(
+        fontScale: 1.5,
+      ).scaleTextTheme(base);
+      expect(scaled.labelSmall, base.labelSmall);
     });
   });
 }

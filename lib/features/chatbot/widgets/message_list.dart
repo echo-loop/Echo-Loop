@@ -7,6 +7,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 
 import '../../../l10n/app_localizations.dart';
+import '../../../providers/reading_text_prefs_provider.dart';
 import '../../../services/app_logger.dart';
 import '../../../theme/app_theme.dart';
 import '../models/chat_message.dart';
@@ -345,6 +346,7 @@ class _MessageRow extends ConsumerWidget {
     if (identical(message, _missing)) return const SizedBox.shrink();
     return ChatMessageBubble(
       message: message,
+      textPrefs: ref.watch(readingTextPrefsNotifierProvider),
       onRetry: onRetry == null ? null : () => onRetry!(messageId),
       onUpgrade: onUpgrade,
       onSignIn: onSignIn,

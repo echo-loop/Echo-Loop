@@ -4,7 +4,7 @@
 /// 叠加在主题基础样式之上，系统字体缩放（`MediaQuery.textScaler`）仍照常生效。
 library;
 
-import 'package:flutter/painting.dart';
+import 'package:flutter/material.dart';
 
 /// 可选字号倍率档位（相对主题基础字号）。
 ///
@@ -51,6 +51,37 @@ class ReadingTextPrefs {
     if (fontScale == readingFontScaleDefault) return base;
     return base.copyWith(
       fontSize: (base.fontSize ?? _fallbackBaseFontSize) * fontScale,
+    );
+  }
+
+  /// 把字号倍率叠加到整套主题文字样式上（各档位字号同比缩放）；默认倍率时原样返回。
+  ///
+  /// 用于整块组件树无法逐个注入样式的场景（如词典结果面板）。
+  TextTheme scaleTextTheme(TextTheme base) {
+    if (fontScale == readingFontScaleDefault) return base;
+    // 未声明字号的样式保持原样（TextStyle.apply 对此会断言失败）
+    TextStyle? scale(TextStyle? style) {
+      final size = style?.fontSize;
+      if (style == null || size == null) return style;
+      return style.copyWith(fontSize: size * fontScale);
+    }
+
+    return base.copyWith(
+      displayLarge: scale(base.displayLarge),
+      displayMedium: scale(base.displayMedium),
+      displaySmall: scale(base.displaySmall),
+      headlineLarge: scale(base.headlineLarge),
+      headlineMedium: scale(base.headlineMedium),
+      headlineSmall: scale(base.headlineSmall),
+      titleLarge: scale(base.titleLarge),
+      titleMedium: scale(base.titleMedium),
+      titleSmall: scale(base.titleSmall),
+      bodyLarge: scale(base.bodyLarge),
+      bodyMedium: scale(base.bodyMedium),
+      bodySmall: scale(base.bodySmall),
+      labelLarge: scale(base.labelLarge),
+      labelMedium: scale(base.labelMedium),
+      labelSmall: scale(base.labelSmall),
     );
   }
 

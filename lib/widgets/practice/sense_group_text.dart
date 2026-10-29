@@ -14,6 +14,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/speech_practice_models.dart';
+import '../../providers/reading_text_prefs_provider.dart';
 import '../../providers/saved_word_provider.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/saved_text_index.dart';
@@ -121,10 +122,14 @@ class _SenseGroupTextState extends ConsumerState<SenseGroupText> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    final baseStyle = theme.textTheme.titleMedium?.copyWith(
+    final rawStyle = theme.textTheme.titleMedium?.copyWith(
       height: 1.4,
       color: colorScheme.onSurface,
     );
+    // 学习内容字号偏好：与句子正文同一缩放规则
+    final baseStyle = rawStyle == null
+        ? null
+        : ref.watch(readingTextPrefsNotifierProvider).applyTo(rawStyle);
 
     // 收藏索引流式监听：加载中/降级（测试环境无 DB）时为空索引 = 无标记
     final savedMasks = _buildSavedMasks(ref.watch(savedTextIndexProvider));

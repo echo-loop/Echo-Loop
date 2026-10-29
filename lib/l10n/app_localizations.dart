@@ -1001,7 +1001,7 @@ abstract class AppLocalizations {
   /// Settings entry and page title for learning-content text size
   ///
   /// In en, this message translates to:
-  /// **'Text Size'**
+  /// **'Font Size'**
   String get readingTextSettings;
 
   /// No description provided for @readingTextPreview.

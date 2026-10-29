@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
 import '../../../l10n/app_localizations.dart';
+import '../../../models/reading_text_prefs.dart';
 import '../../../theme/app_theme.dart';
 import '../../subscription/models/premium_feature.dart';
 import '../../subscription/utils/ai_quota_copy.dart';
@@ -47,9 +48,13 @@ class ChatMessageBubble extends StatelessWidget {
     this.onEdit,
     this.onRegenerate,
     this.onFollowUp,
+    this.textPrefs = const ReadingTextPrefs(),
   });
 
   final ChatMessage message;
+
+  /// 学习内容字号偏好（助教回答与用户消息同比缩放）。
+  final ReadingTextPrefs textPrefs;
   final VoidCallback? onRetry; // 仅 error 态用
   final VoidCallback? onUpgrade; // 仅 quotaBlocked 态用
   final VoidCallback? onSignIn; // 仅 authRequired 态用
@@ -216,24 +221,35 @@ class ChatMessageBubble extends StatelessWidget {
   /// 依据状态与角色渲染气泡主体。
   Widget _buildContent(BuildContext context, Color textColor) {
     if (_isUser) {
-      return Text(message.content, style: TextStyle(color: textColor));
+      return Text(
+        message.content,
+        style: textPrefs.applyTo(TextStyle(color: textColor)),
+      );
     }
     // assistant：streaming 且空 → 思考中动画。
     if (message.status == ChatMessageStatus.streaming &&
         message.content.isEmpty) {
       return _ThinkingIndicator(color: textColor);
     }
-    final textStyle = TextStyle(color: textColor);
+    final textStyle = textPrefs.applyTo(TextStyle(color: textColor));
     // 流式期间内容每帧变化，选区必然被内容身份校验作废，挂了也没意义（历史上
     // 官方 SelectionArea 在这里还会因 selectable 注册表帧末重入而抛并发修改）；
     // 待消息进入稳定终态后再启用选区、复制和「问 AI」。
-    final Widget markdown = message.status == ChatMessageStatus.streaming
+    final Widget body = message.status == ChatMessageStatus.streaming
         ? MarkdownMessage(data: message.content, style: textStyle)
         : SelectableAssistantMarkdown(
             data: message.content,
             style: textStyle,
             onFollowUp: onFollowUp,
           );
+    // markdown 标题（h1–h3）取自主题的 headline 样式而非 style，需经主题同比缩放
+    final theme = Theme.of(context);
+    final Widget markdown = Theme(
+      data: theme.copyWith(
+        textTheme: textPrefs.scaleTextTheme(theme.textTheme),
+      ),
+      child: body,
+    );
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,

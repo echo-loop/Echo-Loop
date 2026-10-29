@@ -519,7 +519,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get appearance => 'Appearance';
 
   @override
-  String get readingTextSettings => 'Text Size';
+  String get readingTextSettings => 'Font Size';
 
   @override
   String get readingTextPreview => 'Preview';

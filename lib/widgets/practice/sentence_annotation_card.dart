@@ -8,7 +8,9 @@ import 'dart:async';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../l10n/app_localizations.dart';
+import '../../providers/reading_text_prefs_provider.dart';
 import '../../providers/sentence_ai_provider.dart';
 import '../../services/app_logger.dart';
 import '../../models/sense_group_result.dart';
@@ -48,7 +50,7 @@ const double _sentenceBottomPadding = AppSpacing.xs;
 /// 当 [showToolbar] 为 false 时，外部可通过 [GlobalKey] 获取
 /// [SentenceAnnotationCardState] 并调用 [SentenceAnnotationCardState.buildToolbar]
 /// 在其他位置渲染工具栏。
-class SentenceAnnotationCard extends StatefulWidget {
+class SentenceAnnotationCard extends ConsumerStatefulWidget {
   /// 句子文本
   final String text;
 
@@ -213,11 +215,13 @@ class SentenceAnnotationCard extends StatefulWidget {
   });
 
   @override
-  State<SentenceAnnotationCard> createState() => SentenceAnnotationCardState();
+  ConsumerState<SentenceAnnotationCard> createState() =>
+      SentenceAnnotationCardState();
 }
 
 /// [SentenceAnnotationCard] 的公开 State，支持外部调用 [buildToolbar]。
-class SentenceAnnotationCardState extends State<SentenceAnnotationCard> {
+class SentenceAnnotationCardState
+    extends ConsumerState<SentenceAnnotationCard> {
   /// 意群显示模式
   SenseGroupMode _senseGroupMode = SenseGroupMode.off;
 
@@ -1042,6 +1046,11 @@ class SentenceAnnotationCardState extends State<SentenceAnnotationCard> {
     if (!_translationExpanded) return const SizedBox.shrink();
 
     final Widget content;
+    // 翻译与正文同一字号偏好
+    final translationStyle = theme.textTheme.bodyMedium?.copyWith(
+      color: theme.colorScheme.onSurfaceVariant,
+      height: 1.5,
+    );
     switch (_translationState) {
       case ContentLoadState.loading:
         content = Padding(
@@ -1055,10 +1064,11 @@ class SentenceAnnotationCardState extends State<SentenceAnnotationCard> {
           ),
           child: Text(
             _translationContent ?? '',
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-              height: 1.5,
-            ),
+            style: translationStyle == null
+                ? null
+                : ref
+                      .watch(readingTextPrefsNotifierProvider)
+                      .applyTo(translationStyle),
           ),
         );
       case ContentLoadState.error:
@@ -1112,6 +1122,7 @@ class SentenceAnnotationCardState extends State<SentenceAnnotationCard> {
       ContentLoadState.loading => const ShimmerPlaceholder(),
       ContentLoadState.loaded when content != null => _AnalysisContent(
         analysis: content,
+        textPrefs: ref.watch(readingTextPrefsNotifierProvider),
       ),
       ContentLoadState.loaded => const SizedBox.shrink(),
       ContentLoadState.error => const SizedBox.shrink(),
@@ -1149,7 +1160,10 @@ class SentenceAnnotationCardState extends State<SentenceAnnotationCard> {
 class _AnalysisContent extends StatelessWidget {
   final SentenceAnalysis analysis;
 
-  const _AnalysisContent({required this.analysis});
+  /// 学习内容字号偏好（作用于解析正文）
+  final ReadingTextPrefs textPrefs;
+
+  const _AnalysisContent({required this.analysis, required this.textPrefs});
 
   /// 匹配文本中的内联标记：反引号引用 `xxx` 或 IPA 音标 /tə/。
   ///
@@ -1236,10 +1250,11 @@ class _AnalysisContent extends StatelessWidget {
   /// 段落正文：把结构化要点逐条渲染为 bullet（标签加粗 + 详解）。
   Widget _buildSectionBody(ThemeData theme, List<(String, String)> items) {
     final cs = theme.colorScheme;
-    final body = theme.textTheme.bodySmall?.copyWith(
+    final rawBody = theme.textTheme.bodySmall?.copyWith(
       color: cs.onSurfaceVariant,
       height: 1.4,
     );
+    final body = rawBody == null ? null : textPrefs.applyTo(rawBody);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1278,7 +1293,8 @@ class _AnalysisContent extends StatelessWidget {
       child: Text(
         '▸',
         style: TextStyle(
-          fontSize: 13,
+          // 与正文同比缩放：正文字号 +1（默认 bodySmall 12 → 13，与原值一致）
+          fontSize: (body?.fontSize ?? 12) + 1,
           fontWeight: FontWeight.w700,
           color: cs.primary,
           height: 1,

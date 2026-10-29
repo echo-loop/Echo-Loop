@@ -25,6 +25,7 @@ import '../../features/remote_config/remote_config.dart';
 import '../../features/remote_config/remote_config_providers.dart';
 import '../../l10n/app_localizations.dart';
 import '../../models/speech_practice_models.dart';
+import '../../providers/reading_text_prefs_provider.dart';
 import '../../providers/saved_word_provider.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/saved_text_index.dart';
@@ -327,11 +328,16 @@ class _SelectableSentenceTextState
         ref.watch(savedWordTextsProvider).valueOrNull ?? const <String>{};
     // 收藏索引流式监听：加载中/降级（测试环境无 DB）时为空索引 = 无标记
     final savedMask = _ensureSavedMask(ref.watch(savedTextIndexProvider));
+    // 学习内容字号偏好：在进入选区组件前缩放，几何与命中测试随样式一致
+    final baseStyle = widget.style;
+    final textStyle = baseStyle == null
+        ? null
+        : ref.watch(readingTextPrefsNotifierProvider).applyTo(baseStyle);
     return PlatformTextSelectionStyle(
       child: AppSelectableText(
         key: _selectableKey,
         text: _fullText,
-        style: widget.style,
+        style: textStyle,
         wordRange: _wordRangeAt,
         spanBuilder: (_) => _buildSpans(theme, savedMask),
         actionsBuilder: _buildActions,

@@ -21,6 +21,8 @@ import 'package:echo_loop/providers/learning_settings_provider.dart';
 import 'package:echo_loop/providers/learning_session/favorite_vocabulary_review_provider.dart';
 import 'package:echo_loop/providers/pronunciation/pronunciation_providers.dart';
 import 'package:echo_loop/screens/favorite_vocabulary_review_screen.dart';
+import 'package:echo_loop/widgets/dictionary/local_dict_result_view.dart';
+import 'package:echo_loop/widgets/dictionary/reading_text_scale.dart';
 import 'package:echo_loop/widgets/review/review_completion_summary.dart';
 import 'package:echo_loop/widgets/practice/selectable_sentence_text.dart';
 import 'package:echo_loop/services/dictionary/dictionary_source.dart';
@@ -677,6 +679,25 @@ void main() {
       find.byKey(const Key('favorite-vocabulary-review-source-playback')),
       findsOneWidget,
     );
+  });
+
+  testWidgets('学习内容字号放大时，背面词典结果的主题文字同比放大', (tester) async {
+    await _sharedPreferences.setDouble('reading_font_scale', 1.5);
+    addTearDown(() => _sharedPreferences.remove('reading_font_scale'));
+    await tester.pumpWidget(_app());
+    await tester.pump();
+    await tester.tap(
+      find.byKey(const Key('favorite-vocabulary-review-reveal-zone')),
+    );
+    await tester.pumpAndSettle();
+
+    final scopeContext = tester.element(find.byType(ReadingTextScale).first);
+    final outer = Theme.of(scopeContext).textTheme.bodyMedium?.fontSize;
+    final inner = Theme.of(
+      tester.element(find.byType(LocalDictResultView)),
+    ).textTheme.bodyMedium?.fontSize;
+    expect(outer, isNotNull);
+    expect(inner, closeTo(outer! * 1.5, 0.01));
   });
 
   testWidgets('来源句播放控件位于评分栏上方并切换播放与停止图标', (tester) async {
