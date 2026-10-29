@@ -7622,6 +7622,36 @@ abstract class AppLocalizations {
   /// **'Learning Settings'**
   String get learningSettings;
 
+  /// No description provided for @showRecommendationToggle.
+  ///
+  /// In en, this message translates to:
+  /// **'Show recommendation card'**
+  String get showRecommendationToggle;
+
+  /// No description provided for @showRecommendationSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Show the \"Recommended for you\" card on the Study page'**
+  String get showRecommendationSubtitle;
+
+  /// No description provided for @hideRecommendationTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Hide recommendation'**
+  String get hideRecommendationTooltip;
+
+  /// No description provided for @hideRecommendationTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Hide recommendation card?'**
+  String get hideRecommendationTitle;
+
+  /// No description provided for @hideRecommendationMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'The Study page will stop showing recommendations. To bring it back, turn it on again in Settings › Learning › Display Settings.'**
+  String get hideRecommendationMessage;
+
   /// No description provided for @speakingPracticeSection.
   ///
   /// In en, this message translates to:

@@ -57,6 +57,7 @@ import '../providers/dictionary/visible_sources_provider.dart';
 import '../widgets/dictionary/dict_source_presentation.dart';
 import 'asr_settings_screen.dart';
 import 'dictionary_settings_screen.dart';
+import 'display_settings_screen.dart';
 import 'tts_settings_screen.dart';
 import 'learning_settings_screen.dart';
 import 'log_viewer_screen.dart';
@@ -360,6 +361,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           onTap: () => Navigator.of(context).push(
             MaterialPageRoute<void>(
               builder: (_) => const LearningSettingsScreen(),
+            ),
+          ),
+        ),
+        ListTile(
+          leading: _settingsThemedSvgIcon(context, 'assets/icon/eye.svg'),
+          title: Text(l10n.displaySettings),
+          trailing: const Icon(Icons.chevron_right),
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute<void>(
+              builder: (_) => const DisplaySettingsScreen(),
             ),
           ),
         ),

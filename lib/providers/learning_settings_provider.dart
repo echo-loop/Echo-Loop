@@ -46,6 +46,7 @@ abstract final class LearningSettingsKeys {
   static const retellAutoPlaybackPromptShown =
       'learning_retell_auto_playback_prompt_shown';
   static const pdfExportReminderShown = 'learning_pdf_export_reminder_shown';
+  static const showStudyRecommendation = 'learning_show_study_recommendation';
 
   /// 历史 SP key，启动期会被清理。
   static const legacyOfflineAsrEnabled = 'offline_asr_enabled';
@@ -90,6 +91,9 @@ class LearningSettings {
   /// 是否已经展示过首次导出 PDF 的补充复习材料提醒（默认 false）。
   final bool pdfExportReminderShown;
 
+  /// 是否在学习页展示「为你推荐」卡片（默认 true）。
+  final bool showStudyRecommendation;
+
   const LearningSettings({
     this.autoSkipRetell = false,
     this.autoExpandCachedAnnotation = true,
@@ -102,6 +106,7 @@ class LearningSettings {
     this.retellRatingEnabled = true,
     this.retellAutoPlaybackPromptShown = false,
     this.pdfExportReminderShown = false,
+    this.showStudyRecommendation = true,
   });
 
   /// 同步从 [SharedPreferences] 派生当前状态，用于启动期 override 注入。
@@ -135,6 +140,8 @@ class LearningSettings {
           false,
       pdfExportReminderShown:
           prefs.getBool(LearningSettingsKeys.pdfExportReminderShown) ?? false,
+      showStudyRecommendation:
+          prefs.getBool(LearningSettingsKeys.showStudyRecommendation) ?? true,
     );
   }
 
@@ -150,6 +157,7 @@ class LearningSettings {
     bool? retellRatingEnabled,
     bool? retellAutoPlaybackPromptShown,
     bool? pdfExportReminderShown,
+    bool? showStudyRecommendation,
   }) {
     return LearningSettings(
       autoSkipRetell: autoSkipRetell ?? this.autoSkipRetell,
@@ -172,6 +180,8 @@ class LearningSettings {
           retellAutoPlaybackPromptShown ?? this.retellAutoPlaybackPromptShown,
       pdfExportReminderShown:
           pdfExportReminderShown ?? this.pdfExportReminderShown,
+      showStudyRecommendation:
+          showStudyRecommendation ?? this.showStudyRecommendation,
     );
   }
 
@@ -192,7 +202,8 @@ class LearningSettings {
           retellRatingEnabled == other.retellRatingEnabled &&
           retellAutoPlaybackPromptShown ==
               other.retellAutoPlaybackPromptShown &&
-          pdfExportReminderShown == other.pdfExportReminderShown;
+          pdfExportReminderShown == other.pdfExportReminderShown &&
+          showStudyRecommendation == other.showStudyRecommendation;
 
   @override
   int get hashCode => Object.hash(
@@ -207,6 +218,7 @@ class LearningSettings {
     retellRatingEnabled,
     retellAutoPlaybackPromptShown,
     pdfExportReminderShown,
+    showStudyRecommendation,
   );
 }
 
@@ -390,6 +402,25 @@ class LearningSettingsNotifier extends Notifier<LearningSettings> {
       AppLogger.log(
         'LearningSettings',
         'markPdfExportReminderShown 写 SP 失败: $e',
+      );
+    }
+  }
+
+  /// 切换学习页「为你推荐」卡片显示，写 SP + 更新 state。
+  Future<void> setShowStudyRecommendation(bool enabled) async {
+    if (state.showStudyRecommendation == enabled) return;
+    state = state.copyWith(showStudyRecommendation: enabled);
+    try {
+      final prefs = ref.read(sharedPreferencesProvider);
+      await prefs.setBool(
+        LearningSettingsKeys.showStudyRecommendation,
+        enabled,
+      );
+      userPreferencesSyncEvents.notifyLocalChange();
+    } catch (e) {
+      AppLogger.log(
+        'LearningSettings',
+        'setShowStudyRecommendation 写 SP 失败: $e',
       );
     }
   }

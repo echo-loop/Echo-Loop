@@ -16,6 +16,7 @@ import '../models/audio_item.dart';
 import '../providers/audio_library_provider.dart';
 import '../providers/learning_plan_provider.dart';
 import '../providers/learning_progress_provider.dart';
+import '../providers/learning_settings_provider.dart';
 import '../providers/new_user_guide_provider.dart';
 import '../providers/study_stats_provider.dart';
 import '../providers/study_task_provider.dart';
@@ -77,7 +78,12 @@ class _StudyScreenState extends ConsumerState<StudyScreen> {
     final now = ref.watch(nowProvider)();
     final statsAsync = ref.watch(studyStatsNotifierProvider);
     final recommendationAsync = ref.watch(studyRecommendationProvider);
-    final recommendation = recommendationAsync.valueOrNull;
+    final showRecommendation = ref.watch(
+      learningSettingsProvider.select((s) => s.showStudyRecommendation),
+    );
+    final recommendation = showRecommendation
+        ? recommendationAsync.valueOrNull
+        : null;
     ref.listen(studyRecommendationProvider, (previous, next) {
       next.whenOrNull(
         error: (error, stackTrace) => AppLogger.log(
@@ -483,6 +489,19 @@ class _RecommendedMaterialCard extends ConsumerWidget {
                 fontWeight: FontWeight.w600,
               ),
             ),
+            const Spacer(),
+            IconButton(
+              icon: Icon(
+                Icons.close_rounded,
+                size: 18,
+                color: theme.colorScheme.onSurfaceVariant.withValues(
+                  alpha: 0.6,
+                ),
+              ),
+              tooltip: l10n.hideRecommendationTooltip,
+              visualDensity: VisualDensity.compact,
+              onPressed: () => _confirmHide(context, ref),
+            ),
           ],
         ),
         const SizedBox(height: AppSpacing.s),
@@ -526,6 +545,31 @@ class _RecommendedMaterialCard extends ConsumerWidget {
         ),
       ],
     );
+  }
+
+  /// 弹出确认框，确认后永久隐藏推荐卡（可在设置 › 学习 › 显示设置中重新开启）。
+  Future<void> _confirmHide(BuildContext context, WidgetRef ref) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(l10n.hideRecommendationTitle),
+        content: Text(l10n.hideRecommendationMessage),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: Text(l10n.cancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: Text(l10n.confirm),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !context.mounted) return;
+    await ref
+        .read(learningSettingsProvider.notifier)
+        .setShowStudyRecommendation(false);
   }
 }
 

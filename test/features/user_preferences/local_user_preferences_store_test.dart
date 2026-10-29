@@ -46,6 +46,27 @@ void main() {
     },
   );
 
+  test('syncs the study recommendation visibility preference', () async {
+    SharedPreferences.setMockInitialValues({
+      'learning_show_study_recommendation': false,
+    });
+    final prefs = await SharedPreferences.getInstance();
+    final store = LocalUserPreferencesStore(prefs);
+
+    final captured = store.capture();
+    expect(
+      (captured.preferences['learning'] as Map)['showStudyRecommendation'],
+      isFalse,
+    );
+
+    await store.apply(
+      UserPreferencesDocument({
+        'learning': {'showStudyRecommendation': true},
+      }),
+    );
+    expect(prefs.getBool('learning_show_study_recommendation'), isTrue);
+  });
+
   test(
     'applies cloud settings without touching developer or temporary state',
     () async {

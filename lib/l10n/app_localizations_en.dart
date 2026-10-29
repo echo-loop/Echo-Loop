@@ -4361,6 +4361,23 @@ class AppLocalizationsEn extends AppLocalizations {
   String get learningSettings => 'Learning Settings';
 
   @override
+  String get showRecommendationToggle => 'Show recommendation card';
+
+  @override
+  String get showRecommendationSubtitle =>
+      'Show the \"Recommended for you\" card on the Study page';
+
+  @override
+  String get hideRecommendationTooltip => 'Hide recommendation';
+
+  @override
+  String get hideRecommendationTitle => 'Hide recommendation card?';
+
+  @override
+  String get hideRecommendationMessage =>
+      'The Study page will stop showing recommendations. To bring it back, turn it on again in Settings › Learning › Display Settings.';
+
+  @override
   String get speakingPracticeSection => 'Speaking practice';
 
   @override

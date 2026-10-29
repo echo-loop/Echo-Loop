@@ -4165,6 +4165,22 @@ class AppLocalizationsZh extends AppLocalizations {
   String get learningSettings => '学习设置';
 
   @override
+  String get showRecommendationToggle => '显示推荐卡片';
+
+  @override
+  String get showRecommendationSubtitle => '在学习页显示「为你推荐」卡片';
+
+  @override
+  String get hideRecommendationTooltip => '关闭推荐';
+
+  @override
+  String get hideRecommendationTitle => '隐藏推荐卡片？';
+
+  @override
+  String get hideRecommendationMessage =>
+      '隐藏后学习页将不再显示推荐。如需恢复，可在「设置 › 学习 › 显示设置」中重新开启。';
+
+  @override
   String get speakingPracticeSection => '口语练习';
 
   @override

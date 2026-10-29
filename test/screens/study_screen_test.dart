@@ -10,6 +10,7 @@ import 'package:echo_loop/models/audio_item.dart';
 import 'package:echo_loop/models/learning_progress.dart';
 import 'package:echo_loop/providers/audio_library_provider.dart';
 import 'package:echo_loop/providers/learning_progress_provider.dart';
+import 'package:echo_loop/providers/learning_settings_provider.dart';
 import 'package:echo_loop/providers/study_task_provider.dart';
 import 'package:echo_loop/screens/study_screen.dart';
 import 'package:echo_loop/widgets/learning_progress_icon.dart';
@@ -974,6 +975,67 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.textContaining('Recently Completed'), findsNothing);
+  });
+
+  group('推荐卡关闭', () {
+    final now = DateTime(2026, 10, 11, 12);
+    final recommended = AudioItem(
+      id: 'recommended-audio',
+      name: 'Recommended Audio',
+      audioPath: 'audios/recommended.mp3',
+      addedDate: now,
+    );
+
+    Future<void> pumpWithRecommendation(WidgetTester tester) async {
+      await tester.pumpWidget(
+        createTestWidget(
+          audioItems: [recommended],
+          progressState: const LearningProgressState(isLoading: false),
+          fixedNow: now,
+          recommendedMaterial: recommended,
+        ),
+      );
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('取消确认框后推荐卡保持显示且不写入设置', (tester) async {
+      await pumpWithRecommendation(tester);
+
+      await tester.tap(find.byTooltip('Hide recommendation'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(TextButton, 'Cancel'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Recommended Audio'), findsOneWidget);
+      expect(
+        prefs.getBool(LearningSettingsKeys.showStudyRecommendation),
+        isNull,
+      );
+    });
+
+    testWidgets('确认后推荐卡消失并写入关闭状态', (tester) async {
+      await pumpWithRecommendation(tester);
+
+      await tester.tap(find.byTooltip('Hide recommendation'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(FilledButton, 'Confirm'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Recommended for you'), findsNothing);
+      expect(find.text('Recommended Audio'), findsNothing);
+      expect(
+        prefs.getBool(LearningSettingsKeys.showStudyRecommendation),
+        isFalse,
+      );
+    });
+
+    testWidgets('设置中已关闭推荐时学习页不显示推荐卡', (tester) async {
+      await prefs.setBool(LearningSettingsKeys.showStudyRecommendation, false);
+
+      await pumpWithRecommendation(tester);
+
+      expect(find.text('Recommended for you'), findsNothing);
+    });
   });
 }
 

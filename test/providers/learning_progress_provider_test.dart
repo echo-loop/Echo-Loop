@@ -61,6 +61,12 @@ class _TestLearningSettingsNotifier extends Notifier<LearningSettings>
   }
 
   @override
+  Future<void> setShowStudyRecommendation(bool enabled) async {
+    if (state.showStudyRecommendation == enabled) return;
+    state = state.copyWith(showStudyRecommendation: enabled);
+  }
+
+  @override
   Future<void> setAutoExpandCachedAnnotation(bool enabled) async {
     if (state.autoExpandCachedAnnotation == enabled) return;
     state = state.copyWith(autoExpandCachedAnnotation: enabled);

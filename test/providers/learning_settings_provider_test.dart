@@ -233,6 +233,43 @@ void main() {
       expect(prefs.getBool(LearningSettingsKeys.retellRatingEnabled), isFalse);
     });
 
+    test('setShowStudyRecommendation(false) 写 SP + 翻转 state', () async {
+      SharedPreferences.setMockInitialValues({});
+      final prefs = await SharedPreferences.getInstance();
+      final container = makeContainer(prefs);
+      addTearDown(container.dispose);
+
+      final notifier = container.read(learningSettingsProvider.notifier);
+      await notifier.setShowStudyRecommendation(false);
+
+      expect(
+        container.read(learningSettingsProvider).showStudyRecommendation,
+        isFalse,
+      );
+      expect(
+        prefs.getBool(LearningSettingsKeys.showStudyRecommendation),
+        isFalse,
+      );
+    });
+
+    test('SP 缺失时推荐卡默认显示，已关闭时启动读取为 false', () async {
+      SharedPreferences.setMockInitialValues({});
+      final prefs = await SharedPreferences.getInstance();
+      expect(
+        LearningSettings.fromPrefsSync(prefs).showStudyRecommendation,
+        isTrue,
+      );
+
+      SharedPreferences.setMockInitialValues({
+        LearningSettingsKeys.showStudyRecommendation: false,
+      });
+      final closedPrefs = await SharedPreferences.getInstance();
+      expect(
+        LearningSettings.fromPrefsSync(closedPrefs).showStudyRecommendation,
+        isFalse,
+      );
+    });
+
     test('setListenAndRepeatRatingEnabled 写 SP + 翻转 state', () async {
       SharedPreferences.setMockInitialValues({});
       final prefs = await SharedPreferences.getInstance();

@@ -34,6 +34,7 @@ class LocalUserPreferencesStore {
     LearningSettingsKeys.autoPlayRetellRecordingAfterCompletion: false,
     LearningSettingsKeys.listenAndRepeatRatingEnabled: true,
     LearningSettingsKeys.retellRatingEnabled: true,
+    LearningSettingsKeys.showStudyRecommendation: true,
   };
 
   UserPreferencesDocument capture() {
@@ -190,6 +191,7 @@ class LocalUserPreferencesStore {
     LearningSettingsKeys.listenAndRepeatRatingEnabled:
         'listenAndRepeatRatingEnabled',
     LearningSettingsKeys.retellRatingEnabled: 'retellRatingEnabled',
+    LearningSettingsKeys.showStudyRecommendation: 'showStudyRecommendation',
   };
 
   static String _learningFieldName(String storageKey) =>
