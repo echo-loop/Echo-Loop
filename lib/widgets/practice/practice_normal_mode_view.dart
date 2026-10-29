@@ -306,6 +306,15 @@ class PracticeNormalModeView extends StatelessWidget {
     );
   }
 
+  /// 标记切换按钮与「听不太懂」按钮的稳定 key。
+  ///
+  /// 两者会在同一个 Row 中按出现与否前后移位，必须用 key 绑定 element；
+  /// 否则位置复用会把一个按钮的文字样式插值到另一个按钮，触发 TextStyle 插值异常。
+  static const _toggleMarkButtonKey = ValueKey('practice-toggle-mark-button');
+  static const _cantUnderstandButtonKey = ValueKey(
+    'practice-cant-understand-button',
+  );
+
   /// 标记切换按钮
   ///
   /// 主次随 [isDifficult] 翻转：
@@ -318,6 +327,7 @@ class PracticeNormalModeView extends StatelessWidget {
 
     if (isDifficult) {
       return FilledButton.tonal(
+        key: _toggleMarkButtonKey,
         onPressed: onToggleMark,
         style: FilledButton.styleFrom(
           backgroundColor: cs.errorContainer,
@@ -341,6 +351,7 @@ class PracticeNormalModeView extends StatelessWidget {
     }
 
     return OutlinedButton(
+      key: _toggleMarkButtonKey,
       onPressed: onToggleMark,
       style: OutlinedButton.styleFrom(
         foregroundColor: cs.onSurfaceVariant,
@@ -366,6 +377,7 @@ class PracticeNormalModeView extends StatelessWidget {
   /// 听不太懂按钮（始终为 FilledTonal 蓝色填充）
   Widget _buildCantUnderstandButton() {
     final button = FilledButton.tonal(
+      key: _cantUnderstandButtonKey,
       onPressed: onCantUnderstand,
       style: FilledButton.styleFrom(
         shape: const StadiumBorder(),

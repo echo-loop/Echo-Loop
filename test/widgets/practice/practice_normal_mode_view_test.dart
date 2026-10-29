@@ -41,6 +41,59 @@ void main() {
     expect(find.widgetWithText(OutlinedButton, '重新收藏'), findsOneWidget);
   });
 
+  testWidgets('切换收藏动画中「听不太懂」按钮不复用取消标记按钮的样式', (tester) async {
+    // 回归：切换收藏时 Row 子项按位置复用 FilledButton element，动画中
+    // TextStyle 从默认样式插值到 copyWith 样式会因 inherit 不一致抛异常。
+    final isDifficult = ValueNotifier<bool>(false);
+    addTearDown(isDifficult.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        locale: const Locale('zh'),
+        localizationsDelegates: const [
+          AppLocalizations.delegate,
+          ...GlobalMaterialLocalizations.delegates,
+        ],
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: Builder(
+          builder: (context) => Scaffold(
+            body: ValueListenableBuilder<bool>(
+              valueListenable: isDifficult,
+              builder: (context, difficult, _) => PracticeNormalModeView(
+                l10n: AppLocalizations.of(context)!,
+                theme: ThemeData.light(),
+                isTextRevealed: true,
+                sentenceText: 'A sentence.',
+                isDifficult: difficult,
+                alwaysShowToggleButton: false,
+                onPeekToggle: () {},
+                onCantUnderstand: () {},
+                onToggleMark: () {},
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    isDifficult.value = true;
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    expect(find.widgetWithText(FilledButton, '取消收藏'), findsOneWidget);
+
+    isDifficult.value = false;
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    // 未收藏且非始终显示时，取消标记按钮隐藏，只剩「听不太懂」。
+    expect(find.widgetWithText(OutlinedButton, '重新收藏'), findsNothing);
+    expect(find.text('听不太懂'), findsOneWidget);
+  });
+
   testWidgets('难句收藏入口显示中英文收藏与取消收藏文案', (tester) async {
     Future<void> pumpView({
       required Locale locale,
