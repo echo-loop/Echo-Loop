@@ -1,9 +1,11 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:echo_loop/database/providers.dart';
+import 'package:echo_loop/features/podcast/podcast_transcript_downloader.dart';
 import 'package:echo_loop/features/remote_config/remote_config.dart';
 import 'package:echo_loop/features/remote_config/remote_config_providers.dart';
 import 'package:echo_loop/models/audio_item.dart';
@@ -38,6 +40,29 @@ import '../helpers/test_app.dart';
 class _ManualTranscriptionTaskManager extends TestTranscriptionTaskManager {
   void emit(String audioId, TranscriptionTaskState taskState) {
     state = Map.of(state)..[audioId] = taskState;
+  }
+}
+
+/// 播客 RSS 字幕内容（合法 SRT，可通过解析入库）。
+const _podcastSrt = '1\n00:00:00,000 --> 00:00:01,000\nHello podcast\n';
+
+/// 可预设返回内容或抛错、并记录请求地址的播客字幕下载器。
+class _FakePodcastTranscriptDownloader extends PodcastTranscriptDownloader {
+  _FakePodcastTranscriptDownloader({this.text = _podcastSrt, this.error});
+
+  final String text;
+  final Object? error;
+  final List<String> requestedUrls = [];
+
+  @override
+  Future<String> download(
+    String url, {
+    required String format,
+    CancelToken? cancelToken,
+  }) async {
+    requestedUrls.add(url);
+    if (error case final e?) throw e;
+    return text;
   }
 }
 
@@ -823,6 +848,184 @@ void main() {
         // 取消后状态回 Idle，进度视图消失；本地转录入口保持隐藏。
         expect(find.textContaining('Keep the app open'), findsNothing);
         expect(find.text('On-Device Transcription'), findsNothing);
+      });
+    });
+
+    group('播客字幕下载', () {
+      const podcastUrl = 'https://example.com/episode.srt';
+
+      AudioItem podcastItem({required bool hasTranscript}) {
+        return createTestAudioItem(
+          transcriptPath: hasTranscript ? 'transcripts/test.srt' : null,
+        ).copyWith(
+          podcastTranscriptUrl: podcastUrl,
+          podcastTranscriptFormat: 'srt',
+        );
+      }
+
+      testWidgets('无字幕地址：不显示下载播客字幕选项', (tester) async {
+        final item = createTestAudioItem(transcriptPath: null);
+        await tester.pumpWidget(buildSheet(item));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Open'));
+        await tester.pumpAndSettle();
+
+        expect(find.text('Download Podcast Subtitles'), findsNothing);
+      });
+
+      testWidgets('有字幕地址：默认选中并下载入库，成功后关闭弹窗', (tester) async {
+        final item = podcastItem(hasTranscript: false);
+        final downloader = _FakePodcastTranscriptDownloader();
+        final dao = TestAudioItemDao();
+        await tester.pumpWidget(
+          buildSheet(
+            item,
+            extraOverrides: [
+              podcastTranscriptDownloaderProvider.overrideWithValue(downloader),
+              audioItemDaoProvider.overrideWithValue(dao),
+            ],
+          ),
+        );
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Open'));
+        await tester.pumpAndSettle();
+
+        expect(find.text('Download Podcast Subtitles'), findsOneWidget);
+        await tester.tap(
+          find.widgetWithText(FilledButton, 'Download Subtitles'),
+        );
+        await tester.pumpAndSettle();
+
+        expect(downloader.requestedUrls, [podcastUrl]);
+        expect(dao.transcriptSrtStore[item.id], contains('Hello podcast'));
+        expect(find.byType(ManageSubtitlesSheet), findsNothing);
+      });
+
+      testWidgets('已有字幕：覆盖确认取消后不发起下载', (tester) async {
+        final item = podcastItem(hasTranscript: true);
+        final downloader = _FakePodcastTranscriptDownloader();
+        await tester.pumpWidget(
+          buildSheet(
+            item,
+            extraOverrides: [
+              podcastTranscriptDownloaderProvider.overrideWithValue(downloader),
+              audioItemDaoProvider.overrideWithValue(TestAudioItemDao()),
+            ],
+          ),
+        );
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Open'));
+        await tester.pumpAndSettle();
+
+        await tester.tap(
+          find.widgetWithText(FilledButton, 'Download Subtitles'),
+        );
+        await tester.pumpAndSettle();
+        expect(find.text('Overwrite existing subtitles?'), findsOneWidget);
+
+        await tester.tap(find.widgetWithText(TextButton, 'Cancel'));
+        await tester.pumpAndSettle();
+
+        expect(downloader.requestedUrls, isEmpty);
+        expect(find.byType(ManageSubtitlesSheet), findsOneWidget);
+      });
+
+      testWidgets('已有字幕：确认覆盖后替换为播客字幕', (tester) async {
+        final item = podcastItem(hasTranscript: true);
+        final downloader = _FakePodcastTranscriptDownloader();
+        final dao = TestAudioItemDao();
+        await tester.pumpWidget(
+          buildSheet(
+            item,
+            extraOverrides: [
+              podcastTranscriptDownloaderProvider.overrideWithValue(downloader),
+              audioItemDaoProvider.overrideWithValue(dao),
+            ],
+          ),
+        );
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Open'));
+        await tester.pumpAndSettle();
+
+        await tester.tap(
+          find.widgetWithText(FilledButton, 'Download Subtitles'),
+        );
+        await tester.pumpAndSettle();
+        await tester.tap(find.widgetWithText(FilledButton, 'Overwrite'));
+        await tester.pumpAndSettle();
+
+        expect(downloader.requestedUrls, [podcastUrl]);
+        expect(dao.transcriptSrtStore[item.id], contains('Hello podcast'));
+      });
+
+      testWidgets('下载失败：显示内联错误，弹窗保留且不改动字幕', (tester) async {
+        final item = podcastItem(hasTranscript: false);
+        final downloader = _FakePodcastTranscriptDownloader(
+          error: const PodcastTranscriptException('HTTP 500'),
+        );
+        final dao = TestAudioItemDao();
+        await tester.pumpWidget(
+          buildSheet(
+            item,
+            extraOverrides: [
+              podcastTranscriptDownloaderProvider.overrideWithValue(downloader),
+              audioItemDaoProvider.overrideWithValue(dao),
+            ],
+          ),
+        );
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Open'));
+        await tester.pumpAndSettle();
+
+        await tester.tap(
+          find.widgetWithText(FilledButton, 'Download Subtitles'),
+        );
+        await tester.pumpAndSettle();
+
+        expect(
+          find.textContaining('Failed to download subtitles'),
+          findsOneWidget,
+        );
+        expect(find.textContaining('HTTP 500'), findsOneWidget);
+        expect(find.byType(ManageSubtitlesSheet), findsOneWidget);
+        expect(dao.transcriptSrtStore[item.id], isNull);
+
+        // 内联错误 5 秒后自动消失，等待计时器结束避免残留。
+        await tester.pump(const Duration(seconds: 12));
+        await tester.pumpAndSettle();
+      });
+
+      testWidgets('下载到空字幕：提示为空且不入库', (tester) async {
+        final item = podcastItem(hasTranscript: false);
+        final dao = TestAudioItemDao();
+        await tester.pumpWidget(
+          buildSheet(
+            item,
+            extraOverrides: [
+              podcastTranscriptDownloaderProvider.overrideWithValue(
+                _FakePodcastTranscriptDownloader(text: ''),
+              ),
+              audioItemDaoProvider.overrideWithValue(dao),
+            ],
+          ),
+        );
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Open'));
+        await tester.pumpAndSettle();
+
+        await tester.tap(
+          find.widgetWithText(FilledButton, 'Download Subtitles'),
+        );
+        await tester.pumpAndSettle();
+
+        expect(
+          find.textContaining('no subtitle entries found'),
+          findsOneWidget,
+        );
+        expect(dao.transcriptSrtStore[item.id], isNull);
+
+        await tester.pump(const Duration(seconds: 12));
+        await tester.pumpAndSettle();
       });
     });
   });

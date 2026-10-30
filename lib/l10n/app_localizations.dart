@@ -4148,6 +4148,30 @@ abstract class AppLocalizations {
   /// **'Overwrite'**
   String get overwrite;
 
+  /// No description provided for @downloadPodcastSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Download Podcast Subtitles'**
+  String get downloadPodcastSubtitle;
+
+  /// No description provided for @downloadPodcastSubtitleSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Provided by the podcast, no transcription needed'**
+  String get downloadPodcastSubtitleSubtitle;
+
+  /// No description provided for @downloadSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Download Subtitles'**
+  String get downloadSubtitle;
+
+  /// No description provided for @downloadSubtitleFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to download subtitles'**
+  String get downloadSubtitleFailed;
+
   /// No description provided for @audioContentEmptyWarning.
   ///
   /// In en, this message translates to:

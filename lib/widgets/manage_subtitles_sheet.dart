@@ -15,6 +15,7 @@ import '../features/subscription/models/ai_quota_rejection.dart';
 import '../features/subscription/models/premium_feature.dart';
 import '../features/subscription/providers/ai_trial_usage_provider.dart';
 import '../features/subscription/providers/feature_access_provider.dart';
+import '../features/podcast/podcast_transcript_downloader.dart';
 import '../features/subscription/providers/subscription_controller.dart';
 import '../features/subscription/widgets/ai_quota_exceeded_dialog.dart';
 import '../features/remote_config/remote_config_providers.dart';
@@ -46,7 +47,12 @@ import '../utils/transcript_picker.dart';
 import 'common/anchored_bubble.dart';
 
 /// 字幕操作选项
-enum _SubtitleAction { localUpload, aiTranscription, offlineTranscription }
+enum _SubtitleAction {
+  podcastDownload,
+  localUpload,
+  aiTranscription,
+  offlineTranscription,
+}
 
 /// 内联错误提示的种类（决定图标和标题，文案外部传入）。
 enum _UploadErrorKind { unsupportedFormat, formatInvalid, empty, generic }
@@ -97,6 +103,9 @@ class _ManageSubtitlesSheetState extends ConsumerState<ManageSubtitlesSheet> {
   _SubtitleAction _selectedAction = _SubtitleAction.aiTranscription;
   String _selectedLanguage = 'en';
 
+  /// 播客字幕下载进行中（防重复点击，并在按钮上显示加载态）。
+  bool _isDownloadingSubtitle = false;
+
   /// AI 转录「自动合并短句」开关，初值取自设置（记住上次选择），默认开启。
   bool _autoMergeShortSentences = true;
 
@@ -127,6 +136,10 @@ class _ManageSubtitlesSheetState extends ConsumerState<ManageSubtitlesSheet> {
     _autoMergeShortSentences = ref
         .read(appSettingsProvider)
         .aiTranscriptionAutoMergeEnabled;
+    // 播客已提供字幕地址时默认选中「下载播客字幕」（免费且更快）
+    if (_hasPodcastTranscript(widget.audioItem)) {
+      _selectedAction = _SubtitleAction.podcastDownload;
+    }
     // 打开弹窗时异步清除之前的失败/空结果状态
     final taskState = ref.read(
       transcriptionTaskManagerProvider,
@@ -919,6 +932,20 @@ class _ManageSubtitlesSheetState extends ConsumerState<ManageSubtitlesSheet> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // 播客 RSS 已提供字幕：排在最前，直接下载入库。
+          if (_hasPodcastTranscript(audioItem)) ...[
+            _buildOptionTile(
+              theme: theme,
+              icon: Icons.closed_caption_outlined,
+              title: l10n.downloadPodcastSubtitle,
+              subtitle: l10n.downloadPodcastSubtitleSubtitle,
+              selected: _selectedAction == _SubtitleAction.podcastDownload,
+              onTap: () => setState(
+                () => _selectedAction = _SubtitleAction.podcastDownload,
+              ),
+            ),
+            const SizedBox(height: AppSpacing.s),
+          ],
           // 排序：AI 转录（推荐默认）→ 本地转录（离线替代）→ 本地上传（进阶手动）。
           _buildOptionTile(
             theme: theme,
@@ -1529,6 +1556,12 @@ class _ManageSubtitlesSheetState extends ConsumerState<ManageSubtitlesSheet> {
     );
   }
 
+  /// 播客 RSS 是否提供了可下载的字幕（地址与格式同时存在）。
+  bool _hasPodcastTranscript(AudioItem audioItem) {
+    return audioItem.podcastTranscriptUrl != null &&
+        audioItem.podcastTranscriptFormat != null;
+  }
+
   /// AI 转录按钮是否禁用
   ///
   /// 当 transcriptSource==ai 且选中的语言==transcriptLanguage 时禁用
@@ -1539,6 +1572,7 @@ class _ManageSubtitlesSheetState extends ConsumerState<ManageSubtitlesSheet> {
 
   /// 操作按钮是否可用
   bool _getActionEnabled(AudioItem audioItem) {
+    if (_selectedAction == _SubtitleAction.podcastDownload) return true;
     if (_selectedAction == _SubtitleAction.localUpload) return true;
     // 本地转录：始终可用（可重复转录/覆盖）。
     if (_selectedAction == _SubtitleAction.offlineTranscription) return true;
@@ -1559,6 +1593,8 @@ class _ManageSubtitlesSheetState extends ConsumerState<ManageSubtitlesSheet> {
         taskState is TranscriptionFailed ||
             taskState is TranscriptionEmptyResult
         ? l10n.retryTranscription
+        : _selectedAction == _SubtitleAction.podcastDownload
+        ? l10n.downloadSubtitle
         : _selectedAction == _SubtitleAction.localUpload
         ? l10n.uploadTranscript
         : _selectedAction == _SubtitleAction.aiTranscription &&
@@ -1566,9 +1602,18 @@ class _ManageSubtitlesSheetState extends ConsumerState<ManageSubtitlesSheet> {
         ? l10n.alreadyTranscribedWithOption
         : l10n.startTranscription;
 
+    final downloading = _isDownloadingSubtitle;
     final button = FilledButton(
-      onPressed: enabled ? () => _handleAction(context, audioItem) : null,
-      child: Text(label),
+      onPressed: enabled && !downloading
+          ? () => _handleAction(context, audioItem)
+          : null,
+      child: downloading
+          ? const SizedBox(
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            )
+          : Text(label),
     );
 
     return button;
@@ -1577,6 +1622,8 @@ class _ManageSubtitlesSheetState extends ConsumerState<ManageSubtitlesSheet> {
   /// 处理操作按钮点击
   Future<void> _handleAction(BuildContext context, AudioItem audioItem) async {
     switch (_selectedAction) {
+      case _SubtitleAction.podcastDownload:
+        await _handlePodcastDownload(context, audioItem);
       case _SubtitleAction.localUpload:
         await _handleLocalUpload(context, audioItem);
       case _SubtitleAction.aiTranscription:
@@ -1645,6 +1692,112 @@ class _ManageSubtitlesSheetState extends ConsumerState<ManageSubtitlesSheet> {
           model: model,
           autoMergeShortSentences: _autoMergeShortSentences,
         );
+  }
+
+  /// 下载播客 RSS 提供的字幕，并以本地字幕主干入库。
+  ///
+  /// 已有字幕时先弹覆盖确认。任何失败（网络、非 2xx、空字幕、解析错误）都以内联错误
+  /// 提示，且不写入数据库，原有字幕保持不变。
+  Future<void> _handlePodcastDownload(
+    BuildContext context,
+    AudioItem audioItem,
+  ) async {
+    final l10n = AppLocalizations.of(context)!;
+    final url = audioItem.podcastTranscriptUrl;
+    final format = audioItem.podcastTranscriptFormat;
+    if (url == null || format == null || _isDownloadingSubtitle) return;
+
+    if (audioItem.hasTranscript) {
+      final confirmed = await _confirmOverwriteSubtitle(context);
+      if (!confirmed || !mounted) return;
+    }
+
+    setState(() {
+      _isDownloadingSubtitle = true;
+      _error = null;
+    });
+    try {
+      AppLogger.log(
+        'SubtitleDownload',
+        'start audioId=${audioItem.id} format=$format',
+      );
+      final text = await ref
+          .read(podcastTranscriptDownloaderProvider)
+          .download(url, format: format);
+      if (!mounted) return;
+      // 解析后无句子视为空字幕，不入库。
+      final sentences = await parseSupportedSubtitle(text, ext: format);
+      if (!mounted) return;
+      if (sentences.isEmpty) {
+        throw const SubtitleParseException(SubtitleParseErrorKind.empty);
+      }
+      await importLocalSubtitle(ref, audioItem, text: text, ext: format);
+      ref.invalidate(audioSentencesProvider(audioItem.id));
+      AppLogger.log(
+        'SubtitleDownload',
+        'saved audioId=${audioItem.id} sentences=${sentences.length}',
+      );
+      if (context.mounted) Navigator.pop(context);
+    } on SubtitleParseException catch (e) {
+      AppLogger.log(
+        'SubtitleDownload',
+        'parse failed audioId=${audioItem.id} kind=${e.kind} detail=${e.detail}',
+      );
+      if (!mounted) return;
+      _showInlineError(_inlineErrorFromParseException(l10n, e));
+    } catch (e, st) {
+      AppLogger.log(
+        'SubtitleDownload',
+        'failed audioId=${audioItem.id} errorType=${e.runtimeType} error=$e',
+      );
+      AppLogger.log('SubtitleDownload', st.toString());
+      if (!mounted) return;
+      _showInlineError(
+        _InlineError(
+          _UploadErrorKind.generic,
+          '${l10n.downloadSubtitleFailed}: $e',
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _isDownloadingSubtitle = false);
+    }
+  }
+
+  /// 把字幕解析异常映射为内联错误（种类决定图标，文案由 l10n 生成）。
+  _InlineError _inlineErrorFromParseException(
+    AppLocalizations l10n,
+    SubtitleParseException e,
+  ) {
+    final kind = switch (e.kind) {
+      SubtitleParseErrorKind.unsupportedFormat =>
+        _UploadErrorKind.unsupportedFormat,
+      SubtitleParseErrorKind.formatInvalid => _UploadErrorKind.formatInvalid,
+      SubtitleParseErrorKind.empty => _UploadErrorKind.empty,
+    };
+    return _InlineError(kind, subtitleParseErrorMessage(l10n, e));
+  }
+
+  /// 已有字幕时的覆盖确认，返回用户是否确认覆盖。
+  Future<bool> _confirmOverwriteSubtitle(BuildContext context) async {
+    final l10n = AppLocalizations.of(context)!;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(l10n.overwriteExistingSubtitle),
+        content: Text(l10n.overwriteExistingSubtitleMessage),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(l10n.cancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(l10n.overwrite),
+          ),
+        ],
+      ),
+    );
+    return confirmed == true;
   }
 
   /// 处理本地上传
@@ -1735,13 +1888,7 @@ class _ManageSubtitlesSheetState extends ConsumerState<ManageSubtitlesSheet> {
         'parse failed audioId=${audioItem.id} kind=${e.kind} detail=${e.detail}',
       );
       if (!mounted) return;
-      final kind = switch (e.kind) {
-        SubtitleParseErrorKind.unsupportedFormat =>
-          _UploadErrorKind.unsupportedFormat,
-        SubtitleParseErrorKind.formatInvalid => _UploadErrorKind.formatInvalid,
-        SubtitleParseErrorKind.empty => _UploadErrorKind.empty,
-      };
-      _showInlineError(_InlineError(kind, subtitleParseErrorMessage(l10n, e)));
+      _showInlineError(_inlineErrorFromParseException(l10n, e));
     } catch (e, st) {
       AppLogger.log(
         'SubtitleUpload',

@@ -2260,6 +2260,18 @@ class AppLocalizationsZh extends AppLocalizations {
   String get overwrite => '覆盖';
 
   @override
+  String get downloadPodcastSubtitle => '下载播客字幕';
+
+  @override
+  String get downloadPodcastSubtitleSubtitle => '播客已提供字幕，无需转录';
+
+  @override
+  String get downloadSubtitle => '下载字幕';
+
+  @override
+  String get downloadSubtitleFailed => '下载字幕失败';
+
+  @override
   String get audioContentEmptyWarning => '疑似空音频';
 
   @override

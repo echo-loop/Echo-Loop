@@ -2365,6 +2365,19 @@ class AppLocalizationsEn extends AppLocalizations {
   String get overwrite => 'Overwrite';
 
   @override
+  String get downloadPodcastSubtitle => 'Download Podcast Subtitles';
+
+  @override
+  String get downloadPodcastSubtitleSubtitle =>
+      'Provided by the podcast, no transcription needed';
+
+  @override
+  String get downloadSubtitle => 'Download Subtitles';
+
+  @override
+  String get downloadSubtitleFailed => 'Failed to download subtitles';
+
+  @override
   String get audioContentEmptyWarning => 'Possibly empty';
 
   @override
