@@ -189,6 +189,12 @@ class AudioItem {
   /// Episode 的网页链接，来自 RSS item link。
   final String? podcastLink;
 
+  /// Episode 字幕地址，来自 RSS `<podcast:transcript>`；无则为 null。
+  final String? podcastTranscriptUrl;
+
+  /// 字幕格式 `srt` / `vtt`，与 [podcastTranscriptUrl] 同时有值。
+  final String? podcastTranscriptFormat;
+
   AudioItem({
     required this.id,
     required this.name,
@@ -216,6 +222,8 @@ class AudioItem {
     this.podcastDescription,
     this.podcastImageUrl,
     this.podcastLink,
+    this.podcastTranscriptUrl,
+    this.podcastTranscriptFormat,
   });
 
   /// 媒体文件是否已就绪（在本地可播）。音视频通用。
@@ -283,6 +291,8 @@ class AudioItem {
     'podcastDescription': podcastDescription,
     'podcastImageUrl': podcastImageUrl,
     'podcastLink': podcastLink,
+    'podcastTranscriptUrl': podcastTranscriptUrl,
+    'podcastTranscriptFormat': podcastTranscriptFormat,
   };
 
   factory AudioItem.fromJson(Map<String, dynamic> json) => AudioItem(
@@ -321,6 +331,8 @@ class AudioItem {
     podcastDescription: json['podcastDescription'] as String?,
     podcastImageUrl: json['podcastImageUrl'] as String?,
     podcastLink: json['podcastLink'] as String?,
+    podcastTranscriptUrl: json['podcastTranscriptUrl'] as String?,
+    podcastTranscriptFormat: json['podcastTranscriptFormat'] as String?,
   );
 
   AudioItem copyWith({
@@ -350,6 +362,8 @@ class AudioItem {
     Object? podcastDescription = _sentinel,
     Object? podcastImageUrl = _sentinel,
     Object? podcastLink = _sentinel,
+    Object? podcastTranscriptUrl = _sentinel,
+    Object? podcastTranscriptFormat = _sentinel,
   }) {
     return AudioItem(
       id: id ?? this.id,
@@ -415,6 +429,12 @@ class AudioItem {
       podcastLink: podcastLink == _sentinel
           ? this.podcastLink
           : podcastLink as String?,
+      podcastTranscriptUrl: podcastTranscriptUrl == _sentinel
+          ? this.podcastTranscriptUrl
+          : podcastTranscriptUrl as String?,
+      podcastTranscriptFormat: podcastTranscriptFormat == _sentinel
+          ? this.podcastTranscriptFormat
+          : podcastTranscriptFormat as String?,
     );
   }
 }

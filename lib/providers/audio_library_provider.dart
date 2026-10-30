@@ -96,6 +96,8 @@ class AudioLibrary extends _$AudioLibrary {
               podcastDescription: row.podcastDescription,
               podcastImageUrl: row.podcastImageUrl,
               podcastLink: row.podcastLink,
+              podcastTranscriptUrl: row.podcastTranscriptUrl,
+              podcastTranscriptFormat: row.podcastTranscriptFormat,
             ),
           )
           .toList();
@@ -680,6 +682,8 @@ class AudioLibrary extends _$AudioLibrary {
       podcastDescription: Value(item.podcastDescription),
       podcastImageUrl: Value(item.podcastImageUrl),
       podcastLink: Value(item.podcastLink),
+      podcastTranscriptUrl: Value(item.podcastTranscriptUrl),
+      podcastTranscriptFormat: Value(item.podcastTranscriptFormat),
       updatedAt: Value(DateTime.now()),
     );
   }

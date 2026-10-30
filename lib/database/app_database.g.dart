@@ -353,6 +353,28 @@ class $AudioItemsTable extends AudioItems
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _podcastTranscriptUrlMeta =
+      const VerificationMeta('podcastTranscriptUrl');
+  @override
+  late final GeneratedColumn<String> podcastTranscriptUrl =
+      GeneratedColumn<String>(
+        'podcast_transcript_url',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _podcastTranscriptFormatMeta =
+      const VerificationMeta('podcastTranscriptFormat');
+  @override
+  late final GeneratedColumn<String> podcastTranscriptFormat =
+      GeneratedColumn<String>(
+        'podcast_transcript_format',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -386,6 +408,8 @@ class $AudioItemsTable extends AudioItems
     podcastDescription,
     podcastImageUrl,
     podcastLink,
+    podcastTranscriptUrl,
+    podcastTranscriptFormat,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -656,6 +680,24 @@ class $AudioItemsTable extends AudioItems
         ),
       );
     }
+    if (data.containsKey('podcast_transcript_url')) {
+      context.handle(
+        _podcastTranscriptUrlMeta,
+        podcastTranscriptUrl.isAcceptableOrUnknown(
+          data['podcast_transcript_url']!,
+          _podcastTranscriptUrlMeta,
+        ),
+      );
+    }
+    if (data.containsKey('podcast_transcript_format')) {
+      context.handle(
+        _podcastTranscriptFormatMeta,
+        podcastTranscriptFormat.isAcceptableOrUnknown(
+          data['podcast_transcript_format']!,
+          _podcastTranscriptFormatMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -789,6 +831,14 @@ class $AudioItemsTable extends AudioItems
         DriftSqlType.string,
         data['${effectivePrefix}podcast_link'],
       ),
+      podcastTranscriptUrl: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}podcast_transcript_url'],
+      ),
+      podcastTranscriptFormat: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}podcast_transcript_format'],
+      ),
     );
   }
 
@@ -913,6 +963,12 @@ class AudioItem extends DataClass implements Insertable<AudioItem> {
 
   /// Episode 网页链接，来自 RSS item link。
   final String? podcastLink;
+
+  /// Episode 字幕地址，来自 RSS `<podcast:transcript>`；点击下载音频时一并获取。
+  final String? podcastTranscriptUrl;
+
+  /// 字幕格式，规范化为 `srt` / `vtt`，与 [podcastTranscriptUrl] 同时有值。
+  final String? podcastTranscriptFormat;
   const AudioItem({
     required this.id,
     required this.name,
@@ -945,6 +1001,8 @@ class AudioItem extends DataClass implements Insertable<AudioItem> {
     this.podcastDescription,
     this.podcastImageUrl,
     this.podcastLink,
+    this.podcastTranscriptUrl,
+    this.podcastTranscriptFormat,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -1026,6 +1084,14 @@ class AudioItem extends DataClass implements Insertable<AudioItem> {
     if (!nullToAbsent || podcastLink != null) {
       map['podcast_link'] = Variable<String>(podcastLink);
     }
+    if (!nullToAbsent || podcastTranscriptUrl != null) {
+      map['podcast_transcript_url'] = Variable<String>(podcastTranscriptUrl);
+    }
+    if (!nullToAbsent || podcastTranscriptFormat != null) {
+      map['podcast_transcript_format'] = Variable<String>(
+        podcastTranscriptFormat,
+      );
+    }
     return map;
   }
 
@@ -1106,6 +1172,12 @@ class AudioItem extends DataClass implements Insertable<AudioItem> {
       podcastLink: podcastLink == null && nullToAbsent
           ? const Value.absent()
           : Value(podcastLink),
+      podcastTranscriptUrl: podcastTranscriptUrl == null && nullToAbsent
+          ? const Value.absent()
+          : Value(podcastTranscriptUrl),
+      podcastTranscriptFormat: podcastTranscriptFormat == null && nullToAbsent
+          ? const Value.absent()
+          : Value(podcastTranscriptFormat),
     );
   }
 
@@ -1164,6 +1236,12 @@ class AudioItem extends DataClass implements Insertable<AudioItem> {
       ),
       podcastImageUrl: serializer.fromJson<String?>(json['podcastImageUrl']),
       podcastLink: serializer.fromJson<String?>(json['podcastLink']),
+      podcastTranscriptUrl: serializer.fromJson<String?>(
+        json['podcastTranscriptUrl'],
+      ),
+      podcastTranscriptFormat: serializer.fromJson<String?>(
+        json['podcastTranscriptFormat'],
+      ),
     );
   }
   @override
@@ -1203,6 +1281,10 @@ class AudioItem extends DataClass implements Insertable<AudioItem> {
       'podcastDescription': serializer.toJson<String?>(podcastDescription),
       'podcastImageUrl': serializer.toJson<String?>(podcastImageUrl),
       'podcastLink': serializer.toJson<String?>(podcastLink),
+      'podcastTranscriptUrl': serializer.toJson<String?>(podcastTranscriptUrl),
+      'podcastTranscriptFormat': serializer.toJson<String?>(
+        podcastTranscriptFormat,
+      ),
     };
   }
 
@@ -1238,6 +1320,8 @@ class AudioItem extends DataClass implements Insertable<AudioItem> {
     Value<String?> podcastDescription = const Value.absent(),
     Value<String?> podcastImageUrl = const Value.absent(),
     Value<String?> podcastLink = const Value.absent(),
+    Value<String?> podcastTranscriptUrl = const Value.absent(),
+    Value<String?> podcastTranscriptFormat = const Value.absent(),
   }) => AudioItem(
     id: id ?? this.id,
     name: name ?? this.name,
@@ -1304,6 +1388,12 @@ class AudioItem extends DataClass implements Insertable<AudioItem> {
         ? podcastImageUrl.value
         : this.podcastImageUrl,
     podcastLink: podcastLink.present ? podcastLink.value : this.podcastLink,
+    podcastTranscriptUrl: podcastTranscriptUrl.present
+        ? podcastTranscriptUrl.value
+        : this.podcastTranscriptUrl,
+    podcastTranscriptFormat: podcastTranscriptFormat.present
+        ? podcastTranscriptFormat.value
+        : this.podcastTranscriptFormat,
   );
   AudioItem copyWithCompanion(AudioItemsCompanion data) {
     return AudioItem(
@@ -1384,6 +1474,12 @@ class AudioItem extends DataClass implements Insertable<AudioItem> {
       podcastLink: data.podcastLink.present
           ? data.podcastLink.value
           : this.podcastLink,
+      podcastTranscriptUrl: data.podcastTranscriptUrl.present
+          ? data.podcastTranscriptUrl.value
+          : this.podcastTranscriptUrl,
+      podcastTranscriptFormat: data.podcastTranscriptFormat.present
+          ? data.podcastTranscriptFormat.value
+          : this.podcastTranscriptFormat,
     );
   }
 
@@ -1420,7 +1516,9 @@ class AudioItem extends DataClass implements Insertable<AudioItem> {
           ..write('podcastEnclosureType: $podcastEnclosureType, ')
           ..write('podcastDescription: $podcastDescription, ')
           ..write('podcastImageUrl: $podcastImageUrl, ')
-          ..write('podcastLink: $podcastLink')
+          ..write('podcastLink: $podcastLink, ')
+          ..write('podcastTranscriptUrl: $podcastTranscriptUrl, ')
+          ..write('podcastTranscriptFormat: $podcastTranscriptFormat')
           ..write(')'))
         .toString();
   }
@@ -1458,6 +1556,8 @@ class AudioItem extends DataClass implements Insertable<AudioItem> {
     podcastDescription,
     podcastImageUrl,
     podcastLink,
+    podcastTranscriptUrl,
+    podcastTranscriptFormat,
   ]);
   @override
   bool operator ==(Object other) =>
@@ -1493,7 +1593,9 @@ class AudioItem extends DataClass implements Insertable<AudioItem> {
           other.podcastEnclosureType == this.podcastEnclosureType &&
           other.podcastDescription == this.podcastDescription &&
           other.podcastImageUrl == this.podcastImageUrl &&
-          other.podcastLink == this.podcastLink);
+          other.podcastLink == this.podcastLink &&
+          other.podcastTranscriptUrl == this.podcastTranscriptUrl &&
+          other.podcastTranscriptFormat == this.podcastTranscriptFormat);
 }
 
 class AudioItemsCompanion extends UpdateCompanion<AudioItem> {
@@ -1528,6 +1630,8 @@ class AudioItemsCompanion extends UpdateCompanion<AudioItem> {
   final Value<String?> podcastDescription;
   final Value<String?> podcastImageUrl;
   final Value<String?> podcastLink;
+  final Value<String?> podcastTranscriptUrl;
+  final Value<String?> podcastTranscriptFormat;
   final Value<int> rowid;
   const AudioItemsCompanion({
     this.id = const Value.absent(),
@@ -1561,6 +1665,8 @@ class AudioItemsCompanion extends UpdateCompanion<AudioItem> {
     this.podcastDescription = const Value.absent(),
     this.podcastImageUrl = const Value.absent(),
     this.podcastLink = const Value.absent(),
+    this.podcastTranscriptUrl = const Value.absent(),
+    this.podcastTranscriptFormat = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   AudioItemsCompanion.insert({
@@ -1595,6 +1701,8 @@ class AudioItemsCompanion extends UpdateCompanion<AudioItem> {
     this.podcastDescription = const Value.absent(),
     this.podcastImageUrl = const Value.absent(),
     this.podcastLink = const Value.absent(),
+    this.podcastTranscriptUrl = const Value.absent(),
+    this.podcastTranscriptFormat = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        name = Value(name),
@@ -1632,6 +1740,8 @@ class AudioItemsCompanion extends UpdateCompanion<AudioItem> {
     Expression<String>? podcastDescription,
     Expression<String>? podcastImageUrl,
     Expression<String>? podcastLink,
+    Expression<String>? podcastTranscriptUrl,
+    Expression<String>? podcastTranscriptFormat,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -1674,6 +1784,10 @@ class AudioItemsCompanion extends UpdateCompanion<AudioItem> {
       if (podcastDescription != null) 'podcast_description': podcastDescription,
       if (podcastImageUrl != null) 'podcast_image_url': podcastImageUrl,
       if (podcastLink != null) 'podcast_link': podcastLink,
+      if (podcastTranscriptUrl != null)
+        'podcast_transcript_url': podcastTranscriptUrl,
+      if (podcastTranscriptFormat != null)
+        'podcast_transcript_format': podcastTranscriptFormat,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -1710,6 +1824,8 @@ class AudioItemsCompanion extends UpdateCompanion<AudioItem> {
     Value<String?>? podcastDescription,
     Value<String?>? podcastImageUrl,
     Value<String?>? podcastLink,
+    Value<String?>? podcastTranscriptUrl,
+    Value<String?>? podcastTranscriptFormat,
     Value<int>? rowid,
   }) {
     return AudioItemsCompanion(
@@ -1745,6 +1861,9 @@ class AudioItemsCompanion extends UpdateCompanion<AudioItem> {
       podcastDescription: podcastDescription ?? this.podcastDescription,
       podcastImageUrl: podcastImageUrl ?? this.podcastImageUrl,
       podcastLink: podcastLink ?? this.podcastLink,
+      podcastTranscriptUrl: podcastTranscriptUrl ?? this.podcastTranscriptUrl,
+      podcastTranscriptFormat:
+          podcastTranscriptFormat ?? this.podcastTranscriptFormat,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -1853,6 +1972,16 @@ class AudioItemsCompanion extends UpdateCompanion<AudioItem> {
     if (podcastLink.present) {
       map['podcast_link'] = Variable<String>(podcastLink.value);
     }
+    if (podcastTranscriptUrl.present) {
+      map['podcast_transcript_url'] = Variable<String>(
+        podcastTranscriptUrl.value,
+      );
+    }
+    if (podcastTranscriptFormat.present) {
+      map['podcast_transcript_format'] = Variable<String>(
+        podcastTranscriptFormat.value,
+      );
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -1893,6 +2022,8 @@ class AudioItemsCompanion extends UpdateCompanion<AudioItem> {
           ..write('podcastDescription: $podcastDescription, ')
           ..write('podcastImageUrl: $podcastImageUrl, ')
           ..write('podcastLink: $podcastLink, ')
+          ..write('podcastTranscriptUrl: $podcastTranscriptUrl, ')
+          ..write('podcastTranscriptFormat: $podcastTranscriptFormat, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -15286,6 +15417,8 @@ typedef $$AudioItemsTableCreateCompanionBuilder =
       Value<String?> podcastDescription,
       Value<String?> podcastImageUrl,
       Value<String?> podcastLink,
+      Value<String?> podcastTranscriptUrl,
+      Value<String?> podcastTranscriptFormat,
       Value<int> rowid,
     });
 typedef $$AudioItemsTableUpdateCompanionBuilder =
@@ -15321,6 +15454,8 @@ typedef $$AudioItemsTableUpdateCompanionBuilder =
       Value<String?> podcastDescription,
       Value<String?> podcastImageUrl,
       Value<String?> podcastLink,
+      Value<String?> podcastTranscriptUrl,
+      Value<String?> podcastTranscriptFormat,
       Value<int> rowid,
     });
 
@@ -15672,6 +15807,16 @@ class $$AudioItemsTableFilterComposer
 
   ColumnFilters<String> get podcastLink => $composableBuilder(
     column: $table.podcastLink,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get podcastTranscriptUrl => $composableBuilder(
+    column: $table.podcastTranscriptUrl,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get podcastTranscriptFormat => $composableBuilder(
+    column: $table.podcastTranscriptFormat,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -16039,6 +16184,16 @@ class $$AudioItemsTableOrderingComposer
     column: $table.podcastLink,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get podcastTranscriptUrl => $composableBuilder(
+    column: $table.podcastTranscriptUrl,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get podcastTranscriptFormat => $composableBuilder(
+    column: $table.podcastTranscriptFormat,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$AudioItemsTableAnnotationComposer
@@ -16186,6 +16341,16 @@ class $$AudioItemsTableAnnotationComposer
 
   GeneratedColumn<String> get podcastLink => $composableBuilder(
     column: $table.podcastLink,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get podcastTranscriptUrl => $composableBuilder(
+    column: $table.podcastTranscriptUrl,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get podcastTranscriptFormat => $composableBuilder(
+    column: $table.podcastTranscriptFormat,
     builder: (column) => column,
   );
 
@@ -16460,6 +16625,8 @@ class $$AudioItemsTableTableManager
                 Value<String?> podcastDescription = const Value.absent(),
                 Value<String?> podcastImageUrl = const Value.absent(),
                 Value<String?> podcastLink = const Value.absent(),
+                Value<String?> podcastTranscriptUrl = const Value.absent(),
+                Value<String?> podcastTranscriptFormat = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => AudioItemsCompanion(
                 id: id,
@@ -16493,6 +16660,8 @@ class $$AudioItemsTableTableManager
                 podcastDescription: podcastDescription,
                 podcastImageUrl: podcastImageUrl,
                 podcastLink: podcastLink,
+                podcastTranscriptUrl: podcastTranscriptUrl,
+                podcastTranscriptFormat: podcastTranscriptFormat,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -16528,6 +16697,8 @@ class $$AudioItemsTableTableManager
                 Value<String?> podcastDescription = const Value.absent(),
                 Value<String?> podcastImageUrl = const Value.absent(),
                 Value<String?> podcastLink = const Value.absent(),
+                Value<String?> podcastTranscriptUrl = const Value.absent(),
+                Value<String?> podcastTranscriptFormat = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => AudioItemsCompanion.insert(
                 id: id,
@@ -16561,6 +16732,8 @@ class $$AudioItemsTableTableManager
                 podcastDescription: podcastDescription,
                 podcastImageUrl: podcastImageUrl,
                 podcastLink: podcastLink,
+                podcastTranscriptUrl: podcastTranscriptUrl,
+                podcastTranscriptFormat: podcastTranscriptFormat,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0

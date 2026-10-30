@@ -23,6 +23,7 @@ import '../widgets/review/review_briefing_sheet.dart';
 import '../router/app_router.dart';
 import '../theme/app_theme.dart';
 import 'common/app_popup_menu.dart';
+import 'common/transcript_cc_badge.dart';
 import '../features/community_collections/download/download_progress.dart';
 import '../features/community_collections/download/community_download_notifier.dart';
 import '../features/community_collections/data/community_collection_api.dart';
@@ -462,7 +463,10 @@ class AudioListTile extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             if (hasCc) ...[
-              _buildTranscriptBadge(theme, l10n.transcript),
+              TranscriptCcBadge(
+                containerKey: const Key('audio_list_tile_transcript_badge'),
+                label: l10n.transcript,
+              ),
               const SizedBox(width: 8),
             ],
             if (communityDifficulty != null) ...[
@@ -696,39 +700,6 @@ class AudioListTile extends ConsumerWidget {
       AudioContentStatus.silent => l10n.audioContentSilentWarning,
       AudioContentStatus.ok || null => null,
     };
-  }
-
-  /// 字幕状态标签 —— 采用国际通用的 CC（Closed Caption）徽章。
-  ///
-  /// [label] 保留作为语义标签（无障碍朗读），视觉上只呈现「CC」，
-  /// 更紧凑、辨识度更高。
-  ///
-  /// 采用中性灰：CC 是「有无字幕」的静态属性标记，与状态/标签 chip 的
-  /// 彩色区分，避免与相邻的学习进度 badge 争夺注意力。
-  Widget _buildTranscriptBadge(ThemeData theme, String label) {
-    final color = theme.colorScheme.onSurfaceVariant;
-    return Tooltip(
-      message: label,
-      child: Container(
-        key: const Key('audio_list_tile_transcript_badge'),
-        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.10),
-          border: Border.all(color: color.withValues(alpha: 0.35)),
-          borderRadius: BorderRadius.circular(4),
-        ),
-        child: Text(
-          'CC',
-          style: theme.textTheme.labelSmall?.copyWith(
-            color: color,
-            fontSize: 10,
-            fontWeight: FontWeight.w700,
-            letterSpacing: 0.3,
-            height: 1.0,
-          ),
-        ),
-      ),
-    );
   }
 
   /// 构建 trailing 区域（单一菜单按钮，居中显示）

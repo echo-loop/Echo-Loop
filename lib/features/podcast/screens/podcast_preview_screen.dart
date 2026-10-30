@@ -17,6 +17,7 @@ import '../../../models/collection.dart';
 import '../../../providers/collection_provider.dart';
 import '../../../router/app_router.dart';
 import '../../../services/app_logger.dart';
+import '../../../widgets/common/transcript_cc_badge.dart';
 import '../../../theme/app_theme.dart';
 import '../../auth/sign_in_required_dialog.dart';
 import '../podcast_info_sheet.dart';
@@ -369,6 +370,8 @@ class _EpisodePreviewTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final l10n = AppLocalizations.of(context)!;
+    final hasTranscript = episode.transcriptUrl != null;
     final meta = <String>[
       if (episode.pubDate != null) _formatDate(episode.pubDate!),
       if (episode.durationSeconds != null && episode.durationSeconds! > 0)
@@ -403,20 +406,33 @@ class _EpisodePreviewTile extends StatelessWidget {
                         height: 1.2,
                       ),
                     ),
-                    if (meta.isNotEmpty)
+                    if (meta.isNotEmpty || hasTranscript)
                       Padding(
                         padding: const EdgeInsets.only(top: 4),
-                        child: Text(
-                          meta,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: theme.textTheme.labelMedium?.copyWith(
-                            color: theme.colorScheme.onSurfaceVariant,
-                            fontWeight: FontWeight.w500,
-                          ),
+                        child: Row(
+                          children: [
+                            if (meta.isNotEmpty)
+                              Flexible(
+                                child: Text(
+                                  meta,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: theme.textTheme.labelMedium?.copyWith(
+                                    color: theme.colorScheme.onSurfaceVariant,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ),
+                            if (meta.isNotEmpty && hasTranscript)
+                              const SizedBox(width: 6),
+                            if (hasTranscript)
+                              TranscriptCcBadge(label: l10n.transcript),
+                          ],
                         ),
                       ),
-                    if ((episode.description ?? '').isNotEmpty)
+                    // 有字幕时以 CC 标记代替描述：RSS 描述常是「附逐句字幕」之类的长说明。
+                    if (!hasTranscript &&
+                        (episode.description ?? '').isNotEmpty)
                       Padding(
                         padding: const EdgeInsets.only(top: 4),
                         child: Text(

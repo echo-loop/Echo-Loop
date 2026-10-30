@@ -128,6 +128,12 @@ class AudioItems extends Table {
   /// Episode 网页链接，来自 RSS item link。
   TextColumn get podcastLink => text().nullable()();
 
+  /// Episode 字幕地址，来自 RSS `<podcast:transcript>`；点击下载音频时一并获取。
+  TextColumn get podcastTranscriptUrl => text().nullable()();
+
+  /// 字幕格式，规范化为 `srt` / `vtt`，与 [podcastTranscriptUrl] 同时有值。
+  TextColumn get podcastTranscriptFormat => text().nullable()();
+
   @override
   Set<Column> get primaryKey => {id};
 }

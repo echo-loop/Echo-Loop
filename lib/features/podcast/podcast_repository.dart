@@ -293,21 +293,36 @@ class PodcastRepository {
     final audioLib = _ref.read(audioLibraryProvider.notifier);
     final collList = _ref.read(collectionListProvider.notifier);
 
-    // 获取该合集已有的 guid 集合（避免重复）
+    // 获取该合集已有条目（按 guid 索引）：用于去重，并为未下载的老单集补写字幕地址。
     final existingItems = _ref.read(audioLibraryProvider).audioItems;
     final collectionAudioIds = _ref
         .read(collectionListProvider)
         .getAudioIds(collectionId)
         .toSet();
-    final existingGuids = existingItems
-        .where((item) => collectionAudioIds.contains(item.id))
-        .map((item) => item.podcastEpisodeGuid)
-        .whereType<String>()
-        .toSet();
+    final existingByGuid = <String, AudioItem>{
+      for (final item in existingItems)
+        if (collectionAudioIds.contains(item.id) &&
+            item.podcastEpisodeGuid != null)
+          item.podcastEpisodeGuid!: item,
+    };
 
     final newItems = <AudioItem>[];
     for (final episode in episodes) {
-      if (existingGuids.contains(episode.guid)) continue;
+      final existing = existingByGuid[episode.guid];
+      if (existing != null) {
+        // 老单集只补写字幕地址：未下载音频、且 feed 现在提供了字幕。不触发下载。
+        if (existing.audioPath == null &&
+            existing.podcastTranscriptUrl == null &&
+            episode.transcriptUrl != null) {
+          await audioLib.updateAudioItem(
+            existing.copyWith(
+              podcastTranscriptUrl: episode.transcriptUrl,
+              podcastTranscriptFormat: episode.transcriptFormat,
+            ),
+          );
+        }
+        continue;
+      }
 
       final now = DateTime.now();
       final item = AudioItem(
@@ -323,6 +338,8 @@ class PodcastRepository {
         podcastDescription: episode.description,
         podcastImageUrl: episode.imageUrl,
         podcastLink: episode.link,
+        podcastTranscriptUrl: episode.transcriptUrl,
+        podcastTranscriptFormat: episode.transcriptFormat,
       );
 
       newItems.add(item);

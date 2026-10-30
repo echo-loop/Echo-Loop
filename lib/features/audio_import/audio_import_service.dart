@@ -310,13 +310,21 @@ class AudioImportService {
       p.join(tmpDir.path, '$audioId.${resolved.extension}'),
     );
     try {
-      await _backgroundDownloader.download(
-        uri: resolved.uri,
-        savePath: downloadedFile.path,
-        displayName: resolved.displayName,
-        cancelToken: cancelToken,
-        onProgress: (received, total) => onProgress?.call(received, total),
-      );
+      try {
+        await _backgroundDownloader.download(
+          uri: resolved.uri,
+          savePath: downloadedFile.path,
+          displayName: resolved.displayName,
+          cancelToken: cancelToken,
+          onProgress: (received, total) => onProgress?.call(received, total),
+        );
+      } catch (error) {
+        // 用户主动取消立即释放已落盘的部分文件；自然失败则保留，供下次继续。
+        if (error is BackgroundFileDownloadException && error.isCanceled) {
+          await _deleteIfExists(downloadedFile);
+        }
+        rethrow;
+      }
       return p.join('tmp', 'audio_import', p.basename(downloadedFile.path));
     } on BackgroundFileDownloadException catch (e) {
       if (e.isCanceled) {

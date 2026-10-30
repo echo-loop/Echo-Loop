@@ -215,6 +215,69 @@ void main() {
       expect(find.text('Episode One'), findsOneWidget);
     });
 
+    testWidgets('有字幕的单集显示 CC 标记，不显示描述长文', (tester) async {
+      const data = PodcastPreviewData(
+        meta: PodcastFeedMeta(
+          title: '6 Minute English',
+          feedUrl: _feedUrl,
+          description: 'Short lessons',
+        ),
+        episodes: [
+          PodcastEpisode(
+            guid: 'ep-subtitled',
+            title: 'Subtitled Episode',
+            enclosureUrl: 'https://example.com/sub.mp3',
+            enclosureType: 'audio/mpeg',
+            description: '附逐句 srt 字幕',
+            transcriptUrl: 'https://example.com/sub.srt',
+            transcriptFormat: 'srt',
+          ),
+          PodcastEpisode(
+            guid: 'ep-plain',
+            title: 'Plain Episode',
+            enclosureUrl: 'https://example.com/plain.mp3',
+            enclosureType: 'audio/mpeg',
+            description: 'Plain summary',
+          ),
+        ],
+      );
+      await tester.pumpWidget(
+        createTestApp(
+          const PodcastPreviewScreen(
+            arg: PodcastPreviewArg(
+              title: '6 Minute English',
+              feedUrl: _feedUrl,
+            ),
+          ),
+          overrides: [
+            collectionListProvider.overrideWith(() => TestCollectionList()),
+            podcastPreviewProvider(_feedUrl).overrideWith((ref) async => data),
+          ],
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final subtitledRow = find.ancestor(
+        of: find.text('Subtitled Episode'),
+        matching: find.byType(Row),
+      );
+      expect(
+        find.descendant(of: subtitledRow.first, matching: find.text('CC')),
+        findsOneWidget,
+      );
+      expect(find.text('附逐句 srt 字幕'), findsNothing);
+
+      final plainRow = find.ancestor(
+        of: find.text('Plain Episode'),
+        matching: find.byType(Row),
+      );
+      expect(
+        find.descendant(of: plainRow.first, matching: find.text('CC')),
+        findsNothing,
+      );
+      expect(find.text('Plain summary'), findsOneWidget);
+    });
+
     testWidgets('点击 episode 打开单集详情弹窗', (tester) async {
       await tester.pumpWidget(
         createTestApp(

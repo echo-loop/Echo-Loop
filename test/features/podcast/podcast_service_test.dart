@@ -899,6 +899,64 @@ void main() {
       );
     });
 
+    test('刷新时为未下载的老单集补写字幕地址，且不下载音频', () async {
+      const feed = '''<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:podcast="https://podcastindex.org/namespace/1.0">
+  <channel>
+    <title>VOA Learning English</title>
+    <item>
+      <guid>existing-guid</guid>
+      <title>Existing Episode</title>
+      <enclosure url="https://example.com/existing.mp3" type="audio/mpeg" />
+      <podcast:transcript url="https://example.com/existing.srt" type="application/srt" />
+    </item>
+  </channel>
+</rss>''';
+      final collection = podcast(lastRefreshedAt: DateTime(2026, 6, 13));
+      final existingItem = AudioItem(
+        id: 'existing-audio',
+        name: 'Existing Episode',
+        addedDate: DateTime(2026, 6, 1),
+        podcastEpisodeGuid: 'existing-guid',
+        podcastEnclosureUrl: 'https://example.com/existing.mp3',
+      );
+      final audioLibrary = _CountingAudioLibrary(
+        AudioLibraryState(audioItems: [existingItem]),
+      );
+      final dio = _CountingDio(body: feed);
+      final repoProvider = Provider(
+        (ref) =>
+            PodcastRepository(ref, dio: dio, feedParser: PodcastFeedParser()),
+      );
+      final container = ProviderContainer(
+        overrides: [
+          collectionListProvider.overrideWith(
+            () => _SeededCollectionList(
+              CollectionState(
+                rawCollections: [collection],
+                audioIdsMap: {
+                  collection.id: [existingItem.id],
+                },
+              ),
+            ),
+          ),
+          audioLibraryProvider.overrideWith(() => audioLibrary),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      await container.read(repoProvider).refresh(collection.id, force: true);
+
+      final item = container
+          .read(audioLibraryProvider)
+          .audioItems
+          .singleWhere((item) => item.id == existingItem.id);
+      expect(item.podcastTranscriptUrl, 'https://example.com/existing.srt');
+      expect(item.podcastTranscriptFormat, 'srt');
+      expect(item.audioPath, isNull);
+      expect(audioLibrary.addAudiosCallCount, 0);
+    });
+
     test('RSS 和 Apple lookup 兜底都失败时写入最后刷新失败状态', () async {
       final dio = _RoutingDio({
         feedUrl: DioException(

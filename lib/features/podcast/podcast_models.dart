@@ -149,6 +149,12 @@ class PodcastEpisode {
   final String? imageUrl;
   final String? link;
 
+  /// RSS `<podcast:transcript>` 字幕地址；无受支持格式时为 null。
+  final String? transcriptUrl;
+
+  /// 字幕格式，规范化为 `srt` 或 `vtt`；与 [transcriptUrl] 同时存在或同时为 null。
+  final String? transcriptFormat;
+
   const PodcastEpisode({
     required this.guid,
     required this.title,
@@ -159,5 +165,7 @@ class PodcastEpisode {
     this.description,
     this.imageUrl,
     this.link,
+    this.transcriptUrl,
+    this.transcriptFormat,
   });
 }

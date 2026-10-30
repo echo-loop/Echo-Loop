@@ -8,6 +8,25 @@ import 'package:xml/xml.dart';
 
 import 'podcast_models.dart';
 
+/// 根据 `<podcast:transcript>` 的 MIME type（优先）或 URL 扩展名（兜底），
+/// 返回可直接入库的字幕格式 `srt` / `vtt`；不支持的格式返回 null。
+///
+/// 只支持现有字幕解析器能处理的标准格式，JSON / HTML / 纯文本一律忽略。
+String? podcastTranscriptFormatFor(String? mimeType, String url) {
+  switch (mimeType?.toLowerCase().split(';').first.trim()) {
+    case 'application/srt':
+    case 'application/x-subrip':
+    case 'text/srt':
+      return 'srt';
+    case 'text/vtt':
+      return 'vtt';
+  }
+  final path = Uri.tryParse(url)?.path.toLowerCase() ?? '';
+  if (path.endsWith('.srt')) return 'srt';
+  if (path.endsWith('.vtt')) return 'vtt';
+  return null;
+}
+
 class PodcastFeedParser {
   /// 解析 RSS XML 字符串，返回 [PodcastFeedResult]。
   PodcastFeedResult parse(String xmlContent, {required String feedUrl}) {
@@ -102,6 +121,7 @@ class PodcastFeedParser {
       final title = _text(item, 'title') ?? guid;
       final pubDate = _parseDate(_text(item, 'pubDate'));
       final duration = _parseDuration(_text(item, 'itunes:duration'));
+      final transcript = _parseTranscript(item);
 
       episodes.add(
         PodcastEpisode(
@@ -120,10 +140,24 @@ class PodcastFeedParser {
               ?.getAttribute('href')
               ?.trim(),
           link: _cleanText(_text(item, 'link')),
+          transcriptUrl: transcript?.url,
+          transcriptFormat: transcript?.format,
         ),
       );
     }
     return episodes;
+  }
+
+  /// 取 item 下第一个受支持格式的 `<podcast:transcript>`；没有则返回 null。
+  _TranscriptRef? _parseTranscript(XmlElement item) {
+    for (final tag in item.findElements('podcast:transcript')) {
+      final url = tag.getAttribute('url')?.trim();
+      if (url == null || url.isEmpty) continue;
+      final format = podcastTranscriptFormatFor(tag.getAttribute('type'), url);
+      if (format == null) continue;
+      return _TranscriptRef(url: url, format: format);
+    }
+    return null;
   }
 
   String? _text(XmlElement parent, String tag) {
@@ -245,4 +279,11 @@ class PodcastParseException implements Exception {
   const PodcastParseException(this.message);
   @override
   String toString() => 'PodcastParseException: $message';
+}
+
+/// 解析出的字幕引用（URL + 规范化格式）。
+class _TranscriptRef {
+  final String url;
+  final String format;
+  const _TranscriptRef({required this.url, required this.format});
 }

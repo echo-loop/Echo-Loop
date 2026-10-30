@@ -21,11 +21,15 @@ class _FakeDownloadRunner implements BackgroundDownloadRunner {
       status: BackgroundDownloadStatus.complete,
     ),
     this.totalBytes,
+    this.writePartialOnFailure = false,
   });
 
   final List<int> bytes;
   final BackgroundDownloadResult result;
   final int? totalBytes;
+
+  /// 模拟系统下载在取消/失败前已落盘一部分数据。
+  final bool writePartialOnFailure;
   Uri? lastUri;
   String? lastDisplayName;
 
@@ -41,7 +45,8 @@ class _FakeDownloadRunner implements BackgroundDownloadRunner {
     lastUri = uri;
     lastDisplayName = displayName;
     onProgress?.call(totalBytes == null ? 0 : bytes.length, totalBytes);
-    if (result.status == BackgroundDownloadStatus.complete) {
+    if (result.status == BackgroundDownloadStatus.complete ||
+        writePartialOnFailure) {
       await File(savePath).parent.create(recursive: true);
       await File(savePath).writeAsBytes(bytes);
     }
@@ -788,6 +793,71 @@ void main() {
       if (await tmpDir.exists()) {
         await tmpDir.delete(recursive: true);
       }
+    });
+
+    test('Podcast 单集手动取消时删除已落盘的部分文件', () async {
+      final service = AudioImportService(
+        dio: dio,
+        resolveDataDir: () async => tmpDir,
+        backgroundDownloader: _backgroundDownloader(
+          _FakeDownloadRunner(
+            bytes: const <int>[1, 2, 3],
+            writePartialOnFailure: true,
+            result: const BackgroundDownloadResult(
+              status: BackgroundDownloadStatus.canceled,
+            ),
+          ),
+        ),
+      );
+
+      await expectLater(
+        service.downloadEpisodeToSandbox(
+          url: 'https://example.com/episode.mp3',
+          displayName: 'Episode 1',
+          enclosureType: 'audio/mpeg',
+        ),
+        throwsA(
+          isA<AudioImportException>().having(
+            (e) => e.code,
+            'code',
+            AudioImportFailureCode.canceled,
+          ),
+        ),
+      );
+      expect(await _tmpAudioImportFiles(tmpDir), isEmpty);
+    });
+
+    test('Podcast 单集自然失败时保留已落盘的部分文件，供下次继续', () async {
+      final service = AudioImportService(
+        dio: dio,
+        resolveDataDir: () async => tmpDir,
+        backgroundDownloader: _backgroundDownloader(
+          _FakeDownloadRunner(
+            bytes: const <int>[1, 2, 3],
+            writePartialOnFailure: true,
+            result: const BackgroundDownloadResult(
+              status: BackgroundDownloadStatus.failed,
+              statusCode: 503,
+            ),
+          ),
+        ),
+      );
+
+      await expectLater(
+        service.downloadEpisodeToSandbox(
+          url: 'https://example.com/episode.mp3',
+          displayName: 'Episode 1',
+          enclosureType: 'audio/mpeg',
+        ),
+        throwsA(
+          isA<AudioImportException>().having(
+            (e) => e.code,
+            'code',
+            AudioImportFailureCode.network,
+          ),
+        ),
+      );
+      expect(await _tmpAudioImportFiles(tmpDir), hasLength(1));
     });
 
     test('Podcast 单集下载成功后保留原始音频', () async {
