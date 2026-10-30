@@ -40,6 +40,12 @@ class MediaEngine extends _$MediaEngine {
   int _rangeRequestId = 0;
   bool _hasActiveRangeRequest = false;
   Duration? _activeRangeStart;
+
+  /// backend 上是否设置了区间原生终点；任何非区间播放前都必须撤销。
+  bool _rangeEndArmed = false;
+
+  /// 起播前等待 seek 落定的上限；超时后照常起播，避免位置事件缺失时卡死。
+  static const _rangeStartGateTimeout = Duration(milliseconds: 500);
   int _activeRangeSessionId = 0;
   Future<void> _commandTail = Future<void>.value();
   int _resourceGeneration = 0;
@@ -276,6 +282,8 @@ class MediaEngine extends _$MediaEngine {
   }) async {
     _wordHighlightCompletionSessionId = null;
     _wordHighlightPlaybackStatus.reset();
+    // backend.open 会撤销原生终点。
+    _rangeEndArmed = false;
     final currentBackend = _backend;
     AppLogger.log(
       'MediaEngine',
@@ -436,6 +444,7 @@ class MediaEngine extends _$MediaEngine {
     _wordHighlightCompletionSessionId = sessionId;
     _wordHighlightPlaybackStatus.markPlaying();
     try {
+      await _disarmRangeEnd('play');
       await handler.playBackend();
     } catch (_) {
       if (_wordHighlightCompletionSessionId == sessionId) {
@@ -453,6 +462,7 @@ class MediaEngine extends _$MediaEngine {
     await _enqueueLifecycle('pause', () async {
       await _handler?.pauseBackend();
       _wordHighlightPlaybackStatus.markPaused();
+      await _disarmRangeEnd('pause');
     });
   }
 
@@ -471,6 +481,7 @@ class MediaEngine extends _$MediaEngine {
     await _enqueueLifecycle('stop', () async {
       await _handler?.stop();
       _wordHighlightPlaybackStatus.reset();
+      await _disarmRangeEnd('stop');
     });
   }
 
@@ -500,6 +511,7 @@ class MediaEngine extends _$MediaEngine {
     try {
       await handler?.pauseBackend();
       _wordHighlightPlaybackStatus.markPaused();
+      await _disarmRangeEnd('detach');
     } catch (error) {
       pauseError = error;
       AppLogger.log(
@@ -528,6 +540,8 @@ class MediaEngine extends _$MediaEngine {
     );
     return _enqueueLifecycle('seek', () async {
       final wasPlaying = _backend?.playing ?? false;
+      // 自由定位可能越过上一个区间的终点，先撤销以免立即触发 EOF。
+      await _disarmRangeEnd('seek');
       await _handler?.seek(pos);
       AppLogger.log(
         'MediaEngine',
@@ -717,6 +731,8 @@ class MediaEngine extends _$MediaEngine {
               startWaiter: null,
             );
           }
+          // 旧终点可能早于新起点，seek 越过它会立即触发 EOF，必须先撤销。
+          await _disarmRangeEnd('range-setup-$requestId');
           // 先订阅位置流，再发 seek，确保不会漏掉 seek 后首个有效位置事件。
           startWaiter = _awaitRangeStartPosition(
             backend,
@@ -733,6 +749,7 @@ class MediaEngine extends _$MediaEngine {
               startWaiter: null,
             );
           }
+          await _armRangeEnd(backend, end, requestId);
           AppLogger.log(
             'MediaEngine Range',
             'seek-ack: id=$requestId targetStartMs=${start.inMilliseconds} '
@@ -751,6 +768,7 @@ class MediaEngine extends _$MediaEngine {
             'MediaEngine Range',
             'failed: id=$requestId setup-error=$error',
           );
+          await _disarmRangeEnd('range-setup-failed-$requestId');
           _invalidateRangeRequest('setup-failed');
           return (
             result: SentencePlaybackResult.failed,
@@ -771,6 +789,7 @@ class MediaEngine extends _$MediaEngine {
       return _rangeResultFor(requestId, setupResult.result);
     }
 
+    await _awaitRangeStartGate(startWaiter, requestId);
     final reached = _awaitRangeEndOrRequestInvalid(backend, end, requestId);
     final playResult = await _enqueueRangeControl(
       'range-play-$requestId',
@@ -796,6 +815,7 @@ class MediaEngine extends _$MediaEngine {
             _wordHighlightPlaybackStatus.reset();
           }
           _invalidateRangeRequest('play-failed');
+          await _disarmRangeEnd('range-play-failed-$requestId');
           return SentencePlaybackResult.failed;
         }
       },
@@ -827,6 +847,7 @@ class MediaEngine extends _$MediaEngine {
           _wordHighlightCompletionSessionId = null;
           _wordHighlightPlaybackStatus.markCompleted();
           await _handler?.pauseBackend();
+          await _disarmRangeEnd('range-finish-$requestId');
         }
       });
     }
@@ -851,7 +872,73 @@ class MediaEngine extends _$MediaEngine {
     await _enqueueRangeControl('range-cancel-$reason', () async {
       await _handler?.pauseBackend();
       _wordHighlightPlaybackStatus.markPaused();
+      await _disarmRangeEnd('range-cancel-$reason');
     });
+  }
+
+  /// 在 backend 设置区间原生终点，句尾由播放器在解码层裁切。
+  ///
+  /// 设置失败时退回位置事件软停止，不让整句播放失败。
+  Future<void> _armRangeEnd(
+    MediaPlayerBackend backend,
+    Duration end,
+    int requestId,
+  ) async {
+    try {
+      await backend.setPlaybackEnd(end);
+      _rangeEndArmed = true;
+    } catch (error) {
+      AppLogger.log(
+        'MediaEngine Range',
+        'arm-end failed: id=$requestId endMs=${end.inMilliseconds} '
+            'error=$error fallback=position-stop',
+      );
+    }
+  }
+
+  /// 撤销区间原生终点；只能在命令队列内调用，保证与 seek/play 的先后顺序。
+  Future<void> _disarmRangeEnd(String reason) async {
+    if (!_rangeEndArmed) return;
+    final backend = _backend;
+    _rangeEndArmed = false;
+    if (backend == null) return;
+    try {
+      await backend.setPlaybackEnd(null);
+    } catch (error) {
+      // 撤销失败会让后续播放停在旧终点，标记回去以便下一个入口重试。
+      _rangeEndArmed = true;
+      AppLogger.log(
+        'MediaEngine Range',
+        'disarm-end failed: reason=$reason error=$error',
+      );
+    }
+  }
+
+  /// 起播前等待位置流确认 seek 已落在起点，避免旧时间轴的音频先被播出。
+  ///
+  /// 不在命令队列内等待，取消请求可以随时插入；超时只记日志并照常起播。
+  Future<void> _awaitRangeStartGate(
+    _RangeStartWaiter startWaiter,
+    int requestId,
+  ) async {
+    final stopwatch = Stopwatch()..start();
+    final gate = Completer<bool?>();
+    final timer = Timer(_rangeStartGateTimeout, () {
+      if (!gate.isCompleted) gate.complete(null);
+    });
+    unawaited(
+      startWaiter.started.then((ready) {
+        if (!gate.isCompleted) gate.complete(ready);
+      }),
+    );
+    final ready = await gate.future;
+    timer.cancel();
+    AppLogger.log(
+      'MediaEngine Range',
+      'start-gate: id=$requestId '
+          'outcome=${ready == null ? 'timeout' : (ready ? 'ready' : 'aborted')} '
+          'waitedMs=${stopwatch.elapsedMilliseconds}',
+    );
   }
 
   bool _isActiveRangeRequest(int requestId) =>
@@ -1038,9 +1125,12 @@ class MediaEngine extends _$MediaEngine {
         finish(false);
       } else {
         const startTolerance = Duration(milliseconds: 250);
+        // 精确 seek 可能落在目标前一帧（如 2625ms 落到 2624.9ms 并取整为 2624ms），
+        // 起点前的少量误差也视为已到达。
+        const earlyTolerance = Duration(milliseconds: 50);
         final offsetFromStart = position - start;
         if (position < end &&
-            offsetFromStart >= Duration.zero &&
+            offsetFromStart >= -earlyTolerance &&
             offsetFromStart <= startTolerance) {
           AppLogger.log(
             'MediaEngine Range',
@@ -1101,6 +1191,7 @@ class MediaEngine extends _$MediaEngine {
       try {
         _wordHighlightCompletionSessionId = sessionId;
         _wordHighlightPlaybackStatus.markPlaying();
+        await _disarmRangeEnd('play-to-end-$sessionId');
         await handler.playBackend();
         return true;
       } catch (error, stackTrace) {

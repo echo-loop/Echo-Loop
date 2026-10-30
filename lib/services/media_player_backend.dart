@@ -15,6 +15,12 @@ abstract class MediaPlayerBackend {
   Future<void> stop();
   Future<void> seek(Duration position);
   Future<void> setRate(double rate);
+
+  /// 设置原生硬终点：播放器解码到 [end] 即停止，终点后的音频不会进入输出缓冲。
+  ///
+  /// 传 `null` 撤销终点。终点跨 [open] 不保留。区间播放必须靠它裁切句尾：
+  /// 位置事件 + pause 的软停止会受事件间隔与音频输出缓冲影响而越过终点。
+  Future<void> setPlaybackEnd(Duration? end);
   Future<void> setVideoTrackEnabled(bool enabled);
   Future<void> setSubtitleTrackData(String? srt);
   Future<void> startKeepAlive();

@@ -89,6 +89,8 @@ class MediaKitPlayerBackend implements MediaPlayerBackend {
       'open begin backend=${identityHashCode(this)} '
           'position=${initialPosition.inMilliseconds}ms',
     );
+    // mpv 的 end 是全局选项，会延续到下一个文件，换媒体前必须撤销。
+    await setPlaybackEnd(null);
     await _player.open(
       Media(
         filePath,
@@ -133,6 +135,24 @@ class MediaKitPlayerBackend implements MediaPlayerBackend {
 
   @override
   Future<void> setRate(double rate) => _player.setRate(rate);
+
+  /// 通过 mpv `end` 属性在解码层裁切；运行时修改即时生效，`none` 表示不限制。
+  @override
+  Future<void> setPlaybackEnd(Duration? end) async {
+    final platform = _player.platform;
+    if (platform is! NativePlayer) return;
+    final value = end == null
+        ? 'none'
+        : (end.inMicroseconds / Duration.microsecondsPerSecond).toStringAsFixed(
+            3,
+          );
+    await platform.setProperty('end', value);
+    AppLogger.log(
+      'MediaKitBackend',
+      'set playback end backend=${identityHashCode(this)} end=$value '
+          'position=${position.inMilliseconds}ms',
+    );
+  }
 
   @override
   Future<void> setVideoTrackEnabled(bool enabled) {

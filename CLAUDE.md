@@ -448,3 +448,10 @@ flutter test integration_test -d macos
 
 - 根因：`clearRecording` 先同步置 idle 再 await 原生清理；期间跑过一帧时，idle 触发的自动录音在播放器仍为 retelling 时启动，随后才切 listening 放原文（评估中点击最易触发，主线程被评估占用）。
 - 规则：所有「取消/清理录音后播放原文」的入口，清理期间都要先挡住自动录音（`_manualStoppedThisParagraph = true`），清理完、同步切到 listening 前再放开。回归测试见 `retell_player_screen_test.dart`「评估中点击主播放重听本段…」。
+
+### 7.32 media_kit 区间播放：软停止越过句尾带出下一句；seek 未落定就起播
+
+- 根因：句尾靠「位置事件/200ms 轮询发现 `position >= end` → 异步 pause」软停止。Android media_kit 用 `ao=opensles`，部分机型（华为 YAL-AL00 实测）输出缓冲深，`time-pos` 与实际出声有数百毫秒偏差：1.0.43 原包第一句（终点 2524ms）停在 2770ms，暂停后缓存位置又漂到 3100ms，正好覆盖下一句开头 "Would you"（2.74s 起）；末句则在 9045ms 提前收到 EOF。逐句精听在 1.0.42 已走 MediaEngine，回归点不是 1.0.43 的盲听驱动切换。
+- 规则：区间终点用 mpv 原生 `end` 属性在解码层硬裁切（`MediaPlayerBackend.setPlaybackEnd`），终点后的音频不进输出缓冲；修复后同机停在 2523ms / 9524ms。`end` 是全局选项：**seek 前、区间结束/取消、任何非区间播放（play/seek/playToEnd/pause/stop/detach）都要撤销**，换文件时 backend.open 自行撤销，否则自由播放会停在旧终点或 seek 越过旧终点立即 EOF。
+- 起播：seek 回执只代表命令被受理，要等位置流确认到达起点再 play（上限 500ms 兜底，不在命令队列里等）。精确 seek 可能落在目标前不到 1ms（2625 → 2624.9），起点判定要允许少量提前（50ms）。
+- 排查日志：`[MediaEngine Range] start-gate`（outcome/waitedMs）、`[MediaKitBackend] set playback end`、`return: position=`。

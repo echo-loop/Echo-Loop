@@ -25,6 +25,9 @@ class FakeMediaPlayerBackend implements MediaPlayerBackend {
   final openInitialPositions = <Duration>[];
   final seekCalls = <Duration>[];
   final rateCalls = <double>[];
+
+  /// 依次记录 [setPlaybackEnd] 的参数，`null` 表示撤销终点。
+  final playbackEndCalls = <Duration?>[];
   final videoTrackCalls = <bool>[];
   final subtitleTrackDataCalls = <String?>[];
   final videoViewSizes = <Size>[];
@@ -101,6 +104,8 @@ class FakeMediaPlayerBackend implements MediaPlayerBackend {
     if (openError != null) throw openError!;
     openCalls.add(filePath);
     openInitialPositions.add(initialPosition);
+    // 与真实后端一致：换媒体时撤销原生终点。
+    if (playbackEnd != null) playbackEndCalls.add(null);
     _position = initialPosition;
     final duration = _duration;
     if (duration != null) durationController.add(duration);
@@ -150,6 +155,15 @@ class FakeMediaPlayerBackend implements MediaPlayerBackend {
     _rate = rate;
     rateCalls.add(rate);
   }
+
+  @override
+  Future<void> setPlaybackEnd(Duration? end) async {
+    playbackEndCalls.add(end);
+  }
+
+  /// 当前生效的原生终点（最后一次设置值）。
+  Duration? get playbackEnd =>
+      playbackEndCalls.isEmpty ? null : playbackEndCalls.last;
 
   @override
   Future<void> setVideoTrackEnabled(bool enabled) async {

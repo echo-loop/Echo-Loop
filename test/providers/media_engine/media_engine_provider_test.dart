@@ -30,6 +30,29 @@ class _FirstPauseGateBackend extends FakeMediaPlayerBackend {
   }
 }
 
+/// 按调用顺序记录 seek / 原生终点 / play，验证命令先后关系。
+class _CommandOrderBackend extends FakeMediaPlayerBackend {
+  final commands = <String>[];
+
+  @override
+  Future<void> seek(Duration position) {
+    commands.add('seek:${position.inMilliseconds}');
+    return super.seek(position);
+  }
+
+  @override
+  Future<void> setPlaybackEnd(Duration? end) {
+    commands.add('end:${end?.inMilliseconds ?? 'none'}');
+    return super.setPlaybackEnd(end);
+  }
+
+  @override
+  Future<void> play() {
+    commands.add('play');
+    return super.play();
+  }
+}
+
 void main() {
   late FakeMediaPlayerBackend backend;
   late MediaSessionRouter router;
@@ -247,7 +270,7 @@ void main() {
   test('playRange 等收到目标位置事件后才开启逐词高亮', () async {
     final engine = container.read(mediaEngineProvider.notifier);
     await engine.loadMedia(item(), 1.0);
-    backend.emitPosition(const Duration(milliseconds: 3999));
+    backend.emitPosition(const Duration(milliseconds: 3900));
     backend.deferSeekPositionUpdate = true;
     backend.playStarted = Completer<void>();
 
@@ -264,7 +287,7 @@ void main() {
       WordHighlightPlaybackStatus.idle,
     );
 
-    backend.emitPosition(const Duration(milliseconds: 3999));
+    backend.emitPosition(const Duration(milliseconds: 3900));
     await Future<void>.delayed(Duration.zero);
     expect(
       engine.wordHighlightPlaybackStatus,
@@ -324,6 +347,139 @@ void main() {
     final positionAfterRange = rangeStart - const Duration(milliseconds: 40);
     backend.emitPosition(positionAfterRange);
     expect(engine.wordHighlightPosition, positionAfterRange);
+  });
+
+  test('playRange 在 seek 落定后设置原生终点，播完撤销，下一句 seek 前不残留旧终点', () async {
+    final orderBackend = _CommandOrderBackend();
+    final orderContainer = ProviderContainer(
+      overrides: [
+        mediaBackendFactoryProvider.overrideWithValue(() => orderBackend),
+        mediaSessionRouterProvider.overrideWithValue(router),
+      ],
+    );
+    addTearDown(orderContainer.dispose);
+    final engine = orderContainer.read(mediaEngineProvider.notifier);
+    await engine.loadMedia(item(), 1.0);
+
+    final first = engine.playRange(
+      const Duration(milliseconds: 100),
+      const Duration(milliseconds: 2524),
+      speed: 1.0,
+    );
+    await orderBackend.playStarted?.future;
+    await Future<void>.delayed(Duration.zero);
+    orderBackend.emitPosition(const Duration(milliseconds: 2524));
+    expect(await first, SentencePlaybackResult.completed);
+    expect(orderBackend.playbackEnd, isNull);
+
+    final second = engine.playRange(
+      const Duration(milliseconds: 2625),
+      const Duration(milliseconds: 9525),
+      speed: 1.0,
+    );
+    await Future<void>.delayed(Duration.zero);
+    orderBackend.emitPosition(const Duration(milliseconds: 9525));
+    expect(await second, SentencePlaybackResult.completed);
+
+    expect(orderBackend.commands, [
+      'seek:100',
+      'end:2524',
+      'play',
+      'end:none',
+      'seek:2625',
+      'end:9525',
+      'play',
+      'end:none',
+    ]);
+  });
+
+  test('取消区间与自由定位都会撤销原生终点', () async {
+    final orderBackend = _CommandOrderBackend();
+    final orderContainer = ProviderContainer(
+      overrides: [
+        mediaBackendFactoryProvider.overrideWithValue(() => orderBackend),
+        mediaSessionRouterProvider.overrideWithValue(router),
+      ],
+    );
+    addTearDown(orderContainer.dispose);
+    final engine = orderContainer.read(mediaEngineProvider.notifier);
+    await engine.loadMedia(item(), 1.0);
+
+    final playing = engine.playRange(
+      const Duration(seconds: 1),
+      const Duration(seconds: 3),
+      speed: 1.0,
+    );
+    await Future<void>.delayed(Duration.zero);
+    expect(orderBackend.playbackEnd, const Duration(seconds: 3));
+    await engine.cancelActiveRange(reason: 'user-pause');
+    expect(await playing, SentencePlaybackResult.cancelled);
+    expect(orderBackend.playbackEnd, isNull);
+
+    final again = engine.playRange(
+      const Duration(seconds: 1),
+      const Duration(seconds: 3),
+      speed: 1.0,
+    );
+    await Future<void>.delayed(Duration.zero);
+    orderBackend.commands.clear();
+    // 定位越过终点：必须先撤销终点再 seek，否则播放器会立即判定 EOF。
+    await engine.seek(const Duration(seconds: 5));
+    await again;
+
+    expect(orderBackend.commands.take(2), ['end:none', 'seek:5000']);
+    expect(orderBackend.playbackEnd, isNull);
+  });
+
+  test('playRange 等位置流确认到达起点后才起播，旧时间轴不会先被播出', () async {
+    final engine = container.read(mediaEngineProvider.notifier);
+    await engine.loadMedia(item(), 1.0);
+    backend.emitPosition(const Duration(milliseconds: 3360));
+    backend.deferSeekPositionUpdate = true;
+    backend.playStarted = Completer<void>();
+
+    final playback = engine.playRange(
+      const Duration(milliseconds: 100),
+      const Duration(milliseconds: 2524),
+      speed: 1.0,
+    );
+    for (var i = 0; i < 20; i++) {
+      await Future<void>.delayed(Duration.zero);
+    }
+    expect(backend.seekCalls.last, const Duration(milliseconds: 100));
+    expect(backend.playStarted!.isCompleted, isFalse);
+
+    backend.emitPosition(const Duration(milliseconds: 100));
+    await backend.playStarted!.future;
+    expect(backend.playCalls, 1);
+
+    backend.emitPosition(const Duration(milliseconds: 2524));
+    expect(await playback, SentencePlaybackResult.completed);
+  });
+
+  test('seek 落在目标前一帧（早 1ms）也视为到达起点，不等超时就起播', () async {
+    final engine = container.read(mediaEngineProvider.notifier);
+    await engine.loadMedia(item(), 1.0);
+    backend.deferSeekPositionUpdate = true;
+    backend.playStarted = Completer<void>();
+
+    final playback = engine.playRange(
+      const Duration(milliseconds: 2625),
+      const Duration(milliseconds: 9525),
+      speed: 1.0,
+    );
+    for (var i = 0; i < 20; i++) {
+      await Future<void>.delayed(Duration.zero);
+    }
+    expect(backend.playStarted!.isCompleted, isFalse);
+
+    final stopwatch = Stopwatch()..start();
+    backend.emitPosition(const Duration(milliseconds: 2624));
+    await backend.playStarted!.future;
+    expect(stopwatch.elapsedMilliseconds, lessThan(300));
+
+    backend.emitPosition(const Duration(milliseconds: 9525));
+    expect(await playback, SentencePlaybackResult.completed);
   });
 
   test('playRange 会替换旧请求，旧请求不能暂停新请求', () async {
