@@ -26,6 +26,7 @@ import '../../utils/text_normalize.dart';
 import '../guide_flow.dart';
 import '../practice/sentence_word_selection.dart';
 import 'word_highlight_builder.dart';
+import 'sentence_action_icons.dart';
 
 /// 句子讲解按钮 key 前缀（供 widget test 精准点击，避免点到文本本身）。
 @visibleForTesting
@@ -73,6 +74,9 @@ class MaskedSentenceTile extends ConsumerWidget {
   /// 点击句子主体回调：从该句开始播放
   final VoidCallback? onPlayFromTap;
 
+  /// 长按或右键主体区时请求整句菜单，参数为触发点的全局坐标。
+  final ValueChanged<Offset>? onContextMenuRequested;
+
   /// 点击左侧讲解按钮回调：进入句子讲解页
   final VoidCallback? onDetailTap;
 
@@ -94,6 +98,7 @@ class MaskedSentenceTile extends ConsumerWidget {
     this.wordHighlightBinding,
     this.isBookmarked = false,
     this.onPlayFromTap,
+    this.onContextMenuRequested,
     this.onDetailTap,
     this.onBookmarkTap,
     this.explanationAreaGuideStep,
@@ -163,13 +168,17 @@ class MaskedSentenceTile extends ConsumerWidget {
             Expanded(
               child: _wrapWithGuide(
                 bodyAreaGuideStep,
-                _SentenceBodyHitArea(
-                  key: ValueKey(
-                    '$kMaskedSentenceBodyHitAreaKeyPrefix-${sentence.index}',
+                Semantics(
+                  identifier: 'sentence-body-${sentence.index}',
+                  child: _SentenceBodyHitArea(
+                    key: ValueKey(
+                      '$kMaskedSentenceBodyHitAreaKeyPrefix-${sentence.index}',
+                    ),
+                    theme: theme,
+                    onTap: onPlayFromTap,
+                    onContextMenuRequested: onContextMenuRequested,
+                    child: sentenceText,
                   ),
-                  theme: theme,
-                  onTap: onPlayFromTap,
-                  child: sentenceText,
                 ),
               ),
             ),
@@ -279,13 +288,7 @@ class _SentenceExplanationHitArea extends StatelessWidget {
       width: 32,
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: AppSpacing.s),
-        child: Center(
-          child: Icon(
-            Icons.auto_awesome,
-            size: 18,
-            color: Colors.purple.shade400,
-          ),
-        ),
+        child: Center(child: const SentenceExplanationIcon()),
       ),
     );
 
@@ -319,6 +322,7 @@ class _SentenceExplanationHitArea extends StatelessWidget {
 class _SentenceBodyHitArea extends StatelessWidget {
   final ThemeData theme;
   final VoidCallback? onTap;
+  final ValueChanged<Offset>? onContextMenuRequested;
   final Widget child;
 
   const _SentenceBodyHitArea({
@@ -326,6 +330,7 @@ class _SentenceBodyHitArea extends StatelessWidget {
     required this.theme,
     required this.child,
     this.onTap,
+    this.onContextMenuRequested,
   });
 
   @override
@@ -340,14 +345,24 @@ class _SentenceBodyHitArea extends StatelessWidget {
       child: child,
     );
 
-    if (onTap == null) return inner;
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        splashColor: Colors.transparent,
-        highlightColor: theme.colorScheme.primary.withValues(alpha: 0.08),
-        child: inner,
+    final requestMenu = onContextMenuRequested;
+    if (onTap == null && requestMenu == null) return inner;
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onLongPressStart: requestMenu == null
+          ? null
+          : (details) => requestMenu(details.globalPosition),
+      onSecondaryTapDown: requestMenu == null
+          ? null
+          : (details) => requestMenu(details.globalPosition),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          splashColor: Colors.transparent,
+          highlightColor: theme.colorScheme.primary.withValues(alpha: 0.08),
+          child: inner,
+        ),
       ),
     );
   }
@@ -375,19 +390,18 @@ class _SentenceBookmarkHitArea extends StatelessWidget {
     final semanticLabel = isBookmarked
         ? (l10n?.intensiveListenMarkedDifficult ?? 'Marked difficult')
         : (l10n?.intensiveListenNotDifficult ?? 'Not marked difficult');
-    final iconColor = isBookmarked
-        ? AppTheme.bookmarkColor
-        : theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.28);
 
     final inner = SizedBox(
       width: 32,
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: AppSpacing.s),
         child: Center(
-          child: Icon(
-            isBookmarked ? Icons.bookmark : Icons.bookmark_border,
+          child: SentenceBookmarkIcon(
+            isBookmarked: isBookmarked,
             size: 14,
-            color: iconColor,
+            unsavedColor: theme.colorScheme.onSurfaceVariant.withValues(
+              alpha: 0.28,
+            ),
             semanticLabel: semanticLabel,
           ),
         ),

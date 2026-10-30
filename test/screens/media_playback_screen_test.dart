@@ -739,6 +739,40 @@ void main() {
     expect(container.read(mediaPlaybackProvider).position, Duration.zero);
   });
 
+  testMediaWidgets('视频字幕长按菜单讲解非当前句，不 seek 或改变播放焦点', (tester) async {
+    await tester.pumpWidget(
+      createTestScreen(
+        MediaPlaybackScreen(audioItem: item),
+        overrides: mediaOverrides(withTranscript: true),
+      ),
+    );
+    await pumpMediaReady(tester, requireVideoView: false);
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(MediaPlaybackScreen)),
+    );
+    await tester.longPress(
+      find.byKey(const ValueKey('$kMaskedSentenceBodyHitAreaKeyPrefix-1')),
+    );
+    await tester.pumpAndSettle();
+    expect(backend.seekCalls, isEmpty);
+    await tester.tap(find.byKey(const ValueKey('sentence-menu-explain')));
+    await tester.pumpAndSettle();
+    final detailContext = tester.element(find.text('Sentence Detail'));
+    final extra = GoRouterState.of(detailContext).extra;
+    expect(extra, isA<SentenceDetailArgs>());
+    if (extra case final SentenceDetailArgs args) {
+      expect(args.sentenceIndex, 1);
+      expect(args.sentenceText, transcriptSentences[1].text);
+      expect(args.audioItemId, item.id);
+      expect(args.mediaSession, isNotNull);
+    }
+    expect(backend.seekCalls, isEmpty);
+    expect(container.read(mediaPlaybackProvider).currentFullIndex, 0);
+    Navigator.of(detailContext).pop();
+    await tester.pumpAndSettle();
+    await releaseMediaPage(tester);
+  });
+
   testMediaWidgets('讲解页面隐藏期间不跟随，返回后无动画定位最新当前句', (tester) async {
     final sentences = List<Sentence>.generate(
       24,
@@ -1477,37 +1511,51 @@ void main() {
     await tester.pump(const Duration(milliseconds: 220));
   });
 
-  testMediaWidgets('收藏模式取消最后一条后回全文并提示', (tester) async {
-    await tester.pumpWidget(
-      createTestApp(
-        MediaPlaybackScreen(audioItem: item),
-        overrides: mediaOverrides(withTranscript: true),
-      ),
-    );
-    await pumpMediaReady(tester);
+  for (final fromMenu in [false, true]) {
+    testMediaWidgets(fromMenu ? '长按菜单取消最后收藏后回全文并保留回退提示' : '收藏模式取消最后一条后回全文并提示', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        createTestApp(
+          MediaPlaybackScreen(audioItem: item),
+          overrides: mediaOverrides(withTranscript: true),
+        ),
+      );
+      await pumpMediaReady(tester);
 
-    final context = tester.element(find.byType(MediaPlaybackScreen));
-    final container = ProviderScope.containerOf(context);
-    final controller = container.read(mediaPlaybackProvider.notifier);
-    await controller.toggleBookmark(1);
-    await controller.setPlaylistMode(PlaylistMode.bookmarks);
-    await tester.pumpAndSettle();
+      final context = tester.element(find.byType(MediaPlaybackScreen));
+      final container = ProviderScope.containerOf(context);
+      final controller = container.read(mediaPlaybackProvider.notifier);
+      await controller.toggleBookmark(1);
+      await controller.setPlaylistMode(PlaylistMode.bookmarks);
+      await tester.pumpAndSettle();
 
-    final card = tester.widget<ParagraphSentenceListCard>(
-      find.byType(ParagraphSentenceListCard),
-    );
-    card.onSentenceBookmarkToggle?.call(transcriptSentences[1]);
-    await tester.pumpAndSettle();
+      if (fromMenu) {
+        await tester.longPress(
+          find.byKey(const ValueKey('$kMaskedSentenceBodyHitAreaKeyPrefix-1')),
+        );
+        await tester.pumpAndSettle();
+        await tester.tap(
+          find.byKey(const ValueKey('sentence-menu-toggleBookmark')),
+        );
+      } else {
+        final card = tester.widget<ParagraphSentenceListCard>(
+          find.byType(ParagraphSentenceListCard),
+        );
+        card.onSentenceBookmarkToggle?.call(transcriptSentences[1]);
+      }
+      await tester.pumpAndSettle();
 
-    final state = container.read(mediaPlaybackProvider);
-    expect(state.playlistMode, PlaylistMode.full);
-    expect(state.currentFullIndex, 1);
-    expect(state.bookmarkedSentences, isEmpty);
-    expect(
-      find.text('No bookmarked sentences remain. Switched to Full Text.'),
-      findsOneWidget,
-    );
-  });
+      final state = container.read(mediaPlaybackProvider);
+      expect(state.playlistMode, PlaylistMode.full);
+      expect(state.currentFullIndex, 1);
+      expect(state.bookmarkedSentences, isEmpty);
+      expect(
+        find.text('No bookmarked sentences remain. Switched to Full Text.'),
+        findsOneWidget,
+      );
+    });
+  }
 
   testMediaWidgets('收藏精听连续取消倒数第二条和最后一条后仍保持精听', (tester) async {
     final fourSentences = [

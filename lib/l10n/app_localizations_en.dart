@@ -694,6 +694,25 @@ class AppLocalizationsEn extends AppLocalizations {
   String get copied => 'Copied to clipboard';
 
   @override
+  String get sentenceMenuSave => 'Save sentence';
+
+  @override
+  String get sentenceMenuUnsave => 'Unsave sentence';
+
+  @override
+  String get sentenceMenuExplain => 'AI explanation';
+
+  @override
+  String get sentenceMenuSaved => 'Sentence saved';
+
+  @override
+  String get sentenceMenuUnsaved => 'Sentence unsaved';
+
+  @override
+  String get sentenceMenuActionFailed =>
+      'Couldn\'t complete this action. Please try again.';
+
+  @override
   String get hotkeyReplay => 'R: Replay';
 
   @override

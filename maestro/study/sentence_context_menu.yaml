@@ -1,0 +1,34 @@
+# ECH-34：验证字幕列表菜单；不重置应用或学习进度。
+# 前置条件：已打开内置 A1 示例的随心听列表，首句未收藏。
+# 收藏后再取消，测试结束保留原来的收藏状态。
+appId: ${APP_ID}
+---
+- launchApp:
+    stopApp: false
+    permissions:
+      all: allow
+- extendedWaitUntil:
+    visible:
+      id: 'sentence-body-0'
+    timeout: 15000
+- longPressOn:
+    id: 'sentence-body-0'
+- assertVisible: '复制|Copy'
+- assertVisible: '收藏句子|Save sentence'
+- assertVisible: 'AI 讲解|AI explanation'
+- tapOn: '复制|Copy'
+- longPressOn:
+    id: 'sentence-body-0'
+- tapOn: '收藏句子|Save sentence'
+- longPressOn:
+    id: 'sentence-body-0'
+- assertVisible: '取消收藏|Unsave sentence'
+- tapOn: '取消收藏|Unsave sentence'
+- longPressOn:
+    id: 'sentence-body-0'
+- assertVisible: '收藏句子|Save sentence'
+- tapOn: 'AI 讲解|AI explanation'
+- assertVisible: '.*Before we begin.*'
+- back
+- assertVisible:
+    id: 'sentence-body-0'

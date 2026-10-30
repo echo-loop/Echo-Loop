@@ -1461,6 +1461,57 @@ void main() {
       expect(trackingPlayer.seekCalls, 0);
     });
 
+    testWidgets('复述长按菜单进入讲解前停止录音并进入等待态', (tester) async {
+      final paragraphs = createTestParagraphs();
+      final initialState = RetellPlayerState(
+        currentParagraphIndex: 0,
+        totalParagraphs: paragraphs.length,
+        phase: RetellPhase.retelling,
+        playingSentenceIndex: 0,
+        displayMode: RetellDisplayMode.showAll,
+        settings: const RetellSettings(
+          controlMode: ShadowingControlMode.manual,
+          keywordMethod: KeywordMethod.random,
+        ),
+      );
+      final player = _TrackingRetellPlayer(initialState, paragraphs, const {});
+      final recording = _TrackingRetellRecordingController(
+        const RetellRecordingState(
+          phase: RetellRecordingPhase.recording,
+          promptId: 'retell:a1:0',
+        ),
+      );
+      await tester.pumpWidget(
+        createTestWidget(
+          playerState: initialState,
+          paragraphs: paragraphs,
+          playerFactory: (_, __, ___) => player,
+          extraOverrides: [
+            retellRecordingControllerProvider.overrideWith(() => recording),
+          ],
+        ),
+      );
+      // 录音指示器持续动画，按帧建立页面，不等待整页静止。
+      await tester.pump();
+      await tester.pump(kThemeAnimationDuration);
+      await tester.longPress(
+        find.byKey(const ValueKey('$kMaskedSentenceBodyHitAreaKeyPrefix-0')),
+      );
+      // 只推进菜单进入动画（300ms），不等待录音指示器停止。
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(recording.cancelCalls, 0);
+      expect(player.waitingCalls, 0);
+      await tester.tap(find.byKey(const ValueKey('sentence-menu-explain')));
+      await tester.pumpAndSettle();
+      expect(player.waitingCalls, 1);
+      expect(player.lastStopImmediately, true);
+      expect(player.seekCalls, 0);
+      expect(recording.cancelCalls, 1);
+      expect(recording.startCalls, 0);
+      expect(find.text('Sentence Detail'), findsOneWidget);
+    });
+
     testWidgets('纯音频复述详情的播放与高亮来源都使用媒体引擎', (tester) async {
       final testParagraphs = createTestParagraphs();
       final initialState = RetellPlayerState(

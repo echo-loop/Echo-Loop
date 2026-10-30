@@ -73,7 +73,6 @@ class _RecordingListeningPractice extends TestListeningPractice {
   /// 记录 PageView 翻页触发的选句调用（含全局下标与是否起播）。
   final List<({int index, bool autoPlay})> selectFullCalls = [];
   final List<({int index, bool autoPlay})> selectBookmarkCalls = [];
-  int pauseCalls = 0;
 
   @override
   Future<void> pause() async {
@@ -663,6 +662,33 @@ void main() {
         expect(find.text('Sentence Detail'), findsOneWidget);
         await _disposeTree(tester);
       });
+    });
+
+    testWidgets('长按菜单讲解非当前句，复用原有焦点切换与导航', (tester) async {
+      final player = _RecordingListeningPractice(
+        ListeningPracticeState(
+          currentAudioItem: createTestAudioItem(),
+          sentences: createTestSentences(count: 3),
+          currentFullIndex: 0,
+        ),
+      );
+      await tester.pumpWidget(
+        createTestScreen(
+          const PlayerScreen(),
+          overrides: _recordingOverrides(player),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.longPress(
+        find.byKey(const ValueKey('$kMaskedSentenceBodyHitAreaKeyPrefix-2')),
+      );
+      await tester.pumpAndSettle();
+      expect(player.selectFullCalls, isEmpty);
+      await tester.tap(find.byKey(const ValueKey('sentence-menu-explain')));
+      await tester.pumpAndSettle();
+      expect(player.selectFullCalls, [(index: 2, autoPlay: false)]);
+      expect(find.text('Sentence Detail'), findsOneWidget);
+      await _disposeTree(tester);
     });
 
     group('单句模式（精听）', () {

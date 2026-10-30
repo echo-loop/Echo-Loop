@@ -1328,6 +1328,42 @@ abstract class AppLocalizations {
   /// **'Copied to clipboard'**
   String get copied;
 
+  /// No description provided for @sentenceMenuSave.
+  ///
+  /// In en, this message translates to:
+  /// **'Save sentence'**
+  String get sentenceMenuSave;
+
+  /// No description provided for @sentenceMenuUnsave.
+  ///
+  /// In en, this message translates to:
+  /// **'Unsave sentence'**
+  String get sentenceMenuUnsave;
+
+  /// No description provided for @sentenceMenuExplain.
+  ///
+  /// In en, this message translates to:
+  /// **'AI explanation'**
+  String get sentenceMenuExplain;
+
+  /// No description provided for @sentenceMenuSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Sentence saved'**
+  String get sentenceMenuSaved;
+
+  /// No description provided for @sentenceMenuUnsaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Sentence unsaved'**
+  String get sentenceMenuUnsaved;
+
+  /// No description provided for @sentenceMenuActionFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t complete this action. Please try again.'**
+  String get sentenceMenuActionFailed;
+
   /// No description provided for @hotkeyReplay.
   ///
   /// In en, this message translates to:

@@ -462,6 +462,33 @@ void main() {
     // - 复述 Screen 单测验证 onPlayFromTap → player.seekToSentence 的接线
     // 盲听 Screen 接入是同款代码（_handleSentencePlayFrom + onSentencePlayFrom 透传），不重复测。
 
+    testWidgets('盲听遮盖句子的长按菜单复用收藏切换入口', (tester) async {
+      final trackingPlayer = _TrackingBlindListenPlayer(
+        const BlindListenPlayerState(
+          currentParagraphIndex: 0,
+          totalParagraphs: 2,
+          displayMode: BlindListenDisplayMode.hideAll,
+        ),
+        _testParagraphs(),
+      );
+      await tester.pumpWidget(
+        createTestWidget(playerFactory: (_) => trackingPlayer),
+      );
+      await tester.pumpAndSettle();
+      await tester.longPress(
+        find.byKey(const ValueKey('$kMaskedSentenceBodyHitAreaKeyPrefix-0')),
+      );
+      await tester.pumpAndSettle();
+      expect(trackingPlayer.bookmarkCalls, 0);
+      await tester.tap(
+        find.byKey(const ValueKey('sentence-menu-toggleBookmark')),
+      );
+      await tester.pumpAndSettle();
+      expect(trackingPlayer.bookmarkCalls, 1);
+      expect(trackingPlayer.lastBookmarkedSentenceIndex, 0);
+      expect(find.text('Sentence saved'), findsOneWidget);
+    });
+
     testWidgets('点击右侧收藏按钮直接切换收藏，不进入讲解页', (tester) async {
       final trackingPlayer = _TrackingBlindListenPlayer(
         const BlindListenPlayerState(

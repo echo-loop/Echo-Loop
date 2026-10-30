@@ -672,6 +672,24 @@ class AppLocalizationsZh extends AppLocalizations {
   String get copied => '已复制到剪贴板';
 
   @override
+  String get sentenceMenuSave => '收藏句子';
+
+  @override
+  String get sentenceMenuUnsave => '取消收藏';
+
+  @override
+  String get sentenceMenuExplain => 'AI 讲解';
+
+  @override
+  String get sentenceMenuSaved => '已收藏';
+
+  @override
+  String get sentenceMenuUnsaved => '已取消收藏';
+
+  @override
+  String get sentenceMenuActionFailed => '操作失败，请重试。';
+
+  @override
   String get hotkeyReplay => 'R：重播';
 
   @override

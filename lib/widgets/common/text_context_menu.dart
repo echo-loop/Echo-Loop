@@ -74,23 +74,27 @@ class TextContextMenu {
     if (result == 'copy' && context.mounted) {
       await Clipboard.setData(ClipboardData(text: text));
       if (context.mounted) {
-        _showOverlayToast(context, l10n.copied);
+        showFeedback(context, l10n.copied);
       }
     }
   }
 
   /// 使用 Overlay 显示轻量提示
   ///
-  /// 不依赖 ScaffoldMessenger，在 BottomSheet 等场景中也能正常显示。
-  static void _showOverlayToast(BuildContext context, String message) {
+  /// 不依赖 ScaffoldMessenger，在 BottomSheet 等场景中也能正常显示，
+  /// 并避免整句菜单的结果覆盖播放器已有的列表回退提示。
+  static void showFeedback(
+    BuildContext context,
+    String message, {
+    IconData icon = Icons.check,
+  }) {
     final overlayState = Overlay.of(context);
-    final theme = Theme.of(context);
 
     late OverlayEntry entry;
     entry = OverlayEntry(
       builder: (context) => _ToastOverlay(
         message: message,
-        theme: theme,
+        icon: icon,
         onDismiss: () => entry.remove(),
       ),
     );
@@ -104,12 +108,12 @@ class TextContextMenu {
 /// 底部居中显示，1 秒后自动淡出消失。
 class _ToastOverlay extends StatefulWidget {
   final String message;
-  final ThemeData theme;
+  final IconData icon;
   final VoidCallback onDismiss;
 
   const _ToastOverlay({
     required this.message,
-    required this.theme,
+    required this.icon,
     required this.onDismiss,
   });
 
@@ -151,8 +155,6 @@ class _ToastOverlayState extends State<_ToastOverlay>
 
   @override
   Widget build(BuildContext context) {
-    final theme = widget.theme;
-
     return Positioned(
       bottom: MediaQuery.of(context).viewInsets.bottom + 80,
       left: 0,
@@ -169,14 +171,16 @@ class _ToastOverlayState extends State<_ToastOverlay>
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.check, size: 15, color: Colors.white),
+                Icon(widget.icon, size: 15, color: Colors.white),
                 const SizedBox(width: 6),
-                Text(
-                  widget.message,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 13,
-                    decoration: TextDecoration.none,
+                Flexible(
+                  child: Text(
+                    widget.message,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 13,
+                      decoration: TextDecoration.none,
+                    ),
                   ),
                 ),
               ],

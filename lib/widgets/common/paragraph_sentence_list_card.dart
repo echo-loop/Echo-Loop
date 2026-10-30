@@ -7,15 +7,20 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart';
 import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 
 import '../../models/retell_settings.dart';
+import '../../l10n/app_localizations.dart';
 import '../../models/sentence.dart';
 import '../../models/word_highlight_binding.dart';
 import '../../models/sentence_focus_reason.dart';
 import '../../theme/app_theme.dart';
+import '../../services/app_logger.dart';
 import '../guide_flow.dart';
 import 'masked_sentence_tile.dart';
+import 'sentence_context_menu.dart';
+import 'text_context_menu.dart';
 
 /// 判断列表中的句子集合或顺序是否真正变化。
 ///
@@ -66,8 +71,8 @@ class ParagraphSentenceListCard extends StatefulWidget {
   /// 点击句子主体回调：从该句开始播放
   final ValueChanged<Sentence>? onSentencePlayFrom;
 
-  /// 点击句子右侧收藏按钮回调：直接切换收藏状态
-  final ValueChanged<Sentence>? onSentenceBookmarkToggle;
+  /// 切换句子收藏状态；菜单等待写入完成后才反馈成功，失败应向上传播。
+  final Future<void> Function(Sentence)? onSentenceBookmarkToggle;
 
   /// 新手引导：挂引导 step 的句子本地索引（默认挂在 idx=1，回退到 idx=0）
   final int? guideTargetLocalIdx;
@@ -128,6 +133,10 @@ class _ParagraphSentenceListCardState extends State<ParagraphSentenceListCard>
   int _inactiveFocusRestoreRevision = 0;
   SentenceFocusReason? _inactiveFocusReason;
   bool _inactiveSentenceSequenceChanged = false;
+
+  /// 菜单与提交共用防重入标记；材料切换使旧会话失效，播放切句不影响目标。
+  bool _contextMenuActive = false;
+  int _contextMenuGeneration = 0;
 
   /// 初始定位时当前句在列表中的 item 索引。
   int _initialScrollIndex = 0;
@@ -315,6 +324,10 @@ class _ParagraphSentenceListCardState extends State<ParagraphSentenceListCard>
   @override
   void didUpdateWidget(covariant ParagraphSentenceListCard oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (widget.wordHighlightSource?.audioItemId !=
+        oldWidget.wordHighlightSource?.audioItemId) {
+      _contextMenuGeneration += 1;
+    }
     final playingChanged =
         widget.playingSentenceIndex != oldWidget.playingSentenceIndex;
     final paragraphChanged = _sentenceSequenceChanged(
@@ -437,8 +450,80 @@ class _ParagraphSentenceListCardState extends State<ParagraphSentenceListCard>
 
   @override
   void dispose() {
+    _contextMenuGeneration += 1;
     _resumeFocusTimer?.cancel();
     super.dispose();
+  }
+
+  /// 冻结目标句与动作回调，避免播放进度更新后误操作当前播放句。
+  ///
+  /// 生命周期校验在每次异步返回后执行；成功提示由列表持有，收藏行移除时
+  /// 不依赖已经卸载的 tile，也不新增本地收藏状态。
+  Future<void> _showSentenceMenu(Sentence sentence, Offset position) async {
+    if (_contextMenuActive || sentence.text.trim().isEmpty) return;
+    final l10n = AppLocalizations.of(context);
+    if (l10n == null) return;
+    _contextMenuActive = true;
+    final generation = _contextMenuGeneration;
+    final toggleBookmark = widget.onSentenceBookmarkToggle;
+    final explain = widget.onSentenceExplanationTap;
+    final wasBookmarked = widget.bookmarkedSentenceIndices.contains(
+      sentence.index,
+    );
+    bool isCurrentSession() => mounted && generation == _contextMenuGeneration;
+    SentenceContextAction? action;
+    try {
+      action = await showSentenceContextMenu(
+        context: context,
+        position: position,
+        isBookmarked: wasBookmarked,
+        canToggleBookmark: toggleBookmark != null,
+        canExplain: explain != null,
+      );
+      if (!isCurrentSession() || action == null) return;
+      AppLogger.log(
+        'SentenceContextMenu',
+        'event=action action=${action.name} sentence=${sentence.index}',
+      );
+      switch (action) {
+        case SentenceContextAction.copy:
+          await Clipboard.setData(ClipboardData(text: sentence.text));
+          if (isCurrentSession()) _showMenuFeedback(l10n.copied);
+        case SentenceContextAction.toggleBookmark:
+          if (toggleBookmark == null) return;
+          // 菜单打开期间若其他入口已经完成目标状态，不再反向切换。
+          if (widget.bookmarkedSentenceIndices.contains(sentence.index) ==
+              wasBookmarked) {
+            await toggleBookmark(sentence);
+          }
+          if (isCurrentSession()) {
+            _showMenuFeedback(
+              wasBookmarked ? l10n.sentenceMenuUnsaved : l10n.sentenceMenuSaved,
+            );
+          }
+        case SentenceContextAction.explain:
+          explain?.call(sentence);
+      }
+    } catch (error, stackTrace) {
+      AppLogger.log(
+        'SentenceContextMenu',
+        'event=failed action=${action?.name} sentence=${sentence.index} '
+            'error=$error\n$stackTrace',
+      );
+      if (isCurrentSession()) {
+        _showMenuFeedback(
+          l10n.sentenceMenuActionFailed,
+          icon: Icons.error_outline,
+        );
+      }
+    } finally {
+      _contextMenuActive = false;
+    }
+  }
+
+  /// 在页面级宿主显示操作结果，保证字幕行被移除后仍有即时反馈。
+  void _showMenuFeedback(String message, {IconData icon = Icons.check}) {
+    TextContextMenu.showFeedback(context, message, icon: icon);
   }
 
   bool _handleScrollNotification(ScrollNotification notification) {
@@ -597,6 +682,8 @@ class _ParagraphSentenceListCardState extends State<ParagraphSentenceListCard>
                     onPlayFromTap: onSentencePlayFrom == null
                         ? null
                         : () => onSentencePlayFrom(sentence),
+                    onContextMenuRequested: (position) =>
+                        unawaited(_showSentenceMenu(sentence, position)),
                     onBookmarkTap: onSentenceBookmarkToggle == null
                         ? null
                         : () => onSentenceBookmarkToggle(sentence),
