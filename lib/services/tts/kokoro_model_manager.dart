@@ -7,12 +7,12 @@ library;
 
 import 'dart:io';
 
-import 'package:archive/archive_io.dart';
 import 'package:dio/dio.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
 import '../app_logger.dart';
+import '../archive_extraction.dart';
 import '../asr/asr_model_manager.dart'
     show AsrModelDownloadStatus, AsrModelDownloadProgress;
 import '../reliable_http_downloader.dart';
@@ -211,7 +211,7 @@ class KokoroModelManager {
         ),
       ),
       extractAndValidate: (archive, staging) async {
-        await extractFileToDisk(archive.path, staging.path);
+        await extractArchiveInBackground(archive.path, staging.path);
         if (await _resolvePaths(staging) == null) {
           throw StateError(
             'Kokoro key files missing after extraction in ${staging.path}',

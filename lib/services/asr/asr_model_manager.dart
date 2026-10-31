@@ -5,13 +5,13 @@ export 'asr_model_catalog.dart';
 
 import 'dart:io';
 
-import 'package:archive/archive_io.dart';
 import 'package:crypto/crypto.dart';
 import 'package:dio/dio.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
 import '../app_logger.dart';
+import '../archive_extraction.dart';
 import '../reliable_http_downloader.dart';
 import '../resource_install_manifest.dart';
 import 'asr_archive_installer.dart';
@@ -330,7 +330,7 @@ class AsrModelManager {
     AsrModelResourceSpec spec,
   ) async {
     await staging.create(recursive: true);
-    await extractFileToDisk(archive.path, staging.path);
+    await extractArchiveInBackground(archive.path, staging.path);
     final topLevelEntities = await staging.list(followLinks: false).toList();
     final topLevelDirectories = topLevelEntities
         .whereType<Directory>()
