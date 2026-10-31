@@ -19,6 +19,7 @@ import 'package:echo_loop/features/onboarding_survey/screens/onboarding_survey_s
 import 'package:echo_loop/l10n/app_localizations.dart';
 import 'package:echo_loop/router/app_router.dart';
 import 'package:echo_loop/theme/app_theme.dart';
+import 'package:echo_loop/features/onboarding_survey/widgets/survey_choice_grid.dart';
 import 'package:echo_loop/features/onboarding_survey/widgets/survey_choice_tile.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -166,9 +167,9 @@ void main() {
     // 中文用户应看到中文渠道选项
     expect(find.text('小红书'), findsOneWidget);
     expect(find.text('微信'), findsOneWidget);
-    expect(find.text('短视频（抖音 / 快手）'), findsOneWidget);
-    expect(find.text('搜索引擎（百度 / Google）'), findsOneWidget);
-    expect(find.text('老师 / 学校 / 培训机构'), findsOneWidget);
+    expect(find.text('短视频'), findsOneWidget);
+    expect(find.text('搜索引擎'), findsOneWidget);
+    expect(find.text('老师 / 学校'), findsOneWidget);
     // 英文渠道不展示
     expect(find.text('Reddit'), findsNothing);
     expect(find.text('Google Play'), findsNothing);
@@ -243,7 +244,7 @@ void main() {
     await tester.pumpAndSettle(const Duration(milliseconds: 600));
     final githubTile = find.ancestor(
       of: find.text('GitHub'),
-      matching: find.byType(SurveyChoiceTile),
+      matching: find.byType(SurveyChoiceGridTile),
     );
     final githubIcon = find.descendant(
       of: githubTile,
@@ -534,15 +535,15 @@ void main() {
     // 走到渠道页
     await tester.tap(find.text('Daily conversation'));
     await tester.pumpAndSettle(const Duration(milliseconds: 400));
-    await tester.tap(find.text('About 10 min'));
+    await tester.tap(find.text('About 10 minutes'));
     await tester.pumpAndSettle(const Duration(milliseconds: 600));
 
     expect(find.text('How did you hear about us?'), findsOneWidget);
     expect(find.text('App Store / Google Play'), findsOneWidget);
     expect(find.text('Reddit'), findsOneWidget);
     expect(find.text('YouTube'), findsOneWidget);
-    expect(find.text('Short video (TikTok / Instagram)'), findsOneWidget);
-    expect(find.text('Teacher / school / community'), findsOneWidget);
+    expect(find.text('Short videos'), findsOneWidget);
+    expect(find.text('Teacher or school'), findsOneWidget);
     expect(find.text('X / Twitter'), findsOneWidget);
     // 中文渠道不应展示
     expect(find.text('Xiaohongshu'), findsNothing);
@@ -596,5 +597,26 @@ void main() {
       completed.params?[EventParams.referralOtherText],
       equals('同事推荐的公众号'),
     );
+  });
+
+  testWidgets('渠道页：iPhone SE 尺寸下全部选项无需滚动即可一屏看完', (tester) async {
+    // iPhone SE（375×667pt）：双列网格后，"其他"这一格必须落在屏幕内
+    tester.view.physicalSize = const Size(375 * 2, 667 * 2);
+    tester.view.devicePixelRatio = 2;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final prefs = await SharedPreferences.getInstance();
+    await tester.pumpWidget(_wrap(prefs: prefs));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('工作沟通'));
+    await tester.pumpAndSettle(const Duration(milliseconds: 400));
+    await tester.tap(find.text('不固定'));
+    await tester.pumpAndSettle(const Duration(milliseconds: 600));
+
+    expect(find.text('你是从哪里知道我们的？'), findsOneWidget);
+    expect(tester.getRect(find.text('其他')).bottom, lessThan(667));
+    expect(tester.getRect(find.text('GitHub')).top, lessThan(667));
   });
 }

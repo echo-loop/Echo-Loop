@@ -4150,13 +4150,13 @@ class AppLocalizationsZh extends AppLocalizations {
   String get onboardingQ3OptionOther => '其他';
 
   @override
-  String get onboardingQ3OptionShortVideo => '短视频（抖音 / 快手）';
+  String get onboardingQ3OptionShortVideo => '短视频';
 
   @override
-  String get onboardingQ3OptionSearchEngine => '搜索引擎（百度 / Google）';
+  String get onboardingQ3OptionSearchEngine => '搜索引擎';
 
   @override
-  String get onboardingQ3OptionTeacherSchool => '老师 / 学校 / 培训机构';
+  String get onboardingQ3OptionTeacherSchool => '老师 / 学校';
 
   @override
   String get onboardingQ3OtherHint => '可选，告诉我们具体是从哪里知道的';

@@ -7307,13 +7307,13 @@ abstract class AppLocalizations {
   /// No description provided for @onboardingTitle.
   ///
   /// In en, this message translates to:
-  /// **'Quick chat'**
+  /// **'A few quick questions'**
   String get onboardingTitle;
 
   /// No description provided for @onboardingSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'10 seconds to tailor your practice'**
+  /// **'Takes 10 seconds to tailor your practice'**
   String get onboardingSubtitle;
 
   /// No description provided for @onboardingBack.
@@ -7337,7 +7337,7 @@ abstract class AppLocalizations {
   /// No description provided for @onboardingExamGaokao.
   ///
   /// In en, this message translates to:
-  /// **'the Gaokao'**
+  /// **'China\'s Gaokao'**
   String get onboardingExamGaokao;
 
   /// No description provided for @onboardingExamCet.
@@ -7445,7 +7445,7 @@ abstract class AppLocalizations {
   /// No description provided for @onboardingQ1Prompt.
   ///
   /// In en, this message translates to:
-  /// **'What\'s your main goal for improving your English listening & speaking?'**
+  /// **'What\'s your main goal for improving your listening and speaking?'**
   String get onboardingQ1Prompt;
 
   /// No description provided for @onboardingQ1OptionExam.
@@ -7475,7 +7475,7 @@ abstract class AppLocalizations {
   /// No description provided for @onboardingQ1OptionContent.
   ///
   /// In en, this message translates to:
-  /// **'Understanding videos & podcasts'**
+  /// **'Videos and podcasts'**
   String get onboardingQ1OptionContent;
 
   /// No description provided for @onboardingQ1OptionOther.
@@ -7493,25 +7493,25 @@ abstract class AppLocalizations {
   /// No description provided for @onboardingQ2Option5.
   ///
   /// In en, this message translates to:
-  /// **'About 5 min'**
+  /// **'About 5 minutes'**
   String get onboardingQ2Option5;
 
   /// No description provided for @onboardingQ2Option10.
   ///
   /// In en, this message translates to:
-  /// **'About 10 min'**
+  /// **'About 10 minutes'**
   String get onboardingQ2Option10;
 
   /// No description provided for @onboardingQ2Option20.
   ///
   /// In en, this message translates to:
-  /// **'About 20 min'**
+  /// **'About 20 minutes'**
   String get onboardingQ2Option20;
 
   /// No description provided for @onboardingQ2Option30.
   ///
   /// In en, this message translates to:
-  /// **'30 min or more'**
+  /// **'30+ minutes'**
   String get onboardingQ2Option30;
 
   /// No description provided for @onboardingQ2OptionFlexible.
@@ -7571,7 +7571,7 @@ abstract class AppLocalizations {
   /// No description provided for @onboardingQ3OptionGoogleSearch.
   ///
   /// In en, this message translates to:
-  /// **'Google search'**
+  /// **'Search Engine'**
   String get onboardingQ3OptionGoogleSearch;
 
   /// No description provided for @onboardingQ3OptionGithub.
@@ -7583,7 +7583,7 @@ abstract class AppLocalizations {
   /// No description provided for @onboardingQ3OptionFriend.
   ///
   /// In en, this message translates to:
-  /// **'word of mouth'**
+  /// **'Friends'**
   String get onboardingQ3OptionFriend;
 
   /// No description provided for @onboardingQ3OptionOther.
@@ -7595,7 +7595,7 @@ abstract class AppLocalizations {
   /// No description provided for @onboardingQ3OptionShortVideo.
   ///
   /// In en, this message translates to:
-  /// **'Short video (TikTok / Instagram)'**
+  /// **'Short videos'**
   String get onboardingQ3OptionShortVideo;
 
   /// No description provided for @onboardingQ3OptionSearchEngine.
@@ -7607,13 +7607,13 @@ abstract class AppLocalizations {
   /// No description provided for @onboardingQ3OptionTeacherSchool.
   ///
   /// In en, this message translates to:
-  /// **'Teacher / school / community'**
+  /// **'Teacher or school'**
   String get onboardingQ3OptionTeacherSchool;
 
   /// No description provided for @onboardingQ3OtherHint.
   ///
   /// In en, this message translates to:
-  /// **'Optional: tell us where you heard about us'**
+  /// **'Optional: where did you hear about us?'**
   String get onboardingQ3OtherHint;
 
   /// No description provided for @onboardingPermissionsHint.

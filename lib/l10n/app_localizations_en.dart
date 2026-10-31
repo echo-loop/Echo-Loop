@@ -4192,10 +4192,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get audioListColumnDuration => 'Duration';
 
   @override
-  String get onboardingTitle => 'Quick chat';
+  String get onboardingTitle => 'A few quick questions';
 
   @override
-  String get onboardingSubtitle => '10 seconds to tailor your practice';
+  String get onboardingSubtitle => 'Takes 10 seconds to tailor your practice';
 
   @override
   String get onboardingBack => 'Back';
@@ -4208,7 +4208,7 @@ class AppLocalizationsEn extends AppLocalizations {
       'Which exam are you currently preparing for?';
 
   @override
-  String get onboardingExamGaokao => 'the Gaokao';
+  String get onboardingExamGaokao => 'China\'s Gaokao';
 
   @override
   String get onboardingExamCet => 'CET-4 / CET-6';
@@ -4271,7 +4271,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get onboardingQ1Prompt =>
-      'What\'s your main goal for improving your English listening & speaking?';
+      'What\'s your main goal for improving your listening and speaking?';
 
   @override
   String get onboardingQ1OptionExam => 'For an exam';
@@ -4286,7 +4286,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get onboardingQ1OptionTravel => 'Travel abroad';
 
   @override
-  String get onboardingQ1OptionContent => 'Understanding videos & podcasts';
+  String get onboardingQ1OptionContent => 'Videos and podcasts';
 
   @override
   String get onboardingQ1OptionOther => 'Other';
@@ -4295,16 +4295,16 @@ class AppLocalizationsEn extends AppLocalizations {
   String get onboardingQ2Prompt => 'How long do you plan to practice each day?';
 
   @override
-  String get onboardingQ2Option5 => 'About 5 min';
+  String get onboardingQ2Option5 => 'About 5 minutes';
 
   @override
-  String get onboardingQ2Option10 => 'About 10 min';
+  String get onboardingQ2Option10 => 'About 10 minutes';
 
   @override
-  String get onboardingQ2Option20 => 'About 20 min';
+  String get onboardingQ2Option20 => 'About 20 minutes';
 
   @override
-  String get onboardingQ2Option30 => '30 min or more';
+  String get onboardingQ2Option30 => '30+ minutes';
 
   @override
   String get onboardingQ2OptionFlexible => 'It varies';
@@ -4334,29 +4334,28 @@ class AppLocalizationsEn extends AppLocalizations {
   String get onboardingQ3OptionBilibili => 'Bilibili';
 
   @override
-  String get onboardingQ3OptionGoogleSearch => 'Google search';
+  String get onboardingQ3OptionGoogleSearch => 'Search Engine';
 
   @override
   String get onboardingQ3OptionGithub => 'GitHub';
 
   @override
-  String get onboardingQ3OptionFriend => 'word of mouth';
+  String get onboardingQ3OptionFriend => 'Friends';
 
   @override
   String get onboardingQ3OptionOther => 'Other';
 
   @override
-  String get onboardingQ3OptionShortVideo => 'Short video (TikTok / Instagram)';
+  String get onboardingQ3OptionShortVideo => 'Short videos';
 
   @override
   String get onboardingQ3OptionSearchEngine => 'Search engine';
 
   @override
-  String get onboardingQ3OptionTeacherSchool => 'Teacher / school / community';
+  String get onboardingQ3OptionTeacherSchool => 'Teacher or school';
 
   @override
-  String get onboardingQ3OtherHint =>
-      'Optional: tell us where you heard about us';
+  String get onboardingQ3OtherHint => 'Optional: where did you hear about us?';
 
   @override
   String get onboardingPermissionsHint =>

@@ -23,6 +23,7 @@ import '../models/onboarding_answers.dart';
 import '../models/onboarding_question.dart';
 import '../providers/onboarding_survey_provider.dart';
 import '../providers/user_onboarding_sync_provider.dart';
+import '../widgets/survey_choice_grid.dart';
 import '../widgets/survey_choice_tile.dart';
 
 /// 当前所在步骤。
@@ -796,13 +797,18 @@ class _OnboardingSurveyScreenState
       children: [
         _Prompt(text: l10n.onboardingQ3Prompt, eyebrow: eyebrow),
         const SizedBox(height: 24),
-        for (final code in codes)
-          SurveyChoiceTile(
-            label: _referralSourceLabel(l10n, code),
-            leading: _referralLeading(context, code),
-            selected: selected == code,
-            onTap: () => _selectReferralSource(code),
-          ),
+        // 双列网格让全部选项一屏可见；"其他"在最后一格，展开的补充说明在网格下方。
+        SurveyChoiceGrid(
+          children: [
+            for (final code in codes)
+              SurveyChoiceGridTile(
+                label: _referralSourceLabel(l10n, code),
+                leading: _referralLeading(context, code),
+                selected: selected == code,
+                onTap: () => _selectReferralSource(code),
+              ),
+          ],
+        ),
         if (selected == OnboardingReferralSource.other) ...[
           const SizedBox(height: 16),
           TextField(
