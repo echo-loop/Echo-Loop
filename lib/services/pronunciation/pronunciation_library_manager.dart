@@ -147,14 +147,17 @@ class PronunciationLibraryManager {
       onProgress: onDownloadProgress,
       onInstalling: onInstalling,
       extractAndValidate: (archive, staging) async {
-        await compute(_extractPronunciationZip, (
+        // 解压与安装后校验（逐行 existsSync、sqlite 读取）全部在后台 isolate 完成，
+        // 避免 6 秒量级的主线程冻结。
+        final stopwatch = Stopwatch()..start();
+        await compute(_extractAndValidatePronunciationZip, (
           archivePath: archive.path,
           outputPath: staging.path,
         ));
-        final database = File(p.join(staging.path, 'pronunciation.sqlite'));
-        final audio = Directory(p.join(staging.path, 'audio'));
-        validatePronunciationDatabase(database.path);
-        _validateAudioReferences(database.path, audio.path);
+        AppLogger.log(
+          'Pronunciation',
+          'extract+validate done elapsedMs=${stopwatch.elapsedMilliseconds}',
+        );
       },
     );
     await _removeLegacyV1();
@@ -169,7 +172,19 @@ class PronunciationLibraryManager {
   }
 }
 
-/// 在后台 isolate 解压发音包，只接收可发送的路径值，避免捕获 UI 回调和状态对象。
+/// 在后台 isolate 解压并校验发音包，只接收可发送的路径值，避免捕获 UI 回调和状态对象。
+///
+/// 校验失败抛出 [StateError]，由 `compute` 原样传回调用方。
+void _extractAndValidatePronunciationZip(
+  ({String archivePath, String outputPath}) paths,
+) {
+  _extractPronunciationZip(paths);
+  final database = File(p.join(paths.outputPath, 'pronunciation.sqlite'));
+  final audio = Directory(p.join(paths.outputPath, 'audio'));
+  validatePronunciationDatabase(database.path);
+  _validateAudioReferences(database.path, audio.path);
+}
+
 void _extractPronunciationZip(({String archivePath, String outputPath}) paths) {
   final archive = ZipDecoder().decodeBytes(
     File(paths.archivePath).readAsBytesSync(),
