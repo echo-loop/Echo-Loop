@@ -1638,12 +1638,15 @@ class _LearningPlanScreenState extends ConsumerState<LearningPlanScreen> {
       SubStageType.retell,
     );
     if (!allowed || !context.mounted) return;
+    // 诊断：定位复述入口在门控通过后的耗时步骤（见 §7 卡顿排查）
+    AppLogger.log('RetellEntry', '门控通过 → 加载音频');
 
     final audioItem = ref
         .read(audioLibraryProvider.notifier)
         .getItemById(widget.audioItemId);
     if (audioItem == null) return;
     final lpState = audioItem.isVideo ? null : await _ensureAudioLoaded();
+    AppLogger.log('RetellEntry', '音频加载完成 → 准备段落');
     if (!context.mounted) return;
     final sentences = audioItem.isVideo
         ? await ref.read(audioSentencesProvider(widget.audioItemId).future)
@@ -1678,6 +1681,7 @@ class _LearningPlanScreenState extends ConsumerState<LearningPlanScreen> {
     final liveDifficulty = await ref
         .read(learningProgressNotifierProvider.notifier)
         .refreshDifficultyFromBookmarks(widget.audioItemId, sentences.length);
+    AppLogger.log('RetellEntry', '难度刷新完成 → 打开复述简报');
     if (!context.mounted) return;
     final hasProgress = progressForDefault != null;
     final smartRatio = KeywordRatio.forDifficultyAndStage(
