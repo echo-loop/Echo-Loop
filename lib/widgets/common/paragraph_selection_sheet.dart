@@ -15,6 +15,7 @@ import '../../models/sentence.dart';
 import '../../models/stage_settings_overrides.dart' show BriefingPauseChoice;
 import '../../theme/app_theme.dart';
 import '../../utils/playback_speed.dart';
+import '../../services/app_logger.dart';
 import '../../utils/paragraph_grouping.dart';
 import '../guide_flow.dart';
 import 'learning_briefing_sheet_content.dart';
@@ -58,7 +59,7 @@ Future<void> showParagraphSelectionSheet({
   BriefingPauseChoice defaultPause = const BriefingPauseChoice.smart(),
   String? stageLabel,
   String? estimatedDurationText,
-  Duration? Function(int targetSeconds, double pauseMultiplier)?
+  Duration? Function(List<List<Sentence>> paragraphs, double pauseMultiplier)?
   estimateDurationBuilder,
   KeywordRatio? defaultKeywordRatio,
   required void Function(
@@ -139,7 +140,10 @@ class _ParagraphSelectionSheet extends StatefulWidget {
   final BriefingPauseChoice defaultPause;
   final String? stageLabel;
   final String? estimatedDurationText;
-  final Duration? Function(int targetSeconds, double pauseMultiplier)?
+  final Duration? Function(
+    List<List<Sentence>> paragraphs,
+    double pauseMultiplier,
+  )?
   estimateDurationBuilder;
   final KeywordRatio? defaultKeywordRatio;
   final void Function(
@@ -226,14 +230,43 @@ class _ParagraphSelectionSheetState extends State<_ParagraphSelectionSheet> {
     );
   }
 
-  int get _paragraphCount {
-    if (_targetSeconds == 0) return widget.sentences.length;
-    if (_targetSeconds < 0) return 1;
-    return groupSentencesIntoParagraphs(
-      widget.sentences,
-      Duration(seconds: _targetSeconds),
-    ).length;
+  /// 诊断：从弹窗状态创建起计时，用于定位首帧耗时
+  final Stopwatch _openStopwatch = Stopwatch()..start();
+
+  /// 缓存的分段结果及其对应的目标时长：段数与估时共用，同一目标时长只分组一次
+  int? _cachedTargetSeconds;
+  List<List<Sentence>> _cachedParagraphs = const [];
+
+  /// 当前目标时长下的分段结果
+  List<List<Sentence>> get _currentParagraphs {
+    if (_cachedTargetSeconds != _targetSeconds) {
+      final stopwatch = Stopwatch()..start();
+      _cachedParagraphs = splitIntoParagraphsForTarget(
+        widget.sentences,
+        _targetSeconds,
+      );
+      _cachedTargetSeconds = _targetSeconds;
+      AppLogger.log(
+        'ParagraphSheet',
+        'paragraphs target=${_targetSeconds}s count=${_cachedParagraphs.length} '
+            'costMs=${stopwatch.elapsedMilliseconds}',
+      );
+    }
+    return _cachedParagraphs;
   }
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      AppLogger.log(
+        'ParagraphSheet',
+        'first frame elapsedMs=${_openStopwatch.elapsedMilliseconds}',
+      );
+    });
+  }
+
+  int get _paragraphCount => _currentParagraphs.length;
 
   @override
   Widget build(BuildContext context) {
@@ -442,7 +475,7 @@ class _ParagraphSelectionSheetState extends State<_ParagraphSelectionSheet> {
             builder: (_) {
               final showParagraphCount = _targetSeconds != -1;
               final estimatedDuration = widget.estimateDurationBuilder?.call(
-                _targetSeconds,
+                _currentParagraphs,
                 // 固定/自动 走 smart 估算(-1);仅倍数模式用真实倍数。
                 // 固定模式的精确预估为次要,显示近似值可接受。
                 _pause.legacyPauseMultiplier,

@@ -168,6 +168,61 @@ void main() {
     });
   });
 
+  group('按目标时长切段 splitIntoParagraphsForTarget', () {
+    final sentences = _makeSentences([4000, 4000, 4000, 4000]);
+
+    test('-1（不分段）：整篇作为一段', () {
+      final paragraphs = splitIntoParagraphsForTarget(sentences, -1);
+      expect(paragraphs.length, 1);
+      expect(paragraphs.first.length, 4);
+    });
+
+    test('0（逐句）：每句一段', () {
+      final paragraphs = splitIntoParagraphsForTarget(sentences, 0);
+      expect(paragraphs.length, 4);
+      expect(paragraphs.every((p) => p.length == 1), isTrue);
+    });
+
+    test('正数：与 groupSentencesIntoParagraphs 结果一致', () {
+      final paragraphs = splitIntoParagraphsForTarget(sentences, 8);
+      final expected = groupSentencesIntoParagraphs(
+        sentences,
+        const Duration(seconds: 8),
+      );
+      expect(
+        paragraphs.map((p) => p.map((s) => s.index).toList()).toList(),
+        expected.map((p) => p.map((s) => s.index).toList()).toList(),
+      );
+    });
+  });
+
+  group('分段诊断摘要 summarizeParagraphDurations', () {
+    test('空分段输出 paragraphs=0', () {
+      final summary = summarizeParagraphDurations(
+        const [],
+        const Duration(seconds: 10),
+      );
+      expect(summary, contains('paragraphs=0'));
+    });
+
+    test('统计段数、明显偏短段数，并列出各段时长（秒）', () {
+      final sentences = _makeSentences([10000, 4000, 12000]);
+      final paragraphs = [
+        [sentences[0]],
+        [sentences[1]],
+        [sentences[2]],
+      ];
+      final summary = summarizeParagraphDurations(
+        paragraphs,
+        const Duration(seconds: 10),
+      );
+      expect(summary, contains('paragraphs=3'));
+      // 4s < 目标的一半(5s)，计为偏短段
+      expect(summary, contains('shortCount=1'));
+      expect(summary, contains('durations=[10.0,4.0,12.0]'));
+    });
+  });
+
   group('窗口下界 windowLowerBounds', () {
     test('均匀 1s 句子、窗口 2.5s：每个句尾允许的最早起点', () {
       final sentences = _makeSentences([1000, 1000, 1000, 1000]);

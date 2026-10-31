@@ -101,12 +101,10 @@ Future<void> showRetellBriefingSheet({
     pauseMultiplierOptions: RetellSettings.multiplierOptions,
     defaultPause: defaultPause,
     stageLabel: stageLabel,
-    estimateDurationBuilder: (targetSeconds, pauseMultiplier) =>
-        repeatCount == 0
+    estimateDurationBuilder: (paragraphs, pauseMultiplier) => repeatCount == 0
         ? null
-        : estimateRetellSessionDuration(
-            sentences: sentences,
-            targetSeconds: targetSeconds,
+        : estimateRetellParagraphsDuration(
+            paragraphs: paragraphs,
             pauseMultiplier: pauseMultiplier,
             repeatCount: repeatCount,
           ),

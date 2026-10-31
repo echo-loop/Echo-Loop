@@ -36,19 +36,21 @@ Duration estimateRetellSessionDuration({
   int repeatCount = 1,
 }) {
   if (sentences.isEmpty) return Duration.zero;
+  return estimateRetellParagraphsDuration(
+    paragraphs: splitIntoParagraphsForTarget(sentences, targetSeconds),
+    pauseMultiplier: pauseMultiplier,
+    repeatCount: repeatCount,
+  );
+}
 
-  final List<List<Sentence>> paragraphs;
-  if (targetSeconds < 0) {
-    paragraphs = [sentences];
-  } else if (targetSeconds == 0) {
-    paragraphs = sentences.map((s) => [s]).toList();
-  } else {
-    paragraphs = groupSentencesIntoParagraphs(
-      sentences,
-      Duration(seconds: targetSeconds),
-    );
-  }
-
+/// 基于已分段结果估算复述会话总时长（公式同 [estimateRetellSessionDuration]）。
+///
+/// 调用方已持有分段结果时直接传入，避免重复分组（分组是 O(n·w·k) 的 DP）。
+Duration estimateRetellParagraphsDuration({
+  required List<List<Sentence>> paragraphs,
+  required double pauseMultiplier,
+  int repeatCount = 1,
+}) {
   final settings = pauseMultiplier < 0
       ? const RetellSettings(pauseMode: PauseMode.smart)
       : RetellSettings(

@@ -1632,6 +1632,8 @@ class _LearningPlanScreenState extends ConsumerState<LearningPlanScreen> {
 
   /// 进入段落复述
   Future<void> _startRetelling(BuildContext context) async {
+    // 诊断：记录复述入口的点击起点，用于测量点击到弹窗的耗时
+    AppLogger.log('RetellEntry', '点击入口');
     final allowed = await ensureSpeechReadyForSubStage(
       context,
       ref,
@@ -1714,6 +1716,12 @@ class _LearningPlanScreenState extends ConsumerState<LearningPlanScreen> {
             final paragraphs = groupSentencesIntoParagraphs(
               sentences,
               targetDuration,
+            );
+            // 诊断：记录本次复述的分段结果，用于排查段落时长异常
+            AppLogger.log(
+              'RetellParagraph',
+              'sentences=${sentences.length} '
+                  '${summarizeParagraphDurations(paragraphs, targetDuration)}',
             );
 
             await _openRetellPractice(
@@ -3167,7 +3175,7 @@ class _StepData {
 /// 听前预热卡（横向单行紧凑卡，置于「首次学习」之上）。
 ///
 /// 引导用户在正式精听前先用「随心听」整篇泛听、建立内容认知。视觉上用暖奶油
-/// 色填充块（区别于页面其余白底蓝调卡片）+ 内联「推荐先做」小徽章 + 右侧
+/// 色填充块（区别于页面其余白底蓝调卡片）+ 标题后的「推荐先做」小徽章 + 右侧
 /// chevron，整卡可点进入「随心听」播放器（与右上角胶囊同一目的地）。
 ///
 /// 作为次要推荐引导，视觉权重刻意低于底部「开始学习」主按钮：取消独立大按钮、
@@ -3247,12 +3255,13 @@ class _WarmUpCard extends StatelessWidget {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
+                            // 标题按自然宽度展示，空间不足时换行；徽章紧跟标题之后
                             Flexible(
                               child: Text(
                                 l10n.warmUpCardTitle,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
+                                maxLines: 2,
                                 style: theme.textTheme.titleSmall?.copyWith(
                                   fontWeight: FontWeight.w600,
                                   color: titleColor,
@@ -3280,23 +3289,31 @@ class _WarmUpCard extends StatelessWidget {
                           ],
                         ),
                         const SizedBox(height: 2),
-                        Text(
-                          l10n.warmUpCardSubtitle,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: descColor,
-                          ),
+                        // chevron 放在副标题行，标题行因此可以占满文字列宽度
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            Expanded(
+                              child: Text(
+                                l10n.warmUpCardSubtitle,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: descColor,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: AppSpacing.xs),
+                            ExcludeSemantics(
+                              child: Icon(
+                                Icons.chevron_right_rounded,
+                                size: 22,
+                                color: iconFg.withValues(alpha: 0.7),
+                              ),
+                            ),
+                          ],
                         ),
                       ],
-                    ),
-                  ),
-                  const SizedBox(width: AppSpacing.s),
-                  ExcludeSemantics(
-                    child: Icon(
-                      Icons.chevron_right_rounded,
-                      size: 22,
-                      color: iconFg.withValues(alpha: 0.7),
                     ),
                   ),
                 ],
