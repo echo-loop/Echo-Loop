@@ -595,7 +595,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 100));
 
       expect(find.text('Listen first, then retell'), findsOneWidget);
-      expect(find.text('Listening closely...'), findsNothing);
+      expect(find.text('Listen closely...'), findsNothing);
     });
 
     testWidgets('WaitingForUser 态即使 isPlaying 为 true 也显示播放图标', (tester) async {
@@ -638,7 +638,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Retell what you heard'), findsNothing);
-      expect(find.text('Listening closely...'), findsNothing);
+      expect(find.text('Listen closely...'), findsNothing);
     });
 
     testWidgets('录音中显示录音状态而不显示复述提示', (tester) async {

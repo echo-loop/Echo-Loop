@@ -647,7 +647,7 @@ void main() {
 
       // 共享 PracticeNormalModeView 不再显示盲听标签
       expect(find.byIcon(Icons.headphones), findsNothing);
-      expect(find.text('Listening closely...'), findsNothing);
+      expect(find.text('Listen closely...'), findsNothing);
     });
 
     testWidgets('显示播放/暂停和上下句按钮', (tester) async {

@@ -1828,7 +1828,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get retellPreListenHint => 'Listen first, then retell';
 
   @override
-  String get retellListeningPhase => 'Listening closely...';
+  String get retellListeningPhase => 'Listen closely...';
 
   @override
   String get retellPromptToRetell => 'Retell what you heard';

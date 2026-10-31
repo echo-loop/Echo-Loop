@@ -3245,7 +3245,7 @@ abstract class AppLocalizations {
   /// No description provided for @retellListeningPhase.
   ///
   /// In en, this message translates to:
-  /// **'Listening closely...'**
+  /// **'Listen closely...'**
   String get retellListeningPhase;
 
   /// No description provided for @retellPromptToRetell.
