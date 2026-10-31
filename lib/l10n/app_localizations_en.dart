@@ -4313,10 +4313,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get onboardingQ3Prompt => 'How did you hear about us?';
 
   @override
-  String get onboardingQ3OptionAppStore => 'App Store';
-
-  @override
-  String get onboardingQ3OptionGooglePlay => 'Google Play';
+  String get onboardingQ3OptionAppStore => 'App Store / Google Play';
 
   @override
   String get onboardingQ3OptionYoutube => 'YouTube';
@@ -4328,28 +4325,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get onboardingQ3OptionXTwitter => 'X / Twitter';
 
   @override
-  String get onboardingQ3OptionTiktok => 'TikTok';
-
-  @override
-  String get onboardingQ3OptionInstagram => 'Instagram';
-
-  @override
   String get onboardingQ3OptionXiaohongshu => 'Xiaohongshu';
 
   @override
   String get onboardingQ3OptionWechat => 'WeChat';
 
   @override
-  String get onboardingQ3OptionDouyin => 'Douyin';
-
-  @override
-  String get onboardingQ3OptionKuaishou => 'Kuaishou';
-
-  @override
   String get onboardingQ3OptionBilibili => 'Bilibili';
-
-  @override
-  String get onboardingQ3OptionBaiduSearch => 'Baidu search';
 
   @override
   String get onboardingQ3OptionGoogleSearch => 'Google search';
@@ -4362,6 +4344,19 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get onboardingQ3OptionOther => 'Other';
+
+  @override
+  String get onboardingQ3OptionShortVideo => 'Short video (TikTok / Instagram)';
+
+  @override
+  String get onboardingQ3OptionSearchEngine => 'Search engine';
+
+  @override
+  String get onboardingQ3OptionTeacherSchool => 'Teacher / school / community';
+
+  @override
+  String get onboardingQ3OtherHint =>
+      'Optional: tell us where you heard about us';
 
   @override
   String get onboardingPermissionsHint =>

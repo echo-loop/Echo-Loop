@@ -24,6 +24,7 @@ abstract final class OnboardingSurveyKeys {
   static const goalOtherText = 'onboarding_goal_other_text';
   static const dailyMinutes = 'onboarding_daily_minutes';
   static const referralSource = 'onboarding_referral_source';
+  static const referralOtherText = 'onboarding_referral_other_text';
   static const completedAtMs = 'onboarding_completed_at_ms';
   static const uploaded = 'onboarding_uploaded_v1';
 }
@@ -80,13 +81,16 @@ class OnboardingSurveyStorage {
         ? rawDailyMinutes
         : null;
 
+    // 旧编码（如 douyin、kuaishou）经 normalize 映射到当前编码，避免老用户答案被清空。
     final rawReferralSource = _prefs.getString(
       OnboardingSurveyKeys.referralSource,
     );
-    final referralSource =
-        rawReferralSource != null &&
-            OnboardingReferralSource.all.contains(rawReferralSource)
-        ? rawReferralSource
+    final referralSource = rawReferralSource == null
+        ? null
+        : OnboardingReferralSource.normalize(rawReferralSource);
+
+    final referralOtherText = referralSource == OnboardingReferralSource.other
+        ? _readReferralOtherText()
         : null;
 
     String? examType;
@@ -107,8 +111,17 @@ class OnboardingSurveyStorage {
       goalOtherText: goalOtherText,
       dailyMinutes: dailyMinutes,
       referralSource: referralSource,
+      referralOtherText: referralOtherText,
     );
     return answers.toJson().isEmpty ? null : answers;
+  }
+
+  /// 读取"其他"补充说明；空白文本视为未填写，返回 null。
+  String? _readReferralOtherText() {
+    final text = _prefs
+        .getString(OnboardingSurveyKeys.referralOtherText)
+        ?.trim();
+    return text == null || text.isEmpty ? null : text;
   }
 
   /// 完成时的时间戳；未完成返回 null。
@@ -146,6 +159,15 @@ class OnboardingSurveyStorage {
       OnboardingSurveyKeys.referralSource,
       answers.referralSource!,
     );
+    // 仅"其他"分支保存补充说明，其它渠道清掉残留文本。
+    final otherText = answers.referralOtherText?.trim();
+    if (answers.referralSource == OnboardingReferralSource.other &&
+        otherText != null &&
+        otherText.isNotEmpty) {
+      await _prefs.setString(OnboardingSurveyKeys.referralOtherText, otherText);
+    } else {
+      await _prefs.remove(OnboardingSurveyKeys.referralOtherText);
+    }
     await _prefs.setInt(
       OnboardingSurveyKeys.completedAtMs,
       completedAt.millisecondsSinceEpoch,
@@ -159,6 +181,7 @@ class OnboardingSurveyStorage {
     await _prefs.remove(OnboardingSurveyKeys.goalOtherText);
     await _prefs.remove(OnboardingSurveyKeys.dailyMinutes);
     await _prefs.remove(OnboardingSurveyKeys.referralSource);
+    await _prefs.remove(OnboardingSurveyKeys.referralOtherText);
     await _prefs.remove(OnboardingSurveyKeys.completedAtMs);
     await _prefs.remove(OnboardingSurveyKeys.uploaded);
   }

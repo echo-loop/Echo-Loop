@@ -56,47 +56,65 @@ abstract final class OnboardingDailyMinutes {
 ///
 /// 中英文用户看到的渠道列表不同（详见 onboarding_survey_screen.dart 的
 /// `_buildReferralSourceStep`），但编码集合统一以便埋点分析。
+///
+/// 改版（2026-10）后，抖音/快手、TikTok/Instagram 合并为 [shortVideo]，
+/// 百度搜索并入 [searchEngine]，Google Play 并入 [appStore]。旧编码保留在
+/// [_legacyAliases] 中，读取旧 SP 数据时通过 [normalize] 映射到新编码。
 abstract final class OnboardingReferralSource {
   // 中文用户主要渠道
   static const xiaohongshu = 'xiaohongshu';
   static const wechat = 'wechat';
-  static const douyin = 'douyin';
-  static const kuaishou = 'kuaishou';
   static const bilibili = 'bilibili';
-  static const baiduSearch = 'baidu_search';
+  static const shortVideo = 'short_video';
+  static const searchEngine = 'search_engine';
+  static const teacherSchool = 'teacher_school';
   // 英文用户主要渠道
   static const youtube = 'youtube';
   static const reddit = 'reddit';
   static const xTwitter = 'x_twitter';
-  static const tiktok = 'tiktok';
-  static const instagram = 'instagram';
   static const googleSearch = 'google_search';
   // 通用渠道
   static const github = 'github';
   static const appStore = 'app_store';
-  static const googlePlay = 'google_play';
   static const friend = 'friend';
   static const other = 'other';
 
+  /// 当前界面可选的编码集合（新答案只会写入这些值）。
   static const all = [
     xiaohongshu,
     wechat,
-    douyin,
-    kuaishou,
     bilibili,
-    baiduSearch,
+    shortVideo,
+    searchEngine,
+    teacherSchool,
     youtube,
     reddit,
     xTwitter,
-    tiktok,
-    instagram,
     googleSearch,
     github,
     appStore,
-    googlePlay,
     friend,
     other,
   ];
+
+  /// 已下线的旧编码 → 新编码。仅用于读取历史 SP 数据，不再出现在选项中。
+  static const _legacyAliases = <String, String>{
+    'douyin': shortVideo,
+    'kuaishou': shortVideo,
+    'tiktok': shortVideo,
+    'instagram': shortVideo,
+    'baidu_search': searchEngine,
+    'google_play': appStore,
+  };
+
+  /// "其他"补充说明的最大长度（字符数）。
+  static const referralOtherTextMaxLength = 50;
+
+  /// 把 SP 中读到的编码规范化为当前编码；未知编码返回 null。
+  static String? normalize(String raw) {
+    if (all.contains(raw)) return raw;
+    return _legacyAliases[raw];
+  }
 }
 
 /// 单个选项的元数据。

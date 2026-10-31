@@ -396,6 +396,9 @@ abstract class EventParams {
   /// Q3 来源渠道（user property 同名）
   static const referralSource = 'referral_source';
 
+  /// Q3 选择"其他"时的补充说明（最长 50 字，未填写时不上报）
+  static const referralOtherText = 'referral_other_text';
+
   /// 完成耗时（秒）
   static const elapsedSeconds = 'elapsed_seconds';
 

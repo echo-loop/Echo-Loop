@@ -416,5 +416,64 @@ void main() {
       expect(a, equals(b));
       expect(a.hashCode, equals(b.hashCode));
     });
+
+    test('已下线的旧渠道编码读取时映射到新编码，老用户答案不丢失', () async {
+      const legacyToCurrent = {
+        'douyin': OnboardingReferralSource.shortVideo,
+        'kuaishou': OnboardingReferralSource.shortVideo,
+        'tiktok': OnboardingReferralSource.shortVideo,
+        'instagram': OnboardingReferralSource.shortVideo,
+        'baidu_search': OnboardingReferralSource.searchEngine,
+        'google_play': OnboardingReferralSource.appStore,
+      };
+      for (final entry in legacyToCurrent.entries) {
+        SharedPreferences.setMockInitialValues({
+          OnboardingSurveyKeys.goal: OnboardingGoal.daily,
+          OnboardingSurveyKeys.dailyMinutes: OnboardingDailyMinutes.m10,
+          OnboardingSurveyKeys.referralSource: entry.key,
+          OnboardingSurveyKeys.completedAtMs: 1000,
+        });
+        final prefs = await SharedPreferences.getInstance();
+        final loaded = OnboardingSurveyStorage(prefs).loadAnswers();
+        expect(
+          loaded?.referralSource,
+          equals(entry.value),
+          reason: '旧编码 ${entry.key}',
+        );
+      }
+    });
+
+    test('"其他"补充说明保存时去空白，读取时返回', () async {
+      final prefs = await SharedPreferences.getInstance();
+      final storage = OnboardingSurveyStorage(prefs);
+      await storage.saveCompleted(
+        const OnboardingAnswers(
+          goal: OnboardingGoal.daily,
+          dailyMinutes: OnboardingDailyMinutes.m10,
+          referralSource: OnboardingReferralSource.other,
+          referralOtherText: '  同事推荐的公众号  ',
+        ),
+      );
+
+      expect(storage.loadAnswers()?.referralOtherText, equals('同事推荐的公众号'));
+    });
+
+    test('非"其他"渠道保存时清掉残留补充说明', () async {
+      final prefs = await SharedPreferences.getInstance();
+      final storage = OnboardingSurveyStorage(prefs);
+      await prefs.setString(OnboardingSurveyKeys.referralOtherText, '旧文本');
+
+      await storage.saveCompleted(
+        const OnboardingAnswers(
+          goal: OnboardingGoal.daily,
+          dailyMinutes: OnboardingDailyMinutes.m10,
+          referralSource: OnboardingReferralSource.friend,
+          referralOtherText: '不应保存',
+        ),
+      );
+
+      expect(prefs.getString(OnboardingSurveyKeys.referralOtherText), isNull);
+      expect(storage.loadAnswers()?.referralOtherText, isNull);
+    });
   });
 }

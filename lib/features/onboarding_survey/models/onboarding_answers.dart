@@ -25,12 +25,16 @@ class OnboardingAnswers {
   /// Q3 来源渠道编码（见 [OnboardingReferralSource]）；未答时为 null
   final String? referralSource;
 
+  /// Q3 选择"其他"时的可选补充说明；其它渠道下为 null
+  final String? referralOtherText;
+
   const OnboardingAnswers({
     this.goal,
     this.examType,
     this.goalOtherText,
     this.dailyMinutes,
     this.referralSource,
+    this.referralOtherText,
   });
 
   /// 将已有答案序列化为后端 onboarding API 接受的 JSON 对象。
@@ -42,6 +46,7 @@ class OnboardingAnswers {
     if (goalOtherText != null) 'goalOtherText': goalOtherText,
     if (dailyMinutes != null) 'dailyMinutes': dailyMinutes,
     if (referralSource != null) 'referralSource': referralSource,
+    if (referralOtherText != null) 'referralOtherText': referralOtherText,
   };
 
   /// 全部必填项均已填齐：
@@ -55,16 +60,19 @@ class OnboardingAnswers {
     return true;
   }
 
-  /// copyWith 支持显式设为 null：[clearExamType] / [clearGoalOtherText]
-  /// 设为 true 时把对应字段置回 null，用于切换 goal 时清掉旧分支的副字段。
+  /// copyWith 支持显式设为 null：[clearExamType] / [clearGoalOtherText] /
+  /// [clearReferralOtherText]。设为 true 时把对应字段置回 null，用于切换分支时
+  /// 清掉旧分支的副字段。
   OnboardingAnswers copyWith({
     String? goal,
     String? examType,
     String? goalOtherText,
     String? dailyMinutes,
     String? referralSource,
+    String? referralOtherText,
     bool clearExamType = false,
     bool clearGoalOtherText = false,
+    bool clearReferralOtherText = false,
   }) {
     return OnboardingAnswers(
       goal: goal ?? this.goal,
@@ -74,6 +82,9 @@ class OnboardingAnswers {
           : (goalOtherText ?? this.goalOtherText),
       dailyMinutes: dailyMinutes ?? this.dailyMinutes,
       referralSource: referralSource ?? this.referralSource,
+      referralOtherText: clearReferralOtherText
+          ? null
+          : (referralOtherText ?? this.referralOtherText),
     );
   }
 
@@ -85,15 +96,22 @@ class OnboardingAnswers {
           other.examType == examType &&
           other.goalOtherText == goalOtherText &&
           other.dailyMinutes == dailyMinutes &&
-          other.referralSource == referralSource;
+          other.referralSource == referralSource &&
+          other.referralOtherText == referralOtherText;
 
   @override
-  int get hashCode =>
-      Object.hash(goal, examType, goalOtherText, dailyMinutes, referralSource);
+  int get hashCode => Object.hash(
+    goal,
+    examType,
+    goalOtherText,
+    dailyMinutes,
+    referralSource,
+    referralOtherText,
+  );
 
   @override
   String toString() =>
       'OnboardingAnswers(goal: $goal, examType: $examType, '
       'goalOtherText: $goalOtherText, dailyMinutes: $dailyMinutes, '
-      'referralSource: $referralSource)';
+      'referralSource: $referralSource, referralOtherText: $referralOtherText)';
 }

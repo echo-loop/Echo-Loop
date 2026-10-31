@@ -92,9 +92,25 @@ class OnboardingAnswersNotifier extends Notifier<OnboardingAnswers> {
     state = state.copyWith(dailyMinutes: dailyMinutes);
   }
 
-  /// 设置 Q3（来源渠道）。
+  /// 设置 Q3（来源渠道）。切换到非"其他"渠道时清掉补充说明。
   void setReferralSource(String referralSource) {
-    state = state.copyWith(referralSource: referralSource);
+    state = state.copyWith(
+      referralSource: referralSource,
+      clearReferralOtherText: referralSource != OnboardingReferralSource.other,
+    );
+  }
+
+  /// 设置 Q3"其他"的补充说明。去首尾空白，超过上限的部分截断。
+  void setReferralOtherText(String text) {
+    final trimmed = text.trim();
+    final capped =
+        trimmed.length > OnboardingReferralSource.referralOtherTextMaxLength
+        ? trimmed.substring(
+            0,
+            OnboardingReferralSource.referralOtherTextMaxLength,
+          )
+        : trimmed;
+    state = state.copyWith(referralOtherText: capped);
   }
 
   /// 提交答案：写 SP（先答案后完成锚点），再翻转完成状态。

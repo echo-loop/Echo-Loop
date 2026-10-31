@@ -187,4 +187,46 @@ void main() {
       expect(container.read(onboardingCompletedProvider), isTrue);
     });
   });
+
+  group('Q3 "其他"补充说明', () {
+    test('切换到非"其他"渠道时清空补充说明', () async {
+      final prefs = await SharedPreferences.getInstance();
+      final container = _makeContainer(
+        initialOnboardingCompleted: false,
+        prefs: prefs,
+      );
+      addTearDown(container.dispose);
+      final notifier = container.read(onboardingAnswersProvider.notifier);
+
+      notifier.setReferralSource(OnboardingReferralSource.other);
+      notifier.setReferralOtherText('公众号');
+      expect(
+        container.read(onboardingAnswersProvider).referralOtherText,
+        equals('公众号'),
+      );
+
+      notifier.setReferralSource(OnboardingReferralSource.friend);
+      expect(
+        container.read(onboardingAnswersProvider).referralOtherText,
+        isNull,
+      );
+    });
+
+    test('补充说明去除首尾空白并截断到上限', () async {
+      final prefs = await SharedPreferences.getInstance();
+      final container = _makeContainer(
+        initialOnboardingCompleted: false,
+        prefs: prefs,
+      );
+      addTearDown(container.dispose);
+      final notifier = container.read(onboardingAnswersProvider.notifier);
+
+      notifier.setReferralOtherText('  ${'甲' * 60}  ');
+
+      expect(
+        container.read(onboardingAnswersProvider).referralOtherText,
+        equals('甲' * OnboardingReferralSource.referralOtherTextMaxLength),
+      );
+    });
+  });
 }

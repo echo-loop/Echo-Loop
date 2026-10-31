@@ -166,8 +166,9 @@ void main() {
     // 中文用户应看到中文渠道选项
     expect(find.text('小红书'), findsOneWidget);
     expect(find.text('微信'), findsOneWidget);
-    expect(find.text('抖音'), findsOneWidget);
-    expect(find.text('快手'), findsOneWidget);
+    expect(find.text('短视频（抖音 / 快手）'), findsOneWidget);
+    expect(find.text('搜索引擎（百度 / Google）'), findsOneWidget);
+    expect(find.text('老师 / 学校 / 培训机构'), findsOneWidget);
     // 英文渠道不展示
     expect(find.text('Reddit'), findsNothing);
     expect(find.text('Google Play'), findsNothing);
@@ -537,17 +538,15 @@ void main() {
     await tester.pumpAndSettle(const Duration(milliseconds: 600));
 
     expect(find.text('How did you hear about us?'), findsOneWidget);
-    expect(find.text('App Store'), findsOneWidget);
-    expect(find.text('Google Play'), findsOneWidget);
+    expect(find.text('App Store / Google Play'), findsOneWidget);
     expect(find.text('Reddit'), findsOneWidget);
     expect(find.text('YouTube'), findsOneWidget);
-    expect(find.text('TikTok'), findsOneWidget);
-    expect(find.text('Instagram'), findsOneWidget);
+    expect(find.text('Short video (TikTok / Instagram)'), findsOneWidget);
+    expect(find.text('Teacher / school / community'), findsOneWidget);
     expect(find.text('X / Twitter'), findsOneWidget);
     // 中文渠道不应展示
     expect(find.text('Xiaohongshu'), findsNothing);
     expect(find.text('WeChat'), findsNothing);
-    expect(find.text('Douyin'), findsNothing);
 
     await tester.tap(find.text('Reddit'));
     await tester.pumpAndSettle(const Duration(milliseconds: 600));
@@ -556,5 +555,46 @@ void main() {
 
     final answers = OnboardingSurveyStorage(prefs).loadAnswers();
     expect(answers?.referralSource, equals(OnboardingReferralSource.reddit));
+  });
+
+  testWidgets('其他渠道：不自动跳转，填写补充说明后继续，并随答案与埋点保存', (tester) async {
+    final prefs = await SharedPreferences.getInstance();
+    final analytics = _RecordingAnalyticsChannel();
+    await tester.pumpWidget(_wrap(prefs: prefs, analyticsChannel: analytics));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('工作沟通'));
+    await tester.pumpAndSettle(const Duration(milliseconds: 400));
+    await tester.tap(find.text('不固定'));
+    await tester.pumpAndSettle(const Duration(milliseconds: 600));
+
+    await tester.ensureVisible(find.text('其他'));
+    await tester.tap(find.text('其他'));
+    await tester.pumpAndSettle(const Duration(milliseconds: 800));
+    // 选择"其他"后停留在渠道页，等待补充说明或点击继续
+    expect(find.text('你是从哪里知道我们的？'), findsOneWidget);
+
+    await tester.ensureVisible(find.byType(TextField));
+    await tester.enterText(find.byType(TextField), '  同事推荐的公众号  ');
+    await tester.pump();
+    await tester.ensureVisible(find.widgetWithText(FilledButton, '继续'));
+    await tester.tap(find.widgetWithText(FilledButton, '继续'));
+    await tester.pumpAndSettle(const Duration(milliseconds: 400));
+
+    expect(find.textContaining('提升英语听说'), findsOneWidget);
+    await tester.tap(find.text('开始学习'));
+    await tester.pumpAndSettle(const Duration(milliseconds: 400));
+
+    final answers = OnboardingSurveyStorage(prefs).loadAnswers();
+    expect(answers?.referralSource, equals(OnboardingReferralSource.other));
+    expect(answers?.referralOtherText, equals('同事推荐的公众号'));
+
+    final completed = analytics.events.firstWhere(
+      (event) => event.name == Events.onboardingSurveyCompleted,
+    );
+    expect(
+      completed.params?[EventParams.referralOtherText],
+      equals('同事推荐的公众号'),
+    );
   });
 }

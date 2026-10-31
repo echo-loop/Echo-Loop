@@ -4120,9 +4120,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get onboardingQ3OptionAppStore => '应用商店';
 
   @override
-  String get onboardingQ3OptionGooglePlay => 'Google Play';
-
-  @override
   String get onboardingQ3OptionYoutube => 'YouTube';
 
   @override
@@ -4132,28 +4129,13 @@ class AppLocalizationsZh extends AppLocalizations {
   String get onboardingQ3OptionXTwitter => 'X';
 
   @override
-  String get onboardingQ3OptionTiktok => 'TikTok';
-
-  @override
-  String get onboardingQ3OptionInstagram => 'Instagram';
-
-  @override
   String get onboardingQ3OptionXiaohongshu => '小红书';
 
   @override
   String get onboardingQ3OptionWechat => '微信';
 
   @override
-  String get onboardingQ3OptionDouyin => '抖音';
-
-  @override
-  String get onboardingQ3OptionKuaishou => '快手';
-
-  @override
   String get onboardingQ3OptionBilibili => 'B 站';
-
-  @override
-  String get onboardingQ3OptionBaiduSearch => '百度搜索';
 
   @override
   String get onboardingQ3OptionGoogleSearch => 'Google 搜索';
@@ -4166,6 +4148,18 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get onboardingQ3OptionOther => '其他';
+
+  @override
+  String get onboardingQ3OptionShortVideo => '短视频（抖音 / 快手）';
+
+  @override
+  String get onboardingQ3OptionSearchEngine => '搜索引擎（百度 / Google）';
+
+  @override
+  String get onboardingQ3OptionTeacherSchool => '老师 / 学校 / 培训机构';
+
+  @override
+  String get onboardingQ3OtherHint => '可选，告诉我们具体是从哪里知道的';
 
   @override
   String get onboardingPermissionsHint => '为了保证体验我们将请求以下权限';

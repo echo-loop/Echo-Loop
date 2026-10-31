@@ -59,9 +59,9 @@ typedef _BrandToken = ({FaIconData icon, Color color});
 /// 来源渠道 → 平台图标 + 品牌色映射。
 ///
 /// FontAwesome 11.0 已收录 weixin / bilibili / github / youtube / reddit /
-/// xTwitter / tiktok / instagram / google / googlePlay / appStore 等主流品牌图标。
-/// 中国特有的小红书 / 快手 / 百度无官方品牌图标，回退到通用 solid icon。
-/// "抖音"与 TikTok 实质上是同一公司同一 app 国内外双版本，复用 tiktok 图标。
+/// xTwitter / tiktok / instagram / google / appStore 等主流品牌图标。
+/// 中国特有的小红书 / 百度无官方品牌图标，回退到通用 solid icon。
+/// "短视频"合并了抖音/快手与 TikTok/Instagram，统一用通用视频图标。
 /// 品牌色取自各平台官方主视觉，朋友推荐 / 其他保持中性灰。
 const _referralBrand = <String, _BrandToken>{
   // 中文渠道
@@ -73,21 +73,21 @@ const _referralBrand = <String, _BrandToken>{
     icon: FontAwesomeIcons.weixin,
     color: Color(0xFF07C160),
   ),
-  OnboardingReferralSource.douyin: (
-    icon: FontAwesomeIcons.tiktok,
-    color: Color(0xFF000000),
-  ),
-  OnboardingReferralSource.kuaishou: (
-    icon: FontAwesomeIcons.video,
-    color: Color(0xFFFF4906),
-  ),
   OnboardingReferralSource.bilibili: (
     icon: FontAwesomeIcons.bilibili,
     color: Color(0xFF00AEEC),
   ),
-  OnboardingReferralSource.baiduSearch: (
+  OnboardingReferralSource.shortVideo: (
+    icon: FontAwesomeIcons.video,
+    color: Color(0xFFFF2C55),
+  ),
+  OnboardingReferralSource.searchEngine: (
     icon: FontAwesomeIcons.magnifyingGlass,
     color: Color(0xFF2932E1),
+  ),
+  OnboardingReferralSource.teacherSchool: (
+    icon: FontAwesomeIcons.graduationCap,
+    color: Color(0xFF8E44AD),
   ),
   // 英文渠道
   OnboardingReferralSource.youtube: (
@@ -102,14 +102,6 @@ const _referralBrand = <String, _BrandToken>{
     icon: FontAwesomeIcons.xTwitter,
     color: Color(0xFF000000),
   ),
-  OnboardingReferralSource.tiktok: (
-    icon: FontAwesomeIcons.tiktok,
-    color: Color(0xFF000000),
-  ),
-  OnboardingReferralSource.instagram: (
-    icon: FontAwesomeIcons.instagram,
-    color: Color(0xFFE4405F),
-  ),
   OnboardingReferralSource.googleSearch: (
     icon: FontAwesomeIcons.google,
     color: Color(0xFF4285F4),
@@ -122,10 +114,6 @@ const _referralBrand = <String, _BrandToken>{
   OnboardingReferralSource.appStore: (
     icon: FontAwesomeIcons.appStore,
     color: Color(0xFF007AFF),
-  ),
-  OnboardingReferralSource.googlePlay: (
-    icon: FontAwesomeIcons.googlePlay,
-    color: Color(0xFF34A853),
   ),
   OnboardingReferralSource.friend: (
     icon: FontAwesomeIcons.userGroup,
@@ -182,11 +170,16 @@ class _OnboardingSurveyScreenState
   Timer? _advanceTimer;
   late final DateTime _startedAt;
   bool _submitting = false;
+  // "其他"补充说明输入框；文本同步写入 provider，controller 由本 State 持有并释放。
+  late final TextEditingController _otherTextController;
 
   @override
   void initState() {
     super.initState();
     _startedAt = DateTime.now();
+    _otherTextController = TextEditingController(
+      text: ref.read(onboardingAnswersProvider).referralOtherText ?? '',
+    );
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
@@ -200,6 +193,7 @@ class _OnboardingSurveyScreenState
   @override
   void dispose() {
     _advanceTimer?.cancel();
+    _otherTextController.dispose();
     super.dispose();
   }
 
@@ -238,8 +232,17 @@ class _OnboardingSurveyScreenState
     if (_submitting) return;
     ref.read(onboardingAnswersProvider.notifier).setReferralSource(code);
     _trackAnswer(OnboardingQuestionId.referralSource, code);
+    // "其他"需要停留在本页填写补充说明，由"继续"按钮进入下一步。
+    if (code == OnboardingReferralSource.other) return;
     // 进入方法论介绍页，由用户点击"开始学习"按钮触发实际提交。
     _scheduleAdvance(() => _goToStep(_SurveyStep.summary));
+  }
+
+  /// "其他"分支点击"继续"：补充说明可为空，直接进入方法论介绍页。
+  void _continueFromOtherReferral() {
+    if (_submitting) return;
+    _advanceTimer?.cancel();
+    _goToStep(_SurveyStep.summary);
   }
 
   // ─────────────────────── 步骤导航 ───────────────────────
@@ -295,6 +298,8 @@ class _OnboardingSurveyScreenState
       if (answers.examType != null) EventParams.examType: answers.examType!,
       EventParams.dailyMinutes: answers.dailyMinutes!,
       EventParams.referralSource: answers.referralSource!,
+      if (answers.referralOtherText != null)
+        EventParams.referralOtherText: answers.referralOtherText!,
       EventParams.elapsedSeconds: elapsed,
     });
     await analytics.setUserProperty(UserProperties.englishGoal, answers.goal);
@@ -745,8 +750,10 @@ class _OnboardingSurveyScreenState
   }
 
   /// 来源渠道选择步骤：中英文用户看到的渠道不同，整体按重要度排序——
-  /// 中文优先小红书 / 短视频 / B 站，英文优先 App Store / Reddit / YouTube。
-  /// "其他"始终垫底。
+  /// Q3 来源渠道步骤。
+  ///
+  /// 中英文用户看到不同的渠道列表，顺序按各自的数据占比从高到低排列，"其他"固定垫底。
+  /// 选择"其他"后在本页展开可选的补充说明输入框，并显示"继续"按钮。
   Widget _buildReferralSourceStep(
     AppLocalizations l10n,
     OnboardingAnswers answers,
@@ -755,36 +762,31 @@ class _OnboardingSurveyScreenState
     final selected = answers.referralSource;
     final isChinese = Localizations.localeOf(context).languageCode == 'zh';
 
-    // 按重要度排序的渠道编码列表（locale 完整版本）。
-    // 中文：小红书 → 抖音/快手 → B 站 → 微信 → 应用商店 → 百度 → GitHub → 朋友 → 其他
-    // 英文：App Store → Reddit → YouTube → TikTok/IG → X → Google search → GitHub → Friend → Other
-    // 中文：小红书 → 微信 → GitHub → B 站 → 抖音 → 快手 → 百度搜索 → 应用商店 → 朋友推荐 → 其他
-    //  Google Play 不出现在中文列表，国内基本无法使用。
-    // 英文：Reddit → YouTube → Google search → GitHub → TikTok → X / Twitter → Instagram → Friend → App Store → Google Play → Other
+    // 中文：GitHub → 微信 → 短视频 → 朋友 → 小红书 → 搜索引擎 → 应用商店 → B 站 → 老师/学校 → 其他
+    // 英文：GitHub → 朋友 → Google 搜索 → 应用商店 → X → 短视频 → YouTube → Reddit → 老师/学校 → Other
     final codes = isChinese
         ? const [
-            OnboardingReferralSource.xiaohongshu,
-            OnboardingReferralSource.wechat,
             OnboardingReferralSource.github,
-            OnboardingReferralSource.bilibili,
-            OnboardingReferralSource.douyin,
-            OnboardingReferralSource.kuaishou,
-            OnboardingReferralSource.baiduSearch,
-            OnboardingReferralSource.appStore,
+            OnboardingReferralSource.wechat,
+            OnboardingReferralSource.shortVideo,
             OnboardingReferralSource.friend,
+            OnboardingReferralSource.xiaohongshu,
+            OnboardingReferralSource.searchEngine,
+            OnboardingReferralSource.appStore,
+            OnboardingReferralSource.bilibili,
+            OnboardingReferralSource.teacherSchool,
             OnboardingReferralSource.other,
           ]
         : const [
-            OnboardingReferralSource.reddit,
-            OnboardingReferralSource.youtube,
-            OnboardingReferralSource.googleSearch,
             OnboardingReferralSource.github,
-            OnboardingReferralSource.tiktok,
-            OnboardingReferralSource.xTwitter,
-            OnboardingReferralSource.instagram,
             OnboardingReferralSource.friend,
+            OnboardingReferralSource.googleSearch,
             OnboardingReferralSource.appStore,
-            OnboardingReferralSource.googlePlay,
+            OnboardingReferralSource.xTwitter,
+            OnboardingReferralSource.shortVideo,
+            OnboardingReferralSource.youtube,
+            OnboardingReferralSource.reddit,
+            OnboardingReferralSource.teacherSchool,
             OnboardingReferralSource.other,
           ];
 
@@ -801,6 +803,25 @@ class _OnboardingSurveyScreenState
             selected: selected == code,
             onTap: () => _selectReferralSource(code),
           ),
+        if (selected == OnboardingReferralSource.other) ...[
+          const SizedBox(height: 16),
+          TextField(
+            controller: _otherTextController,
+            maxLength: OnboardingReferralSource.referralOtherTextMaxLength,
+            decoration: InputDecoration(
+              hintText: l10n.onboardingQ3OtherHint,
+              border: const OutlineInputBorder(),
+            ),
+            onChanged: (text) => ref
+                .read(onboardingAnswersProvider.notifier)
+                .setReferralOtherText(text),
+          ),
+          const SizedBox(height: 12),
+          FilledButton(
+            onPressed: _continueFromOtherReferral,
+            child: Text(l10n.onboardingContinue),
+          ),
+        ],
       ],
     );
   }
@@ -812,32 +833,26 @@ class _OnboardingSurveyScreenState
         return l10n.onboardingQ3OptionXiaohongshu;
       case OnboardingReferralSource.wechat:
         return l10n.onboardingQ3OptionWechat;
-      case OnboardingReferralSource.douyin:
-        return l10n.onboardingQ3OptionDouyin;
-      case OnboardingReferralSource.kuaishou:
-        return l10n.onboardingQ3OptionKuaishou;
       case OnboardingReferralSource.bilibili:
         return l10n.onboardingQ3OptionBilibili;
-      case OnboardingReferralSource.baiduSearch:
-        return l10n.onboardingQ3OptionBaiduSearch;
+      case OnboardingReferralSource.shortVideo:
+        return l10n.onboardingQ3OptionShortVideo;
+      case OnboardingReferralSource.searchEngine:
+        return l10n.onboardingQ3OptionSearchEngine;
+      case OnboardingReferralSource.teacherSchool:
+        return l10n.onboardingQ3OptionTeacherSchool;
       case OnboardingReferralSource.youtube:
         return l10n.onboardingQ3OptionYoutube;
       case OnboardingReferralSource.reddit:
         return l10n.onboardingQ3OptionReddit;
       case OnboardingReferralSource.xTwitter:
         return l10n.onboardingQ3OptionXTwitter;
-      case OnboardingReferralSource.tiktok:
-        return l10n.onboardingQ3OptionTiktok;
-      case OnboardingReferralSource.instagram:
-        return l10n.onboardingQ3OptionInstagram;
       case OnboardingReferralSource.googleSearch:
         return l10n.onboardingQ3OptionGoogleSearch;
       case OnboardingReferralSource.github:
         return l10n.onboardingQ3OptionGithub;
       case OnboardingReferralSource.appStore:
         return l10n.onboardingQ3OptionAppStore;
-      case OnboardingReferralSource.googlePlay:
-        return l10n.onboardingQ3OptionGooglePlay;
       case OnboardingReferralSource.friend:
         return l10n.onboardingQ3OptionFriend;
       default:

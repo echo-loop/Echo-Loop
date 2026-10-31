@@ -7529,14 +7529,8 @@ abstract class AppLocalizations {
   /// No description provided for @onboardingQ3OptionAppStore.
   ///
   /// In en, this message translates to:
-  /// **'App Store'**
+  /// **'App Store / Google Play'**
   String get onboardingQ3OptionAppStore;
-
-  /// No description provided for @onboardingQ3OptionGooglePlay.
-  ///
-  /// In en, this message translates to:
-  /// **'Google Play'**
-  String get onboardingQ3OptionGooglePlay;
 
   /// No description provided for @onboardingQ3OptionYoutube.
   ///
@@ -7556,18 +7550,6 @@ abstract class AppLocalizations {
   /// **'X / Twitter'**
   String get onboardingQ3OptionXTwitter;
 
-  /// No description provided for @onboardingQ3OptionTiktok.
-  ///
-  /// In en, this message translates to:
-  /// **'TikTok'**
-  String get onboardingQ3OptionTiktok;
-
-  /// No description provided for @onboardingQ3OptionInstagram.
-  ///
-  /// In en, this message translates to:
-  /// **'Instagram'**
-  String get onboardingQ3OptionInstagram;
-
   /// No description provided for @onboardingQ3OptionXiaohongshu.
   ///
   /// In en, this message translates to:
@@ -7580,29 +7562,11 @@ abstract class AppLocalizations {
   /// **'WeChat'**
   String get onboardingQ3OptionWechat;
 
-  /// No description provided for @onboardingQ3OptionDouyin.
-  ///
-  /// In en, this message translates to:
-  /// **'Douyin'**
-  String get onboardingQ3OptionDouyin;
-
-  /// No description provided for @onboardingQ3OptionKuaishou.
-  ///
-  /// In en, this message translates to:
-  /// **'Kuaishou'**
-  String get onboardingQ3OptionKuaishou;
-
   /// No description provided for @onboardingQ3OptionBilibili.
   ///
   /// In en, this message translates to:
   /// **'Bilibili'**
   String get onboardingQ3OptionBilibili;
-
-  /// No description provided for @onboardingQ3OptionBaiduSearch.
-  ///
-  /// In en, this message translates to:
-  /// **'Baidu search'**
-  String get onboardingQ3OptionBaiduSearch;
 
   /// No description provided for @onboardingQ3OptionGoogleSearch.
   ///
@@ -7627,6 +7591,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Other'**
   String get onboardingQ3OptionOther;
+
+  /// No description provided for @onboardingQ3OptionShortVideo.
+  ///
+  /// In en, this message translates to:
+  /// **'Short video (TikTok / Instagram)'**
+  String get onboardingQ3OptionShortVideo;
+
+  /// No description provided for @onboardingQ3OptionSearchEngine.
+  ///
+  /// In en, this message translates to:
+  /// **'Search engine'**
+  String get onboardingQ3OptionSearchEngine;
+
+  /// No description provided for @onboardingQ3OptionTeacherSchool.
+  ///
+  /// In en, this message translates to:
+  /// **'Teacher / school / community'**
+  String get onboardingQ3OptionTeacherSchool;
+
+  /// No description provided for @onboardingQ3OtherHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Optional: tell us where you heard about us'**
+  String get onboardingQ3OtherHint;
 
   /// No description provided for @onboardingPermissionsHint.
   ///
