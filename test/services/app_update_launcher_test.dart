@@ -91,24 +91,28 @@ void main() {
       ]);
     });
 
-    test('Google Play 商店链接打不开且渠道无 fallback 时回退到 downloadUrl.fallback', () async {
-      urlLauncher.launchReturns = false;
-      const info = AppUpdateInfo(
-        latestVersion: '2.0.0',
-        minimumVersion: '1.5.0',
-        channel: AppUpdateChannel.androidGooglePlay,
-        downloadUrl: {
-          'fallback': 'https://play.google.com/store/apps/details?id=app.echoloop',
-        },
-      );
+    test(
+      'Google Play 商店链接打不开且渠道无 fallback 时回退到 downloadUrl.fallback',
+      () async {
+        urlLauncher.launchReturns = false;
+        const info = AppUpdateInfo(
+          latestVersion: '2.0.0',
+          minimumVersion: '1.5.0',
+          channel: AppUpdateChannel.androidGooglePlay,
+          downloadUrl: {
+            'fallback':
+                'https://play.google.com/store/apps/details?id=app.echoloop',
+          },
+        );
 
-      await makeLauncher().launch(info: info, primaryUrl: 'market://x');
+        await makeLauncher().launch(info: info, primaryUrl: 'market://x');
 
-      expect(urlLauncher.launched, [
-        'market://x',
-        'https://play.google.com/store/apps/details?id=app.echoloop',
-      ]);
-    });
+        expect(urlLauncher.launched, [
+          'market://x',
+          'https://play.google.com/store/apps/details?id=app.echoloop',
+        ]);
+      },
+    );
 
     test('非 Play 渠道直接打开下载链接，不触碰 Play 专属逻辑', () async {
       const info = AppUpdateInfo(

@@ -22,7 +22,8 @@ List<Sentence> _contiguous(List<int> durationsMs) {
 double _partitionCost(List<List<Sentence>> groups, int targetMs) {
   var total = 0.0;
   for (final g in groups) {
-    final wall = g.last.endTime.inMilliseconds - g.first.startTime.inMilliseconds;
+    final wall =
+        g.last.endTime.inMilliseconds - g.first.startTime.inMilliseconds;
     final diff = (wall - targetMs).toDouble();
     total += diff * diff;
   }
@@ -51,11 +52,12 @@ double _bruteForceMinCost(
       }
     }
     if (maxSegmentMs != null &&
-        groups.any((g) =>
-            g.length > 1 &&
-            g.last.endTime.inMilliseconds -
-                    g.first.startTime.inMilliseconds >
-                maxSegmentMs)) {
+        groups.any(
+          (g) =>
+              g.length > 1 &&
+              g.last.endTime.inMilliseconds - g.first.startTime.inMilliseconds >
+                  maxSegmentMs,
+        )) {
       continue;
     }
     final cost = _partitionCost(groups, targetMs);

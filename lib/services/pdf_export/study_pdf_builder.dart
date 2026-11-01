@@ -630,7 +630,8 @@ pw.Widget _vocabColumn(List<StudyPdfVocabNote> notes) {
                           pw.TextSpan(
                             // 音标可能已自带首尾斜杠（AI 词典 pronunciation
                             // 常含 `/.../`），剥掉后统一补一层，避免双斜线
-                            text: '  /${_stripPhoneticSlashes(_sanitize(note.phonetic))}/',
+                            text:
+                                '  /${_stripPhoneticSlashes(_sanitize(note.phonetic))}/',
                             style: pw.TextStyle(
                               fontSize: 8,
                               fontStyle: pw.FontStyle.italic,

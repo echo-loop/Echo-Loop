@@ -54,7 +54,11 @@ Future<void> _createV45Fixture(File file) async {
     final now = DateTime(2026, 7, 12).millisecondsSinceEpoch ~/ 1000;
     final rows = <(String, String, String)>[
       ('h1', 'translation:zh-CN', '{"translation":"你好"}'),
-      ('h2', 'analysis_v2:zh-CN', '{"grammar":[],"vocabulary":[],"listening":[]}'),
+      (
+        'h2',
+        'analysis_v2:zh-CN',
+        '{"grammar":[],"vocabulary":[],"listening":[]}',
+      ),
       ('h3', 'ai_dictionary', '{"word":"run"}'),
       ('h4', 'sense_groups', '{"medium":["hello"],"fine":["hello"]}'),
     ];

@@ -55,10 +55,18 @@ Future<void> _createV28Database(File file) async {
     raw.execute('DROP TABLE collection_audio_items');
     raw.execute('DROP TABLE collections');
     raw.execute('DROP TABLE audio_items');
-    raw.execute('ALTER TABLE learning_progresses DROP COLUMN blind_listen_sentence_index');
-    raw.execute('ALTER TABLE learning_progresses DROP COLUMN free_play_blind_listen_sentence_index');
-    raw.execute('ALTER TABLE learning_progresses DROP COLUMN free_play_retell_sentence_index');
-    raw.execute('ALTER TABLE learning_progresses DROP COLUMN retell_sentence_index');
+    raw.execute(
+      'ALTER TABLE learning_progresses DROP COLUMN blind_listen_sentence_index',
+    );
+    raw.execute(
+      'ALTER TABLE learning_progresses DROP COLUMN free_play_blind_listen_sentence_index',
+    );
+    raw.execute(
+      'ALTER TABLE learning_progresses DROP COLUMN free_play_retell_sentence_index',
+    );
+    raw.execute(
+      'ALTER TABLE learning_progresses DROP COLUMN retell_sentence_index',
+    );
     raw.execute(
       'ALTER TABLE learning_progresses ADD COLUMN blind_listen_paragraph_index INTEGER',
     );

@@ -47,7 +47,7 @@ final mediaSessionRouterProvider = Provider<MediaSessionRouter>.internal(
 @Deprecated('Will be removed in 3.0. Use Ref instead')
 // ignore: unused_element
 typedef MediaSessionRouterRef = ProviderRef<MediaSessionRouter>;
-String _$mediaEngineHash() => r'6c6877833f2067f2e47f935a56eab20421043744';
+String _$mediaEngineHash() => r'ea4578e2df475795dfd93d6ac99e24efc21a2731';
 
 /// See also [MediaEngine].
 @ProviderFor(MediaEngine)

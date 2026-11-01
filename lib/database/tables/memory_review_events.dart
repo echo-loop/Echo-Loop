@@ -5,7 +5,8 @@ import 'memory_schedules.dart';
 /// 只追加的记忆评分审计事件。
 class MemoryReviewEvents extends Table {
   TextColumn get id => text()();
-  TextColumn get scheduleId => text().references(MemorySchedules, #id, onDelete: KeyAction.cascade)();
+  TextColumn get scheduleId =>
+      text().references(MemorySchedules, #id, onDelete: KeyAction.cascade)();
   IntColumn get sequence => integer()();
   TextColumn get operationId => text()();
   TextColumn get rating => text()();

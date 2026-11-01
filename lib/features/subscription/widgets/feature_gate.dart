@@ -27,9 +27,9 @@ import '../providers/subscription_availability.dart';
 Future<void> openPaywall(BuildContext context, WidgetRef ref) async {
   if (!ref.read(subscriptionAvailabilityProvider)) {
     final l10n = AppLocalizations.of(context)!;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(l10n.premiumUnavailableOnPlatform)),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(l10n.premiumUnavailableOnPlatform)));
     return;
   }
   await context.push(AppRoutes.paywall);

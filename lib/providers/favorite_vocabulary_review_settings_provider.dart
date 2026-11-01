@@ -12,10 +12,11 @@ import '../models/favorite_vocabulary_review_settings.dart';
 const _favoriteVocabularyReviewSettingsKey =
     'favorite_vocabulary_review_settings_v1';
 
-final favoriteVocabularyReviewSettingsProvider = NotifierProvider<
-  FavoriteVocabularyReviewSettingsNotifier,
-  FavoriteVocabularyReviewSettings
->(FavoriteVocabularyReviewSettingsNotifier.new);
+final favoriteVocabularyReviewSettingsProvider =
+    NotifierProvider<
+      FavoriteVocabularyReviewSettingsNotifier,
+      FavoriteVocabularyReviewSettings
+    >(FavoriteVocabularyReviewSettingsNotifier.new);
 
 class FavoriteVocabularyReviewSettingsNotifier
     extends Notifier<FavoriteVocabularyReviewSettings> {

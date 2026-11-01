@@ -45,7 +45,10 @@ void main() {
     await tester.pumpWidget(wrap(card));
 
     final container = tester.widget<Container>(
-      find.descendant(of: find.byWidget(card), matching: find.byType(Container)),
+      find.descendant(
+        of: find.byWidget(card),
+        matching: find.byType(Container),
+      ),
     );
     expect(
       container.decoration,
@@ -62,7 +65,10 @@ void main() {
     await tester.pumpWidget(wrap(card, theme: AppTheme.dark()));
 
     final container = tester.widget<Container>(
-      find.descendant(of: find.byWidget(card), matching: find.byType(Container)),
+      find.descendant(
+        of: find.byWidget(card),
+        matching: find.byType(Container),
+      ),
     );
     expect(
       container.decoration,

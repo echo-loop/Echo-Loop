@@ -7,7 +7,7 @@ part of 'favorite_vocabulary_review_provider.dart';
 // **************************************************************************
 
 String _$favoriteVocabularyReviewHash() =>
-    r'2ec69f695ee905b2c94b2d416ccfd43f78e57f77';
+    r'edd2356b76252c41bbe80bcb729397259d082a1e';
 
 /// See also [FavoriteVocabularyReview].
 @ProviderFor(FavoriteVocabularyReview)

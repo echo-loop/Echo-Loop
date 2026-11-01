@@ -4,7 +4,13 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'download_failure.dart';
 
-enum DownloadTaskStatus { notDownloaded, queued, downloading, downloaded, failed }
+enum DownloadTaskStatus {
+  notDownloaded,
+  queued,
+  downloading,
+  downloaded,
+  failed,
+}
 
 class DownloadTaskRecord {
   const DownloadTaskRecord({

@@ -24,7 +24,9 @@ class _StubLemmatizer extends Lemmatizer {
   List<Lemma> lemmas(String form) {
     final lemma = _forms[form.toLowerCase()];
     if (lemma == null) return const [];
-    return [Lemma(POS.VERB, form, [lemma])];
+    return [
+      Lemma(POS.VERB, form, [lemma]),
+    ];
   }
 }
 

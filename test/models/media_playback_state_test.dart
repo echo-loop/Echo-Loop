@@ -97,10 +97,7 @@ void main() {
       expect(playback.sentenceFocusReason, SentenceFocusReason.playback);
       expect(navigation.sentenceFocusRevision, 2);
       expect(navigation.sentenceFocusReason, SentenceFocusReason.navigation);
-      expect(
-        progress.sentenceFocusRevision,
-        navigation.sentenceFocusRevision,
-      );
+      expect(progress.sentenceFocusRevision, navigation.sentenceFocusRevision);
       expect(progress.sentenceFocusReason, navigation.sentenceFocusReason);
     });
   });

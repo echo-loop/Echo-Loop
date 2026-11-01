@@ -46,7 +46,10 @@ class IsolatePiperSynthesizer implements PiperNativeSynthesizer {
     final sw = Stopwatch()..start();
     _worker = await _PiperWorker.spawn(numThreads);
     sw.stop();
-    AppLogger.log('PiperTts', '└ init done elapsed=${sw.elapsedMilliseconds}ms');
+    AppLogger.log(
+      'PiperTts',
+      '└ init done elapsed=${sw.elapsedMilliseconds}ms',
+    );
   }
 
   @override

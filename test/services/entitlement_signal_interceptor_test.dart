@@ -92,9 +92,7 @@ void main() {
       throwsA(isA<DioException>()),
     );
 
-    expect(signals, [
-      (serverActive: false, path: '/api/v1/stream/translate'),
-    ]);
+    expect(signals, [(serverActive: false, path: '/api/v1/stream/translate')]);
   });
 
   test('未注册处理器时安全忽略', () {

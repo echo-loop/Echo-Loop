@@ -58,9 +58,7 @@ void main() {
       expect(animation.repeat, isTrue);
       expect(animation.animate, isTrue);
       expect(
-        tester.getSize(
-          find.byKey(const Key('completion-dialog-done-check')),
-        ),
+        tester.getSize(find.byKey(const Key('completion-dialog-done-check'))),
         const Size(160, 160),
       );
     });

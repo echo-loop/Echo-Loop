@@ -158,8 +158,7 @@ class UsageCounters {
       senseGroupTapCount: senseGroupTapCount ?? this.senseGroupTapCount,
       translationSuccessCount:
           translationSuccessCount ?? this.translationSuccessCount,
-      analysisSuccessCount:
-          analysisSuccessCount ?? this.analysisSuccessCount,
+      analysisSuccessCount: analysisSuccessCount ?? this.analysisSuccessCount,
       senseGroupSuccessCount:
           senseGroupSuccessCount ?? this.senseGroupSuccessCount,
       aiWordAnalysisSuccessCount:

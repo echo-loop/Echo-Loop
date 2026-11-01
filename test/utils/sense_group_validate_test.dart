@@ -11,7 +11,10 @@ void main() {
     const sentence = 'I run a company.';
 
     test('精确 concat 还原原句（chunk 用前导空格表达间距）→ 通过', () {
-      expect(validateSenseGroupChunks(['I run', ' a company.'], sentence), isTrue);
+      expect(
+        validateSenseGroupChunks(['I run', ' a company.'], sentence),
+        isTrue,
+      );
     });
 
     test('仅空白差异（chunk 被 trim）→ 慢路径剥空白后通过', () {

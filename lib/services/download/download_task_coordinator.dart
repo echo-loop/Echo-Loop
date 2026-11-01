@@ -42,7 +42,8 @@ class DownloadTaskCoordinator {
   final _controllers = <String, CancelToken>{};
   final _tasks = <String, Future<void>>{};
   final _states = <String, DownloadTaskState>{};
-  final _controllersByListener = <String, StreamController<DownloadTaskState>>{};
+  final _controllersByListener =
+      <String, StreamController<DownloadTaskState>>{};
 
   DownloadResource _resource(String id) =>
       _resources[id] ?? (throw ArgumentError('Unknown download resource: $id'));
@@ -54,14 +55,19 @@ class DownloadTaskCoordinator {
       DownloadTaskState(resourceId: id, status: DownloadTaskStatus.queued);
 
   Stream<DownloadTaskState> watch(String id) =>
-      (_controllersByListener[id] ??= StreamController<DownloadTaskState>.broadcast())
-        .stream;
+      (_controllersByListener[id] ??=
+              StreamController<DownloadTaskState>.broadcast())
+          .stream;
 
   Future<DownloadTaskState> refresh(String id) async {
     final resource = _resource(id);
     if (await resource.isReady()) {
       return _publish(
-        DownloadTaskState(resourceId: id, status: DownloadTaskStatus.downloaded, progress: 1),
+        DownloadTaskState(
+          resourceId: id,
+          status: DownloadTaskStatus.downloaded,
+          progress: 1,
+        ),
       );
     }
     final record = await _store.read(id);
@@ -69,7 +75,10 @@ class DownloadTaskCoordinator {
       return _publish(_fromRecord(record!));
     }
     return _publish(
-      DownloadTaskState(resourceId: id, status: DownloadTaskStatus.notDownloaded),
+      DownloadTaskState(
+        resourceId: id,
+        status: DownloadTaskStatus.notDownloaded,
+      ),
     );
   }
 
@@ -94,7 +103,12 @@ class DownloadTaskCoordinator {
   Future<void> cancel(String id) async {
     _controllers.remove(id)?.cancel('user cancelled');
     final task = _tasks[id];
-    _publish(DownloadTaskState(resourceId: id, status: DownloadTaskStatus.notDownloaded));
+    _publish(
+      DownloadTaskState(
+        resourceId: id,
+        status: DownloadTaskStatus.notDownloaded,
+      ),
+    );
     if (task != null) await task;
     await _resource(id).deletePartial();
     await _store.remove(id);
@@ -105,9 +119,14 @@ class DownloadTaskCoordinator {
     final token = CancelToken();
     _controllers[id] = token;
     await _store.write(
-      DownloadTaskRecord(resourceId: id, status: DownloadTaskStatus.downloading),
+      DownloadTaskRecord(
+        resourceId: id,
+        status: DownloadTaskStatus.downloading,
+      ),
     );
-    _publish(DownloadTaskState(resourceId: id, status: DownloadTaskStatus.downloading));
+    _publish(
+      DownloadTaskState(resourceId: id, status: DownloadTaskStatus.downloading),
+    );
     try {
       await resource.download(
         cancelToken: token,
@@ -128,17 +147,39 @@ class DownloadTaskCoordinator {
       );
       if (token.isCancelled) return;
       await _store.write(
-        DownloadTaskRecord(resourceId: id, status: DownloadTaskStatus.downloaded),
+        DownloadTaskRecord(
+          resourceId: id,
+          status: DownloadTaskStatus.downloaded,
+        ),
       );
-      _publish(DownloadTaskState(resourceId: id, status: DownloadTaskStatus.downloaded, progress: 1));
+      _publish(
+        DownloadTaskState(
+          resourceId: id,
+          status: DownloadTaskStatus.downloaded,
+          progress: 1,
+        ),
+      );
     } catch (error, stack) {
       if (token.isCancelled || _isCancelled(error)) return;
       final failure = classifyDownloadFailure(error);
-      AppLogger.log('Download', 'resource=$id failed kind=$failure error=$error');
-      await _store.write(
-        DownloadTaskRecord(resourceId: id, status: DownloadTaskStatus.failed, failure: failure),
+      AppLogger.log(
+        'Download',
+        'resource=$id failed kind=$failure error=$error',
       );
-      _publish(DownloadTaskState(resourceId: id, status: DownloadTaskStatus.failed, failure: failure));
+      await _store.write(
+        DownloadTaskRecord(
+          resourceId: id,
+          status: DownloadTaskStatus.failed,
+          failure: failure,
+        ),
+      );
+      _publish(
+        DownloadTaskState(
+          resourceId: id,
+          status: DownloadTaskStatus.failed,
+          failure: failure,
+        ),
+      );
       AppLogger.log('Download', '$stack');
     } finally {
       _controllers.remove(id);

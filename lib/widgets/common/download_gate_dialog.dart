@@ -36,7 +36,8 @@ class _DownloadGateDialogState extends ConsumerState<DownloadGateDialog> {
   Widget build(BuildContext context) {
     final coordinator = ref.read(downloadTaskCoordinatorProvider);
     final resource = coordinator.resourceOf(widget.resourceId);
-    final state = ref.watch(downloadTaskStateProvider(widget.resourceId)).value ??
+    final state =
+        ref.watch(downloadTaskStateProvider(widget.resourceId)).value ??
         coordinator.stateOf(widget.resourceId);
     final l10n = AppLocalizations.of(context)!;
     if (state.isReady) {
@@ -52,10 +53,16 @@ class _DownloadGateDialogState extends ConsumerState<DownloadGateDialog> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(failed ? l10n.downloadFailed(resource.displayName) : l10n.downloadLoading),
+          Text(
+            failed
+                ? l10n.downloadFailed(resource.displayName)
+                : l10n.downloadLoading,
+          ),
           if (active) ...[
             const SizedBox(height: 12),
-            LinearProgressIndicator(value: state.progress == 0 ? null : state.progress),
+            LinearProgressIndicator(
+              value: state.progress == 0 ? null : state.progress,
+            ),
             const SizedBox(height: 8),
             Text('${(state.progress * 100).toStringAsFixed(0)}%'),
           ],

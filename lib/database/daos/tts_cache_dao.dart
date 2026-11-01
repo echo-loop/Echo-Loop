@@ -113,8 +113,9 @@ class TtsCacheDao extends DatabaseAccessor<AppDatabase>
   /// 供上层清理时识别孤儿文件：`tts_cache/` 目录下不在此集合的文件即为孤儿
   /// （磁盘有、DB 无引用，如 app 被杀于「已写盘、store 未提交」之间产生），可安全删除。
   Future<List<String>> allFilePaths() async {
-    final rows = await (selectOnly(ttsCache)..addColumns([ttsCache.filePath]))
-        .get();
+    final rows = await (selectOnly(
+      ttsCache,
+    )..addColumns([ttsCache.filePath])).get();
     return rows.map((r) => r.read(ttsCache.filePath)!).toList();
   }
 

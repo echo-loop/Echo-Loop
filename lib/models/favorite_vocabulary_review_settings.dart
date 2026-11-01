@@ -60,6 +60,9 @@ class FavoriteVocabularyReviewSettings {
                   .firstOrNull ??
               FavoriteVocabularyReviewOrder.smart
         : FavoriteVocabularyReviewOrder.smart;
-    return FavoriteVocabularyReviewSettings(dailyReviewGoal: goal, order: order);
+    return FavoriteVocabularyReviewSettings(
+      dailyReviewGoal: goal,
+      order: order,
+    );
   }
 }

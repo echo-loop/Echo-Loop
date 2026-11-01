@@ -7,11 +7,11 @@ part of 'reminder_settings_provider.dart';
 // **************************************************************************
 
 String _$reminderSettingsNotifierHash() =>
-    r'60a236a13c92c22df3b9d2a317b681873bd1abe2';
+    r'f9cc6bcb32fd194125b8e0e6a1f301c80d607d19';
 
 /// 提醒设置 Notifier
 ///
-/// `build()` 返回默认值并异步从 SP 加载持久化数据。
+/// `build()` 优先同步读取已初始化的 SP，独立容器下异步回退加载。
 /// 外部通过 [update] 更新设置，自动持久化并同步 state。
 ///
 /// Copied from [ReminderSettingsNotifier].

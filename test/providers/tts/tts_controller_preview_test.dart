@@ -320,9 +320,7 @@ void main() {
     test('模型下载完成后 ready 变化会自动加载当前引擎', () async {
       SharedPreferences.setMockInitialValues({});
       final factory = _RecordingFactory();
-      final kokoroNotifier = _FixedKokoroNotifier(
-        KokoroModelsState.initial(),
-      );
+      final kokoroNotifier = _FixedKokoroNotifier(KokoroModelsState.initial());
       final c = ProviderContainer(
         overrides: [
           initialTtsSettingsProvider.overrideWithValue(
@@ -344,9 +342,9 @@ void main() {
 
       kokoroNotifier.updateState(_ready());
       await expectLater(
-        Stream<void>.periodic(const Duration(milliseconds: 1)).map(
-          (_) => factory.calls,
-        ),
+        Stream<void>.periodic(
+          const Duration(milliseconds: 1),
+        ).map((_) => factory.calls),
         emitsThrough(greaterThanOrEqualTo(1)),
       );
     });

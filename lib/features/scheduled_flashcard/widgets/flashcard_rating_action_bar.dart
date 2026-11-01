@@ -99,9 +99,7 @@ class _RatingActionButton extends StatelessWidget {
         key: Key('flashcard-rating-${action.rating.name}'),
         onPressed: enabled ? onPressed : null,
         // 评分按钮需要紧凑布局，三档评分统一使用 6 dp 内边距。
-        style: OutlinedButton.styleFrom(
-          padding: const EdgeInsets.all(6),
-        ),
+        style: OutlinedButton.styleFrom(padding: const EdgeInsets.all(6)),
         child: FittedBox(
           fit: BoxFit.scaleDown,
           child: Column(

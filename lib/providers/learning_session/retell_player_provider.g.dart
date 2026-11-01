@@ -6,7 +6,7 @@ part of 'retell_player_provider.dart';
 // RiverpodGenerator
 // **************************************************************************
 
-String _$retellPlayerHash() => r'bac03d0557e504697ca9215d2744d9784ee54de4';
+String _$retellPlayerHash() => r'd5a99e1f5ec3f47858c115ae4dbd7e3fed8829b5';
 
 /// 复述专用播放器 Provider
 ///

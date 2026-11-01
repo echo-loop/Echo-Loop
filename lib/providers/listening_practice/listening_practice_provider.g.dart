@@ -6,7 +6,7 @@ part of 'listening_practice_provider.dart';
 // RiverpodGenerator
 // **************************************************************************
 
-String _$listeningPracticeHash() => r'873120933e273ee9abfe8b77605f3c9453479d69';
+String _$listeningPracticeHash() => r'a6ab1dcf0243a304bbfe3ab3a2b980c35a9a5fd2';
 
 /// 自由练习播放器的状态与业务编排。
 ///

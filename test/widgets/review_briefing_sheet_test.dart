@@ -196,9 +196,7 @@ void main() {
     expect(selectedSpeed, 0.9);
   });
 
-  testWidgets('传入不支持的子步骤（如全文盲听）会抛出异常而非静默显示错误文案', (
-    tester,
-  ) async {
+  testWidgets('传入不支持的子步骤（如全文盲听）会抛出异常而非静默显示错误文案', (tester) async {
     await tester.pumpWidget(
       createTestApp(
         Builder(

@@ -97,7 +97,10 @@ void main() {
       c1.read(dictionarySettingsNotifierProvider).adFilteringEnabled,
       isTrue,
     );
-    expect(prefs.getString('dictionary_settings'), contains('adFilteringEnabled'));
+    expect(
+      prefs.getString('dictionary_settings'),
+      contains('adFilteringEnabled'),
+    );
 
     final c2 = makeContainer();
     expect(

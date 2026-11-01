@@ -55,7 +55,12 @@ void main() {
       videoAbsolutePath: videoPath,
     );
 
-    final expected = p.join(dataDir.path, 'tmp', 'transcription', 'video-sha.m4a');
+    final expected = p.join(
+      dataDir.path,
+      'tmp',
+      'transcription',
+      'video-sha.m4a',
+    );
     expect(result, expected);
     expect(fake.lastSource!.path, videoPath);
     expect(fake.lastOutput!.path, expected);

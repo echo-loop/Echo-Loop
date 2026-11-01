@@ -71,7 +71,7 @@ final transcriptionAudioExtractorProvider =
 typedef TranscriptionAudioExtractorRef =
     ProviderRef<TranscriptionAudioExtractor>;
 String _$transcriptionTaskManagerHash() =>
-    r'f597683829610b8d39f3c4ab222526f5fbc42909';
+    r'802b045e04b1de3f73bb64efba642a0e0b78d979';
 
 /// 转录任务管理器
 ///

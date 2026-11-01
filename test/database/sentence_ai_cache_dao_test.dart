@@ -138,10 +138,12 @@ void main() {
       await db.sentenceAiCacheDao.upsert('h2', 'translation:zh-CN', '{"t":2}');
       await db.sentenceAiCacheDao.upsert('h3', 'analysis:zh-CN', '{"a":3}');
 
-      final result = await db.sentenceAiCacheDao.getManyByHash(
-        ['h1', 'h2', 'h3', 'missing'],
-        'translation:zh-CN',
-      );
+      final result = await db.sentenceAiCacheDao.getManyByHash([
+        'h1',
+        'h2',
+        'h3',
+        'missing',
+      ], 'translation:zh-CN');
 
       expect(result, {'h1': '{"t":1}', 'h2': '{"t":2}'});
       expect(result.containsKey('h3'), isFalse); // 类型不符

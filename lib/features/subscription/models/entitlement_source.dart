@@ -42,8 +42,6 @@ EntitlementSource entitlementSourceFromApi(String? raw) {
 
 /// 本地缓存持久化用的名称 → [EntitlementSource]（容错，未知→unknown）。
 EntitlementSource entitlementSourceFromName(String? name) {
-  return EntitlementSource.values
-          .where((e) => e.name == name)
-          .firstOrNull ??
+  return EntitlementSource.values.where((e) => e.name == name).firstOrNull ??
       EntitlementSource.unknown;
 }

@@ -179,10 +179,7 @@ void main() {
       verifyNever(() => engineB.initialize());
 
       // 新模型的实际加载统一由显式 ready 屏障触发。
-      expect(
-        await c.ensureEngineReady(TtsEngineKind.kokoro, _config),
-        isTrue,
-      );
+      expect(await c.ensureEngineReady(TtsEngineKind.kokoro, _config), isTrue);
       verify(() => engineB.initialize()).called(1);
     });
 
@@ -191,9 +188,7 @@ void main() {
       final second = MockTtsEngine();
       _stubEngine(first);
       _stubEngine(second);
-      when(
-        () => first.initialize(),
-      ).thenThrow(
+      when(() => first.initialize()).thenThrow(
         const PathNotFoundException(
           'Directory listing failed',
           OSError('No such file or directory', 2),
@@ -213,10 +208,7 @@ void main() {
         throwsA(isA<PathNotFoundException>()),
       );
 
-      expect(
-        await c.ensureEngineReady(TtsEngineKind.kokoro, _config),
-        isTrue,
-      );
+      expect(await c.ensureEngineReady(TtsEngineKind.kokoro, _config), isTrue);
       verify(() => first.initialize()).called(1);
       verify(() => second.initialize()).called(1);
     });

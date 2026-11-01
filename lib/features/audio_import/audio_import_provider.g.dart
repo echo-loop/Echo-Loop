@@ -7,7 +7,7 @@ part of 'audio_import_provider.dart';
 // **************************************************************************
 
 String _$audioImportServiceHash() =>
-    r'd7a4c3f3289d8f6513e1c06364c4ad7e3ab7e113';
+    r'fa43b6fee47482637bb5576aa70601da4d83c2ab';
 
 /// See also [audioImportService].
 @ProviderFor(audioImportService)
@@ -26,7 +26,7 @@ final audioImportServiceProvider =
 // ignore: unused_element
 typedef AudioImportServiceRef = AutoDisposeProviderRef<AudioImportService>;
 String _$audioImportControllerHash() =>
-    r'ef17e32f02d80906a02d127cd795f0ebbc6638ee';
+    r'89bb3214ffdd3585eb2361a753a6562cac7725de';
 
 /// See also [AudioImportController].
 @ProviderFor(AudioImportController)
@@ -46,7 +46,7 @@ final audioImportControllerProvider =
 
 typedef _$AudioImportController = AutoDisposeNotifier<AudioImportState>;
 String _$podcastDownloadControllerHash() =>
-    r'88234a3bc2f04eff53a77c9ef8a6acdda0702706';
+    r'c834b3a7d27fe38f1ee513ca474534d7f86af38f';
 
 /// Podcast 单集懒下载控制器。
 ///

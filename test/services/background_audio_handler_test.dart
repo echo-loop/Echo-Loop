@@ -321,7 +321,10 @@ void main() {
       handler.setLogicalPlaying(true);
 
       // 绝对位置 = 50s（新段起点），而非 0。
-      expect(handler.playbackState.value.updatePosition, const Duration(seconds: 50));
+      expect(
+        handler.playbackState.value.updatePosition,
+        const Duration(seconds: 50),
+      );
     });
 
     test('无 clip（clearClip）后绝对位置回退为裸 player.position', () async {
@@ -336,7 +339,10 @@ void main() {
       handler.setLogicalPlaying(true);
 
       // _clipStart 归零 → 绝对位置 = 裸 position（Free Player 整曲行为不变）。
-      expect(handler.playbackState.value.updatePosition, const Duration(seconds: 8));
+      expect(
+        handler.playbackState.value.updatePosition,
+        const Duration(seconds: 8),
+      );
     });
   });
 
@@ -366,7 +372,10 @@ void main() {
 
     test('冻结期间仍上报当前绝对位置（停在段尾），不归零', () async {
       when(
-        () => player.setClip(start: any(named: 'start'), end: any(named: 'end')),
+        () => player.setClip(
+          start: any(named: 'start'),
+          end: any(named: 'end'),
+        ),
       ).thenAnswer((_) async => const Duration(seconds: 20));
       // 段落 clip = [30s, 50s]，已播到段尾（clip 内相对 20s）。
       await handler.setClip(

@@ -20,9 +20,7 @@ class SenseGroupResult {
   /// （如 medium[2] 先到、medium[0/1] 尚未到达），故用 `whereType<String>()` 过滤非字符串占位，
   /// 保证半成品累积快照永不抛。
   factory SenseGroupResult.fromJson(Map<String, dynamic> json) {
-    final medium = (json['medium'] as List? ?? [])
-        .whereType<String>()
-        .toList();
+    final medium = (json['medium'] as List? ?? []).whereType<String>().toList();
     final fine = (json['fine'] as List? ?? []).whereType<String>().toList();
     return SenseGroupResult(medium: medium, fine: fine);
   }

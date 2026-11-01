@@ -200,7 +200,7 @@ class PodcastDownloadController extends _$PodcastDownloadController {
       return true;
     } on AudioImportException catch (e) {
       if (sid != _sessionId) return false;
-      state = AudioImportFailed(e);
+      state = AudioImportFailed(e, audioItemId: item.id);
       return false;
     } catch (e) {
       if (sid != _sessionId) return false;
@@ -210,6 +210,7 @@ class PodcastDownloadController extends _$PodcastDownloadController {
           'Podcast episode download failed',
           e,
         ),
+        audioItemId: item.id,
       );
       return false;
     } finally {

@@ -30,7 +30,9 @@ part 'audio_sentences_provider.g.dart';
 @riverpod
 Future<List<Sentence>> audioSentences(Ref ref, String audioItemId) async {
   if (audioItemId.isEmpty) return const [];
-  final srt = await ref.read(audioItemDaoProvider).getTranscriptSrt(audioItemId);
+  final srt = await ref
+      .read(audioItemDaoProvider)
+      .getTranscriptSrt(audioItemId);
   if (srt == null || srt.isEmpty) return const [];
   return SubtitleParser.parseSubtitleString(srt);
 }

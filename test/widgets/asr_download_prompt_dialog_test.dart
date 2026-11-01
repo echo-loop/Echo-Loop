@@ -223,7 +223,9 @@ void main() {
     );
     expect(find.textContaining('The download did not finish.'), findsOneWidget);
     expect(
-      find.text('You can also choose another speech recognition model in Settings.'),
+      find.text(
+        'You can also choose another speech recognition model in Settings.',
+      ),
       findsOneWidget,
     );
     expect(find.text('Retry'), findsOneWidget);

@@ -50,9 +50,7 @@ void main() {
         'lastFetchedAt': '2026-09-16T00:00:00.000Z',
       }),
     );
-    when(
-      () => dio.get<Map<String, dynamic>>('/api/paddle/plans'),
-    ).thenThrow(
+    when(() => dio.get<Map<String, dynamic>>('/api/paddle/plans')).thenThrow(
       DioException(
         requestOptions: RequestOptions(path: '/api/paddle/plans'),
         type: DioExceptionType.connectionError,

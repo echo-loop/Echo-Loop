@@ -31,10 +31,7 @@ class MediaSenseGroupRangePlayback
     Duration start,
     Duration end,
     Duration position,
-  ) => _playRange(
-    position >= start && position < end ? position : start,
-    end,
-  );
+  ) => _playRange(position >= start && position < end ? position : start, end);
 
   Future<void> _playRange(Duration start, Duration end) async {
     final generation = ++_generation;

@@ -54,7 +54,7 @@ final savedWordDictEntriesProvider =
 // ignore: unused_element
 typedef SavedWordDictEntriesRef =
     AutoDisposeFutureProviderRef<Map<String, DictEntry>>;
-String _$savedWordListHash() => r'c9ec6a3850a3ffe3d3e1fd5e8f1c650de72453ea';
+String _$savedWordListHash() => r'cb11e75f8d45b8d48f06db9fe5a3b60dfac492bf';
 
 /// 收藏单词列表 Provider（流式）
 ///

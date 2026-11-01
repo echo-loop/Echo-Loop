@@ -12,7 +12,8 @@ class _MemoryStore implements DownloadTaskStore {
   final values = <String, DownloadTaskRecord>{};
 
   @override
-  Future<DownloadTaskRecord?> read(String resourceId) async => values[resourceId];
+  Future<DownloadTaskRecord?> read(String resourceId) async =>
+      values[resourceId];
 
   @override
   Future<void> remove(String resourceId) async => values.remove(resourceId);
@@ -55,7 +56,10 @@ class _Resource implements DownloadResource {
     if (fail) throw StateError('failed');
     await Future.any([release.future, cancelToken.whenCancel]);
     if (cancelToken.isCancelled) {
-      throw DioException(requestOptions: RequestOptions(), type: DioExceptionType.cancel);
+      throw DioException(
+        requestOptions: RequestOptions(),
+        type: DioExceptionType.cancel,
+      );
     }
     ready = true;
   }
@@ -84,27 +88,39 @@ void main() {
     await Future<void>.delayed(Duration.zero);
 
     expect(coordinator.stateOf(resource.id).isReady, isTrue);
-    expect(states.map((state) => state.status), contains(DownloadTaskStatus.downloaded));
+    expect(
+      states.map((state) => state.status),
+      contains(DownloadTaskStatus.downloaded),
+    );
     expect(states.last.progress, 1);
   });
 
   test('失败状态可保留结构化错误并再次重试', () async {
     final resource = _Resource(fail: true);
     final store = _MemoryStore();
-    final coordinator = DownloadTaskCoordinator(resources: [resource], store: store);
+    final coordinator = DownloadTaskCoordinator(
+      resources: [resource],
+      store: store,
+    );
     addTearDown(coordinator.dispose);
 
     await coordinator.start(resource.id);
 
     expect(coordinator.stateOf(resource.id).status, DownloadTaskStatus.failed);
-    expect(coordinator.stateOf(resource.id).failure, DownloadFailureKind.unknown);
+    expect(
+      coordinator.stateOf(resource.id).failure,
+      DownloadFailureKind.unknown,
+    );
     expect(store.values[resource.id]?.status, DownloadTaskStatus.failed);
 
     resource.fail = false;
     final retry = coordinator.start(resource.id);
     resource.release.complete();
     await retry;
-    expect(coordinator.stateOf(resource.id).status, DownloadTaskStatus.downloaded);
+    expect(
+      coordinator.stateOf(resource.id).status,
+      DownloadTaskStatus.downloaded,
+    );
   });
 
   test('取消会立即清理部分文件且不进入失败状态', () async {
@@ -122,7 +138,10 @@ void main() {
     await task;
 
     expect(resource.deleteCalls, 1);
-    expect(coordinator.stateOf(resource.id).status, DownloadTaskStatus.notDownloaded);
+    expect(
+      coordinator.stateOf(resource.id).status,
+      DownloadTaskStatus.notDownloaded,
+    );
     expect(coordinator.stateOf(resource.id).failure, isNull);
   });
 
@@ -134,7 +153,10 @@ void main() {
         status: DownloadTaskStatus.failed,
         failure: DownloadFailureKind.network,
       );
-    final coordinator = DownloadTaskCoordinator(resources: [resource], store: store);
+    final coordinator = DownloadTaskCoordinator(
+      resources: [resource],
+      store: store,
+    );
     addTearDown(coordinator.dispose);
 
     final state = await coordinator.refresh(resource.id);
