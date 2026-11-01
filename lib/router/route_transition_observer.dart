@@ -5,6 +5,18 @@ import 'package:flutter/widgets.dart';
 /// 为调用方提供 root Navigator 指定路由的退场动画完成信号。
 class RouteTransitionObserver extends RouteObserver<ModalRoute<void>> {
   final Set<RoutePopTransition> _pendingTransitions = {};
+  bool _lastPushedIsPopup = false;
+  bool _lastPoppedIsPopup = false;
+
+  /// 最近一次推入的路由是否为弹窗类（菜单、对话框、底部面板）。
+  ///
+  /// RouteAware 回调只说明「有路由覆盖或离开」，不携带路由本身。订阅方需要
+  /// 区分弹窗与页面时，在回调中读取此值：父类会在 [didPush] / [didPop] 内同步
+  /// 调用订阅方，因此读到的一定是触发该回调的那条路由。
+  bool get lastPushedIsPopup => _lastPushedIsPopup;
+
+  /// 最近一次弹出的路由是否为弹窗类（菜单、对话框、底部面板）。语义同 [lastPushedIsPopup]。
+  bool get lastPoppedIsPopup => _lastPoppedIsPopup;
 
   /// 监听下一次推入路由的弹出，调用方应在 push 之前创建并在 finally 中取消。
   RoutePopTransition watchNextPop() {
@@ -19,6 +31,7 @@ class RouteTransitionObserver extends RouteObserver<ModalRoute<void>> {
 
   @override
   void didPush(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    _lastPushedIsPopup = route is PopupRoute<dynamic>;
     for (final transition in List<RoutePopTransition>.of(_pendingTransitions)) {
       transition._onPush(route);
     }
@@ -27,6 +40,7 @@ class RouteTransitionObserver extends RouteObserver<ModalRoute<void>> {
 
   @override
   void didPop(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    _lastPoppedIsPopup = route is PopupRoute<dynamic>;
     for (final transition in List<RoutePopTransition>.of(_pendingTransitions)) {
       transition._onPop(route, previousRoute);
     }

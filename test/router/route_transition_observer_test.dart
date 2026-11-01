@@ -87,4 +87,43 @@ void main() {
     expect(transition.returnedToPreviousRoute, isTrue);
     transition.cancel();
   });
+
+  testWidgets('区分弹窗类路由与页面路由的推入和弹出', (tester) async {
+    final rootNavigatorKey = GlobalKey<NavigatorState>();
+    final observer = RouteTransitionObserver();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        navigatorKey: rootNavigatorKey,
+        navigatorObservers: [observer],
+        home: const Scaffold(body: Text('首页')),
+      ),
+    );
+    final rootNavigator =
+        rootNavigatorKey.currentState ??
+        (throw StateError('root Navigator 没有挂载'));
+
+    rootNavigator.push<void>(
+      MaterialPageRoute<void>(builder: (_) => const Text('页面')),
+    );
+    await tester.pumpAndSettle();
+    expect(observer.lastPushedIsPopup, isFalse);
+
+    rootNavigator.push<void>(
+      DialogRoute<void>(
+        context: rootNavigator.context,
+        builder: (_) => const Text('弹窗'),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(observer.lastPushedIsPopup, isTrue);
+
+    rootNavigator.pop();
+    await tester.pumpAndSettle();
+    expect(observer.lastPoppedIsPopup, isTrue);
+
+    rootNavigator.pop();
+    await tester.pumpAndSettle();
+    expect(observer.lastPoppedIsPopup, isFalse);
+  });
 }

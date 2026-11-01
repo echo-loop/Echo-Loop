@@ -101,14 +101,29 @@ class _MediaPlaybackScreenState extends ConsumerState<MediaPlaybackScreen>
 
   @override
   void didPushNext() {
-    if (!mounted || !_routeVisible) return;
+    final popup = rootRouteObserver.lastPushedIsPopup;
+    AppLogger.log(
+      'MediaRouteFocus',
+      'event=covered popup=$popup routeVisible=$_routeVisible',
+    );
+    // 弹窗（如字幕长按菜单）覆盖不算离开播放器：列表保持可见和焦点，避免菜单开合时误触发定位。
+    if (!mounted || !_routeVisible || popup) {
+      return;
+    }
     setState(() => _routeVisible = false);
   }
 
   @override
   void didPopNext() {
+    final popup = rootRouteObserver.lastPoppedIsPopup;
+    AppLogger.log(
+      'MediaRouteFocus',
+      'event=uncovered popup=$popup routeVisible=$_routeVisible '
+          'restoreRevision=$_focusRestoreRevision',
+    );
+    // 弹窗关闭不是返回播放器，不触发定位。
+    if (!mounted || popup) return;
     // 返回播放器时要求活动字幕列表按最新当前句立即定位。
-    if (!mounted) return;
     setState(() {
       _routeVisible = true;
       _focusRestoreRevision += 1;

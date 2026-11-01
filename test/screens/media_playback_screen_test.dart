@@ -838,6 +838,138 @@ void main() {
     );
   });
 
+  /// 返回当前完整落在字幕列表视口内、可直接长按的句子索引。
+  int? visibleSentenceIndex(WidgetTester tester, List<Sentence> sentences) {
+    final listRect = tester.getRect(find.byType(ScrollablePositionedList));
+    for (final sentence in sentences) {
+      final hitArea = find.byKey(
+        ValueKey('$kMaskedSentenceBodyHitAreaKeyPrefix-${sentence.index}'),
+      );
+      if (hitArea.evaluate().isEmpty) continue;
+      final rect = tester.getRect(hitArea);
+      if (rect.top >= listRect.top && rect.bottom <= listRect.bottom) {
+        return sentence.index;
+      }
+    }
+    return null;
+  }
+
+  testMediaWidgets('字幕长按菜单关闭后不把列表拉回播放句，保留手动滚动位置', (tester) async {
+    final sentences = List<Sentence>.generate(
+      24,
+      (index) => Sentence(
+        index: index,
+        text: 'Sentence $index.',
+        startTime: Duration(seconds: index * 3),
+        endTime: Duration(seconds: index * 3 + 2),
+      ),
+    );
+    await tester.pumpWidget(
+      createTestScreen(
+        MediaPlaybackScreen(audioItem: item),
+        navigatorObservers: [rootRouteObserver],
+        overrides: mediaOverrides(
+          withTranscript: true,
+          transcriptOverride: sentences,
+        ),
+      ),
+    );
+    await pumpMediaReady(tester);
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(MediaPlaybackScreen)),
+    );
+    await container
+        .read(mediaPlaybackProvider.notifier)
+        .selectFullSentence(2, autoPlay: false);
+    await tester.pumpAndSettle();
+
+    // 用户把列表滚离播放句，然后长按一句打开菜单再关闭。
+    final scrollable = find.byType(ScrollablePositionedList);
+    await tester.drag(scrollable, const Offset(0, -1500));
+    await tester.pumpAndSettle();
+    final scrollState = tester.state<ScrollableState>(
+      find.descendant(of: scrollable, matching: find.byType(Scrollable)).first,
+    );
+    final offsetBeforeMenu = scrollState.position.pixels;
+
+    final targetIndex = visibleSentenceIndex(tester, sentences);
+    if (targetIndex == null) fail('需要有可长按的可见句子');
+    await tester.longPress(
+      find.byKey(ValueKey('$kMaskedSentenceBodyHitAreaKeyPrefix-$targetIndex')),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('sentence-menu-copy')));
+    // 只推进少量帧：手动滚动后的自动恢复跟随有 2 秒计时器，需排除它的干扰，
+    // 只观察菜单关闭本身是否触发定位。
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+
+    expect(
+      scrollState.position.pixels,
+      offsetBeforeMenu,
+      reason: '弹出并关闭菜单不属于页面切换，不应把列表拉回播放句',
+    );
+  });
+
+  testMediaWidgets('字幕长按菜单打开期间播放切句，关闭后列表定位到新当前句', (tester) async {
+    final sentences = List<Sentence>.generate(
+      24,
+      (index) => Sentence(
+        index: index,
+        text: 'Sentence $index.',
+        startTime: Duration(seconds: index * 3),
+        endTime: Duration(seconds: index * 3 + 2),
+      ),
+    );
+    await tester.pumpWidget(
+      createTestScreen(
+        MediaPlaybackScreen(audioItem: item),
+        navigatorObservers: [rootRouteObserver],
+        overrides: mediaOverrides(
+          withTranscript: true,
+          transcriptOverride: sentences,
+        ),
+      ),
+    );
+    await pumpMediaReady(tester);
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(MediaPlaybackScreen)),
+    );
+    final controller = container.read(mediaPlaybackProvider.notifier);
+    await controller.selectFullSentence(2, autoPlay: false);
+    await tester.pumpAndSettle();
+
+    final scrollable = find.byType(ScrollablePositionedList);
+    await tester.drag(scrollable, const Offset(0, -1500));
+    await tester.pumpAndSettle();
+
+    final targetIndex = visibleSentenceIndex(tester, sentences);
+    if (targetIndex == null) fail('需要有可长按的可见句子');
+    await tester.longPress(
+      find.byKey(ValueKey('$kMaskedSentenceBodyHitAreaKeyPrefix-$targetIndex')),
+    );
+    await tester.pumpAndSettle();
+
+    // 菜单覆盖期间播放切到第 8 句，关闭菜单后列表应跟随到新句。
+    const latestIndex = 8;
+    await controller.selectFullSentence(latestIndex, autoPlay: false);
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('sentence-menu-copy')));
+    await tester.pumpAndSettle();
+
+    final listRect = tester.getRect(scrollable);
+    final latestTile = find.byWidgetPredicate(
+      (widget) =>
+          widget is MaskedSentenceTile && widget.sentence.index == latestIndex,
+    );
+    expect(latestTile, findsOneWidget);
+    expect(
+      tester.getRect(latestTile).top,
+      closeTo(listRect.top + listRect.height * 0.4, 3),
+      reason: '菜单期间的播放句变化不能因为菜单关闭而丢失',
+    );
+  });
+
   testMediaWidgets('精听与列表模式往返保留手动滚动位置', (tester) async {
     final sentences = List<Sentence>.generate(
       24,

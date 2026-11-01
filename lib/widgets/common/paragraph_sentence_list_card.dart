@@ -236,6 +236,7 @@ class _ParagraphSentenceListCardState extends State<ParagraphSentenceListCard>
     final localSentenceIndex = _playingSentenceLocalIndex();
     if (localSentenceIndex == null) return;
     final targetIndex = localSentenceIndex * 2;
+    _logFocus('immediate target=$targetIndex hide=$hideWhilePositioning');
     final generation = ++_focusRequestGeneration;
     if (hideWhilePositioning) _hideWhilePositioning();
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -344,6 +345,16 @@ class _ParagraphSentenceListCardState extends State<ParagraphSentenceListCard>
         widget.focusRequestRevision != null &&
         widget.focusRequestRevision != oldWidget.focusRequestRevision;
 
+    if (becameFocusActive || becameFocusInactive || focusRestoreRequested) {
+      _logFocus(
+        'transition becameActive=$becameFocusActive '
+        'becameInactive=$becameFocusInactive '
+        'restoreChanged=$focusRestoreRequested '
+        'preserve=${widget.preserveScrollPositionOnReactivation} '
+        'hasSnapshot=$_hasInactiveFocusSnapshot',
+      );
+    }
+
     if (!widget.autoFocusEnabled) {
       _cancelFocusAnimation();
       _resumeFocusTimer?.cancel();
@@ -378,6 +389,13 @@ class _ParagraphSentenceListCardState extends State<ParagraphSentenceListCard>
           widget.focusReason != _inactiveFocusReason ||
           _inactiveSentenceSequenceChanged ||
           !_initialFocusDone;
+      _logFocus(
+        'resumeCompare changed=$focusChangedWhileInactive '
+        'inactivePlaying=$_inactivePlayingSentenceIndex '
+        'inactiveRestoreRev=$_inactiveFocusRestoreRevision '
+        'inactiveSeqChanged=$_inactiveSentenceSequenceChanged '
+        'initialDone=$_initialFocusDone',
+      );
       _clearInactiveFocusSnapshot();
       if (focusChangedWhileInactive) {
         _resumeFocusTimer?.cancel();
@@ -437,6 +455,24 @@ class _ParagraphSentenceListCardState extends State<ParagraphSentenceListCard>
     }
   }
 
+  /// 输出焦点诊断日志（tag: ParagraphListFocus），统一携带焦点状态与当前滚动偏移，
+  /// 便于对照 flutter_run.log 判断列表是否在预期时机被定位。
+  void _logFocus(String event) {
+    final scroll = _scrollPosition;
+    final pixels = scroll != null && scroll.hasPixels
+        ? scroll.pixels.toStringAsFixed(1)
+        : 'n/a';
+    AppLogger.log(
+      'ParagraphListFocus',
+      'event=$event focusActive=${widget.focusActive} '
+          'playing=${widget.playingSentenceIndex} '
+          'restoreRev=${widget.focusRestoreRevision} '
+          'requestRev=${widget.focusRequestRevision} '
+          'reason=${widget.focusReason?.name} '
+          'suspended=$_userSuspendedFocus pixels=$pixels',
+    );
+  }
+
   /// 暂停聚焦时同时取消当前像素动画，防止拖动进度条期间列表仍在移动。
   void _cancelFocusAnimation() {
     _focusRequestGeneration += 1;
@@ -469,6 +505,10 @@ class _ParagraphSentenceListCardState extends State<ParagraphSentenceListCard>
     final explain = widget.onSentenceExplanationTap;
     final wasBookmarked = widget.bookmarkedSentenceIndices.contains(
       sentence.index,
+    );
+    AppLogger.log(
+      'SentenceContextMenu',
+      'event=open sentence=${sentence.index} listFocusActive=${widget.focusActive}',
     );
     bool isCurrentSession() => mounted && generation == _contextMenuGeneration;
     SentenceContextAction? action;
