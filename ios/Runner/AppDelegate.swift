@@ -1117,7 +1117,7 @@ private final class IOSAudioDecodeHandler: NSObject {
 }
 
 @main
-@objc class AppDelegate: FlutterAppDelegate {
+@objc class AppDelegate: FlutterAppDelegate, FlutterImplicitEngineDelegate {
   private var speechPracticeHandler: IOSSpeechPracticeHandler?
   private var textEmbeddingHandler: IOSTextEmbeddingHandler?
   private var audioDecodeHandler: IOSAudioDecodeHandler?
@@ -1136,16 +1136,23 @@ private final class IOSAudioDecodeHandler: NSObject {
     // 这里直接用完整配置（含 sessionReplay）启动 SDK。
     setupPostHogNative()
 
-    GeneratedPluginRegistrant.register(with: self)
-
     // flutter_local_notifications 要求显式设置 delegate，
     // 否则通知点击回调不会转发到插件（iOS 端不会自动设置）。
     UNUserNotificationCenter.current().delegate = self
 
-    let controller = window?.rootViewController as! FlutterViewController
+    return super.application(application, didFinishLaunchingWithOptions: launchOptions)
+  }
+
+  /// Flutter 引擎就绪后回调（Scene 生命周期下 window 由 SceneDelegate 创建，
+  /// 不能在 didFinishLaunching 里取 window.rootViewController）。
+  /// 插件注册与原生 MethodChannel 都在这里建立。
+  func didInitializeImplicitFlutterEngine(_ engineBridge: FlutterImplicitEngineBridge) {
+    GeneratedPluginRegistrant.register(with: engineBridge.pluginRegistry)
+
+    let messenger = engineBridge.applicationRegistrar.messenger()
     let networkChannel = FlutterMethodChannel(
       name: "top.echo-loop/network",
-      binaryMessenger: controller.binaryMessenger
+      binaryMessenger: messenger
     )
     networkChannel.setMethodCallHandler { (call, result) in
       if call.method == "triggerNetworkPermission" {
@@ -1178,7 +1185,7 @@ private final class IOSAudioDecodeHandler: NSObject {
 
     let subscriptionManagementChannel = FlutterMethodChannel(
       name: "top.echo-loop/subscription_management",
-      binaryMessenger: controller.binaryMessenger
+      binaryMessenger: messenger
     )
     subscriptionManagementChannel.setMethodCallHandler { [weak self] (call, result) in
       if call.method == "openManageSubscriptions" {
@@ -1190,7 +1197,7 @@ private final class IOSAudioDecodeHandler: NSObject {
 
     let deviceInfoChannel = FlutterMethodChannel(
       name: "top.echo-loop/device_info",
-      binaryMessenger: controller.binaryMessenger
+      binaryMessenger: messenger
     )
     deviceInfoChannel.setMethodCallHandler { (call, result) in
       if call.method == "getDeviceInfo" {
@@ -1200,12 +1207,10 @@ private final class IOSAudioDecodeHandler: NSObject {
       }
     }
 
-    speechPracticeHandler = IOSSpeechPracticeHandler(binaryMessenger: controller.binaryMessenger)
-    textEmbeddingHandler = IOSTextEmbeddingHandler(binaryMessenger: controller.binaryMessenger)
-    audioDecodeHandler = IOSAudioDecodeHandler(binaryMessenger: controller.binaryMessenger)
-    notificationPermissionHandler = NotificationPermissionHandler(binaryMessenger: controller.binaryMessenger)
-
-    return super.application(application, didFinishLaunchingWithOptions: launchOptions)
+    speechPracticeHandler = IOSSpeechPracticeHandler(binaryMessenger: messenger)
+    textEmbeddingHandler = IOSTextEmbeddingHandler(binaryMessenger: messenger)
+    audioDecodeHandler = IOSAudioDecodeHandler(binaryMessenger: messenger)
+    notificationPermissionHandler = NotificationPermissionHandler(binaryMessenger: messenger)
   }
 
   private func deviceInfo() -> [String: Any] {

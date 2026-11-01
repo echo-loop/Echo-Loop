@@ -20,6 +20,7 @@
 		B233CCEB2FE983B4009FCE32 /* EchoLoop.storekit in Resources */ = {isa = PBXBuildFile; fileRef = B233CCEA2FE983B4009FCE32 /* EchoLoop.storekit */; };
 		BBCE7412239984EDE7889A18 /* Pods_RunnerTests.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 129469D3F6ABA245A5392F79 /* Pods_RunnerTests.framework */; };
 		DF01A2B3C4D5E6F7A8B91002 /* NotificationPermissionHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = DF01A2B3C4D5E6F7A8B91001 /* NotificationPermissionHandler.swift */; };
+		AD4A7E0C1B2D3E4F5A6B7004 /* SceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = AD4A7E0C1B2D3E4F5A6B7005 /* SceneDelegate.swift */; };
 		AD4A7E0C1B2D3E4F5A6B7002 /* AdaptiveVadThreshold.swift in Sources */ = {isa = PBXBuildFile; fileRef = AD4A7E0C1B2D3E4F5A6B7001 /* AdaptiveVadThreshold.swift */; };
 		F5948F06F22780548A452B88 /* Pods_Runner.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 9971D1ABD97B4EC95BD4CDEF /* Pods_Runner.framework */; };
 /* End PBXBuildFile section */
@@ -82,6 +83,7 @@
 		DBB8F7843E0692DBA876E15E /* Pods-RunnerTests.debug-dev.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-RunnerTests.debug-dev.xcconfig"; path = "Target Support Files/Pods-RunnerTests/Pods-RunnerTests.debug-dev.xcconfig"; sourceTree = "<group>"; };
 		DD19D4FF2FB0628A49B24DC5 /* Pods-RunnerTests.release-dev.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-RunnerTests.release-dev.xcconfig"; path = "Target Support Files/Pods-RunnerTests/Pods-RunnerTests.release-dev.xcconfig"; sourceTree = "<group>"; };
 		DF01A2B3C4D5E6F7A8B91001 /* NotificationPermissionHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationPermissionHandler.swift; sourceTree = "<group>"; };
+		AD4A7E0C1B2D3E4F5A6B7005 /* SceneDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneDelegate.swift; sourceTree = "<group>"; };
 		AD4A7E0C1B2D3E4F5A6B7001 /* AdaptiveVadThreshold.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdaptiveVadThreshold.swift; sourceTree = "<group>"; };
 		E65B5897A4231BE0D6453FA0 /* Pods-Runner.profile.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Runner.profile.xcconfig"; path = "Target Support Files/Pods-Runner/Pods-Runner.profile.xcconfig"; sourceTree = "<group>"; };
 		E934683AE8AA61E0E22383FA /* Pods-RunnerTests.debug-prod.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-RunnerTests.debug-prod.xcconfig"; path = "Target Support Files/Pods-RunnerTests/Pods-RunnerTests.debug-prod.xcconfig"; sourceTree = "<group>"; };
@@ -176,6 +178,7 @@
 				74858FAE1ED2DC5600515810 /* AppDelegate.swift */,
 				DF01A2B3C4D5E6F7A8B91001 /* NotificationPermissionHandler.swift */,
 				AD4A7E0C1B2D3E4F5A6B7001 /* AdaptiveVadThreshold.swift */,
+				AD4A7E0C1B2D3E4F5A6B7005 /* SceneDelegate.swift */,
 				74C80C862DBDD90B00E0F060 /* Runner.entitlements */,
 				74858FAD1ED2DC5600515810 /* Runner-Bridging-Header.h */,
 			);
@@ -441,6 +444,7 @@
 				74858FAF1ED2DC5600515810 /* AppDelegate.swift in Sources */,
 				DF01A2B3C4D5E6F7A8B91002 /* NotificationPermissionHandler.swift in Sources */,
 				AD4A7E0C1B2D3E4F5A6B7002 /* AdaptiveVadThreshold.swift in Sources */,
+				AD4A7E0C1B2D3E4F5A6B7004 /* SceneDelegate.swift in Sources */,
 				1498D2341E8E89220040F4C2 /* GeneratedPluginRegistrant.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
