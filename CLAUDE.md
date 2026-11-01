@@ -455,3 +455,10 @@ flutter test integration_test -d macos
 - 规则：区间终点用 mpv 原生 `end` 属性在解码层硬裁切（`MediaPlayerBackend.setPlaybackEnd`），终点后的音频不进输出缓冲；修复后同机停在 2523ms / 9524ms。`end` 是全局选项：**seek 前、区间结束/取消、任何非区间播放（play/seek/playToEnd/pause/stop/detach）都要撤销**，换文件时 backend.open 自行撤销，否则自由播放会停在旧终点或 seek 越过旧终点立即 EOF。
 - 起播：seek 回执只代表命令被受理，要等位置流确认到达起点再 play（上限 500ms 兜底，不在命令队列里等）。精确 seek 可能落在目标前不到 1ms（2625 → 2624.9），起点判定要允许少量提前（50ms）。
 - 排查日志：`[MediaEngine Range] start-gate`（outcome/waitedMs）、`[MediaKitBackend] set playback end`、`return: position=`。
+
+### 7.33 共享合集 / 播客未下载材料进入学习计划页：入口判断分散 → 进入逐句精听报 `file unavailable`
+
+- 根因：共享合集与播客单集入库时只有占位行（`audioPath=null`，字幕为空）。学习 Tab 的推荐卡 / 任务卡 / 最近完成直接 `push` 计划页，只有资源库列表点击会先下载；「更新字幕」只写字幕不下载音频，计划页因此出现「有字幕、无音频」，精听 `loadMedia` 报 `file unavailable`。推荐逻辑（`selectStudyRecommendation`）也从未过滤下载状态。
+- 规则：**计划页是媒体就绪的唯一 owner**。入口只负责打开计划页，不做就绪判断，也不做下载。就绪状态由 `resolveMediaReadiness` 纯函数解析，列表行与计划页进度共用 `mediaDownloadSnapshotProvider`；未就绪时计划页只展示 `MediaPreparingView`，学习内容与 autoStart 在 `MediaReady` 之后才构建。
+- 下载器约束：同一下载通道一次只跑一个任务，另一材料请求时解析为 `MediaWaiting`，通道空闲后由计划页自动重试；`MediaFailed` 不自动重试，只由占位页的重试按钮触发，避免失败后循环下载。播客字幕仅在音频成功后由 RSS 附加，未下载单集没有字幕。
+- 排查日志：`[MediaEnsure]`（provision 结果 / 跳过原因）、`[CommunityDownload]`（start rejected / start / done / cancel）、`[PodcastTranscript]`（字幕附加）。

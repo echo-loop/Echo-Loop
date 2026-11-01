@@ -50,20 +50,45 @@ class CommunityDownload extends _$CommunityDownload {
     required String audioItemId,
     required String displayName,
   }) async {
-    if (state is DownloadInProgress) return StartResult.busy;
+    if (state is DownloadInProgress) {
+      AppLogger.log(
+        'CommunityDownload',
+        'start rejected: busy id=$audioItemId',
+      );
+      return StartResult.busy;
+    }
     final database = ref.read(appDatabaseProvider);
     final item = await database.audioItemDao.getById(audioItemId);
     if (item?.communityUnavailableAt != null) {
+      AppLogger.log(
+        'CommunityDownload',
+        'start rejected: unavailable id=$audioItemId',
+      );
       return StartResult.unavailable;
     }
     if (item == null || item.remoteAudioId == null || item.audioPath != null) {
+      AppLogger.log(
+        'CommunityDownload',
+        'start rejected: already ready or not remote id=$audioItemId',
+      );
       return StartResult.alreadyDownloaded;
     }
     final collectionId = await database.collectionDao
         .getCommunityRemoteIdForAudio(audioItemId);
-    if (collectionId == null) return StartResult.notCommunity;
+    if (collectionId == null) {
+      AppLogger.log(
+        'CommunityDownload',
+        'start rejected: not community id=$audioItemId',
+      );
+      return StartResult.notCommunity;
+    }
 
     final sessionId = ++_sessionId;
+    AppLogger.log(
+      'CommunityDownload',
+      'start session=$sessionId id=$audioItemId '
+          'collection=$collectionId remoteAudio=${item.remoteAudioId}',
+    );
     final token = CancelToken();
     _cancelToken = token;
     _activeDisplayName = displayName;
@@ -78,14 +103,12 @@ class CommunityDownload extends _$CommunityDownload {
     return StartResult.started;
   }
 
-  /// 等待当前下载完成。
-  Future<bool> awaitCompletion() => _activeDownload ?? Future.value(false);
-
   /// 取消当前任务，并等待旧任务清理临时文件。
   Future<void> cancel() async {
     if (state is! DownloadInProgress) return;
     final future = _activeDownload;
     _sessionId++;
+    AppLogger.log('CommunityDownload', 'cancel by user');
     _cancelToken?.cancel('user-cancelled');
     _cancelToken = null;
     state = const DownloadIdle();
@@ -240,6 +263,10 @@ class CommunityDownload extends _$CommunityDownload {
       await ref.read(audioLibraryProvider.notifier).loadLibrary();
       if (sessionId != _sessionId) return false;
       state = const DownloadIdle();
+      AppLogger.log(
+        'CommunityDownload',
+        'done session=$sessionId id=${item.id} audioPath=$relativePath',
+      );
       return true;
     } catch (error, stackTrace) {
       if (sessionId == _sessionId) {

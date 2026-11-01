@@ -195,10 +195,10 @@ void main() {
       expect(ok, isFalse);
       final items = container.read(audioLibraryProvider).audioItems;
       expect(items.single.audioPath, isNull);
-      expect(
-        container.read(podcastDownloadControllerProvider),
-        isA<AudioImportFailed>(),
-      );
+      final state = container.read(podcastDownloadControllerProvider);
+      expect(state, isA<AudioImportFailed>());
+      // 失败需归属到具体条目，计划页才能只在本条目上展示错误与重试。
+      expect((state as AudioImportFailed).audioItemId, item.id);
     });
 
     test('缺少 enclosure URL 时直接返回 false', () async {

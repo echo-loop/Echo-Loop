@@ -1615,6 +1615,8 @@
   },
   "download": "下载",
   "retry": "重试",
+  "mediaPreparingHint": "正在下载音频和字幕…",
+  "mediaWaitingOtherDownload": "另一项下载进行中，完成后将自动开始。",
   "guideNext": "下一步",
   "guideDone": "知道了",
   "guideSkip": "跳过",
@@ -1724,12 +1726,6 @@
   "updateCommunitySubtitleWarning": "更新字幕将替换本地字幕，并清空该媒体的所有收藏句子和学习进度。",
   "communitySubtitleUpdated": "字幕已更新",
   "communitySubtitleUpdateFailed": "字幕更新失败，请重试",
-  "downloadInProgressSnackbar": "正在下载《{name}》，完成后再开始这条",
-  "@downloadInProgressSnackbar": {
-    "placeholders": {
-      "name": {"type": "String"}
-    }
-  },
   "downloadLoading": "加载中",
   "backgroundDownloadRunningTitle": "正在下载",
   "backgroundDownloadCompleteTitle": "下载完成",

@@ -66,40 +66,15 @@ class _DownloadingCommunity extends CommunityDownload {
   );
 }
 
-class _PendingAudioImportController extends PodcastDownloadController {
-  final Completer<bool> _completer = Completer<bool>();
+class _CountingAudioImportController extends PodcastDownloadController {
+  int downloadCalls = 0;
 
-  @override
-  AudioImportState build() => const AudioImportIdle();
-
-  @override
-  Future<bool> downloadPodcastEpisode(AudioItem item) {
-    // 立即进入下载态（不定进度），承载行内进度条；下载结果由测试控制。
-    state = AudioImportDownloading(
-      displayName: item.podcastEnclosureUrl!,
-      progress: -1.0,
-    );
-    return _completer.future;
-  }
-
-  void complete([bool ok = false]) {
-    if (!_completer.isCompleted) {
-      // 收尾置回 idle，停止不定进度动画，避免 pumpAndSettle 超时。
-      state = const AudioImportIdle();
-      _completer.complete(ok);
-    }
-  }
-}
-
-class _FailingAudioImportController extends PodcastDownloadController {
   @override
   AudioImportState build() => const AudioImportIdle();
 
   @override
   Future<bool> downloadPodcastEpisode(AudioItem item) async {
-    state = const AudioImportFailed(
-      AudioImportException(AudioImportFailureCode.network, 'network blocked'),
-    );
+    downloadCalls++;
     return false;
   }
 }
@@ -764,8 +739,8 @@ void main() {
       expect(find.textContaining('Downloading 42%'), findsOneWidget);
     });
 
-    testWidgets('未下载单集点击时只下载音频并显示行内进度', (tester) async {
-      final controller = _PendingAudioImportController();
+    testWidgets('未下载单集点击只进入计划页，不在列表行发起下载', (tester) async {
+      final controller = _CountingAudioImportController();
       final item =
           createTestAudioItem(
             name: 'Podcast Episode',
@@ -779,7 +754,7 @@ void main() {
           );
 
       await tester.pumpWidget(
-        createTestApp(
+        createTestScreen(
           Center(
             child: SizedBox(width: 420, child: AudioListTile(audioItem: item)),
           ),
@@ -794,60 +769,11 @@ void main() {
       await tester.pumpAndSettle();
 
       await tester.tap(find.text('Podcast Episode'));
-      await tester.pump();
-
-      // 下载进度落在列表项行内（不定进度，无百分比），且仅下载音频。
-      expect(
-        find.byKey(const Key('audio_list_tile_download_progress')),
-        findsOneWidget,
-      );
-      expect(find.text('Downloading'), findsOneWidget);
-
-      controller.complete();
-      await tester.pumpAndSettle();
-    });
-
-    testWidgets('单集下载失败时 SnackBar 显示具体错误原因', (tester) async {
-      final item =
-          createTestAudioItem(
-            name: 'Podcast Episode',
-            transcriptPath: null,
-            transcriptSource: null,
-          ).copyWith(
-            audioPath: null,
-            podcastEpisodeGuid: 'episode-guid-1',
-            podcastEnclosureUrl: 'https://example.com/episode.mp3',
-            podcastEnclosureType: 'audio/mpeg',
-          );
-
-      await tester.pumpWidget(
-        createTestApp(
-          Center(
-            child: SizedBox(width: 420, child: AudioListTile(audioItem: item)),
-          ),
-          overrides: [
-            audioLibraryProvider.overrideWith(
-              () => TestAudioLibrary(AudioLibraryState(audioItems: [item])),
-            ),
-            podcastDownloadControllerProvider.overrideWith(
-              _FailingAudioImportController.new,
-            ),
-          ],
-        ),
-      );
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Podcast Episode'));
-      await tester.pumpAndSettle();
-
-      expect(
-        find.textContaining('Podcast Episode download failed, please retry'),
-        findsOneWidget,
-      );
-      expect(
-        find.textContaining('Network error. Check your connection and retry.'),
-        findsOneWidget,
-      );
+      // 下载由计划页统一确保，列表行点击不再触发下载。
+      expect(controller.downloadCalls, 0);
+      expect(tester.takeException(), isNull);
     });
 
     testWidgets('未下载单集左侧显示下载图标而非进度环', (tester) async {

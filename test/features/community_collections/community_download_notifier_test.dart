@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:dio/dio.dart';
@@ -95,6 +96,17 @@ class _FakeBackgroundDownloadRunner implements BackgroundDownloadRunner {
   }
 }
 
+/// 等待下载任务结束（状态离开 [DownloadInProgress]），返回最终状态。
+Future<DownloadProgress> waitUntilSettled(ProviderContainer container) {
+  final settled = Completer<DownloadProgress>();
+  final subscription = container.listen(communityDownloadProvider, (_, next) {
+    if (next is! DownloadInProgress && !settled.isCompleted) {
+      settled.complete(next);
+    }
+  });
+  return settled.future.whenComplete(subscription.close);
+}
+
 void main() {
   test('远端文件消失时下载不会永久停留在进行中', () async {
     final database = db.AppDatabase(NativeDatabase.memory());
@@ -157,7 +169,7 @@ void main() {
       await notifier.start(audioItemId: 'audio-1', displayName: 'Missing file'),
       StartResult.started,
     );
-    expect(await notifier.awaitCompletion(), isFalse);
+    expect(await waitUntilSettled(container), isA<DownloadFailed>());
     expect(container.read(communityDownloadProvider), isA<DownloadFailed>());
     expect(
       container.read(communityDownloadProvider),
@@ -234,7 +246,7 @@ void main() {
       await notifier.start(audioItemId: 'audio-1', displayName: 'Episode'),
       StartResult.started,
     );
-    expect(await notifier.awaitCompletion(), isTrue);
+    expect(await waitUntilSettled(container), isA<DownloadIdle>());
     expect(runner.enqueuedDisplayName, 'Episode');
     expect(runner.enqueuedUri, Uri.parse('https://cn.example/episode.mp3'));
     final item = await database.audioItemDao.getById('audio-1');

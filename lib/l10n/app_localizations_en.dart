@@ -3870,6 +3870,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get retry => 'Retry';
 
   @override
+  String get mediaPreparingHint => 'Downloading audio and subtitles…';
+
+  @override
+  String get mediaWaitingOtherDownload =>
+      'Another download is in progress. This one will start automatically.';
+
+  @override
   String get guideNext => 'Next';
 
   @override
@@ -4167,11 +4174,6 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get communitySubtitleUpdateFailed =>
       'Subtitles update failed, please retry';
-
-  @override
-  String downloadInProgressSnackbar(String name) {
-    return 'Downloading $name, please wait';
-  }
 
   @override
   String get downloadLoading => 'Loading';

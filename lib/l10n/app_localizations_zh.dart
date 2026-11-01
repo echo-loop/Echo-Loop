@@ -3708,6 +3708,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get retry => '重试';
 
   @override
+  String get mediaPreparingHint => '正在下载音频和字幕…';
+
+  @override
+  String get mediaWaitingOtherDownload => '另一项下载进行中，完成后将自动开始。';
+
+  @override
   String get guideNext => '下一步';
 
   @override
@@ -3979,11 +3985,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get communitySubtitleUpdateFailed => '字幕更新失败，请重试';
-
-  @override
-  String downloadInProgressSnackbar(String name) {
-    return '正在下载《$name》，完成后再开始这条';
-  }
 
   @override
   String get downloadLoading => '加载中';

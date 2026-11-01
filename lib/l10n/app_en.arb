@@ -2089,6 +2089,8 @@
   },
   "download": "Download",
   "retry": "Retry",
+  "mediaPreparingHint": "Downloading audio and subtitles…",
+  "mediaWaitingOtherDownload": "Another download is in progress. This one will start automatically.",
   "guideNext": "Next",
   "guideDone": "Done",
   "guideSkip": "Skip",
@@ -2198,12 +2200,6 @@
   "updateCommunitySubtitleWarning": "Updating subtitles means replacing the local subtitles and clearing all saved sentences and learning progress of this media.",
   "communitySubtitleUpdated": "Subtitles updated",
   "communitySubtitleUpdateFailed": "Subtitles update failed, please retry",
-  "downloadInProgressSnackbar": "Downloading {name}, please wait",
-  "@downloadInProgressSnackbar": {
-    "placeholders": {
-      "name": {"type": "String"}
-    }
-  },
   "downloadLoading": "Loading",
   "backgroundDownloadRunningTitle": "Downloading",
   "backgroundDownloadCompleteTitle": "Download complete",

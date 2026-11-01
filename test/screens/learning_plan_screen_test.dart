@@ -8,6 +8,10 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:echo_loop/features/community_collections/download/community_download_notifier.dart';
+import 'package:echo_loop/features/community_collections/download/download_progress.dart';
+import 'package:echo_loop/features/media_readiness/media_readiness.dart';
+import 'package:echo_loop/features/media_readiness/media_readiness_provider.dart';
 import 'package:echo_loop/features/onboarding_survey/providers/onboarding_survey_provider.dart';
 import 'package:echo_loop/l10n/app_localizations.dart';
 import 'package:echo_loop/screens/learning_plan_screen.dart';
@@ -329,6 +333,10 @@ void main() {
               ),
         ),
         audioEngineProvider.overrideWith(() => TestAudioEngine()),
+        // 媒体就绪以本地文件存在为前提；测试中直接视为存在，避免真实 IO 挂起 FakeAsync。
+        localMediaFileExistsProvider(
+          item.id,
+        ).overrideWith((ref) => Future.value(true)),
         learningProgressNotifierProvider.overrideWith(
           () =>
               TestLearningProgressNotifier(withAutoCompletions(progressState)),
@@ -1396,6 +1404,7 @@ void main() {
 
       final longAudio = testAudioItemNoTranscript.copyWith(
         totalDuration: 31 * 60,
+        audioPath: 'audios/long.mp3',
       );
       await prefs.setBool('guide_v1_subtitle_sheet_transcription_seen', true);
 
@@ -1415,6 +1424,9 @@ void main() {
               ),
             ),
             audioEngineProvider.overrideWith(() => TestAudioEngine()),
+            localMediaFileExistsProvider(
+              longAudio.id,
+            ).overrideWith((ref) => Future.value(true)),
             learningProgressNotifierProvider.overrideWith(
               () => TestLearningProgressNotifier(),
             ),
@@ -2325,6 +2337,136 @@ void main() {
       expect(find.text('Warm-up Listening'), findsNothing);
     });
   });
+
+  group('媒体就绪（统一由计划页确保）', () {
+    // 路由参数 audioId 为 test-1，条目 id 必须一致才能命中覆盖。
+    final notDownloaded = AudioItem(
+      id: 'test-1',
+      name: 'Puma at Large',
+      addedDate: DateTime(2026, 10, 31),
+      remoteAudioId: 'remote-file-1',
+    );
+
+    testWidgets('未就绪时只显示占位页，不加载学习内容，并自动发起下载', (tester) async {
+      final readiness = StateProvider<MediaReadiness>(
+        (ref) => const MediaNotDownloaded(),
+      );
+      final community = _RecordingCommunityDownload();
+      final listening = _RecordingListeningPractice(
+        ListeningPracticeState(currentAudioItem: notDownloaded),
+      );
+
+      await tester.pumpWidget(
+        createTestWidget(
+          audioItem: notDownloaded,
+          listeningPracticeOverride: () => listening,
+          extraOverrides: [
+            mediaReadinessProvider(
+              notDownloaded.id,
+            ).overrideWith((ref) => ref.watch(readiness)),
+            communityDownloadProvider.overrideWith(() => community),
+          ],
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('media_preparing_retry')), findsOneWidget);
+      expect(community.startedIds, [notDownloaded.id]);
+      expect(listening.loadAudioCalls, isEmpty);
+    });
+
+    testWidgets('下载中显示占位页进度，就绪后切换为正常计划页并加载学习内容', (tester) async {
+      final readiness = StateProvider<MediaReadiness>(
+        (ref) => const MediaDownloading(progress: 0.5),
+      );
+      final listening = _RecordingListeningPractice(
+        ListeningPracticeState(currentAudioItem: notDownloaded),
+      );
+
+      await tester.pumpWidget(
+        createTestWidget(
+          audioItem: notDownloaded,
+          listeningPracticeOverride: () => listening,
+          extraOverrides: [
+            mediaReadinessProvider(
+              notDownloaded.id,
+            ).overrideWith((ref) => ref.watch(readiness)),
+            communityDownloadProvider.overrideWith(
+              () => _RecordingCommunityDownload(),
+            ),
+          ],
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('50%'), findsOneWidget);
+      expect(listening.loadAudioCalls, isEmpty);
+
+      final container = ProviderScope.containerOf(
+        tester.element(find.byType(LearningPlanScreen)),
+      );
+      container.read(readiness.notifier).state = const MediaReady();
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('media_preparing_retry')), findsNothing);
+      expect(listening.loadAudioCalls.map((item) => item.id), [
+        notDownloaded.id,
+      ]);
+    });
+
+    testWidgets('下载失败显示错误并支持重试再次发起下载', (tester) async {
+      final failed = DownloadFailed(
+        audioItemId: notDownloaded.id,
+        displayName: notDownloaded.name,
+        error: 'network',
+      );
+      final community = _RecordingCommunityDownload(initial: failed);
+
+      await tester.pumpWidget(
+        createTestWidget(
+          audioItem: notDownloaded,
+          extraOverrides: [
+            mediaReadinessProvider(
+              notDownloaded.id,
+            ).overrideWith((ref) => const MediaFailed('network')),
+            communityDownloadProvider.overrideWith(() => community),
+          ],
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(
+        find.textContaining('Puma at Large download failed, please retry'),
+        findsOneWidget,
+      );
+      expect(community.startedIds, isEmpty);
+
+      await tester.tap(find.byKey(const Key('media_preparing_retry')));
+      await tester.pumpAndSettle();
+
+      expect(community.startedIds, [notDownloaded.id]);
+    });
+  });
+}
+
+/// 记录下载启动请求；由测试决定初始状态，启动后进入下载中。
+class _RecordingCommunityDownload extends CommunityDownload {
+  _RecordingCommunityDownload({this.initial = const DownloadIdle()});
+
+  final DownloadProgress initial;
+  final List<String> startedIds = [];
+
+  @override
+  DownloadProgress build() => initial;
+
+  @override
+  Future<StartResult> start({
+    required String audioItemId,
+    required String displayName,
+  }) async {
+    startedIds.add(audioItemId);
+    return StartResult.started;
+  }
 }
 
 /// 模拟生产精听页消费路由启动任务，避免入口测试绕过媒体加载契约。

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 // 学习计划表页面
@@ -16,6 +17,10 @@ import '../database/enums.dart';
 import '../models/practice_completion_result.dart';
 import '../features/rating_prompt/domain/rating_prompt_policy.dart';
 import '../features/rating_prompt/rating_prompt_providers.dart';
+import '../features/media_readiness/media_provisioner.dart';
+import '../features/media_readiness/media_readiness.dart';
+import '../features/media_readiness/media_readiness_provider.dart';
+import '../features/media_readiness/widgets/media_preparing_view.dart';
 import '../features/rating_prompt/rating_prompt_presentation_guard.dart';
 import '../models/audio_item.dart';
 import '../models/learning_plan.dart';
@@ -548,6 +553,9 @@ class _LearningPlanScreenState extends ConsumerState<LearningPlanScreen> {
   /// loadAudio 的 Future，用于在读取 sentences 前确保音频加载完成
   Future<void>? _loadAudioFuture;
 
+  /// 字幕变化监听只注册一次（媒体可能多次进入就绪状态）
+  bool _transcriptListenerAttached = false;
+
   /// 首次学习区域是否展开（首次学习阶段默认展开，进入复习阶段后默认折叠）
   bool? _isFirstLearnExpanded;
 
@@ -569,53 +577,83 @@ class _LearningPlanScreenState extends ConsumerState<LearningPlanScreen> {
           .read(learningProgressNotifierProvider.notifier)
           .ensureProgress(widget.audioItemId);
 
-      // 检查并加载音频数据
-      final audioItem = ref
-          .read(audioLibraryProvider.notifier)
-          .getItemById(widget.audioItemId);
-      if (audioItem == null) {
-        AppLogger.log(
-          _durationDebugLogTag,
-          'event=plan_item_missing itemId=${widget.audioItemId}',
-        );
-        return;
-      }
-      AppLogger.log(
-        _durationDebugLogTag,
-        'event=plan_item_loaded trace=${audioItem.id} '
-        'mediaType=${audioItem.mediaType.name} '
-        'extension=${p.extension(audioItem.audioPath ?? '')} '
-        'source=${audioItem.importSourceType?.name ?? 'unknown'} '
-        'durationSeconds=${audioItem.totalDuration}',
-      );
-
-      // 始终调用 loadAudio：同一音频时只重新读取字幕，不重新加载音频文件
-      _maybeLoadAudio(audioItem);
-
-      // 监听字幕变化（上传/AI转录完成后重新加载字幕）。
-      //
-      // 字幕内容入库后，AI 转录完成不会再写 transcriptPath；学习计划页必须
-      // 监听 transcriptSource / 统计字段等模型列，否则当前页内 LP 仍保留空句子，
-      // 点击「开始学习」会在 sentences.isEmpty 分支静默返回。
+      // 计划页是媒体就绪的唯一 owner：未就绪时自动下载，就绪后才加载学习内容。
+      // fireImmediately 让首次状态立即生效（本地已就绪条目直接加载）。
       ref.listenManual(
-        audioLibraryProvider.select(
-          (s) =>
-              s.audioItems.where((i) => i.id == widget.audioItemId).firstOrNull,
-        ),
-        (prev, next) {
-          if (next == null) return;
-          final transcriptChanged =
-              prev?.transcriptPath != next.transcriptPath ||
-              prev?.transcriptSource != next.transcriptSource ||
-              prev?.transcriptLanguage != next.transcriptLanguage ||
-              prev?.sentenceCount != next.sentenceCount ||
-              prev?.wordCount != next.wordCount;
-          if (transcriptChanged) {
-            _maybeLoadAudio(next, forceTranscriptReload: true);
-          }
-        },
+        mediaReadinessProvider(widget.audioItemId),
+        _onMediaReadinessChanged,
+        fireImmediately: true,
       );
     });
+  }
+
+  /// 媒体就绪状态变化：就绪时加载学习内容；未开始时发起下载（幂等）。
+  ///
+  /// 「失败」不自动重试，避免失败后循环下载；由占位页的重试按钮触发。
+  void _onMediaReadinessChanged(MediaReadiness? previous, MediaReadiness next) {
+    switch (next) {
+      case MediaReady():
+        if (previous is! MediaReady) _onMediaReady();
+      case MediaNotDownloaded():
+        if (previous is! MediaNotDownloaded) {
+          unawaited(ref.read(mediaEnsurerProvider).ensure(widget.audioItemId));
+        }
+      case MediaChecking() ||
+          MediaDownloading() ||
+          MediaWaiting() ||
+          MediaFailed() ||
+          MediaUnavailable() ||
+          MediaFileMissing() ||
+          MediaItemMissing():
+        break;
+    }
+  }
+
+  /// 媒体已就绪：加载音频与字幕到学习引擎，并懒检测内容有效性。
+  void _onMediaReady() {
+    final audioItem = ref
+        .read(audioLibraryProvider.notifier)
+        .getItemById(widget.audioItemId);
+    if (audioItem == null) return;
+    AppLogger.log(
+      _durationDebugLogTag,
+      'event=plan_item_loaded trace=${audioItem.id} '
+      'mediaType=${audioItem.mediaType.name} '
+      'extension=${p.extension(audioItem.audioPath ?? '')} '
+      'source=${audioItem.importSourceType?.name ?? 'unknown'} '
+      'durationSeconds=${audioItem.totalDuration}',
+    );
+
+    // 始终调用 loadAudio：同一音频时只重新读取字幕，不重新加载音频文件
+    _maybeLoadAudio(audioItem);
+    // 用户实际打开音频时才检测内容有效性（所有入口统一在此生效）。
+    maybeCheckAudioContent(ref, audioItem);
+
+    if (_transcriptListenerAttached) return;
+    _transcriptListenerAttached = true;
+    // 监听字幕变化（上传/AI转录完成后重新加载字幕）。
+    //
+    // 字幕内容入库后，AI 转录完成不会再写 transcriptPath；学习计划页必须
+    // 监听 transcriptSource / 统计字段等模型列，否则当前页内 LP 仍保留空句子，
+    // 点击「开始学习」会在 sentences.isEmpty 分支静默返回。
+    ref.listenManual(
+      audioLibraryProvider.select(
+        (s) =>
+            s.audioItems.where((i) => i.id == widget.audioItemId).firstOrNull,
+      ),
+      (prev, next) {
+        if (next == null) return;
+        final transcriptChanged =
+            prev?.transcriptPath != next.transcriptPath ||
+            prev?.transcriptSource != next.transcriptSource ||
+            prev?.transcriptLanguage != next.transcriptLanguage ||
+            prev?.sentenceCount != next.sentenceCount ||
+            prev?.wordCount != next.wordCount;
+        if (transcriptChanged) {
+          _maybeLoadAudio(next, forceTranscriptReload: true);
+        }
+      },
+    );
   }
 
   /// 加载音频到听力练习引擎；视频条目本期不接入播放引擎，直接跳过（仅保证页面不崩溃）。
@@ -1765,6 +1803,22 @@ class _LearningPlanScreenState extends ConsumerState<LearningPlanScreen> {
       return Scaffold(
         appBar: AppBar(),
         body: Center(child: Text(l10n.audioFileNotFound)),
+      );
+    }
+
+    // 媒体未就绪时只展示占位页（下载进度 / 失败重试）：学习入口与 autoStart 都不构建。
+    final isMediaReady = ref.watch(
+      mediaReadinessProvider(
+        widget.audioItemId,
+      ).select((readiness) => readiness is MediaReady),
+    );
+    if (!isMediaReady) {
+      return Scaffold(
+        appBar: AppBar(titleSpacing: 0, title: Text(audioItem.name)),
+        body: MediaPreparingView(
+          audioItemId: widget.audioItemId,
+          name: audioItem.name,
+        ),
       );
     }
 

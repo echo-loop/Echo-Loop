@@ -225,7 +225,10 @@ class AudioImportCompleted extends AudioImportState {
 }
 
 class AudioImportFailed extends AudioImportState {
-  const AudioImportFailed(this.error);
+  const AudioImportFailed(this.error, {this.audioItemId});
 
   final AudioImportException error;
+
+  /// 播客单集下载失败时的条目 id，便于计划页归属错误；导入流程为 null。
+  final String? audioItemId;
 }

@@ -6764,6 +6764,18 @@ abstract class AppLocalizations {
   /// **'Retry'**
   String get retry;
 
+  /// No description provided for @mediaPreparingHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Downloading audio and subtitles…'**
+  String get mediaPreparingHint;
+
+  /// No description provided for @mediaWaitingOtherDownload.
+  ///
+  /// In en, this message translates to:
+  /// **'Another download is in progress. This one will start automatically.'**
+  String get mediaWaitingOtherDownload;
+
   /// No description provided for @guideNext.
   ///
   /// In en, this message translates to:
@@ -7261,12 +7273,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Subtitles update failed, please retry'**
   String get communitySubtitleUpdateFailed;
-
-  /// No description provided for @downloadInProgressSnackbar.
-  ///
-  /// In en, this message translates to:
-  /// **'Downloading {name}, please wait'**
-  String downloadInProgressSnackbar(String name);
 
   /// No description provided for @downloadLoading.
   ///
