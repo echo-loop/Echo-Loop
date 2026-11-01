@@ -159,8 +159,8 @@ class AudioItem {
   /// 社区媒体从服务端目录同步的 CEFR 难度；非社区媒体保持 null。
   final String? communityDifficulty;
 
-  /// 文件描述。社区合集文件从服务端目录同步；用户导入音频保持 null。
-  /// 播客单集仍使用 [podcastDescription]（RSS 简介）。
+  /// 文件描述。社区合集文件从服务端目录同步，播客单集来自 RSS item description；
+  /// 用户导入音频保持 null。
   final String? description;
 
   /// 用户导入来源类型。
@@ -183,9 +183,6 @@ class AudioItem {
 
   /// Enclosure MIME type，如 audio/mpeg
   final String? podcastEnclosureType;
-
-  /// Episode 的简介文本，来自 RSS item description。
-  final String? podcastDescription;
 
   /// Episode 的封面图，优先来自 RSS item itunes:image。
   final String? podcastImageUrl;
@@ -224,7 +221,6 @@ class AudioItem {
     this.podcastEpisodeGuid,
     this.podcastEnclosureUrl,
     this.podcastEnclosureType,
-    this.podcastDescription,
     this.podcastImageUrl,
     this.podcastLink,
     this.podcastTranscriptUrl,
@@ -294,7 +290,6 @@ class AudioItem {
     'podcastEpisodeGuid': podcastEpisodeGuid,
     'podcastEnclosureUrl': podcastEnclosureUrl,
     'podcastEnclosureType': podcastEnclosureType,
-    'podcastDescription': podcastDescription,
     'podcastImageUrl': podcastImageUrl,
     'podcastLink': podcastLink,
     'podcastTranscriptUrl': podcastTranscriptUrl,
@@ -327,7 +322,9 @@ class AudioItem {
       String value => value,
       _ => null,
     },
-    description: json['description'] as String?,
+    // 旧备份用 podcastDescription 存放播客简介，读取时回退兼容。
+    description:
+        json['description'] as String? ?? json['podcastDescription'] as String?,
     importSourceType: AudioImportSourceType.fromStorageValue(
       json['importSourceType'] as String?,
     ),
@@ -335,7 +332,6 @@ class AudioItem {
     podcastEpisodeGuid: json['podcastEpisodeGuid'] as String?,
     podcastEnclosureUrl: json['podcastEnclosureUrl'] as String?,
     podcastEnclosureType: json['podcastEnclosureType'] as String?,
-    podcastDescription: json['podcastDescription'] as String?,
     podcastImageUrl: json['podcastImageUrl'] as String?,
     podcastLink: json['podcastLink'] as String?,
     podcastTranscriptUrl: json['podcastTranscriptUrl'] as String?,
@@ -367,7 +363,6 @@ class AudioItem {
     Object? podcastEpisodeGuid = _sentinel,
     Object? podcastEnclosureUrl = _sentinel,
     Object? podcastEnclosureType = _sentinel,
-    Object? podcastDescription = _sentinel,
     Object? podcastImageUrl = _sentinel,
     Object? podcastLink = _sentinel,
     Object? podcastTranscriptUrl = _sentinel,
@@ -413,10 +408,7 @@ class AudioItem {
         communityDifficulty,
         this.communityDifficulty,
       ),
-      description: _copyNullableString(
-        description,
-        this.description,
-      ),
+      description: _copyNullableString(description, this.description),
       importSourceType: importSourceType == _sentinel
           ? this.importSourceType
           : importSourceType as AudioImportSourceType?,
@@ -432,9 +424,6 @@ class AudioItem {
       podcastEnclosureType: podcastEnclosureType == _sentinel
           ? this.podcastEnclosureType
           : podcastEnclosureType as String?,
-      podcastDescription: podcastDescription == _sentinel
-          ? this.podcastDescription
-          : podcastDescription as String?,
       podcastImageUrl: podcastImageUrl == _sentinel
           ? this.podcastImageUrl
           : podcastImageUrl as String?,

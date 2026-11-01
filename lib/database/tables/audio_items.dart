@@ -99,8 +99,8 @@ class AudioItems extends Table {
   /// 社区合集文件由服务端维护的 CEFR 难度（A1–C2）；普通媒体保持 NULL。
   TextColumn get communityDifficulty => text().nullable()();
 
-  /// 文件描述。社区合集文件来自 v2 合集接口；用户导入音频保持 NULL。
-  /// 播客单集仍使用 [podcastDescription]（RSS 简介）。
+  /// 文件描述。社区合集文件来自 v2 合集接口，播客单集来自 RSS item description；
+  /// 用户导入音频保持 NULL。
   TextColumn get description => text().nullable()();
 
   /// 用户导入来源类型：local / direct_url / cloud_drive。
@@ -122,9 +122,6 @@ class AudioItems extends Table {
 
   /// Enclosure MIME type，如 audio/mpeg
   TextColumn get podcastEnclosureType => text().nullable()();
-
-  /// Episode 简介文本，来自 RSS item description。
-  TextColumn get podcastDescription => text().nullable()();
 
   /// Episode 封面图 URL，来自 RSS item itunes:image。
   TextColumn get podcastImageUrl => text().nullable()();

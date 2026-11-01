@@ -185,7 +185,7 @@ void showPodcastEpisodeInfoSheet(
     builder: (ctx) => _InfoSheet(
       title: l10n.podcastEpisodeMeta,
       heroTitle: item.name,
-      heroDescription: item.podcastDescription,
+      heroDescription: item.description,
       dateText: metaParts.isEmpty ? null : metaParts.join(' · '),
       // 单集封面优先用 episode 自带图，缺省时 _PodcastArtwork 会显示占位图标。
       imageUrl: _hasText(item.podcastImageUrl)

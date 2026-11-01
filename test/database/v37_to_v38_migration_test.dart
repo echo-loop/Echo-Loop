@@ -35,6 +35,7 @@ void main() {
     }
 
     // ── audio_items 新列 ─────────────────────────────────────────────────
+    // podcast_description 已在 v63 迁入 description 并删除，此处不再断言。
     final audioCols = await db
         .customSelect('PRAGMA table_info(audio_items)')
         .get();
@@ -45,7 +46,6 @@ void main() {
       'podcast_episode_guid',
       'podcast_enclosure_url',
       'podcast_enclosure_type',
-      'podcast_description',
       'podcast_image_url',
       'podcast_link',
     ]) {

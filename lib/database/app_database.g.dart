@@ -331,17 +331,6 @@ class $AudioItemsTable extends AudioItems
         type: DriftSqlType.string,
         requiredDuringInsert: false,
       );
-  static const VerificationMeta _podcastDescriptionMeta =
-      const VerificationMeta('podcastDescription');
-  @override
-  late final GeneratedColumn<String> podcastDescription =
-      GeneratedColumn<String>(
-        'podcast_description',
-        aliasedName,
-        true,
-        type: DriftSqlType.string,
-        requiredDuringInsert: false,
-      );
   static const VerificationMeta _podcastImageUrlMeta = const VerificationMeta(
     'podcastImageUrl',
   );
@@ -417,7 +406,6 @@ class $AudioItemsTable extends AudioItems
     podcastEpisodeGuid,
     podcastEnclosureUrl,
     podcastEnclosureType,
-    podcastDescription,
     podcastImageUrl,
     podcastLink,
     podcastTranscriptUrl,
@@ -674,15 +662,6 @@ class $AudioItemsTable extends AudioItems
         ),
       );
     }
-    if (data.containsKey('podcast_description')) {
-      context.handle(
-        _podcastDescriptionMeta,
-        podcastDescription.isAcceptableOrUnknown(
-          data['podcast_description']!,
-          _podcastDescriptionMeta,
-        ),
-      );
-    }
     if (data.containsKey('podcast_image_url')) {
       context.handle(
         _podcastImageUrlMeta,
@@ -844,10 +823,6 @@ class $AudioItemsTable extends AudioItems
         DriftSqlType.string,
         data['${effectivePrefix}podcast_enclosure_type'],
       ),
-      podcastDescription: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}podcast_description'],
-      ),
       podcastImageUrl: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}podcast_image_url'],
@@ -962,8 +937,8 @@ class AudioItem extends DataClass implements Insertable<AudioItem> {
   /// 社区合集文件由服务端维护的 CEFR 难度（A1–C2）；普通媒体保持 NULL。
   final String? communityDifficulty;
 
-  /// 文件描述。社区合集文件来自 v2 合集接口；用户导入音频保持 NULL。
-  /// 播客单集仍使用 [podcastDescription]（RSS 简介）。
+  /// 文件描述。社区合集文件来自 v2 合集接口，播客单集来自 RSS item description；
+  /// 用户导入音频保持 NULL。
   final String? description;
 
   /// 用户导入来源类型：local / direct_url / cloud_drive。
@@ -983,9 +958,6 @@ class AudioItem extends DataClass implements Insertable<AudioItem> {
 
   /// Enclosure MIME type，如 audio/mpeg
   final String? podcastEnclosureType;
-
-  /// Episode 简介文本，来自 RSS item description。
-  final String? podcastDescription;
 
   /// Episode 封面图 URL，来自 RSS item itunes:image。
   final String? podcastImageUrl;
@@ -1028,7 +1000,6 @@ class AudioItem extends DataClass implements Insertable<AudioItem> {
     this.podcastEpisodeGuid,
     this.podcastEnclosureUrl,
     this.podcastEnclosureType,
-    this.podcastDescription,
     this.podcastImageUrl,
     this.podcastLink,
     this.podcastTranscriptUrl,
@@ -1107,9 +1078,6 @@ class AudioItem extends DataClass implements Insertable<AudioItem> {
     }
     if (!nullToAbsent || podcastEnclosureType != null) {
       map['podcast_enclosure_type'] = Variable<String>(podcastEnclosureType);
-    }
-    if (!nullToAbsent || podcastDescription != null) {
-      map['podcast_description'] = Variable<String>(podcastDescription);
     }
     if (!nullToAbsent || podcastImageUrl != null) {
       map['podcast_image_url'] = Variable<String>(podcastImageUrl);
@@ -1199,9 +1167,6 @@ class AudioItem extends DataClass implements Insertable<AudioItem> {
       podcastEnclosureType: podcastEnclosureType == null && nullToAbsent
           ? const Value.absent()
           : Value(podcastEnclosureType),
-      podcastDescription: podcastDescription == null && nullToAbsent
-          ? const Value.absent()
-          : Value(podcastDescription),
       podcastImageUrl: podcastImageUrl == null && nullToAbsent
           ? const Value.absent()
           : Value(podcastImageUrl),
@@ -1268,9 +1233,6 @@ class AudioItem extends DataClass implements Insertable<AudioItem> {
       podcastEnclosureType: serializer.fromJson<String?>(
         json['podcastEnclosureType'],
       ),
-      podcastDescription: serializer.fromJson<String?>(
-        json['podcastDescription'],
-      ),
       podcastImageUrl: serializer.fromJson<String?>(json['podcastImageUrl']),
       podcastLink: serializer.fromJson<String?>(json['podcastLink']),
       podcastTranscriptUrl: serializer.fromJson<String?>(
@@ -1316,7 +1278,6 @@ class AudioItem extends DataClass implements Insertable<AudioItem> {
       'podcastEpisodeGuid': serializer.toJson<String?>(podcastEpisodeGuid),
       'podcastEnclosureUrl': serializer.toJson<String?>(podcastEnclosureUrl),
       'podcastEnclosureType': serializer.toJson<String?>(podcastEnclosureType),
-      'podcastDescription': serializer.toJson<String?>(podcastDescription),
       'podcastImageUrl': serializer.toJson<String?>(podcastImageUrl),
       'podcastLink': serializer.toJson<String?>(podcastLink),
       'podcastTranscriptUrl': serializer.toJson<String?>(podcastTranscriptUrl),
@@ -1356,7 +1317,6 @@ class AudioItem extends DataClass implements Insertable<AudioItem> {
     Value<String?> podcastEpisodeGuid = const Value.absent(),
     Value<String?> podcastEnclosureUrl = const Value.absent(),
     Value<String?> podcastEnclosureType = const Value.absent(),
-    Value<String?> podcastDescription = const Value.absent(),
     Value<String?> podcastImageUrl = const Value.absent(),
     Value<String?> podcastLink = const Value.absent(),
     Value<String?> podcastTranscriptUrl = const Value.absent(),
@@ -1421,9 +1381,6 @@ class AudioItem extends DataClass implements Insertable<AudioItem> {
     podcastEnclosureType: podcastEnclosureType.present
         ? podcastEnclosureType.value
         : this.podcastEnclosureType,
-    podcastDescription: podcastDescription.present
-        ? podcastDescription.value
-        : this.podcastDescription,
     podcastImageUrl: podcastImageUrl.present
         ? podcastImageUrl.value
         : this.podcastImageUrl,
@@ -1508,9 +1465,6 @@ class AudioItem extends DataClass implements Insertable<AudioItem> {
       podcastEnclosureType: data.podcastEnclosureType.present
           ? data.podcastEnclosureType.value
           : this.podcastEnclosureType,
-      podcastDescription: data.podcastDescription.present
-          ? data.podcastDescription.value
-          : this.podcastDescription,
       podcastImageUrl: data.podcastImageUrl.present
           ? data.podcastImageUrl.value
           : this.podcastImageUrl,
@@ -1558,7 +1512,6 @@ class AudioItem extends DataClass implements Insertable<AudioItem> {
           ..write('podcastEpisodeGuid: $podcastEpisodeGuid, ')
           ..write('podcastEnclosureUrl: $podcastEnclosureUrl, ')
           ..write('podcastEnclosureType: $podcastEnclosureType, ')
-          ..write('podcastDescription: $podcastDescription, ')
           ..write('podcastImageUrl: $podcastImageUrl, ')
           ..write('podcastLink: $podcastLink, ')
           ..write('podcastTranscriptUrl: $podcastTranscriptUrl, ')
@@ -1598,7 +1551,6 @@ class AudioItem extends DataClass implements Insertable<AudioItem> {
     podcastEpisodeGuid,
     podcastEnclosureUrl,
     podcastEnclosureType,
-    podcastDescription,
     podcastImageUrl,
     podcastLink,
     podcastTranscriptUrl,
@@ -1637,7 +1589,6 @@ class AudioItem extends DataClass implements Insertable<AudioItem> {
           other.podcastEpisodeGuid == this.podcastEpisodeGuid &&
           other.podcastEnclosureUrl == this.podcastEnclosureUrl &&
           other.podcastEnclosureType == this.podcastEnclosureType &&
-          other.podcastDescription == this.podcastDescription &&
           other.podcastImageUrl == this.podcastImageUrl &&
           other.podcastLink == this.podcastLink &&
           other.podcastTranscriptUrl == this.podcastTranscriptUrl &&
@@ -1674,7 +1625,6 @@ class AudioItemsCompanion extends UpdateCompanion<AudioItem> {
   final Value<String?> podcastEpisodeGuid;
   final Value<String?> podcastEnclosureUrl;
   final Value<String?> podcastEnclosureType;
-  final Value<String?> podcastDescription;
   final Value<String?> podcastImageUrl;
   final Value<String?> podcastLink;
   final Value<String?> podcastTranscriptUrl;
@@ -1710,7 +1660,6 @@ class AudioItemsCompanion extends UpdateCompanion<AudioItem> {
     this.podcastEpisodeGuid = const Value.absent(),
     this.podcastEnclosureUrl = const Value.absent(),
     this.podcastEnclosureType = const Value.absent(),
-    this.podcastDescription = const Value.absent(),
     this.podcastImageUrl = const Value.absent(),
     this.podcastLink = const Value.absent(),
     this.podcastTranscriptUrl = const Value.absent(),
@@ -1747,7 +1696,6 @@ class AudioItemsCompanion extends UpdateCompanion<AudioItem> {
     this.podcastEpisodeGuid = const Value.absent(),
     this.podcastEnclosureUrl = const Value.absent(),
     this.podcastEnclosureType = const Value.absent(),
-    this.podcastDescription = const Value.absent(),
     this.podcastImageUrl = const Value.absent(),
     this.podcastLink = const Value.absent(),
     this.podcastTranscriptUrl = const Value.absent(),
@@ -1787,7 +1735,6 @@ class AudioItemsCompanion extends UpdateCompanion<AudioItem> {
     Expression<String>? podcastEpisodeGuid,
     Expression<String>? podcastEnclosureUrl,
     Expression<String>? podcastEnclosureType,
-    Expression<String>? podcastDescription,
     Expression<String>? podcastImageUrl,
     Expression<String>? podcastLink,
     Expression<String>? podcastTranscriptUrl,
@@ -1832,7 +1779,6 @@ class AudioItemsCompanion extends UpdateCompanion<AudioItem> {
         'podcast_enclosure_url': podcastEnclosureUrl,
       if (podcastEnclosureType != null)
         'podcast_enclosure_type': podcastEnclosureType,
-      if (podcastDescription != null) 'podcast_description': podcastDescription,
       if (podcastImageUrl != null) 'podcast_image_url': podcastImageUrl,
       if (podcastLink != null) 'podcast_link': podcastLink,
       if (podcastTranscriptUrl != null)
@@ -1873,7 +1819,6 @@ class AudioItemsCompanion extends UpdateCompanion<AudioItem> {
     Value<String?>? podcastEpisodeGuid,
     Value<String?>? podcastEnclosureUrl,
     Value<String?>? podcastEnclosureType,
-    Value<String?>? podcastDescription,
     Value<String?>? podcastImageUrl,
     Value<String?>? podcastLink,
     Value<String?>? podcastTranscriptUrl,
@@ -1911,7 +1856,6 @@ class AudioItemsCompanion extends UpdateCompanion<AudioItem> {
       podcastEpisodeGuid: podcastEpisodeGuid ?? this.podcastEpisodeGuid,
       podcastEnclosureUrl: podcastEnclosureUrl ?? this.podcastEnclosureUrl,
       podcastEnclosureType: podcastEnclosureType ?? this.podcastEnclosureType,
-      podcastDescription: podcastDescription ?? this.podcastDescription,
       podcastImageUrl: podcastImageUrl ?? this.podcastImageUrl,
       podcastLink: podcastLink ?? this.podcastLink,
       podcastTranscriptUrl: podcastTranscriptUrl ?? this.podcastTranscriptUrl,
@@ -2019,9 +1963,6 @@ class AudioItemsCompanion extends UpdateCompanion<AudioItem> {
         podcastEnclosureType.value,
       );
     }
-    if (podcastDescription.present) {
-      map['podcast_description'] = Variable<String>(podcastDescription.value);
-    }
     if (podcastImageUrl.present) {
       map['podcast_image_url'] = Variable<String>(podcastImageUrl.value);
     }
@@ -2076,7 +2017,6 @@ class AudioItemsCompanion extends UpdateCompanion<AudioItem> {
           ..write('podcastEpisodeGuid: $podcastEpisodeGuid, ')
           ..write('podcastEnclosureUrl: $podcastEnclosureUrl, ')
           ..write('podcastEnclosureType: $podcastEnclosureType, ')
-          ..write('podcastDescription: $podcastDescription, ')
           ..write('podcastImageUrl: $podcastImageUrl, ')
           ..write('podcastLink: $podcastLink, ')
           ..write('podcastTranscriptUrl: $podcastTranscriptUrl, ')
@@ -15472,7 +15412,6 @@ typedef $$AudioItemsTableCreateCompanionBuilder =
       Value<String?> podcastEpisodeGuid,
       Value<String?> podcastEnclosureUrl,
       Value<String?> podcastEnclosureType,
-      Value<String?> podcastDescription,
       Value<String?> podcastImageUrl,
       Value<String?> podcastLink,
       Value<String?> podcastTranscriptUrl,
@@ -15510,7 +15449,6 @@ typedef $$AudioItemsTableUpdateCompanionBuilder =
       Value<String?> podcastEpisodeGuid,
       Value<String?> podcastEnclosureUrl,
       Value<String?> podcastEnclosureType,
-      Value<String?> podcastDescription,
       Value<String?> podcastImageUrl,
       Value<String?> podcastLink,
       Value<String?> podcastTranscriptUrl,
@@ -15856,11 +15794,6 @@ class $$AudioItemsTableFilterComposer
 
   ColumnFilters<String> get podcastEnclosureType => $composableBuilder(
     column: $table.podcastEnclosureType,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<String> get podcastDescription => $composableBuilder(
-    column: $table.podcastDescription,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -16239,11 +16172,6 @@ class $$AudioItemsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<String> get podcastDescription => $composableBuilder(
-    column: $table.podcastDescription,
-    builder: (column) => ColumnOrderings(column),
-  );
-
   ColumnOrderings<String> get podcastImageUrl => $composableBuilder(
     column: $table.podcastImageUrl,
     builder: (column) => ColumnOrderings(column),
@@ -16400,11 +16328,6 @@ class $$AudioItemsTableAnnotationComposer
 
   GeneratedColumn<String> get podcastEnclosureType => $composableBuilder(
     column: $table.podcastEnclosureType,
-    builder: (column) => column,
-  );
-
-  GeneratedColumn<String> get podcastDescription => $composableBuilder(
-    column: $table.podcastDescription,
     builder: (column) => column,
   );
 
@@ -16697,7 +16620,6 @@ class $$AudioItemsTableTableManager
                 Value<String?> podcastEpisodeGuid = const Value.absent(),
                 Value<String?> podcastEnclosureUrl = const Value.absent(),
                 Value<String?> podcastEnclosureType = const Value.absent(),
-                Value<String?> podcastDescription = const Value.absent(),
                 Value<String?> podcastImageUrl = const Value.absent(),
                 Value<String?> podcastLink = const Value.absent(),
                 Value<String?> podcastTranscriptUrl = const Value.absent(),
@@ -16733,7 +16655,6 @@ class $$AudioItemsTableTableManager
                 podcastEpisodeGuid: podcastEpisodeGuid,
                 podcastEnclosureUrl: podcastEnclosureUrl,
                 podcastEnclosureType: podcastEnclosureType,
-                podcastDescription: podcastDescription,
                 podcastImageUrl: podcastImageUrl,
                 podcastLink: podcastLink,
                 podcastTranscriptUrl: podcastTranscriptUrl,
@@ -16771,7 +16692,6 @@ class $$AudioItemsTableTableManager
                 Value<String?> podcastEpisodeGuid = const Value.absent(),
                 Value<String?> podcastEnclosureUrl = const Value.absent(),
                 Value<String?> podcastEnclosureType = const Value.absent(),
-                Value<String?> podcastDescription = const Value.absent(),
                 Value<String?> podcastImageUrl = const Value.absent(),
                 Value<String?> podcastLink = const Value.absent(),
                 Value<String?> podcastTranscriptUrl = const Value.absent(),
@@ -16807,7 +16727,6 @@ class $$AudioItemsTableTableManager
                 podcastEpisodeGuid: podcastEpisodeGuid,
                 podcastEnclosureUrl: podcastEnclosureUrl,
                 podcastEnclosureType: podcastEnclosureType,
-                podcastDescription: podcastDescription,
                 podcastImageUrl: podcastImageUrl,
                 podcastLink: podcastLink,
                 podcastTranscriptUrl: podcastTranscriptUrl,

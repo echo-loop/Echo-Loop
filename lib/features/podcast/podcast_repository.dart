@@ -335,7 +335,7 @@ class PodcastRepository {
         podcastEpisodeGuid: episode.guid,
         podcastEnclosureUrl: episode.enclosureUrl,
         podcastEnclosureType: episode.enclosureType,
-        podcastDescription: episode.description,
+        description: episode.description,
         podcastImageUrl: episode.imageUrl,
         podcastLink: episode.link,
         podcastTranscriptUrl: episode.transcriptUrl,

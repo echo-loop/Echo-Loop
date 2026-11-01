@@ -105,7 +105,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase(super.e);
 
   /// 当前 schema 版本（静态访问，用于导入前版本检查）
-  static const currentSchemaVersion = 62;
+  static const currentSchemaVersion = 63;
 
   @override
   int get schemaVersion => currentSchemaVersion;
@@ -288,11 +288,7 @@ class AppDatabase extends _$AppDatabase {
         }
         // v61→v62：音频新增通用文件描述字段，社区合集文件同步时写入。
         if (from < 62) {
-          await _addColumnIfNotExists(
-            'audio_items',
-            'description',
-            'TEXT',
-          );
+          await _addColumnIfNotExists('audio_items', 'description', 'TEXT');
         }
         // v49→v50：为收藏单词/意群补稳定的记忆主体 ID，并把收藏句专属的每日
         // 入队去重表泛化为带 namespace 的通用表，供词汇复习共用同一张表。
@@ -904,6 +900,11 @@ class AppDatabase extends _$AppDatabase {
           await _createFavoriteReviewIndexes();
           await _migrateLegacyFavoriteMemorySchedules();
         }
+        // v62→v63：播客简介并入通用 description 字段，删除 podcast_description 列。
+        // 放在最后执行：从 v37 升级时 from<38 才会补回该列，必须先于删除。
+        if (from < 63) {
+          await _migratePodcastDescriptionToDescription();
+        }
       },
     );
   }
@@ -1412,6 +1413,25 @@ class AppDatabase extends _$AppDatabase {
     }
   }
 
+  /// v62→v63：把播客简介迁入通用 description 字段，再删除 podcast_description。
+  ///
+  /// 只补写 description 为空的行，不覆盖已有值；旧列不存在时直接跳过。
+  /// DROP COLUMN 需要 SQLite 3.35+，sqlite3_flutter_libs 自带的版本满足要求。
+  Future<void> _migratePodcastDescriptionToDescription() async {
+    final columns = await customSelect(
+      "SELECT COUNT(*) AS cnt FROM pragma_table_info('audio_items') WHERE name = 'podcast_description'",
+    ).getSingle();
+    if (columns.data['cnt'] == 0) return;
+
+    await customStatement(
+      'UPDATE audio_items SET description = podcast_description '
+      'WHERE description IS NULL AND podcast_description IS NOT NULL',
+    );
+    await customStatement(
+      'ALTER TABLE audio_items DROP COLUMN podcast_description',
+    );
+  }
+
   /// 确保 v38 podcast 合集/episode 字段存在。
   ///
   /// 该方法故意保持幂等：正常迁移路径和启动自愈路径共用它，避免 schema
@@ -1433,7 +1453,6 @@ class AppDatabase extends _$AppDatabase {
       'podcast_enclosure_type',
       'TEXT',
     );
-    await _addColumnIfNotExists('audio_items', 'podcast_description', 'TEXT');
     await _addColumnIfNotExists('audio_items', 'podcast_image_url', 'TEXT');
     await _addColumnIfNotExists('audio_items', 'podcast_link', 'TEXT');
   }

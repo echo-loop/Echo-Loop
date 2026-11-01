@@ -1055,7 +1055,7 @@ void main() {
             podcastEpisodeGuid: 'episode-guid-1',
             podcastEnclosureUrl: 'https://example.com/episode.mp3',
             podcastEnclosureType: 'audio/mpeg',
-            podcastDescription: 'Episode summary for learners.',
+            description: 'Episode summary for learners.',
             podcastImageUrl: 'https://example.com/episode.jpg',
             podcastLink: 'https://example.com/episode',
           );
@@ -1114,7 +1114,7 @@ void main() {
             podcastEpisodeGuid:
                 'https://learningenglish.voanews.com/a/8008768.html',
             podcastEnclosureUrl: 'https://voa-audio.voanews.eu/vle/episode.mp3',
-            podcastDescription: 'VOA episode summary.',
+            description: 'VOA episode summary.',
           );
 
       await tester.pumpWidget(
