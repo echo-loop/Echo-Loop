@@ -15,6 +15,8 @@ import 'package:path/path.dart' as p;
 
 import '../database/enums.dart';
 import '../models/practice_completion_result.dart';
+import '../features/community_collections/models/community_collection_models.dart';
+import '../features/community_collections/widgets/community_difficulty_badge.dart';
 import '../features/rating_prompt/domain/rating_prompt_policy.dart';
 import '../features/rating_prompt/rating_prompt_providers.dart';
 import '../features/media_readiness/media_provisioner.dart';
@@ -76,6 +78,7 @@ import '../widgets/speech_permission_dialog.dart';
 import '../widgets/study/study_stage_visuals.dart';
 import '../widgets/guide_flow.dart';
 import '../widgets/manage_subtitles_sheet.dart';
+import '../widgets/audio_info_chip.dart';
 import '../providers/listening_practice/bookmark_manager.dart';
 import '../database/providers.dart';
 import '../providers/learning_session/sentence_playback_engine.dart';
@@ -2087,98 +2090,125 @@ class _ProgressCard extends ConsumerWidget {
     final badgeText = isInProgress ? l10n.learningInProgress : overdueText;
     final badgeIsError = !isInProgress && overdueText != null;
 
+    final canOpenDetail = audioItem != null;
     return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.l),
-        child: Row(
-          children: [
-            // 左侧：圆环进度
-            SizedBox(
-              width: 64,
-              height: 64,
-              child: CustomPaint(
-                painter: _ProgressRingPainter(
-                  progress: percent,
-                  backgroundColor: theme.colorScheme.surfaceContainerHighest,
-                  progressColor: theme.colorScheme.primary,
-                ),
-                child: Center(
-                  child: Text(
-                    percentText,
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: theme.colorScheme.primary,
+      child: Semantics(
+        button: canOpenDetail,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: canOpenDetail ? () => _openAudioDetail(context) : null,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.m,
+              vertical: AppSpacing.m,
+            ),
+            child: Row(
+              children: [
+                // 左侧：圆环进度
+                SizedBox(
+                  width: 64,
+                  height: 64,
+                  child: CustomPaint(
+                    painter: _ProgressRingPainter(
+                      progress: percent,
+                      backgroundColor:
+                          theme.colorScheme.surfaceContainerHighest,
+                      progressColor: theme.colorScheme.primary,
+                    ),
+                    child: Center(
+                      child: Text(
+                        percentText,
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: theme.colorScheme.primary,
+                        ),
+                      ),
                     ),
                   ),
                 ),
-              ),
-            ),
-            const SizedBox(width: AppSpacing.m),
-            // 右侧：三行信息
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // 第一行：大阶段 + 逾期徽章
-                  Row(
+                const SizedBox(width: AppSpacing.m),
+                // 右侧：三行信息
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Flexible(
-                        child: Text(
-                          _getStageText(),
-                          style: theme.textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                      if (badgeText != null) ...[
-                        const SizedBox(width: AppSpacing.s),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 6,
-                            vertical: 1,
-                          ),
-                          decoration: BoxDecoration(
-                            color: badgeIsError
-                                ? theme.colorScheme.error.withValues(alpha: 0.1)
-                                : theme.colorScheme.surfaceContainerHighest,
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: Text(
-                            badgeText,
-                            style: theme.textTheme.labelSmall?.copyWith(
-                              fontSize: 10,
-                              color: badgeIsError
-                                  ? theme.colorScheme.error
-                                  : theme.colorScheme.onSurfaceVariant,
-                              fontWeight: badgeIsError
-                                  ? FontWeight.w600
-                                  : FontWeight.normal,
+                      // 第一行：大阶段 + 逾期徽章
+                      Row(
+                        children: [
+                          Flexible(
+                            child: Text(
+                              _getStageText(),
+                              style: theme.textTheme.titleMedium?.copyWith(
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
+                          ),
+                          if (badgeText != null) ...[
+                            const SizedBox(width: AppSpacing.s),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 1,
+                              ),
+                              decoration: BoxDecoration(
+                                color: badgeIsError
+                                    ? theme.colorScheme.error.withValues(
+                                        alpha: 0.1,
+                                      )
+                                    : theme.colorScheme.surfaceContainerHighest,
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Text(
+                                badgeText,
+                                style: theme.textTheme.labelSmall?.copyWith(
+                                  fontSize: 10,
+                                  color: badgeIsError
+                                      ? theme.colorScheme.error
+                                      : theme.colorScheme.onSurfaceVariant,
+                                  fontWeight: badgeIsError
+                                      ? FontWeight.w600
+                                      : FontWeight.normal,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                      // 第二行：文件描述，最多两行，超出省略
+                      if (_getDescription() case final description?) ...[
+                        const SizedBox(height: AppSpacing.xs),
+                        Text(
+                          description,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.outline,
                           ),
                         ),
                       ],
+                      // 第三行：音频元信息
+                      if (audioItem != null) ...[
+                        const SizedBox(height: AppSpacing.xs),
+                        _buildAudioInfo(theme),
+                      ],
                     ],
                   ),
-                  // 第二行：子阶段
-                  if (_getSubStageText() case final subStage?) ...[
-                    const SizedBox(height: AppSpacing.xs),
-                    Text(
-                      subStage,
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                  ],
-                  // 第三行：音频元信息
-                  if (audioItem != null) ...[
-                    const SizedBox(height: AppSpacing.xs),
-                    _buildAudioInfo(theme),
-                  ],
-                ],
-              ),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
+      ),
+    );
+  }
+
+  /// 点击卡片进入音频详情页（嵌套子路由，见 app_router.dart 的 _audioDetailRoute）
+  void _openAudioDetail(BuildContext context) {
+    unawaited(
+      AppRoutes.pushNested(
+        context,
+        AppRoutes.audioDetailSegment,
+        extra: audioItem,
       ),
     );
   }
@@ -2193,32 +2223,34 @@ class _ProgressCard extends ConsumerWidget {
     if (contentWarningLabel != null) {
       chips.add(_buildContentWarningChip(theme, contentWarningLabel));
     }
+    // 难度（CEFR）放在元信息行最前，与时长/句数/词数同一行展示。
+    final difficulty = CommunityDifficulty.fromCode(item.communityDifficulty);
+    if (difficulty != null) {
+      chips.add(CommunityDifficultyBadge(difficulty: difficulty));
+    }
     if (item.totalDuration > 0) {
       chips.add(
-        _InfoChip(
+        AudioInfoChip(
           icon: Icons.timer_outlined,
           label: SubtitleParser.formatDuration(
             Duration(seconds: item.totalDuration),
           ),
-          theme: theme,
         ),
       );
     }
     if (item.sentenceCount > 0) {
       chips.add(
-        _InfoChip(
+        AudioInfoChip(
           icon: Icons.format_list_numbered,
           label: l10n.sentenceCountLabel(item.sentenceCount),
-          theme: theme,
         ),
       );
     }
     if (item.wordCount > 0) {
       chips.add(
-        _InfoChip(
+        AudioInfoChip(
           icon: Icons.text_fields,
           label: l10n.wordCountLabel(item.wordCount),
-          theme: theme,
         ),
       );
     }
@@ -2282,21 +2314,10 @@ class _ProgressCard extends ConsumerWidget {
     return reviewStageLabel(l10n, progress!.currentStage);
   }
 
-  /// 第二行：子阶段文字（未开始/已完成时返回 null）
-  String? _getSubStageText() {
-    if (progress == null || !progress!.isStarted || progress!.isCompleted) {
-      return null;
-    }
-    final subStageName = switch (progress!.currentSubStage) {
-      SubStageType.blindListen => l10n.stepBlindListening,
-      SubStageType.intensiveListen => l10n.stepIntensiveListening,
-      SubStageType.listenAndRepeat => l10n.stepShadowing,
-      SubStageType.retell => l10n.stepRetelling,
-      SubStageType.reviewDifficultPractice => l10n.reviewDifficultPracticeTitle,
-      SubStageType.reviewRetellParagraph => l10n.stepRetelling,
-      SubStageType.reviewRetellSummary => l10n.stepRetelling,
-    };
-    return subStageName;
+  /// 第二行：文件描述（去除首尾空白，为空时返回 null，整行不显示）
+  String? _getDescription() {
+    final description = audioItem?.description?.trim();
+    return description == null || description.isEmpty ? null : description;
   }
 
   /// 是否正在学习中（当前阶段已完成至少 1 个子阶段）
@@ -4247,35 +4268,6 @@ class _ReviewRoundSection extends ConsumerWidget {
 
 /// 音频信息行 — 显示时长、句子数、单词数
 /// 单个信息标签
-class _InfoChip extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final ThemeData theme;
-
-  const _InfoChip({
-    required this.icon,
-    required this.label,
-    required this.theme,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, size: 14, color: theme.colorScheme.outline),
-        const SizedBox(width: 3),
-        Text(
-          label,
-          style: theme.textTheme.labelSmall?.copyWith(
-            color: theme.colorScheme.outline,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
 /// 无字幕提醒横幅 — 提示用户需要上传字幕，支持直接打开字幕管理
 class _NoTranscriptBanner extends StatelessWidget {
   final AppLocalizations l10n;

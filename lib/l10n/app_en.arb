@@ -2748,5 +2748,9 @@
   "pronunciationLibraryDescription": "Pre-recorded word audio for dictionary lookups",
   "redownload": "Download again",
   "collapseSidebar": "Collapse sidebar",
-  "expandSidebar": "Expand sidebar"
+  "expandSidebar": "Expand sidebar",
+  "audioDetailTitle": "File details",
+  "audioDetailDescription": "Description",
+  "audioDetailDifficulty": "Difficulty",
+  "audioDetailNoDescription": "No description yet"
 }

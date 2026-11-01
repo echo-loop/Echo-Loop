@@ -38,6 +38,7 @@ import '../screens/study_screen.dart';
 import '../screens/favorites_screen.dart';
 import '../screens/settings_screen.dart';
 import '../screens/learning_plan_screen.dart';
+import '../screens/audio_detail_screen.dart';
 import '../screens/media_playback_screen.dart';
 import '../screens/blind_listen_player_screen.dart';
 import '../screens/intensive_listen_player_screen.dart';
@@ -165,6 +166,9 @@ abstract class AppRoutes {
 
   /// 学习材料 PDF 导出预览页路径段（挂在计划页 / 合集页之下的相对子路由）
   static const pdfPreviewSegment = 'pdf-preview';
+
+  /// 音频详情页路径段（挂在计划页之下的相对子路由）
+  static const audioDetailSegment = 'audio-detail';
   static const backupRestore = '/backup-restore';
 
   /// 收藏词汇（单词+意群）调度式复习页路径
@@ -285,6 +289,17 @@ GoRoute _pdfPreviewRoute() => GoRoute(
   },
 );
 
+/// 音频详情页子路由工厂。挂在计划页之下，同 _pdfPreviewRoute 的防塌栈说明。
+GoRoute _audioDetailRoute() => GoRoute(
+  path: AppRoutes.audioDetailSegment,
+  parentNavigatorKey: rootNavigatorKey,
+  builder: (context, state) {
+    final item = state.extra;
+    if (item is! AudioItem) return const _RestoredRoutePopper();
+    return AudioDetailScreen(audioItem: item);
+  },
+);
+
 /// GoRouter Provider（keepAlive，不可 invalidate）
 final appRouterProvider = Provider<GoRouter>((ref) {
   final analyticsService = ref.read(analyticsServiceProvider);
@@ -402,7 +417,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                             autoStart: autoStart,
                           );
                         },
-                        routes: [_pdfPreviewRoute()],
+                        routes: [_pdfPreviewRoute(), _audioDetailRoute()],
                       ),
                       _audioPlayerRoute(':audioId/player'),
                       _mediaPlayerRoute(
@@ -584,7 +599,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const BookmarkReviewScreen(),
       ),
       // 句子详情 / PDF 预览已下沉为各入口页的嵌套子路由（§7.17），
-      // 见 _sentenceDetailRoute() / _pdfPreviewRoute() 的挂载点。
+      // 见 _sentenceDetailRoute() / _pdfPreviewRoute() / _audioDetailRoute() 的挂载点。
       // 收藏词汇（单词+意群）调度式复习（全屏）
       GoRoute(
         path: AppRoutes.favoriteVocabularyReview,
@@ -649,7 +664,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             autoStart: autoStart,
           );
         },
-        routes: [_pdfPreviewRoute()],
+        routes: [_pdfPreviewRoute(), _audioDetailRoute()],
       ),
       _audioPlayerRoute('/audio/:audioId/player'),
       _mediaPlayerRoute('/audio/:audioId/${AppRoutes.mediaPlayerSegment}'),

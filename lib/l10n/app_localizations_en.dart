@@ -5662,4 +5662,16 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get expandSidebar => 'Expand sidebar';
+
+  @override
+  String get audioDetailTitle => 'File details';
+
+  @override
+  String get audioDetailDescription => 'Description';
+
+  @override
+  String get audioDetailDifficulty => 'Difficulty';
+
+  @override
+  String get audioDetailNoDescription => 'No description yet';
 }

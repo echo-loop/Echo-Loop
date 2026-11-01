@@ -5405,4 +5405,16 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get expandSidebar => '展开侧边栏';
+
+  @override
+  String get audioDetailTitle => '文件详情';
+
+  @override
+  String get audioDetailDescription => '简介';
+
+  @override
+  String get audioDetailDifficulty => '难度';
+
+  @override
+  String get audioDetailNoDescription => '暂无简介';
 }

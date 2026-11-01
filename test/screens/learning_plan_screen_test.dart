@@ -40,6 +40,7 @@ import 'package:echo_loop/providers/time_provider.dart';
 import 'package:echo_loop/services/speech_permission_service.dart';
 import 'package:echo_loop/features/auth/providers/auth_providers.dart';
 import 'package:echo_loop/theme/app_theme.dart';
+import 'package:echo_loop/screens/audio_detail_screen.dart';
 import 'package:echo_loop/widgets/listen_and_repeat/listen_and_repeat_briefing_sheet.dart'
     show ListenAndRepeatBriefingSheet;
 import 'package:echo_loop/widgets/intensive_listen/intensive_listen_briefing_sheet.dart'
@@ -260,6 +261,15 @@ void main() {
                     : 'Missing AudioItem',
               ),
             );
+          },
+        ),
+        GoRoute(
+          path: '/collections/:collectionId/:audioId/plan/audio-detail',
+          builder: (context, state) {
+            final item = state.extra;
+            return item is AudioItem
+                ? AudioDetailScreen(audioItem: item)
+                : const Scaffold(body: Text('Missing AudioItem'));
           },
         ),
         GoRoute(
@@ -739,6 +749,82 @@ void main() {
       );
     });
 
+    testWidgets('进度卡片副标题显示文件描述，最多两行并省略', (tester) async {
+      const description = 'A puma was spotted south of London.';
+      await tester.pumpWidget(
+        createTestWidget(
+          audioItem: testAudioItem.copyWith(description: description),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final text = tester.widget<Text>(find.text(description));
+      expect(text.maxLines, 2);
+      expect(text.overflow, TextOverflow.ellipsis);
+    });
+
+    testWidgets('文件描述为空白时不显示副标题行', (tester) async {
+      Finder subtitleTexts() =>
+          find.byWidgetPredicate((w) => w is Text && w.maxLines == 2);
+
+      // 基线：无描述时卡片上没有任何两行文本
+      await tester.pumpWidget(createTestWidget());
+      await tester.pumpAndSettle();
+      final baselineCount = subtitleTexts().evaluate().length;
+
+      await tester.pumpWidget(
+        createTestWidget(audioItem: testAudioItem.copyWith(description: '  ')),
+      );
+      await tester.pumpAndSettle();
+
+      expect(subtitleTexts().evaluate().length, baselineCount);
+    });
+
+    testWidgets('有难度的音频在进度卡片元信息行显示难度徽章', (tester) async {
+      await tester.pumpWidget(
+        createTestWidget(
+          audioItem: testAudioItem.copyWith(communityDifficulty: 'B1'),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const Key('community_difficulty_badge')),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('无难度的音频不显示难度徽章', (tester) async {
+      await tester.pumpWidget(createTestWidget());
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('community_difficulty_badge')), findsNothing);
+    });
+
+    testWidgets('点击进度卡片进入音频详情页', (tester) async {
+      const description = 'Detail page description.';
+      await tester.pumpWidget(
+        createTestWidget(
+          audioItem: testAudioItem.copyWith(
+            description: description,
+            communityDifficulty: 'B1',
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text(description));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(AudioDetailScreen), findsOneWidget);
+      expect(
+        tester
+            .widget<Text>(find.byKey(const Key('audio_detail_description')))
+            .data,
+        description,
+      );
+    });
+
     testWidgets('显示首次学习区域的 4 个步骤', (tester) async {
       await tester.pumpWidget(createTestWidget());
       await tester.pumpAndSettle();
@@ -801,11 +887,11 @@ void main() {
       expect(find.text('Review 1'), findsWidgets);
 
       // 折叠当前轮次
-      await tester.tap(find.text('Review 1').first);
+      await tester.tap(find.text('Review 1').last);
       await tester.pumpAndSettle();
 
       // 重新展开
-      await tester.tap(find.text('Review 1').first);
+      await tester.tap(find.text('Review 1').last);
       await tester.pumpAndSettle();
     });
 

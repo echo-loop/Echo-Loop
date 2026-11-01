@@ -270,7 +270,7 @@ flutter test integration_test -d macos
   新增全屏页统一走 `AppRoutes.pushNested(context, segment)`（相对当前 matchedLocation 追加），
   漏声明子路由会即时抛「no route」而非静默塌栈。子页 extra 在重解析后会丢失（不可序列化），
   builder 需兜底（见 `_RestoredRoutePopper`：extra 为空时首帧 pop 回已重建的入口页）。
-- 已覆盖：plan/player/blind/retell 等 7 条音频页（1.0.21）、sentence-detail、pdf-preview。
+- 已覆盖：plan/player/blind/retell 等 7 条音频页（1.0.21）、sentence-detail、pdf-preview、audio-detail（学习计划卡片进入的音频详情）。
   回归测试见 `test/router/app_router_test.dart`。
 
 ### 7.18 统一 TTS：嵌入式发音组件不可在 provider build 期触碰平台/数据库（惰性化）

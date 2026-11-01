@@ -9985,6 +9985,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Expand sidebar'**
   String get expandSidebar;
+
+  /// No description provided for @audioDetailTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'File details'**
+  String get audioDetailTitle;
+
+  /// No description provided for @audioDetailDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Description'**
+  String get audioDetailDescription;
+
+  /// No description provided for @audioDetailDifficulty.
+  ///
+  /// In en, this message translates to:
+  /// **'Difficulty'**
+  String get audioDetailDifficulty;
+
+  /// No description provided for @audioDetailNoDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'No description yet'**
+  String get audioDetailNoDescription;
 }
 
 class _AppLocalizationsDelegate

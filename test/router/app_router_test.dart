@@ -120,6 +120,7 @@ void main() {
     test('讲解页 / PDF 预览为相对路径段（嵌套子路由，防塌栈 §7.17）', () {
       expect(AppRoutes.sentenceDetailSegment, 'sentence-detail');
       expect(AppRoutes.pdfPreviewSegment, 'pdf-preview');
+      expect(AppRoutes.audioDetailSegment, 'audio-detail');
     });
 
     test('Podcast 搜索订阅页与预览子路由段正确', () {
@@ -822,6 +823,72 @@ void main() {
       expect(find.text('pdf-preview'), findsOneWidget);
 
       router.go('/collections/c1/a1/plan/pdf-preview');
+      await tester.pumpAndSettle();
+
+      expect(router.canPop(), isTrue);
+      router.pop();
+      await tester.pumpAndSettle();
+      expect(find.text('plan'), findsOneWidget);
+    });
+
+    testWidgets('音频详情页嵌套于 plan：重解析后可返回回到学习计划页', (tester) async {
+      final rootKey = GlobalKey<NavigatorState>();
+      final router = GoRouter(
+        navigatorKey: rootKey,
+        initialLocation: '/collections',
+        routes: [
+          StatefulShellRoute.indexedStack(
+            builder: (context, state, shell) => shell,
+            branches: [
+              StatefulShellBranch(
+                routes: [
+                  GoRoute(
+                    path: '/collections',
+                    builder: (context, state) =>
+                        const Scaffold(body: Text('library-root')),
+                    routes: [
+                      GoRoute(
+                        path: ':collectionId',
+                        builder: (context, state) =>
+                            const Scaffold(body: Text('collection-detail')),
+                        routes: [
+                          GoRoute(
+                            path: ':audioId/plan',
+                            parentNavigatorKey: rootKey,
+                            builder: (context, state) =>
+                                const Scaffold(body: Text('plan')),
+                            routes: [
+                              GoRoute(
+                                path: 'audio-detail',
+                                parentNavigatorKey: rootKey,
+                                builder: (context, state) =>
+                                    const Scaffold(body: Text('audio-detail')),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ],
+      );
+
+      await tester.pumpWidget(createRouterTestApp(router));
+      await tester.pumpAndSettle();
+
+      router.go('/collections/c1');
+      await tester.pumpAndSettle();
+      router.push('/collections/c1/a1/plan');
+      await tester.pumpAndSettle();
+      router.push('/collections/c1/a1/plan/audio-detail');
+      await tester.pumpAndSettle();
+      expect(find.text('audio-detail'), findsOneWidget);
+
+      router.go('/collections/c1/a1/plan/audio-detail');
       await tester.pumpAndSettle();
 
       expect(router.canPop(), isTrue);
