@@ -414,6 +414,7 @@ class CommunitySyncService {
               originalDate: Value(file.publishedAt),
               communityUnavailableAt: const Value(null),
               communityDifficulty: Value(file.difficulty?.code),
+              description: Value(file.normalizedDescription),
               updatedAt: Value(now),
             ),
           );
@@ -465,6 +466,7 @@ class CommunitySyncService {
             originalDate: Value(file.publishedAt),
             communityUnavailableAt: const Value(null),
             communityDifficulty: Value(file.difficulty?.code),
+            description: Value(file.normalizedDescription),
             updatedAt: Value(_now()),
           ),
         );

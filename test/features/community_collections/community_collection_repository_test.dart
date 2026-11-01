@@ -56,7 +56,7 @@ class _FakeCommunityApi extends CommunityCollectionApi {
         CommunityCollectionFile(
           id: 'file-1',
           title: 'Episode 1',
-          description: null,
+          description: '  Pumas are back.  ',
           mediaType: CommunityMediaType.audio,
           durationSec: 45,
           fileSizeBytes: null,
@@ -108,6 +108,7 @@ void main() {
       expect(collection?.updatedAt, DateTime(2026, 9, 23));
       expect(audio?.name, 'Episode 1');
       expect(audio?.totalDuration, 45);
+      expect(audio?.description, 'Pumas are back.');
       expect(audio?.originalDate, DateTime(2026, 9, 21));
       expect(audio?.communityDifficulty, 'B1');
       expect(junction.sortOrder, 3);

@@ -152,6 +152,12 @@ class CommunityCollectionFile {
     );
   }
 
+  /// 本地落库用的描述：去掉首尾空白，空白串归一为 null。
+  String? get normalizedDescription {
+    final trimmed = description?.trim();
+    return trimmed == null || trimmed.isEmpty ? null : trimmed;
+  }
+
   /// 序列化为社区合集 catalog 的本地缓存格式。
   Map<String, Object?> toJson() => {
     'id': id,

@@ -107,6 +107,7 @@ class CommunityCollectionRepository {
               remoteAudioId: Value(file.id),
               originalDate: Value(file.publishedAt),
               communityDifficulty: Value(file.difficulty?.code),
+              description: Value(file.normalizedDescription),
               updatedAt: Value(now),
             ),
           );
@@ -116,6 +117,7 @@ class CommunityCollectionRepository {
           )..where((row) => row.id.equals(audioId))).write(
             db.AudioItemsCompanion(
               communityDifficulty: Value(file.difficulty?.code),
+              description: Value(file.normalizedDescription),
               updatedAt: Value(now),
             ),
           );

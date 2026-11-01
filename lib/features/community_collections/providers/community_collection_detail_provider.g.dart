@@ -7,7 +7,7 @@ part of 'community_collection_detail_provider.dart';
 // **************************************************************************
 
 String _$communityCollectionFilesHash() =>
-    r'06c347a38ee4fbe19b6c270fa73d37cd2d66a519';
+    r'3718b2d0e8411ec1f8141bdca8dfb2006a7225f6';
 
 /// Copied from Dart SDK
 class _SystemHash {

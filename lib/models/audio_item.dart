@@ -159,6 +159,10 @@ class AudioItem {
   /// 社区媒体从服务端目录同步的 CEFR 难度；非社区媒体保持 null。
   final String? communityDifficulty;
 
+  /// 文件描述。社区合集文件从服务端目录同步；用户导入音频保持 null。
+  /// 播客单集仍使用 [podcastDescription]（RSS 简介）。
+  final String? description;
+
   /// 用户导入来源类型。
   ///
   /// 仅用户导入音频使用；社区合集音频保持 null，避免和 v2 同步身份混淆。
@@ -214,6 +218,7 @@ class AudioItem {
     this.originalDate,
     this.communityUnavailableAt,
     this.communityDifficulty,
+    this.description,
     this.importSourceType,
     this.importSourceUrl,
     this.podcastEpisodeGuid,
@@ -283,6 +288,7 @@ class AudioItem {
     'originalDate': originalDate?.toIso8601String(),
     'communityUnavailableAt': communityUnavailableAt?.toIso8601String(),
     'communityDifficulty': communityDifficulty,
+    'description': description,
     'importSourceType': importSourceType?.storageValue,
     'importSourceUrl': importSourceUrl,
     'podcastEpisodeGuid': podcastEpisodeGuid,
@@ -321,6 +327,7 @@ class AudioItem {
       String value => value,
       _ => null,
     },
+    description: json['description'] as String?,
     importSourceType: AudioImportSourceType.fromStorageValue(
       json['importSourceType'] as String?,
     ),
@@ -354,6 +361,7 @@ class AudioItem {
     Object? originalDate = _sentinel,
     Object? communityUnavailableAt = _sentinel,
     Object? communityDifficulty = _sentinel,
+    Object? description = _sentinel,
     Object? importSourceType = _sentinel,
     Object? importSourceUrl = _sentinel,
     Object? podcastEpisodeGuid = _sentinel,
@@ -404,6 +412,10 @@ class AudioItem {
       communityDifficulty: _copyNullableString(
         communityDifficulty,
         this.communityDifficulty,
+      ),
+      description: _copyNullableString(
+        description,
+        this.description,
       ),
       importSourceType: importSourceType == _sentinel
           ? this.importSourceType

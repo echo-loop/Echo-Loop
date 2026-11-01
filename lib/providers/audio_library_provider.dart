@@ -86,6 +86,7 @@ class AudioLibrary extends _$AudioLibrary {
               originalDate: row.originalDate,
               communityUnavailableAt: row.communityUnavailableAt,
               communityDifficulty: row.communityDifficulty,
+              description: row.description,
               importSourceType: AudioImportSourceType.fromStorageValue(
                 row.importSourceType,
               ),
@@ -674,6 +675,7 @@ class AudioLibrary extends _$AudioLibrary {
       remoteAudioId: Value(item.remoteAudioId),
       originalDate: Value(item.originalDate),
       communityDifficulty: Value(item.communityDifficulty),
+      description: Value(item.description),
       importSourceType: Value(item.importSourceType?.storageValue),
       importSourceUrl: Value(item.importSourceUrl),
       podcastEpisodeGuid: Value(item.podcastEpisodeGuid),

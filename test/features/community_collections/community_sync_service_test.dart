@@ -222,6 +222,40 @@ void main() {
     );
   });
 
+  test('同步持久化文件描述：去除首尾空白，并在服务端清空时移除', () async {
+    await _insertCollection(database, 'local-1', 'remote-1', 'One');
+    await _insertFile(database, 'local-1', 'file-1', 'Lesson');
+    final api = _FakeCommunityApi(
+      [_catalogEntry('remote-1', 'One')],
+      {
+        'remote-1': [
+          _file('file-1', 'Lesson', description: '  A puma at large.  \n'),
+        ],
+      },
+    );
+    final service = CommunitySyncService(database: database, api: api);
+
+    await service.syncAll(force: true);
+    expect(
+      (await database.audioItemDao.getByRemoteAudioId(
+        'file-1',
+      ))?.description,
+      'A puma at large.',
+    );
+
+    api.filesByCollection['remote-1'] = [
+      _file('file-1', 'Lesson', description: '   '),
+    ];
+    await service.syncAll(force: true);
+
+    expect(
+      (await database.audioItemDao.getByRemoteAudioId(
+        'file-1',
+      ))?.description,
+      isNull,
+    );
+  });
+
   test('后台同步会持久化社区合集作者昵称', () async {
     await _insertCollection(database, 'local-1', 'remote-1', 'One');
     final api = _FakeCommunityApi(
@@ -491,11 +525,12 @@ CommunityCollectionFile _file(
   String title, {
   int? duration = 10,
   CommunityDifficulty? difficulty,
+  String? description,
 }) {
   return CommunityCollectionFile(
     id: id,
     title: title,
-    description: null,
+    description: description,
     mediaType: CommunityMediaType.audio,
     durationSec: duration,
     fileSizeBytes: null,

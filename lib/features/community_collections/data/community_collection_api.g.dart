@@ -7,7 +7,7 @@ part of 'community_collection_api.dart';
 // **************************************************************************
 
 String _$communityCollectionApiHash() =>
-    r'949cd0bf4fa7e0acee37459d1fad38dc09524d36';
+    r'e5f23cbfe54d075ed04c28d52db3581e866baabb';
 
 /// See also [communityCollectionApi].
 @ProviderFor(communityCollectionApi)

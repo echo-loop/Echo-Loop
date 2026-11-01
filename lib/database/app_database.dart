@@ -105,7 +105,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase(super.e);
 
   /// 当前 schema 版本（静态访问，用于导入前版本检查）
-  static const currentSchemaVersion = 61;
+  static const currentSchemaVersion = 62;
 
   @override
   int get schemaVersion => currentSchemaVersion;
@@ -283,6 +283,14 @@ class AppDatabase extends _$AppDatabase {
           await _addColumnIfNotExists(
             'audio_items',
             'podcast_transcript_format',
+            'TEXT',
+          );
+        }
+        // v61→v62：音频新增通用文件描述字段，社区合集文件同步时写入。
+        if (from < 62) {
+          await _addColumnIfNotExists(
+            'audio_items',
+            'description',
             'TEXT',
           );
         }

@@ -7,7 +7,7 @@ part of 'discover_community_collections_provider.dart';
 // **************************************************************************
 
 String _$discoverCommunityCollectionsHash() =>
-    r'27f8d294b1bb8c99a956603a5ab43b620c1848b6';
+    r'b5c2652dc5510e4f21ced2b46f685cb35437b132';
 
 /// 获取公开社区合集的分页状态；页面只在滚动接近底部时加载下一页。
 ///

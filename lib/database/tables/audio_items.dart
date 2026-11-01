@@ -99,6 +99,10 @@ class AudioItems extends Table {
   /// 社区合集文件由服务端维护的 CEFR 难度（A1–C2）；普通媒体保持 NULL。
   TextColumn get communityDifficulty => text().nullable()();
 
+  /// 文件描述。社区合集文件来自 v2 合集接口；用户导入音频保持 NULL。
+  /// 播客单集仍使用 [podcastDescription]（RSS 简介）。
+  TextColumn get description => text().nullable()();
+
   /// 用户导入来源类型：local / direct_url / cloud_drive。
   ///
   /// 社区合集不使用该字段，继续由 remoteAudioId 和 collections.source 标识。

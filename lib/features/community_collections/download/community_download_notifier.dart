@@ -311,6 +311,7 @@ class CommunityDownload extends _$CommunityDownload {
             : Value(duration),
         originalDate: Value(file.publishedAt),
         communityUnavailableAt: const Value(null),
+        description: Value(file.normalizedDescription),
         updatedAt: Value(DateTime.now()),
       ),
     );

@@ -16,6 +16,7 @@ void main() {
       String? originalAudioSha256,
       String? transcriptLanguage,
       String? communityDifficulty,
+      String? description,
       AudioImportSourceType? importSourceType,
       String? importSourceUrl,
     }) {
@@ -34,6 +35,7 @@ void main() {
         originalAudioSha256: originalAudioSha256,
         transcriptLanguage: transcriptLanguage,
         communityDifficulty: communityDifficulty,
+        description: description,
         importSourceType: importSourceType,
         importSourceUrl: importSourceUrl,
       );
@@ -63,6 +65,15 @@ void main() {
 
         expect(restored.communityDifficulty, 'B1');
         expect(AudioItem.fromJson(oldJson).communityDifficulty, isNull);
+      });
+
+      test('社区文件描述往返一致，旧 JSON 缺失时保持为空', () {
+        final item = createSample(description: 'A puma at large.');
+        final restored = AudioItem.fromJson(item.toJson());
+        final oldJson = item.toJson()..remove('description');
+
+        expect(restored.description, 'A puma at large.');
+        expect(AudioItem.fromJson(oldJson).description, isNull);
       });
 
       test('导入来源字段往返一致', () {
