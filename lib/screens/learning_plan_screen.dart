@@ -25,6 +25,7 @@ import '../features/media_readiness/media_readiness_provider.dart';
 import '../features/media_readiness/widgets/media_preparing_view.dart';
 import '../features/rating_prompt/rating_prompt_presentation_guard.dart';
 import '../models/audio_item.dart';
+import '../models/collection.dart';
 import '../models/learning_plan.dart';
 import '../models/learning_progress.dart';
 import '../models/media_learning_startup.dart';
@@ -67,7 +68,6 @@ import '../utils/audio_item_actions.dart';
 import '../utils/time_format.dart';
 import '../widgets/blind_listen_paragraph_sheet.dart';
 import '../widgets/common/app_popup_menu.dart';
-import '../widgets/common/audio_app_bar_title.dart';
 import '../widgets/intensive_listen/intensive_listen_briefing_sheet.dart';
 import '../widgets/listen_and_repeat/listen_and_repeat_briefing_sheet.dart';
 import '../widgets/common/paragraph_selection_sheet.dart'
@@ -1836,18 +1836,22 @@ class _LearningPlanScreenState extends ConsumerState<LearningPlanScreen> {
 
     final reviewStages = _buildReviewStages(l10n);
 
-    // 当前音频所属的所有合集名（按合集列表顺序），用于 AppBar 副标题
-    final collectionNames = ref.watch(
+    // 当前音频所属的所有合集（按合集列表顺序），用于 AppBar 副标题及跳转
+    final collections = ref.watch(
       collectionListProvider.select((s) {
         final ids = s.audioToCollectionsMap[widget.audioItemId] ?? const [];
-        if (ids.isEmpty) return const <String>[];
+        if (ids.isEmpty) return const <Collection>[];
         final idSet = ids.toSet();
         return s.collections
             .where((c) => idSet.contains(c.id))
-            .map((c) => c.name)
             .toList(growable: false);
       }),
     );
+    // 跳转目标：优先回到进入本页时所在的合集；否则取第一个所属合集
+    final targetCollectionId =
+        collections.any((c) => c.id == widget.collectionId)
+        ? widget.collectionId
+        : (collections.isEmpty ? null : collections.first.id);
 
     final hasTranscript = audioItem.hasTranscript;
     final isLockedReview = progress?.isReviewLockedAt(now) ?? false;
@@ -1908,10 +1912,32 @@ class _LearningPlanScreenState extends ConsumerState<LearningPlanScreen> {
       child: Scaffold(
         appBar: AppBar(
           titleSpacing: 0,
-          title: AudioAppBarTitle(
-            audioName: audioItem.name,
-            collectionNames: collectionNames,
-          ),
+          // 标题显示所属合集名（页面上下文）；无合集时退回文件名。
+          // 用次要样式弱化，让卡片标题成为视觉焦点。
+          title: collections.isEmpty
+              ? Text(audioItem.name)
+              : InkWell(
+                  borderRadius: BorderRadius.circular(8),
+                  onTap: targetCollectionId == null
+                      ? null
+                      : () => context.go(
+                          AppRoutes.collectionDetail(targetCollectionId),
+                        ),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      vertical: AppSpacing.xs,
+                    ),
+                    child: Text(
+                      l10n.learningPlanFromCollection(
+                        collections.map((c) => c.name).join(' · '),
+                      ),
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.normal,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ),
+                ),
           actions: [
             GuideTarget(
               step: stepFreePlay,
@@ -1936,7 +1962,6 @@ class _LearningPlanScreenState extends ConsumerState<LearningPlanScreen> {
                     l10n: l10n,
                     progress: progress,
                     audioItem: audioItem,
-                    now: now,
                   ),
                   if (!hasTranscript) ...[
                     const SizedBox(height: AppSpacing.s),
@@ -2060,14 +2085,8 @@ class _ProgressCard extends ConsumerWidget {
   final AppLocalizations l10n;
   final LearningProgress? progress;
   final AudioItem? audioItem;
-  final DateTime now;
 
-  const _ProgressCard({
-    required this.l10n,
-    this.progress,
-    this.audioItem,
-    required this.now,
-  });
+  const _ProgressCard({required this.l10n, this.progress, this.audioItem});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -2083,12 +2102,6 @@ class _ProgressCard extends ConsumerWidget {
               .completionsFor(audioItem!.id);
     final percent = progress?.progressPercent(plan, completedKeys) ?? 0.0;
     final percentText = '${(percent * 100).round()}%';
-
-    final isInProgress = _isInProgress();
-    final overdueText = _getOverdueText();
-    // 第一行徽章：进行中显示 In Progress，否则显示逾期
-    final badgeText = isInProgress ? l10n.learningInProgress : overdueText;
-    final badgeIsError = !isInProgress && overdueText != null;
 
     final canOpenDetail = audioItem != null;
     return Card(
@@ -2132,48 +2145,16 @@ class _ProgressCard extends ConsumerWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // 第一行：大阶段 + 逾期徽章
-                      Row(
-                        children: [
-                          Flexible(
-                            child: Text(
-                              _getStageText(),
-                              style: theme.textTheme.titleMedium?.copyWith(
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
+                      // 第一行：文件标题
+                      if (audioItem case final item?)
+                        Text(
+                          item.name,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
                           ),
-                          if (badgeText != null) ...[
-                            const SizedBox(width: AppSpacing.s),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 6,
-                                vertical: 1,
-                              ),
-                              decoration: BoxDecoration(
-                                color: badgeIsError
-                                    ? theme.colorScheme.error.withValues(
-                                        alpha: 0.1,
-                                      )
-                                    : theme.colorScheme.surfaceContainerHighest,
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                              child: Text(
-                                badgeText,
-                                style: theme.textTheme.labelSmall?.copyWith(
-                                  fontSize: 10,
-                                  color: badgeIsError
-                                      ? theme.colorScheme.error
-                                      : theme.colorScheme.onSurfaceVariant,
-                                  fontWeight: badgeIsError
-                                      ? FontWeight.w600
-                                      : FontWeight.normal,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
+                        ),
                       // 第二行：文件描述，最多两行，超出省略
                       if (_getDescription() case final description?) ...[
                         const SizedBox(height: AppSpacing.xs),
@@ -2224,7 +2205,7 @@ class _ProgressCard extends ConsumerWidget {
       chips.add(_buildContentWarningChip(theme, contentWarningLabel));
     }
     // 难度（CEFR）放在元信息行最前，与时长/句数/词数同一行展示。
-    final difficulty = CommunityDifficulty.fromCode(item.communityDifficulty);
+    final difficulty = CommunityDifficulty.fromCode(item.difficulty);
     if (difficulty != null) {
       chips.add(CommunityDifficultyBadge(difficulty: difficulty));
     }
@@ -2303,39 +2284,10 @@ class _ProgressCard extends ConsumerWidget {
     };
   }
 
-  /// 第一行：大阶段文字
-  String _getStageText() {
-    if (progress == null || !progress!.isStarted) {
-      return l10n.learningPlanNotStarted;
-    }
-    if (progress!.isCompleted) {
-      return l10n.learningCompleted;
-    }
-    return reviewStageLabel(l10n, progress!.currentStage);
-  }
-
   /// 第二行：文件描述（去除首尾空白，为空时返回 null，整行不显示）
   String? _getDescription() {
     final description = audioItem?.description?.trim();
     return description == null || description.isEmpty ? null : description;
-  }
-
-  /// 是否正在学习中（当前阶段已完成至少 1 个子阶段）
-  bool _isInProgress() {
-    if (progress == null || !progress!.isStarted || progress!.isCompleted) {
-      return false;
-    }
-    return progress!.currentSubStageIndex > 0;
-  }
-
-  /// 获取逾期文案（未逾期返回 null）
-  String? _getOverdueText() {
-    if (progress == null || !progress!.isReviewOverdueAt(now)) return null;
-    final overdue = progress!.overdueDurationAt(now);
-    if (overdue == null || overdue.inDays > 7) return l10n.reviewDue;
-    if (overdue.inDays > 0) return l10n.overdueDays(overdue.inDays);
-    final hours = overdue.inHours.clamp(1, 999);
-    return l10n.overdueHours(hours);
   }
 }
 

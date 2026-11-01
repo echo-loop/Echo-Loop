@@ -27,7 +27,7 @@ void main() {
 
     final raw = sqlite.sqlite3.open(file.path);
     try {
-      raw.execute('ALTER TABLE audio_items DROP COLUMN community_difficulty');
+      raw.execute('ALTER TABLE audio_items DROP COLUMN difficulty');
       raw.execute('PRAGMA user_version = 59');
     } finally {
       raw.dispose();
@@ -37,7 +37,7 @@ void main() {
     final audio = await database.audioItemDao.getById('audio-1');
 
     expect(audio?.name, 'Existing lesson');
-    expect(audio?.communityDifficulty, isNull);
+    expect(audio?.difficulty, isNull);
     await database.close();
   });
 }

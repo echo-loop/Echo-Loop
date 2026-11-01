@@ -22,10 +22,9 @@ class AudioDetailScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final theme = Theme.of(context);
-    final difficulty = CommunityDifficulty.fromCode(
-      audioItem.communityDifficulty,
-    );
+    final difficulty = CommunityDifficulty.fromCode(audioItem.difficulty);
     final description = audioItem.description?.trim();
+    final hasDescription = description != null && description.isNotEmpty;
     final metaChips = _buildMetaChips(l10n);
 
     return Scaffold(
@@ -72,14 +71,12 @@ class AudioDetailScreen extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.s),
           Text(
-            description == null || description.isEmpty
-                ? l10n.audioDetailNoDescription
-                : description,
+            hasDescription ? description : l10n.audioDetailNoDescription,
             key: const Key('audio_detail_description'),
             style: theme.textTheme.bodyLarge?.copyWith(
-              color: description == null || description.isEmpty
-                  ? theme.colorScheme.onSurfaceVariant
-                  : theme.colorScheme.onSurface,
+              color: hasDescription
+                  ? theme.colorScheme.onSurface
+                  : theme.colorScheme.onSurfaceVariant,
             ),
           ),
         ],

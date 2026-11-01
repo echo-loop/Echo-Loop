@@ -1028,12 +1028,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get favoritesComingSoon => '收藏功能即将上线';
 
   @override
-  String get learningPlanProgress => '学习进度';
-
-  @override
-  String get learningPlanNotStarted => '未开始';
-
-  @override
   String get firstStudy => '首次学习';
 
   @override
@@ -4882,9 +4876,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get podcastAuthor => '作者';
 
   @override
-  String get podcastDescription => '简介';
-
-  @override
   String get podcastFeedUrl => 'RSS 链接';
 
   @override
@@ -5417,4 +5408,9 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get audioDetailNoDescription => '暂无简介';
+
+  @override
+  String learningPlanFromCollection(String collections) {
+    return '来自：$collections';
+  }
 }

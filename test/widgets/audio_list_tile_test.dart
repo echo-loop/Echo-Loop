@@ -183,7 +183,7 @@ void main() {
       final item = createTestAudioItem(
         name:
             'A very long community lesson title that needs to fit on a narrow screen',
-      ).copyWith(remoteAudioId: 'remote-1', communityDifficulty: 'B1');
+      ).copyWith(remoteAudioId: 'remote-1', difficulty: 'B1');
 
       await tester.pumpWidget(
         buildTile(item, collectionId: 'collection-1', width: 300),
@@ -212,7 +212,7 @@ void main() {
     testWidgets('资源库全局列表不显示合集专属难度徽章', (tester) async {
       final item = createTestAudioItem().copyWith(
         remoteAudioId: 'remote-1',
-        communityDifficulty: 'B1',
+        difficulty: 'B1',
       );
 
       await tester.pumpWidget(buildTile(item));

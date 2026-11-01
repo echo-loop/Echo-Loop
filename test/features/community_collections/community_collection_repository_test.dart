@@ -110,7 +110,7 @@ void main() {
       expect(audio?.totalDuration, 45);
       expect(audio?.description, 'Pumas are back.');
       expect(audio?.originalDate, DateTime(2026, 9, 21));
-      expect(audio?.communityDifficulty, 'B1');
+      expect(audio?.difficulty, 'B1');
       expect(junction.sortOrder, 3);
     },
   );
@@ -157,9 +157,7 @@ void main() {
         isNotNull,
       );
       expect(
-        (await database.audioItemDao.getByRemoteAudioId(
-          'file-1',
-        ))?.communityDifficulty,
+        (await database.audioItemDao.getByRemoteAudioId('file-1'))?.difficulty,
         'B1',
       );
     },

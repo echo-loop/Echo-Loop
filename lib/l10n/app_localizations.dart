@@ -1958,18 +1958,6 @@ abstract class AppLocalizations {
   /// **'Save features coming soon'**
   String get favoritesComingSoon;
 
-  /// No description provided for @learningPlanProgress.
-  ///
-  /// In en, this message translates to:
-  /// **'Learning Progress'**
-  String get learningPlanProgress;
-
-  /// No description provided for @learningPlanNotStarted.
-  ///
-  /// In en, this message translates to:
-  /// **'Not started'**
-  String get learningPlanNotStarted;
-
   /// No description provided for @firstStudy.
   ///
   /// In en, this message translates to:
@@ -8978,12 +8966,6 @@ abstract class AppLocalizations {
   /// **'Author'**
   String get podcastAuthor;
 
-  /// No description provided for @podcastDescription.
-  ///
-  /// In en, this message translates to:
-  /// **'Description'**
-  String get podcastDescription;
-
   /// No description provided for @podcastFeedUrl.
   ///
   /// In en, this message translates to:
@@ -10009,6 +9991,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'No description yet'**
   String get audioDetailNoDescription;
+
+  /// No description provided for @learningPlanFromCollection.
+  ///
+  /// In en, this message translates to:
+  /// **'From {collections}'**
+  String learningPlanFromCollection(String collections);
 }
 
 class _AppLocalizationsDelegate

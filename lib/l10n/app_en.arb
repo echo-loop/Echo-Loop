@@ -566,8 +566,6 @@
   "profile": "Profile",
   "studyComingSoon": "Study features coming soon",
   "favoritesComingSoon": "Save features coming soon",
-  "learningPlanProgress": "Learning Progress",
-  "learningPlanNotStarted": "Not started",
   "firstStudy": "First Round",
   "review": "Review",
   "stepProgress": "{completed}/{total}",
@@ -2552,7 +2550,6 @@
   "podcastShowLess": "Less",
   "podcastTitle": "Title",
   "podcastAuthor": "Author",
-  "podcastDescription": "Description",
   "podcastFeedUrl": "RSS URL",
   "podcastAppleLink": "Apple Podcasts",
   "podcastOriginalLink": "Link",
@@ -2752,5 +2749,11 @@
   "audioDetailTitle": "File details",
   "audioDetailDescription": "Description",
   "audioDetailDifficulty": "Difficulty",
-  "audioDetailNoDescription": "No description yet"
+  "audioDetailNoDescription": "No description yet",
+  "learningPlanFromCollection": "From {collections}",
+  "@learningPlanFromCollection": {
+    "placeholders": {
+      "collections": {"type": "String"}
+    }
+  }
 }

@@ -203,9 +203,7 @@ void main() {
 
     await service.syncAll(force: true);
     expect(
-      (await database.audioItemDao.getByRemoteAudioId(
-        'file-1',
-      ))?.communityDifficulty,
+      (await database.audioItemDao.getByRemoteAudioId('file-1'))?.difficulty,
       'B1',
     );
 
@@ -215,9 +213,7 @@ void main() {
     await service.syncAll(force: true);
 
     expect(
-      (await database.audioItemDao.getByRemoteAudioId(
-        'file-1',
-      ))?.communityDifficulty,
+      (await database.audioItemDao.getByRemoteAudioId('file-1'))?.difficulty,
       isNull,
     );
   });
@@ -237,9 +233,7 @@ void main() {
 
     await service.syncAll(force: true);
     expect(
-      (await database.audioItemDao.getByRemoteAudioId(
-        'file-1',
-      ))?.description,
+      (await database.audioItemDao.getByRemoteAudioId('file-1'))?.description,
       'A puma at large.',
     );
 
@@ -249,9 +243,7 @@ void main() {
     await service.syncAll(force: true);
 
     expect(
-      (await database.audioItemDao.getByRemoteAudioId(
-        'file-1',
-      ))?.description,
+      (await database.audioItemDao.getByRemoteAudioId('file-1'))?.description,
       isNull,
     );
   });

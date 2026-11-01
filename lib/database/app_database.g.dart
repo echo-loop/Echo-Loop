@@ -254,17 +254,17 @@ class $AudioItemsTable extends AudioItems
         type: DriftSqlType.dateTime,
         requiredDuringInsert: false,
       );
-  static const VerificationMeta _communityDifficultyMeta =
-      const VerificationMeta('communityDifficulty');
+  static const VerificationMeta _difficultyMeta = const VerificationMeta(
+    'difficulty',
+  );
   @override
-  late final GeneratedColumn<String> communityDifficulty =
-      GeneratedColumn<String>(
-        'community_difficulty',
-        aliasedName,
-        true,
-        type: DriftSqlType.string,
-        requiredDuringInsert: false,
-      );
+  late final GeneratedColumn<String> difficulty = GeneratedColumn<String>(
+    'difficulty',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _descriptionMeta = const VerificationMeta(
     'description',
   );
@@ -399,7 +399,7 @@ class $AudioItemsTable extends AudioItems
     remoteAudioId,
     originalDate,
     communityUnavailableAt,
-    communityDifficulty,
+    difficulty,
     description,
     importSourceType,
     importSourceUrl,
@@ -599,13 +599,10 @@ class $AudioItemsTable extends AudioItems
         ),
       );
     }
-    if (data.containsKey('community_difficulty')) {
+    if (data.containsKey('difficulty')) {
       context.handle(
-        _communityDifficultyMeta,
-        communityDifficulty.isAcceptableOrUnknown(
-          data['community_difficulty']!,
-          _communityDifficultyMeta,
-        ),
+        _difficultyMeta,
+        difficulty.isAcceptableOrUnknown(data['difficulty']!, _difficultyMeta),
       );
     }
     if (data.containsKey('description')) {
@@ -795,9 +792,9 @@ class $AudioItemsTable extends AudioItems
         DriftSqlType.dateTime,
         data['${effectivePrefix}community_unavailable_at'],
       ),
-      communityDifficulty: attachedDatabase.typeMapping.read(
+      difficulty: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
-        data['${effectivePrefix}community_difficulty'],
+        data['${effectivePrefix}difficulty'],
       ),
       description: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
@@ -935,7 +932,7 @@ class AudioItem extends DataClass implements Insertable<AudioItem> {
   final DateTime? communityUnavailableAt;
 
   /// 社区合集文件由服务端维护的 CEFR 难度（A1–C2）；普通媒体保持 NULL。
-  final String? communityDifficulty;
+  final String? difficulty;
 
   /// 文件描述。社区合集文件来自 v2 合集接口，播客单集来自 RSS item description；
   /// 用户导入音频保持 NULL。
@@ -993,7 +990,7 @@ class AudioItem extends DataClass implements Insertable<AudioItem> {
     this.remoteAudioId,
     this.originalDate,
     this.communityUnavailableAt,
-    this.communityDifficulty,
+    this.difficulty,
     this.description,
     this.importSourceType,
     this.importSourceUrl,
@@ -1058,8 +1055,8 @@ class AudioItem extends DataClass implements Insertable<AudioItem> {
         communityUnavailableAt,
       );
     }
-    if (!nullToAbsent || communityDifficulty != null) {
-      map['community_difficulty'] = Variable<String>(communityDifficulty);
+    if (!nullToAbsent || difficulty != null) {
+      map['difficulty'] = Variable<String>(difficulty);
     }
     if (!nullToAbsent || description != null) {
       map['description'] = Variable<String>(description);
@@ -1146,9 +1143,9 @@ class AudioItem extends DataClass implements Insertable<AudioItem> {
       communityUnavailableAt: communityUnavailableAt == null && nullToAbsent
           ? const Value.absent()
           : Value(communityUnavailableAt),
-      communityDifficulty: communityDifficulty == null && nullToAbsent
+      difficulty: difficulty == null && nullToAbsent
           ? const Value.absent()
-          : Value(communityDifficulty),
+          : Value(difficulty),
       description: description == null && nullToAbsent
           ? const Value.absent()
           : Value(description),
@@ -1218,9 +1215,7 @@ class AudioItem extends DataClass implements Insertable<AudioItem> {
       communityUnavailableAt: serializer.fromJson<DateTime?>(
         json['communityUnavailableAt'],
       ),
-      communityDifficulty: serializer.fromJson<String?>(
-        json['communityDifficulty'],
-      ),
+      difficulty: serializer.fromJson<String?>(json['difficulty']),
       description: serializer.fromJson<String?>(json['description']),
       importSourceType: serializer.fromJson<String?>(json['importSourceType']),
       importSourceUrl: serializer.fromJson<String?>(json['importSourceUrl']),
@@ -1271,7 +1266,7 @@ class AudioItem extends DataClass implements Insertable<AudioItem> {
       'communityUnavailableAt': serializer.toJson<DateTime?>(
         communityUnavailableAt,
       ),
-      'communityDifficulty': serializer.toJson<String?>(communityDifficulty),
+      'difficulty': serializer.toJson<String?>(difficulty),
       'description': serializer.toJson<String?>(description),
       'importSourceType': serializer.toJson<String?>(importSourceType),
       'importSourceUrl': serializer.toJson<String?>(importSourceUrl),
@@ -1310,7 +1305,7 @@ class AudioItem extends DataClass implements Insertable<AudioItem> {
     Value<String?> remoteAudioId = const Value.absent(),
     Value<DateTime?> originalDate = const Value.absent(),
     Value<DateTime?> communityUnavailableAt = const Value.absent(),
-    Value<String?> communityDifficulty = const Value.absent(),
+    Value<String?> difficulty = const Value.absent(),
     Value<String?> description = const Value.absent(),
     Value<String?> importSourceType = const Value.absent(),
     Value<String?> importSourceUrl = const Value.absent(),
@@ -1362,9 +1357,7 @@ class AudioItem extends DataClass implements Insertable<AudioItem> {
     communityUnavailableAt: communityUnavailableAt.present
         ? communityUnavailableAt.value
         : this.communityUnavailableAt,
-    communityDifficulty: communityDifficulty.present
-        ? communityDifficulty.value
-        : this.communityDifficulty,
+    difficulty: difficulty.present ? difficulty.value : this.difficulty,
     description: description.present ? description.value : this.description,
     importSourceType: importSourceType.present
         ? importSourceType.value
@@ -1444,9 +1437,9 @@ class AudioItem extends DataClass implements Insertable<AudioItem> {
       communityUnavailableAt: data.communityUnavailableAt.present
           ? data.communityUnavailableAt.value
           : this.communityUnavailableAt,
-      communityDifficulty: data.communityDifficulty.present
-          ? data.communityDifficulty.value
-          : this.communityDifficulty,
+      difficulty: data.difficulty.present
+          ? data.difficulty.value
+          : this.difficulty,
       description: data.description.present
           ? data.description.value
           : this.description,
@@ -1505,7 +1498,7 @@ class AudioItem extends DataClass implements Insertable<AudioItem> {
           ..write('remoteAudioId: $remoteAudioId, ')
           ..write('originalDate: $originalDate, ')
           ..write('communityUnavailableAt: $communityUnavailableAt, ')
-          ..write('communityDifficulty: $communityDifficulty, ')
+          ..write('difficulty: $difficulty, ')
           ..write('description: $description, ')
           ..write('importSourceType: $importSourceType, ')
           ..write('importSourceUrl: $importSourceUrl, ')
@@ -1544,7 +1537,7 @@ class AudioItem extends DataClass implements Insertable<AudioItem> {
     remoteAudioId,
     originalDate,
     communityUnavailableAt,
-    communityDifficulty,
+    difficulty,
     description,
     importSourceType,
     importSourceUrl,
@@ -1582,7 +1575,7 @@ class AudioItem extends DataClass implements Insertable<AudioItem> {
           other.remoteAudioId == this.remoteAudioId &&
           other.originalDate == this.originalDate &&
           other.communityUnavailableAt == this.communityUnavailableAt &&
-          other.communityDifficulty == this.communityDifficulty &&
+          other.difficulty == this.difficulty &&
           other.description == this.description &&
           other.importSourceType == this.importSourceType &&
           other.importSourceUrl == this.importSourceUrl &&
@@ -1618,7 +1611,7 @@ class AudioItemsCompanion extends UpdateCompanion<AudioItem> {
   final Value<String?> remoteAudioId;
   final Value<DateTime?> originalDate;
   final Value<DateTime?> communityUnavailableAt;
-  final Value<String?> communityDifficulty;
+  final Value<String?> difficulty;
   final Value<String?> description;
   final Value<String?> importSourceType;
   final Value<String?> importSourceUrl;
@@ -1653,7 +1646,7 @@ class AudioItemsCompanion extends UpdateCompanion<AudioItem> {
     this.remoteAudioId = const Value.absent(),
     this.originalDate = const Value.absent(),
     this.communityUnavailableAt = const Value.absent(),
-    this.communityDifficulty = const Value.absent(),
+    this.difficulty = const Value.absent(),
     this.description = const Value.absent(),
     this.importSourceType = const Value.absent(),
     this.importSourceUrl = const Value.absent(),
@@ -1689,7 +1682,7 @@ class AudioItemsCompanion extends UpdateCompanion<AudioItem> {
     this.remoteAudioId = const Value.absent(),
     this.originalDate = const Value.absent(),
     this.communityUnavailableAt = const Value.absent(),
-    this.communityDifficulty = const Value.absent(),
+    this.difficulty = const Value.absent(),
     this.description = const Value.absent(),
     this.importSourceType = const Value.absent(),
     this.importSourceUrl = const Value.absent(),
@@ -1728,7 +1721,7 @@ class AudioItemsCompanion extends UpdateCompanion<AudioItem> {
     Expression<String>? remoteAudioId,
     Expression<DateTime>? originalDate,
     Expression<DateTime>? communityUnavailableAt,
-    Expression<String>? communityDifficulty,
+    Expression<String>? difficulty,
     Expression<String>? description,
     Expression<String>? importSourceType,
     Expression<String>? importSourceUrl,
@@ -1768,8 +1761,7 @@ class AudioItemsCompanion extends UpdateCompanion<AudioItem> {
       if (originalDate != null) 'original_date': originalDate,
       if (communityUnavailableAt != null)
         'community_unavailable_at': communityUnavailableAt,
-      if (communityDifficulty != null)
-        'community_difficulty': communityDifficulty,
+      if (difficulty != null) 'difficulty': difficulty,
       if (description != null) 'description': description,
       if (importSourceType != null) 'import_source_type': importSourceType,
       if (importSourceUrl != null) 'import_source_url': importSourceUrl,
@@ -1812,7 +1804,7 @@ class AudioItemsCompanion extends UpdateCompanion<AudioItem> {
     Value<String?>? remoteAudioId,
     Value<DateTime?>? originalDate,
     Value<DateTime?>? communityUnavailableAt,
-    Value<String?>? communityDifficulty,
+    Value<String?>? difficulty,
     Value<String?>? description,
     Value<String?>? importSourceType,
     Value<String?>? importSourceUrl,
@@ -1849,7 +1841,7 @@ class AudioItemsCompanion extends UpdateCompanion<AudioItem> {
       originalDate: originalDate ?? this.originalDate,
       communityUnavailableAt:
           communityUnavailableAt ?? this.communityUnavailableAt,
-      communityDifficulty: communityDifficulty ?? this.communityDifficulty,
+      difficulty: difficulty ?? this.difficulty,
       description: description ?? this.description,
       importSourceType: importSourceType ?? this.importSourceType,
       importSourceUrl: importSourceUrl ?? this.importSourceUrl,
@@ -1938,8 +1930,8 @@ class AudioItemsCompanion extends UpdateCompanion<AudioItem> {
         communityUnavailableAt.value,
       );
     }
-    if (communityDifficulty.present) {
-      map['community_difficulty'] = Variable<String>(communityDifficulty.value);
+    if (difficulty.present) {
+      map['difficulty'] = Variable<String>(difficulty.value);
     }
     if (description.present) {
       map['description'] = Variable<String>(description.value);
@@ -2010,7 +2002,7 @@ class AudioItemsCompanion extends UpdateCompanion<AudioItem> {
           ..write('remoteAudioId: $remoteAudioId, ')
           ..write('originalDate: $originalDate, ')
           ..write('communityUnavailableAt: $communityUnavailableAt, ')
-          ..write('communityDifficulty: $communityDifficulty, ')
+          ..write('difficulty: $difficulty, ')
           ..write('description: $description, ')
           ..write('importSourceType: $importSourceType, ')
           ..write('importSourceUrl: $importSourceUrl, ')
@@ -15405,7 +15397,7 @@ typedef $$AudioItemsTableCreateCompanionBuilder =
       Value<String?> remoteAudioId,
       Value<DateTime?> originalDate,
       Value<DateTime?> communityUnavailableAt,
-      Value<String?> communityDifficulty,
+      Value<String?> difficulty,
       Value<String?> description,
       Value<String?> importSourceType,
       Value<String?> importSourceUrl,
@@ -15442,7 +15434,7 @@ typedef $$AudioItemsTableUpdateCompanionBuilder =
       Value<String?> remoteAudioId,
       Value<DateTime?> originalDate,
       Value<DateTime?> communityUnavailableAt,
-      Value<String?> communityDifficulty,
+      Value<String?> difficulty,
       Value<String?> description,
       Value<String?> importSourceType,
       Value<String?> importSourceUrl,
@@ -15762,8 +15754,8 @@ class $$AudioItemsTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
-  ColumnFilters<String> get communityDifficulty => $composableBuilder(
-    column: $table.communityDifficulty,
+  ColumnFilters<String> get difficulty => $composableBuilder(
+    column: $table.difficulty,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -16137,8 +16129,8 @@ class $$AudioItemsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<String> get communityDifficulty => $composableBuilder(
-    column: $table.communityDifficulty,
+  ColumnOrderings<String> get difficulty => $composableBuilder(
+    column: $table.difficulty,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -16296,8 +16288,8 @@ class $$AudioItemsTableAnnotationComposer
     builder: (column) => column,
   );
 
-  GeneratedColumn<String> get communityDifficulty => $composableBuilder(
-    column: $table.communityDifficulty,
+  GeneratedColumn<String> get difficulty => $composableBuilder(
+    column: $table.difficulty,
     builder: (column) => column,
   );
 
@@ -16613,7 +16605,7 @@ class $$AudioItemsTableTableManager
                 Value<String?> remoteAudioId = const Value.absent(),
                 Value<DateTime?> originalDate = const Value.absent(),
                 Value<DateTime?> communityUnavailableAt = const Value.absent(),
-                Value<String?> communityDifficulty = const Value.absent(),
+                Value<String?> difficulty = const Value.absent(),
                 Value<String?> description = const Value.absent(),
                 Value<String?> importSourceType = const Value.absent(),
                 Value<String?> importSourceUrl = const Value.absent(),
@@ -16648,7 +16640,7 @@ class $$AudioItemsTableTableManager
                 remoteAudioId: remoteAudioId,
                 originalDate: originalDate,
                 communityUnavailableAt: communityUnavailableAt,
-                communityDifficulty: communityDifficulty,
+                difficulty: difficulty,
                 description: description,
                 importSourceType: importSourceType,
                 importSourceUrl: importSourceUrl,
@@ -16685,7 +16677,7 @@ class $$AudioItemsTableTableManager
                 Value<String?> remoteAudioId = const Value.absent(),
                 Value<DateTime?> originalDate = const Value.absent(),
                 Value<DateTime?> communityUnavailableAt = const Value.absent(),
-                Value<String?> communityDifficulty = const Value.absent(),
+                Value<String?> difficulty = const Value.absent(),
                 Value<String?> description = const Value.absent(),
                 Value<String?> importSourceType = const Value.absent(),
                 Value<String?> importSourceUrl = const Value.absent(),
@@ -16720,7 +16712,7 @@ class $$AudioItemsTableTableManager
                 remoteAudioId: remoteAudioId,
                 originalDate: originalDate,
                 communityUnavailableAt: communityUnavailableAt,
-                communityDifficulty: communityDifficulty,
+                difficulty: difficulty,
                 description: description,
                 importSourceType: importSourceType,
                 importSourceUrl: importSourceUrl,

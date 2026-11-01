@@ -1060,12 +1060,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get favoritesComingSoon => 'Save features coming soon';
 
   @override
-  String get learningPlanProgress => 'Learning Progress';
-
-  @override
-  String get learningPlanNotStarted => 'Not started';
-
-  @override
   String get firstStudy => 'First Round';
 
   @override
@@ -5118,9 +5112,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get podcastAuthor => 'Author';
 
   @override
-  String get podcastDescription => 'Description';
-
-  @override
   String get podcastFeedUrl => 'RSS URL';
 
   @override
@@ -5674,4 +5665,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get audioDetailNoDescription => 'No description yet';
+
+  @override
+  String learningPlanFromCollection(String collections) {
+    return 'From $collections';
+  }
 }

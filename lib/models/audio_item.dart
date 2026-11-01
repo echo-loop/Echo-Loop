@@ -157,7 +157,7 @@ class AudioItem {
   final DateTime? communityUnavailableAt;
 
   /// 社区媒体从服务端目录同步的 CEFR 难度；非社区媒体保持 null。
-  final String? communityDifficulty;
+  final String? difficulty;
 
   /// 文件描述。社区合集文件从服务端目录同步，播客单集来自 RSS item description；
   /// 用户导入音频保持 null。
@@ -214,7 +214,7 @@ class AudioItem {
     this.remoteAudioId,
     this.originalDate,
     this.communityUnavailableAt,
-    this.communityDifficulty,
+    this.difficulty,
     this.description,
     this.importSourceType,
     this.importSourceUrl,
@@ -283,7 +283,7 @@ class AudioItem {
     'remoteAudioId': remoteAudioId,
     'originalDate': originalDate?.toIso8601String(),
     'communityUnavailableAt': communityUnavailableAt?.toIso8601String(),
-    'communityDifficulty': communityDifficulty,
+    'difficulty': difficulty,
     'description': description,
     'importSourceType': importSourceType?.storageValue,
     'importSourceUrl': importSourceUrl,
@@ -318,13 +318,11 @@ class AudioItem {
     communityUnavailableAt: json['communityUnavailableAt'] == null
         ? null
         : DateTime.parse(json['communityUnavailableAt'] as String),
-    communityDifficulty: switch (json['communityDifficulty']) {
+    difficulty: switch (json['difficulty']) {
       String value => value,
       _ => null,
     },
-    // 旧备份用 podcastDescription 存放播客简介，读取时回退兼容。
-    description:
-        json['description'] as String? ?? json['podcastDescription'] as String?,
+    description: json['description'] as String?,
     importSourceType: AudioImportSourceType.fromStorageValue(
       json['importSourceType'] as String?,
     ),
@@ -356,7 +354,7 @@ class AudioItem {
     Object? remoteAudioId = _sentinel,
     Object? originalDate = _sentinel,
     Object? communityUnavailableAt = _sentinel,
-    Object? communityDifficulty = _sentinel,
+    Object? difficulty = _sentinel,
     Object? description = _sentinel,
     Object? importSourceType = _sentinel,
     Object? importSourceUrl = _sentinel,
@@ -404,10 +402,7 @@ class AudioItem {
       communityUnavailableAt: communityUnavailableAt == _sentinel
           ? this.communityUnavailableAt
           : communityUnavailableAt as DateTime?,
-      communityDifficulty: _copyNullableString(
-        communityDifficulty,
-        this.communityDifficulty,
-      ),
+      difficulty: _copyNullableString(difficulty, this.difficulty),
       description: _copyNullableString(description, this.description),
       importSourceType: importSourceType == _sentinel
           ? this.importSourceType
@@ -445,6 +440,6 @@ String? _copyNullableString(Object? value, String? current) {
   return switch (value) {
     String string => string,
     null => null,
-    _ => throw ArgumentError.value(value, 'communityDifficulty'),
+    _ => throw ArgumentError.value(value, 'difficulty'),
   };
 }

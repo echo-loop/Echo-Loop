@@ -97,7 +97,7 @@ class AudioItems extends Table {
   DateTimeColumn get communityUnavailableAt => dateTime().nullable()();
 
   /// 社区合集文件由服务端维护的 CEFR 难度（A1–C2）；普通媒体保持 NULL。
-  TextColumn get communityDifficulty => text().nullable()();
+  TextColumn get difficulty => text().nullable()();
 
   /// 文件描述。社区合集文件来自 v2 合集接口，播客单集来自 RSS item description；
   /// 用户导入音频保持 NULL。

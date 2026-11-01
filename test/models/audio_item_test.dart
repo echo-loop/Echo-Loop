@@ -15,7 +15,7 @@ void main() {
       String? audioSha256,
       String? originalAudioSha256,
       String? transcriptLanguage,
-      String? communityDifficulty,
+      String? difficulty,
       String? description,
       AudioImportSourceType? importSourceType,
       String? importSourceUrl,
@@ -34,7 +34,7 @@ void main() {
         audioSha256: audioSha256,
         originalAudioSha256: originalAudioSha256,
         transcriptLanguage: transcriptLanguage,
-        communityDifficulty: communityDifficulty,
+        difficulty: difficulty,
         description: description,
         importSourceType: importSourceType,
         importSourceUrl: importSourceUrl,
@@ -58,16 +58,16 @@ void main() {
         expect(restored.isPinned, item.isPinned);
       });
 
-      test('社区材料难度往返一致，旧 JSON 缺失时保持为空', () {
-        final item = createSample(communityDifficulty: 'B1');
+      test('难度往返一致，缺失字段时为空', () {
+        final item = createSample(difficulty: 'B1');
         final restored = AudioItem.fromJson(item.toJson());
-        final oldJson = item.toJson()..remove('communityDifficulty');
+        final oldJson = item.toJson()..remove('difficulty');
 
-        expect(restored.communityDifficulty, 'B1');
-        expect(AudioItem.fromJson(oldJson).communityDifficulty, isNull);
+        expect(restored.difficulty, 'B1');
+        expect(AudioItem.fromJson(oldJson).difficulty, isNull);
       });
 
-      test('社区文件描述往返一致，旧 JSON 缺失时保持为空', () {
+      test('文件描述往返一致，缺失字段时为空', () {
         final item = createSample(description: 'A puma at large.');
         final restored = AudioItem.fromJson(item.toJson());
         final oldJson = item.toJson()..remove('description');
@@ -154,13 +154,10 @@ void main() {
       });
 
       test('社区材料难度支持显式清空', () {
-        final item = createSample(communityDifficulty: 'B1');
+        final item = createSample(difficulty: 'B1');
 
-        expect(
-          item.copyWith(communityDifficulty: null).communityDifficulty,
-          isNull,
-        );
-        expect(item.copyWith().communityDifficulty, 'B1');
+        expect(item.copyWith(difficulty: null).difficulty, isNull);
+        expect(item.copyWith().difficulty, 'B1');
       });
 
       test('不传参数时保持原值', () {

@@ -108,8 +108,8 @@ class AudioListTile extends ConsumerWidget {
     final pinnedHighlightColor = theme.colorScheme.primary.withValues(
       alpha: 0.06,
     );
-    final communityDifficulty = _isCollectionContext && audioItem.isCommunity
-        ? CommunityDifficulty.fromCode(audioItem.communityDifficulty)
+    final difficulty = _isCollectionContext && audioItem.isCommunity
+        ? CommunityDifficulty.fromCode(audioItem.difficulty)
         : null;
 
     // 精确订阅学习进度
@@ -199,7 +199,7 @@ class AudioListTile extends ConsumerWidget {
                                   tagData,
                                   transcriptionTask,
                                   downloadProgress,
-                                  communityDifficulty,
+                                  difficulty,
                                 ),
                               ],
                             ),
@@ -335,7 +335,7 @@ class AudioListTile extends ConsumerWidget {
     List<Tag> tagData,
     TranscriptionTaskState? transcriptionTask,
     double? downloadProgress,
-    CommunityDifficulty? communityDifficulty,
+    CommunityDifficulty? difficulty,
   ) {
     // 是否有进行中的转录任务
     final isTranscribing =
@@ -445,8 +445,8 @@ class AudioListTile extends ConsumerWidget {
               ),
               const SizedBox(width: 8),
             ],
-            if (communityDifficulty != null) ...[
-              CommunityDifficultyBadge(difficulty: communityDifficulty),
+            if (difficulty != null) ...[
+              CommunityDifficultyBadge(difficulty: difficulty),
               const SizedBox(width: 8),
             ],
             Flexible(

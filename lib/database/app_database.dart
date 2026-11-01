@@ -105,7 +105,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase(super.e);
 
   /// 当前 schema 版本（静态访问，用于导入前版本检查）
-  static const currentSchemaVersion = 63;
+  static const currentSchemaVersion = 64;
 
   @override
   int get schemaVersion => currentSchemaVersion;
@@ -905,6 +905,14 @@ class AppDatabase extends _$AppDatabase {
         if (from < 63) {
           await _migratePodcastDescriptionToDescription();
         }
+        // v63→v64：社区难度字段泛化为通用 difficulty（列 community_difficulty → difficulty）。
+        if (from < 64) {
+          await _renameColumnIfExists(
+            'audio_items',
+            'community_difficulty',
+            'difficulty',
+          );
+        }
       },
     );
   }
@@ -1430,6 +1438,21 @@ class AppDatabase extends _$AppDatabase {
     await customStatement(
       'ALTER TABLE audio_items DROP COLUMN podcast_description',
     );
+  }
+
+  /// 重命名列：旧列存在且新列不存在时才执行，保证幂等。
+  Future<void> _renameColumnIfExists(
+    String table,
+    String from,
+    String to,
+  ) async {
+    if (!await _tableExists(table)) return;
+    final columns = await customSelect(
+      "SELECT name FROM pragma_table_info('$table')",
+    ).get();
+    final names = columns.map((row) => row.data['name']).toSet();
+    if (!names.contains(from) || names.contains(to)) return;
+    await customStatement('ALTER TABLE $table RENAME COLUMN $from TO $to');
   }
 
   /// 确保 v38 podcast 合集/episode 字段存在。

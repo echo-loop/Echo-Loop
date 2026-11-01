@@ -454,8 +454,6 @@
   "profile": "我的",
   "studyComingSoon": "学习功能即将上线",
   "favoritesComingSoon": "收藏功能即将上线",
-  "learningPlanProgress": "学习进度",
-  "learningPlanNotStarted": "未开始",
   "firstStudy": "首次学习",
   "review": "复习",
   "stepProgress": "{completed}/{total}",
@@ -2078,7 +2076,6 @@
   "podcastShowLess": "收起",
   "podcastTitle": "标题",
   "podcastAuthor": "作者",
-  "podcastDescription": "简介",
   "podcastFeedUrl": "RSS 链接",
   "podcastAppleLink": "Apple 播客",
   "podcastOriginalLink": "链接",
@@ -2258,5 +2255,11 @@
   "audioDetailTitle": "文件详情",
   "audioDetailDescription": "简介",
   "audioDetailDifficulty": "难度",
-  "audioDetailNoDescription": "暂无简介"
+  "audioDetailNoDescription": "暂无简介",
+  "learningPlanFromCollection": "来自：{collections}",
+  "@learningPlanFromCollection": {
+    "placeholders": {
+      "collections": {"type": "String"}
+    }
+  }
 }

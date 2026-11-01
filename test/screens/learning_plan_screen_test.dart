@@ -40,6 +40,8 @@ import 'package:echo_loop/providers/time_provider.dart';
 import 'package:echo_loop/services/speech_permission_service.dart';
 import 'package:echo_loop/features/auth/providers/auth_providers.dart';
 import 'package:echo_loop/theme/app_theme.dart';
+import 'package:echo_loop/models/collection.dart';
+import 'package:echo_loop/providers/collection_provider.dart';
 import 'package:echo_loop/screens/audio_detail_screen.dart';
 import 'package:echo_loop/widgets/listen_and_repeat/listen_and_repeat_briefing_sheet.dart'
     show ListenAndRepeatBriefingSheet;
@@ -264,6 +266,14 @@ void main() {
           },
         ),
         GoRoute(
+          path: '/collections/:collectionId',
+          builder: (context, state) => Scaffold(
+            body: Text(
+              'Collection stub: ${state.pathParameters['collectionId']}',
+            ),
+          ),
+        ),
+        GoRoute(
           path: '/collections/:collectionId/:audioId/plan/audio-detail',
           builder: (context, state) {
             final item = state.extra;
@@ -377,11 +387,39 @@ void main() {
   }
 
   group('LearningPlanScreen', () {
-    testWidgets('显示 AppBar 中的音频名称', (tester) async {
-      await tester.pumpWidget(createTestWidget());
+    testWidgets('AppBar 显示所属合集名，进度卡片标题显示文件名', (tester) async {
+      await tester.pumpWidget(
+        createTestWidget(extraOverrides: [_collectionOverride()]),
+      );
       await tester.pumpAndSettle();
 
+      expect(
+        find.descendant(
+          of: find.byType(AppBar),
+          matching: find.text('From 新概念第三册（美音）'),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(
+          of: find.byType(AppBar),
+          matching: find.text('Test Audio'),
+        ),
+        findsNothing,
+      );
       expect(find.text('Test Audio'), findsOneWidget);
+    });
+
+    testWidgets('点击 AppBar 合集名回到所属合集详情页', (tester) async {
+      await tester.pumpWidget(
+        createTestWidget(extraOverrides: [_collectionOverride()]),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('From 新概念第三册（美音）'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Collection stub: col-1'), findsOneWidget);
     });
 
     testWidgets('无进度自动开始时按 v2 首步进入精听而不是盲听', (tester) async {
@@ -416,7 +454,8 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Test Video'), findsOneWidget);
+      // 无合集时 AppBar 退回文件名，卡片标题也是文件名
+      expect(find.text('Test Video'), findsWidgets);
       // 视频条目不进入听力练习引擎：loadAudio 从未被调用（引擎不被该视频 id 触碰）。
       expect(lp.loadAudioCalls, isEmpty);
     });
@@ -708,7 +747,8 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('0%'), findsOneWidget);
-      expect(find.text('Not started'), findsOneWidget);
+      // 卡片不再显示阶段名与状态徽章
+      expect(find.text('Not started'), findsNothing);
     });
 
     testWidgets('音频损坏时进度卡片显示内容警告徽章', (tester) async {
@@ -782,9 +822,7 @@ void main() {
 
     testWidgets('有难度的音频在进度卡片元信息行显示难度徽章', (tester) async {
       await tester.pumpWidget(
-        createTestWidget(
-          audioItem: testAudioItem.copyWith(communityDifficulty: 'B1'),
-        ),
+        createTestWidget(audioItem: testAudioItem.copyWith(difficulty: 'B1')),
       );
       await tester.pumpAndSettle();
 
@@ -807,7 +845,7 @@ void main() {
         createTestWidget(
           audioItem: testAudioItem.copyWith(
             description: description,
-            communityDifficulty: 'B1',
+            difficulty: 'B1',
           ),
         ),
       );
@@ -2076,7 +2114,8 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('100%'), findsOneWidget);
-      expect(find.text('Completed'), findsOneWidget);
+      // 卡片不再显示状态文案
+      expect(find.text('Completed'), findsNothing);
       expect(find.text('4/4'), findsOneWidget);
       expect(find.text('4/4 completed'), findsNothing);
       expect(find.text('✅'), findsNothing);
@@ -2587,6 +2626,27 @@ class _MediaStartupTestScreenState extends State<_MediaStartupTestScreen> {
 /// 记录 loadAudio 调用的测试用 LP，初始为空状态（无 currentAudioItem）。
 ///
 /// 用于验证视频条目不进入听力练习引擎：_maybeLoadAudio 对视频早退，loadAudio 不被调用。
+/// 让测试音频属于 col-1「新概念第三册（美音）」合集。
+Override _collectionOverride() {
+  return collectionListProvider.overrideWith(
+    () => TestCollectionList(
+      CollectionState(
+        rawCollections: [
+          Collection(
+            id: 'col-1',
+            name: '新概念第三册（美音）',
+            createdDate: DateTime(2026, 1, 1),
+            updatedAt: DateTime(2026, 1, 1),
+          ),
+        ],
+        audioIdsMap: const {
+          'col-1': ['test-1'],
+        },
+      ),
+    ),
+  );
+}
+
 class _RecordingListeningPractice extends TestListeningPractice {
   _RecordingListeningPractice([super.initialState]);
 

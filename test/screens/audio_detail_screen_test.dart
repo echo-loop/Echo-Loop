@@ -57,7 +57,7 @@ void main() {
   });
 
   testWidgets('有难度时显示难度行与徽章', (tester) async {
-    await pumpDetail(tester, baseItem.copyWith(communityDifficulty: 'B1'));
+    await pumpDetail(tester, baseItem.copyWith(difficulty: 'B1'));
     await tester.pumpAndSettle();
 
     expect(find.byKey(const Key('audio_detail_difficulty')), findsOneWidget);
