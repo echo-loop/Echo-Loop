@@ -86,7 +86,7 @@ final class ChatSessionControllerProvider
 }
 
 String _$chatSessionControllerHash() =>
-    r'01c83b03593907e783b8f73c5aeb1600d9525710';
+    r'9490558f90a1300fa1c0e29cdf8a01a3012eda90';
 
 /// 会话 controller（family by [ChatbotConfig]，keepAlive 保活）。
 ///

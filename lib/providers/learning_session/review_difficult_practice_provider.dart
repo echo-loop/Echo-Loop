@@ -9,7 +9,9 @@
 library;
 
 import 'dart:async';
+
 import 'package:riverpod_annotation/riverpod_annotation.dart';
+
 import '../../analytics/analytics_providers.dart';
 import '../../analytics/audio_event_params.dart';
 import '../../analytics/models/event_names.dart';
@@ -300,6 +302,8 @@ class ReviewDifficultPractice extends _$ReviewDifficultPractice {
     await _disposeStudySessionTimer();
     _settingsSlot = settingsSlot;
     await _playback.invalidateSession();
+    // 等待播放会话释放期间 provider 可能已销毁，之后不得再读 ref 或写 state。
+    if (!ref.mounted) return;
     _playback.unbindLockScreen();
     _playback =
         playbackDriver ??
@@ -910,6 +914,7 @@ class ReviewDifficultPractice extends _$ReviewDifficultPractice {
   /// 重置到第一句
   Future<void> resetToStart() async {
     await _playback.invalidateSession();
+    if (!ref.mounted) return;
     _blindEngine.stopSession();
     _exitAnnotationMode();
     state = ReviewDifficultPracticeState(
@@ -1222,6 +1227,8 @@ class ReviewDifficultPractice extends _$ReviewDifficultPractice {
           'sentenceIndex=${state.currentSentenceIndex} '
           'elapsedMs=${invalidation.elapsedMilliseconds}',
     );
+    // 播放会话释放期间 provider 可能已销毁，之后不得再读 ref。
+    if (!ref.mounted) return;
     _persistCurrentSentenceIndexAsync();
     if (autoplay) {
       await _blindEngine.startPlaying();

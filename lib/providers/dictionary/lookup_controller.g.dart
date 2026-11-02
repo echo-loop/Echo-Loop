@@ -113,7 +113,7 @@ final class DictionarySessionSourceProvider
 }
 
 String _$dictionarySessionSourceHash() =>
-    r'7b5db5448f5049403292e651521a8bcda4f525df';
+    r'd857a35f599f920b4ef9a1b07761f07fce5eb631';
 
 /// 会话内粘滞源：词典面板打开期间用户手动选中的源 id（null = 未手动选过）。
 ///

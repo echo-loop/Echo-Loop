@@ -14,11 +14,14 @@ class DailyStudyTime extends _$DailyStudyTime {
     return ref.read(studyTimeServiceProvider).getTodayStudyTime();
   }
 
-  /// 手动刷新今日学习时长
+  /// 手动刷新今日学习时长。
+  ///
+  /// 调用方通常不监听本 provider（学习会话结束时 fire-and-forget），
+  /// await 期间 provider 可能已被 autoDispose 销毁，因此写回前必须检查 [ref.mounted]。
   Future<void> refresh() async {
     state = const AsyncLoading();
-    state = AsyncData(
-      await ref.read(studyTimeServiceProvider).getTodayStudyTime(),
-    );
+    final seconds = await ref.read(studyTimeServiceProvider).getTodayStudyTime();
+    if (!ref.mounted) return;
+    state = AsyncData(seconds);
   }
 }

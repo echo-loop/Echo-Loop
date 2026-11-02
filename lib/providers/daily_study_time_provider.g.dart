@@ -45,7 +45,7 @@ final class DailyStudyTimeProvider
   DailyStudyTime create() => DailyStudyTime();
 }
 
-String _$dailyStudyTimeHash() => r'7008f1036f97a628b5d9bedae706f44f6ade3964';
+String _$dailyStudyTimeHash() => r'722707d40228995ac80f305bef2362d22958b2a2';
 
 /// 今日学习时长 Provider（秒）
 ///

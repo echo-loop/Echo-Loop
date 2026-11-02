@@ -9,6 +9,57 @@ import 'package:echo_loop/providers/repeat_flow/repeat_flow_phase.dart';
 import 'package:echo_loop/providers/repeat_flow/repeat_flow_state.dart';
 
 void main() {
+  test('录音取消进行中 dispose 后不再通知外部状态变化', () async {
+    final cancelGate = Completer<void>();
+    final emitted = <RepeatFlowState>[];
+    final engine = RepeatFlowEngine(
+      onStateChanged: emitted.add,
+      callbacks: RepeatFlowCallbacks(
+        pauseAudio: () {},
+        playSentence: (_, _) async => SentencePlaybackResult.completed,
+        resumeSentence: (_, _, _) async => SentencePlaybackResult.completed,
+        startRecording: ({
+          required promptId,
+          required referenceText,
+          required maxDuration,
+          referenceDuration,
+        }) {},
+        // 无语音时 stopRecording 走取消分支，这里挂起直到测试放行。
+        cancelRecording: () => cancelGate.future,
+        stopAndEvaluate: ({required referenceText}) async {},
+        clearRecording: () {},
+        setMaxRecordingDuration: (_) {},
+        hasDetectedSpeech: () => false,
+      ),
+    );
+    engine.prepare(
+      sentences: [
+        Sentence(
+          index: 0,
+          text: 'Stop while disposing.',
+          startTime: Duration.zero,
+          endTime: const Duration(seconds: 1),
+        ),
+      ],
+      config: RepeatFlowConfig(
+        audioItemId: 'audio-stop-dispose',
+        getRepeatCount: (_) => 1,
+        getIntervalDuration: (_) => const Duration(seconds: 30),
+        isManualMode: () => false,
+      ),
+    );
+    await engine.startPlaying();
+    expect(engine.state.phase, isA<Recording>());
+
+    final stopping = engine.stopRecording();
+    engine.dispose();
+    final countAtDispose = emitted.length;
+    cancelGate.complete();
+    await stopping;
+
+    expect(emitted.length, countAtDispose);
+  });
+
   test('暂停后的恢复使用精确位置且不增加重复次数或更换 prompt', () async {
     final firstPlayback = Completer<SentencePlaybackResult>();
     final resumeOffsets = <Duration>[];

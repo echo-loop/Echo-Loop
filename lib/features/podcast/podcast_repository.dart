@@ -42,7 +42,9 @@ class PodcastFeedBlockedException implements Exception {
   String toString() => 'PodcastFeedBlockedException';
 }
 
-@riverpod
+/// 播客仓库由 app 作用域持有：它持有 [Ref] 并在后台刷新（订阅启动刷新、回前台刷新）
+/// 的异步 continuation 中继续读取 provider，不能因无人监听而被 autoDispose。
+@Riverpod(keepAlive: true)
 PodcastRepository podcastRepository(Ref ref) {
   return PodcastRepository(ref);
 }

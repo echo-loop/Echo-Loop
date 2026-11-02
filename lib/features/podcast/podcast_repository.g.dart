@@ -8,9 +8,14 @@ part of 'podcast_repository.dart';
 
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // ignore_for_file: type=lint, type=warning
+/// 播客仓库由 app 作用域持有：它持有 [Ref] 并在后台刷新（订阅启动刷新、回前台刷新）
+/// 的异步 continuation 中继续读取 provider，不能因无人监听而被 autoDispose。
 
 @ProviderFor(podcastRepository)
 final podcastRepositoryProvider = PodcastRepositoryProvider._();
+
+/// 播客仓库由 app 作用域持有：它持有 [Ref] 并在后台刷新（订阅启动刷新、回前台刷新）
+/// 的异步 continuation 中继续读取 provider，不能因无人监听而被 autoDispose。
 
 final class PodcastRepositoryProvider
     extends
@@ -20,13 +25,15 @@ final class PodcastRepositoryProvider
           PodcastRepository
         >
     with $Provider<PodcastRepository> {
+  /// 播客仓库由 app 作用域持有：它持有 [Ref] 并在后台刷新（订阅启动刷新、回前台刷新）
+  /// 的异步 continuation 中继续读取 provider，不能因无人监听而被 autoDispose。
   PodcastRepositoryProvider._()
     : super(
         from: null,
         argument: null,
         retry: null,
         name: r'podcastRepositoryProvider',
-        isAutoDispose: true,
+        isAutoDispose: false,
         dependencies: null,
         $allTransitiveDependencies: null,
       );
@@ -54,4 +61,4 @@ final class PodcastRepositoryProvider
   }
 }
 
-String _$podcastRepositoryHash() => r'445741831465e39b0c799b79f7c013e1770ea798';
+String _$podcastRepositoryHash() => r'e0984a4ede3fe8002bdfd759d27b3a2b4f8ae480';

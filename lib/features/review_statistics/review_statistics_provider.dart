@@ -18,9 +18,8 @@ class ReviewStatisticsNotifier extends _$ReviewStatisticsNotifier {
   /// 加载统计并保留完整失败上下文，便于从应用日志定位数据库或数据异常。
   Future<ReviewStatistics> _load({required String source}) async {
     try {
-      return await ReviewStatisticsRepository(
-        ref.read(appDatabaseProvider),
-      ).load(now: DateTime.now(), scope: _scope);
+      return await ReviewStatisticsRepository(ref.read(appDatabaseProvider))
+          .load(now: DateTime.now(), scope: _scope);
     } catch (error, stackTrace) {
       AppLogger.log(
         'ReviewStatistics',
@@ -35,11 +34,15 @@ class ReviewStatisticsNotifier extends _$ReviewStatisticsNotifier {
     if (_scope == scope) return;
     _scope = scope;
     state = const AsyncLoading();
-    state = await AsyncValue.guard(() => _load(source: 'scopeChanged'));
+    final result = await AsyncValue.guard(() => _load(source: 'scopeChanged'));
+    // 加载期间页面可能已离开、provider 已销毁，此时不得再写 state。
+    if (!ref.mounted) return;
+    state = result;
   }
 
   Future<void> refresh() async {
     final result = await AsyncValue.guard(() => _load(source: 'refresh'));
+    if (!ref.mounted) return;
     state = result;
   }
 }

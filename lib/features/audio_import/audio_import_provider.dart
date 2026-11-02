@@ -34,6 +34,10 @@ class AudioImportController extends _$AudioImportController {
     return const AudioImportIdle();
   }
 
+  /// 异步结果是否已过期：用户开启了新会话，或 provider 已销毁（销毁会取消下载）。
+  /// 过期时不得再读 [ref] 或写 state。
+  bool _isStale(int sid) => sid != _sessionId || !ref.mounted;
+
   Future<AudioItem?> importFromUrl(String url, {String? collectionId}) async {
     if (state is AudioImportDownloading || state is AudioImportSaving) {
       return null;
@@ -60,7 +64,7 @@ class AudioImportController extends _$AudioImportController {
             collectionId: collectionId,
             cancelToken: _cancelToken,
             onProgress: (received, total) {
-              if (sid != _sessionId) return;
+              if (_isStale(sid)) return;
               final progress = total == null || total <= 0
                   ? -1.0
                   : received / total;
@@ -72,7 +76,7 @@ class AudioImportController extends _$AudioImportController {
               );
             },
           );
-      if (sid != _sessionId) return null;
+      if (_isStale(sid)) return null;
       state = AudioImportCompleted(item);
       // 后台检测内容有效性（不阻塞返回）。
       unawaited(
@@ -80,13 +84,13 @@ class AudioImportController extends _$AudioImportController {
       );
       return item;
     } on AudioImportException catch (e) {
-      if (sid != _sessionId) return null;
+      if (_isStale(sid)) return null;
       state = e.code == AudioImportFailureCode.canceled
           ? const AudioImportIdle()
           : AudioImportFailed(e);
       return null;
     } catch (e) {
-      if (sid != _sessionId) return null;
+      if (_isStale(sid)) return null;
       state = AudioImportFailed(
         AudioImportException(
           AudioImportFailureCode.unknown,
@@ -126,6 +130,10 @@ class PodcastDownloadController extends _$PodcastDownloadController {
     return const AudioImportIdle();
   }
 
+  /// 异步结果是否已过期：用户开启了新会话，或 provider 已销毁（销毁会取消下载）。
+  /// 过期时不得再读 [ref] 或写 state。
+  bool _isStale(int sid) => sid != _sessionId || !ref.mounted;
+
   /// Podcast 单集懒下载：下载 enclosure 到沙盒并**就地更新现有占位条目**，
   /// 不新建 [AudioItem]（避免资源库出现重复孤儿条目）。
   ///
@@ -146,31 +154,28 @@ class PodcastDownloadController extends _$PodcastDownloadController {
     // 立即进入下载态，保证行内进度条第一时间出现（不定进度）。
     state = AudioImportDownloading(displayName: enclosureUrl, progress: -1.0);
 
+    final service = ref.read(audioImportServiceProvider);
     try {
-      final result = await ref
-          .read(audioImportServiceProvider)
-          .downloadEpisodeToSandbox(
-            url: enclosureUrl,
-            displayName: item.name,
-            enclosureType: item.podcastEnclosureType,
-            cancelToken: cancelToken,
-            onProgress: (received, total) {
-              if (sid != _sessionId) return;
-              final progress = total == null || total <= 0
-                  ? -1.0
-                  : received / total;
-              state = AudioImportDownloading(
-                displayName: enclosureUrl,
-                progress: progress,
-                receivedBytes: received,
-                totalBytes: total,
-              );
-            },
+      final result = await service.downloadEpisodeToSandbox(
+        url: enclosureUrl,
+        displayName: item.name,
+        enclosureType: item.podcastEnclosureType,
+        cancelToken: cancelToken,
+        onProgress: (received, total) {
+          if (_isStale(sid)) return;
+          final progress = total == null || total <= 0
+              ? -1.0
+              : received / total;
+          state = AudioImportDownloading(
+            displayName: enclosureUrl,
+            progress: progress,
+            receivedBytes: received,
+            totalBytes: total,
           );
-      if (sid != _sessionId) {
-        await ref
-            .read(audioImportServiceProvider)
-            .discardDownloadedAudio(result);
+        },
+      );
+      if (_isStale(sid)) {
+        await service.discardDownloadedAudio(result);
         return false;
       }
 
@@ -187,6 +192,8 @@ class PodcastDownloadController extends _$PodcastDownloadController {
           .updateAudioItem(downloadedItem);
       // RSS 字幕随音频一并获取；失败只记日志，不影响音频下载结果。
       await _attachPodcastTranscript(downloadedItem.id, sid, cancelToken);
+      // 音频已写回资源库；provider 若已销毁则不再写 state（结果已持久化，无需回滚）。
+      if (!ref.mounted) return true;
       state = const AudioImportIdle();
       // 后台检测内容有效性（复用已算出的解码时长，不阻塞返回）。
       unawaited(
@@ -199,11 +206,11 @@ class PodcastDownloadController extends _$PodcastDownloadController {
       );
       return true;
     } on AudioImportException catch (e) {
-      if (sid != _sessionId) return false;
+      if (_isStale(sid)) return false;
       state = AudioImportFailed(e, audioItemId: item.id);
       return false;
     } catch (e) {
-      if (sid != _sessionId) return false;
+      if (_isStale(sid)) return false;
       state = AudioImportFailed(
         AudioImportException(
           AudioImportFailureCode.unknown,
@@ -242,7 +249,7 @@ class PodcastDownloadController extends _$PodcastDownloadController {
       final text = await ref
           .read(podcastTranscriptDownloaderProvider)
           .download(url, format: format, cancelToken: cancelToken);
-      if (sid != _sessionId) return;
+      if (_isStale(sid)) return;
       // 等待期间条目可能已被其它入口加入字幕，入库前再确认一次。
       final latest = ref
           .read(audioLibraryProvider)
@@ -253,6 +260,8 @@ class PodcastDownloadController extends _$PodcastDownloadController {
 
       // 空字幕（解析后无句子）不入库，避免条目被标记为"有字幕"却没有内容。
       final sentences = await parseSupportedSubtitle(text, ext: format);
+      // 解析期间会话可能已过期或 provider 已销毁，入库前必须再确认。
+      if (_isStale(sid)) return;
       if (sentences.isEmpty) {
         AppLogger.log(
           'PodcastTranscript',
@@ -262,6 +271,7 @@ class PodcastDownloadController extends _$PodcastDownloadController {
       }
 
       await importLocalSubtitleWithRef(ref, latest, text: text, ext: format);
+      if (!ref.mounted) return;
       ref.invalidate(audioSentencesProvider(audioItemId));
       AppLogger.log(
         'PodcastTranscript',

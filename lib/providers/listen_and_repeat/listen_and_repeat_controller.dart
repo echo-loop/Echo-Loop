@@ -10,7 +10,9 @@ library;
 
 import 'dart:async';
 import 'dart:math' as math;
+
 import 'package:riverpod_annotation/riverpod_annotation.dart';
+
 import '../../analytics/analytics_providers.dart';
 import '../../analytics/audio_event_params.dart';
 import '../../analytics/models/event_names.dart';
@@ -172,7 +174,7 @@ class ListenAndRepeatController extends _$ListenAndRepeatController {
 
       // 清除自由播放器遗留的系统媒体卡片，再由 MediaEngine 接管当前材料。
       await ref.read(audioEngineProvider.notifier).stop();
-      if (!isCurrentEntry()) return MediaLoadResult.cancelled;
+      if (!isCurrentEntry() || !ref.mounted) return MediaLoadResult.cancelled;
 
       final settingsSlot = stageSlotKey(
         StageSettingsSlots.listenAndRepeat,
@@ -256,7 +258,7 @@ class ListenAndRepeatController extends _$ListenAndRepeatController {
   }) async {
     bool isCurrentEntry() => entryGeneration == _entryGeneration;
     await _disposeStudySessionTimer();
-    if (!isCurrentEntry()) return;
+    if (!isCurrentEntry() || !ref.mounted) return;
     _studySessionGeneration += 1;
     _studyAudioItemId = audioItemId;
     _sessionPrepared = false;
@@ -366,6 +368,8 @@ class ListenAndRepeatController extends _$ListenAndRepeatController {
       startIndex: startIndex,
       isFreePlay: isFreePlay,
     );
+    // prepareSession 期间 provider 可能已销毁，之后不得再读 ref。
+    if (!ref.mounted) return;
     final timer = StudySessionTimer(
       studyTimeService: _studyTimeService,
       stage: StudyStage.listenAndRepeat,
@@ -922,6 +926,8 @@ class ListenAndRepeatController extends _$ListenAndRepeatController {
       await _restoreListeningPractice(restoreGeneration);
     }
 
+    // 退出清理期间 provider 可能已销毁，销毁后不再刷新依赖项。
+    if (!ref.mounted) return;
     ref.invalidate(dailyStudyTimeProvider);
     ref.invalidate(studyDurationRecordsProvider);
     try {
