@@ -7,6 +7,7 @@ import 'package:timezone/timezone.dart' as tz;
 
 import 'package:echo_loop/services/notification_tap_router_bridge.dart';
 import 'package:echo_loop/services/review_reminder_service.dart';
+import 'package:echo_loop/services/review_reminder_texts.dart';
 import 'package:echo_loop/services/review_reminder_time_calculator.dart';
 
 // --- Mocks ---
@@ -45,6 +46,7 @@ void main() {
   ReviewReminderService createService({
     String? launchPayload,
     DateTime Function()? systemNow,
+    ReviewReminderTexts Function()? resolveTexts,
   }) {
     mockPlugin = MockFlutterLocalNotificationsPlugin();
     bridge = NotificationTapRouterBridge();
@@ -127,8 +129,88 @@ void main() {
       timeCalculator: mockTimeCalc,
       supportsSystemNotificationOverride: true, // 强制启用通知支持（CI 在 Ubuntu 上运行）
       systemNow: systemNow,
+      resolveTexts: resolveTexts,
     );
   }
+
+  group('本地化文案', () {
+    ReviewReminderTexts frenchTexts() => ReviewReminderTexts(
+      savedBodies: List.filled(10, 'Saved body'),
+      perAudioBody: (audioName, round) => 'FR $audioName round $round',
+      localeTag: 'fr',
+    );
+
+    PerAudioReminderInfo oneReminder() => PerAudioReminderInfo(
+      audioId: 'audio-1',
+      audioName: 'Test Audio 1',
+      triggerAt: DateTime.now().add(const Duration(hours: 6)),
+      reviewRound: 1,
+    );
+
+    /// 读取最近一次 zonedSchedule 的正文参数
+    List<String> scheduledBodies(int count) {
+      final captured = verify(
+        () => mockPlugin.zonedSchedule(
+          any(),
+          any(),
+          captureAny(),
+          any(),
+          any(),
+          androidScheduleMode: any(named: 'androidScheduleMode'),
+          payload: any(named: 'payload'),
+        ),
+      ).captured;
+      expect(captured, hasLength(count));
+      return captured.cast<String>();
+    }
+
+    test('单条复习提醒正文使用注入的语言文案', () async {
+      final service = createService(resolveTexts: frenchTexts);
+
+      await service.syncPerAudioReminders([oneReminder()]);
+
+      expect(scheduledBodies(1), ['FR Test Audio 1 round 1']);
+    });
+
+    test('收藏复习提醒正文使用注入的语言文案', () async {
+      final service = createService(resolveTexts: frenchTexts);
+      when(() => mockTimeCalc.nextTriggerAt(any()))
+          .thenReturn(DateTime(2026, 3, 22, 20, 0));
+
+      await service.syncSavedReviewReminder(hasSavedContent: true);
+
+      expect(scheduledBodies(15), everyElement('Saved body'));
+    });
+
+    test('文案解析失败时回退英文且仍然调度（不抛异常）', () async {
+      final service = createService(
+        resolveTexts: () => throw StateError('unsupported locale'),
+      );
+
+      await service.syncPerAudioReminders([oneReminder()]);
+
+      expect(scheduledBodies(1).single, contains('Review round 1'));
+    });
+
+    test('语言变化时即使提醒列表不变也会重新调度', () async {
+      var texts = ReviewReminderTexts(
+        savedBodies: List.filled(10, 'Saved body'),
+        perAudioBody: (audioName, round) => 'EN $audioName',
+        localeTag: 'en',
+      );
+      final service = createService(resolveTexts: () => texts);
+      final reminders = [oneReminder()];
+
+      await service.syncPerAudioReminders(reminders);
+      texts = frenchTexts();
+      await service.syncPerAudioReminders(reminders);
+
+      expect(scheduledBodies(2), [
+        'EN Test Audio 1',
+        'FR Test Audio 1 round 1',
+      ]);
+    });
+  });
 
   group('syncPerAudioReminders', () {
     test('调度通知数量等于传入 reminders 数', () async {

@@ -3043,6 +3043,36 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String get reviewReminderSavedBody1 => '复习一下收藏的句子和单词吧';
+
+  @override
+  String get reviewReminderSavedBody2 => '听一遍收藏的句子，巩固记忆';
+
+  @override
+  String get reviewReminderSavedBody3 => '碎片时间听几句，积少成多';
+
+  @override
+  String get reviewReminderSavedBody4 => '收藏的句子在等你，来复习一下';
+
+  @override
+  String get reviewReminderSavedBody5 => '反复听才能记住，来复习吧';
+
+  @override
+  String get reviewReminderSavedBody6 => '收藏的好句子，多听几遍才是你的';
+
+  @override
+  String get reviewReminderSavedBody7 => '间隔重复是记忆的关键，来听一轮';
+
+  @override
+  String get reviewReminderSavedBody8 => '熟悉的句子再听一遍，会有新感觉';
+
+  @override
+  String get reviewReminderSavedBody9 => '收藏了就要复习，不然会忘';
+
+  @override
+  String get reviewReminderSavedBody10 => '听力靠积累，来复习收藏的句子';
+
+  @override
   String get stageBlindListen => '盲听';
 
   @override

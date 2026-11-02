@@ -547,8 +547,9 @@ class PluginBackgroundDownloadRunner
   }) : _resolveDataDir = resolveDataDir,
        _downloader = downloader ?? FileDownloader(),
        _uuid = uuid ?? const Uuid(),
-       _resolveNotificationLabels =
-           resolveNotificationLabels ?? _englishNotificationLabels;
+       _resolveNotificationLabels = _guardNotificationLabels(
+         resolveNotificationLabels ?? _englishNotificationLabels,
+       );
 
   static const _group = 'echo-loop-user-files';
 
@@ -851,6 +852,25 @@ _englishNotificationLabels() async {
   );
 }
 
+/// 包装通知文案解析：解析失败只记录日志并回退英文。
+///
+/// 通知文案属于非关键路径，不能让文案解析异常拖垮插件初始化或下载入队。
+BackgroundFileDownloadNotificationLabelResolver _guardNotificationLabels(
+  BackgroundFileDownloadNotificationLabelResolver resolver,
+) {
+  return () async {
+    try {
+      return await resolver();
+    } on Object catch (error) {
+      AppLogger.log(
+        'BackgroundFileDownload',
+        'notification labels fallback to english errorType=${error.runtimeType}',
+      );
+      return _englishNotificationLabels();
+    }
+  };
+}
+
 class _PendingDownload {
   _PendingDownload({
     required this.completer,
@@ -896,8 +916,9 @@ class MacOSSystemDownloadRunner implements BackgroundDownloadRunner {
     BackgroundFileDownloadNotificationLabelResolver? resolveNotificationLabels,
   }) : _resolveDataDir = resolveDataDir,
        _client = client ?? const _MethodChannelMacOSSystemDownloadClient(),
-       _resolveNotificationLabels =
-           resolveNotificationLabels ?? _englishNotificationLabels;
+       _resolveNotificationLabels = _guardNotificationLabels(
+         resolveNotificationLabels ?? _englishNotificationLabels,
+       );
 
   final Future<Directory> Function() _resolveDataDir;
   final MacOSSystemDownloadClient _client;

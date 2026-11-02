@@ -8,6 +8,7 @@ import 'package:universal_io/io.dart' as io;
 
 import 'app_logger.dart';
 import 'notification_tap_router_bridge.dart';
+import 'review_reminder_texts.dart';
 import 'review_reminder_time_calculator.dart';
 
 /// 收藏复习提醒通知 ID 范围：[1001, 1015]（15 天独立调度）
@@ -19,20 +20,6 @@ const String _savedReviewChannelDescription =
     'Reminder to review saved sentences and words';
 const String _openFavoritesPayload = 'open_favorites';
 const String _logTag = 'ReviewReminder';
-
-/// 建议性文案池，按天轮换，不对用户行为做判断
-const List<String> _savedReviewBodies = [
-  '复习一下收藏的句子和单词吧',
-  '听一遍收藏的句子，巩固记忆',
-  '碎片时间听几句，积少成多',
-  '收藏的句子在等你，来复习一下',
-  '反复听才能记住，来复习吧',
-  '收藏的好句子，多听几遍才是你的',
-  '间隔重复是记忆的关键，来听一轮',
-  '熟悉的句子再听一遍，会有新感觉',
-  '收藏了就要复习，不然会忘',
-  '听力靠积累，来复习收藏的句子',
-];
 
 /// 单条音频复习通知的 channel
 const String _perAudioChannelId = 'per_audio_review';
@@ -79,11 +66,13 @@ class ReviewReminderService {
     required ReviewReminderTimeCalculator timeCalculator,
     bool? supportsSystemNotificationOverride,
     DateTime Function()? systemNow,
+    ReviewReminderTexts Function()? resolveTexts,
   }) : _plugin = plugin,
        _bridge = bridge,
        _timeCalculator = timeCalculator,
        _supportsSystemNotificationOverride = supportsSystemNotificationOverride,
-       _systemNow = systemNow ?? DateTime.now;
+       _systemNow = systemNow ?? DateTime.now,
+       _resolveTexts = resolveTexts ?? ReviewReminderTexts.english;
 
   final FlutterLocalNotificationsPlugin _plugin;
   final NotificationTapRouterBridge _bridge;
@@ -94,6 +83,9 @@ class ReviewReminderService {
 
   /// 系统通知插件使用设备真实时间校验 scheduledDate，不能跟随开发者时光机。
   final DateTime Function() _systemNow;
+
+  /// 解析当前界面语言的通知文案（每次同步时调用，语言切换后下一次同步生效）
+  final ReviewReminderTexts Function() _resolveTexts;
 
   bool _initialized = false;
   bool _timezoneReady = false;
@@ -110,6 +102,19 @@ class ReviewReminderService {
     }
     if (kIsWeb) return false;
     return io.Platform.isIOS || io.Platform.isAndroid || io.Platform.isMacOS;
+  }
+
+  /// 解析通知文案；解析失败只记录日志并回退英文，保证提醒仍能调度。
+  ReviewReminderTexts _currentTexts() {
+    try {
+      return _resolveTexts();
+    } on Object catch (error) {
+      AppLogger.log(
+        _logTag,
+        'texts fallback to english errorType=${error.runtimeType}',
+      );
+      return ReviewReminderTexts.english();
+    }
   }
 
   /// 仅初始化插件 + 时区，**不主动请求任何系统授权**。
@@ -197,6 +202,7 @@ class ReviewReminderService {
 
     final now = DateTime.now();
     final firstTrigger = _timeCalculator.nextTriggerAt(now);
+    final texts = _currentTexts();
 
     AppLogger.log(
       _logTag,
@@ -215,7 +221,7 @@ class ReviewReminderService {
       for (var i = 0; i < _savedReviewDays; i++) {
         final triggerAt = firstTrigger.add(Duration(days: i));
         final triggerTz = tz.TZDateTime.from(triggerAt, tz.local);
-        final body = _savedReviewBodies[i % _savedReviewBodies.length];
+        final body = texts.savedBodies[i % texts.savedBodies.length];
 
         await _plugin.zonedSchedule(
           _savedReviewIdBase + i,
@@ -280,8 +286,10 @@ class ReviewReminderService {
         .toList(growable: false);
     var skippedExpiredCount = reminders.length - schedulableReminders.length;
 
-    // 构建快照
+    // 构建快照；语言标识参与去重，切换语言后即使提醒不变也会重新调度
+    final texts = _currentTexts();
     final newSnapshot = <String>{
+      'locale|${texts.localeTag}',
       for (final r in schedulableReminders)
         '${r.audioId}|${r.triggerAt.millisecondsSinceEpoch}',
     };
@@ -313,7 +321,7 @@ class ReviewReminderService {
         await _plugin.zonedSchedule(
           nid,
           'Echo Loop',
-          '${r.audioName} · 第${r.reviewRound}轮复习时间到了',
+          texts.perAudioBody(r.audioName, r.reviewRound),
           scheduledTz,
           const NotificationDetails(
             android: AndroidNotificationDetails(

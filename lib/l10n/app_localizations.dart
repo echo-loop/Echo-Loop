@@ -5564,6 +5564,66 @@ abstract class AppLocalizations {
   /// **'{audioName} · Review round {round} is ready'**
   String reviewReminderBody(String audioName, int round);
 
+  /// No description provided for @reviewReminderSavedBody1.
+  ///
+  /// In en, this message translates to:
+  /// **'Time to review your saved sentences and words'**
+  String get reviewReminderSavedBody1;
+
+  /// No description provided for @reviewReminderSavedBody2.
+  ///
+  /// In en, this message translates to:
+  /// **'Listen to your saved sentences once more to lock them in'**
+  String get reviewReminderSavedBody2;
+
+  /// No description provided for @reviewReminderSavedBody3.
+  ///
+  /// In en, this message translates to:
+  /// **'A few sentences in spare time add up'**
+  String get reviewReminderSavedBody3;
+
+  /// No description provided for @reviewReminderSavedBody4.
+  ///
+  /// In en, this message translates to:
+  /// **'Your saved sentences are waiting for you'**
+  String get reviewReminderSavedBody4;
+
+  /// No description provided for @reviewReminderSavedBody5.
+  ///
+  /// In en, this message translates to:
+  /// **'Repetition is how it sticks. Let\'s review'**
+  String get reviewReminderSavedBody5;
+
+  /// No description provided for @reviewReminderSavedBody6.
+  ///
+  /// In en, this message translates to:
+  /// **'Listen a few more times and your saved sentences become yours'**
+  String get reviewReminderSavedBody6;
+
+  /// No description provided for @reviewReminderSavedBody7.
+  ///
+  /// In en, this message translates to:
+  /// **'Spaced repetition is the key to memory. Let\'s do a round'**
+  String get reviewReminderSavedBody7;
+
+  /// No description provided for @reviewReminderSavedBody8.
+  ///
+  /// In en, this message translates to:
+  /// **'Hear a familiar sentence again and you\'ll notice something new'**
+  String get reviewReminderSavedBody8;
+
+  /// No description provided for @reviewReminderSavedBody9.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved items need review, or they\'ll fade'**
+  String get reviewReminderSavedBody9;
+
+  /// No description provided for @reviewReminderSavedBody10.
+  ///
+  /// In en, this message translates to:
+  /// **'Listening builds over time. Review your saved sentences'**
+  String get reviewReminderSavedBody10;
+
   /// No description provided for @stageBlindListen.
   ///
   /// In en, this message translates to:

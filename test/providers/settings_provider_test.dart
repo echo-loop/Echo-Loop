@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:echo_loop/providers/settings_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
 import '../helpers/mock_providers.dart';
 
 void main() {
@@ -508,6 +509,37 @@ void main() {
       expect(
         container.read(appSettingsProvider).aiTranscriptionAutoMergeEnabled,
         isFalse,
+      );
+    });
+  });
+
+  group('resolveUiLocale', () {
+    test('用户显式设置的语言优先，不受系统语言影响', () {
+      expect(
+        resolveUiLocale(const Locale('en'), const Locale('zh', 'CN')),
+        equals(const Locale('en')),
+      );
+      expect(
+        resolveUiLocale(const Locale('zh', 'CN'), const Locale('fr', 'FR')),
+        equals(const Locale('zh', 'CN')),
+      );
+    });
+
+    test('跟随系统（设置为 null）时按系统语言匹配', () {
+      expect(
+        resolveUiLocale(null, const Locale('zh', 'TW')),
+        equals(const Locale('zh', 'CN')),
+      );
+    });
+
+    test('跟随系统且系统语言不受支持时回退英文，不抛异常（fr_CN 回归）', () {
+      expect(
+        resolveUiLocale(null, const Locale('fr', 'CN')),
+        equals(const Locale('en')),
+      );
+      expect(
+        resolveUiLocale(null, const Locale('ja', 'JP')),
+        equals(const Locale('en')),
       );
     });
   });

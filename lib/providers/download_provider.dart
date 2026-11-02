@@ -15,10 +15,13 @@ final downloadResourcesProvider = Provider<List<DownloadResource>>(
   (ref) => const [],
 );
 
-/// 根据应用界面语言加载后台下载通知的状态文案。
+/// 按界面语言加载后台下载通知的状态文案。
+///
+/// 传入的 [locale] 先经 [matchUiLocale] 归一为 en / zh_CN，
+/// 因此任意系统语言都不会触发 `AppLocalizations` 的未支持异常。
 Future<BackgroundFileDownloadNotificationLabels>
 loadBackgroundFileDownloadNotificationLabels(Locale locale) async {
-  final l10n = await AppLocalizations.delegate.load(locale);
+  final l10n = await AppLocalizations.delegate.load(matchUiLocale(locale));
   return BackgroundFileDownloadNotificationLabels(
     running: l10n.backgroundDownloadRunningTitle,
     complete: l10n.backgroundDownloadCompleteTitle,
@@ -26,16 +29,23 @@ loadBackgroundFileDownloadNotificationLabels(Locale locale) async {
   );
 }
 
+/// 解析后台下载通知文案：用户显式设置优先，跟随系统时按系统语言匹配。
+Future<BackgroundFileDownloadNotificationLabels>
+resolveBackgroundDownloadLabels({
+  required Locale? settingLocale,
+  required Locale systemLocale,
+}) => loadBackgroundFileDownloadNotificationLabels(
+  resolveUiLocale(settingLocale, systemLocale),
+);
+
 /// 用户文件后台下载服务；模型等专用资源继续使用各自的下载管理器。
 final backgroundFileDownloadServiceProvider =
     Provider<BackgroundFileDownloadService>(
       (ref) => BackgroundFileDownloadService(
-        resolveNotificationLabels: () async {
-          final locale =
-              ref.read(appSettingsProvider).locale ??
-              PlatformDispatcher.instance.locale;
-          return loadBackgroundFileDownloadNotificationLabels(locale);
-        },
+        resolveNotificationLabels: () => resolveBackgroundDownloadLabels(
+          settingLocale: ref.read(appSettingsProvider).locale,
+          systemLocale: PlatformDispatcher.instance.locale,
+        ),
       ),
     );
 

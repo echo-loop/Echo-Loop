@@ -30,6 +30,7 @@ import '../providers/learning_session/favorite_review_due_count_provider.dart';
 import '../providers/notification_permission_provider.dart';
 import '../providers/reminder_settings_provider.dart';
 import '../providers/review_reminder_provider.dart';
+import '../providers/settings_provider.dart';
 import '../providers/startup_bootstrap_provider.dart';
 import '../providers/listening_practice/listening_practice_provider.dart';
 import '../providers/media_playback/media_playback_provider.dart';
@@ -64,12 +65,14 @@ class MainShell extends ConsumerStatefulWidget {
   ConsumerState<MainShell> createState() => _MainShellState();
 }
 
-class _MainShellState extends ConsumerState<MainShell> with RouteAware {
+class _MainShellState extends ConsumerState<MainShell>
+    with RouteAware, WidgetsBindingObserver {
   ModalRoute<void>? _observedRoute;
   ProviderSubscription<int>? _pendingTaskCountSubscription;
   ProviderSubscription<Map<String, LearningProgress>>? _progressMapSubscription;
   ProviderSubscription<AppUpdateState>? _appUpdateSubscription;
   ProviderSubscription<ReminderSettings>? _reminderSettingsSubscription;
+  ProviderSubscription<Locale?>? _appLocaleSubscription;
   ProviderSubscription<int>? _notificationPromptSubscription;
   ProviderSubscription<GuideControllerState>? _guideWaitSubscription;
   ProviderSubscription<AsyncValue<StartupReport>>? _localStartupSubscription;
@@ -178,6 +181,7 @@ class _MainShellState extends ConsumerState<MainShell> with RouteAware {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     activeStartupTrace?.mark('main_shell_init_state');
     // 缓存 controller，避免 dispose 阶段从已卸载的 ConsumerState ref 读取 provider。
     _remoteConfigController = ref.read(remoteConfigProvider.notifier);
@@ -349,6 +353,12 @@ class _MainShellState extends ConsumerState<MainShell> with RouteAware {
         },
       );
 
+      // 界面语言变化时，按新语言重新调度收藏 / 音频复习提醒的通知文案
+      _appLocaleSubscription = ref.listenManual<Locale?>(
+        appSettingsProvider.select((s) => s.locale),
+        (_, __) => unawaited(_resyncReminderTexts()),
+      );
+
       // 监听通知权限 pre-prompt 触发器：价值锚点（首次完成 sub_stage / 收藏）
       // 调用 `maybeTriggerPrompt()` 通过判定后会把计数 +1，本监听弹出对话框。
       // 用根 navigator context 弹，保证覆盖所有子路由。
@@ -427,6 +437,7 @@ class _MainShellState extends ConsumerState<MainShell> with RouteAware {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     if (_observedRoute != null) {
       rootRouteObserver.unsubscribe(this);
     }
@@ -436,6 +447,7 @@ class _MainShellState extends ConsumerState<MainShell> with RouteAware {
     _progressMapSubscription?.close();
     _appUpdateSubscription?.close();
     _reminderSettingsSubscription?.close();
+    _appLocaleSubscription?.close();
     _notificationPromptSubscription?.close();
     _guideWaitSubscription?.close();
     _localStartupSubscription?.close();
@@ -652,6 +664,27 @@ class _MainShellState extends ConsumerState<MainShell> with RouteAware {
       'ReviewReminder',
       'settings changed resync complete time=${settings.formattedTime}',
     );
+  }
+
+  /// 系统语言变化时同步提醒文案：仅「跟随系统」时系统语言才影响提醒文案。
+  ///
+  /// iOS 切换语言时通常会结束 App；Android 进程可能仍存活，此时需要这里的监听来刷新。
+  @override
+  void didChangeLocales(List<Locale>? locales) {
+    super.didChangeLocales(locales);
+    if (!mounted) return;
+    if (ref.read(appSettingsProvider).locale != null) return;
+    unawaited(_resyncReminderTexts());
+  }
+
+  /// 按当前界面语言重新同步收藏与音频复习提醒的通知文案。
+  ///
+  /// 收藏提醒关闭时 [_syncSavedReviewReminder] 会提前返回，因此这里总是再同步一次音频提醒；
+  /// 收藏提醒开启时第二次调用因快照去重而跳过，不会重复调度。
+  Future<void> _resyncReminderTexts() async {
+    final service = ref.read(reviewReminderServiceProvider);
+    await _syncSavedReviewReminder();
+    await _syncPerAudioReminders(service);
   }
 
   /// 查询收藏数据并调度收藏复习提醒

@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:background_downloader/background_downloader.dart';
 import 'package:dio/dio.dart';
 import 'package:echo_loop/services/app_logger.dart';
+import 'package:flutter/foundation.dart' show FlutterError;
 import 'package:echo_loop/services/background_file_download_service.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
@@ -439,6 +440,33 @@ void main() {
     expect(downloader.taskCompleteNotification?.title, '下载完成');
     expect(downloader.taskErrorNotification?.title, '下载失败');
     expect(downloader.notificationProgressBar, isTrue);
+  });
+
+  test('通知文案解析失败时回退英文，下载仍可入队（fr_CN 回归）', () async {
+    final downloader = _FakeFileDownloader(
+      TaskFileSystemException('simulated failure'),
+    );
+    final runner = PluginBackgroundDownloadRunner(
+      resolveDataDir: () async => dataDir,
+      downloader: downloader,
+      resolveNotificationLabels: () async => throw FlutterError(
+        'AppLocalizations.delegate failed to load unsupported locale "fr_CN".',
+      ),
+    );
+
+    await runner.enqueue(
+      uri: Uri.parse('https://example.com/audio.mp3'),
+      savePath: '${dataDir.path}/audio.mp3',
+      displayName: '听力素材',
+      headers: const <String, String>{},
+      onProgress: null,
+      cancelToken: null,
+    );
+
+    expect(downloader.enqueuedFileNames, ['audio.mp3']);
+    expect(downloader.runningNotification?.title, 'Downloading');
+    expect(downloader.taskRunningNotification?.title, 'Downloading');
+    expect(downloader.taskErrorNotification?.title, 'Download failed');
   });
 
   test(

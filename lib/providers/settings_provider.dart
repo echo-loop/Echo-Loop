@@ -64,6 +64,15 @@ Locale matchUiLocale(Locale systemLocale) {
   return const Locale('en');
 }
 
+/// App 当前生效的界面语言，供非 Widget 上下文（通知、服务端请求参数等）取文案使用。
+///
+/// - [setting] 为用户在 App 内显式选择的语言；为 null 表示「跟随系统」。
+/// - [system] 为系统语言，缺省读取 [PlatformDispatcher.instance.locale]。
+/// - 结果只会是 `en` 或 `zh_CN`，与界面 [MaterialApp] 的解析结果一致，
+///   因此传给 `AppLocalizations` 的 locale 永远受支持，不会抛异常。
+Locale resolveUiLocale(Locale? setting, [Locale? system]) =>
+    matchUiLocale(setting ?? system ?? PlatformDispatcher.instance.locale);
+
 /// 根据系统 locale 匹配母语。
 ///
 /// 匹配规则：

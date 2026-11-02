@@ -220,6 +220,45 @@ void main() {
     expect(plans.single.purchaseType, PurchaseType.subscription);
   });
 
+  test('createCheckout 的 locale 使用注入的 App 界面语言，而非原始系统语言', () async {
+    final localeRepository = PaddleBillingRepository.withDio(
+      dio,
+      localeTagResolver: () => 'zh-CN',
+    );
+    when(
+      () => dio.post<Map<String, dynamic>>(
+        '/api/paddle/hosted-checkout',
+        data: any(named: 'data'),
+        options: any(named: 'options'),
+      ),
+    ).thenAnswer(
+      (_) async => Response(
+        requestOptions: RequestOptions(path: '/api/paddle/hosted-checkout'),
+        statusCode: 200,
+        data: {
+          'attemptId': 'attempt-1',
+          'checkoutUrl':
+              'https://sandbox-pay.paddle.io/hsc_test?transaction_id=txn_1',
+        },
+      ),
+    );
+
+    await localeRepository.createCheckout(
+      accessToken: 'token',
+      planId: 'plus_yearly',
+    );
+
+    final captured = verify(
+      () => dio.post<Map<String, dynamic>>(
+        '/api/paddle/hosted-checkout',
+        data: captureAny(named: 'data'),
+        options: captureAny(named: 'options'),
+      ),
+    ).captured;
+    final data = Map<String, dynamic>.from(captured[0] as Map);
+    expect(data['locale'], 'zh-CN');
+  });
+
   test('createCheckout 请求 Hosted Checkout 并携带 Bearer 与 UUID 幂等键', () async {
     when(
       () => dio.post<Map<String, dynamic>>(

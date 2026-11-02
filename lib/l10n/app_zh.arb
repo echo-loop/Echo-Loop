@@ -1347,6 +1347,17 @@
     }
   },
 
+  "reviewReminderSavedBody1": "复习一下收藏的句子和单词吧",
+  "reviewReminderSavedBody2": "听一遍收藏的句子，巩固记忆",
+  "reviewReminderSavedBody3": "碎片时间听几句，积少成多",
+  "reviewReminderSavedBody4": "收藏的句子在等你，来复习一下",
+  "reviewReminderSavedBody5": "反复听才能记住，来复习吧",
+  "reviewReminderSavedBody6": "收藏的好句子，多听几遍才是你的",
+  "reviewReminderSavedBody7": "间隔重复是记忆的关键，来听一轮",
+  "reviewReminderSavedBody8": "熟悉的句子再听一遍，会有新感觉",
+  "reviewReminderSavedBody9": "收藏了就要复习，不然会忘",
+  "reviewReminderSavedBody10": "听力靠积累，来复习收藏的句子",
+
   "stageBlindListen": "盲听",
   "stageIntensiveListen": "精听",
   "stageListenAndRepeat": "跟读",

@@ -462,3 +462,11 @@ flutter test integration_test -d macos
 - 规则：**计划页是媒体就绪的唯一 owner**。入口只负责打开计划页，不做就绪判断，也不做下载。就绪状态由 `resolveMediaReadiness` 纯函数解析，列表行与计划页进度共用 `mediaDownloadSnapshotProvider`；未就绪时计划页只展示 `MediaPreparingView`，学习内容与 autoStart 在 `MediaReady` 之后才构建。
 - 下载器约束：同一下载通道一次只跑一个任务，另一材料请求时解析为 `MediaWaiting`，通道空闲后由计划页自动重试；`MediaFailed` 不自动重试，只由占位页的重试按钮触发，避免失败后循环下载。播客字幕仅在音频成功后由 RSS 附加，未下载单集没有字幕。
 - 排查日志：`[MediaEnsure]`（provision 结果 / 跳过原因）、`[CommunityDownload]`（start rejected / start / done / cancel）、`[PodcastTranscript]`（字幕附加）。
+
+### 7.34 系统语言非中英文（如 `fr_CN`）→ 后台下载全部失败：非界面路径直接把系统 locale 喂给 `AppLocalizations`
+
+- 根因：后台下载通知文案解析用 `appSettingsProvider.locale ?? PlatformDispatcher.instance.locale`，把原始系统语言直接传给 `AppLocalizations.delegate.load`。生成的 `lookupAppLocalizations` 只认 `en` / `zh`，其它语言抛 `FlutterError`，异常落在 `BackgroundFileDownloadService._initialize()` 内，插件整体初始化失败，任务从未入队（用户日志 25/25 失败，界面仍显示英文，故不易察觉）。
+- 规则：**任何非 Widget 上下文取文案 / 语言标识，一律经 `resolveUiLocale`**（`settings_provider.dart`，与界面 `MaterialApp` 同一规则：显式设置优先，否则 `matchUiLocale`，只会是 `en` / `zh_CN`）。不要直接读 `PlatformDispatcher` 或原始 `Locale` 去查 `AppLocalizations`。通知文案属于非关键路径：解析失败须回退英文（`_guardNotificationLabels`、`ReviewReminderService._currentTexts`），不能让它拖垮下载或调度。
+- 语言标识参与提醒快照去重（`locale|<tag>`），切换语言后即使提醒不变也会重新调度。
+- 回归测试：`download_provider_test.dart`（fr_CN 回退）、`background_file_download_service_test.dart`（解析抛异常仍可入队）、`review_reminder_service_test.dart`「本地化文案」组、`paddle_billing_repository_test.dart`（checkout locale 注入）、`settings_provider_test.dart`「resolveUiLocale」组。
+- 排查日志：`[BackgroundFileDownload] plugin initialization failed`，`cause=AppLocalizations.delegate failed to load unsupported locale "<locale>"`。

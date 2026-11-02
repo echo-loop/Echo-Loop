@@ -3169,6 +3169,45 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get reviewReminderSavedBody1 =>
+      'Time to review your saved sentences and words';
+
+  @override
+  String get reviewReminderSavedBody2 =>
+      'Listen to your saved sentences once more to lock them in';
+
+  @override
+  String get reviewReminderSavedBody3 => 'A few sentences in spare time add up';
+
+  @override
+  String get reviewReminderSavedBody4 =>
+      'Your saved sentences are waiting for you';
+
+  @override
+  String get reviewReminderSavedBody5 =>
+      'Repetition is how it sticks. Let\'s review';
+
+  @override
+  String get reviewReminderSavedBody6 =>
+      'Listen a few more times and your saved sentences become yours';
+
+  @override
+  String get reviewReminderSavedBody7 =>
+      'Spaced repetition is the key to memory. Let\'s do a round';
+
+  @override
+  String get reviewReminderSavedBody8 =>
+      'Hear a familiar sentence again and you\'ll notice something new';
+
+  @override
+  String get reviewReminderSavedBody9 =>
+      'Saved items need review, or they\'ll fade';
+
+  @override
+  String get reviewReminderSavedBody10 =>
+      'Listening builds over time. Review your saved sentences';
+
+  @override
   String get stageBlindListen => 'Listen without subtitles';
 
   @override

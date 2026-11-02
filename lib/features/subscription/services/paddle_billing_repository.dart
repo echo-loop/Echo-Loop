@@ -1,8 +1,6 @@
 /// Paddle direct 渠道的后端 API client。
 library;
 
-import 'dart:ui' as ui;
-
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -11,6 +9,7 @@ import 'package:uuid/uuid.dart';
 import '../../../config/api_config.dart';
 import '../../auth/providers/auth_providers.dart';
 import '../../../providers/package_info_provider.dart';
+import '../../../providers/settings_provider.dart';
 import '../../../services/backend_dio.dart';
 import '../../../services/runtime_endpoint_router.dart';
 import '../../../services/app_logger.dart';
@@ -21,6 +20,9 @@ import '../utils/plan_pricing.dart';
 import 'paddle_plans_service.dart';
 
 const _uuid = Uuid();
+
+/// 默认语言标签：App 生效界面语言（跟随系统时按系统语言匹配，不会回传 fr-CN 之类未支持语言）。
+String _systemLocaleTag() => resolveUiLocale(null).toLanguageTag();
 
 /// 一次 Paddle checkout 的服务端结果。
 class PaddleCheckoutSession {
@@ -40,7 +42,9 @@ class PaddleBillingRepository {
     String? appVersion,
     SupabaseTokenCoordinator? tokenCoordinator,
     RuntimeEndpointRouter? endpointRouter,
-  }) : _authenticatedDio = createAuthenticatedBackendDio(
+    String Function()? localeTagResolver,
+  }) : _localeTagResolver = localeTagResolver ?? _systemLocaleTag,
+       _authenticatedDio = createAuthenticatedBackendDio(
          tokenCoordinator: tokenCoordinator,
          baseUrl: baseUrl,
          endpointRouter: endpointRouter,
@@ -61,18 +65,24 @@ class PaddleBillingRepository {
        );
 
   @visibleForTesting
-  PaddleBillingRepository.withDio(Dio dio)
-    : _authenticatedDio = dio,
-      _plans = PaddlePlansService(dio: dio, persist: false);
+  PaddleBillingRepository.withDio(
+    Dio dio, {
+    String Function()? localeTagResolver,
+  }) : _localeTagResolver = localeTagResolver ?? _systemLocaleTag,
+       _authenticatedDio = dio,
+       _plans = PaddlePlansService(dio: dio, persist: false);
 
   /// 为缓存与刷新链路测试注入真实套餐服务，避免测试绕过持久化行为。
   @visibleForTesting
   PaddleBillingRepository.withPlans({
     required Dio authenticatedDio,
     required PaddlePlansService plans,
-  }) : _authenticatedDio = authenticatedDio,
+  }) : _localeTagResolver = _systemLocaleTag,
+       _authenticatedDio = authenticatedDio,
        _plans = plans;
 
+  /// 返回 App 当前生效界面语言的 BCP-47 标签（如 `en`、`zh-CN`），用于 checkout 请求。
+  final String Function() _localeTagResolver;
   final Dio _authenticatedDio;
   final PaddlePlansService _plans;
 
@@ -337,7 +347,7 @@ class PaddleBillingRepository {
     SubscriptionPeriod.lifetime => 'Lifetime',
   };
 
-  String _localeTag() => ui.PlatformDispatcher.instance.locale.toLanguageTag();
+  String _localeTag() => _localeTagResolver();
 
   int _intValue(Object? value, {required int fallback}) =>
       value is num ? value.toInt() : fallback;
@@ -351,5 +361,7 @@ final paddleBillingRepositoryProvider = Provider<PaddleBillingRepository>((
     endpointRouter: runtimeEndpointRouter,
     appVersion: readAppVersion(ref),
     tokenCoordinator: ref.read(supabaseTokenCoordinatorProvider),
+    localeTagResolver: () =>
+        resolveUiLocale(ref.read(appSettingsProvider).locale).toLanguageTag(),
   );
 });
