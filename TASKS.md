@@ -3,6 +3,7 @@
 > 当前待办与本次完成记录；此前完成任务已归档，详见 [2026-10-29 归档](./docs/tasks-archive/tasks-2026-10-29-completed.md)、[2026-09-29 归档](./docs/tasks-archive/tasks-2026-09-29-completed.md)。
 
 ## 本次完成
+- [x] 升级应用版本至 1.0.46（2026-11-02）：将 `pubspec.yaml` 中的版本从 1.0.45 提升至 1.0.46。纯版本元数据变更，无需运行测试。**完成时间**: 2026-11-02
 - [x] 修复系统语言非中英文（如 fr_CN）时后台下载全部失败，并统一所有非界面文案的语言为 App 设置（2026-11-02）：用户日志 25/25 下载失败，根因是下载通知文案把原始系统 locale 直接传给 `AppLocalizations.delegate.load`，非 en/zh 抛 `FlutterError`，插件初始化失败。修复：新增 `resolveUiLocale`（`settings_provider.dart`，与界面同一规则，只会得到 en / zh_CN）；下载通知改用该入口，并在 `_guardNotificationLabels` 中解析失败回退英文；复习提醒通知正文改为 ARB 本地化（新增 `reviewReminderSavedBody1..10`，单条提醒复用 `reviewReminderBody`），由 `ReviewReminderTexts` 注入，失败回退英文，语言标识参与快照去重，`main_shell` 监听界面语言变化后重新调度；Paddle checkout 的 `locale` 改为 App 生效语言（`en` / `zh-CN`）；chat 追问指令复用同一入口。测试：`resolveUiLocale` 组、下载标签 fr_CN 回归、通知解析失败仍可入队、复习提醒本地化与语言变化重调度、Paddle locale 注入。相关 6 个测试文件通过。未在设备上复现验证；Paddle 服务端对 `en` / `zh-CN` 的接受情况未核对（本仓库无后端代码）。**完成时间**: 2026-11-02
 - [x] 升级 Riverpod 至 3.4.3（2026-11-02）：`flutter_riverpod` 3.4.3、`riverpod_annotation` 4.0.7、`riverpod_generator` 4.0.9、`riverpod_lint` 3.1.9（analysis_server_plugin，未在 analysis_options 启用，与升级前一致）；移除 `custom_lint`。riverpod_generator 4 要求 analyzer 13，连带升级 `drift`/`drift_dev` 2.35.x、`sqlite3` 3.8.0（不再需要 `sqlite3_flutter_libs`，其已 EOL）。代码改动要点：
   - 生成 provider 名去掉 `Notifier` 后缀（如 `studyStatsProvider`），引用同步改名；`AsyncValue.valueOrNull` → `value`；`StateNotifier` 相关文件改用 `legacy.dart`。
