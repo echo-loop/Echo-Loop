@@ -18,6 +18,8 @@ PODS:
     - FlutterMacOS
   - charset_converter (2.4.0):
     - FlutterMacOS
+  - connectivity_plus (0.0.1):
+    - FlutterMacOS
   - ffmpeg_kit_flutter_new_min (7.1.1):
     - ffmpeg_kit_flutter_new_min/min (= 7.1.1)
     - FlutterMacOS
@@ -214,6 +216,7 @@ DEPENDENCIES:
   - audio_service (from `Flutter/ephemeral/.symlinks/plugins/audio_service/darwin`)
   - audio_session (from `Flutter/ephemeral/.symlinks/plugins/audio_session/macos`)
   - charset_converter (from `Flutter/ephemeral/.symlinks/plugins/charset_converter/macos`)
+  - connectivity_plus (from `Flutter/ephemeral/.symlinks/plugins/connectivity_plus/macos`)
   - ffmpeg_kit_flutter_new_min (from `Flutter/ephemeral/.symlinks/plugins/ffmpeg_kit_flutter_new_min/macos`)
   - file_picker (from `Flutter/ephemeral/.symlinks/plugins/file_picker/macos`)
   - firebase_analytics (from `Flutter/ephemeral/.symlinks/plugins/firebase_analytics/macos`)
@@ -276,6 +279,8 @@ EXTERNAL SOURCES:
     :path: Flutter/ephemeral/.symlinks/plugins/audio_session/macos
   charset_converter:
     :path: Flutter/ephemeral/.symlinks/plugins/charset_converter/macos
+  connectivity_plus:
+    :path: Flutter/ephemeral/.symlinks/plugins/connectivity_plus/macos
   ffmpeg_kit_flutter_new_min:
     :path: Flutter/ephemeral/.symlinks/plugins/ffmpeg_kit_flutter_new_min/macos
   file_picker:
@@ -346,6 +351,7 @@ SPEC CHECKSUMS:
   audio_service: aa99a6ba2ae7565996015322b0bb024e1d25c6fd
   audio_session: eaca2512cf2b39212d724f35d11f46180ad3a33e
   charset_converter: 1181fdf66cb99c88eeaea212f3fcbc734546cb15
+  connectivity_plus: 4adf20a405e25b42b9c9f87feff8f4b6fde18a4e
   ffmpeg_kit_flutter_new_min: 623d95fe4c00311175a10f9ab3efa312c266ead6
   file_picker: 7584aae6fa07a041af2b36a2655122d42f578c1a
   Firebase: d99ac19b909cd2c548339c2241ecd0d1599ab02e

@@ -71,7 +71,7 @@ dependencies:
   flutter_timezone: ^4.1.1
   crypto: ^3.0.7
   dio: ^5.9.0
-  background_downloader: ^9.5.8
+  background_downloader: ^9.6.5
   dio_http2_adapter: ^2.7.1
   # 网络图片磁盘缓存：官方合集封面冷启动后无需重下，离线浏览有图。
   # 用 JsonCacheInfoRepository 替代默认 sqflite 仓库，避免 sqflite 全局 factory 警告

@@ -5,6 +5,7 @@
 list(APPEND FLUTTER_PLUGIN_LIST
   app_links
   charset_converter
+  connectivity_plus
   firebase_core
   flutter_inappwebview_windows
   flutter_secure_storage_windows
