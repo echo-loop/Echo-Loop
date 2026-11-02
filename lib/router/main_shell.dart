@@ -862,16 +862,14 @@ class _MainShellState extends ConsumerState<MainShell>
                     children: [
                       Text(
                         l10n.startupLocalDataErrorTitle,
-                        style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                          color: colors.onErrorContainer,
-                        ),
+                        style: Theme.of(context).textTheme.titleSmall
+                            ?.copyWith(color: colors.onErrorContainer),
                       ),
                       const SizedBox(height: 2),
                       Text(
                         l10n.startupLocalDataErrorMessage,
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: colors.onErrorContainer,
-                        ),
+                        style: Theme.of(context).textTheme.bodySmall
+                            ?.copyWith(color: colors.onErrorContainer),
                       ),
                     ],
                   ),
