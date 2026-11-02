@@ -6,25 +6,54 @@ part of 'podcast_transcript_downloader.dart';
 // RiverpodGenerator
 // **************************************************************************
 
-String _$podcastTranscriptDownloaderHash() =>
-    r'1c45a7b0cda79d7c12a4615ec69700391d49ae46';
+// GENERATED CODE - DO NOT MODIFY BY HAND
+// ignore_for_file: type=lint, type=warning
 
-/// See also [podcastTranscriptDownloader].
 @ProviderFor(podcastTranscriptDownloader)
 final podcastTranscriptDownloaderProvider =
-    AutoDisposeProvider<PodcastTranscriptDownloader>.internal(
-      podcastTranscriptDownloader,
-      name: r'podcastTranscriptDownloaderProvider',
-      debugGetCreateSourceHash: const bool.fromEnvironment('dart.vm.product')
-          ? null
-          : _$podcastTranscriptDownloaderHash,
-      dependencies: null,
-      allTransitiveDependencies: null,
-    );
+    PodcastTranscriptDownloaderProvider._();
 
-@Deprecated('Will be removed in 3.0. Use Ref instead')
-// ignore: unused_element
-typedef PodcastTranscriptDownloaderRef =
-    AutoDisposeProviderRef<PodcastTranscriptDownloader>;
-// ignore_for_file: type=lint
-// ignore_for_file: subtype_of_sealed_class, invalid_use_of_internal_member, invalid_use_of_visible_for_testing_member, deprecated_member_use_from_same_package
+final class PodcastTranscriptDownloaderProvider
+    extends
+        $FunctionalProvider<
+          PodcastTranscriptDownloader,
+          PodcastTranscriptDownloader,
+          PodcastTranscriptDownloader
+        >
+    with $Provider<PodcastTranscriptDownloader> {
+  PodcastTranscriptDownloaderProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'podcastTranscriptDownloaderProvider',
+        isAutoDispose: true,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$podcastTranscriptDownloaderHash();
+
+  @$internal
+  @override
+  $ProviderElement<PodcastTranscriptDownloader> $createElement(
+    $ProviderPointer pointer,
+  ) => $ProviderElement(pointer);
+
+  @override
+  PodcastTranscriptDownloader create(Ref ref) {
+    return podcastTranscriptDownloader(ref);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(PodcastTranscriptDownloader value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<PodcastTranscriptDownloader>(value),
+    );
+  }
+}
+
+String _$podcastTranscriptDownloaderHash() =>
+    r'1c45a7b0cda79d7c12a4615ec69700391d49ae46';

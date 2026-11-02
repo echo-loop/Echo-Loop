@@ -78,7 +78,7 @@ void main() {
   var bodyTaps = 0;
 
   Widget wrap({bool handleBackButton = false}) => ProviderScope(
-    overrides: [
+    overrides: dedupeOverrides([
       analyticsOverride(),
       dictionaryOverride(),
       sharedPreferencesProvider.overrideWithValue(prefs),
@@ -91,7 +91,7 @@ void main() {
           targetLanguage: 'zh-CN',
         ),
       ),
-    ],
+    ]),
     child: MaterialApp(
       locale: const Locale('en'),
       supportedLocales: const [Locale('en'), Locale('zh')],
@@ -273,7 +273,7 @@ void main() {
     addTearDown(pageController.dispose);
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [
+        overrides: dedupeOverrides([
           analyticsOverride(),
           dictionaryOverride(),
           sharedPreferencesProvider.overrideWithValue(prefs),
@@ -286,7 +286,7 @@ void main() {
               targetLanguage: 'zh-CN',
             ),
           ),
-        ],
+        ]),
         child: MaterialApp(
           locale: const Locale('en'),
           supportedLocales: const [Locale('en'), Locale('zh')],

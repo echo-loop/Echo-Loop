@@ -60,10 +60,10 @@ void main() {
       sentences: sentences,
     );
     container = ProviderContainer(
-      overrides: [
+      overrides: dedupeOverrides([
         audioEngineProvider.overrideWith(() => audioEngine),
         audioItemDaoProvider.overrideWithValue(audioItemDao),
-      ],
+      ]),
     );
     subscription = container.listen(
       subtitleEditorControllerProvider(audioItem),
@@ -103,10 +103,10 @@ void main() {
       sentences: sentences,
     );
     final localContainer = ProviderContainer(
-      overrides: [
+      overrides: dedupeOverrides([
         audioEngineProvider.overrideWith(() => localAudioEngine),
         audioItemDaoProvider.overrideWithValue(audioItemDao),
-      ],
+      ]),
     );
     final localSubscription = localContainer.listen(
       subtitleEditorControllerProvider(missingAudioItem),
@@ -332,10 +332,10 @@ void main() {
       sentences: sentences,
     );
     final localContainer = ProviderContainer(
-      overrides: [
+      overrides: dedupeOverrides([
         audioEngineProvider.overrideWith(() => localAudioEngine),
         audioItemDaoProvider.overrideWithValue(audioItemDao),
-      ],
+      ]),
     );
     final localSubscription = localContainer.listen(
       subtitleEditorControllerProvider(localAudioItem),
@@ -953,7 +953,7 @@ void main() {
       );
       addTearDown(engine.disposeController);
       return ProviderContainer(
-        overrides: [
+        overrides: dedupeOverrides([
           audioEngineProvider.overrideWith(() => engine),
           bookmarkDaoProvider.overrideWithValue(bookmarkDao),
           audioItemDaoProvider.overrideWithValue(audioItemDao),
@@ -962,8 +962,8 @@ void main() {
           favoriteSentenceLifecycleProvider.overrideWith(
             (ref) => _TestFavoriteSentenceLifecycle(ref),
           ),
-          learningProgressNotifierProvider.overrideWith(() => progressNotifier),
-        ],
+          learningProgressProvider.overrideWith(() => progressNotifier),
+        ]),
       );
     }
 
@@ -1000,7 +1000,7 @@ void main() {
       );
       expect(
         c
-            .read(learningProgressNotifierProvider)
+            .read(learningProgressProvider)
             .progressMap
             .containsKey(audioItem.id),
         isTrue,
@@ -1087,7 +1087,7 @@ void main() {
       );
       expect(
         c
-            .read(learningProgressNotifierProvider)
+            .read(learningProgressProvider)
             .progressMap
             .containsKey(audioItem.id),
         isFalse,
@@ -1106,7 +1106,7 @@ void main() {
         );
         addTearDown(engine.disposeController);
         final c = ProviderContainer(
-          overrides: [
+          overrides: dedupeOverrides([
             audioEngineProvider.overrideWith(() => engine),
             bookmarkDaoProvider.overrideWithValue(bookmarkDao),
             audioItemDaoProvider.overrideWithValue(TestAudioItemDao()),
@@ -1117,10 +1117,10 @@ void main() {
             favoriteSentenceLifecycleProvider.overrideWith(
               (ref) => _TestFavoriteSentenceLifecycle(ref),
             ),
-            learningProgressNotifierProvider.overrideWith(
+            learningProgressProvider.overrideWith(
               () => progressNotifier,
             ),
-          ],
+          ]),
         );
         addTearDown(c.dispose);
         c.listen(subtitleEditorControllerProvider(audioItem), (_, _) {});
@@ -1208,7 +1208,7 @@ void main() {
       );
       addTearDown(engine.disposeController);
       final c = ProviderContainer(
-        overrides: [
+        overrides: dedupeOverrides([
           audioEngineProvider.overrideWith(() => engine),
           bookmarkDaoProvider.overrideWithValue(bookmarkDao),
           audioItemDaoProvider.overrideWithValue(audioItemDao),
@@ -1217,8 +1217,8 @@ void main() {
           favoriteSentenceLifecycleProvider.overrideWith(
             (ref) => _TestFavoriteSentenceLifecycle(ref),
           ),
-          learningProgressNotifierProvider.overrideWith(() => progressNotifier),
-        ],
+          learningProgressProvider.overrideWith(() => progressNotifier),
+        ]),
       );
       addTearDown(c.dispose);
       c.listen(subtitleEditorControllerProvider(audioItem), (_, _) {});

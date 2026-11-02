@@ -9,7 +9,6 @@ import 'package:echo_loop/models/audio_item.dart';
 import 'package:echo_loop/models/collection.dart';
 import 'package:echo_loop/providers/audio_library_provider.dart';
 import 'package:echo_loop/providers/collection_provider.dart';
-import 'package:mocktail/mocktail.dart';
 
 import '../../helpers/mock_providers.dart';
 
@@ -68,8 +67,6 @@ class _RoutingDio extends Fake implements Dio {
     );
   }
 }
-
-class _MockRef extends Mock implements Ref {}
 
 /// 用预置状态的 CollectionList override，避免依赖数据库。
 class _SeededCollectionList extends CollectionList {
@@ -486,14 +483,14 @@ void main() {
 
     ProviderContainer makeContainer(List<Collection> collections) {
       return ProviderContainer(
-        overrides: [
+        overrides: dedupeOverrides([
           collectionListProvider.overrideWith(
             () => _SeededCollectionList(
               CollectionState(rawCollections: collections),
             ),
           ),
           audioLibraryProvider.overrideWith(() => TestAudioLibrary()),
-        ],
+        ]),
       );
     }
 
@@ -634,12 +631,12 @@ void main() {
         ),
       );
       final container = ProviderContainer(
-        overrides: [
+        overrides: dedupeOverrides([
           collectionListProvider.overrideWith(
             () => _SeededCollectionList(const CollectionState()),
           ),
           audioLibraryProvider.overrideWith(() => audioLibrary),
-        ],
+        ]),
       );
       addTearDown(container.dispose);
 
@@ -686,39 +683,30 @@ void main() {
 
     ProviderContainer makeContainer(Collection collection) {
       return ProviderContainer(
-        overrides: [
+        overrides: dedupeOverrides([
           collectionListProvider.overrideWith(
             () => _SeededCollectionList(
               CollectionState(rawCollections: [collection]),
             ),
           ),
           audioLibraryProvider.overrideWith(() => TestAudioLibrary()),
-        ],
+        ]),
       );
-    }
-
-    Ref makeRef(Collection collection) {
-      final ref = _MockRef();
-      when(
-        () => ref.read(collectionListProvider),
-      ).thenReturn(CollectionState(rawCollections: [collection]));
-      return ref;
     }
 
     test('普通刷新距离上次刷新 59 分钟时节流，不访问 RSS', () async {
       final dio = _CountingDio(body: '<rss></rss>');
-      final repo = PodcastRepository(
-        makeRef(
-          podcast(
-            lastRefreshedAt: DateTime.now().subtract(
-              const Duration(minutes: 59),
-            ),
-          ),
+      final container = makeContainer(
+        podcast(
+          lastRefreshedAt: DateTime.now().subtract(const Duration(minutes: 59)),
         ),
-        dio: dio,
+      );
+      addTearDown(container.dispose);
+      final repoProvider = Provider(
+        (ref) => PodcastRepository(ref, dio: dio),
       );
 
-      await repo.refresh('podcast-1');
+      await container.read(repoProvider).refresh('podcast-1');
 
       expect(dio.callCount, 0);
     });
@@ -863,7 +851,7 @@ void main() {
             PodcastRepository(ref, dio: dio, feedParser: PodcastFeedParser()),
       );
       final container = ProviderContainer(
-        overrides: [
+        overrides: dedupeOverrides([
           collectionListProvider.overrideWith(
             () => _SeededCollectionList(
               CollectionState(
@@ -875,7 +863,7 @@ void main() {
             ),
           ),
           audioLibraryProvider.overrideWith(() => audioLibrary),
-        ],
+        ]),
       );
       addTearDown(container.dispose);
 
@@ -929,7 +917,7 @@ void main() {
             PodcastRepository(ref, dio: dio, feedParser: PodcastFeedParser()),
       );
       final container = ProviderContainer(
-        overrides: [
+        overrides: dedupeOverrides([
           collectionListProvider.overrideWith(
             () => _SeededCollectionList(
               CollectionState(
@@ -941,7 +929,7 @@ void main() {
             ),
           ),
           audioLibraryProvider.overrideWith(() => audioLibrary),
-        ],
+        ]),
       );
       addTearDown(container.dispose);
 

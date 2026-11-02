@@ -297,10 +297,10 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen> {
 
     // 获取收藏数量
     final bookmarksAsync = ref.watch(bookmarkListProvider);
-    final sentenceCount = bookmarksAsync.valueOrNull?.length;
-    final wordCount = ref.watch(savedWordListProvider).valueOrNull?.length ?? 0;
+    final sentenceCount = bookmarksAsync.value?.length;
+    final wordCount = ref.watch(savedWordListProvider).value?.length ?? 0;
     final phraseCount =
-        ref.watch(savedSenseGroupListProvider).valueOrNull?.length ?? 0;
+        ref.watch(savedSenseGroupListProvider).value?.length ?? 0;
     final vocabCount = wordCount + phraseCount;
 
     // ----- 新手引导 flow 声明 -----
@@ -551,7 +551,7 @@ class _FloatingSentenceReviewButton extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final allBookmarks = ref.watch(bookmarkListProvider).valueOrNull ?? [];
+    final allBookmarks = ref.watch(bookmarkListProvider).value ?? [];
     if (allBookmarks.isEmpty) return const SizedBox.shrink();
 
     // 过滤掉无效书签（迁移遗留的无时长条目）
@@ -562,7 +562,7 @@ class _FloatingSentenceReviewButton extends ConsumerWidget {
     if (validBookmarks.isEmpty) return const SizedBox.shrink();
 
     final dueCountAsync = ref.watch(favoriteSentenceDueCountProvider);
-    final dueCount = dueCountAsync.valueOrNull;
+    final dueCount = dueCountAsync.value;
     final l10n = AppLocalizations.of(context)!;
 
     return _FloatingReviewButton(
@@ -617,15 +617,15 @@ class _FloatingFlashcardButton extends ConsumerWidget {
     final savedWordsAsync = ref.watch(savedWordListProvider);
     final savedPhrasesAsync = ref.watch(savedSenseGroupListProvider);
 
-    final words = savedWordsAsync.valueOrNull ?? [];
-    final phrases = savedPhrasesAsync.valueOrNull ?? [];
+    final words = savedWordsAsync.value ?? [];
+    final phrases = savedPhrasesAsync.value ?? [];
     final totalCount = words.length + phrases.length;
 
     if (totalCount == 0) return const SizedBox.shrink();
 
     final l10n = AppLocalizations.of(context)!;
     final dueCountAsync = ref.watch(favoriteVocabularyDueCountProvider);
-    final dueCount = dueCountAsync.valueOrNull;
+    final dueCount = dueCountAsync.value;
     return _FloatingReviewButton(
       leading: dueCount == 0
           ? const Text('🎉', style: TextStyle(fontSize: 18))
@@ -1264,8 +1264,8 @@ class _WordsViewState extends ConsumerState<_WordsView> {
       return Center(child: Text('Error: ${savedWordsAsync.error}'));
     }
 
-    final words = savedWordsAsync.valueOrNull ?? [];
-    final phrases = savedPhrasesAsync.valueOrNull ?? [];
+    final words = savedWordsAsync.value ?? [];
+    final phrases = savedPhrasesAsync.value ?? [];
 
     if (words.isEmpty && phrases.isEmpty) {
       return _buildEmptyState(context, isSentences: false);

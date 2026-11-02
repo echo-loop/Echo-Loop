@@ -26,11 +26,11 @@ class _MockAnalyticsService extends Mock implements AnalyticsService {}
 
 Widget _app(GoRouter router, {AnalyticsService? analytics}) {
   return ProviderScope(
-    overrides: [
+    overrides: dedupeOverrides([
       analyticsServiceProvider.overrideWithValue(
         analytics ?? createTestAnalyticsServiceSync(),
       ),
-    ],
+    ]),
     child: MaterialApp.router(
       locale: const Locale('en'),
       supportedLocales: const [Locale('en'), Locale('zh')],

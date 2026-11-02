@@ -83,7 +83,7 @@ final userRegionBootstrapProvider = FutureProvider<UserRegionBootstrapResult>((
 
 /// 已解析时使用 Config API 结论；解析期间或异常时暂用系统 Region 回退值。
 final isChinaUserProvider = Provider<bool>((ref) {
-  final result = ref.watch(userRegionBootstrapProvider).valueOrNull;
+  final result = ref.watch(userRegionBootstrapProvider).value;
   return result?.isChinaUser ??
       _readSystemRegionIsChina(ref.watch(userRegionDeviceCountryCodeProvider));
 });

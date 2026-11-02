@@ -106,7 +106,7 @@ class RetellReviewEvaluationController
     // 本地转码算力，也不占上行带宽。额度的唯一权威仍是后端 402。
     final accessToken = ref
         .read(supabaseSessionProvider)
-        .valueOrNull
+        .value
         ?.accessToken;
     if (accessToken == null || accessToken.isEmpty) {
       AppLogger.log('RetellReview', '评估需要登录态，未取到 access token');

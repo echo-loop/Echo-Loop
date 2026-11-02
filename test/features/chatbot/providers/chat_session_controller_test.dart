@@ -125,13 +125,11 @@ void main() {
   }) async {
     trialUsage = _RecordingTrialUsage();
     final container = ProviderContainer(
-      overrides: [
+      overrides: dedupeOverrides([
         analyticsOverride(),
         chatApiClientProvider.overrideWithValue(api),
         isAuthenticatedProvider.overrideWithValue(authenticated),
-        supabaseSessionProvider.overrideWith(
-          (ref) => Stream<Session?>.value(hasSession ? _session() : null),
-        ),
+        supabaseSessionProvider.overrideWithValue(AsyncData<Session?>(hasSession ? _session() : null)),
         subscriptionControllerProvider.overrideWith(
           () => _FixedSubscription(subscription),
         ),
@@ -141,7 +139,7 @@ void main() {
           () =>
               TestAppSettings(const AppSettingsState(nativeLanguage: 'zh-CN')),
         ),
-      ],
+      ]),
     );
     addTearDown(container.dispose);
     // 常驻 listener：多数用例两次 read 之间要稳定持有同一实例。
@@ -153,7 +151,7 @@ void main() {
         fireImmediately: true,
       );
     }
-    await container.read(supabaseSessionProvider.future); // 等 session 落定
+    await _sessionFuture(container); // 等 session 落定
     return container;
   }
 
@@ -614,4 +612,13 @@ void main() {
     expect(st(c).messages.last.status, ChatMessageStatus.done);
     expect(api.callCount, 1); // 未重建 → 未重新发起
   });
+}
+
+/// 读取 session 的首值 future。
+///
+/// Riverpod 3：无监听者的 StreamProvider 会被暂停、不再投递事件，裸 `read(.future)`
+/// 会永远挂起。先挂一个监听，保证 provider 保持活跃直到首值落定。
+Future<Session?> _sessionFuture(ProviderContainer container) {
+  container.listen(supabaseSessionProvider, (_, __) {});
+  return container.read(supabaseSessionProvider.future);
 }

@@ -63,10 +63,10 @@ class StudyTask {
 final studyTaskProvider = Provider<List<StudyTask>>((ref) {
   final audioState = ref.watch(audioLibraryProvider);
   final progressMap = ref.watch(
-    learningProgressNotifierProvider.select((s) => s.progressMap),
+    learningProgressProvider.select((s) => s.progressMap),
   );
   final completionsByAudio = ref.watch(
-    learningProgressNotifierProvider.select((s) => s.completionsByAudio),
+    learningProgressProvider.select((s) => s.completionsByAudio),
   );
   final now = ref.watch(nowProvider)();
 
@@ -146,7 +146,7 @@ final completedAudioProvider =
     Provider<List<({String audioId, String audioName})>>((ref) {
       final audioState = ref.watch(audioLibraryProvider);
       final progressMap = ref.watch(
-        learningProgressNotifierProvider.select((s) => s.progressMap),
+        learningProgressProvider.select((s) => s.progressMap),
       );
 
       final completed = <({String audioId, String audioName})>[];
@@ -345,7 +345,7 @@ final _latestCompletionAtByAudioProvider =
 /// 学习页推荐的单条材料；依赖数据尚未就绪时保持 loading。
 final studyRecommendationProvider = Provider<AsyncValue<AudioItem?>>((ref) {
   final audioState = ref.watch(audioLibraryProvider);
-  final progressState = ref.watch(learningProgressNotifierProvider);
+  final progressState = ref.watch(learningProgressProvider);
   final playbackSavedAt = ref.watch(_playbackSavedAtByAudioProvider);
   final latestCompletionAt = ref.watch(_latestCompletionAtByAudioProvider);
   final recentCompletions = ref.watch(recentCompletionsProvider);
@@ -484,11 +484,11 @@ int _compareRecommendedMaterials(AudioItem a, AudioItem b) {
 ///
 /// 用于学习页底部"最近完成"折叠区展示。
 /// 按完成时间倒序排列，无记录时返回空列表。
-/// 依赖 [learningProgressNotifierProvider] 实现自动刷新：
+/// 依赖 [learningProgressProvider] 实现自动刷新：
 /// 完成子步骤时 progressMap 变化 → 触发重新查询。
 final recentCompletionsProvider = FutureProvider<List<RecentCompletion>>((ref) {
   // 监听进度变化，确保完成子步骤后自动刷新
-  ref.watch(learningProgressNotifierProvider.select((s) => s.progressMap));
+  ref.watch(learningProgressProvider.select((s) => s.progressMap));
   final dao = ref.watch(stageCompletionDaoProvider);
   final now = ref.watch(nowProvider)();
   final since = now.subtract(const Duration(hours: 24));

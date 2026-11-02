@@ -68,7 +68,7 @@ class RetellReviewTranscriptCardState
     // 学习内容字号偏好：超行预判与正文渲染共用同一缩放后的样式
     final bodyStyle = rawBodyStyle == null
         ? null
-        : ref.watch(readingTextPrefsNotifierProvider).applyTo(rawBodyStyle);
+        : ref.watch(readingTextPrefsProvider).applyTo(rawBodyStyle);
     // 量高与实际渲染必须共用同一段文本和样式，否则超行判断会和渲染结果对不上。
     final span = TextSpan(text: widget.transcript, style: bodyStyle);
     return Container(

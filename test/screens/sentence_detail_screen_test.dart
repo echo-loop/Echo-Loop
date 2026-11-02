@@ -13,9 +13,9 @@ import 'package:echo_loop/theme/app_theme.dart';
 import 'package:echo_loop/widgets/common/bookmark_toggle_row.dart';
 import 'package:echo_loop/widgets/practice/sentence_explanation_view.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:flutter_riverpod/misc.dart';
 
 import '../helpers/mock_providers.dart';
 import '../helpers/test_app.dart';
@@ -361,11 +361,11 @@ void main() {
             ),
           ),
         ),
-        overrides: [
+        overrides: dedupeOverrides([
           ...detailOverrides(),
           mediaPlaybackProvider.overrideWith(() => mediaPlayback),
           mediaEngineProvider.overrideWith(_VideoViewMediaEngine.new),
-        ],
+        ]),
       ),
     );
     await tester.pump();

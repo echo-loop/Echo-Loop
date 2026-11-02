@@ -5,6 +5,8 @@ import 'dart:io';
 import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+// StateNotifier / StateProvider 已移入 legacy 库（Riverpod 3），此处保留旧写法
+import 'package:flutter_riverpod/legacy.dart';
 import 'package:just_waveform/just_waveform.dart';
 import 'package:path/path.dart' as p;
 
@@ -237,7 +239,7 @@ class SubtitleEditorController extends StateNotifier<SubtitleEditorState> {
         .getBookmarkedIndices(audioItemId);
     if (bookmarks.isNotEmpty) return true;
     final progress = await _ref
-        .read(learningProgressNotifierProvider.notifier)
+        .read(learningProgressProvider.notifier)
         .getLatestByAudioId(audioItemId);
     return progress?.isStarted ?? false;
   }
@@ -1014,7 +1016,7 @@ class SubtitleEditorController extends StateNotifier<SubtitleEditorState> {
             .read(favoriteSentenceLifecycleProvider)
             .removeAllForAudio(item.id);
         await _ref
-            .read(learningProgressNotifierProvider.notifier)
+            .read(learningProgressProvider.notifier)
             .deleteProgress(item.id);
       }
 

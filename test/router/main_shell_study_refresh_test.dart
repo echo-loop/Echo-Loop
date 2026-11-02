@@ -56,7 +56,7 @@ void main() {
   late _RecordingListeningPractice recordingListeningPractice;
 
   setUp(() {
-    database = AppDatabase(NativeDatabase.memory());
+    database = AppDatabase(NativeDatabase.memory(setup: configureAppDatabaseConnection));
     recordingListeningPractice = _RecordingListeningPractice();
     router = GoRouter(
       navigatorKey: rootNavigatorKey,
@@ -139,13 +139,13 @@ void main() {
   testWidgets('根路由退出收尾完成后返回 Study 时刷新统计', (tester) async {
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [
+        overrides: dedupeOverrides([
           appDatabaseProvider.overrideWithValue(database),
           localStartupProvider.overrideWith(_PendingStartupController.new),
-        ],
+        ]),
         child: Consumer(
           builder: (context, ref, child) {
-            final stats = ref.watch(studyStatsNotifierProvider).valueOrNull;
+            final stats = ref.watch(studyStatsProvider).value;
             return Directionality(
               textDirection: TextDirection.ltr,
               child: Stack(
@@ -189,17 +189,17 @@ void main() {
   testWidgets('返回 Study 时触发随心听收尾', (tester) async {
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [
+        overrides: dedupeOverrides([
           appDatabaseProvider.overrideWithValue(database),
           localStartupProvider.overrideWith(_PendingStartupController.new),
           listeningPracticeProvider.overrideWith(
             () => recordingListeningPractice,
           ),
           mediaPlaybackProvider.overrideWith(_IdleMediaPlayback.new),
-        ],
+        ]),
         child: Consumer(
           builder: (context, ref, child) {
-            final stats = ref.watch(studyStatsNotifierProvider).valueOrNull;
+            final stats = ref.watch(studyStatsProvider).value;
             return Directionality(
               textDirection: TextDirection.ltr,
               child: Stack(

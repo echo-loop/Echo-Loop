@@ -13,7 +13,6 @@
 /// - unknown 中间态按「未持有权益」处理，由免费额度策略兜底，避免冷启动误锁。
 library;
 
-import 'package:flutter_riverpod/flutter_riverpod.dart' show Ref;
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../auth/providers/auth_providers.dart';

@@ -6,186 +6,145 @@ part of 'podcast_search_provider.dart';
 // RiverpodGenerator
 // **************************************************************************
 
+// GENERATED CODE - DO NOT MODIFY BY HAND
+// ignore_for_file: type=lint, type=warning
+/// 播客搜索客户端。
+
+@ProviderFor(podcastSearchService)
+final podcastSearchServiceProvider = PodcastSearchServiceProvider._();
+
+/// 播客搜索客户端。
+
+final class PodcastSearchServiceProvider
+    extends
+        $FunctionalProvider<
+          PodcastSearchService,
+          PodcastSearchService,
+          PodcastSearchService
+        >
+    with $Provider<PodcastSearchService> {
+  /// 播客搜索客户端。
+  PodcastSearchServiceProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'podcastSearchServiceProvider',
+        isAutoDispose: true,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$podcastSearchServiceHash();
+
+  @$internal
+  @override
+  $ProviderElement<PodcastSearchService> $createElement(
+    $ProviderPointer pointer,
+  ) => $ProviderElement(pointer);
+
+  @override
+  PodcastSearchService create(Ref ref) {
+    return podcastSearchService(ref);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(PodcastSearchService value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<PodcastSearchService>(value),
+    );
+  }
+}
+
 String _$podcastSearchServiceHash() =>
     r'f40cec9944de44c6f06acd98541577f7c2933786';
 
-/// 播客搜索客户端。
-///
-/// Copied from [podcastSearchService].
-@ProviderFor(podcastSearchService)
-final podcastSearchServiceProvider =
-    AutoDisposeProvider<PodcastSearchService>.internal(
-      podcastSearchService,
-      name: r'podcastSearchServiceProvider',
-      debugGetCreateSourceHash: const bool.fromEnvironment('dart.vm.product')
-          ? null
-          : _$podcastSearchServiceHash,
-      dependencies: null,
-      allTransitiveDependencies: null,
-    );
-
-@Deprecated('Will be removed in 3.0. Use Ref instead')
-// ignore: unused_element
-typedef PodcastSearchServiceRef = AutoDisposeProviderRef<PodcastSearchService>;
-String _$podcastSearchResultsHash() =>
-    r'55471597f5e50880715f2649e2d653c3d83a5247';
-
-/// Copied from Dart SDK
-class _SystemHash {
-  _SystemHash._();
-
-  static int combine(int hash, int value) {
-    // ignore: parameter_assignments
-    hash = 0x1fffffff & (hash + value);
-    // ignore: parameter_assignments
-    hash = 0x1fffffff & (hash + ((0x0007ffff & hash) << 10));
-    return hash ^ (hash >> 6);
-  }
-
-  static int finish(int hash) {
-    // ignore: parameter_assignments
-    hash = 0x1fffffff & (hash + ((0x03ffffff & hash) << 3));
-    // ignore: parameter_assignments
-    hash = hash ^ (hash >> 11);
-    return 0x1fffffff & (hash + ((0x00003fff & hash) << 15));
-  }
-}
-
 /// 按关键词搜索播客；[term] 为空返回空列表。
-///
-/// Copied from [podcastSearchResults].
+
 @ProviderFor(podcastSearchResults)
-const podcastSearchResultsProvider = PodcastSearchResultsFamily();
+final podcastSearchResultsProvider = PodcastSearchResultsFamily._();
 
 /// 按关键词搜索播客；[term] 为空返回空列表。
-///
-/// Copied from [podcastSearchResults].
-class PodcastSearchResultsFamily
-    extends Family<AsyncValue<List<PodcastSearchResult>>> {
-  /// 按关键词搜索播客；[term] 为空返回空列表。
-  ///
-  /// Copied from [podcastSearchResults].
-  const PodcastSearchResultsFamily();
 
+final class PodcastSearchResultsProvider
+    extends
+        $FunctionalProvider<
+          AsyncValue<List<PodcastSearchResult>>,
+          List<PodcastSearchResult>,
+          FutureOr<List<PodcastSearchResult>>
+        >
+    with
+        $FutureModifier<List<PodcastSearchResult>>,
+        $FutureProvider<List<PodcastSearchResult>> {
   /// 按关键词搜索播客；[term] 为空返回空列表。
-  ///
-  /// Copied from [podcastSearchResults].
-  PodcastSearchResultsProvider call(String term) {
-    return PodcastSearchResultsProvider(term);
+  PodcastSearchResultsProvider._({
+    required PodcastSearchResultsFamily super.from,
+    required String super.argument,
+  }) : super(
+         retry: null,
+         name: r'podcastSearchResultsProvider',
+         isAutoDispose: true,
+         dependencies: null,
+         $allTransitiveDependencies: null,
+       );
+
+  @override
+  String debugGetCreateSourceHash() => _$podcastSearchResultsHash();
+
+  @override
+  String toString() {
+    return r'podcastSearchResultsProvider'
+        ''
+        '($argument)';
   }
 
+  @$internal
   @override
-  PodcastSearchResultsProvider getProviderOverride(
-    covariant PodcastSearchResultsProvider provider,
-  ) {
-    return call(provider.term);
-  }
-
-  static const Iterable<ProviderOrFamily>? _dependencies = null;
+  $FutureProviderElement<List<PodcastSearchResult>> $createElement(
+    $ProviderPointer pointer,
+  ) => $FutureProviderElement(pointer);
 
   @override
-  Iterable<ProviderOrFamily>? get dependencies => _dependencies;
-
-  static const Iterable<ProviderOrFamily>? _allTransitiveDependencies = null;
-
-  @override
-  Iterable<ProviderOrFamily>? get allTransitiveDependencies =>
-      _allTransitiveDependencies;
-
-  @override
-  String? get name => r'podcastSearchResultsProvider';
-}
-
-/// 按关键词搜索播客；[term] 为空返回空列表。
-///
-/// Copied from [podcastSearchResults].
-class PodcastSearchResultsProvider
-    extends AutoDisposeFutureProvider<List<PodcastSearchResult>> {
-  /// 按关键词搜索播客；[term] 为空返回空列表。
-  ///
-  /// Copied from [podcastSearchResults].
-  PodcastSearchResultsProvider(String term)
-    : this._internal(
-        (ref) => podcastSearchResults(ref as PodcastSearchResultsRef, term),
-        from: podcastSearchResultsProvider,
-        name: r'podcastSearchResultsProvider',
-        debugGetCreateSourceHash: const bool.fromEnvironment('dart.vm.product')
-            ? null
-            : _$podcastSearchResultsHash,
-        dependencies: PodcastSearchResultsFamily._dependencies,
-        allTransitiveDependencies:
-            PodcastSearchResultsFamily._allTransitiveDependencies,
-        term: term,
-      );
-
-  PodcastSearchResultsProvider._internal(
-    super._createNotifier, {
-    required super.name,
-    required super.dependencies,
-    required super.allTransitiveDependencies,
-    required super.debugGetCreateSourceHash,
-    required super.from,
-    required this.term,
-  }) : super.internal();
-
-  final String term;
-
-  @override
-  Override overrideWith(
-    FutureOr<List<PodcastSearchResult>> Function(
-      PodcastSearchResultsRef provider,
-    )
-    create,
-  ) {
-    return ProviderOverride(
-      origin: this,
-      override: PodcastSearchResultsProvider._internal(
-        (ref) => create(ref as PodcastSearchResultsRef),
-        from: from,
-        name: null,
-        dependencies: null,
-        allTransitiveDependencies: null,
-        debugGetCreateSourceHash: null,
-        term: term,
-      ),
-    );
-  }
-
-  @override
-  AutoDisposeFutureProviderElement<List<PodcastSearchResult>> createElement() {
-    return _PodcastSearchResultsProviderElement(this);
+  FutureOr<List<PodcastSearchResult>> create(Ref ref) {
+    final argument = this.argument as String;
+    return podcastSearchResults(ref, argument);
   }
 
   @override
   bool operator ==(Object other) {
-    return other is PodcastSearchResultsProvider && other.term == term;
+    return other is PodcastSearchResultsProvider && other.argument == argument;
   }
 
   @override
   int get hashCode {
-    var hash = _SystemHash.combine(0, runtimeType.hashCode);
-    hash = _SystemHash.combine(hash, term.hashCode);
-
-    return _SystemHash.finish(hash);
+    return argument.hashCode;
   }
 }
 
-@Deprecated('Will be removed in 3.0. Use Ref instead')
-// ignore: unused_element
-mixin PodcastSearchResultsRef
-    on AutoDisposeFutureProviderRef<List<PodcastSearchResult>> {
-  /// The parameter `term` of this provider.
-  String get term;
-}
+String _$podcastSearchResultsHash() =>
+    r'55471597f5e50880715f2649e2d653c3d83a5247';
 
-class _PodcastSearchResultsProviderElement
-    extends AutoDisposeFutureProviderElement<List<PodcastSearchResult>>
-    with PodcastSearchResultsRef {
-  _PodcastSearchResultsProviderElement(super.provider);
+/// 按关键词搜索播客；[term] 为空返回空列表。
+
+final class PodcastSearchResultsFamily extends $Family
+    with
+        $FunctionalFamilyOverride<FutureOr<List<PodcastSearchResult>>, String> {
+  PodcastSearchResultsFamily._()
+    : super(
+        retry: null,
+        name: r'podcastSearchResultsProvider',
+        dependencies: null,
+        $allTransitiveDependencies: null,
+        isAutoDispose: true,
+      );
+
+  /// 按关键词搜索播客；[term] 为空返回空列表。
+
+  PodcastSearchResultsProvider call(String term) =>
+      PodcastSearchResultsProvider._(argument: term, from: this);
 
   @override
-  String get term => (origin as PodcastSearchResultsProvider).term;
+  String toString() => r'podcastSearchResultsProvider';
 }
-
-// ignore_for_file: type=lint
-// ignore_for_file: subtype_of_sealed_class, invalid_use_of_internal_member, invalid_use_of_visible_for_testing_member, deprecated_member_use_from_same_package

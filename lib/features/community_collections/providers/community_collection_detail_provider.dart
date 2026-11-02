@@ -47,7 +47,7 @@ class CommunityCollectionFiles extends _$CommunityCollectionFiles {
         :final error,
         :final stackTrace,
       ):
-        if (state.valueOrNull == null) {
+        if (state.value == null) {
           state = AsyncError(error, stackTrace);
         }
     }
@@ -55,7 +55,7 @@ class CommunityCollectionFiles extends _$CommunityCollectionFiles {
 
   /// 加载当前 cursor 链上的下一页；同一时间只允许一个分页请求。
   Future<void> loadMore() async {
-    final current = state.valueOrNull;
+    final current = state.value;
     if (current == null || current.isLoadingMore || !current.hasMore) return;
 
     final cursor = current.nextCursor;
@@ -72,7 +72,7 @@ class CommunityCollectionFiles extends _$CommunityCollectionFiles {
     );
     if (token != _operationToken) return;
     final hasCachedPage = cached != null;
-    var latest = state.valueOrNull ?? current;
+    var latest = state.value ?? current;
     if (cached != null) {
       latest = latest.replacePage(cached);
       state = AsyncData(latest.copyWith(isLoadingMore: true));
@@ -84,7 +84,7 @@ class CommunityCollectionFiles extends _$CommunityCollectionFiles {
       force: true,
     );
     if (token != _operationToken) return;
-    latest = state.valueOrNull ?? latest;
+    latest = state.value ?? latest;
     switch (outcome) {
       case CommunityCollectionRefreshUpdated<
         CommunityCollectionCatalogPage<CommunityCollectionFile>
@@ -125,7 +125,7 @@ class CommunityCollectionFiles extends _$CommunityCollectionFiles {
       cursor: null,
     );
     if (token != _operationToken) {
-      return state.valueOrNull ??
+      return state.value ??
           const CommunityCollectionPagedState(pages: []);
     }
 
@@ -141,7 +141,7 @@ class CommunityCollectionFiles extends _$CommunityCollectionFiles {
       force: true,
     );
     if (token != _operationToken) {
-      return state.valueOrNull ??
+      return state.value ??
           cachedState ??
           const CommunityCollectionPagedState(pages: []);
     }

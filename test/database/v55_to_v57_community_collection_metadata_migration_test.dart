@@ -38,10 +38,10 @@ void main() {
           ..execute('ALTER TABLE collections DROP COLUMN published_at')
           ..execute('PRAGMA user_version = 55');
       } finally {
-        raw.dispose();
+        raw.close();
       }
 
-      final database = AppDatabase(NativeDatabase(file));
+      final database = AppDatabase(NativeDatabase(file, setup: configureAppDatabaseConnection));
       addTearDown(database.close);
 
       final columns = await database

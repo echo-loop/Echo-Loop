@@ -325,7 +325,7 @@ void main() {
     wordC.close();
     phraseC.close();
     DictionaryService.replaceInstance(oldDictionaryService);
-    dictionaryDatabase.dispose();
+    dictionaryDatabase.close();
     appDataDirectoryOverride = null;
     if (appDataDir.existsSync()) appDataDir.deleteSync(recursive: true);
     activeMainTab.dispose();
@@ -358,7 +358,7 @@ void main() {
       routerConfig: router,
     );
     return ProviderScope(
-      overrides: [
+      overrides: dedupeOverrides([
         analyticsOverride(),
         ...studyTimeOverrides(),
         pronunciationClipsProvider.overrideWith(
@@ -390,7 +390,7 @@ void main() {
         ),
         ttsControllerProvider.overrideWith(() => rec),
         textPlaybackProvider.overrideWith(() => pronunciationPlayback),
-      ],
+      ]),
       child: ValueListenableBuilder<int>(
         valueListenable: activeMainTab,
         builder: (context, index, _) => MainTabVisibilityScope(

@@ -8,6 +8,7 @@ import 'package:echo_loop/models/word_timestamp.dart';
 import 'package:echo_loop/providers/settings_provider.dart';
 import 'package:echo_loop/providers/word_highlight_provider.dart';
 import 'package:echo_loop/widgets/common/word_highlight_builder.dart';
+import '../../helpers/mock_providers.dart';
 
 const _timestamps = [
   WordTimestamp(
@@ -40,13 +41,13 @@ void main() {
     var loadCount = 0;
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [
+        overrides: dedupeOverrides([
           appSettingsProvider.overrideWith(_TestSettings.disabledSettings),
           wordTimestampsProvider('audio').overrideWith((ref) async {
             loadCount++;
             return _timestamps;
           }),
-        ],
+        ]),
         child: MaterialApp(
           home: Scaffold(
             body: WordHighlightBuilder(
@@ -72,12 +73,12 @@ void main() {
 
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [
+        overrides: dedupeOverrides([
           appSettingsProvider.overrideWith(_TestSettings.enabledSettings),
           wordTimestampsProvider(
             'audio',
           ).overrideWith((ref) async => _timestamps),
-        ],
+        ]),
         child: MaterialApp(
           home: Scaffold(
             body: WordHighlightBuilder(
@@ -136,12 +137,12 @@ void main() {
 
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [
+        overrides: dedupeOverrides([
           appSettingsProvider.overrideWith(_TestSettings.enabledSettings),
           wordTimestampsProvider(
             'audio',
           ).overrideWith((ref) async => _timestamps),
-        ],
+        ]),
         child: MaterialApp(
           home: Scaffold(
             body: WordHighlightBuilder(
@@ -183,12 +184,12 @@ void main() {
 
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [
+        overrides: dedupeOverrides([
           appSettingsProvider.overrideWith(_TestSettings.enabledSettings),
           wordTimestampsProvider(
             'audio',
           ).overrideWith((ref) async => _timestampsAtOneSecond),
-        ],
+        ]),
         child: MaterialApp(
           home: Scaffold(
             body: WordHighlightBuilder(

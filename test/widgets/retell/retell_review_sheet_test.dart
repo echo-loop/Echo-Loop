@@ -22,6 +22,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_riverpod/misc.dart';
+import '../../helpers/mock_providers.dart';
 
 /// 不触碰平台的播放替身：[play] 返回可控 Future，便于分别断言播放中与播放结束两态。
 class _FakePlaybackService extends AudioPlaybackService {
@@ -589,7 +591,7 @@ void main() {
             ),
           ),
         ),
-        overrides: [
+        overrides: dedupeOverrides([
           retellReviewEvaluationProvider.overrideWith(
             () => _FixedReviewController(
               const RetellReviewEvaluationState(
@@ -602,7 +604,7 @@ void main() {
               ),
             ),
           ),
-        ],
+        ]),
       ),
     );
     await tester.tap(find.text('open'));
@@ -639,7 +641,7 @@ void main() {
             ),
           ),
         ),
-        overrides: [
+        overrides: dedupeOverrides([
           retellReviewEvaluationProvider.overrideWith(
             () => _FixedReviewController(
               const RetellReviewEvaluationState(
@@ -652,7 +654,7 @@ void main() {
               ),
             ),
           ),
-        ],
+        ]),
       ),
     );
     await tester.tap(find.text('open'));
@@ -774,7 +776,7 @@ void main() {
             ),
           ),
         ),
-        overrides: [
+        overrides: dedupeOverrides([
           retellReviewEvaluationProvider.overrideWith(
             () => _FixedReviewController(
               const RetellReviewEvaluationState(
@@ -784,7 +786,7 @@ void main() {
               ),
             ),
           ),
-        ],
+        ]),
       ),
     );
 
@@ -823,7 +825,7 @@ void main() {
             ),
           ),
         ),
-        overrides: [
+        overrides: dedupeOverrides([
           retellReviewEvaluationProvider.overrideWith(
             () => _FixedReviewController(
               const RetellReviewEvaluationState(
@@ -833,7 +835,7 @@ void main() {
               ),
             ),
           ),
-        ],
+        ]),
       ),
     );
 
@@ -872,7 +874,7 @@ void main() {
             ),
           ),
         ),
-        overrides: [
+        overrides: dedupeOverrides([
           retellReviewEvaluationProvider.overrideWith(
             () => _FixedReviewController(
               const RetellReviewEvaluationState(
@@ -882,7 +884,7 @@ void main() {
               ),
             ),
           ),
-        ],
+        ]),
       ),
     );
 
@@ -917,7 +919,7 @@ void main() {
             ),
           ),
         ),
-        overrides: [
+        overrides: dedupeOverrides([
           retellReviewEvaluationProvider.overrideWith(
             () => _FixedReviewController(
               const RetellReviewEvaluationState(
@@ -926,7 +928,7 @@ void main() {
               ),
             ),
           ),
-        ],
+        ]),
       ),
     );
 

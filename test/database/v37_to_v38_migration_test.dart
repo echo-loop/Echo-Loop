@@ -16,7 +16,7 @@ void main() {
     final file = File('${dir.path}/echo_loop.db');
     await _createV37Fixture(file);
 
-    final db = AppDatabase(NativeDatabase(file));
+    final db = AppDatabase(NativeDatabase(file, setup: configureAppDatabaseConnection));
     addTearDown(db.close);
 
     // ── collections 新列 ────────────────────────────────────────────────
@@ -79,7 +79,7 @@ void main() {
     final file = File('${dir.path}/echo_loop.db');
     await _createV37Fixture(file, userVersion: 38);
 
-    final db = AppDatabase(NativeDatabase(file));
+    final db = AppDatabase(NativeDatabase(file, setup: configureAppDatabaseConnection));
     addTearDown(db.close);
 
     // 触发 beforeOpen，自愈已是 v38 但缺列的数据库。
@@ -168,6 +168,6 @@ Future<void> _createV37Fixture(File file, {int userVersion = 37}) async {
 
     raw.execute('PRAGMA user_version = $userVersion');
   } finally {
-    raw.dispose();
+    raw.close();
   }
 }

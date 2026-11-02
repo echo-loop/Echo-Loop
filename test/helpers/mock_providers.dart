@@ -6,7 +6,6 @@
 /// 公共 Notifier/DAO 替身已抽到 shared/，本文件仅保留 widget test 特化部分。
 library;
 
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:echo_loop/analytics/analytics_channel.dart';
@@ -38,6 +37,7 @@ import 'package:echo_loop/services/notification_permission_service.dart';
 import 'package:echo_loop/services/study_time_service.dart';
 import 'package:echo_loop/services/transcription_api_client.dart';
 import 'package:echo_loop/database/daos/sentence_ai_cache_dao.dart';
+import 'package:flutter_riverpod/misc.dart';
 
 // 共享替身
 import 'shared/fake_notifiers.dart';
@@ -616,4 +616,17 @@ SentenceAiCacheDao createStubbedMockCacheDao() {
   final mock = _StubbedMockCacheDao();
   when(() => mock.getByHash(any(), any())).thenAnswer((_) async => null);
   return mock;
+}
+
+/// 合并 override 列表：同一 provider 只保留最后一次 override。
+///
+/// Riverpod 2 允许同一容器内重复 override（后者生效）；Riverpod 3 对此直接断言。
+/// 测试辅助函数（如 [studyTimeOverrides]）与用例显式 override 可能重复，这里按
+/// 「后写覆盖先写」保持原有语义。
+List<Override> dedupeOverrides(Iterable<Override> overrides) {
+  final byOrigin = <Object, Override>{};
+  for (final override in overrides) {
+    byOrigin[override.origin] = override;
+  }
+  return byOrigin.values.toList();
 }

@@ -72,17 +72,17 @@ class _StudyScreenState extends ConsumerState<StudyScreen> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final audioLibraryState = ref.watch(audioLibraryProvider);
-    final progressState = ref.watch(learningProgressNotifierProvider);
+    final progressState = ref.watch(learningProgressProvider);
     final tasks = ref.watch(studyTaskProvider);
     final completedAudios = ref.watch(completedAudioProvider);
     final now = ref.watch(nowProvider)();
-    final statsAsync = ref.watch(studyStatsNotifierProvider);
+    final statsAsync = ref.watch(studyStatsProvider);
     final recommendationAsync = ref.watch(studyRecommendationProvider);
     final showRecommendation = ref.watch(
       learningSettingsProvider.select((s) => s.showStudyRecommendation),
     );
     final recommendation = showRecommendation
-        ? recommendationAsync.valueOrNull
+        ? recommendationAsync.value
         : null;
     ref.listen(studyRecommendationProvider, (previous, next) {
       next.whenOrNull(
@@ -97,7 +97,7 @@ class _StudyScreenState extends ConsumerState<StudyScreen> {
 
     final recentCompletionsAsync = ref.watch(recentCompletionsProvider);
     final hasRecentCompletions =
-        recentCompletionsAsync.valueOrNull?.isNotEmpty ?? false;
+        recentCompletionsAsync.value?.isNotEmpty ?? false;
 
     final readyReviews = tasks
         .where((t) => t.type == StudyTaskType.reviewReady)
@@ -120,7 +120,7 @@ class _StudyScreenState extends ConsumerState<StudyScreen> {
         completedAudios.isNotEmpty;
 
     // AppBar streak chip（始终显示，可点击进入活动日历）
-    final streak = statsAsync.valueOrNull?.streak ?? 0;
+    final streak = statsAsync.value?.streak ?? 0;
     final isStreakActive = streak > 0;
     final streakChip = Padding(
       padding: const EdgeInsets.only(right: AppSpacing.m),
@@ -177,7 +177,7 @@ class _StudyScreenState extends ConsumerState<StudyScreen> {
       description: l10n.guideStudyStreakDescription,
     );
     // 门槛：用户本周已经累计过学习时长才触发引导。
-    final hasStudyTime = (statsAsync.valueOrNull?.weekTotalSeconds ?? 0) > 0;
+    final hasStudyTime = (statsAsync.value?.weekTotalSeconds ?? 0) > 0;
     final flows = <GuideFlow>[
       GuideFlow(
         flowId: GuideFlowIds.studyStatsStreak,
@@ -456,7 +456,7 @@ class _RecommendedMaterialCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
-    final progressState = ref.watch(learningProgressNotifierProvider);
+    final progressState = ref.watch(learningProgressProvider);
     final progress = progressState.progressMap[material.id];
     final stage = progress?.currentStage ?? LearningStage.firstLearn;
     final subStage = progress?.currentSubStage ?? SubStageType.blindListen;
@@ -636,7 +636,7 @@ class _TaskCard extends ConsumerWidget {
     final isOverdue = task.isOverdue;
 
     // 获取进度数据
-    final progressState = ref.watch(learningProgressNotifierProvider);
+    final progressState = ref.watch(learningProgressProvider);
     final progress = progressState.progressMap[task.audioId];
     final audioItem = ref
         .watch(audioLibraryProvider)
@@ -843,7 +843,7 @@ class _RecentCompletionTile extends ConsumerWidget {
     final theme = Theme.of(context);
     final audioItems = ref.watch(audioLibraryProvider).audioItems;
     final progress = ref
-        .watch(learningProgressNotifierProvider)
+        .watch(learningProgressProvider)
         .progressMap[completion.audioId];
     final isVideo =
         audioItems

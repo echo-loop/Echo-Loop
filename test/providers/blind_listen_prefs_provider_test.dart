@@ -15,18 +15,19 @@ import 'package:echo_loop/providers/learning_settings_provider.dart'
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../helpers/mock_providers.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   ProviderContainer makeContainer(SharedPreferences prefs) {
     return ProviderContainer(
-      overrides: [
+      overrides: dedupeOverrides([
         sharedPreferencesProvider.overrideWithValue(prefs),
         initialBlindListenPrefsProvider.overrideWithValue(
           blindListenPrefsFromPrefsSync(prefs),
         ),
-      ],
+      ]),
     );
   }
 

@@ -13,6 +13,7 @@ import '../providers/listening_practice/sleep_timer_provider.dart';
 import '../providers/media_playback/media_sleep_timer_provider.dart';
 import '../theme/app_theme.dart';
 import 'common/anchored_bubble.dart';
+import 'package:flutter_riverpod/misc.dart';
 
 /// 剩余时长格式化为 `mm:ss`。
 String _formatRemaining(Duration d) {
@@ -39,6 +40,27 @@ class SleepTimerButton extends ConsumerStatefulWidget {
 
 class _SleepTimerButtonState extends ConsumerState<SleepTimerButton> {
   final OverlayPortalController _portalController = OverlayPortalController();
+
+  /// 自由播放器睡眠定时器的保活链接（仅非媒体入口持有）。
+  ///
+  /// 宿主页被其他全屏页覆盖（如进入句子详情）时 Riverpod 3 会暂停监听，autoDispose
+  /// 的定时器会随之销毁、计时被取消。持有该链接后，覆盖期间定时器保持运行；本按钮
+  /// 卸载（离开页面）时释放，仍保持「离开页面即取消」语义。
+  KeepAliveLink? _timerKeepAlive;
+
+  @override
+  void initState() {
+    super.initState();
+    if (!widget.forMediaPlayback) {
+      _timerKeepAlive = ref.read(sleepTimerProvider.notifier).holdKeepAlive();
+    }
+  }
+
+  @override
+  void dispose() {
+    _timerKeepAlive?.close();
+    super.dispose();
+  }
 
   /// 浮层宽度与锚点尺寸。
   static const double _popupWidth = 144;

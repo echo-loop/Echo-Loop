@@ -56,7 +56,7 @@ class PronunciationRepository {
       filename == p.basename(filename) && filename.endsWith('.opus');
 
   void close() {
-    _database?.dispose();
+    _database?.close();
     _database = null;
     _audioDirectory = null;
   }
@@ -78,6 +78,6 @@ void validatePronunciationDatabase(String databasePath) {
             as int;
     if (count <= 0) throw StateError('Pronunciation database has no records');
   } finally {
-    database.dispose();
+    database.close();
   }
 }

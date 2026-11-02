@@ -34,6 +34,7 @@ import 'package:echo_loop/widgets/common/bookmark_toggle_row.dart';
 import 'package:echo_loop/widgets/practice/sentence_annotation_card.dart';
 import 'package:echo_loop/widgets/practice/sentence_explanation_view.dart';
 import 'package:echo_loop/widgets/practice/practice_normal_mode_view.dart';
+import 'package:flutter_riverpod/misc.dart';
 
 import '../helpers/mock_providers.dart';
 
@@ -259,7 +260,7 @@ void main() {
     );
 
     return ProviderScope(
-      overrides: [
+      overrides: dedupeOverrides([
         analyticsOverride(),
         ...studyTimeOverrides(),
         ...learningSettingsOverrides(
@@ -271,7 +272,7 @@ void main() {
           ),
         ),
         audioEngineProvider.overrideWith(() => TestAudioEngine()),
-        learningProgressNotifierProvider.overrideWith(
+        learningProgressProvider.overrideWith(
           () => TestLearningProgressNotifier(),
         ),
         learningSessionProvider.overrideWith(
@@ -294,7 +295,7 @@ void main() {
           ),
         ),
         ...extraOverrides,
-      ],
+      ]),
       child: MaterialApp.router(
         locale: locale,
         supportedLocales: const [Locale('en'), Locale('zh')],

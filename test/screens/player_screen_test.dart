@@ -30,7 +30,7 @@ import 'package:echo_loop/database/daos/audio_item_dao.dart';
 import 'package:echo_loop/database/daos/bookmark_dao.dart';
 import 'package:echo_loop/services/sentence_ai_api_client.dart';
 import 'package:echo_loop/theme/app_theme.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/misc.dart';
 
 import '../helpers/mock_providers.dart';
 import '../helpers/test_app.dart';
@@ -74,10 +74,14 @@ class _RecordingListeningPractice extends TestListeningPractice {
   final List<({int index, bool autoPlay})> selectFullCalls = [];
   final List<({int index, bool autoPlay})> selectBookmarkCalls = [];
 
+  /// pause 后立即记录的播放状态；provider 销毁后不可再读取 state。
+  bool? isPlayingAfterPause;
+
   @override
   Future<void> pause() async {
     pauseCalls += 1;
     state = state.copyWith(isPlaying: false);
+    isPlayingAfterPause = state.isPlaying;
   }
 
   @override
@@ -1116,7 +1120,7 @@ void main() {
         await _disposeTree(tester);
 
         expect(player.pauseCalls, 1);
-        expect(player.state.isPlaying, isFalse);
+        expect(player.isPlayingAfterPause, isFalse);
       });
     });
   });

@@ -6,6 +6,7 @@ import 'package:echo_loop/widgets/tts/speak_button.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import '../../helpers/mock_providers.dart';
 
 /// 记录 speak 调用、可注入初始 speakingKey 的假控制器。
 class FakeTtsController extends TtsController {
@@ -64,7 +65,7 @@ Widget _wrap(
   FakePronunciationPlayback? pronunciationPlayback,
 }) {
   return ProviderScope(
-    overrides: [
+    overrides: dedupeOverrides([
       ttsControllerProvider.overrideWith(() => fake),
       pronunciationClipsProvider.overrideWith(
         (ref, word) => locallyPronouncedWords.contains(word)
@@ -81,7 +82,7 @@ Widget _wrap(
       ),
       if (pronunciationPlayback != null)
         textPlaybackProvider.overrideWith(() => pronunciationPlayback),
-    ],
+    ]),
     child: MaterialApp(home: Scaffold(body: child)),
   );
 }

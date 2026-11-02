@@ -3,6 +3,7 @@ import 'package:clock/clock.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../../models/sleep_timer_state.dart';
 import 'listening_practice_provider.dart';
+import 'package:flutter_riverpod/misc.dart';
 
 export '../../models/sleep_timer_state.dart'
     show SleepTimerState, sleepTimerPresets;
@@ -32,6 +33,12 @@ class SleepTimer extends _$SleepTimer {
     ref.onDispose(_cancelTicker);
     return const SleepTimerState();
   }
+
+  /// 持有保活链接，供宿主 State 在 initState 取得、dispose 释放。
+  ///
+  /// 仅用于抵消「宿主被覆盖时监听暂停导致 autoDispose 销毁」，不改变离开页面时的
+  /// 取消语义：宿主卸载释放链接后，无其它监听即销毁并取消计时。
+  KeepAliveLink holdKeepAlive() => ref.keepAlive();
 
   /// 启动（或重设）定时器：[total] 后暂停播放。重设时旧计时器经 generation 作废。
   void start(Duration total) {

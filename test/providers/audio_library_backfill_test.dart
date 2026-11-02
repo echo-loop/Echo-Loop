@@ -18,7 +18,7 @@ void main() {
   late ProviderContainer container;
 
   setUp(() async {
-    db = AppDatabase(NativeDatabase.memory());
+    db = AppDatabase(NativeDatabase.memory(setup: configureAppDatabaseConnection));
     tempDir = await Directory.systemTemp.createTemp('backfill_srt_test');
     appDataDirectoryOverride = tempDir;
     container = ProviderContainer(

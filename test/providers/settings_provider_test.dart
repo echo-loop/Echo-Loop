@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:echo_loop/providers/settings_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../helpers/mock_providers.dart';
 
 void main() {
   group('AppSettingsState', () {
@@ -327,9 +328,9 @@ void main() {
       SharedPreferences.setMockInitialValues({'locale': 'zh-CN'});
 
       final container = ProviderContainer(
-        overrides: [
+        overrides: dedupeOverrides([
           initialUiLocaleProvider.overrideWithValue(const Locale('zh', 'CN')),
-        ],
+        ]),
       );
       addTearDown(container.dispose);
 
@@ -374,11 +375,11 @@ void main() {
         });
 
         final container = ProviderContainer(
-          overrides: [
+          overrides: dedupeOverrides([
             initialAiTranscriptionAutoMergeEnabledProvider.overrideWithValue(
               false,
             ),
-          ],
+          ]),
         );
         addTearDown(container.dispose);
 

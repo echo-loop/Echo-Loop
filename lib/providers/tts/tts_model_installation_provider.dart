@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/misc.dart';
 
 import '../../services/app_logger.dart';
 import '../../services/tts/piper_model_catalog.dart';

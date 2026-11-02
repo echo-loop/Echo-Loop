@@ -46,7 +46,7 @@ class _ActivityCalendarScreenState
     final isZh = locale == 'zh';
 
     final recordsAsync = ref.watch(monthlyStudyRecordsProvider(year, month));
-    final statsAsync = ref.watch(studyStatsNotifierProvider);
+    final statsAsync = ref.watch(studyStatsProvider);
     final service = ref.read(studyTimeServiceProvider);
 
     return Scaffold(
@@ -277,7 +277,7 @@ class _ActivityCalendarScreenState
   ) {
     final l10n = AppLocalizations.of(context)!;
     final theme = Theme.of(context);
-    final streak = statsAsync.valueOrNull?.streak ?? 0;
+    final streak = statsAsync.value?.streak ?? 0;
     final isActive = streak > 0;
 
     return Padding(

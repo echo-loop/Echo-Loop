@@ -1,4 +1,5 @@
 import 'dart:async';
+import '../utils/provider_override_error.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -196,7 +197,8 @@ class _GuideFlowSequenceHostState extends ConsumerState<GuideFlowSequenceHost> {
   bool _canStartGuide() {
     try {
       return ref.read(guideEnabledProvider);
-    } on UnimplementedError catch (error) {
+    } catch (error) {
+      if (!isProviderNotOverriddenError(error)) rethrow;
       if (error.toString().contains('sharedPreferencesProvider')) {
         return false;
       }

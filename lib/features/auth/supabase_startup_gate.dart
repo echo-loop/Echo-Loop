@@ -8,10 +8,10 @@ import '../../providers/startup_bootstrap_provider.dart';
 /// 状态直接派生自标准启动 provider，避免静态 ValueNotifier 与启动 Future
 /// 之间出现不同步。未配置或初始化失败均为不可用，调用方维持匿名降级语义。
 final supabaseSdkReadyProvider = Provider<bool>((ref) {
-  if (ref.watch(supabaseAuthConfiguredProvider).valueOrNull != true) {
+  if (ref.watch(supabaseAuthConfiguredProvider).value != true) {
     return false;
   }
-  return ref.watch(thirdPartyStartupProvider).valueOrNull?.isSupabaseReady ??
+  return ref.watch(thirdPartyStartupProvider).value?.isSupabaseReady ??
       false;
 });
 

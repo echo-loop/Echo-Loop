@@ -91,14 +91,14 @@ void main() {
     );
 
     return ProviderScope(
-      overrides: [
+      overrides: dedupeOverrides([
         ...learningSettingsOverrides(prefs: prefs),
         audioLibraryProvider.overrideWith(
           () => TestAudioLibrary(
             audioLibraryState ?? AudioLibraryState(audioItems: audioItems),
           ),
         ),
-        learningProgressNotifierProvider.overrideWith(
+        learningProgressProvider.overrideWith(
           () => TestLearningProgressNotifier(progressState),
         ),
         if (fixedNow != null) nowProvider.overrideWithValue(() => fixedNow),
@@ -109,7 +109,7 @@ void main() {
         studyRecommendationProvider.overrideWithValue(
           recommendationState ?? AsyncData<AudioItem?>(recommendedMaterial),
         ),
-      ],
+      ]),
       child: MaterialApp.router(
         supportedLocales: const [Locale('en'), Locale('zh')],
         localizationsDelegates: const [

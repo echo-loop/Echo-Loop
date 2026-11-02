@@ -36,7 +36,7 @@ void main() {
     fileDb.execute(
       "INSERT INTO pronunciation_audio (word, locale, audio_filename, \"order\") VALUES ('read', 'us', 'read_us_v_past.opus', 2)",
     );
-    fileDb.dispose();
+    fileDb.close();
     repository.open(path, '/audio');
     final clips = repository.lookupSingleWord('READ');
     expect(clips.map((clip) => clip.reason), [

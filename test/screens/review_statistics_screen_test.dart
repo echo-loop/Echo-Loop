@@ -14,7 +14,7 @@ import 'package:echo_loop/widgets/common/app_segmented_button.dart';
 
 void main() {
   testWidgets('统计页按时间口径展示范围筛选、分区和说明', (tester) async {
-    final db = AppDatabase(NativeDatabase.memory());
+    final db = AppDatabase(NativeDatabase.memory(setup: configureAppDatabaseConnection));
     addTearDown(db.close);
     await tester.pumpWidget(
       ProviderScope(
@@ -65,7 +65,7 @@ void main() {
   });
 
   testWidgets('统计页可在深色主题中渲染', (tester) async {
-    final db = AppDatabase(NativeDatabase.memory());
+    final db = AppDatabase(NativeDatabase.memory(setup: configureAppDatabaseConnection));
     addTearDown(db.close);
     await tester.pumpWidget(
       ProviderScope(

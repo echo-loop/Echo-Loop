@@ -18,6 +18,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../helpers/mock_providers.dart';
 
 /// 记录 record 事件的 tracker 桩，用于断言成功计数是否被触发
 class _RecordingUsageTracker implements UsageTracker {
@@ -179,7 +180,7 @@ void main() {
     String defaultId = 'a',
   }) {
     final c = ProviderContainer(
-      overrides: [
+      overrides: dedupeOverrides([
         dictionarySourcesByIdProvider.overrideWithValue(sources),
         resolvedDefaultSourceIdProvider.overrideWithValue(defaultId),
         dictionaryLookupContextProvider.overrideWithValue(
@@ -188,7 +189,7 @@ void main() {
             targetLanguage: 'zh-CN',
           ),
         ),
-      ],
+      ]),
     );
     addTearDown(c.dispose);
     return c;
@@ -293,19 +294,19 @@ void main() {
     addTearDown(authEvents.close);
     final ai = _AuthAwareAiSource(result: _aiResult('run'));
     final c = ProviderContainer(
-      overrides: [
+      overrides: dedupeOverrides([
         dictionarySourcesByIdProvider.overrideWithValue({'ai': ai}),
         resolvedDefaultSourceIdProvider.overrideWithValue('ai'),
         supabaseSessionProvider.overrideWith((ref) => authEvents.stream),
         dictionaryLookupContextProvider.overrideWith((ref) {
-          final session = ref.watch(supabaseSessionProvider).valueOrNull;
+          final session = ref.watch(supabaseSessionProvider).value;
           return DictionaryLookupContext(
             accessToken: session?.accessToken,
             targetLanguage: 'zh-CN',
           );
         }),
         usageTrackerProvider.overrideWithValue(_RecordingUsageTracker()),
-      ],
+      ]),
     );
     addTearDown(c.dispose);
     start(c, 'run');
@@ -484,7 +485,7 @@ void main() {
     final a = ControllableSource('a');
     final ai = ControllableSource('ai');
     final c = ProviderContainer(
-      overrides: [
+      overrides: dedupeOverrides([
         dictionarySourcesByIdProvider.overrideWithValue({'a': a, 'ai': ai}),
         resolvedDefaultSourceIdProvider.overrideWithValue('a'),
         visibleDictionarySourcesProvider.overrideWithValue([a, ai]),
@@ -494,7 +495,7 @@ void main() {
             targetLanguage: 'zh-CN',
           ),
         ),
-      ],
+      ]),
     );
     addTearDown(c.dispose);
     start(c, 'give up');
@@ -511,7 +512,7 @@ void main() {
   test('词组：AI 源不可见时回退全局默认源', () async {
     final a = ControllableSource('a');
     final c = ProviderContainer(
-      overrides: [
+      overrides: dedupeOverrides([
         dictionarySourcesByIdProvider.overrideWithValue({'a': a}),
         resolvedDefaultSourceIdProvider.overrideWithValue('a'),
         visibleDictionarySourcesProvider.overrideWithValue([a]),
@@ -521,7 +522,7 @@ void main() {
             targetLanguage: 'zh-CN',
           ),
         ),
-      ],
+      ]),
     );
     addTearDown(c.dispose);
     start(c, 'give up');
@@ -549,7 +550,7 @@ void main() {
     final a = ControllableSource('a');
     final b = ControllableSource('b');
     final c = ProviderContainer(
-      overrides: [
+      overrides: dedupeOverrides([
         dictionarySourcesByIdProvider.overrideWithValue({'a': a, 'b': b}),
         resolvedDefaultSourceIdProvider.overrideWithValue('a'),
         visibleDictionarySourcesProvider.overrideWithValue([a, b]),
@@ -559,7 +560,7 @@ void main() {
             targetLanguage: 'zh-CN',
           ),
         ),
-      ],
+      ]),
     );
     addTearDown(c.dispose);
     final ctrl = start(c, 'run');
@@ -596,7 +597,7 @@ void main() {
   test('会话粘滞源已不可见（设置隐藏）时回退默认源', () async {
     final a = ControllableSource('a');
     final c = ProviderContainer(
-      overrides: [
+      overrides: dedupeOverrides([
         dictionarySourcesByIdProvider.overrideWithValue({'a': a}),
         resolvedDefaultSourceIdProvider.overrideWithValue('a'),
         visibleDictionarySourcesProvider.overrideWithValue([a]),
@@ -606,7 +607,7 @@ void main() {
             targetLanguage: 'zh-CN',
           ),
         ),
-      ],
+      ]),
     );
     addTearDown(c.dispose);
     c.read(dictionarySessionSourceProvider.notifier).remember('gone');
@@ -623,7 +624,7 @@ void main() {
     final b = ControllableSource('b');
     final ai = ControllableSource('ai');
     final c = ProviderContainer(
-      overrides: [
+      overrides: dedupeOverrides([
         dictionarySourcesByIdProvider.overrideWithValue({
           'a': a,
           'b': b,
@@ -637,7 +638,7 @@ void main() {
             targetLanguage: 'zh-CN',
           ),
         ),
-      ],
+      ]),
     );
     addTearDown(c.dispose);
     c.read(dictionarySessionSourceProvider.notifier).remember('b');
@@ -673,7 +674,7 @@ void main() {
     required String defaultId,
   }) {
     final c = ProviderContainer(
-      overrides: [
+      overrides: dedupeOverrides([
         dictionarySourcesByIdProvider.overrideWithValue(sources),
         resolvedDefaultSourceIdProvider.overrideWithValue(defaultId),
         dictionaryLookupContextProvider.overrideWithValue(
@@ -683,7 +684,7 @@ void main() {
           ),
         ),
         usageTrackerProvider.overrideWithValue(tracker),
-      ],
+      ]),
     );
     addTearDown(c.dispose);
     return c;
@@ -823,10 +824,10 @@ void main() {
     final a = ControllableSource('a', requiresNetwork: false);
     // 不 override context：若 controller 误读会抛错
     final c = ProviderContainer(
-      overrides: [
+      overrides: dedupeOverrides([
         dictionarySourcesByIdProvider.overrideWithValue({'a': a}),
         resolvedDefaultSourceIdProvider.overrideWithValue('a'),
-      ],
+      ]),
     );
     addTearDown(c.dispose);
     start(c, 'run');

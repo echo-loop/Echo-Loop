@@ -6,26 +6,57 @@ part of 'transcription_api_client.dart';
 // RiverpodGenerator
 // **************************************************************************
 
-String _$transcriptionApiClientHash() =>
-    r'80dcafe5a4dbec9e8e1091575d6646b030060bd3';
+// GENERATED CODE - DO NOT MODIFY BY HAND
+// ignore_for_file: type=lint, type=warning
+/// 转录 API 客户端单例 Provider
+
+@ProviderFor(transcriptionApiClient)
+final transcriptionApiClientProvider = TranscriptionApiClientProvider._();
 
 /// 转录 API 客户端单例 Provider
-///
-/// Copied from [transcriptionApiClient].
-@ProviderFor(transcriptionApiClient)
-final transcriptionApiClientProvider =
-    Provider<TranscriptionApiClient>.internal(
-      transcriptionApiClient,
-      name: r'transcriptionApiClientProvider',
-      debugGetCreateSourceHash: const bool.fromEnvironment('dart.vm.product')
-          ? null
-          : _$transcriptionApiClientHash,
-      dependencies: null,
-      allTransitiveDependencies: null,
-    );
 
-@Deprecated('Will be removed in 3.0. Use Ref instead')
-// ignore: unused_element
-typedef TranscriptionApiClientRef = ProviderRef<TranscriptionApiClient>;
-// ignore_for_file: type=lint
-// ignore_for_file: subtype_of_sealed_class, invalid_use_of_internal_member, invalid_use_of_visible_for_testing_member, deprecated_member_use_from_same_package
+final class TranscriptionApiClientProvider
+    extends
+        $FunctionalProvider<
+          TranscriptionApiClient,
+          TranscriptionApiClient,
+          TranscriptionApiClient
+        >
+    with $Provider<TranscriptionApiClient> {
+  /// 转录 API 客户端单例 Provider
+  TranscriptionApiClientProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'transcriptionApiClientProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$transcriptionApiClientHash();
+
+  @$internal
+  @override
+  $ProviderElement<TranscriptionApiClient> $createElement(
+    $ProviderPointer pointer,
+  ) => $ProviderElement(pointer);
+
+  @override
+  TranscriptionApiClient create(Ref ref) {
+    return transcriptionApiClient(ref);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(TranscriptionApiClient value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<TranscriptionApiClient>(value),
+    );
+  }
+}
+
+String _$transcriptionApiClientHash() =>
+    r'80dcafe5a4dbec9e8e1091575d6646b030060bd3';

@@ -6,24 +6,58 @@ part of 'audio_list_settings_provider.dart';
 // RiverpodGenerator
 // **************************************************************************
 
-String _$audioListSettingsHash() => r'ad5a0647d376ba3ecb53eb05ec890f594805a929';
+// GENERATED CODE - DO NOT MODIFY BY HAND
+// ignore_for_file: type=lint, type=warning
 
-/// See also [AudioListSettings].
 @ProviderFor(AudioListSettings)
-final audioListSettingsProvider =
-    AutoDisposeNotifierProvider<
-      AudioListSettings,
-      AudioListSettingsState
-    >.internal(
-      AudioListSettings.new,
-      name: r'audioListSettingsProvider',
-      debugGetCreateSourceHash: const bool.fromEnvironment('dart.vm.product')
-          ? null
-          : _$audioListSettingsHash,
-      dependencies: null,
-      allTransitiveDependencies: null,
-    );
+final audioListSettingsProvider = AudioListSettingsProvider._();
 
-typedef _$AudioListSettings = AutoDisposeNotifier<AudioListSettingsState>;
-// ignore_for_file: type=lint
-// ignore_for_file: subtype_of_sealed_class, invalid_use_of_internal_member, invalid_use_of_visible_for_testing_member, deprecated_member_use_from_same_package
+final class AudioListSettingsProvider
+    extends $NotifierProvider<AudioListSettings, AudioListSettingsState> {
+  AudioListSettingsProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'audioListSettingsProvider',
+        isAutoDispose: true,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$audioListSettingsHash();
+
+  @$internal
+  @override
+  AudioListSettings create() => AudioListSettings();
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(AudioListSettingsState value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<AudioListSettingsState>(value),
+    );
+  }
+}
+
+String _$audioListSettingsHash() => r'4d4bf1da22dc866b006ebc9db7fa474360549213';
+
+abstract class _$AudioListSettings extends $Notifier<AudioListSettingsState> {
+  AudioListSettingsState build();
+  @$mustCallSuper
+  @override
+  WhenComplete runBuild() {
+    final ref =
+        this.ref as $Ref<AudioListSettingsState, AudioListSettingsState>;
+    final element =
+        ref.element
+            as $ClassProviderElement<
+              AnyNotifier<AudioListSettingsState, AudioListSettingsState>,
+              AudioListSettingsState,
+              Object?,
+              Object?
+            >;
+    return element.handleCreate(ref, build);
+  }
+}

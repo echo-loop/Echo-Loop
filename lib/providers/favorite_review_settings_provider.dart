@@ -2,6 +2,7 @@
 library;
 
 import 'dart:async';
+import '../utils/provider_override_error.dart';
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
@@ -31,7 +32,8 @@ class FavoriteReviewSettingsNotifier extends Notifier<FavoriteReviewSettings> {
     final generation = ++_loadGeneration;
     try {
       return _readFromPrefs(ref.read(sharedPreferencesProvider));
-    } on UnimplementedError {
+    } catch (error) {
+      if (!isProviderNotOverriddenError(error)) rethrow;
       _loadFromPreferences(generation);
       return const FavoriteReviewSettings();
     }
@@ -73,7 +75,8 @@ class FavoriteReviewSettingsNotifier extends Notifier<FavoriteReviewSettings> {
     final generation = ++_loadGeneration;
     try {
       state = _readFromPrefs(ref.read(sharedPreferencesProvider));
-    } on UnimplementedError {
+    } catch (error) {
+      if (!isProviderNotOverriddenError(error)) rethrow;
       _loadFromPreferences(generation);
     }
   }

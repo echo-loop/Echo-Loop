@@ -10,4 +10,26 @@ mixin _$FavoriteReviewDaoMixin on DatabaseAccessor<AppDatabase> {
   $SavedWordsTable get savedWords => attachedDatabase.savedWords;
   $SavedSenseGroupsTable get savedSenseGroups =>
       attachedDatabase.savedSenseGroups;
+  FavoriteReviewDaoManager get managers => FavoriteReviewDaoManager(this);
+}
+
+class FavoriteReviewDaoManager {
+  final _$FavoriteReviewDaoMixin _db;
+  FavoriteReviewDaoManager(this._db);
+  $$MemorySchedulesTableTableManager get memorySchedules =>
+      $$MemorySchedulesTableTableManager(
+        _db.attachedDatabase,
+        _db.memorySchedules,
+      );
+  $$AudioItemsTableTableManager get audioItems =>
+      $$AudioItemsTableTableManager(_db.attachedDatabase, _db.audioItems);
+  $$BookmarksTableTableManager get bookmarks =>
+      $$BookmarksTableTableManager(_db.attachedDatabase, _db.bookmarks);
+  $$SavedWordsTableTableManager get savedWords =>
+      $$SavedWordsTableTableManager(_db.attachedDatabase, _db.savedWords);
+  $$SavedSenseGroupsTableTableManager get savedSenseGroups =>
+      $$SavedSenseGroupsTableTableManager(
+        _db.attachedDatabase,
+        _db.savedSenseGroups,
+      );
 }

@@ -56,7 +56,7 @@ void reviewSubStageTests() {
       final context = tester.element(find.byType(EchoLoopApp));
       final container = ProviderScope.containerOf(context);
       final progressNotifier = container
-          .read(learningProgressNotifierProvider.notifier)
+          .read(learningProgressProvider.notifier)
           as TestLearningProgressNotifier;
 
       final completed = <String>{};

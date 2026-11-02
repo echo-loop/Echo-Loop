@@ -3,12 +3,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:echo_loop/models/audio_engine_state.dart';
 import 'package:echo_loop/providers/audio_engine/audio_engine_provider.dart';
+import '../helpers/mock_providers.dart';
 
 void main() {
   group('AudioEngine clearClip', () {
     test('未处于 clip 状态时直接返回，不触碰底层播放器', () async {
       final container = ProviderContainer(
-        overrides: [
+        overrides: dedupeOverrides([
           audioEngineProvider.overrideWith(
             () => _BuildOnlyAudioEngine(
               initialState: const AudioEngineState(
@@ -17,7 +18,7 @@ void main() {
               ),
             ),
           ),
-        ],
+        ]),
       );
       addTearDown(container.dispose);
       final engine = container.read(audioEngineProvider.notifier);
@@ -30,7 +31,7 @@ void main() {
 
     test('clip 起点为 0 时仍视为 active，必须清理', () async {
       final container = ProviderContainer(
-        overrides: [
+        overrides: dedupeOverrides([
           audioEngineProvider.overrideWith(
             () => _RecordingClearClipAudioEngine(
               initialState: const AudioEngineState(
@@ -39,7 +40,7 @@ void main() {
               ),
             ),
           ),
-        ],
+        ]),
       );
       addTearDown(container.dispose);
       final engine =

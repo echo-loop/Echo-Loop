@@ -167,6 +167,10 @@ void main() async {
   runApp(
     PostHogWidget(
       child: ProviderScope(
+        // Riverpod 3 默认对失败的 provider 指数退避重试（最多 10 次），会重复发起
+        // 网络 / 数据库请求。Riverpod 2 无此行为，错误由各 provider 自行处理，这里
+        // 关闭自动重试以保持原有语义。
+        retry: (_, _) => null,
         overrides: [
           analyticsServiceProvider.overrideWithValue(analyticsService),
           packageInfoProvider.overrideWithValue(packageInfo),
@@ -258,7 +262,7 @@ class _EchoLoopAppState extends ConsumerState<EchoLoopApp>
         .listenManual<AsyncValue<UserRegionBootstrapResult>>(
           userRegionBootstrapProvider,
           (_, next) {
-            final result = next.valueOrNull;
+            final result = next.value;
             if (result == null) return;
             ref
                 .read(remoteConfigProvider.notifier)
@@ -391,12 +395,12 @@ class _EchoLoopAppState extends ConsumerState<EchoLoopApp>
           unawaited(
             ref
                 .read(onboardingSyncProvider)
-                .onSessionChanged(isSignedIn: next.valueOrNull != null),
+                .onSessionChanged(isSignedIn: next.value != null),
           );
           unawaited(
             ref
                 .read(userPreferencesSyncServiceProvider)
-                .onSessionChanged(next.valueOrNull?.user.id)
+                .onSessionChanged(next.value?.user.id)
                 .catchError((Object error, StackTrace stackTrace) {
                   AppLogger.log(
                     'UserPreferencesSync',
@@ -409,8 +413,8 @@ class _EchoLoopAppState extends ConsumerState<EchoLoopApp>
           ref
               .read(authAnalyticsSyncProvider)
               .syncSessionChange(
-                previous: previous?.valueOrNull,
-                current: next.valueOrNull,
+                previous: previous?.value,
+                current: next.value,
               ),
         );
       },
@@ -448,7 +452,7 @@ class _EchoLoopAppState extends ConsumerState<EchoLoopApp>
         if (ref.read(localStartupProvider).hasValue) {
           _triggerCommunitySync();
         }
-        final session = ref.read(supabaseSessionProvider).valueOrNull;
+        final session = ref.read(supabaseSessionProvider).value;
         if (session != null) {
           unawaited(ref.read(onboardingSyncProvider).onAppResumed());
           unawaited(

@@ -7,4 +7,17 @@ mixin _$LearningProgressDaoMixin on DatabaseAccessor<AppDatabase> {
   $AudioItemsTable get audioItems => attachedDatabase.audioItems;
   $LearningProgressesTable get learningProgresses =>
       attachedDatabase.learningProgresses;
+  LearningProgressDaoManager get managers => LearningProgressDaoManager(this);
+}
+
+class LearningProgressDaoManager {
+  final _$LearningProgressDaoMixin _db;
+  LearningProgressDaoManager(this._db);
+  $$AudioItemsTableTableManager get audioItems =>
+      $$AudioItemsTableTableManager(_db.attachedDatabase, _db.audioItems);
+  $$LearningProgressesTableTableManager get learningProgresses =>
+      $$LearningProgressesTableTableManager(
+        _db.attachedDatabase,
+        _db.learningProgresses,
+      );
 }

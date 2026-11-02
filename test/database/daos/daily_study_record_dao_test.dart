@@ -7,9 +7,7 @@ import 'package:echo_loop/models/study_stage.dart';
 
 AppDatabase _createTestDb() {
   return AppDatabase(
-    NativeDatabase.memory(
-      setup: (db) => db.execute('PRAGMA foreign_keys = ON'),
-    ),
+    NativeDatabase.memory(setup: configureAppDatabaseConnection),
   );
 }
 

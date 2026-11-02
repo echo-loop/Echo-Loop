@@ -21,6 +21,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../../helpers/mock_providers.dart';
+import 'package:echo_loop/database/app_database.dart' show configureAppDatabaseConnection;
 
 class _MissingFileApi extends CommunityCollectionApi {
   _MissingFileApi() : super.withDio(Dio());
@@ -109,7 +110,7 @@ Future<DownloadProgress> waitUntilSettled(ProviderContainer container) {
 
 void main() {
   test('远端文件消失时下载不会永久停留在进行中', () async {
-    final database = db.AppDatabase(NativeDatabase.memory());
+    final database = db.AppDatabase(NativeDatabase.memory(setup: configureAppDatabaseConnection));
     final dataDirectory = await Directory.systemTemp.createTemp(
       'community-download-',
     );
@@ -143,7 +144,7 @@ void main() {
         );
 
     final container = ProviderContainer(
-      overrides: [
+      overrides: dedupeOverrides([
         appDatabaseProvider.overrideWithValue(database),
         communityCollectionApiProvider.overrideWithValue(_MissingFileApi()),
         communityFileLifecycleServiceProvider.overrideWithValue(
@@ -154,7 +155,7 @@ void main() {
         ),
         audioLibraryProvider.overrideWith(() => TestAudioLibrary()),
         collectionListProvider.overrideWith(() => TestCollectionList()),
-      ],
+      ]),
     );
     addTearDown(() async {
       container.dispose();
@@ -178,7 +179,7 @@ void main() {
   });
 
   test('文件大小元数据不准仍完成下载，且详情排序不覆盖合集排序', () async {
-    final database = db.AppDatabase(NativeDatabase.memory());
+    final database = db.AppDatabase(NativeDatabase.memory(setup: configureAppDatabaseConnection));
     final dataDirectory = await Directory.systemTemp.createTemp(
       'community-download-success-',
     );
@@ -215,7 +216,7 @@ void main() {
 
     final runner = _FakeBackgroundDownloadRunner();
     final container = ProviderContainer(
-      overrides: [
+      overrides: dedupeOverrides([
         appDatabaseProvider.overrideWithValue(database),
         communityCollectionApiProvider.overrideWithValue(_AvailableFileApi()),
         isChinaUserProvider.overrideWithValue(true),
@@ -230,7 +231,7 @@ void main() {
         ),
         audioLibraryProvider.overrideWith(() => TestAudioLibrary()),
         collectionListProvider.overrideWith(() => TestCollectionList()),
-      ],
+      ]),
     );
     addTearDown(() async {
       container.dispose();

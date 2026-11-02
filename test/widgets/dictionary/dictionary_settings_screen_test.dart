@@ -11,6 +11,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../helpers/mock_providers.dart';
 
 class _FakeSource implements DictionarySource {
   @override
@@ -46,10 +47,10 @@ void main() {
 
   (ProviderContainer, Widget) build() {
     final container = ProviderContainer(
-      overrides: [
+      overrides: dedupeOverrides([
         dictionarySourcesProvider.overrideWithValue(fakeSources),
         sharedPreferencesProvider.overrideWithValue(prefs),
-      ],
+      ]),
     );
     addTearDown(container.dispose);
     return (
@@ -94,7 +95,7 @@ void main() {
     await tester.tap(toggle);
     await tester.pumpAndSettle();
     expect(
-      container.read(dictionarySettingsNotifierProvider).adFilteringEnabled,
+      container.read(dictionarySettingsProvider).adFilteringEnabled,
       isTrue,
     );
   });
@@ -111,7 +112,7 @@ void main() {
     await tester.tap(toggle);
     await tester.pumpAndSettle();
     expect(
-      container.read(dictionarySettingsNotifierProvider).autoSpeakOnLookup,
+      container.read(dictionarySettingsProvider).autoSpeakOnLookup,
       isFalse,
     );
   });
@@ -122,14 +123,14 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(
-      container.read(dictionarySettingsNotifierProvider).defaultSourceId,
+      container.read(dictionarySettingsProvider).defaultSourceId,
       'local',
     );
     // 默认区在前，首个 'AI Dictionary' 即默认区项
     await tester.tap(find.text('AI Dictionary').first);
     await tester.pumpAndSettle();
     expect(
-      container.read(dictionarySettingsNotifierProvider).defaultSourceId,
+      container.read(dictionarySettingsProvider).defaultSourceId,
       'ai',
     );
   });
@@ -145,7 +146,7 @@ void main() {
     await tester.tap(find.byType(Switch).last);
     await tester.pumpAndSettle();
 
-    expect(container.read(dictionarySettingsNotifierProvider).disabledIds, {
+    expect(container.read(dictionarySettingsProvider).disabledIds, {
       'cambridge',
     });
     // 默认区不再列出 Cambridge，仅词典源区保留

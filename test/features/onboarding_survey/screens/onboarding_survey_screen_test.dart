@@ -101,7 +101,7 @@ Widget _wrap({
   );
 
   return ProviderScope(
-    overrides: [
+    overrides: dedupeOverrides([
       sharedPreferencesProvider.overrideWithValue(prefs),
       initialOnboardingCompletedProvider.overrideWithValue(
         initialOnboardingCompleted,
@@ -118,7 +118,7 @@ Widget _wrap({
             consent: ConsentManager(prefs),
           ),
         ),
-    ],
+    ]),
     child: MaterialApp.router(
       routerConfig: router,
       theme: AppTheme.light(),
@@ -512,11 +512,11 @@ void main() {
 
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [
+        overrides: dedupeOverrides([
           sharedPreferencesProvider.overrideWithValue(prefs),
           initialOnboardingCompletedProvider.overrideWithValue(false),
           analyticsOverride(),
-        ],
+        ]),
         child: MaterialApp.router(
           routerConfig: router,
           supportedLocales: const [Locale('zh', 'CN'), Locale('en')],

@@ -25,7 +25,7 @@ void main() {
     final file = File('${dir.path}/echo_loop.db');
     await _createV41Fixture(file);
 
-    final db = AppDatabase(NativeDatabase(file));
+    final db = AppDatabase(NativeDatabase(file, setup: configureAppDatabaseConnection));
     addTearDown(db.close);
 
     // 触发迁移并读取剩余行
@@ -115,6 +115,6 @@ Future<void> _createV41Fixture(File file) async {
 
     raw.execute('PRAGMA user_version = 41');
   } finally {
-    raw.dispose();
+    raw.close();
   }
 }

@@ -6,4 +6,15 @@ part of 'daily_study_record_dao.dart';
 mixin _$DailyStudyRecordDaoMixin on DatabaseAccessor<AppDatabase> {
   $DailyStudyRecordsTable get dailyStudyRecords =>
       attachedDatabase.dailyStudyRecords;
+  DailyStudyRecordDaoManager get managers => DailyStudyRecordDaoManager(this);
+}
+
+class DailyStudyRecordDaoManager {
+  final _$DailyStudyRecordDaoMixin _db;
+  DailyStudyRecordDaoManager(this._db);
+  $$DailyStudyRecordsTableTableManager get dailyStudyRecords =>
+      $$DailyStudyRecordsTableTableManager(
+        _db.attachedDatabase,
+        _db.dailyStudyRecords,
+      );
 }

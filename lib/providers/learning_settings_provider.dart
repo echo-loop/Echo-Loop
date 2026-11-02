@@ -10,6 +10,7 @@
 library;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../utils/provider_override_error.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../features/onboarding_survey/providers/onboarding_survey_provider.dart'
@@ -260,7 +261,8 @@ class LearningSettingsNotifier extends Notifier<LearningSettings> {
       return LearningSettings.fromPrefsSync(
         ref.read(sharedPreferencesProvider),
       );
-    } on UnimplementedError {
+    } catch (error) {
+      if (!isProviderNotOverriddenError(error)) rethrow;
       return ref.read(initialLearningSettingsProvider);
     }
   }

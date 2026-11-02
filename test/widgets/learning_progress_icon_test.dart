@@ -8,15 +8,16 @@ import 'package:echo_loop/models/learning_plan.dart';
 import 'package:echo_loop/models/learning_progress.dart';
 import 'package:echo_loop/database/enums.dart';
 import 'package:echo_loop/providers/learning_settings_provider.dart';
+import '../helpers/mock_providers.dart';
 
 void main() {
   Widget createTestWidget(LearningProgress? progress, {bool isVideo = false}) {
     return ProviderScope(
-      overrides: [
+      overrides: dedupeOverrides([
         initialLearningSettingsProvider.overrideWithValue(
           const LearningSettings(),
         ),
-      ],
+      ]),
       child: MaterialApp(
         home: Scaffold(
           body: Center(

@@ -691,10 +691,10 @@ void main() {
       await tester.pumpWidget(
         createTestScreen(
           SubtitleSimpleEditorScreen(audioItem: audioItem),
-          overrides: [
+          overrides: dedupeOverrides([
             analyticsServiceProvider.overrideWithValue(analytics),
             audioEngineProvider.overrideWith(() => audioEngine),
-          ],
+          ]),
         ),
       );
       await tester.pump();

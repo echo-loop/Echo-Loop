@@ -120,6 +120,7 @@ class MediaPlayback extends Notifier<MediaPlaybackState> {
   /// 正常路由退出和页面销毁兜底都调用此入口，复用媒体释放流程并等待
   /// 页面计时器的最终 flush。传入页面代际时，过期页面不会释放新会话。
   Future<void> finishStudyPage({int? generation}) {
+    if (!ref.mounted) return Future<void>.value();
     final activeGeneration = _activeStudyPageGeneration;
     if (activeGeneration == null ||
         (generation != null && generation != activeGeneration)) {
@@ -242,6 +243,8 @@ class MediaPlayback extends Notifier<MediaPlaybackState> {
   /// 计时器独立负责听力时长；这里仅复用句子统计入口写入听到的词数和唯一词形。
   /// 位置倒退表示 seek 或回卷，重置游标而不把跳过的内容算作听到。
   void _recordGaplessStatsThrough(Duration position) {
+    // 已销毁的 notifier 不能再读 state；释放收尾仍会走到这里。
+    if (!ref.mounted) return;
     if (_activeSentenceDrivenPlayback || state.sentences.isEmpty) return;
 
     final previous = _lastGaplessStatsPosition;
@@ -273,15 +276,22 @@ class MediaPlayback extends Notifier<MediaPlaybackState> {
   /// 将播放器置为停止态；学习页面会话由页面退出时统一结束。
   Future<void> _stopPlaying() async {
     _clearPlaybackInterval();
-    state = state.copyWith(isPlaying: false);
+    _setPlayingFlag(false);
     _setStudyPlaybackActive(false);
   }
 
   /// 普通暂停只暂停输入计时，保留页面学习会话供用户继续思考。
   Future<void> _pausePlaying() async {
     _clearPlaybackInterval();
-    state = state.copyWith(isPlaying: false);
+    _setPlayingFlag(false);
     _setStudyPlaybackActive(false);
+  }
+
+  /// 仅在 notifier 仍存活时写入 isPlaying；释放收尾可能晚于 dispose 执行，
+  /// 此时写 state 会抛 UnmountedRefException，而播放器资源已由释放流程处理。
+  void _setPlayingFlag(bool isPlaying) {
+    if (!ref.mounted) return;
+    state = state.copyWith(isPlaying: isPlaying);
   }
 
   /// 当前媒体会话的意群区间播放器；随心听页面只通过该契约传递播放意图。
@@ -1198,6 +1208,7 @@ class MediaPlayback extends Notifier<MediaPlaybackState> {
   Future<void>? _releaseInFlight;
 
   Future<void> releaseFromScreen({int? studyPageGeneration}) async {
+    if (!ref.mounted) return;
     if (studyPageGeneration != null &&
         _activeStudyPageGeneration != studyPageGeneration) {
       return;
@@ -1263,7 +1274,7 @@ class MediaPlayback extends Notifier<MediaPlaybackState> {
     if (studyPageGeneration != null &&
         _activeStudyPageGeneration != studyPageGeneration) {
       // 页面代际已变化时，仅恢复新页面仍在使用的锁屏命令，不执行旧页面解绑。
-      if (_loadReady) {
+      if (_loadReady && ref.mounted) {
         engine?.setTransportHandlers(onPlay: play, onPause: pause);
         if (state.hasSentences) {
           engine?.setSkipHandlers(
@@ -1289,7 +1300,10 @@ class MediaPlayback extends Notifier<MediaPlaybackState> {
     if (engine != null) _recordGaplessStatsThrough(engine.currentPosition);
     // 暂停完成后读取 backend 实时位置，避免 position stream 尚未刷新时使用
     // 落后的界面状态覆盖更精确的断点。
-    final checkpointPosition = engine?.currentPosition ?? state.position;
+    // notifier 已销毁时无法读取 state；此时持久化已被 ref.mounted 守卫跳过，兜底值不会落盘。
+    final checkpointPosition =
+        engine?.currentPosition ??
+        (ref.mounted ? state.position : Duration.zero);
     if (shouldEndStudyPage) {
       if (studyPageGeneration != null) {
         await endStudyPage(studyPageGeneration);
@@ -1331,7 +1345,7 @@ class MediaPlayback extends Notifier<MediaPlaybackState> {
       AppLogger.log('MediaPlayback', 'release engine detach failed: $error');
     } finally {
       await _stopPlaying();
-      state = const MediaPlaybackState();
+      if (ref.mounted) state = const MediaPlaybackState();
     }
     final error = releaseError;
     if (error != null) throw error;
@@ -1570,6 +1584,8 @@ class MediaPlayback extends Notifier<MediaPlaybackState> {
         ),
         sessionId: _playbackSessionId,
       );
+      // 区间播放期间 notifier 可能已销毁，过期则结束循环，不再访问 state。
+      if (!ref.mounted) return;
       AppLogger.log(
         'MediaPlayback',
         'sentence range dispatch end item=${state.audioItem?.id} '

@@ -561,6 +561,7 @@ class FavoriteVocabularyReview extends _$FavoriteVocabularyReview {
 
   /// 幂等结束复习会话，确保退出路由和页面回调不会重复清理资源或漏刷统计。
   Future<void> disposeSession() {
+    if (!ref.mounted) return Future<void>.value();
     final inFlight = _disposeSessionInFlight;
     if (inFlight != null) return inFlight;
     final operation = _disposeSessionImpl();

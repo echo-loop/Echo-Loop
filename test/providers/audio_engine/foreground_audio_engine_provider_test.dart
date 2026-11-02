@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:echo_loop/models/audio_engine_state.dart';
 import 'package:echo_loop/models/sentence.dart';
 import 'package:echo_loop/providers/audio_engine/foreground_audio_engine_provider.dart';
+import '../../helpers/mock_providers.dart';
 
 /// 前台引擎单测：聚焦 session 守卫、loop 计数、clip 状态等编排逻辑
 /// （深层 clip 播放与 AudioEngine 逐方法一致，由步骤 6 的行为测试平移守护）。
@@ -22,11 +23,11 @@ void main() {
   group('ForegroundAudioEngine session 守卫', () {
     test('newSession 递增 sessionId，isActiveSession 仅认最新', () {
       final container = ProviderContainer(
-        overrides: [
+        overrides: dedupeOverrides([
           foregroundAudioEngineProvider.overrideWith(
             () => _BuildOnlyForegroundEngine(const AudioEngineState()),
           ),
-        ],
+        ]),
       );
       addTearDown(container.dispose);
       final engine = container.read(foregroundAudioEngineProvider.notifier);
@@ -41,11 +42,11 @@ void main() {
 
     test('playClipOnce 在 session 已过期时立即返回，不触达 player', () async {
       final container = ProviderContainer(
-        overrides: [
+        overrides: dedupeOverrides([
           foregroundAudioEngineProvider.overrideWith(
             () => _BuildOnlyForegroundEngine(const AudioEngineState()),
           ),
-        ],
+        ]),
       );
       addTearDown(container.dispose);
       final engine = container.read(foregroundAudioEngineProvider.notifier);
@@ -61,11 +62,11 @@ void main() {
   group('ForegroundAudioEngine playClipWithLoops', () {
     test('循环 N 遍各调一次 playClipOnce；中途 session 失效则停止', () async {
       final container = ProviderContainer(
-        overrides: [
+        overrides: dedupeOverrides([
           foregroundAudioEngineProvider.overrideWith(
             () => _CountingForegroundEngine(const AudioEngineState()),
           ),
-        ],
+        ]),
       );
       addTearDown(container.dispose);
       final engine =
@@ -85,11 +86,11 @@ void main() {
 
     test('session 失效后不再播放', () async {
       final container = ProviderContainer(
-        overrides: [
+        overrides: dedupeOverrides([
           foregroundAudioEngineProvider.overrideWith(
             () => _CountingForegroundEngine(const AudioEngineState()),
           ),
-        ],
+        ]),
       );
       addTearDown(container.dispose);
       final engine =
@@ -113,13 +114,13 @@ void main() {
   group('ForegroundAudioEngine clearClip', () {
     test('未处于 clip 状态时直接返回', () async {
       final container = ProviderContainer(
-        overrides: [
+        overrides: dedupeOverrides([
           foregroundAudioEngineProvider.overrideWith(
             () => _NoPlayerClearClipEngine(
               const AudioEngineState(isClipActive: false),
             ),
           ),
-        ],
+        ]),
       );
       addTearDown(container.dispose);
       final engine =
@@ -134,7 +135,7 @@ void main() {
 
     test('clip active 时清理并复位 state', () async {
       final container = ProviderContainer(
-        overrides: [
+        overrides: dedupeOverrides([
           foregroundAudioEngineProvider.overrideWith(
             () => _NoPlayerClearClipEngine(
               const AudioEngineState(
@@ -143,7 +144,7 @@ void main() {
               ),
             ),
           ),
-        ],
+        ]),
       );
       addTearDown(container.dispose);
       final engine =

@@ -16,7 +16,7 @@ void main() {
     setUp(() async {
       tempDir = await Directory.systemTemp.createTemp('backup_snapshot_test_');
       databaseFile = File(p.join(tempDir.path, 'echo_loop.db'));
-      database = AppDatabase(NativeDatabase(databaseFile));
+      database = AppDatabase(NativeDatabase(databaseFile, setup: configureAppDatabaseConnection));
       await database.customSelect('SELECT 1').get();
     });
 
@@ -52,7 +52,7 @@ void main() {
         isNotEmpty,
       );
       final sqlite = sqlite3.open(snapshot.path, mode: OpenMode.readOnly);
-      addTearDown(sqlite.dispose);
+      addTearDown(sqlite.close);
       expect(
         sqlite
             .select("SELECT name FROM audio_items WHERE id = 'snapshot-audio'")
@@ -76,7 +76,7 @@ void main() {
       await database.createBackupSnapshot(snapshot);
 
       final sqlite = sqlite3.open(snapshot.path, mode: OpenMode.readOnly);
-      addTearDown(sqlite.dispose);
+      addTearDown(sqlite.close);
       expect(
         sqlite.select('SELECT value FROM snapshot_probe').single['value'],
         'latest-committed',

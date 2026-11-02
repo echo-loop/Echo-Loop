@@ -7,6 +7,7 @@ import 'package:echo_loop/features/user_region/user_region_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import '../helpers/mock_providers.dart';
 
 void main() {
   testWidgets('首帧提交后执行本地启动，并将成功结果发布为唯一 gate', (tester) async {
@@ -113,7 +114,7 @@ Widget _host({
 }) {
   final regionFuture = regionGate?.future ?? Future.value(_resolvedRegion);
   return ProviderScope(
-    overrides: [
+    overrides: dedupeOverrides([
       startupBootstrapperProvider.overrideWithValue(bootstrapper),
       userRegionBootstrapProvider.overrideWith((ref) => regionFuture),
       supabaseUrlForThisRunProvider.overrideWith((ref) async {
@@ -122,7 +123,7 @@ Widget _host({
             ? 'https://china.supabase.test'
             : 'https://global.supabase.test';
       }),
-    ],
+    ]),
     child: MaterialApp(
       home: Consumer(
         builder: (context, ref, _) {

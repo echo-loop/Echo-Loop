@@ -11,6 +11,8 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_riverpod/misc.dart';
+import '../../helpers/mock_providers.dart';
 
 class _FakeSource implements DictionarySource {
   @override
@@ -46,11 +48,11 @@ void main() {
 
   Widget wrap(Widget child, {List<Override> overrides = const []}) =>
       ProviderScope(
-        overrides: [
+        overrides: dedupeOverrides([
           dictionarySourcesProvider.overrideWithValue(fakeSources),
           sharedPreferencesProvider.overrideWithValue(prefs),
           ...overrides,
-        ],
+        ]),
         child: MaterialApp(
           locale: const Locale('en'),
           supportedLocales: const [Locale('en'), Locale('zh')],
@@ -107,14 +109,14 @@ void main() {
 
   testWidgets('禁用的源不出现在菜单中', (tester) async {
     final container = ProviderContainer(
-      overrides: [
+      overrides: dedupeOverrides([
         dictionarySourcesProvider.overrideWithValue(fakeSources),
         sharedPreferencesProvider.overrideWithValue(prefs),
-      ],
+      ]),
     );
     addTearDown(container.dispose);
     await container
-        .read(dictionarySettingsNotifierProvider.notifier)
+        .read(dictionarySettingsProvider.notifier)
         .setDisabled('cambridge', true);
 
     await tester.pumpWidget(
@@ -163,13 +165,13 @@ void main() {
   testWidgets('源列表不含 AI 时，AI 快捷按钮不渲染', (tester) async {
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [
+        overrides: dedupeOverrides([
           dictionarySourcesProvider.overrideWithValue(<DictionarySource>[
             _FakeSource('local', canBeDisabled: false),
             _FakeSource('cambridge', canBeDisabled: true),
           ]),
           sharedPreferencesProvider.overrideWithValue(prefs),
-        ],
+        ]),
         child: MaterialApp(
           locale: const Locale('en'),
           supportedLocales: const [Locale('en'), Locale('zh')],

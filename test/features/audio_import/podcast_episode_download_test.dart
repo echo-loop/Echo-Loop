@@ -141,12 +141,12 @@ void main() {
       AudioItem item,
     ) {
       return ProviderContainer(
-        overrides: [
+        overrides: dedupeOverrides([
           audioImportServiceProvider.overrideWithValue(service),
           audioLibraryProvider.overrideWith(
             () => TestAudioLibrary(AudioLibraryState(audioItems: [item])),
           ),
-        ],
+        ]),
       );
     }
 
@@ -259,7 +259,7 @@ void main() {
       ) {
         final dao = TestAudioItemDao();
         final container = ProviderContainer(
-          overrides: [
+          overrides: dedupeOverrides([
             audioImportServiceProvider.overrideWithValue(
               _FakeEpisodeDownloadService(),
             ),
@@ -268,7 +268,7 @@ void main() {
             audioLibraryProvider.overrideWith(
               () => TestAudioLibrary(AudioLibraryState(audioItems: [item])),
             ),
-          ],
+          ]),
         );
         addTearDown(container.dispose);
         return (container: container, dao: dao);
@@ -390,7 +390,7 @@ void main() {
         final downloader = _GatedTranscriptDownloader();
         final dao = TestAudioItemDao();
         final container = ProviderContainer(
-          overrides: [
+          overrides: dedupeOverrides([
             audioImportServiceProvider.overrideWithValue(
               _FakeEpisodeDownloadService(),
             ),
@@ -399,7 +399,7 @@ void main() {
             audioLibraryProvider.overrideWith(
               () => TestAudioLibrary(AudioLibraryState(audioItems: [item])),
             ),
-          ],
+          ]),
         );
         addTearDown(container.dispose);
 
@@ -430,7 +430,7 @@ void main() {
         final downloader = _GatedTranscriptDownloader();
         final dao = TestAudioItemDao();
         final container = ProviderContainer(
-          overrides: [
+          overrides: dedupeOverrides([
             audioImportServiceProvider.overrideWithValue(
               _FakeEpisodeDownloadService(),
             ),
@@ -439,7 +439,7 @@ void main() {
             audioLibraryProvider.overrideWith(
               () => TestAudioLibrary(AudioLibraryState(audioItems: [item])),
             ),
-          ],
+          ]),
         );
         addTearDown(container.dispose);
 

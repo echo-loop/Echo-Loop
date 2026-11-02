@@ -23,12 +23,12 @@ void main() {
     Locale locale = const Locale('en'),
   }) {
     return ProviderScope(
-      overrides: [
+      overrides: dedupeOverrides([
         reviewDifficultPracticeProvider.overrideWith(
           () => TestReviewDifficultPractice(initialState),
         ),
         audioEngineProvider.overrideWith(() => TestAudioEngine()),
-      ],
+      ]),
       child: MaterialApp(
         locale: locale,
         supportedLocales: const [Locale('en'), Locale('zh')],

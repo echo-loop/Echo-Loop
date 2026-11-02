@@ -29,6 +29,7 @@ import 'package:echo_loop/widgets/import_audio_sheet.dart';
 import 'package:flutter/foundation.dart'
     show debugDefaultTargetPlatformOverride;
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter_riverpod/misc.dart';
 
 import '../helpers/mock_providers.dart';
 import '../helpers/test_app.dart';
@@ -562,7 +563,7 @@ Widget _buildApp({
         ),
       ),
     ),
-    overrides: [
+    overrides: dedupeOverrides([
       analyticsOverride(),
       appSettingsProvider.overrideWith(
         () => TestAppSettings(AppSettingsState(locale: locale)),
@@ -585,7 +586,7 @@ Widget _buildApp({
         ),
       ),
       ...overrides,
-    ],
+    ]),
     locale: locale,
   );
 }
@@ -638,12 +639,12 @@ void main() {
             ),
           ),
         ),
-        overrides: [
+        overrides: dedupeOverrides([
           analyticsOverride(),
           appSettingsProvider.overrideWith(
             () => TestAppSettings(AppSettingsState(locale: const Locale('zh'))),
           ),
-        ],
+        ]),
       ),
     );
 
@@ -699,12 +700,12 @@ void main() {
             ),
           ),
         ),
-        overrides: [
+        overrides: dedupeOverrides([
           analyticsOverride(),
           appSettingsProvider.overrideWith(
             () => TestAppSettings(AppSettingsState(locale: const Locale('zh'))),
           ),
-        ],
+        ]),
         locale: const Locale('zh'),
       ),
     );
@@ -740,12 +741,12 @@ void main() {
             ),
           ),
         ),
-        overrides: [
+        overrides: dedupeOverrides([
           analyticsOverride(),
           appSettingsProvider.overrideWith(
             () => TestAppSettings(AppSettingsState(locale: const Locale('zh'))),
           ),
-        ],
+        ]),
         locale: const Locale('zh'),
       ),
     );
@@ -770,12 +771,12 @@ void main() {
             ],
           ),
         ),
-        overrides: [
+        overrides: dedupeOverrides([
           analyticsOverride(),
           appSettingsProvider.overrideWith(
             () => TestAppSettings(AppSettingsState(locale: const Locale('zh'))),
           ),
-        ],
+        ]),
       ),
     );
 
@@ -924,11 +925,11 @@ void main() {
   testWidgets('百度网盘未授权时不显示退出登录按钮', (tester) async {
     await tester.pumpWidget(
       _buildApp(
-        overrides: [
+        overrides: dedupeOverrides([
           baiduCredentialRepositoryProvider.overrideWithValue(
             _NoTokenCredentialRepository(),
           ),
-        ],
+        ]),
       ),
     );
     await tester.tap(find.text('Open Import'));
@@ -947,12 +948,12 @@ void main() {
     await tester.pumpWidget(
       _buildApp(
         locale: const Locale('zh'),
-        overrides: [
+        overrides: dedupeOverrides([
           baiduCredentialRepositoryProvider.overrideWithValue(
             _TokenCredentialRepository(),
           ),
           baiduNetdiskApiProvider.overrideWithValue(_PendingBaiduNetdiskApi()),
-        ],
+        ]),
       ),
     );
     await tester.tap(find.text('Open Import'));
@@ -1023,12 +1024,12 @@ void main() {
     await tester.pumpWidget(
       _buildApp(
         locale: const Locale('zh'),
-        overrides: [
+        overrides: dedupeOverrides([
           baiduCredentialRepositoryProvider.overrideWithValue(
             _TokenCredentialRepository(),
           ),
           baiduNetdiskApiProvider.overrideWithValue(api),
-        ],
+        ]),
       ),
     );
     await tester.tap(find.text('Open Import'));
@@ -1124,13 +1125,13 @@ void main() {
     await tester.pumpWidget(
       _buildApp(
         locale: const Locale('zh'),
-        overrides: [
+        overrides: dedupeOverrides([
           baiduCredentialRepositoryProvider.overrideWithValue(
             _TokenCredentialRepository(),
           ),
           baiduNetdiskApiProvider.overrideWithValue(api),
           baiduNetdiskImportServiceProvider.overrideWithValue(importService),
-        ],
+        ]),
       ),
     );
     await tester.tap(find.text('Open Import'));
@@ -1187,13 +1188,13 @@ void main() {
     await tester.pumpWidget(
       _buildApp(
         locale: const Locale('zh'),
-        overrides: [
+        overrides: dedupeOverrides([
           baiduCredentialRepositoryProvider.overrideWithValue(
             _TokenCredentialRepository(),
           ),
           baiduNetdiskApiProvider.overrideWithValue(api),
           baiduNetdiskImportServiceProvider.overrideWithValue(importService),
-        ],
+        ]),
       ),
     );
     await tester.tap(find.text('Open Import'));
@@ -1246,13 +1247,13 @@ void main() {
     await tester.pumpWidget(
       _buildApp(
         locale: const Locale('zh'),
-        overrides: [
+        overrides: dedupeOverrides([
           baiduCredentialRepositoryProvider.overrideWithValue(
             _TokenCredentialRepository(),
           ),
           baiduNetdiskApiProvider.overrideWithValue(api),
           baiduNetdiskImportServiceProvider.overrideWithValue(importService),
-        ],
+        ]),
       ),
     );
     await tester.tap(find.text('Open Import'));
@@ -1297,13 +1298,13 @@ void main() {
     await tester.pumpWidget(
       _buildApp(
         locale: const Locale('zh'),
-        overrides: [
+        overrides: dedupeOverrides([
           baiduCredentialRepositoryProvider.overrideWithValue(
             _TokenCredentialRepository(),
           ),
           baiduNetdiskApiProvider.overrideWithValue(api),
           baiduNetdiskImportServiceProvider.overrideWithValue(importService),
-        ],
+        ]),
       ),
     );
     await tester.tap(find.text('Open Import'));
@@ -1350,13 +1351,13 @@ void main() {
     await tester.pumpWidget(
       _buildApp(
         locale: const Locale('zh'),
-        overrides: [
+        overrides: dedupeOverrides([
           baiduCredentialRepositoryProvider.overrideWithValue(
             _TokenCredentialRepository(),
           ),
           baiduNetdiskApiProvider.overrideWithValue(api),
           baiduNetdiskImportServiceProvider.overrideWithValue(importService),
-        ],
+        ]),
       ),
     );
     await tester.tap(find.text('Open Import'));
@@ -1430,13 +1431,13 @@ void main() {
     await tester.pumpWidget(
       _buildApp(
         locale: const Locale('zh'),
-        overrides: [
+        overrides: dedupeOverrides([
           baiduCredentialRepositoryProvider.overrideWithValue(
             _TokenCredentialRepository(),
           ),
           baiduNetdiskApiProvider.overrideWithValue(api),
           baiduNetdiskImportServiceProvider.overrideWithValue(importService),
-        ],
+        ]),
       ),
     );
     await tester.tap(find.text('Open Import'));
@@ -1490,13 +1491,13 @@ void main() {
     await tester.pumpWidget(
       _buildApp(
         locale: const Locale('zh'),
-        overrides: [
+        overrides: dedupeOverrides([
           baiduCredentialRepositoryProvider.overrideWithValue(
             _TokenCredentialRepository(),
           ),
           baiduNetdiskApiProvider.overrideWithValue(api),
           baiduNetdiskImportServiceProvider.overrideWithValue(importService),
-        ],
+        ]),
       ),
     );
     await tester.tap(find.text('Open Import'));
@@ -1553,12 +1554,12 @@ void main() {
     await tester.pumpWidget(
       _buildApp(
         locale: const Locale('zh'),
-        overrides: [
+        overrides: dedupeOverrides([
           baiduCredentialRepositoryProvider.overrideWithValue(
             _TokenCredentialRepository(),
           ),
           baiduNetdiskApiProvider.overrideWithValue(api),
-        ],
+        ]),
       ),
     );
     await tester.tap(find.text('Open Import'));
@@ -1603,12 +1604,12 @@ void main() {
     });
     await tester.pumpWidget(
       _buildApp(
-        overrides: [
+        overrides: dedupeOverrides([
           baiduCredentialRepositoryProvider.overrideWithValue(
             _TokenCredentialRepository(),
           ),
           baiduNetdiskApiProvider.overrideWithValue(api),
-        ],
+        ]),
       ),
     );
     await tester.tap(find.text('Open Import'));
@@ -1634,7 +1635,7 @@ void main() {
     final credentialRepository = _TokenCredentialRepository();
     await tester.pumpWidget(
       _buildApp(
-        overrides: [
+        overrides: dedupeOverrides([
           baiduCredentialRepositoryProvider.overrideWithValue(
             credentialRepository,
           ),
@@ -1650,7 +1651,7 @@ void main() {
               ),
             ),
           ),
-        ],
+        ]),
       ),
     );
     await tester.tap(find.text('Open Import'));
@@ -1695,7 +1696,7 @@ void main() {
   testWidgets('百度网盘账户弹窗未提供昵称时隐藏昵称行', (tester) async {
     await tester.pumpWidget(
       _buildApp(
-        overrides: [
+        overrides: dedupeOverrides([
           baiduCredentialRepositoryProvider.overrideWithValue(
             _TokenCredentialRepository(),
           ),
@@ -1709,7 +1710,7 @@ void main() {
               ),
             ),
           ),
-        ],
+        ]),
       ),
     );
     await tester.tap(find.text('Open Import'));
@@ -1936,9 +1937,9 @@ void main() {
     final controller = _PendingAudioImportController();
     await tester.pumpWidget(
       _buildApp(
-        overrides: [
+        overrides: dedupeOverrides([
           audioImportControllerProvider.overrideWith(() => controller),
-        ],
+        ]),
       ),
     );
     await tester.tap(find.text('Open Import'));

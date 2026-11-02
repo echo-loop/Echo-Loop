@@ -77,7 +77,7 @@ Future<void> _createV47Fixture(File file) async {
   // 先用当前 schema 创建完整业务表，再移除 v47 之后才引入的表。
   // 这样 fixture 仍然只验证 v47 起的迁移，但不会因 v50 回填读取收藏表时
   // 把测试专用的“只含目标表”数据库误当成真实用户数据库。
-  final seedDb = AppDatabase(NativeDatabase(file));
+  final seedDb = AppDatabase(NativeDatabase(file, setup: configureAppDatabaseConnection));
   await seedDb.customSelect('SELECT 1').get();
   await seedDb.close();
 
@@ -90,6 +90,6 @@ Future<void> _createV47Fixture(File file) async {
     raw.execute('CREATE TABLE legacy_fixture (id TEXT PRIMARY KEY)');
     raw.execute('PRAGMA user_version = 47');
   } finally {
-    raw.dispose();
+    raw.close();
   }
 }

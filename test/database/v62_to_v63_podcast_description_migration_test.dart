@@ -23,7 +23,7 @@ void _rollbackToV62(
     );
     raw.execute('PRAGMA user_version = 62');
   } finally {
-    raw.dispose();
+    raw.close();
   }
 }
 
@@ -33,7 +33,7 @@ bool _hasColumn(File file, String column) {
     final rows = raw.select('PRAGMA table_info(audio_items)');
     return rows.any((row) => row['name'] == column);
   } finally {
-    raw.dispose();
+    raw.close();
   }
 }
 
@@ -44,7 +44,7 @@ void main() {
   setUp(() async {
     directory = Directory.systemTemp.createTempSync('fluency_v62_v63_');
     file = File('${directory.path}/echo_loop.db');
-    final database = AppDatabase(NativeDatabase(file));
+    final database = AppDatabase(NativeDatabase(file, setup: configureAppDatabaseConnection));
     await database.audioItemDao.upsert(
       AudioItemsCompanion(
         id: const Value('audio-1'),
@@ -64,7 +64,7 @@ void main() {
   test('v62→v63 把播客简介迁入 description 并删除 podcast_description 列', () async {
     _rollbackToV62(file, audioId: 'audio-1', podcastDescription: 'RSS summary');
 
-    final database = AppDatabase(NativeDatabase(file));
+    final database = AppDatabase(NativeDatabase(file, setup: configureAppDatabaseConnection));
     final audio = await database.audioItemDao.getById('audio-1');
     await database.close();
 
@@ -80,7 +80,7 @@ void main() {
       description: 'Already set',
     );
 
-    final database = AppDatabase(NativeDatabase(file));
+    final database = AppDatabase(NativeDatabase(file, setup: configureAppDatabaseConnection));
     final audio = await database.audioItemDao.getById('audio-1');
     await database.close();
 
@@ -92,7 +92,7 @@ void main() {
 
     // NativeDatabase 惰性打开：每次启动都要执行一次查询，迁移才会真正运行。
     for (var launch = 0; launch < 2; launch++) {
-      final database = AppDatabase(NativeDatabase(file));
+      final database = AppDatabase(NativeDatabase(file, setup: configureAppDatabaseConnection));
       await database.audioItemDao.getById('audio-1');
       await database.close();
     }

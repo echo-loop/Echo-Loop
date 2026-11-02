@@ -143,10 +143,12 @@ class ListeningPractice extends _$ListeningPractice {
     ref.onDispose(() {
       _playbackGen++;
       _disposeListeners();
-      final generation = _activeStudyPageGeneration;
-      if (generation != null) {
-        unawaited(endStudyPage(generation));
-      }
+      // 计时器必须在 provider 销毁时同步释放，不能依赖代际检查：否则残留的周期
+      // 计时器会在页面卸载后继续运行（测试中表现为 pending timer）。
+      final timer = _studySessionTimer;
+      _studySessionTimer = null;
+      _activeStudyPageGeneration = null;
+      if (timer != null) unawaited(timer.dispose());
     });
     _loadSettings();
     return const ListeningPracticeState();
@@ -210,11 +212,32 @@ class ListeningPractice extends _$ListeningPractice {
     }
   }
 
+  /// 页面卸载时同步释放学习计时器。
+  ///
+  /// 计时器释放（停表、取消 checkpoint/idle 计时器）不依赖 `ref`，因此页面 dispose
+  /// 时可直接调用，不必等到微任务里的 [finishStudyPage]——那时 provider 可能已销毁，
+  /// 计时器会残留为 pending timer。累计时长的 flush 在后台完成，失败只记录日志。
+  void releaseStudyTimer() {
+    final timer = _studySessionTimer;
+    if (timer == null) return;
+    _studySessionTimer = null;
+    unawaited(
+      timer.dispose().catchError((Object error, StackTrace stackTrace) {
+        AppLogger.log(
+          'StudyExit',
+          'study timer release failed error=$error\n$stackTrace',
+        );
+      }),
+    );
+  }
+
   /// 完成当前随心听页面的退出收尾。
   ///
   /// 正常路由退出和页面销毁兜底都调用此入口，确保暂停播放、最终 flush
   /// 与断点保存只编排一次。传入页面代际时，过期页面不会影响新页面会话。
   Future<void> finishStudyPage({int? generation}) {
+    // notifier 已销毁时直接结束，避免页面 dispose 期间访问已失效的 ref。
+    if (!ref.mounted) return Future<void>.value();
     final activeGeneration = _activeStudyPageGeneration;
     if (activeGeneration == null ||
         (generation != null && generation != activeGeneration)) {

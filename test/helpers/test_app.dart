@@ -56,13 +56,14 @@ import 'package:echo_loop/providers/transcription_task_provider.dart';
 import 'package:echo_loop/router/app_router.dart';
 import 'package:echo_loop/theme/app_theme.dart';
 import 'package:echo_loop/utils/saved_text_index.dart';
+import 'package:flutter_riverpod/misc.dart';
 
 import 'mock_providers.dart';
 
 // 所有轻量 widget 测试共享一份内存数据库，避免每次 pump 都创建 Drift 数据库，
 // 导致异步查询流在 ProviderScope 销毁时留下 pending timer。
 final _testAppDatabase = AppDatabase(
-  NativeDatabase.memory(setup: (db) => db.execute('PRAGMA foreign_keys = ON')),
+  NativeDatabase.memory(setup: configureAppDatabaseConnection),
 );
 
 /// 创建测试用 App 包装器
@@ -107,21 +108,24 @@ Widget createTestApp(
     // 轻量 widget 测试不验证收藏数据流，固定为空索引可避免销毁 ProviderScope
     // 时 Drift 查询流留下 pending timer；需要验证收藏的测试可在 overrides 覆盖。
     savedTextIndexProvider.overrideWithValue(const SavedTextIndex.empty()),
-    learningProgressNotifierProvider.overrideWith(
-      () => TestLearningProgressNotifier(),
-    ),
+    learningProgressProvider.overrideWith(() => TestLearningProgressNotifier()),
     learningSessionProvider.overrideWith(() => TestLearningSession()),
     blindListenPlayerProvider.overrideWith(() => TestBlindListenPlayer()),
   ];
 
   // 合并自定义 overrides（覆盖同名 provider）
-  final allOverrides = <Override>[...defaultOverrides, ...(overrides ?? [])];
+  // 调用方 override 排在后面，dedupe 保留其值（与 Riverpod 2 后写覆盖先写一致）。
+  final allOverrides = dedupeOverrides([
+    ...defaultOverrides,
+    ...(overrides ?? []),
+  ]);
 
   // 需要显式隔离同一用例内的 Provider 状态时可传入 key；默认保留
   // Flutter 的子树更新语义，让同一用例内重建 App 时 StatefulWidget 状态
   // 可以继续存在。
   return ProviderScope(
     key: key ?? UniqueKey(),
+    retry: (_, __) => null,
     overrides: allOverrides,
     child: Builder(
       builder: (context) {
@@ -176,7 +180,11 @@ Widget createTestScreen(
   ];
 
   // 合并自定义 overrides
-  final allOverrides = <Override>[...defaultOverrides, ...(overrides ?? [])];
+  // 调用方 override 排在后面，dedupe 保留其值（与 Riverpod 2 后写覆盖先写一致）。
+  final allOverrides = dedupeOverrides([
+    ...defaultOverrides,
+    ...(overrides ?? []),
+  ]);
 
   final router = createTestRouter(
     screen,
@@ -184,6 +192,7 @@ Widget createTestScreen(
   );
 
   return ProviderScope(
+    retry: (_, __) => null,
     overrides: allOverrides,
     child: Builder(
       builder: (context) {
@@ -238,9 +247,12 @@ Future<void> pumpFullApp(
   SharedPreferences.setMockInitialValues(guideSeen);
   final prefs = await SharedPreferences.getInstance();
 
+  // 基础 overrides 与调用方 overrides 可能对同一 provider 重复覆盖（如 audioLibraryProvider），
+  // Riverpod 3 对同一容器内重复覆盖会断言，这里按「后者生效」去重。
   await tester.pumpWidget(
     ProviderScope(
-      overrides: [
+      retry: (_, __) => null,
+      overrides: dedupeOverrides([
         isFirstLaunchProvider.overrideWithValue(false),
         sharedPreferencesProvider.overrideWithValue(prefs),
         initialOnboardingCompletedProvider.overrideWithValue(true),
@@ -249,7 +261,6 @@ Future<void> pumpFullApp(
         ),
         // 隐藏 AI section，避免 ASR 相关 Provider 未实现导致 UnimplementedError
         showOfflineAsrSectionProvider.overrideWithValue(false),
-        offlineAsrOverride(),
         appSettingsProvider.overrideWith(() => TestAppSettings()),
         audioLibraryProvider.overrideWith(() => TestAudioLibrary()),
         collectionListProvider.overrideWith(() => TestCollectionList()),
@@ -259,7 +270,7 @@ Future<void> pumpFullApp(
         foregroundAudioEngineProvider.overrideWith(
           () => TestForegroundAudioEngine(),
         ),
-        learningProgressNotifierProvider.overrideWith(
+        learningProgressProvider.overrideWith(
           () => TestLearningProgressNotifier(),
         ),
         learningSessionProvider.overrideWith(() => TestLearningSession()),
@@ -281,13 +292,11 @@ Future<void> pumpFullApp(
         ...learningSettingsOverrides(),
         appDatabaseProvider.overrideWithValue(
           AppDatabase(
-            NativeDatabase.memory(
-              setup: (db) => db.execute('PRAGMA foreign_keys = ON'),
-            ),
+            NativeDatabase.memory(setup: configureAppDatabaseConnection),
           ),
         ),
         ...overrides,
-      ],
+      ]),
       child: const EchoLoopApp(),
     ),
   );
@@ -401,7 +410,7 @@ Future<void> pumpFullAppWithAudio(
           ),
         ),
       ),
-      learningProgressNotifierProvider.overrideWith(
+      learningProgressProvider.overrideWith(
         () => TestLearningProgressNotifier(
           LearningProgressState(
             progressMap: {seedProgress.audioItemId: seedProgress},

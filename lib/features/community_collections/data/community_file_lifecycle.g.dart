@@ -6,25 +6,56 @@ part of 'community_file_lifecycle.dart';
 // RiverpodGenerator
 // **************************************************************************
 
-String _$communityFileLifecycleServiceHash() =>
-    r'a2b88f05eaead75c7080ca8e58216572134ba9a7';
+// GENERATED CODE - DO NOT MODIFY BY HAND
+// ignore_for_file: type=lint, type=warning
 
-/// See also [communityFileLifecycleService].
 @ProviderFor(communityFileLifecycleService)
 final communityFileLifecycleServiceProvider =
-    Provider<CommunityFileLifecycleService>.internal(
-      communityFileLifecycleService,
-      name: r'communityFileLifecycleServiceProvider',
-      debugGetCreateSourceHash: const bool.fromEnvironment('dart.vm.product')
-          ? null
-          : _$communityFileLifecycleServiceHash,
-      dependencies: null,
-      allTransitiveDependencies: null,
-    );
+    CommunityFileLifecycleServiceProvider._();
 
-@Deprecated('Will be removed in 3.0. Use Ref instead')
-// ignore: unused_element
-typedef CommunityFileLifecycleServiceRef =
-    ProviderRef<CommunityFileLifecycleService>;
-// ignore_for_file: type=lint
-// ignore_for_file: subtype_of_sealed_class, invalid_use_of_internal_member, invalid_use_of_visible_for_testing_member, deprecated_member_use_from_same_package
+final class CommunityFileLifecycleServiceProvider
+    extends
+        $FunctionalProvider<
+          CommunityFileLifecycleService,
+          CommunityFileLifecycleService,
+          CommunityFileLifecycleService
+        >
+    with $Provider<CommunityFileLifecycleService> {
+  CommunityFileLifecycleServiceProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'communityFileLifecycleServiceProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$communityFileLifecycleServiceHash();
+
+  @$internal
+  @override
+  $ProviderElement<CommunityFileLifecycleService> $createElement(
+    $ProviderPointer pointer,
+  ) => $ProviderElement(pointer);
+
+  @override
+  CommunityFileLifecycleService create(Ref ref) {
+    return communityFileLifecycleService(ref);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(CommunityFileLifecycleService value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<CommunityFileLifecycleService>(
+        value,
+      ),
+    );
+  }
+}
+
+String _$communityFileLifecycleServiceHash() =>
+    r'a2b88f05eaead75c7080ca8e58216572134ba9a7';

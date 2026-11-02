@@ -21,6 +21,8 @@ import 'package:echo_loop/services/pronunciation/local_audio_clip_player.dart';
 import 'package:echo_loop/providers/tts/tts_controller_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:echo_loop/database/app_database.dart' show configureAppDatabaseConnection;
+import '../../helpers/mock_providers.dart';
 
 class _FakeTextPlaybackController extends TextPlaybackController {
   int stops = 0;
@@ -210,15 +212,15 @@ void main() {
   late _FakeTtsController fakeTts;
 
   setUp(() {
-    database = db.AppDatabase(NativeDatabase.memory());
+    database = db.AppDatabase(NativeDatabase.memory(setup: configureAppDatabaseConnection));
     fakePlayback = _FakeTextPlaybackController();
     fakeTts = _FakeTtsController();
     container = ProviderContainer(
-      overrides: [
+      overrides: dedupeOverrides([
         appDatabaseProvider.overrideWithValue(database),
         textPlaybackProvider.overrideWith(() => fakePlayback),
         ttsControllerProvider.overrideWith(() => fakeTts),
-      ],
+      ]),
     );
   });
 
@@ -463,13 +465,13 @@ void main() {
 
   test('shared front auto-play setting controls vocabulary playback', () async {
     final disabledContainer = ProviderContainer(
-      overrides: [
+      overrides: dedupeOverrides([
         appDatabaseProvider.overrideWithValue(database),
         textPlaybackProvider.overrideWith(() => fakePlayback),
         favoriteReviewSettingsProvider.overrideWith(
           () => _TestFavoriteReviewSettings(false),
         ),
-      ],
+      ]),
     );
     addTearDown(() async {
       await disabledContainer
@@ -655,11 +657,11 @@ void main() {
   test('failed unsave keeps the current card and exposes an error', () async {
     await database.savedWordDao.saveWord(word: 'apple');
     final failingContainer = ProviderContainer(
-      overrides: [
+      overrides: dedupeOverrides([
         appDatabaseProvider.overrideWithValue(database),
         textPlaybackProvider.overrideWith(() => fakePlayback),
         savedWordDaoProvider.overrideWithValue(_FailingSavedWordDao(database)),
-      ],
+      ]),
     );
     addTearDown(failingContainer.dispose);
     final notifier = failingContainer.read(

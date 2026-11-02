@@ -43,10 +43,10 @@ void main() {
     await pumpFullAppWithAudio(
       tester,
       audioItem: createTestAudioItem(id: 'audio-1'),
-      overrides: [
+      overrides: dedupeOverrides([
         ...fullAppRouteTestStartupOverrides(),
         mediaPlaybackProvider.overrideWith(() => player),
-      ],
+      ]),
     );
     await tester.pump();
 

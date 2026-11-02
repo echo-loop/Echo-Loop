@@ -277,7 +277,7 @@ void main() {
       await database.createBackupSnapshot(snapshot);
       final raw = sqlite.sqlite3.open(snapshot.path);
       raw.execute('PRAGMA user_version = 50');
-      raw.dispose();
+      raw.close();
       final hash = await sha256.bind(snapshot.openRead()).first;
       final backup = File(p.join(outputDir.path, 'schema_50.elbak'));
       _writeZip(backup.path, [
@@ -621,7 +621,7 @@ void main() {
 
     setUp(() async {
       root = await Directory.systemTemp.createTemp('backup_security_test_');
-      database = AppDatabase(NativeDatabase.memory());
+      database = AppDatabase(NativeDatabase.memory(setup: configureAppDatabaseConnection));
       service = BackupService(database);
     });
 

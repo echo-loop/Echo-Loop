@@ -12,6 +12,7 @@ import 'package:echo_loop/database/providers.dart';
 import 'package:echo_loop/widgets/study/study_stats_header.dart';
 import 'package:echo_loop/providers/study_stats_provider.dart';
 import 'package:echo_loop/theme/app_theme.dart';
+import '../helpers/mock_providers.dart';
 
 // ========== 测试用 Mock ==========
 
@@ -31,9 +32,7 @@ void main() {
 
   setUp(() {
     testDb = AppDatabase(
-      NativeDatabase.memory(
-        setup: (db) => db.execute('PRAGMA foreign_keys = ON'),
-      ),
+      NativeDatabase.memory(setup: configureAppDatabaseConnection),
     );
   });
 
@@ -46,12 +45,12 @@ void main() {
   }) {
     final effectiveDb = db ?? testDb;
     return ProviderScope(
-      overrides: [
+      overrides: dedupeOverrides([
         appDatabaseProvider.overrideWithValue(effectiveDb),
-        studyStatsNotifierProvider.overrideWith(
+        studyStatsProvider.overrideWith(
           () => _TestStudyStatsNotifier(stats),
         ),
-      ],
+      ]),
       child: MaterialApp(
         locale: locale,
         supportedLocales: const [Locale('en'), Locale('zh')],

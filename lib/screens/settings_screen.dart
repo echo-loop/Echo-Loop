@@ -141,7 +141,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   /// 构建账号分组：登录入口 + 订阅入口（登录 item 下方）。
   Widget _buildAccountSection(BuildContext context, AppLocalizations l10n) {
-    final session = ref.watch(supabaseSessionProvider).valueOrNull;
+    final session = ref.watch(supabaseSessionProvider).value;
     final isChinaUser = ref.watch(isChinaUserProvider);
     final isSignedIn = session != null;
     final accountSubtitle = session == null
@@ -325,7 +325,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     WidgetRef ref,
     AppLocalizations l10n,
   ) {
-    final reminderSettings = ref.watch(reminderSettingsNotifierProvider);
+    final reminderSettings = ref.watch(reminderSettingsProvider);
     final colorScheme = Theme.of(context).colorScheme;
     final showAsr = ref.watch(showOfflineAsrSectionProvider);
 
@@ -984,12 +984,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         final demoDb = AppDatabase(openConnectionWithName('echo_loop_demo.db'));
         await DemoDataSeeder(demoDb).seedIfEmpty();
         // Step 3a: 切换指向
-        switchAppDatabase(demoDb, ref);
+        switchAppDatabase(demoDb, (p) => ref.invalidate(p));
       } else {
         // Step 2b: 创建 prod 库
         final prodDb = AppDatabase(openConnectionWithName('echo_loop.db'));
         // Step 3b: 切换指向
-        switchAppDatabase(prodDb, ref);
+        switchAppDatabase(prodDb, (p) => ref.invalidate(p));
         // 清理演示文件（demo 数据库已关闭）
         await DemoDataSeeder.cleanupFiles();
       }
@@ -998,17 +998,17 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       await ref.read(audioLibraryProvider.notifier).loadLibrary();
       ref.read(collectionListProvider.notifier).loadCollections();
       ref.read(tagListProvider.notifier).loadTags();
-      await ref.read(learningProgressNotifierProvider.notifier).loadAll();
+      await ref.read(learningProgressProvider.notifier).loadAll();
 
       await controller.setDemoMode(enabled);
     } catch (e) {
       // 恢复数据库连接，防止 app 处于无数据库状态
       final fallbackDb = AppDatabase(openConnectionWithName(currentDbName));
-      switchAppDatabase(fallbackDb, ref);
+      switchAppDatabase(fallbackDb, (p) => ref.invalidate(p));
       await ref.read(audioLibraryProvider.notifier).loadLibrary();
       ref.read(collectionListProvider.notifier).loadCollections();
       ref.read(tagListProvider.notifier).loadTags();
-      await ref.read(learningProgressNotifierProvider.notifier).loadAll();
+      await ref.read(learningProgressProvider.notifier).loadAll();
 
       controller.setDemoModeLoading(false);
       if (!context.mounted) return;

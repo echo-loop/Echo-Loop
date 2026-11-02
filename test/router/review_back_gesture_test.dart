@@ -14,6 +14,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 
 import '../helpers/test_app.dart';
+import '../helpers/mock_providers.dart';
 
 class _GatedBookmarkReview extends BookmarkReview {
   final disposeGate = Completer<void>();
@@ -95,10 +96,10 @@ void main() {
 
     await pumpFullApp(
       tester,
-      overrides: [
+      overrides: dedupeOverrides([
         ...fullAppRouteTestStartupOverrides(),
         bookmarkReviewProvider.overrideWith(() => review),
-      ],
+      ]),
     );
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 200));
@@ -131,10 +132,10 @@ void main() {
 
     await pumpFullApp(
       tester,
-      overrides: [
+      overrides: dedupeOverrides([
         ...fullAppRouteTestStartupOverrides(),
         favoriteVocabularyReviewProvider.overrideWith(() => review),
-      ],
+      ]),
     );
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 200));
@@ -164,10 +165,10 @@ void main() {
 
     await pumpFullApp(
       tester,
-      overrides: [
+      overrides: dedupeOverrides([
         ...fullAppRouteTestStartupOverrides(),
         bookmarkReviewProvider.overrideWith(() => review),
-      ],
+      ]),
     );
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 200));
@@ -193,10 +194,10 @@ void main() {
 
     await pumpFullApp(
       tester,
-      overrides: [
+      overrides: dedupeOverrides([
         ...fullAppRouteTestStartupOverrides(),
         favoriteVocabularyReviewProvider.overrideWith(() => review),
-      ],
+      ]),
     );
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 200));

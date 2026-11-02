@@ -39,6 +39,7 @@ import 'package:mocktail/mocktail.dart';
 import 'package:echo_loop/services/app_logger.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
+import 'package:flutter_riverpod/misc.dart';
 
 import '../helpers/mock_providers.dart';
 import '../helpers/shared/fake_media_player_backend.dart';
@@ -259,10 +260,10 @@ void main() {
     await tester.pumpWidget(
       createTestApp(
         MediaPlaybackScreen(audioItem: item),
-        overrides: [
+        overrides: dedupeOverrides([
           mediaBackendFactoryProvider.overrideWithValue(() => backend),
           mediaSessionRouterProvider.overrideWithValue(router),
-        ],
+        ]),
       ),
     );
     await pumpMediaReady(tester);
@@ -325,10 +326,10 @@ void main() {
     await tester.pumpWidget(
       createTestApp(
         MediaPlaybackScreen(audioItem: audioItem),
-        overrides: [
+        overrides: dedupeOverrides([
           mediaBackendFactoryProvider.overrideWithValue(() => backend),
           mediaSessionRouterProvider.overrideWithValue(router),
-        ],
+        ]),
       ),
     );
     await pumpMediaReady(tester, requireVideoView: false);
@@ -643,10 +644,10 @@ void main() {
     await tester.pumpWidget(
       createTestApp(
         MediaPlaybackScreen(audioItem: item),
-        overrides: [
+        overrides: dedupeOverrides([
           mediaBackendFactoryProvider.overrideWithValue(() => backend),
           mediaSessionRouterProvider.overrideWithValue(router),
-        ],
+        ]),
       ),
     );
     await pumpMediaReady(tester);
@@ -2099,10 +2100,10 @@ void main() {
     await tester.pumpWidget(
       createTestApp(
         MediaPlaybackScreen(audioItem: item),
-        overrides: [
+        overrides: dedupeOverrides([
           mediaBackendFactoryProvider.overrideWithValue(() => backend),
           mediaSessionRouterProvider.overrideWithValue(router),
-        ],
+        ]),
       ),
     );
     await pumpMediaReady(tester);
@@ -2128,10 +2129,10 @@ void main() {
     await tester.pumpWidget(
       createTestApp(
         MediaPlaybackScreen(audioItem: item),
-        overrides: [
+        overrides: dedupeOverrides([
           mediaBackendFactoryProvider.overrideWithValue(() => backend),
           mediaSessionRouterProvider.overrideWithValue(router),
-        ],
+        ]),
       ),
     );
     await pumpMediaReady(tester);
@@ -2155,10 +2156,10 @@ void main() {
     await tester.pumpWidget(
       createTestApp(
         MediaPlaybackScreen(audioItem: item),
-        overrides: [
+        overrides: dedupeOverrides([
           mediaBackendFactoryProvider.overrideWithValue(() => backend),
           mediaSessionRouterProvider.overrideWithValue(router),
-        ],
+        ]),
       ),
     );
     await pumpMediaReady(tester);
@@ -2184,10 +2185,10 @@ void main() {
     await tester.pumpWidget(
       createTestApp(
         MediaPlaybackScreen(audioItem: item),
-        overrides: [
+        overrides: dedupeOverrides([
           mediaBackendFactoryProvider.overrideWithValue(() => backend),
           mediaSessionRouterProvider.overrideWithValue(router),
-        ],
+        ]),
       ),
     );
     await pumpMediaReady(tester);
@@ -2309,10 +2310,10 @@ void main() {
     await tester.pumpWidget(
       createTestApp(
         MediaPlaybackScreen(audioItem: item),
-        overrides: [
+        overrides: dedupeOverrides([
           mediaBackendFactoryProvider.overrideWithValue(() => backend),
           mediaSessionRouterProvider.overrideWithValue(router),
-        ],
+        ]),
       ),
     );
     await pumpMediaReady(tester);
@@ -2440,10 +2441,10 @@ void main() {
     await tester.pumpWidget(
       createTestApp(
         MediaPlaybackScreen(audioItem: item),
-        overrides: [
+        overrides: dedupeOverrides([
           mediaBackendFactoryProvider.overrideWithValue(() => backend),
           mediaSessionRouterProvider.overrideWithValue(router),
-        ],
+        ]),
       ),
     );
     await pumpMediaReady(tester);
@@ -2489,10 +2490,10 @@ void main() {
             return MediaPlaybackScreen(audioItem: item);
           },
         ),
-        overrides: [
+        overrides: dedupeOverrides([
           mediaBackendFactoryProvider.overrideWithValue(() => backend),
           mediaSessionRouterProvider.overrideWithValue(router),
-        ],
+        ]),
       ),
     );
     await pumpMediaReady(tester);

@@ -53,6 +53,7 @@ import 'package:echo_loop/providers/tag_provider.dart';
 import 'package:echo_loop/services/review_reminder_service.dart';
 import 'package:echo_loop/services/sentence_ai_api_client.dart';
 import 'package:echo_loop/services/speech_practice_platform.dart';
+import 'package:flutter_riverpod/misc.dart';
 
 // 共享替身
 import '../../test/helpers/shared/fake_notifiers.dart';
@@ -376,7 +377,7 @@ Widget createTestApp() {
       tagListProvider.overrideWith(() => TestTagList()),
       listeningPracticeProvider.overrideWith(() => TestListeningPractice()),
       audioEngineProvider.overrideWith(() => TestAudioEngine()),
-      learningProgressNotifierProvider.overrideWith(
+      learningProgressProvider.overrideWith(
         () => TestLearningProgressNotifier(),
       ),
       learningSessionProvider.overrideWith(() => TestLearningSession()),
@@ -399,7 +400,7 @@ Widget createTestApp() {
         ),
       ),
       dailyStudyTimeProvider.overrideWith(() => TestDailyStudyTime()),
-      studyStatsNotifierProvider.overrideWith(() => TestStudyStatsNotifier()),
+      studyStatsProvider.overrideWith(() => TestStudyStatsNotifier()),
       studyTimeServiceProvider.overrideWithValue(TestStudyTimeService()),
       savedWordListProvider.overrideWith(() => TestSavedWordList()),
       speechPracticeBackendProvider.overrideWithValue(
@@ -438,7 +439,7 @@ Widget createTestAppWithAudio({
       tagListProvider.overrideWith(() => TestTagList()),
       listeningPracticeProvider.overrideWith(() => TestListeningPractice()),
       audioEngineProvider.overrideWith(() => TestAudioEngine()),
-      learningProgressNotifierProvider.overrideWith(
+      learningProgressProvider.overrideWith(
         () => TestLearningProgressNotifier(),
       ),
       learningSessionProvider.overrideWith(() => TestLearningSession()),
@@ -461,7 +462,7 @@ Widget createTestAppWithAudio({
         ),
       ),
       dailyStudyTimeProvider.overrideWith(() => TestDailyStudyTime()),
-      studyStatsNotifierProvider.overrideWith(() => TestStudyStatsNotifier()),
+      studyStatsProvider.overrideWith(() => TestStudyStatsNotifier()),
       studyTimeServiceProvider.overrideWithValue(TestStudyTimeService()),
       savedWordListProvider.overrideWith(() => TestSavedWordList()),
       speechPracticeBackendProvider.overrideWithValue(
@@ -524,7 +525,7 @@ class _AudioPreloadWrapperState extends ConsumerState<_AudioPreloadWrapper> {
     );
 
     final progressNotifier =
-        ref.read(learningProgressNotifierProvider.notifier)
+        ref.read(learningProgressProvider.notifier)
             as TestLearningProgressNotifier;
     progressNotifier.setProgress(widget.progress);
 

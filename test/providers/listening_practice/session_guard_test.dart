@@ -158,13 +158,13 @@ void main() {
   setUp(() async {
     engine = _SessionAudioEngine();
     container = ProviderContainer(
-      overrides: [
+      overrides: dedupeOverrides([
         audioEngineProvider.overrideWith(() => engine),
         studyTimeServiceProvider.overrideWithValue(FakeStudyTimeService()),
         listeningPracticeProvider.overrideWith(
           () => _TestableListeningPractice(),
         ),
-      ],
+      ]),
     );
     lp =
         container.read(listeningPracticeProvider.notifier)

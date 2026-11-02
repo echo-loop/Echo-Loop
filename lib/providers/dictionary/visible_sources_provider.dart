@@ -4,7 +4,6 @@
 /// 弹窗初始选中 [resolvedDefaultSourceId]（带兜底，避免默认源被禁用后无源可选）。
 library;
 
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../models/dictionary/dictionary_settings.dart';
@@ -18,7 +17,7 @@ part 'visible_sources_provider.g.dart';
 @riverpod
 List<DictionarySource> visibleDictionarySources(Ref ref) {
   final all = ref.watch(dictionarySourcesProvider);
-  final settings = ref.watch(dictionarySettingsNotifierProvider);
+  final settings = ref.watch(dictionarySettingsProvider);
   return all
       .where((s) => !s.canBeDisabled || !settings.disabledIds.contains(s.id))
       .toList(growable: false);
@@ -28,7 +27,7 @@ List<DictionarySource> visibleDictionarySources(Ref ref) {
 @riverpod
 String resolvedDefaultSourceId(Ref ref) {
   final visible = ref.watch(visibleDictionarySourcesProvider);
-  final wanted = ref.watch(dictionarySettingsNotifierProvider).defaultSourceId;
+  final wanted = ref.watch(dictionarySettingsProvider).defaultSourceId;
   if (visible.any((s) => s.id == wanted)) return wanted;
   return visible.isNotEmpty ? visible.first.id : DictionarySettings.defaultId;
 }

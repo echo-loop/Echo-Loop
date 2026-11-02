@@ -17,7 +17,7 @@ void main() {
     final file = File('${dir.path}/echo_loop.db');
     await _createV46Fixture(file);
 
-    final db = AppDatabase(NativeDatabase(file));
+    final db = AppDatabase(NativeDatabase(file, setup: configureAppDatabaseConnection));
     addTearDown(db.close);
 
     // 触发打开与迁移后检查表结构
@@ -94,6 +94,6 @@ Future<void> _createV46Fixture(File file) async {
 
     raw.execute('PRAGMA user_version = 46');
   } finally {
-    raw.dispose();
+    raw.close();
   }
 }

@@ -26,7 +26,7 @@ void main() {
   late ProviderContainer container;
 
   setUp(() {
-    db = AppDatabase(NativeDatabase.memory());
+    db = AppDatabase(NativeDatabase.memory(setup: configureAppDatabaseConnection));
     container = ProviderContainer(
       overrides: [appDatabaseProvider.overrideWithValue(db)],
     );

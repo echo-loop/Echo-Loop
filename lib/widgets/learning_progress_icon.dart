@@ -60,7 +60,7 @@ class LearningProgressIcon extends ConsumerWidget {
     final completedKeys = progress == null
         ? const <String>{}
         : ref
-              .watch(learningProgressNotifierProvider)
+              .watch(learningProgressProvider)
               .completionsFor(progress!.audioItemId);
 
     // 未学习状态

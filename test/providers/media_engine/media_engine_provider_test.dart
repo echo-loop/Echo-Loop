@@ -15,6 +15,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../../helpers/shared/fake_media_player_backend.dart';
+import '../../helpers/mock_providers.dart';
 
 class _FirstPauseGateBackend extends FakeMediaPlayerBackend {
   final pauseGate = Completer<void>();
@@ -68,13 +69,13 @@ void main() {
     backend = FakeMediaPlayerBackend();
     router = MediaSessionRouter(defaultHandler: BaseAudioHandler());
     container = ProviderContainer(
-      overrides: [
+      overrides: dedupeOverrides([
         mediaBackendFactoryProvider.overrideWithValue(() {
           backendFactoryCalls += 1;
           return backend;
         }),
         mediaSessionRouterProvider.overrideWithValue(router),
-      ],
+      ]),
     );
     mediaFile = File('${appDir.path}/echo-loop-video-test.mp4');
     await mediaFile.writeAsBytes(const [0, 1, 2]);
@@ -352,10 +353,10 @@ void main() {
   test('playRange 在 seek 落定后设置原生终点，播完撤销，下一句 seek 前不残留旧终点', () async {
     final orderBackend = _CommandOrderBackend();
     final orderContainer = ProviderContainer(
-      overrides: [
+      overrides: dedupeOverrides([
         mediaBackendFactoryProvider.overrideWithValue(() => orderBackend),
         mediaSessionRouterProvider.overrideWithValue(router),
-      ],
+      ]),
     );
     addTearDown(orderContainer.dispose);
     final engine = orderContainer.read(mediaEngineProvider.notifier);
@@ -396,10 +397,10 @@ void main() {
   test('取消区间与自由定位都会撤销原生终点', () async {
     final orderBackend = _CommandOrderBackend();
     final orderContainer = ProviderContainer(
-      overrides: [
+      overrides: dedupeOverrides([
         mediaBackendFactoryProvider.overrideWithValue(() => orderBackend),
         mediaSessionRouterProvider.overrideWithValue(router),
-      ],
+      ]),
     );
     addTearDown(orderContainer.dispose);
     final engine = orderContainer.read(mediaEngineProvider.notifier);
@@ -550,10 +551,10 @@ void main() {
   test('释放媒体前等待已排队的区间控制，避免迟到暂停污染下一次播放', () async {
     final gatedBackend = _FirstPauseGateBackend();
     final gatedContainer = ProviderContainer(
-      overrides: [
+      overrides: dedupeOverrides([
         mediaBackendFactoryProvider.overrideWithValue(() => gatedBackend),
         mediaSessionRouterProvider.overrideWithValue(router),
-      ],
+      ]),
     );
     addTearDown(gatedContainer.dispose);
     final engine = gatedContainer.read(mediaEngineProvider.notifier);

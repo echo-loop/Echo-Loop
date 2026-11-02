@@ -21,7 +21,7 @@ on:
         required: true
 
 env:
-  FLUTTER_VERSION: '3.41.5'
+  FLUTTER_VERSION: '3.47.9'
 
 jobs:
   release:

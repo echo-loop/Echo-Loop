@@ -38,7 +38,7 @@ class _CommunityCollectionDetailScreenState
       if (!mounted) return;
       if (ref
               .read(communityCollectionFilesProvider(widget.remoteId))
-              .valueOrNull !=
+              .value !=
           null) {
         unawaited(_forceRefreshRemoteFiles());
       }
@@ -58,11 +58,11 @@ class _CommunityCollectionDetailScreenState
     final localId = _localCollection(collectionState)?.id;
 
     final files = ref.watch(communityCollectionFilesProvider(widget.remoteId));
-    final catalogEntry = files.valueOrNull?.collection ?? listedCatalogEntry;
+    final catalogEntry = files.value?.collection ?? listedCatalogEntry;
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          files.valueOrNull?.collection?.name ?? catalogEntry?.name ?? '',
+          files.value?.collection?.name ?? catalogEntry?.name ?? '',
         ),
       ),
       body: files.when(

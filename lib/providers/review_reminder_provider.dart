@@ -16,11 +16,11 @@ final notificationTapRouterBridgeProvider =
 
 /// 提醒时间计算策略 Provider
 ///
-/// 从 [reminderSettingsNotifierProvider] 读取用户设置的 hour/minute，
+/// 从 [reminderSettingsProvider] 读取用户设置的 hour/minute，
 /// 设置变更时自动重建。
 final reviewReminderTimeCalculatorProvider =
     Provider<ReviewReminderTimeCalculator>((ref) {
-      final settings = ref.watch(reminderSettingsNotifierProvider);
+      final settings = ref.watch(reminderSettingsProvider);
       return FixedTimeReminderCalculator(
         hour: settings.savedReviewReminderHour,
         minute: settings.savedReviewReminderMinute,

@@ -7,6 +7,7 @@ import 'package:echo_loop/features/subscription/services/free_allowance_policy.d
 import 'package:echo_loop/features/subscription/state/entitlement_state.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import '../../helpers/mock_providers.dart';
 
 /// 固定 state 的 controller 替身（仿 FakeAppSettings 模式：extends + override build）。
 class _FixedController extends SubscriptionController {
@@ -29,13 +30,13 @@ void main() {
     bool authenticated = true,
   }) {
     final container = ProviderContainer(
-      overrides: [
+      overrides: dedupeOverrides([
         subscriptionControllerProvider.overrideWith(
           () => _FixedController(state),
         ),
         freeAllowancePolicyProvider.overrideWithValue(policy),
         isAuthenticatedProvider.overrideWithValue(authenticated),
-      ],
+      ]),
     );
     addTearDown(container.dispose);
     return container;

@@ -12,6 +12,7 @@ import 'package:echo_loop/services/resource_install_manifest.dart';
 import 'package:echo_loop/services/tts/piper_model_manager.dart';
 import 'package:echo_loop/services/tts/piper_model_catalog.dart';
 import 'package:echo_loop/services/tts/tts_engine.dart';
+import '../../helpers/mock_providers.dart';
 
 const _us = piperDefaultVoiceUs;
 const _uk = piperDefaultVoiceUk;
@@ -117,14 +118,14 @@ ProviderContainer _container(
   TtsSettings? settings,
 }) {
   return ProviderContainer(
-    overrides: [
+    overrides: dedupeOverrides([
       piperModelManagerProvider.overrideWith((ref, id) => managerOf(id)),
       initialPiperModelStateProvider.overrideWithValue(
         initial ?? PiperModelsState.initial(),
       ),
       if (settings != null)
         initialTtsSettingsProvider.overrideWithValue(settings),
-    ],
+    ]),
   );
 }
 

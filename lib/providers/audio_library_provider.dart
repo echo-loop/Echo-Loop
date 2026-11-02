@@ -7,6 +7,7 @@ import '../features/usage/usage_event.dart';
 import '../features/usage/usage_providers.dart';
 import '../utils/app_data_dir.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../database/app_database.dart' as db;
 import '../database/providers.dart';
 import '../models/audio_item.dart';
@@ -291,7 +292,7 @@ class AudioLibrary extends _$AudioLibrary {
     // hardDeleteMany 已通过 FK 级联删除 learning_progresses / stage_completions，
     // 这里只需同步内存状态，不再重复发 DB DELETE。
     await ref
-        .read(learningProgressNotifierProvider.notifier)
+        .read(learningProgressProvider.notifier)
         .deleteProgressMany(ids, deleteFromDb: false);
     await ref
         .read(collectionListProvider.notifier)

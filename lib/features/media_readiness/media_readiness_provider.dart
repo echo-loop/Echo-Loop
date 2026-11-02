@@ -54,7 +54,7 @@ MediaReadiness mediaReadiness(Ref ref, String audioItemId) {
   if (item.isAudioReady) {
     // 依赖变化时 valueOrNull 保留上一次结果，避免闪回「校验中」。
     final check = ref.watch(localMediaFileExistsProvider(audioItemId));
-    fileExists = check.hasError ? false : check.valueOrNull;
+    fileExists = check.hasError ? false : check.value;
   }
 
   return resolveMediaReadiness(

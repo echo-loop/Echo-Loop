@@ -17,7 +17,7 @@ final wordTimestampsProvider = FutureProvider.autoDispose
           api: ref.watch(transcriptionApiClientProvider),
           accessToken: ref
               .watch(supabaseSessionProvider)
-              .valueOrNull
+              .value
               ?.accessToken,
         );
       } catch (error, stackTrace) {

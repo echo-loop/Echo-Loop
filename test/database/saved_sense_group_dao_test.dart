@@ -8,9 +8,7 @@ import 'package:echo_loop/database/daos/bookmark_dao.dart';
 /// 创建内存数据库用于测试
 AppDatabase _createTestDb() {
   return AppDatabase(
-    NativeDatabase.memory(
-      setup: (db) => db.execute('PRAGMA foreign_keys = ON'),
-    ),
+    NativeDatabase.memory(setup: configureAppDatabaseConnection),
   );
 }
 

@@ -60,13 +60,13 @@ void main() {
     });
     final prefs = await SharedPreferences.getInstance();
     return ProviderScope(
-      overrides: [
+      overrides: dedupeOverrides([
         sharedPreferencesProvider.overrideWithValue(prefs),
         initialLearningSettingsProvider.overrideWithValue(
           LearningSettings.fromPrefsSync(prefs),
         ),
         analyticsOverride(),
-      ],
+      ]),
       child: const MaterialApp(
         localizationsDelegates: [
           AppLocalizations.delegate,

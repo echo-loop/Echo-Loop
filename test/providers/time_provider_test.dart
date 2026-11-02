@@ -24,11 +24,11 @@ void main() {
     test('设置时光机后返回覆写时间', () {
       final fixed = DateTime(2026, 3, 11, 22, 15);
       final container = ProviderContainer(
-        overrides: [
+        overrides: dedupeOverrides([
           appSettingsProvider.overrideWith(
             () => TestAppSettings(AppSettingsState(timeMachineDateTime: fixed)),
           ),
-        ],
+        ]),
       );
       addTearDown(container.dispose);
 

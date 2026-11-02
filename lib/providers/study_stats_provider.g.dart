@@ -6,26 +6,63 @@ part of 'study_stats_provider.dart';
 // RiverpodGenerator
 // **************************************************************************
 
-String _$studyStatsNotifierHash() =>
-    r'86ab161244c09f881d11723a724d046d028fc267';
+// GENERATED CODE - DO NOT MODIFY BY HAND
+// ignore_for_file: type=lint, type=warning
+/// 学习统计 Provider
+///
+/// 聚合 streak、今日时长、本周时长、7 天每日时长。
+
+@ProviderFor(StudyStatsNotifier)
+final studyStatsProvider = StudyStatsNotifierProvider._();
 
 /// 学习统计 Provider
 ///
 /// 聚合 streak、今日时长、本周时长、7 天每日时长。
-///
-/// Copied from [StudyStatsNotifier].
-@ProviderFor(StudyStatsNotifier)
-final studyStatsNotifierProvider =
-    AutoDisposeAsyncNotifierProvider<StudyStatsNotifier, StudyStats>.internal(
-      StudyStatsNotifier.new,
-      name: r'studyStatsNotifierProvider',
-      debugGetCreateSourceHash: const bool.fromEnvironment('dart.vm.product')
-          ? null
-          : _$studyStatsNotifierHash,
-      dependencies: null,
-      allTransitiveDependencies: null,
-    );
+final class StudyStatsNotifierProvider
+    extends $AsyncNotifierProvider<StudyStatsNotifier, StudyStats> {
+  /// 学习统计 Provider
+  ///
+  /// 聚合 streak、今日时长、本周时长、7 天每日时长。
+  StudyStatsNotifierProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'studyStatsProvider',
+        isAutoDispose: true,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
 
-typedef _$StudyStatsNotifier = AutoDisposeAsyncNotifier<StudyStats>;
-// ignore_for_file: type=lint
-// ignore_for_file: subtype_of_sealed_class, invalid_use_of_internal_member, invalid_use_of_visible_for_testing_member, deprecated_member_use_from_same_package
+  @override
+  String debugGetCreateSourceHash() => _$studyStatsNotifierHash();
+
+  @$internal
+  @override
+  StudyStatsNotifier create() => StudyStatsNotifier();
+}
+
+String _$studyStatsNotifierHash() =>
+    r'10eff22265d975cc3c259eb7cf54d92e838e27ee';
+
+/// 学习统计 Provider
+///
+/// 聚合 streak、今日时长、本周时长、7 天每日时长。
+
+abstract class _$StudyStatsNotifier extends $AsyncNotifier<StudyStats> {
+  FutureOr<StudyStats> build();
+  @$mustCallSuper
+  @override
+  WhenComplete runBuild() {
+    final ref = this.ref as $Ref<AsyncValue<StudyStats>, StudyStats>;
+    final element =
+        ref.element
+            as $ClassProviderElement<
+              AnyNotifier<AsyncValue<StudyStats>, StudyStats>,
+              AsyncValue<StudyStats>,
+              Object?,
+              Object?
+            >;
+    return element.handleCreate(ref, build);
+  }
+}

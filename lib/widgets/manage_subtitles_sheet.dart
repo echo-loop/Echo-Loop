@@ -2214,7 +2214,7 @@ class _ManageSubtitlesSheetState extends ConsumerState<ManageSubtitlesSheet> {
     // 学习进度基于句子索引/段落索引，字幕删除后这些索引失去参照；
     // 若不重置，重新导入字幕时旧断点会指向错位的句子。
     await ref
-        .read(learningProgressNotifierProvider.notifier)
+        .read(learningProgressProvider.notifier)
         .resetProgress(audioItem.id);
 
     // 7. 清除 listeningPracticeProvider 中缓存的句子数据

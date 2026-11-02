@@ -18,14 +18,14 @@ void main() {
     IntensiveListenState? playerState,
   }) {
     return ProviderScope(
-      overrides: [
+      overrides: dedupeOverrides([
         intensiveListenPlayerProvider.overrideWith(
           () => TestIntensiveListenPlayer(
             playerState ?? const IntensiveListenState(),
           ),
         ),
         audioEngineProvider.overrideWith(() => TestAudioEngine()),
-      ],
+      ]),
       child: MaterialApp(
         locale: locale,
         supportedLocales: const [Locale('en'), Locale('zh')],

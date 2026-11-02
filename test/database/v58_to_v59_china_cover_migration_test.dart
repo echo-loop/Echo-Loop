@@ -13,7 +13,7 @@ void main() {
       if (directory.existsSync()) directory.deleteSync(recursive: true);
     });
     final file = File('${directory.path}/echo_loop.db');
-    var database = AppDatabase(NativeDatabase(file));
+    var database = AppDatabase(NativeDatabase(file, setup: configureAppDatabaseConnection));
     await database.collectionDao.upsert(
       CollectionsCompanion(
         id: const Value('community-1'),
@@ -33,10 +33,10 @@ void main() {
       raw.execute('ALTER TABLE collections DROP COLUMN cover_url_china');
       raw.execute('PRAGMA user_version = 58');
     } finally {
-      raw.dispose();
+      raw.close();
     }
 
-    database = AppDatabase(NativeDatabase(file));
+    database = AppDatabase(NativeDatabase(file, setup: configureAppDatabaseConnection));
     final collection = await database.collectionDao.getById('community-1');
 
     expect(collection?.coverUrl, 'https://global.example/cover.jpg');

@@ -4,6 +4,8 @@ library;
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+// StateNotifier / StateProvider 已移入 legacy 库（Riverpod 3），此处保留旧写法
+import 'package:flutter_riverpod/legacy.dart';
 
 import '../../../analytics/analytics_providers.dart';
 import '../../../analytics/analytics_service.dart';

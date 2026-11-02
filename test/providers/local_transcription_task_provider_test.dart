@@ -23,6 +23,7 @@ import 'package:echo_loop/providers/asr_engine_provider.dart';
 import 'package:echo_loop/services/asr/offline_asr_engine.dart';
 
 import '../helpers/mock_providers.dart';
+import 'package:echo_loop/database/app_database.dart' show configureAppDatabaseConnection;
 
 // ─── Fakes ──────────────────────────────────────────────
 
@@ -168,7 +169,7 @@ void main() {
   late Directory dataDir;
 
   setUp(() async {
-    database = db.AppDatabase(NativeDatabase.memory());
+    database = db.AppDatabase(NativeDatabase.memory(setup: configureAppDatabaseConnection));
     dataDir = await Directory.systemTemp.createTemp('local_tx_');
   });
 
@@ -185,7 +186,7 @@ void main() {
     final fileOps = MockTranscriptionFileOps();
     when(() => fileOps.getDataDir()).thenAnswer((_) async => dataDir);
     final container = ProviderContainer(
-      overrides: [
+      overrides: dedupeOverrides([
         appDatabaseProvider.overrideWithValue(database),
         audioLibraryProvider.overrideWith(TestAudioLibrary.new),
         transcriptionFileOpsProvider.overrideWithValue(fileOps),
@@ -194,7 +195,7 @@ void main() {
         asrModelManagerProvider.overrideWithValue(
           _FakeModelManager(dataDir.path),
         ),
-      ],
+      ]),
     );
     (container.read(audioLibraryProvider.notifier) as TestAudioLibrary)
         .setItems(items ?? [_testAudioItem()]);

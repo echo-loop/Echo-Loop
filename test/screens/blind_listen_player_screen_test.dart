@@ -29,6 +29,7 @@ import 'package:echo_loop/theme/app_theme.dart';
 import 'package:echo_loop/widgets/common/masked_sentence_tile.dart';
 import 'package:echo_loop/widgets/common/playback_controls.dart';
 import 'package:echo_loop/widgets/practice/practice_progress_section.dart';
+import 'package:flutter_riverpod/misc.dart';
 
 import '../helpers/mock_providers.dart';
 
@@ -122,14 +123,14 @@ void main() {
     );
 
     return ProviderScope(
-      overrides: [
+      overrides: dedupeOverrides([
         listeningPracticeProvider.overrideWith(
           () => TestListeningPractice(
             ListeningPracticeState(sentences: sentences),
           ),
         ),
         audioEngineProvider.overrideWith(() => TestAudioEngine()),
-        learningProgressNotifierProvider.overrideWith(
+        learningProgressProvider.overrideWith(
           () => TestLearningProgressNotifier(),
         ),
         learningSessionProvider.overrideWith(() => TestLearningSession()),
@@ -138,7 +139,7 @@ void main() {
         ),
         ...studyTimeOverrides(),
         ...extraOverrides,
-      ],
+      ]),
       child: MaterialApp.router(
         locale: locale,
         supportedLocales: const [Locale('en'), Locale('zh')],

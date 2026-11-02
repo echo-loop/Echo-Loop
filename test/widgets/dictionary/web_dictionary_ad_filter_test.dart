@@ -185,7 +185,7 @@ void main() {
       );
 
       expect(
-        container.read(dictionarySettingsNotifierProvider).adFilteringEnabled,
+        container.read(dictionarySettingsProvider).adFilteringEnabled,
         isFalse,
       );
       expect(platform.createdCount, 1);
@@ -199,7 +199,7 @@ void main() {
       final disabledViewCreationCount = platform.createdCount;
 
       await container
-          .read(dictionarySettingsNotifierProvider.notifier)
+          .read(dictionarySettingsProvider.notifier)
           .setAdFilteringEnabled(true);
       await tester.pump();
 
@@ -213,7 +213,7 @@ void main() {
       final enabledViewCreationCount = platform.createdCount;
 
       await container
-          .read(dictionarySettingsNotifierProvider.notifier)
+          .read(dictionarySettingsProvider.notifier)
           .setAdFilteringEnabled(false);
       await tester.pump();
 

@@ -132,7 +132,7 @@ class LearningSettingsScreen extends ConsumerWidget {
                     .setAutoSkipRetell(value);
                 if (value) {
                   await ref
-                      .read(learningProgressNotifierProvider.notifier)
+                      .read(learningProgressProvider.notifier)
                       .triggerAutoSkipScan();
                 }
                 ref.read(analyticsServiceProvider).track(

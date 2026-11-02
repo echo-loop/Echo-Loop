@@ -14,11 +14,12 @@ import 'package:echo_loop/database/providers.dart';
 import 'package:echo_loop/models/study_stage.dart';
 import 'package:echo_loop/services/study_time_service.dart';
 import 'package:echo_loop/widgets/study/day_stage_breakdown_sheet.dart';
+import '../helpers/mock_providers.dart';
 
 void main() {
   late AppDatabase db;
   setUp(() {
-    db = AppDatabase(NativeDatabase.memory());
+    db = AppDatabase(NativeDatabase.memory(setup: configureAppDatabaseConnection));
   });
   tearDown(() async {
     await db.close();
@@ -40,7 +41,7 @@ void main() {
     Locale locale = const Locale('zh'),
   }) {
     return ProviderScope(
-      overrides: [
+      overrides: dedupeOverrides([
         studyTimeServiceProvider.overrideWithValue(
           service ??
               StudyTimeService(
@@ -71,7 +72,7 @@ void main() {
                   ),
                 ],
           ),
-      ],
+      ]),
       child: MaterialApp(
         locale: locale,
         supportedLocales: [Locale('zh'), Locale('en')],

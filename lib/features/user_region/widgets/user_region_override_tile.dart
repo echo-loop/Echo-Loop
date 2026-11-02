@@ -20,7 +20,7 @@ class UserRegionOverrideTile extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final saved =
-        ref.watch(userRegionOverrideProvider).valueOrNull ??
+        ref.watch(userRegionOverrideProvider).value ??
         UserRegionOverride.auto;
     final isChinaUser = ref.watch(isChinaUserProvider);
     final effectiveLabel = isChinaUser ? '中国区' : '全球区';

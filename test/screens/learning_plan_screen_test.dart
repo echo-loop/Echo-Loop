@@ -48,6 +48,8 @@ import 'package:echo_loop/widgets/listen_and_repeat/listen_and_repeat_briefing_s
 import 'package:echo_loop/widgets/intensive_listen/intensive_listen_briefing_sheet.dart'
     show IntensiveListenBriefingSheet;
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:flutter_riverpod/misc.dart';
+import 'package:flutter_riverpod/legacy.dart';
 
 import '../helpers/mock_providers.dart';
 
@@ -331,7 +333,7 @@ void main() {
     );
 
     return ProviderScope(
-      overrides: [
+      overrides: dedupeOverrides([
         analyticsOverride(),
         ...studyTimeOverrides(),
         sharedPreferencesProvider.overrideWithValue(prefs),
@@ -357,7 +359,7 @@ void main() {
         localMediaFileExistsProvider(
           item.id,
         ).overrideWith((ref) => Future.value(true)),
-        learningProgressNotifierProvider.overrideWith(
+        learningProgressProvider.overrideWith(
           () =>
               TestLearningProgressNotifier(withAutoCompletions(progressState)),
         ),
@@ -370,7 +372,7 @@ void main() {
           (ref) =>
               Stream.value(completedStageTimes ?? const <String, DateTime>{}),
         ),
-      ],
+      ]),
       child: MaterialApp.router(
         locale: locale,
         supportedLocales: const [Locale('en'), Locale('zh')],
@@ -1169,7 +1171,7 @@ void main() {
       final appContext = tester.element(find.byType(LearningPlanScreen));
       final container = ProviderScope.containerOf(appContext);
       final p = container
-          .read(learningProgressNotifierProvider)
+          .read(learningProgressProvider)
           .progressMap['test-1'];
       expect(p!.isPaused, isTrue);
     });
@@ -1484,7 +1486,7 @@ void main() {
 
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [
+          overrides: dedupeOverrides([
             sharedPreferencesProvider.overrideWithValue(prefs),
             ...learningSettingsOverrides(),
             audioLibraryProvider.overrideWith(
@@ -1494,11 +1496,11 @@ void main() {
               () => TestListeningPractice(),
             ),
             audioEngineProvider.overrideWith(() => TestAudioEngine()),
-            learningProgressNotifierProvider.overrideWith(
+            learningProgressProvider.overrideWith(
               () => TestLearningProgressNotifier(),
             ),
             learningSessionProvider.overrideWith(() => TestLearningSession()),
-          ],
+          ]),
           child: MaterialApp.router(
             supportedLocales: const [Locale('en'), Locale('zh')],
             localizationsDelegates: const [
@@ -1534,7 +1536,7 @@ void main() {
 
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [
+          overrides: dedupeOverrides([
             analyticsOverride(),
             sharedPreferencesProvider.overrideWithValue(prefs),
             ...learningSettingsOverrides(),
@@ -1551,16 +1553,14 @@ void main() {
             localMediaFileExistsProvider(
               longAudio.id,
             ).overrideWith((ref) => Future.value(true)),
-            learningProgressNotifierProvider.overrideWith(
+            learningProgressProvider.overrideWith(
               () => TestLearningProgressNotifier(),
             ),
             learningSessionProvider.overrideWith(() => TestLearningSession()),
-            supabaseSessionProvider.overrideWith(
-              (ref) => Stream<Session?>.value(signedInSession()),
-            ),
+            supabaseSessionProvider.overrideWithValue(AsyncData<Session?>(signedInSession())),
             // 已登录用户视为已解锁（Pro），转录机制测试不被额度闸拦截。
             subscriptionEntitlementOverride(),
-          ],
+          ]),
           child: MaterialApp.router(
             locale: const Locale('en'),
             supportedLocales: const [Locale('en'), Locale('zh')],
@@ -1911,7 +1911,7 @@ void main() {
       final context = tester.element(find.byType(LearningPlanScreen));
       final container = ProviderScope.containerOf(context);
       final after = container
-          .read(learningProgressNotifierProvider)
+          .read(learningProgressProvider)
           .progressMap['test-1']!;
       expect(after.manualUnlockAt, isNotNull);
       expect(after.isReviewLockedAt(now), isFalse);

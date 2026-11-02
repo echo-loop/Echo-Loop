@@ -29,8 +29,10 @@ import 'package:echo_loop/providers/transcription_task_provider.dart';
 import 'package:echo_loop/services/subtitle_auto_align_service.dart';
 import 'package:echo_loop/services/transcription_api_client.dart';
 import 'package:echo_loop/utils/srt_generator.dart';
+import 'package:flutter_riverpod/misc.dart';
 
 import '../helpers/mock_providers.dart';
+import 'package:echo_loop/database/app_database.dart' show configureAppDatabaseConnection;
 
 // ─── Mock 类 ──────────────────────────────────────────────
 
@@ -192,7 +194,7 @@ void main() {
     mockApi = MockTranscriptionApiClient();
     mockFileOps = MockTranscriptionFileOps();
     mockAutoAlignService = MockSubtitleAutoAlignService();
-    database = db.AppDatabase(NativeDatabase.memory());
+    database = db.AppDatabase(NativeDatabase.memory(setup: configureAppDatabaseConnection));
 
     // 所有调用 startTranscription 的测试都需要 getDataDir
     when(
@@ -1105,7 +1107,7 @@ void main() {
       // 加载真实历史偏好，验证旧调试开关不再影响正式转录。
       final audioLibrary = TestAudioLibrary();
       final container = ProviderContainer(
-        overrides: [
+        overrides: dedupeOverrides([
           transcriptionApiClientProvider.overrideWithValue(mockApi),
           transcriptionFileOpsProvider.overrideWithValue(mockFileOps),
           appDatabaseProvider.overrideWithValue(database),
@@ -1114,7 +1116,7 @@ void main() {
             mockAutoAlignService,
           ),
           analyticsOverride(),
-        ],
+        ]),
       );
       addTearDown(container.dispose);
       final settingsReady = Completer<void>();

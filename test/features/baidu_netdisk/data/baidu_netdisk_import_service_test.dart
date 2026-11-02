@@ -17,6 +17,7 @@ import 'package:echo_loop/providers/audio_library_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
+import '../../../helpers/mock_providers.dart';
 
 class _FakeCredentialRepository implements BaiduCredentialRepository {
   _FakeCredentialRepository(this.accessToken);
@@ -406,11 +407,11 @@ void main() {
         audioSha256: 'sha256',
       );
       final container = ProviderContainer(
-        overrides: [
+        overrides: dedupeOverrides([
           audioLibraryProvider.overrideWith(
             () => _FakeAudioLibrary(AudioLibraryState(audioItems: [existing])),
           ),
-        ],
+        ]),
       );
       addTearDown(container.dispose);
       final itemResults = <CloudDriveImportItemResult>[];

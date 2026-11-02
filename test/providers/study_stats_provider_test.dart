@@ -10,9 +10,7 @@ import 'package:echo_loop/models/study_stage.dart';
 
 AppDatabase _createTestDb() {
   return AppDatabase(
-    NativeDatabase.memory(
-      setup: (db) => db.execute('PRAGMA foreign_keys = ON'),
-    ),
+    NativeDatabase.memory(setup: configureAppDatabaseConnection),
   );
 }
 
@@ -68,7 +66,7 @@ void main() {
       date: now.subtract(const Duration(days: 1)),
     );
 
-    final stats = await container.read(studyStatsNotifierProvider.future);
+    final stats = await container.read(studyStatsProvider.future);
     expect(stats.todaySeconds, 1800);
     expect(stats.todayInputWords, 42);
     expect(stats.todayOutputWords, 21);

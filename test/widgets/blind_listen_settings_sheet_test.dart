@@ -20,11 +20,11 @@ void main() {
           ),
         ),
       ),
-      overrides: [
+      overrides: dedupeOverrides([
         blindListenPlayerProvider.overrideWith(
           () => TestBlindListenPlayer(initialState),
         ),
-      ],
+      ]),
     );
   }
 

@@ -55,7 +55,7 @@ void main() {
     await tester.pumpWidget(
       createTestScreen(
         const CollectionDetailScreen(collectionId: 'community-local-1'),
-        overrides: [
+        overrides: dedupeOverrides([
           audioLibraryProvider.overrideWith(
             () => TestAudioLibrary(AudioLibraryState(audioItems: audioItems)),
           ),
@@ -72,7 +72,7 @@ void main() {
             ),
           ),
           communitySyncServiceProvider.overrideWithValue(syncService),
-        ],
+        ]),
       ),
     );
     await tester.pumpAndSettle();

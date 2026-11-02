@@ -10,7 +10,7 @@ void main() {
   late AppDatabase db;
 
   setUp(() {
-    db = AppDatabase(NativeDatabase.memory());
+    db = AppDatabase(NativeDatabase.memory(setup: configureAppDatabaseConnection));
   });
 
   tearDown(() => db.close());

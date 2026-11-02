@@ -4,7 +4,6 @@
 // 基于 Dio，支持 CancelToken、上传进度回调和错误处理。
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart' show visibleForTesting;
-import 'package:flutter_riverpod/flutter_riverpod.dart' show Ref;
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:universal_io/io.dart';
 import '../features/auth/providers/auth_providers.dart';

@@ -161,6 +161,6 @@ Future<void> _createV49Fixture(File file) async {
 
     raw.execute('PRAGMA user_version = 49');
   } finally {
-    raw.dispose();
+    raw.close();
   }
 }

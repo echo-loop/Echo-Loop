@@ -82,12 +82,10 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
 
   @override
   void dispose() {
-    // 页面销毁时在后台启动幂等收尾，防止共享音频引擎继续播放或丢失最终统计。
-    scheduleMicrotask(
-      () => unawaited(
-        _notifier.finishStudyPage(generation: _studyPageGeneration),
-      ),
-    );
+    // 计时器同步释放：provider 可能早于微任务销毁，残留计时器会导致泄漏。
+    _notifier.releaseStudyTimer();
+    // 页面销毁时同步启动幂等收尾（provider 仍挂载，暂停与保存在此完成）。
+    unawaited(_notifier.finishStudyPage(generation: _studyPageGeneration));
     _tabController.dispose();
     super.dispose();
   }

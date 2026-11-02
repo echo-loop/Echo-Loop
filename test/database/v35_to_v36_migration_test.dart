@@ -20,7 +20,7 @@ void main() {
     final file = File('${dir.path}/echo_loop.db');
     await _createV35Fixture(file);
 
-    final db = AppDatabase(NativeDatabase(file));
+    final db = AppDatabase(NativeDatabase(file, setup: configureAppDatabaseConnection));
     addTearDown(db.close);
 
     // transcript_srt 列存在
@@ -98,6 +98,6 @@ Future<void> _createV35Fixture(File file) async {
 
     raw.execute('PRAGMA user_version = 35');
   } finally {
-    raw.dispose();
+    raw.close();
   }
 }

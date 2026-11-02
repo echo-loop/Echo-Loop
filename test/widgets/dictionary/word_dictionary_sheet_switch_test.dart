@@ -98,7 +98,7 @@ void main() {
   Widget wrap({_FixedSource? aiSource, String word = 'run'}) {
     final aiSrc = aiSource ?? ai;
     return ProviderScope(
-      overrides: [
+      overrides: dedupeOverrides([
         analyticsOverride(),
         dictionaryOverride(),
         sharedPreferencesProvider.overrideWithValue(prefs),
@@ -114,7 +114,7 @@ void main() {
             targetLanguage: 'zh-CN',
           ),
         ),
-      ],
+      ]),
       child: MaterialApp(
         locale: const Locale('en'),
         supportedLocales: const [Locale('en'), Locale('zh')],

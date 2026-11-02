@@ -577,7 +577,7 @@ class _LearningPlanScreenState extends ConsumerState<LearningPlanScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       // 确保学习进度记录存在
       ref
-          .read(learningProgressNotifierProvider.notifier)
+          .read(learningProgressProvider.notifier)
           .ensureProgress(widget.audioItemId);
 
       // 计划页是媒体就绪的唯一 owner：未就绪时自动下载，就绪后才加载学习内容。
@@ -683,12 +683,12 @@ class _LearningPlanScreenState extends ConsumerState<LearningPlanScreen> {
   /// 为 false），此时返回 null，简报弹窗据此隐藏「跳过」按钮。
   VoidCallback? _buildSkipCallback() {
     final progress = ref
-        .read(learningProgressNotifierProvider)
+        .read(learningProgressProvider)
         .progressMap[widget.audioItemId];
     if (!(progress?.canSkipCurrentSubStage ?? false)) return null;
     return () async {
       await ref
-          .read(learningProgressNotifierProvider.notifier)
+          .read(learningProgressProvider.notifier)
           .skipCurrentSubStage(widget.audioItemId);
     };
   }
@@ -839,7 +839,7 @@ class _LearningPlanScreenState extends ConsumerState<LearningPlanScreen> {
     if (confirm != true) return;
 
     await ref
-        .read(learningProgressNotifierProvider.notifier)
+        .read(learningProgressProvider.notifier)
         .resetProgress(audioItem.id);
     if (context.mounted) {
       ScaffoldMessenger.of(
@@ -859,7 +859,7 @@ class _LearningPlanScreenState extends ConsumerState<LearningPlanScreen> {
     final effectiveProgress =
         progress ??
         await ref
-            .read(learningProgressNotifierProvider.notifier)
+            .read(learningProgressProvider.notifier)
             .getLatestOrEnsureProgress(widget.audioItemId);
     if (!context.mounted) return;
 
@@ -923,7 +923,7 @@ class _LearningPlanScreenState extends ConsumerState<LearningPlanScreen> {
     final lpState = await _ensureAudioLoaded();
     if (!context.mounted) return;
     final liveDifficulty = await ref
-        .read(learningProgressNotifierProvider.notifier)
+        .read(learningProgressProvider.notifier)
         .refreshDifficultyFromBookmarks(
           widget.audioItemId,
           lpState?.sentences.length ?? 0,
@@ -1077,11 +1077,11 @@ class _LearningPlanScreenState extends ConsumerState<LearningPlanScreen> {
         : null;
 
     final progressForSpeed = ref
-        .read(learningProgressNotifierProvider)
+        .read(learningProgressProvider)
         .progressMap[widget.audioItemId];
     // 按当前难句书签数实时重算难度，难度降低后速度随之回升
     final liveDifficulty = await ref
-        .read(learningProgressNotifierProvider.notifier)
+        .read(learningProgressProvider.notifier)
         .refreshDifficultyFromBookmarks(widget.audioItemId, sentences.length);
     if (!context.mounted) return;
     final skip = _buildSkipCallback();
@@ -1176,7 +1176,7 @@ class _LearningPlanScreenState extends ConsumerState<LearningPlanScreen> {
     if (bookmarks.isEmpty) {
       // 无难句 → 自动完成补练，推进到下一子阶段
       await ref
-          .read(learningProgressNotifierProvider.notifier)
+          .read(learningProgressProvider.notifier)
           .completeCurrentSubStage(widget.audioItemId);
       if (!context.mounted) return;
       ScaffoldMessenger.of(
@@ -1222,7 +1222,7 @@ class _LearningPlanScreenState extends ConsumerState<LearningPlanScreen> {
   /// - 跨阶段推进到 completed / firstLearn 等其它情况：不导航，回到计划页。
   void _navigateToNextReviewSubStageFromPlan(BuildContext context) {
     final progress = ref
-        .read(learningProgressNotifierProvider)
+        .read(learningProgressProvider)
         .progressMap[widget.audioItemId];
     if (progress == null) return;
     if (!progress.isInReviewStage) return;
@@ -1296,7 +1296,7 @@ class _LearningPlanScreenState extends ConsumerState<LearningPlanScreen> {
 
     // reviewRetellParagraph：弹出简报面板让用户选择段落时长
     final progress = ref
-        .read(learningProgressNotifierProvider)
+        .read(learningProgressProvider)
         .progressMap[widget.audioItemId];
     final currentStage = progress?.currentStage;
 
@@ -1308,7 +1308,7 @@ class _LearningPlanScreenState extends ConsumerState<LearningPlanScreen> {
     final effectiveStage = currentStage ?? LearningStage.firstLearn;
     // 按当前难句书签数实时重算难度，难度降低后速度/可见词比例随之调整
     final liveDifficulty = await ref
-        .read(learningProgressNotifierProvider.notifier)
+        .read(learningProgressProvider.notifier)
         .refreshDifficultyFromBookmarks(widget.audioItemId, sentences.length);
     if (!context.mounted) return;
     final smartRatio = KeywordRatio.forDifficultyAndStage(
@@ -1355,7 +1355,7 @@ class _LearningPlanScreenState extends ConsumerState<LearningPlanScreen> {
       // 按计划学习路径才显示「跳过」按钮；自由练习路径无此回调
       onSkip: () async {
         await ref
-            .read(learningProgressNotifierProvider.notifier)
+            .read(learningProgressProvider.notifier)
             .skipCurrentSubStage(widget.audioItemId);
       },
     );
@@ -1384,7 +1384,7 @@ class _LearningPlanScreenState extends ConsumerState<LearningPlanScreen> {
 
     // 按当前难句书签数实时重算难度，难度降低后速度随之回升（与难句跟读/复述一致）
     final liveDifficulty = await ref
-        .read(learningProgressNotifierProvider.notifier)
+        .read(learningProgressProvider.notifier)
         .refreshDifficultyFromBookmarks(widget.audioItemId, sentences.length);
     if (!context.mounted) return;
 
@@ -1567,12 +1567,12 @@ class _LearningPlanScreenState extends ConsumerState<LearningPlanScreen> {
     if (!context.mounted) return;
 
     final progress = ref
-        .read(learningProgressNotifierProvider)
+        .read(learningProgressProvider)
         .progressMap[widget.audioItemId];
     // 按当前难句书签数实时重算难度（难句跟读入口最关键：用户练熟取消收藏后
     // 比例下降 → 难度降低 → 速度回升），同时用于跟读遍数 playCount。
     final liveDifficulty = await ref
-        .read(learningProgressNotifierProvider.notifier)
+        .read(learningProgressProvider.notifier)
         .refreshDifficultyFromBookmarks(widget.audioItemId, sentences.length);
     if (!context.mounted) return;
     final smartPlayCount = targetPlayCountForDifficulty(liveDifficulty.index);
@@ -1621,7 +1621,7 @@ class _LearningPlanScreenState extends ConsumerState<LearningPlanScreen> {
       onScopeChanged: (scope) {
         prefs.setListenAndRepeatScope(slot, scope);
         ref
-            .read(learningProgressNotifierProvider.notifier)
+            .read(learningProgressProvider.notifier)
             .saveShadowingSentenceIndex(
               widget.audioItemId,
               null,
@@ -1632,7 +1632,7 @@ class _LearningPlanScreenState extends ConsumerState<LearningPlanScreen> {
         if (scope == ListenAndRepeatScope.difficultOnly &&
             difficultIndices.isEmpty) {
           await ref
-              .read(learningProgressNotifierProvider.notifier)
+              .read(learningProgressProvider.notifier)
               .completeCurrentSubStage(widget.audioItemId);
           if (!context.mounted) return;
           ScaffoldMessenger.of(context).showSnackBar(
@@ -1716,13 +1716,13 @@ class _LearningPlanScreenState extends ConsumerState<LearningPlanScreen> {
     }
 
     final progressForDefault = ref
-        .read(learningProgressNotifierProvider)
+        .read(learningProgressProvider)
         .progressMap[widget.audioItemId];
     final stageForDefault =
         progressForDefault?.currentStage ?? LearningStage.firstLearn;
     // 按当前难句书签数实时重算难度，难度降低后速度/可见词比例随之调整
     final liveDifficulty = await ref
-        .read(learningProgressNotifierProvider.notifier)
+        .read(learningProgressProvider.notifier)
         .refreshDifficultyFromBookmarks(widget.audioItemId, sentences.length);
     AppLogger.log('RetellEntry', '难度刷新完成 → 打开复述简报');
     if (!context.mounted) return;
@@ -1777,7 +1777,7 @@ class _LearningPlanScreenState extends ConsumerState<LearningPlanScreen> {
       // 按计划学习路径才显示「跳过」按钮；自由练习路径无此回调
       onSkip: () async {
         await ref
-            .read(learningProgressNotifierProvider.notifier)
+            .read(learningProgressProvider.notifier)
             .skipCurrentSubStage(widget.audioItemId);
       },
     );
@@ -1795,7 +1795,7 @@ class _LearningPlanScreenState extends ConsumerState<LearningPlanScreen> {
 
     // 监听学习进度
     final progress = ref.watch(
-      learningProgressNotifierProvider.select(
+      learningProgressProvider.select(
         (s) => s.progressMap[widget.audioItemId],
       ),
     );
@@ -2098,7 +2098,7 @@ class _ProgressCard extends ConsumerWidget {
     final completedKeys = audioItem == null
         ? const <String>{}
         : ref
-              .watch(learningProgressNotifierProvider)
+              .watch(learningProgressProvider)
               .completionsFor(audioItem!.id);
     final percent = progress?.progressPercent(plan, completedKeys) ?? 0.0;
     final percentText = '${(percent * 100).round()}%';
@@ -2597,10 +2597,10 @@ class _FirstStudySection extends ConsumerWidget {
     final stageCompletedAtMap =
         ref
             .watch(reviewStageCompletionTimesProvider(audioItemId))
-            .valueOrNull ??
+            .value ??
         const <String, DateTime>{};
     final completedKeys = ref
-        .watch(learningProgressNotifierProvider)
+        .watch(learningProgressProvider)
         .completionsFor(audioItemId);
     final completedCount =
         progress?.completedFirstStudySteps(plan, completedKeys) ?? 0;
@@ -2784,7 +2784,7 @@ class _FirstStudySection extends ConsumerWidget {
 
     // 实时查询书签数量（难句数）
     final bookmarkCount =
-        ref.watch(_bookmarkCountProvider(audioItemId)).valueOrNull ?? 0;
+        ref.watch(_bookmarkCountProvider(audioItemId)).value ?? 0;
     if (bookmarkCount > 0) {
       parts.add(l10n.difficultSentenceCount(bookmarkCount));
     }
@@ -2803,7 +2803,7 @@ class _FirstStudySection extends ConsumerWidget {
 
     // 实时查询书签数量（难句数）
     final bookmarkCount =
-        ref.watch(_bookmarkCountProvider(audioItemId)).valueOrNull ?? 0;
+        ref.watch(_bookmarkCountProvider(audioItemId)).value ?? 0;
     parts.add(l10n.listenAndRepeatBriefingDifficultCount(bookmarkCount));
 
     // 跟读总完成遍数
@@ -2830,7 +2830,7 @@ class _FirstStudySection extends ConsumerWidget {
 
     // 按当前难句书签数实时重算难度，难度降低后速度随之回升（与难句跟读/复述一致）
     final liveDifficulty = await ref
-        .read(learningProgressNotifierProvider.notifier)
+        .read(learningProgressProvider.notifier)
         .refreshDifficultyFromBookmarks(audioItemId, sentences.length);
     if (!context.mounted) return;
 
@@ -2988,7 +2988,7 @@ class _FirstStudySection extends ConsumerWidget {
     // 按当前难句书签数实时重算难度（难句跟读入口最关键：用户练熟取消收藏后
     // 比例下降 → 难度降低 → 速度回升），同时用于跟读遍数 playCount。
     final liveDifficulty = await ref
-        .read(learningProgressNotifierProvider.notifier)
+        .read(learningProgressProvider.notifier)
         .refreshDifficultyFromBookmarks(audioItemId, sentences.length);
     if (!context.mounted) return;
     final smartPlayCount = targetPlayCountForDifficulty(liveDifficulty.index);
@@ -3039,7 +3039,7 @@ class _FirstStudySection extends ConsumerWidget {
       onScopeChanged: (scope) {
         prefs.setListenAndRepeatScope(slot, scope);
         ref
-            .read(learningProgressNotifierProvider.notifier)
+            .read(learningProgressProvider.notifier)
             .saveShadowingSentenceIndex(audioItemId, null, isFreePlay: true);
       },
       onStartPractice: (playbackSpeed, pause, scope) async {
@@ -3124,13 +3124,13 @@ class _FirstStudySection extends ConsumerWidget {
     // 与 catchUpStage（始终 firstLearn，因为这是 firstLearn 子步骤的补练）解耦。
     // 可见词比例按 catchUpStage=firstLearn 算（补练 firstLearn 复述）。
     final progressForDefault = ref
-        .read(learningProgressNotifierProvider)
+        .read(learningProgressProvider)
         .progressMap[audioItemId];
     final stageForDefault =
         progressForDefault?.currentStage ?? LearningStage.firstLearn;
     // 按当前难句书签数实时重算难度，难度降低后速度/可见词比例随之调整
     final liveDifficulty = await ref
-        .read(learningProgressNotifierProvider.notifier)
+        .read(learningProgressProvider.notifier)
         .refreshDifficultyFromBookmarks(audioItemId, sentences.length);
     if (!context.mounted) return;
     // 自由练习复述属 firstLearn 补练,槽位 retell:firstLearn,与按计划共用偏好。
@@ -3715,7 +3715,7 @@ class _ReviewRoundSection extends ConsumerWidget {
 
     // 按当前难句书签数实时重算难度，难度降低后速度随之回升
     final liveDifficulty = await ref
-        .read(learningProgressNotifierProvider.notifier)
+        .read(learningProgressProvider.notifier)
         .refreshDifficultyFromBookmarks(audioItemId, sentences.length);
     if (!context.mounted) return;
 
@@ -3798,7 +3798,7 @@ class _ReviewRoundSection extends ConsumerWidget {
         .fold<Duration>(Duration.zero, (sum, s) => sum + s.duration);
     // 按当前难句书签数实时重算难度，难度降低后速度随之回升
     final liveDifficulty = await ref
-        .read(learningProgressNotifierProvider.notifier)
+        .read(learningProgressProvider.notifier)
         .refreshDifficultyFromBookmarks(audioItemId, sentences.length);
     if (!context.mounted) return;
     final smartSpeed = progress == null
@@ -3911,11 +3911,11 @@ class _ReviewRoundSection extends ConsumerWidget {
 
     // 段落复述：弹出简报面板让用户选择段落时长（预估时长由 sheet 内部按真实公式动态计算）
     final progressForRetell = ref
-        .read(learningProgressNotifierProvider)
+        .read(learningProgressProvider)
         .progressMap[audioItemId];
     // 按当前难句书签数实时重算难度，难度降低后速度/可见词比例随之调整
     final liveDifficulty = await ref
-        .read(learningProgressNotifierProvider.notifier)
+        .read(learningProgressProvider.notifier)
         .refreshDifficultyFromBookmarks(audioItemId, sentences.length);
     if (!context.mounted) return;
     final slot = stageSlotKey(StageSettingsSlots.retell, review.stage);
@@ -3970,10 +3970,10 @@ class _ReviewRoundSection extends ConsumerWidget {
     final stageCompletedAtMap =
         ref
             .watch(reviewStageCompletionTimesProvider(audioItemId))
-            .valueOrNull ??
+            .value ??
         const <String, DateTime>{};
     final completedKeys = ref
-        .watch(learningProgressNotifierProvider)
+        .watch(learningProgressProvider)
         .completionsFor(audioItemId);
     // 迭代顺序 = 当前 plan 顺序 + 历史外延项（已完成 / 已跳过但不在当前 plan 内）。
     // 例如 review28 v1 用户完成了 reviewRetellSummary 后切到 v2 不会发生（v1 用户
@@ -4084,7 +4084,7 @@ class _ReviewRoundSection extends ConsumerWidget {
               child: InkWell(
                 borderRadius: BorderRadius.circular(999),
                 onTap: () => ref
-                    .read(learningProgressNotifierProvider.notifier)
+                    .read(learningProgressProvider.notifier)
                     .unlockCurrentReview(audioItemId),
                 child: Padding(
                   padding: const EdgeInsets.symmetric(
@@ -4141,7 +4141,7 @@ class _ReviewRoundSection extends ConsumerWidget {
                 final bookmarkCount =
                     ref
                         .watch(_bookmarkCountProvider(audioItemId))
-                        .valueOrNull ??
+                        .value ??
                     0;
                 if (isCompleted && bookmarkCount == 0) {
                   subtitle = l10n.autoCompletedNoDifficultReview;
@@ -4162,7 +4162,7 @@ class _ReviewRoundSection extends ConsumerWidget {
                 final bookmarkCount =
                     ref
                         .watch(_bookmarkCountProvider(audioItemId))
-                        .valueOrNull ??
+                        .value ??
                     0;
                 if (subStage == SubStageType.reviewDifficultPractice &&
                     bookmarkCount == 0) {
@@ -4335,14 +4335,14 @@ class _BottomButton extends ConsumerWidget {
     );
     if (confirm == true) {
       await ref
-          .read(learningProgressNotifierProvider.notifier)
+          .read(learningProgressProvider.notifier)
           .pauseProgress(audioItemId);
     }
   }
 
   Future<void> _resume(WidgetRef ref) {
     return ref
-        .read(learningProgressNotifierProvider.notifier)
+        .read(learningProgressProvider.notifier)
         .resumeProgress(audioItemId);
   }
 
@@ -4370,7 +4370,7 @@ class _BottomButton extends ConsumerWidget {
     );
     if (confirm == true) {
       await ref
-          .read(learningProgressNotifierProvider.notifier)
+          .read(learningProgressProvider.notifier)
           .resetProgress(audioItemId);
       if (context.mounted) {
         ScaffoldMessenger.of(

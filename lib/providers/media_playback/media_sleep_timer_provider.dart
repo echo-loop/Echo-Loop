@@ -39,6 +39,8 @@ class MediaSleepTimer extends Notifier<SleepTimerState> {
   void cancel() {
     _generation++;
     _cancelTicker();
+    // notifier 已销毁（如容器释放、宿主页面卸载）时只需停止计时器，不再写 state。
+    if (!ref.mounted) return;
     state = const SleepTimerState();
   }
 

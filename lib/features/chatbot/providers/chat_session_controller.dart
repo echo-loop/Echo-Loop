@@ -10,6 +10,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter/widgets.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:uuid/uuid.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../l10n/app_localizations.dart';
 import '../../../analytics/analytics_providers.dart';
@@ -150,7 +151,7 @@ class ChatSessionController extends _$ChatSessionController {
     }
     final accessToken = ref
         .read(supabaseSessionProvider)
-        .valueOrNull
+        .value
         ?.accessToken;
     if (accessToken == null || accessToken.isEmpty) {
       state = state.copyWith(gate: ChatGate.authRequired);

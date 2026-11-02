@@ -13,6 +13,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../helpers/mock_providers.dart';
 
 /// 平台语音引擎的显示名随宿主而变（见 [platformSpeechEngineName]）：
 /// Apple 宿主（macOS/iOS）显「Apple AI」，其余（Linux CI 等）显「System Speech」。
@@ -69,7 +70,7 @@ Widget _wrap(
   PiperModelsState? piperModels,
 }) {
   return ProviderScope(
-    overrides: [
+    overrides: dedupeOverrides([
       initialTtsSettingsProvider.overrideWithValue(settings),
       kokoroModelProvider.overrideWith(
         () =>
@@ -79,7 +80,7 @@ Widget _wrap(
       piperModelProvider.overrideWith(
         () => _TestPiperNotifier(piperModels ?? const PiperModelsState({})),
       ),
-    ],
+    ]),
     child: const MaterialApp(
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,

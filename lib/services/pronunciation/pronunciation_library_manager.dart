@@ -224,6 +224,6 @@ void _validateAudioReferences(String databasePath, String audioDirectory) {
       }
     }
   } finally {
-    database.dispose();
+    database.close();
   }
 }

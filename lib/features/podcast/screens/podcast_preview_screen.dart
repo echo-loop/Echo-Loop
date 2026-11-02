@@ -199,7 +199,7 @@ class _PodcastPreviewScreenState extends ConsumerState<PodcastPreviewScreen> {
   ) {
     final candidates = <String>{
       if ((_arg.feedUrl ?? '').trim().isNotEmpty) _arg.feedUrl!.trim(),
-      if (preview.valueOrNull != null) preview.value!.meta.feedUrl.trim(),
+      if (preview.value != null) preview.value!.meta.feedUrl.trim(),
     };
     if (candidates.isEmpty) return null;
     final state = ref.watch(collectionListProvider);
@@ -289,7 +289,7 @@ class _PodcastPreviewHeader extends ConsumerWidget {
     final l10n = AppLocalizations.of(context)!;
     final meta = ref
         .watch(podcastPreviewProvider(arg.subscriptionInputUrl))
-        .valueOrNull
+        .value
         ?.meta;
     final description = meta?.description ?? arg.description;
     // RSS 加载完成后优先使用 feed 图，避免详情页和已订阅合集继续停在

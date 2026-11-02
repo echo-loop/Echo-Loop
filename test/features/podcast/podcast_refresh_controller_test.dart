@@ -38,7 +38,7 @@ void main() {
       () => repo.refresh(any(), force: any(named: 'force')),
     ).thenAnswer((_) async {});
     final container = ProviderContainer(
-      overrides: [
+      overrides: dedupeOverrides([
         collectionListProvider.overrideWith(
           () => TestCollectionList(
             CollectionState(
@@ -52,7 +52,7 @@ void main() {
           ),
         ),
         podcastRepositoryProvider.overrideWithValue(repo),
-      ],
+      ]),
     );
     addTearDown(container.dispose);
 
@@ -73,7 +73,7 @@ void main() {
       () => repo.refresh('podcast-2', force: false),
     ).thenAnswer((_) async {});
     final container = ProviderContainer(
-      overrides: [
+      overrides: dedupeOverrides([
         collectionListProvider.overrideWith(
           () => TestCollectionList(
             CollectionState(
@@ -85,7 +85,7 @@ void main() {
           ),
         ),
         podcastRepositoryProvider.overrideWithValue(repo),
-      ],
+      ]),
     );
     addTearDown(container.dispose);
 
@@ -104,14 +104,14 @@ void main() {
       () => repo.refresh('podcast-1', force: false),
     ).thenAnswer((_) => completer.future);
     final container = ProviderContainer(
-      overrides: [
+      overrides: dedupeOverrides([
         collectionListProvider.overrideWith(
           () => TestCollectionList(
             CollectionState(rawCollections: [podcastCollection('podcast-1')]),
           ),
         ),
         podcastRepositoryProvider.overrideWithValue(repo),
-      ],
+      ]),
     );
     addTearDown(container.dispose);
 

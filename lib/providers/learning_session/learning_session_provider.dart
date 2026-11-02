@@ -277,7 +277,7 @@ class LearningSession extends _$LearningSession {
     final subStage = state.catchUpSubStage;
     if (stage == null || subStage == null) return;
     await ref
-        .read(learningProgressNotifierProvider.notifier)
+        .read(learningProgressProvider.notifier)
         .recordCompletionIfNew(audioItemId, stage, subStage);
   }
 
@@ -305,7 +305,7 @@ class LearningSession extends _$LearningSession {
     );
 
     final progress = await ref
-        .read(learningProgressNotifierProvider.notifier)
+        .read(learningProgressProvider.notifier)
         .getLatestOrEnsureProgress(mediaItem.id);
     if (!isCurrentGeneration()) return MediaLoadResult.cancelled;
     final bookmarkedIndices = await BookmarkManager.loadBookmarks(
@@ -589,7 +589,7 @@ class LearningSession extends _$LearningSession {
     );
 
     final progressNotifier = ref.read(
-      learningProgressNotifierProvider.notifier,
+      learningProgressProvider.notifier,
     );
     final progress = await progressNotifier.getLatestOrEnsureProgress(
       mediaItem.id,
@@ -812,7 +812,7 @@ class LearningSession extends _$LearningSession {
 
     // 跟读断点与难度都需要优先使用持久化的最新值，避免只吃到陈旧内存态。
     final progress = await ref
-        .read(learningProgressNotifierProvider.notifier)
+        .read(learningProgressProvider.notifier)
         .getLatestOrEnsureProgress(audioItemId);
     int startIndex = 0;
     if (isFreePlay && _isBreakpointValid(progress.freePlayBreakpointSavedAt)) {
@@ -901,7 +901,7 @@ class LearningSession extends _$LearningSession {
 
     try {
       final progress = await ref
-          .read(learningProgressNotifierProvider.notifier)
+          .read(learningProgressProvider.notifier)
           .getLatestOrEnsureProgress(mediaItem.id);
       if (!isCurrentGeneration()) return MediaLoadResult.cancelled;
       final bookmarkedIndices = await BookmarkManager.loadBookmarks(
@@ -1143,7 +1143,7 @@ class LearningSession extends _$LearningSession {
           .map((sentence) => sentence.copyWith(isBookmarked: true))
           .toList();
       final progress = await ref
-          .read(learningProgressNotifierProvider.notifier)
+          .read(learningProgressProvider.notifier)
           .getLatestOrEnsureProgress(audioItemId);
       if (!isCurrentGeneration()) return MediaLoadResult.cancelled;
 
@@ -1450,7 +1450,7 @@ class LearningSession extends _$LearningSession {
         }
         ref.read(dailyStudyTimeProvider.notifier).refresh();
         ref.invalidate(studyDurationRecordsProvider);
-        ref.read(studyStatsNotifierProvider.notifier).refresh();
+        ref.read(studyStatsProvider.notifier).refresh();
       } finally {
         state = const LearningSessionState();
       }
@@ -1495,7 +1495,7 @@ class LearningSession extends _$LearningSession {
     // 通知 UI 刷新今日学习时长
     ref.read(dailyStudyTimeProvider.notifier).refresh();
     ref.invalidate(studyDurationRecordsProvider);
-    ref.read(studyStatsNotifierProvider.notifier).refresh();
+    ref.read(studyStatsProvider.notifier).refresh();
 
     state = const LearningSessionState();
   }

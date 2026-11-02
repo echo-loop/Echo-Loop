@@ -43,13 +43,13 @@ void main() {
       audioPath: relativePath,
     );
     container = ProviderContainer(
-      overrides: [
+      overrides: dedupeOverrides([
         audioLibraryProvider.overrideWith(
           () => TestAudioLibrary(AudioLibraryState(audioItems: [item])),
         ),
         communityDownloadProvider.overrideWith(_IdleCommunityDownload.new),
         podcastDownloadControllerProvider.overrideWith(_IdlePodcastDownload.new),
-      ],
+      ]),
     );
   });
 

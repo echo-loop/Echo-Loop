@@ -48,7 +48,7 @@ class DictionaryService {
   /// `CREATE INDEX IF NOT EXISTS` 幂等：仅首次构建耗时，之后启动即时。
   /// 为能建索引改用读写模式打开；失败（只读介质等）退化为全表扫描，不致命。
   void openDatabase(String dbPath) {
-    _db?.dispose();
+    _db?.close();
     final db = sqlite3.open(dbPath);
     try {
       db.execute(
@@ -92,7 +92,7 @@ class DictionaryService {
   ///
   /// 切换母语词典时需要先关闭再打开新词典。
   void close() {
-    _db?.dispose();
+    _db?.close();
     _db = null;
   }
 
@@ -193,7 +193,7 @@ class DictionaryService {
 
   /// 释放资源
   void dispose() {
-    _db?.dispose();
+    _db?.close();
     _db = null;
   }
 }

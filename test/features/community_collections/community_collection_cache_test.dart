@@ -12,6 +12,7 @@ import 'package:echo_loop/features/community_collections/providers/discover_comm
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../helpers/mock_providers.dart';
 
 class _FakeCommunityApi extends CommunityCollectionApi {
   _FakeCommunityApi({this.collectionsResponse, this.filesResponse})
@@ -396,9 +397,9 @@ void main() {
       now: () => DateTime(2026, 9, 23, 12, 1),
     );
     final container = ProviderContainer(
-      overrides: [
+      overrides: dedupeOverrides([
         communityCollectionCatalogServiceProvider.overrideWithValue(reader),
-      ],
+      ]),
     );
     addTearDown(container.dispose);
 
@@ -412,7 +413,7 @@ void main() {
       communityCollectionFilesProvider('collection-1'),
       (previous, next) {
         values.add(next);
-        final page = next.valueOrNull;
+        final page = next.value;
         if (!cachedVisible.isCompleted &&
             page?.items.length == 1 &&
             page?.items.first.title == 'Cached lesson') {
@@ -470,7 +471,7 @@ void main() {
     );
     await loadMore;
     await secondVisible.future.timeout(const Duration(seconds: 1));
-    expect(values.last.valueOrNull?.items.length, 2);
+    expect(values.last.value?.items.length, 2);
   });
 
   test('发现页目录 Provider 首次只请求第一页', () async {
@@ -514,9 +515,9 @@ void main() {
       now: () => DateTime(2026, 9, 23, 12, 1),
     );
     final container = ProviderContainer(
-      overrides: [
+      overrides: dedupeOverrides([
         communityCollectionCatalogServiceProvider.overrideWithValue(service),
-      ],
+      ]),
     );
     addTearDown(container.dispose);
 
@@ -526,15 +527,15 @@ void main() {
       discoverCommunityCollectionsProvider,
       (previous, next) {
         if (!cachedSecondVisible.isCompleted &&
-            next.valueOrNull?.items.any(
+            next.value?.items.any(
                   (item) => item.name == 'Cached second collection',
                 ) ==
                 true) {
           cachedSecondVisible.complete();
         }
         if (!freshVisible.isCompleted &&
-            next.valueOrNull?.items.length == 1 &&
-            next.valueOrNull?.items.first.name == 'Fresh collection') {
+            next.value?.items.length == 1 &&
+            next.value?.items.first.name == 'Fresh collection') {
           freshVisible.complete();
         }
       },

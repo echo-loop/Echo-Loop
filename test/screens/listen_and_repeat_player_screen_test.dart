@@ -39,6 +39,7 @@ import 'package:echo_loop/widgets/common/playback_controls.dart';
 import 'package:echo_loop/widgets/common/recording_button.dart';
 import 'package:echo_loop/widgets/common/bookmark_toggle_row.dart';
 import 'package:echo_loop/widgets/practice/sentence_explanation_view.dart';
+import 'package:flutter_riverpod/misc.dart';
 
 import '../helpers/mock_providers.dart';
 
@@ -274,7 +275,7 @@ Widget _createTestWidget({
   );
 
   return ProviderScope(
-    overrides: [
+    overrides: dedupeOverrides([
       analyticsOverride(),
       guideEnabledProvider.overrideWith(() => _DisabledGuideEnabledNotifier()),
       ...studyTimeOverrides(),
@@ -286,7 +287,7 @@ Widget _createTestWidget({
       ),
       audioEngineProvider.overrideWith(() => TestAudioEngine()),
       mediaEngineProvider.overrideWith(_VideoViewMediaEngine.new),
-      learningProgressNotifierProvider.overrideWith(
+      learningProgressProvider.overrideWith(
         () => TestLearningProgressNotifier(),
       ),
       learningSessionProvider.overrideWith(
@@ -322,7 +323,7 @@ Widget _createTestWidget({
       ),
       audioItemDaoProvider.overrideWithValue(audioItemDao),
       ...extraOverrides,
-    ],
+    ]),
     child: MaterialApp.router(
       supportedLocales: const [Locale('en'), Locale('zh')],
       localizationsDelegates: const [

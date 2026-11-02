@@ -266,7 +266,7 @@ void main() {
     );
 
     return ProviderScope(
-      overrides: [
+      overrides: dedupeOverrides([
         analyticsOverride(),
         ...studyTimeOverrides(),
         bookmarkDaoProvider.overrideWithValue(
@@ -315,7 +315,7 @@ void main() {
             apiClient: _MockApiClient(),
           ),
         ),
-      ],
+      ]),
       child: Builder(
         builder: (context) => MediaQuery(
           data: MediaQuery.of(context).copyWith(textScaler: textScaler),

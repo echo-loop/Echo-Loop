@@ -34,14 +34,14 @@ void main() {
 
   Widget createRouterTestApp(GoRouter router) {
     return ProviderScope(
-      overrides: [
+      overrides: dedupeOverrides([
         appSettingsProvider.overrideWith(() => TestAppSettings()),
         audioLibraryProvider.overrideWith(() => TestAudioLibrary()),
         collectionListProvider.overrideWith(() => TestCollectionList()),
         listeningPracticeProvider.overrideWith(() => TestListeningPractice()),
         audioEngineProvider.overrideWith(() => TestAudioEngine()),
         packageInfoProvider.overrideWithValue(testPackageInfo),
-      ],
+      ]),
       child: MaterialApp.router(
         supportedLocales: const [Locale('en'), Locale('zh')],
         localizationsDelegates: const [

@@ -16,6 +16,7 @@ import 'package:echo_loop/services/asr/asr_model_manager.dart';
 import 'package:echo_loop/services/asr/offline_asr_engine.dart';
 import 'package:echo_loop/services/speech_permission_service.dart';
 import 'package:echo_loop/widgets/speech_permission_dialog.dart';
+import '../helpers/mock_providers.dart';
 
 /// 可控麦克风/语音识别权限的 fake 服务。
 class _FakeService implements SpeechPermissionService {
@@ -96,7 +97,7 @@ Widget _wrap({
   required Widget child,
 }) {
   return ProviderScope(
-    overrides: [
+    overrides: dedupeOverrides([
       initialLearningSettingsProvider.overrideWithValue(learning),
       recommendedAsrModelProvider.overrideWith((ref) => _stubModel),
       offlineAsrSettingsProvider.overrideWith(
@@ -106,7 +107,7 @@ Widget _wrap({
         AsrModelInstallationGate(({required shouldCommit}) async {}),
       ),
       speechPermissionServiceProvider.overrideWith((ref) => service),
-    ],
+    ]),
     child: MaterialApp(
       locale: const Locale('en'),
       supportedLocales: const [Locale('en'), Locale('zh')],

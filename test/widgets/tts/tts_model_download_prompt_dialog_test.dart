@@ -8,6 +8,7 @@ import 'package:echo_loop/widgets/tts/tts_model_download_prompt_dialog.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import '../../helpers/mock_providers.dart';
 
 class _TestKokoroNotifier extends KokoroModelNotifier {
   _TestKokoroNotifier(this._initial);
@@ -33,7 +34,7 @@ class _TestKokoroNotifier extends KokoroModelNotifier {
 void main() {
   test('Advanced 发音状态复用当前 Kokoro 全局下载进度', () {
     final container = ProviderContainer(
-      overrides: [
+      overrides: dedupeOverrides([
         initialTtsSettingsProvider.overrideWithValue(
           const TtsSettings(engine: TtsEngineKind.kokoro),
         ),
@@ -45,7 +46,7 @@ void main() {
             ),
           }),
         ),
-      ],
+      ]),
     );
     addTearDown(container.dispose);
 
@@ -61,7 +62,7 @@ void main() {
   test('Balanced 发音状态复用当前 Piper 全局失败状态', () {
     const voiceId = 'en_US-amy-medium';
     final container = ProviderContainer(
-      overrides: [
+      overrides: dedupeOverrides([
         initialTtsSettingsProvider.overrideWithValue(
           const TtsSettings(engine: TtsEngineKind.piper),
         ),
@@ -72,7 +73,7 @@ void main() {
             ),
           }),
         ),
-      ],
+      ]),
     );
     addTearDown(container.dispose);
 
@@ -88,12 +89,12 @@ void main() {
     final notifier = _TestKokoroNotifier(const KokoroModelsState({}));
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [
+        overrides: dedupeOverrides([
           initialTtsSettingsProvider.overrideWithValue(
             const TtsSettings(engine: TtsEngineKind.kokoro),
           ),
           kokoroModelProvider.overrideWith(() => notifier),
-        ],
+        ]),
         child: const MaterialApp(
           localizationsDelegates: AppLocalizations.localizationsDelegates,
           supportedLocales: AppLocalizations.supportedLocales,
@@ -130,12 +131,12 @@ void main() {
     );
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [
+        overrides: dedupeOverrides([
           initialTtsSettingsProvider.overrideWithValue(
             const TtsSettings(engine: TtsEngineKind.kokoro),
           ),
           kokoroModelProvider.overrideWith(() => notifier),
-        ],
+        ]),
         child: const MaterialApp(
           localizationsDelegates: AppLocalizations.localizationsDelegates,
           supportedLocales: AppLocalizations.supportedLocales,
@@ -169,12 +170,12 @@ void main() {
     );
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [
+        overrides: dedupeOverrides([
           initialTtsSettingsProvider.overrideWithValue(
             const TtsSettings(engine: TtsEngineKind.kokoro),
           ),
           kokoroModelProvider.overrideWith(() => notifier),
-        ],
+        ]),
         child: const MaterialApp(
           localizationsDelegates: AppLocalizations.localizationsDelegates,
           supportedLocales: AppLocalizations.supportedLocales,

@@ -178,7 +178,8 @@ class _TestBookmarkReview extends BookmarkReview {
 
   @override
   Future<void> disposeSession() async {
-    state = const BookmarkReviewState();
+    // 页面 dispose 的收尾可能晚于容器释放，此时 notifier 已销毁，不再写 state。
+    if (ref.mounted) state = const BookmarkReviewState();
     final waiter = disposeSessionWaiter;
     if (waiter != null) await waiter();
   }
@@ -239,7 +240,7 @@ Widget _app({
           routerConfig: router,
         );
   return ProviderScope(
-    overrides: [
+    overrides: dedupeOverrides([
       bookmarkReviewProvider.overrideWith(
         () => _TestBookmarkReview(disposeSessionWaiter: disposeSessionWaiter),
       ),
@@ -273,7 +274,7 @@ Widget _app({
       dictionaryLookupContextProvider.overrideWithValue(
         const DictionaryLookupContext(targetLanguage: 'zh-CN'),
       ),
-    ],
+    ]),
     child: child,
   );
 }

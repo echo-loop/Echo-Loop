@@ -47,7 +47,7 @@ class _WordHighlightBuilderState extends ConsumerState<WordHighlightBuilder> {
 
     final timestamps = ref
         .watch(wordTimestampsProvider(currentBinding.source.audioItemId))
-        .valueOrNull;
+        .value;
     if (timestamps == null || timestamps.isEmpty) {
       return widget.builder(context, null);
     }

@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:audio_service/audio_service.dart';
 import 'package:flutter/widgets.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart' show Ref;
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../models/audio_item.dart';
@@ -413,7 +412,11 @@ class MediaEngine extends _$MediaEngine {
     return next;
   }
 
-  bool isActiveSession(int id) => id == state.sessionId;
+  /// 会话是否仍是当前活动会话。
+  ///
+  /// notifier 已销毁（如切库 invalidate、容器释放）时一律视为失效：残留的区间
+  /// 守卫定时器等异步回调会据此自行收尾，不再访问已失效的 `state`。
+  bool isActiveSession(int id) => ref.mounted && id == state.sessionId;
 
   int get currentSessionId => state.sessionId;
 
@@ -493,6 +496,8 @@ class MediaEngine extends _$MediaEngine {
 
   /// 释放页面所有权，但不销毁全局共享的 native Player。
   Future<void> _detachFromScreen({required String reason}) async {
+    // 引擎已销毁（容器释放）时排队中的解绑没有可操作的状态，直接结束。
+    if (!ref.mounted) return;
     _wordHighlightCompletionSessionId = null;
     AppLogger.log(
       'MediaEngine',

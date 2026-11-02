@@ -17,7 +17,7 @@ import 'audio_import_service.dart';
 part 'audio_import_provider.g.dart';
 
 @riverpod
-AudioImportService audioImportService(AudioImportServiceRef ref) {
+AudioImportService audioImportService(Ref ref) {
   return AudioImportService(
     backgroundDownloader: ref.watch(backgroundFileDownloadServiceProvider),
   );

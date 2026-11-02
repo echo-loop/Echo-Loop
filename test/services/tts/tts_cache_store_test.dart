@@ -11,7 +11,7 @@ import 'package:echo_loop/services/tts/tts_engine.dart';
 import 'package:echo_loop/utils/text_normalize.dart';
 
 AppDatabase _createTestDb() {
-  return AppDatabase(NativeDatabase.memory());
+  return AppDatabase(NativeDatabase.memory(setup: configureAppDatabaseConnection));
 }
 
 void main() {

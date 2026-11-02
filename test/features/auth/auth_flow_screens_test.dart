@@ -30,11 +30,11 @@ Widget _app(
   Locale locale = const Locale('en'),
 }) {
   return ProviderScope(
-    overrides: [
+    overrides: dedupeOverrides([
       analyticsServiceProvider.overrideWithValue(
         analytics ?? createTestAnalyticsServiceSync(),
       ),
-    ],
+    ]),
     child: MaterialApp.router(
       locale: locale,
       supportedLocales: const [Locale('en'), Locale('zh')],
@@ -792,9 +792,9 @@ void main() {
 
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [
+        overrides: dedupeOverrides([
           supabaseSessionProvider.overrideWith((ref) => Stream.value(null)),
-        ],
+        ]),
         child: MaterialApp.router(
           locale: const Locale('en'),
           supportedLocales: const [Locale('en'), Locale('zh')],
@@ -837,9 +837,9 @@ void main() {
 
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [
+        overrides: dedupeOverrides([
           supabaseSessionProvider.overrideWith((ref) => Stream.value(session)),
-        ],
+        ]),
         child: MaterialApp(
           locale: const Locale('en'),
           supportedLocales: const [Locale('en'), Locale('zh')],
@@ -882,9 +882,9 @@ void main() {
 
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [
+        overrides: dedupeOverrides([
           supabaseSessionProvider.overrideWith((ref) => Stream.value(session)),
-        ],
+        ]),
         child: MaterialApp(
           locale: const Locale('en'),
           supportedLocales: const [Locale('en'), Locale('zh')],
@@ -927,9 +927,9 @@ void main() {
 
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [
+        overrides: dedupeOverrides([
           supabaseSessionProvider.overrideWith((ref) => Stream.value(session)),
-        ],
+        ]),
         child: MaterialApp(
           locale: const Locale('en'),
           supportedLocales: const [Locale('en'), Locale('zh')],
@@ -991,9 +991,9 @@ void main() {
 
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [
+        overrides: dedupeOverrides([
           supabaseSessionProvider.overrideWith((ref) => Stream.value(session)),
-        ],
+        ]),
         child: MaterialApp(
           locale: const Locale('en'),
           supportedLocales: const [Locale('en'), Locale('zh')],

@@ -538,6 +538,8 @@ class TranscriptionTaskManager extends _$TranscriptionTaskManager {
     );
     final srtContent = generateSrtContent(alignedSentences);
     final stats = await getTranscriptStatsFromSrt(srtContent);
+    // 异步间隙后 manager 可能已被 invalidate（如切库），过期则丢弃，不再访问 ref。
+    if (!ref.mounted) return;
 
     // ── 转码（best-effort）──
     // 新流程：导入保留原始音频，转录上传原始；拿到字幕后顺带把原始转码为 m4a。
@@ -579,6 +581,8 @@ class TranscriptionTaskManager extends _$TranscriptionTaskManager {
       }
     }
 
+    if (!ref.mounted) return;
+
     // 字幕内容 + 词级时间戳原子写入 DB（transcript_srt 列成为唯一真相源）
     final wordsJson = (transcript.words != null && transcript.words!.isNotEmpty)
         ? encodeWordTimestamps(transcript.words!)
@@ -593,6 +597,7 @@ class TranscriptionTaskManager extends _$TranscriptionTaskManager {
     } catch (e) {
       debugPrint('保存字幕内容失败: $e');
     }
+    if (!ref.mounted) return;
 
     // 更新 AudioItem 模型列（transcriptPath 置 null，内容在 DB 列）
     ref
@@ -646,6 +651,7 @@ class TranscriptionTaskManager extends _$TranscriptionTaskManager {
 
     // 10 秒后自动清理 completed 状态，避免内存累积
     Future.delayed(const Duration(seconds: 10), () {
+      if (!ref.mounted) return;
       if (state[audioItem.id] is TranscriptionCompleted) {
         clearState(audioItem.id);
       }

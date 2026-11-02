@@ -162,7 +162,7 @@ class CommunityDownload extends _$CommunityDownload {
         .read(favoriteSentenceLifecycleProvider)
         .removeAllForAudio(audioItemId);
     await ref
-        .read(learningProgressNotifierProvider.notifier)
+        .read(learningProgressProvider.notifier)
         .deleteProgress(audioItemId);
     await ref.read(audioLibraryProvider.notifier).loadLibrary();
     await _reloadCurrentSessionIfNeeded(audioItemId);

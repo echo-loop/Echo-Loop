@@ -2,6 +2,7 @@
 //
 // 管理音频视图的排序方式，独立于 audioLibraryProvider。
 import 'package:riverpod_annotation/riverpod_annotation.dart';
+import '../utils/provider_override_error.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../features/user_preferences/domain/user_preferences_sync_events.dart';
@@ -62,7 +63,8 @@ class AudioListSettings extends _$AudioListSettings {
     final generation = ++_loadGeneration;
     try {
       return _readFromPrefs(ref.read(sharedPreferencesProvider));
-    } on UnimplementedError {
+    } catch (error) {
+      if (!isProviderNotOverriddenError(error)) rethrow;
       _loadSortType(generation);
       return const AudioListSettingsState();
     }
@@ -79,7 +81,8 @@ class AudioListSettings extends _$AudioListSettings {
     final generation = ++_loadGeneration;
     try {
       state = _readFromPrefs(ref.read(sharedPreferencesProvider));
-    } on UnimplementedError {
+    } catch (error) {
+      if (!isProviderNotOverriddenError(error)) rethrow;
       _loadSortType(generation);
     }
   }

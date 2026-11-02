@@ -171,7 +171,7 @@ class _MainShellState extends ConsumerState<MainShell> with RouteAware {
   Future<void> _bootstrapStudyLandingData() {
     return Future.wait<void>([
       ref.read(audioLibraryProvider.notifier).loadLibrary(),
-      ref.read(learningProgressNotifierProvider.notifier).loadAll(),
+      ref.read(learningProgressProvider.notifier).loadAll(),
     ]);
   }
 
@@ -246,7 +246,7 @@ class _MainShellState extends ConsumerState<MainShell> with RouteAware {
       ref
           .read(notificationPermissionServiceProvider)
           .syncSystemAuthorizationStatus();
-      final regionResult = ref.read(userRegionBootstrapProvider).valueOrNull;
+      final regionResult = ref.read(userRegionBootstrapProvider).value;
       final startupConfigResolved = regionResult?.configFetched ?? false;
       _remoteConfigController.startPeriodicRefresh(
         forceFirst: !startupConfigResolved,
@@ -274,7 +274,7 @@ class _MainShellState extends ConsumerState<MainShell> with RouteAware {
           'study bootstrap ready: '
               'audioItems=${audioState.audioItems.length}, '
               'progressItems='
-              '${ref.read(learningProgressNotifierProvider).progressMap.length}',
+              '${ref.read(learningProgressProvider).progressMap.length}',
         );
         activeStartupTrace?.mark('study_audio_library_and_progress_ready');
 
@@ -334,7 +334,7 @@ class _MainShellState extends ConsumerState<MainShell> with RouteAware {
       // pendingStudyTaskCountProvider 只监听任务数量，完成复习后任务数
       // 可能不变（reviewReady → reviewUpcoming），导致通知不会被调度。
       _progressMapSubscription = ref.listenManual(
-        learningProgressNotifierProvider.select((s) => s.progressMap),
+        learningProgressProvider.select((s) => s.progressMap),
         (_, __) {
           final service = ref.read(reviewReminderServiceProvider);
           _syncPerAudioReminders(service);
@@ -343,7 +343,7 @@ class _MainShellState extends ConsumerState<MainShell> with RouteAware {
 
       // 监听提醒设置变更，触发重新同步通知调度
       _reminderSettingsSubscription = ref.listenManual<ReminderSettings>(
-        reminderSettingsNotifierProvider,
+        reminderSettingsProvider,
         (_, next) {
           _onReminderSettingsChanged(next);
         },
@@ -550,8 +550,8 @@ class _MainShellState extends ConsumerState<MainShell> with RouteAware {
     ref.invalidate(completedAudioProvider);
     ref.invalidate(studyDurationRecordsProvider);
     try {
-      await ref.read(studyStatsNotifierProvider.notifier).refresh();
-      final stats = ref.read(studyStatsNotifierProvider).valueOrNull;
+      await ref.read(studyStatsProvider.notifier).refresh();
+      final stats = ref.read(studyStatsProvider).value;
       AppLogger.log(
         'StudyRefresh',
         'complete source=$source '
@@ -658,7 +658,7 @@ class _MainShellState extends ConsumerState<MainShell> with RouteAware {
   ///
   /// 收藏句子或单词任一不为空时才调度，否则取消。
   Future<void> _syncSavedReviewReminder() async {
-    final settings = ref.read(reminderSettingsNotifierProvider);
+    final settings = ref.read(reminderSettingsProvider);
     final service = ref.read(reviewReminderServiceProvider);
 
     if (!settings.savedReviewReminderEnabled) {
@@ -677,14 +677,14 @@ class _MainShellState extends ConsumerState<MainShell> with RouteAware {
 
   /// 收集当前处于复习阶段且 nextReviewAt 在未来的音频，调度单条通知
   Future<void> _syncPerAudioReminders(ReviewReminderService service) async {
-    final settings = ref.read(reminderSettingsNotifierProvider);
+    final settings = ref.read(reminderSettingsProvider);
     if (!settings.perAudioReminderEnabled) {
       await service.cancelAllPerAudioReminders();
       return;
     }
 
     final progressMap = ref.read(
-      learningProgressNotifierProvider.select((s) => s.progressMap),
+      learningProgressProvider.select((s) => s.progressMap),
     );
     final audioItems = ref.read(audioLibraryProvider).audioItems;
 

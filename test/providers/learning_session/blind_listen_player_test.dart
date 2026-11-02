@@ -263,7 +263,7 @@ ProviderContainer _buildContainer({
   // 兜底注入一个 noop progressNotifier，避免触发真实 appDatabaseProvider 的 LateInitializationError
   final notifier = progressNotifier ?? TestLearningProgressNotifier();
   return ProviderContainer(
-    overrides: [
+    overrides: dedupeOverrides([
       learningSessionProvider.overrideWith(
         () => TestLearningSession(
           LearningSessionState(
@@ -273,14 +273,14 @@ ProviderContainer _buildContainer({
           ),
         ),
       ),
-      learningProgressNotifierProvider.overrideWith(() => notifier),
+      learningProgressProvider.overrideWith(() => notifier),
       analyticsOverride(),
       ...studyTimeOverrides(),
       if (studyTimeService != null)
         studyTimeServiceProvider.overrideWithValue(studyTimeService),
       if (activityGate != null)
         studyActivityGateProvider.overrideWithValue(activityGate),
-    ],
+    ]),
   );
 }
 
@@ -1249,7 +1249,7 @@ void main() {
       );
       final posEngine = _PositionDrivenBlindTestDriver();
       final container = ProviderContainer(
-        overrides: [
+        overrides: dedupeOverrides([
           learningSessionProvider.overrideWith(
             () => TestLearningSession(
               const LearningSessionState(
@@ -1258,12 +1258,12 @@ void main() {
               ),
             ),
           ),
-          learningProgressNotifierProvider.overrideWith(() => progressNotifier),
+          learningProgressProvider.overrideWith(() => progressNotifier),
           // 静音跳过会读 appSettingsProvider；用测试实现避免触发 SharedPreferences 加载
           appSettingsProvider.overrideWith(() => TestAppSettings()),
           analyticsOverride(),
           ...studyTimeOverrides(),
-        ],
+        ]),
       );
       addTearDown(() {
         posEngine.release();

@@ -428,8 +428,8 @@ final supabaseTokenCoordinatorProvider = Provider<SupabaseTokenCoordinator?>((
 /// 当前是否已登录的便捷 Provider。
 ///
 /// UI 层 `ref.watch(isAuthenticatedProvider)` 比 `watch(supabaseSessionProvider)
-/// .valueOrNull != null` 更直观。
+/// .value != null` 更直观。
 final isAuthenticatedProvider = Provider<bool>((ref) {
-  final session = ref.watch(supabaseSessionProvider).valueOrNull;
+  final session = ref.watch(supabaseSessionProvider).value;
   return session != null;
 });

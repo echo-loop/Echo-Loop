@@ -34,9 +34,7 @@ import '../../helpers/mock_providers.dart';
 /// 创建内存数据库（用于测试 StudyTimeService 依赖注入）
 AppDatabase _createTestDb() {
   return AppDatabase(
-    NativeDatabase.memory(
-      setup: (db) => db.execute('PRAGMA foreign_keys = ON'),
-    ),
+    NativeDatabase.memory(setup: configureAppDatabaseConnection),
   );
 }
 
@@ -430,13 +428,13 @@ void main() {
       TestListeningPractice? listeningPractice,
     }) {
       return ProviderContainer(
-        overrides: [
+        overrides: dedupeOverrides([
           appDatabaseProvider.overrideWithValue(_createTestDb()),
           audioEngineProvider.overrideWith(() => TestAudioEngine()),
           listeningPracticeProvider.overrideWith(
             () => listeningPractice ?? TestListeningPractice(),
           ),
-          learningProgressNotifierProvider.overrideWith(() => progressNotifier),
+          learningProgressProvider.overrideWith(() => progressNotifier),
           intensiveListenPlayerProvider.overrideWith(
             () => intensivePlayer ?? TestIntensiveListenPlayer(),
           ),
@@ -448,7 +446,7 @@ void main() {
           mediaEngineProvider.overrideWith(
             () => mediaEngine ?? _SuccessfulMediaEngine(),
           ),
-        ],
+        ]),
       );
     }
 
@@ -589,10 +587,10 @@ void main() {
         ),
       );
       final container = ProviderContainer(
-        overrides: [
+        overrides: dedupeOverrides([
           appDatabaseProvider.overrideWithValue(_createTestDb()),
           listeningPracticeProvider.overrideWith(() => TestListeningPractice()),
-          learningProgressNotifierProvider.overrideWith(
+          learningProgressProvider.overrideWith(
             () => TestLearningProgressNotifier(),
           ),
           intensiveListenPlayerProvider.overrideWith(() => player),
@@ -603,7 +601,7 @@ void main() {
           ),
           mediaEngineProvider.overrideWith(() => mediaEngine),
           analyticsOverride(),
-        ],
+        ]),
       );
       addTearDown(container.dispose);
 
@@ -638,10 +636,10 @@ void main() {
     test('视频盲听用收藏快照初始化段落状态', () async {
       final player = TestBlindListenPlayer();
       final container = ProviderContainer(
-        overrides: [
+        overrides: dedupeOverrides([
           appDatabaseProvider.overrideWithValue(_createTestDb()),
           listeningPracticeProvider.overrideWith(() => TestListeningPractice()),
-          learningProgressNotifierProvider.overrideWith(
+          learningProgressProvider.overrideWith(
             () => TestLearningProgressNotifier(),
           ),
           blindListenPlayerProvider.overrideWith(() => player),
@@ -649,7 +647,7 @@ void main() {
           bookmarkDaoProvider.overrideWithValue(_TestBookmarkDao({0, 2, 4})),
           mediaEngineProvider.overrideWith(() => _SuccessfulMediaEngine()),
           analyticsOverride(),
-        ],
+        ]),
       );
       addTearDown(container.dispose);
       final videoSentences = List.generate(
@@ -692,17 +690,17 @@ void main() {
       final mediaEngine = _SuccessfulMediaEngine();
       final practice = TestListeningPractice();
       final container = ProviderContainer(
-        overrides: [
+        overrides: dedupeOverrides([
           appDatabaseProvider.overrideWithValue(_createTestDb()),
           listeningPracticeProvider.overrideWith(() => practice),
-          learningProgressNotifierProvider.overrideWith(
+          learningProgressProvider.overrideWith(
             () => TestLearningProgressNotifier(),
           ),
           blindListenPlayerProvider.overrideWith(() => player),
           dailyStudyTimeProvider.overrideWith(() => TestDailyStudyTime()),
           mediaEngineProvider.overrideWith(() => mediaEngine),
           analyticsOverride(),
-        ],
+        ]),
       );
       addTearDown(container.dispose);
       final item = model.AudioItem(
@@ -1065,17 +1063,17 @@ void main() {
     /// 创建带有所有依赖 override 的 ProviderContainer
     ProviderContainer createContainer() {
       final c = ProviderContainer(
-        overrides: [
+        overrides: dedupeOverrides([
           appDatabaseProvider.overrideWithValue(_createTestDb()),
           listeningPracticeProvider.overrideWith(() => TestListeningPractice()),
-          learningProgressNotifierProvider.overrideWith(
+          learningProgressProvider.overrideWith(
             () => TestLearningProgressNotifier(),
           ),
           blindListenPlayerProvider.overrideWith(() => TestBlindListenPlayer()),
           mediaEngineProvider.overrideWith(() => _SuccessfulMediaEngine()),
           dailyStudyTimeProvider.overrideWith(() => TestDailyStudyTime()),
           analyticsOverride(),
-        ],
+        ]),
       );
       return c;
     }
@@ -1142,7 +1140,7 @@ void main() {
       TestAudioEngine? audioEngine,
     }) {
       return ProviderContainer(
-        overrides: [
+        overrides: dedupeOverrides([
           appDatabaseProvider.overrideWithValue(_createTestDb()),
           audioEngineProvider.overrideWith(
             () => audioEngine ?? TestAudioEngine(),
@@ -1150,7 +1148,7 @@ void main() {
           listeningPracticeProvider.overrideWith(
             () => listeningPractice ?? TestListeningPractice(),
           ),
-          learningProgressNotifierProvider.overrideWith(() => progressNotifier),
+          learningProgressProvider.overrideWith(() => progressNotifier),
           reviewDifficultPracticeProvider.overrideWith(
             () => TestReviewDifficultPractice(),
           ),
@@ -1165,7 +1163,7 @@ void main() {
           mediaEngineProvider.overrideWith(
             () => mediaEngine ?? _SuccessfulMediaEngine(),
           ),
-        ],
+        ]),
       );
     }
 
@@ -1459,11 +1457,11 @@ void main() {
       final mediaEngine = _SuccessfulMediaEngine();
       final player = TestRetellPlayer();
       final container = ProviderContainer(
-        overrides: [
+        overrides: dedupeOverrides([
           appDatabaseProvider.overrideWithValue(_createTestDb()),
           audioEngineProvider.overrideWith(() => TestAudioEngine()),
           listeningPracticeProvider.overrideWith(() => TestListeningPractice()),
-          learningProgressNotifierProvider.overrideWith(
+          learningProgressProvider.overrideWith(
             () => TestLearningProgressNotifier(
               LearningProgressState(progressMap: {'video-retell': progress}),
             ),
@@ -1474,7 +1472,7 @@ void main() {
           bookmarkDaoProvider.overrideWithValue(_TestBookmarkDao({0, 2})),
           mediaEngineProvider.overrideWith(() => mediaEngine),
           analyticsOverride(),
-        ],
+        ]),
       );
       addTearDown(container.dispose);
       final paragraphs = [

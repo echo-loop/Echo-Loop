@@ -91,7 +91,7 @@ class FeaturedPodcasts extends _$FeaturedPodcasts {
   }
 
   Future<void> _refreshFirstPage() async {
-    final current = state.valueOrNull ?? await future;
+    final current = state.value ?? await future;
     final lifetime = _lifetime;
     state = AsyncData(
       current.copyWith(isRefreshingFirstPage: true, clearFirstPageError: true),
@@ -102,7 +102,7 @@ class FeaturedPodcasts extends _$FeaturedPodcasts {
       final outcome = await service.refreshFirstPage(force: true);
       if (lifetime != _lifetime) return;
 
-      final latest = state.valueOrNull ?? current;
+      final latest = state.value ?? current;
       switch (outcome) {
         case FeaturedPodcastUpdated():
         case FeaturedPodcastUnchanged():
@@ -126,7 +126,7 @@ class FeaturedPodcasts extends _$FeaturedPodcasts {
       AppLogger.log('FeaturedPodcast', 'first page refresh failed: $error');
       AppLogger.log('FeaturedPodcast', stackTrace.toString());
       if (lifetime != _lifetime) return;
-      final latest = state.valueOrNull ?? current;
+      final latest = state.value ?? current;
       state = AsyncData(
         latest.copyWith(isRefreshingFirstPage: false, firstPageError: error),
       );
@@ -134,7 +134,7 @@ class FeaturedPodcasts extends _$FeaturedPodcasts {
   }
 
   Future<void> _loadMore() async {
-    final current = state.valueOrNull ?? await future;
+    final current = state.value ?? await future;
     if (current.isRefreshingFirstPage || current.isLoadingMore) return;
 
     final cursor = current.snapshot?.nextCursor;
@@ -153,7 +153,7 @@ class FeaturedPodcasts extends _$FeaturedPodcasts {
       if (cachedPage != null) {
         hasCachedPage = true;
         state = AsyncData(
-          (state.valueOrNull ?? current).copyWith(
+          (state.value ?? current).copyWith(
             snapshot: service.cachedSnapshot,
             isLoadingMore: true,
           ),
@@ -163,7 +163,7 @@ class FeaturedPodcasts extends _$FeaturedPodcasts {
       final outcome = await service.refreshPage(cursor: cursor, force: true);
       if (lifetime != _lifetime) return;
 
-      final latest = state.valueOrNull ?? current;
+      final latest = state.value ?? current;
       switch (outcome) {
         case FeaturedPodcastUpdated():
         case FeaturedPodcastUnchanged():
@@ -188,7 +188,7 @@ class FeaturedPodcasts extends _$FeaturedPodcasts {
       AppLogger.log('FeaturedPodcast', 'next page refresh failed: $error');
       AppLogger.log('FeaturedPodcast', stackTrace.toString());
       if (lifetime != _lifetime) return;
-      final latest = state.valueOrNull ?? current;
+      final latest = state.value ?? current;
       state = AsyncData(
         latest.copyWith(
           isLoadingMore: false,

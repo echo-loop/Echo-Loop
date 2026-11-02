@@ -131,11 +131,11 @@ void main() {
 
     setUp(() async {
       container = ProviderContainer(
-        overrides: [
+        overrides: dedupeOverrides([
           learningSessionProvider.overrideWith(() => TestLearningSession()),
           analyticsOverride(),
           ...studyTimeOverrides(),
-        ],
+        ]),
       );
       notifier = container.read(blindListenPlayerProvider.notifier);
       playbackDriver = _TestParagraphPlaybackDriver();
@@ -206,11 +206,11 @@ void main() {
 
     test('等待态挂起时，当前段播完后进入 waiting for user', () async {
       final delayedContainer = ProviderContainer(
-        overrides: [
+        overrides: dedupeOverrides([
           learningSessionProvider.overrideWith(() => TestLearningSession()),
           analyticsOverride(),
           ...studyTimeOverrides(),
-        ],
+        ]),
       );
       addTearDown(delayedContainer.dispose);
 

@@ -327,7 +327,7 @@ void main() {
 
     final snapshot = container
         .read(featuredPodcastsProvider)
-        .valueOrNull
+        .value
         ?.snapshot;
     expect(service.refreshOrder, ['page:old-cursor', 'first']);
     expect(snapshot?.podcasts.map((podcast) => podcast.id), ['new-first']);
@@ -342,11 +342,11 @@ void main() {
     await tester.pumpWidget(
       createTestApp(
         const PodcastDiscoveryScreen(),
-        overrides: [
+        overrides: dedupeOverrides([
           featuredPodcastServiceProvider.overrideWithValue(service),
           isAuthenticatedProvider.overrideWithValue(true),
           podcastRepositoryProvider.overrideWithValue(fakeRepo),
-        ],
+        ]),
       ),
     );
     await tester.pumpAndSettle();
@@ -365,7 +365,7 @@ void main() {
     await tester.pumpWidget(
       createTestApp(
         const PodcastDiscoveryScreen(),
-        overrides: [
+        overrides: dedupeOverrides([
           featuredPodcastServiceProvider.overrideWithValue(service),
           collectionListProvider.overrideWith(
             () => TestCollectionList(
@@ -382,7 +382,7 @@ void main() {
               ),
             ),
           ),
-        ],
+        ]),
       ),
     );
     await tester.pumpAndSettle();
@@ -407,11 +407,11 @@ void main() {
     await tester.pumpWidget(
       createTestApp(
         const PodcastDiscoveryScreen(),
-        overrides: [
+        overrides: dedupeOverrides([
           featuredPodcastServiceProvider.overrideWithValue(service),
           isAuthenticatedProvider.overrideWithValue(false),
           podcastRepositoryProvider.overrideWithValue(fakeRepo),
-        ],
+        ]),
       ),
     );
     await tester.pumpAndSettle();
@@ -450,10 +450,10 @@ void main() {
     await tester.pumpWidget(
       createTestApp(
         const PodcastDiscoveryScreen(),
-        overrides: [
+        overrides: dedupeOverrides([
           featuredPodcastServiceProvider.overrideWithValue(service),
           podcastSearchServiceProvider.overrideWithValue(fakeSearch),
-        ],
+        ]),
       ),
     );
     await tester.pumpAndSettle();
@@ -472,7 +472,7 @@ void main() {
     await tester.pumpWidget(
       createTestApp(
         const PodcastDiscoveryScreen(),
-        overrides: [
+        overrides: dedupeOverrides([
           featuredPodcastServiceProvider.overrideWithValue(service),
           podcastPreviewProvider(url).overrideWith(
             (ref) async => const PodcastPreviewData(
@@ -484,7 +484,7 @@ void main() {
               episodes: [],
             ),
           ),
-        ],
+        ]),
       ),
     );
     await tester.pumpAndSettle();

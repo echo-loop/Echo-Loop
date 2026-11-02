@@ -7,9 +7,7 @@ import 'package:echo_loop/database/app_database.dart';
 /// 创建内存数据库（启用外键约束，junction 插入需要合集/音频行先存在）。
 AppDatabase _createTestDatabase() {
   return AppDatabase(
-    NativeDatabase.memory(
-      setup: (db) => db.execute('PRAGMA foreign_keys = ON'),
-    ),
+    NativeDatabase.memory(setup: configureAppDatabaseConnection),
   );
 }
 

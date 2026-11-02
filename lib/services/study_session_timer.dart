@@ -262,6 +262,9 @@ final class StudySessionTimer {
     _inputStopwatch.stop();
     _checkpointTimer?.cancel();
     _checkpointTimer = null;
+    // 停止计时时同步取消 idle 超时，避免 stop 与 dispose 的 finally 之间残留计时器。
+    _idleTimer?.cancel();
+    _idleTimer = null;
   }
 
   void _onActivityChanged(bool isForeground) {

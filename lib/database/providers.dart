@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/misc.dart';
 
 import 'app_database.dart';
 import 'daos/audio_item_dao.dart';
@@ -75,47 +76,53 @@ Future<void> closeCurrentDatabase({StudyTimeService? studyTimeService}) async {
 /// keepAlive 提供者内部使用 `ref.read()` 获取 DAO，不会自动级联，
 /// 因此必须在此逐一 invalidate。
 ///
+/// [invalidate] 由调用方传入（通常为 `(p) => ref.invalidate(p)`），
+/// 使该函数不依赖 Riverpod 的 Ref / WidgetRef 具体类型（二者均为 sealed，无法在测试中替身）。
+///
 /// 调用前必须先通过 [closeCurrentDatabase] 关闭旧连接。
-void switchAppDatabase(AppDatabase newDb, WidgetRef ref) {
+void switchAppDatabase(
+  AppDatabase newDb,
+  void Function(ProviderOrFamily provider) invalidate,
+) {
   _appDatabase = newDb;
 
   // 1. Invalidate 核心数据库提供者
-  ref.invalidate(appDatabaseProvider);
-  ref.invalidate(studyStatisticsDaoProvider);
-  ref.invalidate(studyTimeServiceProvider);
+  invalidate(appDatabaseProvider);
+  invalidate(studyStatisticsDaoProvider);
+  invalidate(studyTimeServiceProvider);
 
   // 2. 显式 invalidate 所有 keepAlive 数据提供者
   //    （它们用 ref.read() 而非 ref.watch()，不会自动级联）
-  ref.invalidate(audioLibraryProvider);
-  ref.invalidate(collectionListProvider);
-  ref.invalidate(learningProgressNotifierProvider);
-  ref.invalidate(savedWordListProvider);
-  ref.invalidate(savedWordTextsProvider);
-  ref.invalidate(savedSenseGroupListProvider);
-  ref.invalidate(savedSenseGroupTextsProvider);
-  ref.invalidate(tagListProvider);
-  ref.invalidate(listeningPracticeProvider);
-  ref.invalidate(bookmarkReviewProvider);
-  ref.invalidate(learningSessionProvider);
-  ref.invalidate(blindListenPlayerProvider);
-  ref.invalidate(intensiveListenPlayerProvider);
-  ref.invalidate(listenAndRepeatControllerProvider);
-  ref.invalidate(retellPlayerProvider);
-  ref.invalidate(reviewDifficultPracticeProvider);
-  ref.invalidate(transcriptionTaskManagerProvider);
+  invalidate(audioLibraryProvider);
+  invalidate(collectionListProvider);
+  invalidate(learningProgressProvider);
+  invalidate(savedWordListProvider);
+  invalidate(savedWordTextsProvider);
+  invalidate(savedSenseGroupListProvider);
+  invalidate(savedSenseGroupTextsProvider);
+  invalidate(tagListProvider);
+  invalidate(listeningPracticeProvider);
+  invalidate(bookmarkReviewProvider);
+  invalidate(learningSessionProvider);
+  invalidate(blindListenPlayerProvider);
+  invalidate(intensiveListenPlayerProvider);
+  invalidate(listenAndRepeatControllerProvider);
+  invalidate(retellPlayerProvider);
+  invalidate(reviewDifficultPracticeProvider);
+  invalidate(transcriptionTaskManagerProvider);
 
-  ref.invalidate(bookmarkListProvider);
+  invalidate(bookmarkListProvider);
 
   // 3. Invalidate 非 keepAlive 但依赖 DB 的提供者
-  ref.invalidate(studyStatsNotifierProvider);
-  ref.invalidate(studyDurationRecordsProvider);
-  ref.invalidate(studyTaskProvider);
-  ref.invalidate(learnedVocabularyTrackerProvider);
+  invalidate(studyStatsProvider);
+  invalidate(studyDurationRecordsProvider);
+  invalidate(studyTaskProvider);
+  invalidate(learnedVocabularyTrackerProvider);
 
   // 4. Invalidate AI 缓存提供者（依赖 sentenceAiCacheDao）
-  ref.invalidate(sentenceAiNotifierProvider);
+  invalidate(sentenceAiNotifierProvider);
   // AI 词典源（keepAlive）持有 L1 内存缓存，切库后须重建以丢弃旧库结果
-  ref.invalidate(aiDictionarySourceProvider);
+  invalidate(aiDictionarySourceProvider);
 }
 
 /// 数据库 Provider

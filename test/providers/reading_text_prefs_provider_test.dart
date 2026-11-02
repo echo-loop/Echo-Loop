@@ -25,7 +25,7 @@ void main() {
     final container = await _container({'reading_font_scale': 1.3});
 
     expect(
-      container.read(readingTextPrefsNotifierProvider),
+      container.read(readingTextPrefsProvider),
       const ReadingTextPrefs(fontScale: 1.3),
     );
   });
@@ -34,10 +34,10 @@ void main() {
     final container = await _container({});
 
     await container
-        .read(readingTextPrefsNotifierProvider.notifier)
+        .read(readingTextPrefsProvider.notifier)
         .setFontScale(1.31);
 
-    expect(container.read(readingTextPrefsNotifierProvider).fontScale, 1.3);
+    expect(container.read(readingTextPrefsProvider).fontScale, 1.3);
     final prefs = await SharedPreferences.getInstance();
     expect(prefs.getDouble('reading_font_scale'), 1.3);
   });
@@ -47,7 +47,7 @@ void main() {
     final container = ProviderContainer();
     addTearDown(container.dispose);
     // autoDispose：保持订阅，模拟页面持续监听。
-    final sub = container.listen(readingTextPrefsNotifierProvider, (_, _) {});
+    final sub = container.listen(readingTextPrefsProvider, (_, _) {});
     addTearDown(sub.close);
 
     expect(sub.read().fontScale, 1.0);

@@ -41,7 +41,7 @@ class _DiscoverCommunityCollectionsScreenState
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       // Provider 保持存活，列表页再次入栈时主动更新缓存目录。
-      if (ref.read(discoverCommunityCollectionsProvider).valueOrNull != null) {
+      if (ref.read(discoverCommunityCollectionsProvider).value != null) {
         unawaited(
           ref
               .read(discoverCommunityCollectionsProvider.notifier)

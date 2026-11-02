@@ -75,7 +75,7 @@ void main() {
         "INSERT INTO words (word, phonetic, translation) "
         "VALUES ('Message', 'ˈmesɪdʒ', 'n. 消息')",
       );
-      seed.dispose();
+      seed.close();
 
       final svc = DictionaryService.instance;
       svc.openDatabase(path);
@@ -92,7 +92,7 @@ void main() {
         "SELECT name FROM sqlite_master WHERE type='index' "
         "AND name='idx_words_word_nocase'",
       );
-      checker.dispose();
+      checker.close();
       expect(idx, isNotEmpty);
 
       // NOCASE 查询命中（输入小写，headword 大写）

@@ -68,7 +68,7 @@ class PaddleSubscriptionPlansController
   /// 先发布可用缓存，再执行网络刷新；只有没有任何可展示价格时才进入 loading。
   Future<void> _refresh({required bool force}) async {
     final generation = ++_generation;
-    final previousPlans = state.valueOrNull;
+    final previousPlans = state.value;
     final repository = ref.read(paddleBillingRepositoryProvider);
     var hasDisplayablePlans = previousPlans != null;
     AppLogger.log(
@@ -116,7 +116,7 @@ class PaddleSubscriptionPlansController
       );
     } catch (error, stackTrace) {
       if (generation != _generation) return;
-      final retainedPlans = state.valueOrNull ?? previousPlans;
+      final retainedPlans = state.value ?? previousPlans;
       if (retainedPlans != null) {
         state = AsyncData(retainedPlans);
         AppLogger.log('Subscription', 'Paddle plans 后台刷新失败，保留已有价格: $error');
@@ -173,7 +173,7 @@ class SubscriptionPlansController
     );
     final service = ref.read(purchaseServiceProvider);
     final timeout = ref.read(subscriptionPlansTimeoutProvider);
-    final previousPlans = state.valueOrNull;
+    final previousPlans = state.value;
     late final String? storefront;
     try {
       storefront = await _readStorefront(

@@ -10,6 +10,7 @@ import 'package:echo_loop/utils/saved_text_index.dart';
 import 'package:echo_loop/widgets/common/masked_sentence_tile.dart';
 
 import '../helpers/test_app.dart';
+import '../helpers/mock_providers.dart';
 
 /// 构造测试用 Sentence
 Sentence _sentence(String text, {int index = 0}) {
@@ -326,14 +327,14 @@ void main() {
           keywordIndices: keywordIndices,
           isPlayingSentence: false,
         ),
-        overrides: [
+        overrides: dedupeOverrides([
           savedTextIndexProvider.overrideWithValue(
             SavedTextIndex.build(
               savedWords: savedWords,
               savedPhrases: const {},
             ),
           ),
-        ],
+        ]),
       );
     }
 

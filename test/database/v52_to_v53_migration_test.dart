@@ -104,7 +104,7 @@ void _setUserVersion(File file, int version) {
   try {
     raw.execute('PRAGMA user_version = $version');
   } finally {
-    raw.dispose();
+    raw.close();
   }
 }
 
@@ -121,6 +121,6 @@ void _dropMillisecondColumns(File file) {
       }
     }
   } finally {
-    raw.dispose();
+    raw.close();
   }
 }

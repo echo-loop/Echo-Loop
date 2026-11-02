@@ -21,6 +21,7 @@ import 'package:echo_loop/services/tts/kokoro_model_manager.dart'
 import 'package:echo_loop/services/tts/kokoro_voices.dart';
 import 'package:echo_loop/services/tts/piper_model_catalog.dart';
 import 'package:echo_loop/services/tts/tts_engine.dart';
+import '../../helpers/mock_providers.dart';
 
 /// 受控 Kokoro notifier：注入初值，下载相关方法仅占位（不做真实下载）。
 class _FixedKokoroNotifier extends KokoroModelNotifier {
@@ -172,7 +173,7 @@ void main() {
     PiperModelsState? piperModels,
   }) {
     return ProviderContainer(
-      overrides: [
+      overrides: dedupeOverrides([
         initialTtsSettingsProvider.overrideWithValue(settings),
         kokoroModelProvider.overrideWith(() => _FixedKokoroNotifier(models)),
         piperModelProvider.overrideWith(
@@ -180,7 +181,7 @@ void main() {
         ),
         ttsEngineFactoryProvider.overrideWithValue(factory.make),
         ttsCacheDaoProvider.overrideWithValue(dao),
-      ],
+      ]),
     );
   }
 
@@ -221,7 +222,7 @@ void main() {
       SharedPreferences.setMockInitialValues({});
       final engine = _GateEngine();
       final c = ProviderContainer(
-        overrides: [
+        overrides: dedupeOverrides([
           initialTtsSettingsProvider.overrideWithValue(
             const TtsSettings(engine: TtsEngineKind.kokoro),
           ),
@@ -233,7 +234,7 @@ void main() {
           ),
           ttsEngineFactoryProvider.overrideWithValue((_, __) => engine),
           ttsCacheDaoProvider.overrideWithValue(dao),
-        ],
+        ]),
       );
       addTearDown(c.dispose);
 
@@ -322,7 +323,7 @@ void main() {
       final factory = _RecordingFactory();
       final kokoroNotifier = _FixedKokoroNotifier(KokoroModelsState.initial());
       final c = ProviderContainer(
-        overrides: [
+        overrides: dedupeOverrides([
           initialTtsSettingsProvider.overrideWithValue(
             const TtsSettings(engine: TtsEngineKind.kokoro),
           ),
@@ -332,11 +333,13 @@ void main() {
           ),
           ttsEngineFactoryProvider.overrideWithValue(factory.make),
           ttsCacheDaoProvider.overrideWithValue(dao),
-        ],
+        ]),
       );
       addTearDown(c.dispose);
 
-      c.read(ttsControllerProvider.notifier);
+      // Riverpod 3：无监听者的 notifier 会被暂停，其 ref.listen 不再响应依赖变化，
+      // 这里保持一个监听，模拟页面常驻的真实使用方式。
+      c.listen(ttsControllerProvider, (_, __) {});
       await Future<void>.delayed(Duration.zero);
       expect(factory.calls, 0);
 

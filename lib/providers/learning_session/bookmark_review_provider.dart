@@ -461,6 +461,8 @@ class BookmarkReview extends _$BookmarkReview {
 
   /// 幂等结束复习会话，确保退出路由和页面回调不会重复清理资源或漏刷统计。
   Future<void> disposeSession() {
+    // notifier 已销毁（页面 dispose 晚于容器/provider 释放）时无可收尾的状态。
+    if (!ref.mounted) return Future<void>.value();
     final inFlight = _disposeSessionInFlight;
     if (inFlight != null) return inFlight;
     final operation = _disposeSessionImpl();

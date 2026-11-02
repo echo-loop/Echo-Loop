@@ -17,7 +17,7 @@ void main() {
     final file = File('${dir.path}/echo_loop.db');
     await _createV28Database(file);
 
-    final db = AppDatabase(NativeDatabase(file));
+    final db = AppDatabase(NativeDatabase(file, setup: configureAppDatabaseConnection));
     addTearDown(db.close);
 
     final audios = await db.audioItemDao.getAllActive();
@@ -149,6 +149,6 @@ Future<void> _createV28Database(File file) async {
       )
       ..execute('PRAGMA user_version = 28');
   } finally {
-    raw.dispose();
+    raw.close();
   }
 }

@@ -14,8 +14,8 @@ class ReviewStatisticsScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final async = ref.watch(reviewStatisticsNotifierProvider);
-    final notifier = ref.read(reviewStatisticsNotifierProvider.notifier);
+    final async = ref.watch(reviewStatisticsProvider);
+    final notifier = ref.read(reviewStatisticsProvider.notifier);
     final l10n = AppLocalizations.of(context)!;
     return Scaffold(
       appBar: AppBar(title: Text(l10n.reviewStatisticsTitle)),

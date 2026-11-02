@@ -10,9 +10,7 @@ import 'package:echo_loop/services/study_time_service.dart';
 
 AppDatabase _createTestDb() {
   return AppDatabase(
-    NativeDatabase.memory(
-      setup: (db) => db.execute('PRAGMA foreign_keys = ON'),
-    ),
+    NativeDatabase.memory(setup: configureAppDatabaseConnection),
   );
 }
 

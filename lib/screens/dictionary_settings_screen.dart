@@ -25,8 +25,8 @@ class DictionarySettingsScreen extends ConsumerWidget {
     final theme = Theme.of(context);
     final allSources = ref.watch(dictionarySourcesProvider);
     final visible = ref.watch(visibleDictionarySourcesProvider);
-    final settings = ref.watch(dictionarySettingsNotifierProvider);
-    final notifier = ref.read(dictionarySettingsNotifierProvider.notifier);
+    final settings = ref.watch(dictionarySettingsProvider);
+    final notifier = ref.read(dictionarySettingsProvider.notifier);
 
     return Scaffold(
       appBar: AppBar(title: Text(l10n.dictionarySettings)),

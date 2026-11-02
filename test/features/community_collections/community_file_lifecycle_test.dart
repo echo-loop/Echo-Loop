@@ -5,13 +5,14 @@ import 'package:drift/native.dart';
 import 'package:echo_loop/database/app_database.dart' as db;
 import 'package:echo_loop/features/community_collections/data/community_file_lifecycle.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:echo_loop/database/app_database.dart' show configureAppDatabaseConnection;
 
 void main() {
   late db.AppDatabase database;
   late Directory dataDirectory;
 
   setUp(() async {
-    database = db.AppDatabase(NativeDatabase.memory());
+    database = db.AppDatabase(NativeDatabase.memory(setup: configureAppDatabaseConnection));
     dataDirectory = await Directory.systemTemp.createTemp('community-file-');
   });
 

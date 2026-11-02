@@ -8,7 +8,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   test('统计加载失败时记录异常上下文', () async {
-    final db = AppDatabase(NativeDatabase.memory());
+    final db = AppDatabase(NativeDatabase.memory(setup: configureAppDatabaseConnection));
     addTearDown(db.close);
     await db.customStatement('DROP TABLE memory_schedules');
     AppLogger.instance.clear();
@@ -18,7 +18,7 @@ void main() {
     addTearDown(container.dispose);
 
     await expectLater(
-      container.read(reviewStatisticsNotifierProvider.future),
+      container.read(reviewStatisticsProvider.future),
       throwsA(anything),
     );
 

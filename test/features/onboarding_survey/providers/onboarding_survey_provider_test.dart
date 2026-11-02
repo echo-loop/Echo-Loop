@@ -5,18 +5,19 @@ import 'package:echo_loop/features/onboarding_survey/models/onboarding_answers.d
 import 'package:echo_loop/features/onboarding_survey/models/onboarding_question.dart';
 import 'package:echo_loop/features/onboarding_survey/providers/onboarding_survey_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../../helpers/mock_providers.dart';
 
 ProviderContainer _makeContainer({
   required bool initialOnboardingCompleted,
   required SharedPreferences prefs,
 }) {
   return ProviderContainer(
-    overrides: [
+    overrides: dedupeOverrides([
       sharedPreferencesProvider.overrideWithValue(prefs),
       initialOnboardingCompletedProvider.overrideWithValue(
         initialOnboardingCompleted,
       ),
-    ],
+    ]),
   );
 }
 

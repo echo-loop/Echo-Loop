@@ -21,6 +21,7 @@ import 'package:echo_loop/services/pronunciation/local_audio_clip_player.dart';
 import 'package:echo_loop/services/tts/kokoro_model_manager.dart'
     show AsrModelDownloadStatus;
 import 'package:echo_loop/services/tts/tts_engine.dart';
+import '../../helpers/mock_providers.dart';
 
 /// 受控 Kokoro notifier：注入初值，下载方法占位。
 class _FixedKokoroNotifier extends KokoroModelNotifier {
@@ -127,7 +128,7 @@ void main() {
 
   ProviderContainer makeContainer(TtsSettings settings) {
     return ProviderContainer(
-      overrides: [
+      overrides: dedupeOverrides([
         initialTtsSettingsProvider.overrideWithValue(settings),
         kokoroModelProvider.overrideWith(() => _FixedKokoroNotifier(_ready())),
         ttsEngineFactoryProvider.overrideWithValue((_, __) => engine),
@@ -135,7 +136,7 @@ void main() {
         shortAudioPlayerProvider.overrideWithValue(
           LocalAudioClipPlayer(backend: _NoopShortAudioBackend()),
         ),
-      ],
+      ]),
     );
   }
 

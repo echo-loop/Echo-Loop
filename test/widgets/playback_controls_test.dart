@@ -22,7 +22,7 @@ void main() {
     final List<Sentence> defaultSentences = createTestSentences(count: 3);
     return createTestApp(
       const PlaybackControls(),
-      overrides: [
+      overrides: dedupeOverrides([
         appSettingsProvider.overrideWith(() => TestAppSettings()),
         listeningPracticeProvider.overrideWith(
           () => TestListeningPractice(
@@ -34,7 +34,7 @@ void main() {
           ),
         ),
         audioEngineProvider.overrideWith(() => TestAudioEngine()),
-      ],
+      ]),
     );
   }
 

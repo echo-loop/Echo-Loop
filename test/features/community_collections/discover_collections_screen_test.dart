@@ -18,7 +18,7 @@ void main() {
       createTestApp(
         const DiscoverCommunityCollectionsScreen(),
         locale: const Locale('zh'),
-        overrides: [
+        overrides: dedupeOverrides([
           discoverCommunityCollectionsProvider.overrideWith(
             () => _TestDiscoverCommunityCollections(
               PublicCollectionCatalogEntry(
@@ -31,7 +31,7 @@ void main() {
               ),
             ),
           ),
-        ],
+        ]),
       ),
     );
     await tester.pumpAndSettle();
@@ -44,7 +44,7 @@ void main() {
       createTestApp(
         const DiscoverCommunityCollectionsScreen(),
         locale: const Locale('zh'),
-        overrides: [
+        overrides: dedupeOverrides([
           discoverCommunityCollectionsProvider.overrideWith(
             () => _TestDiscoverCommunityCollections(
               PublicCollectionCatalogEntry(
@@ -72,7 +72,7 @@ void main() {
               ),
             ),
           ),
-        ],
+        ]),
       ),
     );
     await tester.pumpAndSettle();
@@ -86,11 +86,11 @@ void main() {
     await tester.pumpWidget(
       createTestApp(
         const DiscoverCommunityCollectionsScreen(),
-        overrides: [
+        overrides: dedupeOverrides([
           discoverCommunityCollectionsProvider.overrideWith(
             () => _TestDiscoverCommunityCollections(null),
           ),
-        ],
+        ]),
       ),
     );
     await tester.pumpAndSettle();
@@ -135,12 +135,12 @@ void main() {
     await tester.pumpWidget(
       createTestApp(
         const DiscoverCommunityCollectionsScreen(),
-        overrides: [
+        overrides: dedupeOverrides([
           discoverCommunityCollectionsProvider.overrideWith(
             () => catalogProvider,
           ),
           communitySyncServiceProvider.overrideWithValue(syncService),
-        ],
+        ]),
       ),
     );
     await tester.pumpAndSettle();

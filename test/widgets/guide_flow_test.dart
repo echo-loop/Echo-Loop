@@ -14,6 +14,7 @@ import 'package:echo_loop/features/onboarding_survey/providers/onboarding_survey
 import 'package:echo_loop/l10n/app_localizations.dart';
 import 'package:echo_loop/providers/new_user_guide_provider.dart';
 import 'package:echo_loop/widgets/guide_flow.dart';
+import '../helpers/mock_providers.dart';
 
 /// Helper：包一个完整的 MaterialApp + ProviderScope，支持注入覆盖。
 Widget _wrap({required Widget child, required ProviderContainer container}) {
@@ -58,10 +59,10 @@ void main() {
 
     final prefs = await SharedPreferences.getInstance();
     final container = ProviderContainer(
-      overrides: [
+      overrides: dedupeOverrides([
         sharedPreferencesProvider.overrideWithValue(prefs),
         guideRegistryProvider.overrideWithValue(GuideRegistry(prefs: prefs)),
-      ],
+      ]),
     );
     addTearDown(container.dispose);
 
@@ -124,10 +125,10 @@ void main() {
     final prefs = await SharedPreferences.getInstance();
     final registry = GuideRegistry(prefs: prefs);
     final container = ProviderContainer(
-      overrides: [
+      overrides: dedupeOverrides([
         sharedPreferencesProvider.overrideWithValue(prefs),
         guideRegistryProvider.overrideWithValue(registry),
-      ],
+      ]),
     );
     addTearDown(container.dispose);
 
@@ -175,10 +176,10 @@ void main() {
     final prefs = await SharedPreferences.getInstance();
     final registry = GuideRegistry(prefs: prefs);
     final container = ProviderContainer(
-      overrides: [
+      overrides: dedupeOverrides([
         sharedPreferencesProvider.overrideWithValue(prefs),
         guideRegistryProvider.overrideWithValue(registry),
-      ],
+      ]),
     );
     addTearDown(container.dispose);
 
@@ -212,10 +213,10 @@ void main() {
 
     final prefs = await SharedPreferences.getInstance();
     final container = ProviderContainer(
-      overrides: [
+      overrides: dedupeOverrides([
         sharedPreferencesProvider.overrideWithValue(prefs),
         guideRegistryProvider.overrideWithValue(GuideRegistry(prefs: prefs)),
-      ],
+      ]),
     );
     addTearDown(container.dispose);
 
@@ -269,10 +270,10 @@ void main() {
     final prefs = await SharedPreferences.getInstance();
     final registry = GuideRegistry(prefs: prefs);
     final container = ProviderContainer(
-      overrides: [
+      overrides: dedupeOverrides([
         sharedPreferencesProvider.overrideWithValue(prefs),
         guideRegistryProvider.overrideWithValue(registry),
-      ],
+      ]),
     );
     addTearDown(container.dispose);
 
@@ -325,10 +326,10 @@ void main() {
     final keyOnly = GlobalKey();
     final prefs = await SharedPreferences.getInstance();
     final container = ProviderContainer(
-      overrides: [
+      overrides: dedupeOverrides([
         sharedPreferencesProvider.overrideWithValue(prefs),
         guideRegistryProvider.overrideWithValue(GuideRegistry(prefs: prefs)),
-      ],
+      ]),
     );
     addTearDown(container.dispose);
 
@@ -360,10 +361,10 @@ void main() {
     final prefs = await SharedPreferences.getInstance();
     final registry = GuideRegistry(prefs: prefs);
     final container = ProviderContainer(
-      overrides: [
+      overrides: dedupeOverrides([
         sharedPreferencesProvider.overrideWithValue(prefs),
         guideRegistryProvider.overrideWithValue(registry),
-      ],
+      ]),
     );
     addTearDown(container.dispose);
 

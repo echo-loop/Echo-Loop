@@ -392,7 +392,7 @@ void retellTests() {
       // 验证断点已保存（第 2 段第一句的全局句子索引 = 2）
       final context = tester.element(find.byType(EchoLoopApp));
       final container2 = ProviderScope.containerOf(context);
-      final progressState = container2.read(learningProgressNotifierProvider);
+      final progressState = container2.read(learningProgressProvider);
       final progress = progressState.progressMap['test-audio-1'];
       expect(progress?.retellSentenceIndex, equals(2));
     });

@@ -6,6 +6,7 @@ import 'package:echo_loop/features/user_region/user_region_bootstrapper.dart';
 import 'package:echo_loop/features/user_region/user_region_providers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import '../../helpers/mock_providers.dart';
 
 void main() {
   test('only the system country code CN is China', () {
@@ -27,7 +28,7 @@ void main() {
 
   test('已解析的 Config 地区是 isChinaUserProvider 的唯一结果来源', () async {
     final container = ProviderContainer(
-      overrides: [
+      overrides: dedupeOverrides([
         userRegionDeviceCountryCodeProvider.overrideWithValue(() => 'CN'),
         userRegionBootstrapProvider.overrideWith(
           (ref) async => const UserRegionBootstrapResult(
@@ -36,7 +37,7 @@ void main() {
             remoteConfig: RemoteConfig.defaults,
           ),
         ),
-      ],
+      ]),
     );
     addTearDown(container.dispose);
 
@@ -68,9 +69,9 @@ ProviderContainer _containerWithPendingBootstrap(
 ) {
   final bootstrapGate = Completer<UserRegionBootstrapResult>();
   return ProviderContainer(
-    overrides: [
+    overrides: dedupeOverrides([
       userRegionDeviceCountryCodeProvider.overrideWithValue(readCountryCode),
       userRegionBootstrapProvider.overrideWith((ref) => bootstrapGate.future),
-    ],
+    ]),
   );
 }

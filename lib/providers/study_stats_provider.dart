@@ -144,7 +144,9 @@ class StudyStatsNotifier extends _$StudyStatsNotifier {
   /// 若新数据与当前数据相同则不发射新状态，减少不必要的重建。
   Future<void> refresh() async {
     final newStats = await _load();
-    if (newStats != state.valueOrNull) {
+    // 加载期间 notifier 可能已销毁，过期则不再写入 state。
+    if (!ref.mounted) return;
+    if (newStats != state.value) {
       state = AsyncData(newStats);
     }
   }

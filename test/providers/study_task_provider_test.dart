@@ -60,17 +60,17 @@ void main() {
       };
 
       final container = ProviderContainer(
-        overrides: [
+        overrides: dedupeOverrides([
           audioLibraryProvider.overrideWith(
             () => TestAudioLibrary(AudioLibraryState(audioItems: audioItems)),
           ),
-          learningProgressNotifierProvider.overrideWith(
+          learningProgressProvider.overrideWith(
             () => TestLearningProgressNotifier(
               LearningProgressState(progressMap: progressMap),
             ),
           ),
           nowProvider.overrideWithValue(() => now),
-        ],
+        ]),
       );
       addTearDown(container.dispose);
 
@@ -119,17 +119,17 @@ void main() {
       };
 
       final container = ProviderContainer(
-        overrides: [
+        overrides: dedupeOverrides([
           audioLibraryProvider.overrideWith(
             () => TestAudioLibrary(AudioLibraryState(audioItems: audioItems)),
           ),
-          learningProgressNotifierProvider.overrideWith(
+          learningProgressProvider.overrideWith(
             () => TestLearningProgressNotifier(
               LearningProgressState(progressMap: progressMap),
             ),
           ),
           nowProvider.overrideWithValue(() => now),
-        ],
+        ]),
       );
       addTearDown(container.dispose);
 
@@ -160,15 +160,15 @@ void main() {
       ];
 
       final container = ProviderContainer(
-        overrides: [
+        overrides: dedupeOverrides([
           audioLibraryProvider.overrideWith(
             () => TestAudioLibrary(AudioLibraryState(audioItems: audioItems)),
           ),
-          learningProgressNotifierProvider.overrideWith(
+          learningProgressProvider.overrideWith(
             () => TestLearningProgressNotifier(),
           ),
           nowProvider.overrideWithValue(() => now),
-        ],
+        ]),
       );
       addTearDown(container.dispose);
 
@@ -209,17 +209,17 @@ void main() {
       };
 
       final container = ProviderContainer(
-        overrides: [
+        overrides: dedupeOverrides([
           audioLibraryProvider.overrideWith(
             () => TestAudioLibrary(AudioLibraryState(audioItems: audioItems)),
           ),
-          learningProgressNotifierProvider.overrideWith(
+          learningProgressProvider.overrideWith(
             () => TestLearningProgressNotifier(
               LearningProgressState(progressMap: progressMap),
             ),
           ),
           nowProvider.overrideWithValue(() => now),
-        ],
+        ]),
       );
       addTearDown(container.dispose);
 
@@ -258,17 +258,17 @@ void main() {
       };
 
       final container = ProviderContainer(
-        overrides: [
+        overrides: dedupeOverrides([
           audioLibraryProvider.overrideWith(
             () => TestAudioLibrary(AudioLibraryState(audioItems: audioItems)),
           ),
-          learningProgressNotifierProvider.overrideWith(
+          learningProgressProvider.overrideWith(
             () => TestLearningProgressNotifier(
               LearningProgressState(progressMap: progressMap),
             ),
           ),
           nowProvider.overrideWithValue(() => now),
-        ],
+        ]),
       );
       addTearDown(container.dispose);
 
@@ -328,17 +328,17 @@ void main() {
       };
 
       final container = ProviderContainer(
-        overrides: [
+        overrides: dedupeOverrides([
           audioLibraryProvider.overrideWith(
             () => TestAudioLibrary(AudioLibraryState(audioItems: audioItems)),
           ),
-          learningProgressNotifierProvider.overrideWith(
+          learningProgressProvider.overrideWith(
             () => TestLearningProgressNotifier(
               LearningProgressState(progressMap: progressMap),
             ),
           ),
           nowProvider.overrideWithValue(() => now),
-        ],
+        ]),
       );
       addTearDown(container.dispose);
 
@@ -383,17 +383,17 @@ void main() {
       };
 
       final container = ProviderContainer(
-        overrides: [
+        overrides: dedupeOverrides([
           audioLibraryProvider.overrideWith(
             () => TestAudioLibrary(AudioLibraryState(audioItems: audioItems)),
           ),
-          learningProgressNotifierProvider.overrideWith(
+          learningProgressProvider.overrideWith(
             () => TestLearningProgressNotifier(
               LearningProgressState(progressMap: progressMap),
             ),
           ),
           nowProvider.overrideWithValue(() => now),
-        ],
+        ]),
       );
       addTearDown(container.dispose);
 
@@ -438,17 +438,17 @@ void main() {
       };
 
       final container = ProviderContainer(
-        overrides: [
+        overrides: dedupeOverrides([
           audioLibraryProvider.overrideWith(
             () => TestAudioLibrary(AudioLibraryState(audioItems: audioItems)),
           ),
-          learningProgressNotifierProvider.overrideWith(
+          learningProgressProvider.overrideWith(
             () => TestLearningProgressNotifier(
               LearningProgressState(progressMap: progressMap),
             ),
           ),
           nowProvider.overrideWithValue(() => now),
-        ],
+        ]),
       );
       addTearDown(container.dispose);
 
@@ -484,15 +484,15 @@ void main() {
       ];
 
       final container = ProviderContainer(
-        overrides: [
+        overrides: dedupeOverrides([
           audioLibraryProvider.overrideWith(
             () => TestAudioLibrary(AudioLibraryState(audioItems: audioItems)),
           ),
-          learningProgressNotifierProvider.overrideWith(
+          learningProgressProvider.overrideWith(
             () => TestLearningProgressNotifier(),
           ),
           nowProvider.overrideWithValue(() => now),
-        ],
+        ]),
       );
       addTearDown(container.dispose);
 
@@ -523,17 +523,17 @@ void main() {
       };
 
       final container = ProviderContainer(
-        overrides: [
+        overrides: dedupeOverrides([
           audioLibraryProvider.overrideWith(
             () => TestAudioLibrary(AudioLibraryState(audioItems: audioItems)),
           ),
-          learningProgressNotifierProvider.overrideWith(
+          learningProgressProvider.overrideWith(
             () => TestLearningProgressNotifier(
               LearningProgressState(progressMap: progressMap),
             ),
           ),
           nowProvider.overrideWithValue(() => now),
-        ],
+        ]),
       );
       addTearDown(container.dispose);
 
@@ -564,17 +564,17 @@ void main() {
       };
 
       final container = ProviderContainer(
-        overrides: [
+        overrides: dedupeOverrides([
           audioLibraryProvider.overrideWith(
             () => TestAudioLibrary(AudioLibraryState(audioItems: audioItems)),
           ),
-          learningProgressNotifierProvider.overrideWith(
+          learningProgressProvider.overrideWith(
             () => TestLearningProgressNotifier(
               LearningProgressState(progressMap: progressMap),
             ),
           ),
           nowProvider.overrideWithValue(() => now),
-        ],
+        ]),
       );
       addTearDown(container.dispose);
 
@@ -632,17 +632,17 @@ void main() {
       };
 
       final container = ProviderContainer(
-        overrides: [
+        overrides: dedupeOverrides([
           audioLibraryProvider.overrideWith(
             () => TestAudioLibrary(AudioLibraryState(audioItems: audioItems)),
           ),
-          learningProgressNotifierProvider.overrideWith(
+          learningProgressProvider.overrideWith(
             () => TestLearningProgressNotifier(
               LearningProgressState(progressMap: progressMap),
             ),
           ),
           nowProvider.overrideWithValue(() => now),
-        ],
+        ]),
       );
       addTearDown(container.dispose);
 
@@ -693,17 +693,17 @@ void main() {
       };
 
       final container = ProviderContainer(
-        overrides: [
+        overrides: dedupeOverrides([
           audioLibraryProvider.overrideWith(
             () => TestAudioLibrary(AudioLibraryState(audioItems: audioItems)),
           ),
-          learningProgressNotifierProvider.overrideWith(
+          learningProgressProvider.overrideWith(
             () => TestLearningProgressNotifier(
               LearningProgressState(progressMap: progressMap),
             ),
           ),
           nowProvider.overrideWithValue(() => now),
-        ],
+        ]),
       );
       addTearDown(container.dispose);
 
@@ -767,17 +767,17 @@ void main() {
       };
 
       final container = ProviderContainer(
-        overrides: [
+        overrides: dedupeOverrides([
           audioLibraryProvider.overrideWith(
             () => TestAudioLibrary(AudioLibraryState(audioItems: audioItems)),
           ),
-          learningProgressNotifierProvider.overrideWith(
+          learningProgressProvider.overrideWith(
             () => TestLearningProgressNotifier(
               LearningProgressState(progressMap: progressMap),
             ),
           ),
           nowProvider.overrideWithValue(() => now),
-        ],
+        ]),
       );
       addTearDown(container.dispose);
 
@@ -810,11 +810,11 @@ void main() {
       };
 
       final container = ProviderContainer(
-        overrides: [
+        overrides: dedupeOverrides([
           audioLibraryProvider.overrideWith(
             () => TestAudioLibrary(AudioLibraryState(audioItems: audioItems)),
           ),
-          learningProgressNotifierProvider.overrideWith(
+          learningProgressProvider.overrideWith(
             () => TestLearningProgressNotifier(
               LearningProgressState(
                 progressMap: progressMap,
@@ -823,7 +823,7 @@ void main() {
             ),
           ),
           nowProvider.overrideWithValue(() => now),
-        ],
+        ]),
       );
       addTearDown(container.dispose);
 
@@ -854,11 +854,11 @@ void main() {
       };
 
       final container = ProviderContainer(
-        overrides: [
+        overrides: dedupeOverrides([
           audioLibraryProvider.overrideWith(
             () => TestAudioLibrary(AudioLibraryState(audioItems: audioItems)),
           ),
-          learningProgressNotifierProvider.overrideWith(
+          learningProgressProvider.overrideWith(
             () => TestLearningProgressNotifier(
               LearningProgressState(
                 progressMap: progressMap,
@@ -869,7 +869,7 @@ void main() {
             ),
           ),
           nowProvider.overrideWithValue(() => now),
-        ],
+        ]),
       );
       addTearDown(container.dispose);
 
@@ -900,11 +900,11 @@ void main() {
       };
 
       final container = ProviderContainer(
-        overrides: [
+        overrides: dedupeOverrides([
           audioLibraryProvider.overrideWith(
             () => TestAudioLibrary(AudioLibraryState(audioItems: audioItems)),
           ),
-          learningProgressNotifierProvider.overrideWith(
+          learningProgressProvider.overrideWith(
             () => TestLearningProgressNotifier(
               LearningProgressState(
                 progressMap: progressMap,
@@ -916,7 +916,7 @@ void main() {
             ),
           ),
           nowProvider.overrideWithValue(() => now),
-        ],
+        ]),
       );
       addTearDown(container.dispose);
 
@@ -976,17 +976,17 @@ void main() {
       };
 
       final container = ProviderContainer(
-        overrides: [
+        overrides: dedupeOverrides([
           audioLibraryProvider.overrideWith(
             () => TestAudioLibrary(AudioLibraryState(audioItems: audioItems)),
           ),
-          learningProgressNotifierProvider.overrideWith(
+          learningProgressProvider.overrideWith(
             () => TestLearningProgressNotifier(
               LearningProgressState(progressMap: progressMap),
             ),
           ),
           nowProvider.overrideWithValue(() => now),
-        ],
+        ]),
       );
       addTearDown(container.dispose);
 
@@ -1021,17 +1021,17 @@ void main() {
       };
 
       final container = ProviderContainer(
-        overrides: [
+        overrides: dedupeOverrides([
           audioLibraryProvider.overrideWith(
             () => TestAudioLibrary(AudioLibraryState(audioItems: audioItems)),
           ),
-          learningProgressNotifierProvider.overrideWith(
+          learningProgressProvider.overrideWith(
             () => TestLearningProgressNotifier(
               LearningProgressState(progressMap: progressMap),
             ),
           ),
           nowProvider.overrideWithValue(() => now),
-        ],
+        ]),
       );
       addTearDown(container.dispose);
 
@@ -1089,17 +1089,17 @@ void main() {
       };
 
       final container = ProviderContainer(
-        overrides: [
+        overrides: dedupeOverrides([
           audioLibraryProvider.overrideWith(
             () => TestAudioLibrary(AudioLibraryState(audioItems: audioItems)),
           ),
-          learningProgressNotifierProvider.overrideWith(
+          learningProgressProvider.overrideWith(
             () => TestLearningProgressNotifier(
               LearningProgressState(progressMap: progressMap),
             ),
           ),
           nowProvider.overrideWithValue(() => now),
-        ],
+        ]),
       );
       addTearDown(container.dispose);
 
@@ -1121,15 +1121,15 @@ void main() {
       ];
 
       final container = ProviderContainer(
-        overrides: [
+        overrides: dedupeOverrides([
           audioLibraryProvider.overrideWith(
             () => TestAudioLibrary(AudioLibraryState(audioItems: audioItems)),
           ),
-          learningProgressNotifierProvider.overrideWith(
+          learningProgressProvider.overrideWith(
             () => TestLearningProgressNotifier(),
           ),
           nowProvider.overrideWithValue(() => now),
-        ],
+        ]),
       );
       addTearDown(container.dispose);
 

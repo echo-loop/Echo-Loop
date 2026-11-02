@@ -18,6 +18,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:universal_io/io.dart';
+import '../helpers/mock_providers.dart';
 
 /// 可脚本化的评估流替身，并记录 accessToken 入参。
 class _ScriptApi implements SentenceAiApiClient {
@@ -139,13 +140,11 @@ void main() {
     FreeAllowancePolicy policy = const AlwaysAllowPolicy(),
   }) async {
     final container = ProviderContainer(
-      overrides: [
+      overrides: dedupeOverrides([
         sentenceAiApiClientProvider.overrideWithValue(api),
         retellReviewAudioPreparerProvider.overrideWithValue(preparer),
         isAuthenticatedProvider.overrideWithValue(authenticated),
-        supabaseSessionProvider.overrideWith(
-          (ref) => Stream<Session?>.value(hasSession ? _session() : null),
-        ),
+        supabaseSessionProvider.overrideWithValue(AsyncData<Session?>(hasSession ? _session() : null)),
         subscriptionControllerProvider.overrideWith(
           () => _FixedSubscription(subscription),
         ),
@@ -154,10 +153,13 @@ void main() {
         entitlementQuotaDivergenceHandlerProvider.overrideWithValue(
           divergenceContexts.add,
         ),
-      ],
+      ]),
     );
     addTearDown(container.dispose);
     container.listen(retellReviewEvaluationProvider, (_, __) {});
+    // Riverpod 3：无监听者的 StreamProvider 会被暂停、不再投递首值，
+    // 必须保持一个监听，才能等到 session 落定。
+    container.listen(supabaseSessionProvider, (_, __) {});
     await container.read(supabaseSessionProvider.future);
     return container;
   }

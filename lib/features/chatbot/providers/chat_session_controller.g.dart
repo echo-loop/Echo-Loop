@@ -6,37 +6,8 @@ part of 'chat_session_controller.dart';
 // RiverpodGenerator
 // **************************************************************************
 
-String _$chatSessionControllerHash() =>
-    r'973c2b2e350c5da1938aaf7c0429574ee674dd82';
-
-/// Copied from Dart SDK
-class _SystemHash {
-  _SystemHash._();
-
-  static int combine(int hash, int value) {
-    // ignore: parameter_assignments
-    hash = 0x1fffffff & (hash + value);
-    // ignore: parameter_assignments
-    hash = 0x1fffffff & (hash + ((0x0007ffff & hash) << 10));
-    return hash ^ (hash >> 6);
-  }
-
-  static int finish(int hash) {
-    // ignore: parameter_assignments
-    hash = 0x1fffffff & (hash + ((0x03ffffff & hash) << 3));
-    // ignore: parameter_assignments
-    hash = hash ^ (hash >> 11);
-    return 0x1fffffff & (hash + ((0x00003fff & hash) << 15));
-  }
-}
-
-abstract class _$ChatSessionController
-    extends BuildlessNotifier<ChatSessionState> {
-  late final ChatbotConfig config;
-
-  ChatSessionState build(ChatbotConfig config);
-}
-
+// GENERATED CODE - DO NOT MODIFY BY HAND
+// ignore_for_file: type=lint, type=warning
 /// 会话 controller（family by [ChatbotConfig]，keepAlive 保活）。
 ///
 /// keepAlive——会话 state 需跨"关面板/重开"存活（内存保活，不落盘）：同一句子
@@ -46,10 +17,9 @@ abstract class _$ChatSessionController
 ///
 /// 函数 ≤50 行约束：闸门+组装抽 [_startTurn]；[_run] 只留 happy-path 循环；
 /// 异常映射抽 [_mapRunError]。
-///
-/// Copied from [ChatSessionController].
+
 @ProviderFor(ChatSessionController)
-const chatSessionControllerProvider = ChatSessionControllerFamily();
+final chatSessionControllerProvider = ChatSessionControllerFamily._();
 
 /// 会话 controller（family by [ChatbotConfig]，keepAlive 保活）。
 ///
@@ -60,9 +30,8 @@ const chatSessionControllerProvider = ChatSessionControllerFamily();
 ///
 /// 函数 ≤50 行约束：闸门+组装抽 [_startTurn]；[_run] 只留 happy-path 循环；
 /// 异常映射抽 [_mapRunError]。
-///
-/// Copied from [ChatSessionController].
-class ChatSessionControllerFamily extends Family<ChatSessionState> {
+final class ChatSessionControllerProvider
+    extends $NotifierProvider<ChatSessionController, ChatSessionState> {
   /// 会话 controller（family by [ChatbotConfig]，keepAlive 保活）。
   ///
   /// keepAlive——会话 state 需跨"关面板/重开"存活（内存保活，不落盘）：同一句子
@@ -72,153 +41,125 @@ class ChatSessionControllerFamily extends Family<ChatSessionState> {
   ///
   /// 函数 ≤50 行约束：闸门+组装抽 [_startTurn]；[_run] 只留 happy-path 循环；
   /// 异常映射抽 [_mapRunError]。
-  ///
-  /// Copied from [ChatSessionController].
-  const ChatSessionControllerFamily();
+  ChatSessionControllerProvider._({
+    required ChatSessionControllerFamily super.from,
+    required ChatbotConfig super.argument,
+  }) : super(
+         retry: null,
+         name: r'chatSessionControllerProvider',
+         isAutoDispose: false,
+         dependencies: null,
+         $allTransitiveDependencies: null,
+       );
 
-  /// 会话 controller（family by [ChatbotConfig]，keepAlive 保活）。
-  ///
-  /// keepAlive——会话 state 需跨"关面板/重开"存活（内存保活，不落盘）：同一句子
-  /// 关掉 sheet 再打开、内容还在；重启进程自然清空。因此不用 autoDispose。
-  /// 关面板时的在途流中断由 sheet 关闭后显式调 [stop] 处理（见 chatbot_sheet.dart），
-  /// 不再依赖 autoDispose 的 onDispose。
-  ///
-  /// 函数 ≤50 行约束：闸门+组装抽 [_startTurn]；[_run] 只留 happy-path 循环；
-  /// 异常映射抽 [_mapRunError]。
-  ///
-  /// Copied from [ChatSessionController].
-  ChatSessionControllerProvider call(ChatbotConfig config) {
-    return ChatSessionControllerProvider(config);
+  @override
+  String debugGetCreateSourceHash() => _$chatSessionControllerHash();
+
+  @override
+  String toString() {
+    return r'chatSessionControllerProvider'
+        ''
+        '($argument)';
   }
 
+  @$internal
   @override
-  ChatSessionControllerProvider getProviderOverride(
-    covariant ChatSessionControllerProvider provider,
-  ) {
-    return call(provider.config);
-  }
+  ChatSessionController create() => ChatSessionController();
 
-  static const Iterable<ProviderOrFamily>? _dependencies = null;
-
-  @override
-  Iterable<ProviderOrFamily>? get dependencies => _dependencies;
-
-  static const Iterable<ProviderOrFamily>? _allTransitiveDependencies = null;
-
-  @override
-  Iterable<ProviderOrFamily>? get allTransitiveDependencies =>
-      _allTransitiveDependencies;
-
-  @override
-  String? get name => r'chatSessionControllerProvider';
-}
-
-/// 会话 controller（family by [ChatbotConfig]，keepAlive 保活）。
-///
-/// keepAlive——会话 state 需跨"关面板/重开"存活（内存保活，不落盘）：同一句子
-/// 关掉 sheet 再打开、内容还在；重启进程自然清空。因此不用 autoDispose。
-/// 关面板时的在途流中断由 sheet 关闭后显式调 [stop] 处理（见 chatbot_sheet.dart），
-/// 不再依赖 autoDispose 的 onDispose。
-///
-/// 函数 ≤50 行约束：闸门+组装抽 [_startTurn]；[_run] 只留 happy-path 循环；
-/// 异常映射抽 [_mapRunError]。
-///
-/// Copied from [ChatSessionController].
-class ChatSessionControllerProvider
-    extends NotifierProviderImpl<ChatSessionController, ChatSessionState> {
-  /// 会话 controller（family by [ChatbotConfig]，keepAlive 保活）。
-  ///
-  /// keepAlive——会话 state 需跨"关面板/重开"存活（内存保活，不落盘）：同一句子
-  /// 关掉 sheet 再打开、内容还在；重启进程自然清空。因此不用 autoDispose。
-  /// 关面板时的在途流中断由 sheet 关闭后显式调 [stop] 处理（见 chatbot_sheet.dart），
-  /// 不再依赖 autoDispose 的 onDispose。
-  ///
-  /// 函数 ≤50 行约束：闸门+组装抽 [_startTurn]；[_run] 只留 happy-path 循环；
-  /// 异常映射抽 [_mapRunError]。
-  ///
-  /// Copied from [ChatSessionController].
-  ChatSessionControllerProvider(ChatbotConfig config)
-    : this._internal(
-        () => ChatSessionController()..config = config,
-        from: chatSessionControllerProvider,
-        name: r'chatSessionControllerProvider',
-        debugGetCreateSourceHash: const bool.fromEnvironment('dart.vm.product')
-            ? null
-            : _$chatSessionControllerHash,
-        dependencies: ChatSessionControllerFamily._dependencies,
-        allTransitiveDependencies:
-            ChatSessionControllerFamily._allTransitiveDependencies,
-        config: config,
-      );
-
-  ChatSessionControllerProvider._internal(
-    super._createNotifier, {
-    required super.name,
-    required super.dependencies,
-    required super.allTransitiveDependencies,
-    required super.debugGetCreateSourceHash,
-    required super.from,
-    required this.config,
-  }) : super.internal();
-
-  final ChatbotConfig config;
-
-  @override
-  ChatSessionState runNotifierBuild(covariant ChatSessionController notifier) {
-    return notifier.build(config);
-  }
-
-  @override
-  Override overrideWith(ChatSessionController Function() create) {
-    return ProviderOverride(
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(ChatSessionState value) {
+    return $ProviderOverride(
       origin: this,
-      override: ChatSessionControllerProvider._internal(
-        () => create()..config = config,
-        from: from,
-        name: null,
-        dependencies: null,
-        allTransitiveDependencies: null,
-        debugGetCreateSourceHash: null,
-        config: config,
-      ),
+      providerOverride: $SyncValueProvider<ChatSessionState>(value),
     );
   }
 
   @override
-  NotifierProviderElement<ChatSessionController, ChatSessionState>
-  createElement() {
-    return _ChatSessionControllerProviderElement(this);
-  }
-
-  @override
   bool operator ==(Object other) {
-    return other is ChatSessionControllerProvider && other.config == config;
+    return other is ChatSessionControllerProvider && other.argument == argument;
   }
 
   @override
   int get hashCode {
-    var hash = _SystemHash.combine(0, runtimeType.hashCode);
-    hash = _SystemHash.combine(hash, config.hashCode);
-
-    return _SystemHash.finish(hash);
+    return argument.hashCode;
   }
 }
 
-@Deprecated('Will be removed in 3.0. Use Ref instead')
-// ignore: unused_element
-mixin ChatSessionControllerRef on NotifierProviderRef<ChatSessionState> {
-  /// The parameter `config` of this provider.
-  ChatbotConfig get config;
-}
+String _$chatSessionControllerHash() =>
+    r'01c83b03593907e783b8f73c5aeb1600d9525710';
 
-class _ChatSessionControllerProviderElement
-    extends NotifierProviderElement<ChatSessionController, ChatSessionState>
-    with ChatSessionControllerRef {
-  _ChatSessionControllerProviderElement(super.provider);
+/// 会话 controller（family by [ChatbotConfig]，keepAlive 保活）。
+///
+/// keepAlive——会话 state 需跨"关面板/重开"存活（内存保活，不落盘）：同一句子
+/// 关掉 sheet 再打开、内容还在；重启进程自然清空。因此不用 autoDispose。
+/// 关面板时的在途流中断由 sheet 关闭后显式调 [stop] 处理（见 chatbot_sheet.dart），
+/// 不再依赖 autoDispose 的 onDispose。
+///
+/// 函数 ≤50 行约束：闸门+组装抽 [_startTurn]；[_run] 只留 happy-path 循环；
+/// 异常映射抽 [_mapRunError]。
+
+final class ChatSessionControllerFamily extends $Family
+    with
+        $ClassFamilyOverride<
+          ChatSessionController,
+          ChatSessionState,
+          ChatSessionState,
+          ChatSessionState,
+          ChatbotConfig
+        > {
+  ChatSessionControllerFamily._()
+    : super(
+        retry: null,
+        name: r'chatSessionControllerProvider',
+        dependencies: null,
+        $allTransitiveDependencies: null,
+        isAutoDispose: false,
+      );
+
+  /// 会话 controller（family by [ChatbotConfig]，keepAlive 保活）。
+  ///
+  /// keepAlive——会话 state 需跨"关面板/重开"存活（内存保活，不落盘）：同一句子
+  /// 关掉 sheet 再打开、内容还在；重启进程自然清空。因此不用 autoDispose。
+  /// 关面板时的在途流中断由 sheet 关闭后显式调 [stop] 处理（见 chatbot_sheet.dart），
+  /// 不再依赖 autoDispose 的 onDispose。
+  ///
+  /// 函数 ≤50 行约束：闸门+组装抽 [_startTurn]；[_run] 只留 happy-path 循环；
+  /// 异常映射抽 [_mapRunError]。
+
+  ChatSessionControllerProvider call(ChatbotConfig config) =>
+      ChatSessionControllerProvider._(argument: config, from: this);
 
   @override
-  ChatbotConfig get config => (origin as ChatSessionControllerProvider).config;
+  String toString() => r'chatSessionControllerProvider';
 }
 
-// ignore_for_file: type=lint
-// ignore_for_file: subtype_of_sealed_class, invalid_use_of_internal_member, invalid_use_of_visible_for_testing_member, deprecated_member_use_from_same_package
+/// 会话 controller（family by [ChatbotConfig]，keepAlive 保活）。
+///
+/// keepAlive——会话 state 需跨"关面板/重开"存活（内存保活，不落盘）：同一句子
+/// 关掉 sheet 再打开、内容还在；重启进程自然清空。因此不用 autoDispose。
+/// 关面板时的在途流中断由 sheet 关闭后显式调 [stop] 处理（见 chatbot_sheet.dart），
+/// 不再依赖 autoDispose 的 onDispose。
+///
+/// 函数 ≤50 行约束：闸门+组装抽 [_startTurn]；[_run] 只留 happy-path 循环；
+/// 异常映射抽 [_mapRunError]。
+
+abstract class _$ChatSessionController extends $Notifier<ChatSessionState> {
+  late final _$args = ref.$arg as ChatbotConfig;
+  ChatbotConfig get config => _$args;
+
+  ChatSessionState build(ChatbotConfig config);
+  @$mustCallSuper
+  @override
+  WhenComplete runBuild() {
+    final ref = this.ref as $Ref<ChatSessionState, ChatSessionState>;
+    final element =
+        ref.element
+            as $ClassProviderElement<
+              AnyNotifier<ChatSessionState, ChatSessionState>,
+              ChatSessionState,
+              Object?,
+              Object?
+            >;
+    return element.handleCreate(ref, () => build(_$args));
+  }
+}

@@ -110,11 +110,11 @@ void main() {
             child: AudioListTile(audioItem: item, collectionId: collectionId),
           ),
         ),
-        overrides: [
+        overrides: dedupeOverrides([
           audioLibraryProvider.overrideWith(
             () => TestAudioLibrary(AudioLibraryState(audioItems: [item])),
           ),
-        ],
+        ]),
       );
     }
 
@@ -240,11 +240,11 @@ void main() {
         Center(
           child: SizedBox(width: 360, child: AudioListTile(audioItem: item)),
         ),
-        overrides: [
+        overrides: dedupeOverrides([
           audioLibraryProvider.overrideWith(
             () => TestAudioLibrary(AudioLibraryState(audioItems: [item])),
           ),
-        ],
+        ]),
       );
     }
 
@@ -282,11 +282,11 @@ void main() {
         Center(
           child: SizedBox(width: 360, child: AudioListTile(audioItem: item)),
         ),
-        overrides: [
+        overrides: dedupeOverrides([
           audioLibraryProvider.overrideWith(
             () => TestAudioLibrary(AudioLibraryState(audioItems: [item])),
           ),
-        ],
+        ]),
       );
     }
 
@@ -337,11 +337,11 @@ void main() {
         Center(
           child: SizedBox(width: 360, child: AudioListTile(audioItem: item)),
         ),
-        overrides: [
+        overrides: dedupeOverrides([
           audioLibraryProvider.overrideWith(
             () => TestAudioLibrary(AudioLibraryState(audioItems: [item])),
           ),
-        ],
+        ]),
       );
     }
 
@@ -384,14 +384,14 @@ void main() {
       await tester.pumpWidget(
         createTestApp(
           Center(child: AudioListTile(audioItem: item)),
-          overrides: [
+          overrides: dedupeOverrides([
             audioLibraryProvider.overrideWith(
               () => TestAudioLibrary(AudioLibraryState(audioItems: [item])),
             ),
             podcastDownloadControllerProvider.overrideWith(
               _DownloadingAudioImportController.new,
             ),
-          ],
+          ]),
         ),
       );
       await tester.pumpAndSettle();
@@ -417,14 +417,14 @@ void main() {
       await tester.pumpWidget(
         createTestApp(
           Center(child: AudioListTile(audioItem: item)),
-          overrides: [
+          overrides: dedupeOverrides([
             audioLibraryProvider.overrideWith(
               () => TestAudioLibrary(AudioLibraryState(audioItems: [item])),
             ),
             communityDownloadProvider.overrideWith(
               () => _DownloadingCommunity(item.id),
             ),
-          ],
+          ]),
         ),
       );
       await tester.pumpAndSettle();
@@ -497,11 +497,11 @@ void main() {
         Center(
           child: SizedBox(width: 360, child: AudioListTile(audioItem: item)),
         ),
-        overrides: [
+        overrides: dedupeOverrides([
           audioLibraryProvider.overrideWith(
             () => TestAudioLibrary(AudioLibraryState(audioItems: [item])),
           ),
-        ],
+        ]),
       );
     }
 
@@ -632,11 +632,11 @@ void main() {
         Center(
           child: SizedBox(width: 360, child: AudioListTile(audioItem: item)),
         ),
-        overrides: [
+        overrides: dedupeOverrides([
           audioLibraryProvider.overrideWith(
             () => TestAudioLibrary(AudioLibraryState(audioItems: [item])),
           ),
-        ],
+        ]),
       );
     }
 
@@ -720,14 +720,14 @@ void main() {
           Center(
             child: SizedBox(width: 420, child: AudioListTile(audioItem: item)),
           ),
-          overrides: [
+          overrides: dedupeOverrides([
             audioLibraryProvider.overrideWith(
               () => TestAudioLibrary(AudioLibraryState(audioItems: [item])),
             ),
             podcastDownloadControllerProvider.overrideWith(
               _DownloadingAudioImportController.new,
             ),
-          ],
+          ]),
         ),
       );
       await tester.pumpAndSettle();
@@ -758,12 +758,12 @@ void main() {
           Center(
             child: SizedBox(width: 420, child: AudioListTile(audioItem: item)),
           ),
-          overrides: [
+          overrides: dedupeOverrides([
             audioLibraryProvider.overrideWith(
               () => TestAudioLibrary(AudioLibraryState(audioItems: [item])),
             ),
             podcastDownloadControllerProvider.overrideWith(() => controller),
-          ],
+          ]),
         ),
       );
       await tester.pumpAndSettle();
@@ -794,11 +794,11 @@ void main() {
           Center(
             child: SizedBox(width: 420, child: AudioListTile(audioItem: item)),
           ),
-          overrides: [
+          overrides: dedupeOverrides([
             audioLibraryProvider.overrideWith(
               () => TestAudioLibrary(AudioLibraryState(audioItems: [item])),
             ),
-          ],
+          ]),
         ),
       );
       await tester.pumpAndSettle();
@@ -831,14 +831,14 @@ void main() {
           Center(
             child: SizedBox(width: 420, child: AudioListTile(audioItem: item)),
           ),
-          overrides: [
+          overrides: dedupeOverrides([
             audioLibraryProvider.overrideWith(
               () => TestAudioLibrary(AudioLibraryState(audioItems: [item])),
             ),
             podcastDownloadControllerProvider.overrideWith(
               _DownloadingAudioImportController.new,
             ),
-          ],
+          ]),
         ),
       );
       await tester.pumpAndSettle();
@@ -871,11 +871,11 @@ void main() {
           Center(
             child: SizedBox(width: 420, child: AudioListTile(audioItem: item)),
           ),
-          overrides: [
+          overrides: dedupeOverrides([
             audioLibraryProvider.overrideWith(
               () => TestAudioLibrary(AudioLibraryState(audioItems: [item])),
             ),
-          ],
+          ]),
         ),
       );
       await tester.pumpAndSettle();
@@ -902,11 +902,11 @@ void main() {
           Center(
             child: SizedBox(width: 420, child: AudioListTile(audioItem: item)),
           ),
-          overrides: [
+          overrides: dedupeOverrides([
             audioLibraryProvider.overrideWith(
               () => TestAudioLibrary(AudioLibraryState(audioItems: [item])),
             ),
-          ],
+          ]),
         ),
       );
       await tester.pumpAndSettle();
@@ -933,14 +933,14 @@ void main() {
           Center(
             child: SizedBox(width: 420, child: AudioListTile(audioItem: item)),
           ),
-          overrides: [
+          overrides: dedupeOverrides([
             audioLibraryProvider.overrideWith(
               () => TestAudioLibrary(AudioLibraryState(audioItems: [item])),
             ),
             communityDownloadProvider.overrideWith(
               () => _DownloadingCommunity(item.id),
             ),
-          ],
+          ]),
         ),
       );
       await tester.pumpAndSettle();
@@ -977,11 +977,11 @@ void main() {
           Center(
             child: SizedBox(width: 420, child: AudioListTile(audioItem: item)),
           ),
-          overrides: [
+          overrides: dedupeOverrides([
             audioLibraryProvider.overrideWith(
               () => TestAudioLibrary(AudioLibraryState(audioItems: [item])),
             ),
-          ],
+          ]),
         ),
       );
       await tester.pumpAndSettle();
@@ -1007,16 +1007,14 @@ void main() {
           Center(
             child: SizedBox(width: 420, child: AudioListTile(audioItem: item)),
           ),
-          overrides: [
+          overrides: dedupeOverrides([
             audioLibraryProvider.overrideWith(
               () => TestAudioLibrary(AudioLibraryState(audioItems: [item])),
             ),
-            supabaseSessionProvider.overrideWith(
-              (ref) => Stream<Session?>.value(_signedInSession()),
-            ),
+            supabaseSessionProvider.overrideWithValue(AsyncData<Session?>(_signedInSession())),
             // 已登录用户视为已解锁（Pro），转录机制测试不被额度闸拦截。
             subscriptionEntitlementOverride(),
-          ],
+          ]),
         ),
       );
       await tester.pumpAndSettle();
@@ -1065,11 +1063,11 @@ void main() {
           Center(
             child: SizedBox(width: 420, child: AudioListTile(audioItem: item)),
           ),
-          overrides: [
+          overrides: dedupeOverrides([
             audioLibraryProvider.overrideWith(
               () => TestAudioLibrary(AudioLibraryState(audioItems: [item])),
             ),
-          ],
+          ]),
         ),
       );
       await tester.pumpAndSettle();
@@ -1122,11 +1120,11 @@ void main() {
           Center(
             child: SizedBox(width: 420, child: AudioListTile(audioItem: item)),
           ),
-          overrides: [
+          overrides: dedupeOverrides([
             audioLibraryProvider.overrideWith(
               () => TestAudioLibrary(AudioLibraryState(audioItems: [item])),
             ),
-          ],
+          ]),
         ),
       );
       await tester.pumpAndSettle();
@@ -1155,11 +1153,11 @@ void main() {
     Widget buildTile(AudioLibraryState libraryState) {
       return createTestApp(
         const _AudioListTileWrapper(),
-        overrides: [
+        overrides: dedupeOverrides([
           audioLibraryProvider.overrideWith(
             () => TestAudioLibrary(libraryState),
           ),
-        ],
+        ]),
       );
     }
 
@@ -1168,11 +1166,11 @@ void main() {
         Center(
           child: SizedBox(width: 360, child: const _AudioListTileWrapper()),
         ),
-        overrides: [
+        overrides: dedupeOverrides([
           audioLibraryProvider.overrideWith(
             () => TestAudioLibrary(libraryState),
           ),
-        ],
+        ]),
       );
     }
 
@@ -1375,7 +1373,7 @@ void main() {
     Widget buildCollectionTile() {
       return createTestApp(
         AudioListTile(audioItem: baseItem, collectionId: 'collection-1'),
-        overrides: [
+        overrides: dedupeOverrides([
           appSettingsProvider.overrideWith(
             () => TestAppSettings(const AppSettingsState()),
           ),
@@ -1390,12 +1388,12 @@ void main() {
             ),
           ),
           audioEngineProvider.overrideWith(() => TestAudioEngine()),
-          learningProgressNotifierProvider.overrideWith(
+          learningProgressProvider.overrideWith(
             () => TestLearningProgressNotifier(),
           ),
           learningSessionProvider.overrideWith(() => TestLearningSession()),
           blindListenPlayerProvider.overrideWith(() => TestBlindListenPlayer()),
-        ],
+        ]),
       );
     }
 
@@ -1431,18 +1429,18 @@ void main() {
         Center(
           child: SizedBox(width: 360, child: const _AudioListTileWrapper()),
         ),
-        overrides: [
+        overrides: dedupeOverrides([
           audioLibraryProvider.overrideWith(
             () => TestAudioLibrary(AudioLibraryState(audioItems: [baseItem])),
           ),
-          learningProgressNotifierProvider.overrideWith(
+          learningProgressProvider.overrideWith(
             () => TestLearningProgressNotifier(
               LearningProgressState(
                 progressMap: {progress.audioItemId: progress},
               ),
             ),
           ),
-        ],
+        ]),
       );
     }
 
@@ -1486,14 +1484,14 @@ void main() {
           Center(
             child: SizedBox(width: 360, child: const _AudioListTileWrapper()),
           ),
-          overrides: [
+          overrides: dedupeOverrides([
             audioLibraryProvider.overrideWith(
               () => TestAudioLibrary(AudioLibraryState(audioItems: [baseItem])),
             ),
-            learningProgressNotifierProvider.overrideWith(
+            learningProgressProvider.overrideWith(
               () => TestLearningProgressNotifier(),
             ),
-          ],
+          ]),
         ),
       );
       await tester.pumpAndSettle();

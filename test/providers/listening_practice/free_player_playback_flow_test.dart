@@ -330,7 +330,7 @@ void main() {
     await engine.closeStreams();
 
     engine = _FlowAudioEngine();
-    final database = AppDatabase(NativeDatabase.memory());
+    final database = AppDatabase(NativeDatabase.memory(setup: configureAppDatabaseConnection));
     statisticsDatabase = database;
     activityGate = StudyActivityGate();
     final studyTimeService = StudyTimeService(
@@ -340,12 +340,12 @@ void main() {
     );
     statisticsService = studyTimeService;
     container = ProviderContainer(
-      overrides: [
+      overrides: dedupeOverrides([
         audioEngineProvider.overrideWith(() => engine),
         studyTimeServiceProvider.overrideWithValue(studyTimeService),
         studyActivityGateProvider.overrideWithValue(activityGate),
         listeningPracticeProvider.overrideWith(() => _FlowListeningPractice()),
-      ],
+      ]),
     );
     lp =
         container.read(listeningPracticeProvider.notifier)
@@ -367,12 +367,12 @@ void main() {
     activityGate = StudyActivityGate();
     studyTimeService = _FailOnceStudyTimeService();
     container = ProviderContainer(
-      overrides: [
+      overrides: dedupeOverrides([
         audioEngineProvider.overrideWith(() => engine),
         studyTimeServiceProvider.overrideWithValue(studyTimeService),
         studyActivityGateProvider.overrideWithValue(activityGate),
         listeningPracticeProvider.overrideWith(() => _FlowListeningPractice()),
-      ],
+      ]),
     );
     lp =
         container.read(listeningPracticeProvider.notifier)

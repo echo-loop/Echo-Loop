@@ -83,18 +83,16 @@ void main() {
   setUp(() async {
     SharedPreferences.setMockInitialValues({});
     db = AppDatabase(
-      NativeDatabase.memory(
-        setup: (db) => db.execute('PRAGMA foreign_keys = ON'),
-      ),
+      NativeDatabase.memory(setup: configureAppDatabaseConnection),
     );
     container = ProviderContainer(
-      overrides: [
+      overrides: dedupeOverrides([
         appDatabaseProvider.overrideWithValue(db),
         audioEngineProvider.overrideWith(() => _LoadAudioEngine(sentences)),
         listeningPracticeProvider.overrideWith(
           () => _TestableListeningPractice(),
         ),
-      ],
+      ]),
     );
     lp =
         container.read(listeningPracticeProvider.notifier)

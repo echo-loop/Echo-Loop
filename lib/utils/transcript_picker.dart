@@ -12,6 +12,7 @@ import 'package:subtitle/subtitle.dart' show SubtitleType;
 import 'package:universal_io/io.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:path/path.dart' as path;
+import 'package:flutter_riverpod/misc.dart';
 import '../database/providers.dart';
 import '../features/audio_import/subtitle_pairing.dart'
     show subtitleImportExtensions;

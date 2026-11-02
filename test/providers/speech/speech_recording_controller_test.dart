@@ -1,6 +1,8 @@
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+// StateNotifier / StateProvider 已移入 legacy 库（Riverpod 3），此处保留旧写法
+import 'package:flutter_riverpod/legacy.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:echo_loop/models/speech_practice_models.dart';
 import 'package:echo_loop/providers/offline_asr_settings_provider.dart';
@@ -182,7 +184,7 @@ void main() {
         (_) => firstBackend,
       );
       final container = ProviderContainer(
-        overrides: [
+        overrides: dedupeOverrides([
           analyticsOverride(),
           ...learningSettingsOverrides(listenAndRepeatRatingEnabled: false),
           speechPracticeBackendProvider.overrideWith(
@@ -192,7 +194,7 @@ void main() {
           offlineAsrSettingsProvider.overrideWith(
             () => _FakeOfflineAsrSettingsNotifier(),
           ),
-        ],
+        ]),
       );
       final controller = container.read(
         speechRecordingControllerProvider.notifier,
@@ -229,7 +231,7 @@ void main() {
       final backend = _FakeSpeechPracticeBackend(autoEmitFinal: false)
         ..warmupGate = Completer<void>();
       final container = ProviderContainer(
-        overrides: [
+        overrides: dedupeOverrides([
           analyticsOverride(),
           ...learningSettingsOverrides(listenAndRepeatRatingEnabled: false),
           speechPracticeBackendProvider.overrideWithValue(backend),
@@ -237,7 +239,7 @@ void main() {
           offlineAsrSettingsProvider.overrideWith(
             () => _FakeOfflineAsrSettingsNotifier(),
           ),
-        ],
+        ]),
       );
       final controller = container.read(
         speechRecordingControllerProvider.notifier,
@@ -385,7 +387,7 @@ void main() {
       await tester.runAsync(() async {
         backend = _FakeSpeechPracticeBackend(autoEmitFinal: false);
         container = ProviderContainer(
-          overrides: [
+          overrides: dedupeOverrides([
             analyticsOverride(),
             ...learningSettingsOverrides(listenAndRepeatRatingEnabled: false),
             speechPracticeBackendProvider.overrideWithValue(backend!),
@@ -393,7 +395,7 @@ void main() {
             offlineAsrSettingsProvider.overrideWith(
               () => _FakeOfflineAsrSettingsNotifier(),
             ),
-          ],
+          ]),
         );
         controller = container!.read(
           speechRecordingControllerProvider.notifier,
@@ -435,7 +437,7 @@ void main() {
       await tester.runAsync(() async {
         backend = _FakeSpeechPracticeBackend(autoEmitFinal: false);
         container = ProviderContainer(
-          overrides: [
+          overrides: dedupeOverrides([
             analyticsOverride(),
             ...learningSettingsOverrides(),
             speechPracticeBackendProvider.overrideWithValue(backend!),
@@ -443,7 +445,7 @@ void main() {
             offlineAsrSettingsProvider.overrideWith(
               () => _FakeOfflineAsrSettingsNotifier(),
             ),
-          ],
+          ]),
         );
 
         controller = container!.read(
@@ -478,7 +480,7 @@ void main() {
       await tester.runAsync(() async {
         backend = _FakeSpeechPracticeBackend(autoEmitFinal: false);
         container = ProviderContainer(
-          overrides: [
+          overrides: dedupeOverrides([
             analyticsOverride(),
             ...learningSettingsOverrides(),
             speechPracticeBackendProvider.overrideWithValue(backend!),
@@ -486,7 +488,7 @@ void main() {
             offlineAsrSettingsProvider.overrideWith(
               () => _FakeOfflineAsrSettingsNotifier(),
             ),
-          ],
+          ]),
         );
 
         controller = container!.read(
@@ -535,7 +537,7 @@ void main() {
       await tester.runAsync(() async {
         backend = _FakeSpeechPracticeBackend(autoEmitFinal: false);
         container = ProviderContainer(
-          overrides: [
+          overrides: dedupeOverrides([
             analyticsOverride(),
             ...learningSettingsOverrides(),
             speechPracticeBackendProvider.overrideWithValue(backend!),
@@ -543,7 +545,7 @@ void main() {
             offlineAsrSettingsProvider.overrideWith(
               () => _FakeOfflineAsrSettingsNotifier(),
             ),
-          ],
+          ]),
         );
 
         controller = container!.read(
@@ -590,7 +592,7 @@ void main() {
       await tester.runAsync(() async {
         backend = _FakeSpeechPracticeBackend(autoEmitFinal: false);
         container = ProviderContainer(
-          overrides: [
+          overrides: dedupeOverrides([
             analyticsOverride(),
             ...learningSettingsOverrides(),
             speechPracticeBackendProvider.overrideWithValue(backend!),
@@ -598,7 +600,7 @@ void main() {
             offlineAsrSettingsProvider.overrideWith(
               () => _FakeOfflineAsrSettingsNotifier(),
             ),
-          ],
+          ]),
         );
 
         controller = container!.read(
@@ -645,7 +647,7 @@ void main() {
       await tester.runAsync(() async {
         backend = _FakeSpeechPracticeBackend(autoEmitFinal: false);
         container = ProviderContainer(
-          overrides: [
+          overrides: dedupeOverrides([
             analyticsOverride(),
             ...learningSettingsOverrides(),
             speechPracticeBackendProvider.overrideWithValue(backend!),
@@ -653,7 +655,7 @@ void main() {
             offlineAsrSettingsProvider.overrideWith(
               () => _FakeOfflineAsrSettingsNotifier(),
             ),
-          ],
+          ]),
         );
 
         controller = container!.read(
@@ -701,7 +703,7 @@ void main() {
       await tester.runAsync(() async {
         backend = _FakeSpeechPracticeBackend(autoEmitFinal: false);
         container = ProviderContainer(
-          overrides: [
+          overrides: dedupeOverrides([
             analyticsOverride(),
             ...learningSettingsOverrides(),
             speechPracticeBackendProvider.overrideWithValue(backend!),
@@ -709,7 +711,7 @@ void main() {
             offlineAsrSettingsProvider.overrideWith(
               () => _FakeOfflineAsrSettingsNotifier(),
             ),
-          ],
+          ]),
         );
 
         controller = container!.read(
@@ -760,7 +762,7 @@ void main() {
     test('60s 未开口 → 取消录音回到 idle', () async {
       final backend = _FakeSpeechPracticeBackend(autoEmitFinal: false);
       final container = ProviderContainer(
-        overrides: [
+        overrides: dedupeOverrides([
           analyticsOverride(),
           ...learningSettingsOverrides(),
           speechPracticeBackendProvider.overrideWithValue(backend),
@@ -768,7 +770,7 @@ void main() {
           offlineAsrSettingsProvider.overrideWith(
             () => _FakeOfflineAsrSettingsNotifier(),
           ),
-        ],
+        ]),
       );
       addTearDown(() async {
         await backend.dispose();
@@ -802,7 +804,7 @@ void main() {
     test('ASR 有转录但 VAD 未触发时，仍应从 awaitingSpeech 转为 speaking', () async {
       final backend = _FakeSpeechPracticeBackend(autoEmitFinal: false);
       final container = ProviderContainer(
-        overrides: [
+        overrides: dedupeOverrides([
           analyticsOverride(),
           ...learningSettingsOverrides(),
           speechPracticeBackendProvider.overrideWithValue(backend),
@@ -810,7 +812,7 @@ void main() {
           offlineAsrSettingsProvider.overrideWith(
             () => _FakeOfflineAsrSettingsNotifier(),
           ),
-        ],
+        ]),
       );
       addTearDown(() async {
         await backend.dispose();
@@ -843,7 +845,7 @@ void main() {
     test('录音超过最大时长后自动停止并进入 processing', () async {
       final backend = _FakeSpeechPracticeBackend(autoEmitFinal: false);
       final container = ProviderContainer(
-        overrides: [
+        overrides: dedupeOverrides([
           analyticsOverride(),
           ...learningSettingsOverrides(),
           speechPracticeBackendProvider.overrideWithValue(backend),
@@ -851,7 +853,7 @@ void main() {
           offlineAsrSettingsProvider.overrideWith(
             () => _FakeOfflineAsrSettingsNotifier(),
           ),
-        ],
+        ]),
       );
       addTearDown(() async {
         await backend.dispose();
@@ -885,7 +887,7 @@ void main() {
     test('手动模式不启动等待计时器和自动停止', () async {
       final backend = _FakeSpeechPracticeBackend(autoEmitFinal: false);
       final container = ProviderContainer(
-        overrides: [
+        overrides: dedupeOverrides([
           analyticsOverride(),
           ...learningSettingsOverrides(),
           speechPracticeBackendProvider.overrideWithValue(backend),
@@ -893,7 +895,7 @@ void main() {
           offlineAsrSettingsProvider.overrideWith(
             () => _FakeOfflineAsrSettingsNotifier(),
           ),
-        ],
+        ]),
       );
       addTearDown(() async {
         await backend.dispose();
@@ -929,7 +931,7 @@ void main() {
     test('isRecordingPrompt 在 awaitingSpeech 和 speaking 阶段返回 true', () async {
       final backend = _FakeSpeechPracticeBackend(autoEmitFinal: false);
       final container = ProviderContainer(
-        overrides: [
+        overrides: dedupeOverrides([
           analyticsOverride(),
           ...learningSettingsOverrides(),
           speechPracticeBackendProvider.overrideWithValue(backend),
@@ -937,7 +939,7 @@ void main() {
           offlineAsrSettingsProvider.overrideWith(
             () => _FakeOfflineAsrSettingsNotifier(),
           ),
-        ],
+        ]),
       );
       addTearDown(() async {
         await backend.dispose();

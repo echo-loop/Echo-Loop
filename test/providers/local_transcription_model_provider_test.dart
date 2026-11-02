@@ -7,6 +7,7 @@ import 'package:echo_loop/providers/local_transcription_model_provider.dart';
 import 'package:echo_loop/providers/offline_asr_settings_provider.dart';
 import 'package:echo_loop/services/asr/asr_model_manager.dart';
 import 'package:echo_loop/services/asr/offline_asr_engine.dart';
+import '../helpers/mock_providers.dart';
 
 /// 构建带 override 的容器。
 Future<ProviderContainer> buildContainer({
@@ -17,10 +18,10 @@ Future<ProviderContainer> buildContainer({
   final sp = await SharedPreferences.getInstance();
   final rec = recommended ?? availableModels.first; // tiny
   return ProviderContainer(
-    overrides: [
+    overrides: dedupeOverrides([
       sharedPreferencesProvider.overrideWithValue(sp),
       recommendedAsrModelProvider.overrideWithValue(rec),
-    ],
+    ]),
   );
 }
 
@@ -63,10 +64,10 @@ void main() {
       SharedPreferences.setMockInitialValues({});
       final sp = await SharedPreferences.getInstance();
       final container = ProviderContainer(
-        overrides: [
+        overrides: dedupeOverrides([
           sharedPreferencesProvider.overrideWithValue(sp),
           recommendedAsrModelProvider.overrideWithValue(availableModels[0]),
-        ],
+        ]),
       );
       addTearDown(container.dispose);
 

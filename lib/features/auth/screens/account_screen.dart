@@ -152,7 +152,7 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final sessionState = ref.watch(supabaseSessionProvider);
-    final session = sessionState.valueOrNull;
+    final session = sessionState.value;
 
     if (session == null) {
       if (sessionState.hasValue) {

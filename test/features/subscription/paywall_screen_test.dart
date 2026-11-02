@@ -305,7 +305,7 @@ Widget _harness({
 }) {
   final remoteService = remoteConfigService ?? _SpyRemoteConfigService();
   return ProviderScope(
-    overrides: [
+    overrides: dedupeOverrides([
       analyticsOverride(),
       remoteConfigServiceProvider.overrideWithValue(remoteService),
       subscriptionAvailabilityProvider.overrideWithValue(available),
@@ -329,7 +329,7 @@ Widget _harness({
         isAuthenticatedProvider.overrideWithValue(authenticated),
       if (identity != null)
         subscriptionIdentityProvider.overrideWithValue(identity),
-    ],
+    ]),
     child: MaterialApp(
       themeMode: themeMode,
       theme: AppTheme.light(),

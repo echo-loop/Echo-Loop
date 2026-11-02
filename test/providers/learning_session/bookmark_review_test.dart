@@ -24,6 +24,7 @@ import 'package:drift/native.dart';
 import 'package:drift/drift.dart' hide isNotNull, isNull;
 
 import '../../helpers/mock_providers.dart';
+import 'package:echo_loop/database/app_database.dart' show configureAppDatabaseConnection;
 
 class _TestBookmarkDao implements BookmarkDao {
   _TestBookmarkDao({this.fail = false});
@@ -177,7 +178,7 @@ ProviderContainer _container(
   bool autoPlayFront = false,
   bool autoPlayBack = false,
 }) => ProviderContainer(
-  overrides: [
+  overrides: dedupeOverrides([
     appDatabaseProvider.overrideWithValue(database),
     bookmarkDaoProvider.overrideWithValue(dao),
     audioEngineProvider.overrideWith(TestAudioEngine.new),
@@ -192,7 +193,7 @@ ProviderContainer _container(
       ),
     ),
     analyticsOverride(),
-  ],
+  ]),
 );
 
 Future<void> _disposeBookmarkContainer(ProviderContainer container) async {
@@ -210,7 +211,7 @@ _testScope(
   bool autoPlayFront = false,
   bool autoPlayBack = false,
 }) {
-  final database = db.AppDatabase(NativeDatabase.memory());
+  final database = db.AppDatabase(NativeDatabase.memory(setup: configureAppDatabaseConnection));
   final player = _FakeShortAudioPlayer();
   return (
     container: _container(

@@ -103,23 +103,21 @@ void main() {
           },
         ),
       ),
-      overrides: [
+      overrides: dedupeOverrides([
         // ChatSessionController 收尾时会上报结果，测试须注入无副作用服务。
         analyticsServiceProvider.overrideWithValue(
           createTestAnalyticsServiceSync(),
         ),
         chatApiClientProvider.overrideWithValue(_SlowApi()),
         isAuthenticatedProvider.overrideWithValue(true),
-        supabaseSessionProvider.overrideWith(
-          (ref) => Stream<Session?>.value(_session()),
-        ),
+        supabaseSessionProvider.overrideWithValue(AsyncData<Session?>(_session())),
         freeAllowancePolicyProvider.overrideWithValue(
           const AlwaysAllowPolicy(),
         ),
         subscriptionControllerProvider.overrideWith(() => _FreeSub()),
         aiTrialUsageProvider.overrideWith(() => _Trial()),
         appSettingsProvider.overrideWith(() => TestAppSettings()),
-      ],
+      ]),
     );
     await tester.pump();
 

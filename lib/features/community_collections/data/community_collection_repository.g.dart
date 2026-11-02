@@ -6,25 +6,56 @@ part of 'community_collection_repository.dart';
 // RiverpodGenerator
 // **************************************************************************
 
-String _$communityCollectionRepositoryHash() =>
-    r'30e7c00a38a9f6583acc7bc935fc10f3973029cc';
+// GENERATED CODE - DO NOT MODIFY BY HAND
+// ignore_for_file: type=lint, type=warning
 
-/// See also [communityCollectionRepository].
 @ProviderFor(communityCollectionRepository)
 final communityCollectionRepositoryProvider =
-    Provider<CommunityCollectionRepository>.internal(
-      communityCollectionRepository,
-      name: r'communityCollectionRepositoryProvider',
-      debugGetCreateSourceHash: const bool.fromEnvironment('dart.vm.product')
-          ? null
-          : _$communityCollectionRepositoryHash,
-      dependencies: null,
-      allTransitiveDependencies: null,
-    );
+    CommunityCollectionRepositoryProvider._();
 
-@Deprecated('Will be removed in 3.0. Use Ref instead')
-// ignore: unused_element
-typedef CommunityCollectionRepositoryRef =
-    ProviderRef<CommunityCollectionRepository>;
-// ignore_for_file: type=lint
-// ignore_for_file: subtype_of_sealed_class, invalid_use_of_internal_member, invalid_use_of_visible_for_testing_member, deprecated_member_use_from_same_package
+final class CommunityCollectionRepositoryProvider
+    extends
+        $FunctionalProvider<
+          CommunityCollectionRepository,
+          CommunityCollectionRepository,
+          CommunityCollectionRepository
+        >
+    with $Provider<CommunityCollectionRepository> {
+  CommunityCollectionRepositoryProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'communityCollectionRepositoryProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$communityCollectionRepositoryHash();
+
+  @$internal
+  @override
+  $ProviderElement<CommunityCollectionRepository> $createElement(
+    $ProviderPointer pointer,
+  ) => $ProviderElement(pointer);
+
+  @override
+  CommunityCollectionRepository create(Ref ref) {
+    return communityCollectionRepository(ref);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(CommunityCollectionRepository value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<CommunityCollectionRepository>(
+        value,
+      ),
+    );
+  }
+}
+
+String _$communityCollectionRepositoryHash() =>
+    r'30e7c00a38a9f6583acc7bc935fc10f3973029cc';

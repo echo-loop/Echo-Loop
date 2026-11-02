@@ -815,7 +815,7 @@ class BlindListenPlayer extends _$BlindListenPlayer {
 
     unawaited(
       ref
-          .read(learningProgressNotifierProvider.notifier)
+          .read(learningProgressProvider.notifier)
           .saveBlindListenSentenceIndex(
             audioItemId,
             globalIdx,
@@ -1107,6 +1107,7 @@ class BlindListenPlayer extends _$BlindListenPlayer {
     _playback.setProgressFrozen(true);
 
     _countdown.start(duration).then((_) {
+      if (!ref.mounted) return;
       if (state.isPauseCountdown && runId == _countdownRunId) {
         _onPauseCountdownFinished();
       }

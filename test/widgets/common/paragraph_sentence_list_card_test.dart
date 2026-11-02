@@ -19,6 +19,7 @@ import 'package:echo_loop/widgets/common/masked_sentence_tile.dart';
 import 'package:echo_loop/widgets/common/paragraph_sentence_list_card.dart';
 
 import '../../helpers/shared/test_fixtures.dart';
+import '../../helpers/mock_providers.dart';
 
 void main() {
   group('ParagraphSentenceListCard 自动跟随', () {
@@ -37,11 +38,11 @@ void main() {
       // MaskedSentenceTile 监听收藏索引 provider，需要 ProviderScope；
       // 收藏标记与滚动行为无关，固定为空索引。
       return ProviderScope(
-        overrides: [
+        overrides: dedupeOverrides([
           savedTextIndexProvider.overrideWithValue(
             const SavedTextIndex.empty(),
           ),
-        ],
+        ]),
         child: MaterialApp(
           home: Scaffold(
             body: Center(

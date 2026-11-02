@@ -3,6 +3,7 @@ import 'dart:ui' show PlatformDispatcher;
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../features/user_preferences/domain/user_preferences_sync_events.dart';
 
@@ -276,7 +277,8 @@ class AppSettings extends _$AppSettings {
     final wordHighlightEnabled =
         prefs.getBool(_wordHighlightEnabledKey) ?? true;
 
-    if (generation != _settingsLoadGeneration) return;
+    // 异步间隙后 notifier 可能已销毁或被新一轮加载取代，过期则丢弃。
+    if (!ref.mounted || generation != _settingsLoadGeneration) return;
     state = state.copyWith(
       themeMode: themeMode,
       locale: locale,

@@ -47,6 +47,7 @@ import 'package:echo_loop/widgets/common/recording_button.dart';
 import 'package:echo_loop/widgets/common/masked_sentence_tile.dart';
 import 'package:echo_loop/widgets/study/study_activity_detector.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_riverpod/misc.dart';
 
 import '../helpers/mock_providers.dart';
 
@@ -304,7 +305,7 @@ void main() {
     );
 
     return ProviderScope(
-      overrides: [
+      overrides: dedupeOverrides([
         ...learningSettingsOverrides(),
         guideRegistryProvider.overrideWithValue(_SeenGuideRegistry()),
         listeningPracticeProvider.overrideWith(
@@ -319,7 +320,7 @@ void main() {
           () => TestForegroundAudioEngine(),
         ),
         mediaEngineProvider.overrideWith(MediaEngine.new),
-        learningProgressNotifierProvider.overrideWith(
+        learningProgressProvider.overrideWith(
           () => TestLearningProgressNotifier(),
         ),
         learningSessionProvider.overrideWith(() => TestLearningSession()),
@@ -344,7 +345,7 @@ void main() {
           ),
         ),
         ...extraOverrides,
-      ],
+      ]),
       child: MaterialApp.router(
         locale: locale,
         supportedLocales: const [Locale('en'), Locale('zh')],

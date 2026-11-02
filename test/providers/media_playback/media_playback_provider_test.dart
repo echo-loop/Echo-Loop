@@ -119,14 +119,14 @@ void main() {
           '1\n00:00:43,000 --> 00:00:50,000\nFirst sentence.\n';
     bookmarkDao = FakeBookmarkDao();
     playbackStateDao = _MockPlaybackStateDao();
-    database = AppDatabase(NativeDatabase.memory());
+    database = AppDatabase(NativeDatabase.memory(setup: configureAppDatabaseConnection));
     studyTimeService = _FailOnceStudyTimeService(database);
     when(
       () => playbackStateDao.getByAudioId(any()),
     ).thenAnswer((_) async => null);
     router = MediaSessionRouter(defaultHandler: BaseAudioHandler());
     container = ProviderContainer(
-      overrides: [
+      overrides: dedupeOverrides([
         appDatabaseProvider.overrideWithValue(database),
         mediaBackendFactoryProvider.overrideWithValue(() => backend),
         mediaSessionRouterProvider.overrideWithValue(router),
@@ -137,7 +137,7 @@ void main() {
         audioEngineProvider.overrideWith(
           () => _TranscriptAudioEngine(transcriptSentences),
         ),
-      ],
+      ]),
     );
   });
 

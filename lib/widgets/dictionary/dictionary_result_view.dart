@@ -59,7 +59,7 @@ class DictionaryResultView extends ConsumerWidget {
         );
       default:
         final adFilteringEnabled = ref.watch(
-          dictionarySettingsNotifierProvider.select(
+          dictionarySettingsProvider.select(
             (settings) => settings.adFilteringEnabled,
           ),
         );

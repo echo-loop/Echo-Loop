@@ -22,6 +22,7 @@ import 'package:echo_loop/screens/learning_plan_screen.dart'
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../helpers/mock_providers.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -32,12 +33,12 @@ void main() {
   );
 
   ProviderContainer makeContainer(SharedPreferences prefs) => ProviderContainer(
-    overrides: [
+    overrides: dedupeOverrides([
       sharedPreferencesProvider.overrideWithValue(prefs),
       initialIntensiveListenPrefsProvider.overrideWithValue(
         intensiveListenPrefsFromPrefsSync(prefs),
       ),
-    ],
+    ]),
   );
 
   /// 模拟一次「入口弹窗:把停顿改成固定 5 秒」的用户操作(走 onSelectionChanged)。

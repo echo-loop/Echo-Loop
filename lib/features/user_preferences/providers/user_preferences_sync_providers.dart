@@ -69,12 +69,12 @@ final userPreferencesSyncServiceProvider = Provider<UserPreferencesSyncService>(
           ),
           Future<void>.sync(
             () => ref
-                .read(dictionarySettingsNotifierProvider.notifier)
+                .read(dictionarySettingsProvider.notifier)
                 .reloadFromPrefs(),
           ),
           Future<void>.sync(
             () => ref
-                .read(reminderSettingsNotifierProvider.notifier)
+                .read(reminderSettingsProvider.notifier)
                 .reloadFromPrefs(),
           ),
           Future<void>.sync(

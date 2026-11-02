@@ -6,7 +6,6 @@
 ///   term，旧 term 的结果被丢弃，无需手写 token 校验。
 library;
 
-import 'package:flutter_riverpod/flutter_riverpod.dart' show Ref;
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import 'podcast_models.dart';

@@ -586,7 +586,7 @@ String _revenueCatEntitlementInfoSummary(EntitlementInfo info) {
 /// 测试通过 override 注入 Fake。
 final purchaseServiceProvider = Provider<PurchaseService>((ref) {
   final revenueCatReady =
-      ref.watch(thirdPartyStartupProvider).valueOrNull?.isRevenueCatReady ??
+      ref.watch(thirdPartyStartupProvider).value?.isRevenueCatReady ??
       false;
   final serviceType = purchaseServiceTypeFor(
     channel: clientPaymentChannel,

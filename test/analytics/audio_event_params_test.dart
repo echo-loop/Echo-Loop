@@ -46,11 +46,11 @@ void main() {
         createTestAudioItem(id: 'a2', name: 'Lesson Two'),
       ];
       container = ProviderContainer(
-        overrides: [
+        overrides: dedupeOverrides([
           audioLibraryProvider.overrideWith(
             () => TestAudioLibrary(AudioLibraryState(audioItems: items)),
           ),
-        ],
+        ]),
       );
     });
 

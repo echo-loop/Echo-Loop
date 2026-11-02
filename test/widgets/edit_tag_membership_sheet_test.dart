@@ -63,11 +63,11 @@ void main() {
               child: const Text('Open'),
             ),
           ),
-          overrides: [
+          overrides: dedupeOverrides([
             tagListProvider.overrideWith(
               () => TestTagList(TagState(tags: [tag1, tag2])),
             ),
-          ],
+          ]),
         ),
       );
 
@@ -173,7 +173,7 @@ void main() {
               child: const Text('Open'),
             ),
           ),
-          overrides: [
+          overrides: dedupeOverrides([
             tagListProvider.overrideWith(
               () => TestTagList(
                 TagState(
@@ -184,7 +184,7 @@ void main() {
                 ),
               ),
             ),
-          ],
+          ]),
         ),
       );
 
@@ -219,11 +219,11 @@ void main() {
               child: const Text('Open'),
             ),
           ),
-          overrides: [
+          overrides: dedupeOverrides([
             tagListProvider.overrideWith(
               () => TestTagList(TagState(tags: [tag1])),
             ),
-          ],
+          ]),
         ),
       );
 
@@ -266,11 +266,11 @@ void main() {
               child: const Text('Open'),
             ),
           ),
-          overrides: [
+          overrides: dedupeOverrides([
             tagListProvider.overrideWith(
               () => TestTagList(TagState(tags: [tag1])),
             ),
-          ],
+          ]),
         ),
       );
 

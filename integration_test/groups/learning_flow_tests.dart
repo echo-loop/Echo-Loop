@@ -166,7 +166,7 @@ void learningFlowTests() {
 
       // === 3. 验证断点进度数据正确保存 ===
       // 通过读取 Provider state 验证断点值（复用上方 container）
-      final progressState = container.read(learningProgressNotifierProvider);
+      final progressState = container.read(learningProgressProvider);
       final savedProgress = progressState.progressMap['test-audio-1'];
       expect(savedProgress, isNotNull);
       expect(savedProgress!.intensiveListenSentenceIndex, equals(2));

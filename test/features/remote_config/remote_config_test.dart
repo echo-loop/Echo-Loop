@@ -16,6 +16,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../helpers/mock_providers.dart';
 
 class _MockDio extends Mock implements Dio {}
 
@@ -808,7 +809,7 @@ void main() {
         now: () => DateTime(2026, 7, 19, 14, 2),
       );
       final container = ProviderContainer(
-        overrides: [
+        overrides: dedupeOverrides([
           initialRemoteConfigProvider.overrideWithValue(
             const RemoteConfig(
               version: 1,
@@ -820,7 +821,7 @@ void main() {
             ),
           ),
           remoteConfigServiceProvider.overrideWithValue(service),
-        ],
+        ]),
       );
       addTearDown(container.dispose);
 
@@ -865,14 +866,14 @@ void main() {
         store: RemoteConfigStore(prefs),
       );
       final container = ProviderContainer(
-        overrides: [
+        overrides: dedupeOverrides([
           initialRemoteConfigProvider.overrideWithValue(_config('US')),
           remoteConfigServiceProvider.overrideWithValue(service),
           userRegionDeviceCountryCodeProvider.overrideWithValue(() => 'US'),
           userRegionBootstrapProvider.overrideWith(
             (ref) => Completer<UserRegionBootstrapResult>().future,
           ),
-        ],
+        ]),
       );
       addTearDown(container.dispose);
 
@@ -895,7 +896,7 @@ void main() {
 
     test('transcription limits provider 暴露远程限制值', () {
       final container = ProviderContainer(
-        overrides: [
+        overrides: dedupeOverrides([
           initialRemoteConfigProvider.overrideWithValue(
             const RemoteConfig(
               version: 1,
@@ -908,7 +909,7 @@ void main() {
               ),
             ),
           ),
-        ],
+        ]),
       );
       addTearDown(container.dispose);
 
@@ -920,7 +921,7 @@ void main() {
 
     test('feature provider 暴露 AI 聊天助手开关', () {
       final container = ProviderContainer(
-        overrides: [
+        overrides: dedupeOverrides([
           initialRemoteConfigProvider.overrideWithValue(
             const RemoteConfig(
               version: 1,
@@ -931,7 +932,7 @@ void main() {
               ),
             ),
           ),
-        ],
+        ]),
       );
       addTearDown(container.dispose);
 
@@ -945,7 +946,7 @@ void main() {
 
     test('feature provider 暴露评分提醒开关', () {
       final container = ProviderContainer(
-        overrides: [
+        overrides: dedupeOverrides([
           initialRemoteConfigProvider.overrideWithValue(
             const RemoteConfig(
               version: 1,
@@ -956,7 +957,7 @@ void main() {
               ),
             ),
           ),
-        ],
+        ]),
       );
       addTearDown(container.dispose);
 

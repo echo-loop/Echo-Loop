@@ -6,194 +6,110 @@ part of 'monthly_study_records_provider.dart';
 // RiverpodGenerator
 // **************************************************************************
 
-String _$monthlyStudyRecordsHash() =>
-    r'a631f8f24ccbf00184ba59c4c3afe568be617279';
-
-/// Copied from Dart SDK
-class _SystemHash {
-  _SystemHash._();
-
-  static int combine(int hash, int value) {
-    // ignore: parameter_assignments
-    hash = 0x1fffffff & (hash + value);
-    // ignore: parameter_assignments
-    hash = 0x1fffffff & (hash + ((0x0007ffff & hash) << 10));
-    return hash ^ (hash >> 6);
-  }
-
-  static int finish(int hash) {
-    // ignore: parameter_assignments
-    hash = 0x1fffffff & (hash + ((0x03ffffff & hash) << 3));
-    // ignore: parameter_assignments
-    hash = hash ^ (hash >> 11);
-    return 0x1fffffff & (hash + ((0x00003fff & hash) << 15));
-  }
-}
-
+// GENERATED CODE - DO NOT MODIFY BY HAND
+// ignore_for_file: type=lint, type=warning
 /// 查询指定月份的每日学习记录
 ///
 /// 返回 `Map<int, MonthDayRecord>`，key 为日期（1~31），
 /// 无记录的日期不在 map 中。
-///
-/// Copied from [monthlyStudyRecords].
+
 @ProviderFor(monthlyStudyRecords)
-const monthlyStudyRecordsProvider = MonthlyStudyRecordsFamily();
+final monthlyStudyRecordsProvider = MonthlyStudyRecordsFamily._();
 
 /// 查询指定月份的每日学习记录
 ///
 /// 返回 `Map<int, MonthDayRecord>`，key 为日期（1~31），
 /// 无记录的日期不在 map 中。
-///
-/// Copied from [monthlyStudyRecords].
-class MonthlyStudyRecordsFamily
-    extends Family<AsyncValue<Map<int, MonthDayRecord>>> {
+
+final class MonthlyStudyRecordsProvider
+    extends
+        $FunctionalProvider<
+          AsyncValue<Map<int, MonthDayRecord>>,
+          Map<int, MonthDayRecord>,
+          FutureOr<Map<int, MonthDayRecord>>
+        >
+    with
+        $FutureModifier<Map<int, MonthDayRecord>>,
+        $FutureProvider<Map<int, MonthDayRecord>> {
   /// 查询指定月份的每日学习记录
   ///
   /// 返回 `Map<int, MonthDayRecord>`，key 为日期（1~31），
   /// 无记录的日期不在 map 中。
-  ///
-  /// Copied from [monthlyStudyRecords].
-  const MonthlyStudyRecordsFamily();
+  MonthlyStudyRecordsProvider._({
+    required MonthlyStudyRecordsFamily super.from,
+    required (int, int) super.argument,
+  }) : super(
+         retry: null,
+         name: r'monthlyStudyRecordsProvider',
+         isAutoDispose: true,
+         dependencies: null,
+         $allTransitiveDependencies: null,
+       );
 
-  /// 查询指定月份的每日学习记录
-  ///
-  /// 返回 `Map<int, MonthDayRecord>`，key 为日期（1~31），
-  /// 无记录的日期不在 map 中。
-  ///
-  /// Copied from [monthlyStudyRecords].
-  MonthlyStudyRecordsProvider call(int year, int month) {
-    return MonthlyStudyRecordsProvider(year, month);
+  @override
+  String debugGetCreateSourceHash() => _$monthlyStudyRecordsHash();
+
+  @override
+  String toString() {
+    return r'monthlyStudyRecordsProvider'
+        ''
+        '$argument';
   }
 
+  @$internal
   @override
-  MonthlyStudyRecordsProvider getProviderOverride(
-    covariant MonthlyStudyRecordsProvider provider,
-  ) {
-    return call(provider.year, provider.month);
-  }
-
-  static const Iterable<ProviderOrFamily>? _dependencies = null;
+  $FutureProviderElement<Map<int, MonthDayRecord>> $createElement(
+    $ProviderPointer pointer,
+  ) => $FutureProviderElement(pointer);
 
   @override
-  Iterable<ProviderOrFamily>? get dependencies => _dependencies;
-
-  static const Iterable<ProviderOrFamily>? _allTransitiveDependencies = null;
-
-  @override
-  Iterable<ProviderOrFamily>? get allTransitiveDependencies =>
-      _allTransitiveDependencies;
-
-  @override
-  String? get name => r'monthlyStudyRecordsProvider';
-}
-
-/// 查询指定月份的每日学习记录
-///
-/// 返回 `Map<int, MonthDayRecord>`，key 为日期（1~31），
-/// 无记录的日期不在 map 中。
-///
-/// Copied from [monthlyStudyRecords].
-class MonthlyStudyRecordsProvider
-    extends AutoDisposeFutureProvider<Map<int, MonthDayRecord>> {
-  /// 查询指定月份的每日学习记录
-  ///
-  /// 返回 `Map<int, MonthDayRecord>`，key 为日期（1~31），
-  /// 无记录的日期不在 map 中。
-  ///
-  /// Copied from [monthlyStudyRecords].
-  MonthlyStudyRecordsProvider(int year, int month)
-    : this._internal(
-        (ref) =>
-            monthlyStudyRecords(ref as MonthlyStudyRecordsRef, year, month),
-        from: monthlyStudyRecordsProvider,
-        name: r'monthlyStudyRecordsProvider',
-        debugGetCreateSourceHash: const bool.fromEnvironment('dart.vm.product')
-            ? null
-            : _$monthlyStudyRecordsHash,
-        dependencies: MonthlyStudyRecordsFamily._dependencies,
-        allTransitiveDependencies:
-            MonthlyStudyRecordsFamily._allTransitiveDependencies,
-        year: year,
-        month: month,
-      );
-
-  MonthlyStudyRecordsProvider._internal(
-    super._createNotifier, {
-    required super.name,
-    required super.dependencies,
-    required super.allTransitiveDependencies,
-    required super.debugGetCreateSourceHash,
-    required super.from,
-    required this.year,
-    required this.month,
-  }) : super.internal();
-
-  final int year;
-  final int month;
-
-  @override
-  Override overrideWith(
-    FutureOr<Map<int, MonthDayRecord>> Function(MonthlyStudyRecordsRef provider)
-    create,
-  ) {
-    return ProviderOverride(
-      origin: this,
-      override: MonthlyStudyRecordsProvider._internal(
-        (ref) => create(ref as MonthlyStudyRecordsRef),
-        from: from,
-        name: null,
-        dependencies: null,
-        allTransitiveDependencies: null,
-        debugGetCreateSourceHash: null,
-        year: year,
-        month: month,
-      ),
-    );
-  }
-
-  @override
-  AutoDisposeFutureProviderElement<Map<int, MonthDayRecord>> createElement() {
-    return _MonthlyStudyRecordsProviderElement(this);
+  FutureOr<Map<int, MonthDayRecord>> create(Ref ref) {
+    final argument = this.argument as (int, int);
+    return monthlyStudyRecords(ref, argument.$1, argument.$2);
   }
 
   @override
   bool operator ==(Object other) {
-    return other is MonthlyStudyRecordsProvider &&
-        other.year == year &&
-        other.month == month;
+    return other is MonthlyStudyRecordsProvider && other.argument == argument;
   }
 
   @override
   int get hashCode {
-    var hash = _SystemHash.combine(0, runtimeType.hashCode);
-    hash = _SystemHash.combine(hash, year.hashCode);
-    hash = _SystemHash.combine(hash, month.hashCode);
-
-    return _SystemHash.finish(hash);
+    return argument.hashCode;
   }
 }
 
-@Deprecated('Will be removed in 3.0. Use Ref instead')
-// ignore: unused_element
-mixin MonthlyStudyRecordsRef
-    on AutoDisposeFutureProviderRef<Map<int, MonthDayRecord>> {
-  /// The parameter `year` of this provider.
-  int get year;
+String _$monthlyStudyRecordsHash() =>
+    r'3b05a4e497835f71794d7ac4580ab82aee563e26';
 
-  /// The parameter `month` of this provider.
-  int get month;
-}
+/// 查询指定月份的每日学习记录
+///
+/// 返回 `Map<int, MonthDayRecord>`，key 为日期（1~31），
+/// 无记录的日期不在 map 中。
 
-class _MonthlyStudyRecordsProviderElement
-    extends AutoDisposeFutureProviderElement<Map<int, MonthDayRecord>>
-    with MonthlyStudyRecordsRef {
-  _MonthlyStudyRecordsProviderElement(super.provider);
+final class MonthlyStudyRecordsFamily extends $Family
+    with
+        $FunctionalFamilyOverride<
+          FutureOr<Map<int, MonthDayRecord>>,
+          (int, int)
+        > {
+  MonthlyStudyRecordsFamily._()
+    : super(
+        retry: null,
+        name: r'monthlyStudyRecordsProvider',
+        dependencies: null,
+        $allTransitiveDependencies: null,
+        isAutoDispose: true,
+      );
+
+  /// 查询指定月份的每日学习记录
+  ///
+  /// 返回 `Map<int, MonthDayRecord>`，key 为日期（1~31），
+  /// 无记录的日期不在 map 中。
+
+  MonthlyStudyRecordsProvider call(int year, int month) =>
+      MonthlyStudyRecordsProvider._(argument: (year, month), from: this);
 
   @override
-  int get year => (origin as MonthlyStudyRecordsProvider).year;
-  @override
-  int get month => (origin as MonthlyStudyRecordsProvider).month;
+  String toString() => r'monthlyStudyRecordsProvider';
 }
-
-// ignore_for_file: type=lint
-// ignore_for_file: subtype_of_sealed_class, invalid_use_of_internal_member, invalid_use_of_visible_for_testing_member, deprecated_member_use_from_same_package

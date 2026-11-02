@@ -112,7 +112,7 @@ class DictionaryLookupState {
 DictionaryLookupContext dictionaryLookupContext(Ref ref) {
   final accessToken = ref
       .watch(supabaseSessionProvider)
-      .valueOrNull
+      .value
       ?.accessToken;
   final targetLanguage = ref.watch(
     appSettingsProvider.select((s) => s.nativeLanguage),
@@ -142,10 +142,16 @@ class DictionarySessionSource extends _$DictionarySessionSource {
   String? build() => null;
 
   /// 记录用户手动选中的源（面板切源入口调用）
-  void remember(String id) => state = id;
+  void remember(String id) {
+    if (!ref.mounted) return;
+    state = id;
+  }
 
   /// 会话结束（面板关闭）时清除，下次打开恢复默认源
-  void clear() => state = null;
+  void clear() {
+    if (!ref.mounted) return;
+    state = null;
+  }
 }
 
 /// 查词会话 controller（family by word，autoDispose）
@@ -175,8 +181,8 @@ class DictionaryLookupController extends _$DictionaryLookupController {
     // 登录前停在 AI 登录引导的当前查询，在认证态转为有效后自动续跑。
     // 只恢复仍被用户选中的 AI 源，避免用户已切词/切源后后台发起旧请求。
     ref.listen(supabaseSessionProvider, (previous, next) {
-      final session = next.valueOrNull;
-      final wasAnonymous = previous?.valueOrNull == null;
+      final session = next.value;
+      final wasAnonymous = previous?.value == null;
       if (session == null || !wasAnonymous) return;
       if (state.selectedSourceId != AiDictionarySource.sourceId ||
           state.current is! LookupAuthRequired) {

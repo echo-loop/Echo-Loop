@@ -7,6 +7,7 @@ import 'package:echo_loop/providers/tts/tts_controller_provider.dart';
 import 'package:echo_loop/services/pronunciation/local_audio_clip_player.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import '../../helpers/mock_providers.dart';
 
 class _FakeBackend implements AudioClipPlayerBackend {
   _FakeBackend({this.completeOnOpen = true, this.failOnOpen = false});
@@ -95,13 +96,13 @@ ProviderContainer _container({
 }) {
   final player = LocalAudioClipPlayer(backend: backend);
   return ProviderContainer(
-    overrides: [
+    overrides: dedupeOverrides([
       pronunciationClipsProvider.overrideWith(
         (ref, word) => RegExp(r'\s').hasMatch(word) ? const [] : clips,
       ),
       shortAudioPlayerProvider.overrideWithValue(player),
       ttsControllerProvider.overrideWith(() => tts),
-    ],
+    ]),
   );
 }
 

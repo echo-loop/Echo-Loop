@@ -246,7 +246,7 @@ class _ReviewDifficultPracticeScreenState
     final session = ref.read(learningSessionProvider);
     final player = ref.read(reviewDifficultPracticeProvider.notifier);
     await ref
-        .read(learningProgressNotifierProvider.notifier)
+        .read(learningProgressProvider.notifier)
         .saveDifficultPracticeSentenceIndex(
           widget.audioItemId,
           player.currentIndex,
@@ -304,7 +304,7 @@ class _ReviewDifficultPracticeScreenState
     final l10n = AppLocalizations.of(context)!;
     final plan = ref.read(learningPlanForAudioProvider(widget.audioItemId));
     final progress = ref
-        .read(learningProgressNotifierProvider)
+        .read(learningProgressProvider)
         .progressMap[widget.audioItemId];
 
     if (progress == null) {
@@ -357,7 +357,7 @@ class _ReviewDifficultPracticeScreenState
 
       // 弹窗前清除断点
       await ref
-          .read(learningProgressNotifierProvider.notifier)
+          .read(learningProgressProvider.notifier)
           .saveDifficultPracticeSentenceIndex(
             widget.audioItemId,
             null,
@@ -430,14 +430,14 @@ class _ReviewDifficultPracticeScreenState
     // 用户确认后：清除断点 + 标记完成
     try {
       await ref
-          .read(learningProgressNotifierProvider.notifier)
+          .read(learningProgressProvider.notifier)
           .saveDifficultPracticeSentenceIndex(
             widget.audioItemId,
             null,
             isFreePlay: false,
           );
       await ref
-          .read(learningProgressNotifierProvider.notifier)
+          .read(learningProgressProvider.notifier)
           .completeCurrentSubStage(widget.audioItemId);
     } catch (e) {
       debugPrint('难句补练完成处理出错: $e');
@@ -462,7 +462,7 @@ class _ReviewDifficultPracticeScreenState
   Future<void> _navigateBackToPlanAndAutoStart() async {
     if (!mounted) return;
     final nextSubStage = ref
-        .read(learningProgressNotifierProvider)
+        .read(learningProgressProvider)
         .progressMap[widget.audioItemId]
         ?.currentSubStage;
     final canAutoStart = nextSubStage == null

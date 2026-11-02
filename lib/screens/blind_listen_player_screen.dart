@@ -321,7 +321,7 @@ class _BlindListenPlayerScreenState
             .read(learningSessionProvider.notifier)
             .recordCatchUpCompletionIfAny(widget.audioItemId);
         await ref
-            .read(learningProgressNotifierProvider.notifier)
+            .read(learningProgressProvider.notifier)
             .saveBlindListenSentenceIndex(
               widget.audioItemId,
               null,
@@ -359,14 +359,14 @@ class _BlindListenPlayerScreenState
     // 用户确认后：标记完成（难度已在逐句精听完成时自动判定，盲听不再设难度）
     try {
       await ref
-          .read(learningProgressNotifierProvider.notifier)
+          .read(learningProgressProvider.notifier)
           .saveBlindListenSentenceIndex(
             widget.audioItemId,
             null,
             isFreePlay: false,
           );
       await ref
-          .read(learningProgressNotifierProvider.notifier)
+          .read(learningProgressProvider.notifier)
           .completeCurrentSubStage(widget.audioItemId);
     } catch (e) {
       debugPrint('盲听完成处理出错: $e');
@@ -397,7 +397,7 @@ class _BlindListenPlayerScreenState
     final l10n = AppLocalizations.of(context)!;
     final plan = ref.read(learningPlanForAudioProvider(widget.audioItemId));
     final progress = ref
-        .read(learningProgressNotifierProvider)
+        .read(learningProgressProvider)
         .progressMap[widget.audioItemId];
 
     final stage = progress?.currentStage ?? LearningStage.firstLearn;
@@ -427,7 +427,7 @@ class _BlindListenPlayerScreenState
   Future<void> _navigateBackToPlanAndAutoStart() async {
     if (!mounted) return;
     final nextSubStage = ref
-        .read(learningProgressNotifierProvider)
+        .read(learningProgressProvider)
         .progressMap[widget.audioItemId]
         ?.currentSubStage;
     final canAutoStart = nextSubStage == null
@@ -507,7 +507,7 @@ class _BlindListenPlayerScreenState
           .currentSentenceGlobalIndex;
       if (globalIdx != null) {
         await ref
-            .read(learningProgressNotifierProvider.notifier)
+            .read(learningProgressProvider.notifier)
             .saveBlindListenSentenceIndex(
               widget.audioItemId,
               globalIdx,

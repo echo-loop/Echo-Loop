@@ -57,7 +57,7 @@ void main() {
       );
       final probedPaths = <String>[];
       final container = ProviderContainer(
-        overrides: [
+        overrides: dedupeOverrides([
           audioLibraryProvider.overrideWith(
             () => library = _BackfillTestAudioLibrary(
               AudioLibraryState(audioItems: [missing, existing]),
@@ -69,7 +69,7 @@ void main() {
               return 83;
             },
           ),
-        ],
+        ]),
       );
       addTearDown(container.dispose);
 
@@ -96,7 +96,7 @@ void main() {
         totalDuration: 0,
       );
       final container = ProviderContainer(
-        overrides: [
+        overrides: dedupeOverrides([
           audioLibraryProvider.overrideWith(
             () => library = _BackfillTestAudioLibrary(
               AudioLibraryState(audioItems: [missing]),
@@ -108,7 +108,7 @@ void main() {
               return probeResult.future;
             },
           ),
-        ],
+        ]),
       );
       addTearDown(container.dispose);
 
@@ -156,11 +156,11 @@ void main() {
         item('a1', 'Audio 1', jan1),
       ];
       container = ProviderContainer(
-        overrides: [
+        overrides: dedupeOverrides([
           audioLibraryProvider.overrideWith(
             () => TestAudioLibrary(AudioLibraryState(audioItems: initialItems)),
           ),
-        ],
+        ]),
       );
     });
 
@@ -221,7 +221,7 @@ void main() {
       appDataDirectoryOverride = tempDir;
       final db = createTestDatabase();
       container = ProviderContainer(
-        overrides: [
+        overrides: dedupeOverrides([
           appDatabaseProvider.overrideWithValue(db),
           analyticsOverride(),
           usageOverride(),
@@ -229,10 +229,10 @@ void main() {
             () => TestCollectionList(const CollectionState()),
           ),
           tagListProvider.overrideWith(() => TestTagList(const TagState())),
-          learningProgressNotifierProvider.overrideWith(
+          learningProgressProvider.overrideWith(
             () => TestLearningProgressNotifier(const LearningProgressState()),
           ),
-        ],
+        ]),
       );
       addTearDown(() async {
         container.dispose();
@@ -311,7 +311,7 @@ void main() {
       appDataDirectoryOverride = tempDir;
       final db = createTestDatabase();
       container = ProviderContainer(
-        overrides: [
+        overrides: dedupeOverrides([
           appDatabaseProvider.overrideWithValue(db),
           analyticsOverride(),
           usageOverride(),
@@ -319,10 +319,10 @@ void main() {
             () => TestCollectionList(const CollectionState()),
           ),
           tagListProvider.overrideWith(() => TestTagList(const TagState())),
-          learningProgressNotifierProvider.overrideWith(
+          learningProgressProvider.overrideWith(
             () => TestLearningProgressNotifier(const LearningProgressState()),
           ),
-        ],
+        ]),
       );
       addTearDown(() async {
         container.dispose();
@@ -491,7 +491,7 @@ void main() {
       appDataDirectoryOverride = tempDir;
       final db = createTestDatabase();
       container = ProviderContainer(
-        overrides: [
+        overrides: dedupeOverrides([
           appDatabaseProvider.overrideWithValue(db),
           analyticsOverride(),
           usageOverride(),
@@ -499,10 +499,10 @@ void main() {
             () => TestCollectionList(const CollectionState()),
           ),
           tagListProvider.overrideWith(() => TestTagList(const TagState())),
-          learningProgressNotifierProvider.overrideWith(
+          learningProgressProvider.overrideWith(
             () => TestLearningProgressNotifier(const LearningProgressState()),
           ),
-        ],
+        ]),
       );
       addTearDown(() async {
         container.dispose();

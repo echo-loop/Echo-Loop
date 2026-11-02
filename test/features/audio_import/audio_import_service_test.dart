@@ -11,6 +11,7 @@ import 'package:echo_loop/providers/collection_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
+import '../../helpers/mock_providers.dart';
 
 class _MockDio extends Mock implements Dio {}
 
@@ -275,11 +276,11 @@ void main() {
         addedDate: DateTime(2026, 1, 1),
       );
       final container = ProviderContainer(
-        overrides: [
+        overrides: dedupeOverrides([
           audioLibraryProvider.overrideWith(
             () => _FakeAudioLibrary(AudioLibraryState(audioItems: [existing])),
           ),
-        ],
+        ]),
       );
       addTearDown(container.dispose);
       final service = AudioRegistrationService(
@@ -313,11 +314,11 @@ void main() {
         addedDate: DateTime(2026, 1, 1),
       );
       final container = ProviderContainer(
-        overrides: [
+        overrides: dedupeOverrides([
           audioLibraryProvider.overrideWith(
             () => _FakeAudioLibrary(AudioLibraryState(audioItems: [existing])),
           ),
-        ],
+        ]),
       );
       addTearDown(container.dispose);
       final service = AudioRegistrationService(
@@ -355,7 +356,7 @@ void main() {
         addedDate: DateTime(2026, 1, 1),
       );
       final container = ProviderContainer(
-        overrides: [
+        overrides: dedupeOverrides([
           audioLibraryProvider.overrideWith(
             () => _FakeAudioLibrary(AudioLibraryState(audioItems: [existing])),
           ),
@@ -368,7 +369,7 @@ void main() {
               ),
             ),
           ),
-        ],
+        ]),
       );
       addTearDown(container.dispose);
       final service = AudioRegistrationService(
@@ -406,12 +407,12 @@ void main() {
         addedDate: DateTime(2026, 1, 1),
       );
       final container = ProviderContainer(
-        overrides: [
+        overrides: dedupeOverrides([
           audioLibraryProvider.overrideWith(
             () => _FakeAudioLibrary(AudioLibraryState(audioItems: [existing])),
           ),
           collectionListProvider.overrideWith(_FakeCollectionList.new),
-        ],
+        ]),
       );
       addTearDown(container.dispose);
       final service = AudioRegistrationService(
@@ -453,7 +454,7 @@ void main() {
         addedDate: DateTime(2026, 1, 1),
       );
       final container = ProviderContainer(
-        overrides: [
+        overrides: dedupeOverrides([
           audioLibraryProvider.overrideWith(
             () => _FakeAudioLibrary(AudioLibraryState(audioItems: [existing])),
           ),
@@ -466,7 +467,7 @@ void main() {
               ),
             ),
           ),
-        ],
+        ]),
       );
       addTearDown(container.dispose);
       final service = AudioRegistrationService(
@@ -503,7 +504,7 @@ void main() {
         addedDate: DateTime(2026, 1, 1),
       );
       final container = ProviderContainer(
-        overrides: [
+        overrides: dedupeOverrides([
           audioLibraryProvider.overrideWith(
             () => _FakeAudioLibrary(AudioLibraryState(audioItems: [existing])),
           ),
@@ -516,7 +517,7 @@ void main() {
               ),
             ),
           ),
-        ],
+        ]),
       );
       addTearDown(container.dispose);
       final service = AudioRegistrationService(
@@ -552,11 +553,11 @@ void main() {
         addedDate: DateTime(2026, 1, 1),
       );
       final container = ProviderContainer(
-        overrides: [
+        overrides: dedupeOverrides([
           audioLibraryProvider.overrideWith(
             () => _FakeAudioLibrary(AudioLibraryState(audioItems: [existing])),
           ),
-        ],
+        ]),
       );
       addTearDown(container.dispose);
       final service = AudioRegistrationService(
@@ -738,12 +739,12 @@ void main() {
       await existingFile.create(recursive: true);
       await existingFile.writeAsBytes([9, 9, 9]);
       final container = ProviderContainer(
-        overrides: [
+        overrides: dedupeOverrides([
           audioLibraryProvider.overrideWith(
             () => _FakeAudioLibrary(AudioLibraryState(audioItems: [existing])),
           ),
           collectionListProvider.overrideWith(_FakeCollectionList.new),
-        ],
+        ]),
       );
       addTearDown(container.dispose);
       final service = AudioImportService(

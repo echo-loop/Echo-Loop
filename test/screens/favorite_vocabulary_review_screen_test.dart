@@ -37,6 +37,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../helpers/mock_providers.dart';
 
 SavedWord _word(
   String text, {
@@ -176,7 +177,8 @@ class _TestFavoriteVocabularyReview extends FavoriteVocabularyReview {
 
   @override
   Future<void> disposeSession() async {
-    state = const FavoriteVocabularyReviewState();
+    // 页面 dispose 的收尾可能晚于容器释放，此时 notifier 已销毁，不再写 state。
+    if (ref.mounted) state = const FavoriteVocabularyReviewState();
     final waiter = disposeSessionWaiter;
     if (waiter != null) await waiter();
   }
@@ -235,7 +237,7 @@ Widget _app({
           routerConfig: router,
         );
   return ProviderScope(
-    overrides: [
+    overrides: dedupeOverrides([
       favoriteVocabularyReviewProvider.overrideWith(
         () => _TestFavoriteVocabularyReview(
           withSource: withSource,
@@ -264,7 +266,7 @@ Widget _app({
       pronunciationClipsProvider.overrideWith(
         (ref, word) => pronunciationClips,
       ),
-    ],
+    ]),
     child: child,
   );
 }

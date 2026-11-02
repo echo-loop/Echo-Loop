@@ -117,7 +117,7 @@ Widget _buildTestPage(
   GlobalKey<DictionaryPanelHostState>? hostKey,
 }) {
   return ProviderScope(
-    overrides: [
+    overrides: dedupeOverrides([
       analyticsOverride(),
       dictionaryOverride(),
       pronunciationClipsProvider.overrideWith(
@@ -137,7 +137,7 @@ Widget _buildTestPage(
       ttsControllerProvider.overrideWith(_StubTtsController.new),
       textPlaybackProvider.overrideWith(_StubTextPlaybackController.new),
       savedTextIndexProvider.overrideWithValue(const SavedTextIndex.empty()),
-    ],
+    ]),
     child: MaterialApp(
       locale: const Locale('en'),
       supportedLocales: const [Locale('en'), Locale('zh')],
@@ -198,7 +198,7 @@ void main() {
 
   tearDown(() {
     DictionaryService.replaceInstance(oldInstance);
-    db.dispose();
+    db.close();
   });
 
   group('DictionaryPanel', () {

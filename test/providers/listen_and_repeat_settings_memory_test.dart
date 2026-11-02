@@ -13,6 +13,7 @@ import 'package:echo_loop/providers/listen_and_repeat/listen_and_repeat_settings
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../helpers/mock_providers.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -23,12 +24,12 @@ void main() {
     SharedPreferences.setMockInitialValues({});
     final prefs = await SharedPreferences.getInstance();
     container = ProviderContainer(
-      overrides: [
+      overrides: dedupeOverrides([
         sharedPreferencesProvider.overrideWithValue(prefs),
         initialIntensiveListenPrefsProvider.overrideWithValue(
           intensiveListenPrefsFromPrefsSync(prefs),
         ),
-      ],
+      ]),
     );
   });
   tearDown(() => container.dispose());

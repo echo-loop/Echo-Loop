@@ -19,7 +19,8 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 version: 1.0.45
 
 environment:
-  sdk: ^3.9.2
+  sdk: ^3.13.0
+  flutter: '^3.47.9'
 
 # Dependencies specify other packages that your package needs in order to work.
 # To automatically upgrade your package dependencies to the latest versions
@@ -43,8 +44,8 @@ dependencies:
   media_kit_video: 2.0.1
   # 全 App 统一 video 版 libs，禁止与 media_kit_libs_audio 混用。
   media_kit_libs_video: 1.0.7
-  flutter_riverpod: ^2.6.1
-  riverpod_annotation: ^2.6.1
+  flutter_riverpod: ^3.4.3
+  riverpod_annotation: ^4.0.7
   audio_session: ^0.2.2
   audio_service: ^0.18.18
   subtitle: ^0.2.0
@@ -59,8 +60,7 @@ dependencies:
   intl: ^0.20.2
   clock: ^1.1.1
   fsrs: 2.0.1
-  drift: ^2.25.0
-  sqlite3_flutter_libs: ^0.5.31
+  drift: ^2.35.3
   scrollable_positioned_list: ^0.3.8
   package_info_plus: ^9.0.0
   in_app_review: ^2.0.12
@@ -76,7 +76,7 @@ dependencies:
   # 网络图片磁盘缓存：官方合集封面冷启动后无需重下，离线浏览有图。
   # 用 JsonCacheInfoRepository 替代默认 sqflite 仓库，避免 sqflite 全局 factory 警告
   cached_network_image: ^3.4.1
-  sqlite3: ^2.7.5
+  sqlite3: ^3.8.0
   lemmatizerx: ^1.0.0
   flutter_tts: ^4.2.0
   wakelock_plus: ^1.4.0
@@ -140,11 +140,10 @@ dev_dependencies:
   # rules and activating additional ones.
   flutter_lints: ^5.0.0
   flutter_launcher_icons: ^0.14.4
-  riverpod_generator: ^2.6.3
+  riverpod_generator: ^4.0.9
   build_runner: ^2.4.14
-  drift_dev: ^2.25.0
-  custom_lint: ^0.7.1
-  riverpod_lint: ^2.6.3
+  drift_dev: ^2.35.2
+  riverpod_lint: ^3.1.9
   wakelock_plus_platform_interface: ^1.3.0
   # 供 app_update_launcher_test 注入假 url_launcher 平台实现
   url_launcher_platform_interface: ^2.3.2

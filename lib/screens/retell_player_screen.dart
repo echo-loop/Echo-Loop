@@ -1071,7 +1071,7 @@ class _RetellPlayerScreenState extends ConsumerState<RetellPlayerScreen>
           .read(retellPlayerProvider.notifier)
           .currentSentenceGlobalIndex;
       await ref
-          .read(learningProgressNotifierProvider.notifier)
+          .read(learningProgressProvider.notifier)
           .saveRetellSentenceIndex(
             widget.audioItemId,
             sentenceIndex,
@@ -1109,7 +1109,7 @@ class _RetellPlayerScreenState extends ConsumerState<RetellPlayerScreen>
         .read(retellPlayerProvider.notifier)
         .currentSentenceGlobalIndex;
     await ref
-        .read(learningProgressNotifierProvider.notifier)
+        .read(learningProgressProvider.notifier)
         .saveRetellSentenceIndex(
           widget.audioItemId,
           sentenceIndex,
@@ -1131,7 +1131,7 @@ class _RetellPlayerScreenState extends ConsumerState<RetellPlayerScreen>
     final l10n = AppLocalizations.of(context)!;
     final plan = ref.read(learningPlanForAudioProvider(widget.audioItemId));
     final progress = ref
-        .read(learningProgressNotifierProvider)
+        .read(learningProgressProvider)
         .progressMap[widget.audioItemId];
 
     final stage = progress?.currentStage ?? LearningStage.firstLearn;
@@ -1159,7 +1159,7 @@ class _RetellPlayerScreenState extends ConsumerState<RetellPlayerScreen>
     // 自由练习模式：使用公用弹窗
     if (sessionState.isFreePlay) {
       await ref
-          .read(learningProgressNotifierProvider.notifier)
+          .read(learningProgressProvider.notifier)
           .incrementRetellPassCount(widget.audioItemId);
 
       // 「补做」语义：用户从过去阶段的跳过卡片进入自由练习并完成 → 写入
@@ -1168,7 +1168,7 @@ class _RetellPlayerScreenState extends ConsumerState<RetellPlayerScreen>
       final catchUpSub = sessionState.catchUpSubStage;
       if (catchUpStage != null && catchUpSub != null) {
         await ref
-            .read(learningProgressNotifierProvider.notifier)
+            .read(learningProgressProvider.notifier)
             .recordCompletionIfNew(
               widget.audioItemId,
               catchUpStage,
@@ -1197,7 +1197,7 @@ class _RetellPlayerScreenState extends ConsumerState<RetellPlayerScreen>
         },
         onExit: () async {
           await ref
-              .read(learningProgressNotifierProvider.notifier)
+              .read(learningProgressProvider.notifier)
               .saveRetellSentenceIndex(
                 widget.audioItemId,
                 null,
@@ -1229,15 +1229,15 @@ class _RetellPlayerScreenState extends ConsumerState<RetellPlayerScreen>
     if (!mounted) return;
 
     await ref
-        .read(learningProgressNotifierProvider.notifier)
+        .read(learningProgressProvider.notifier)
         .incrementRetellPassCount(widget.audioItemId);
 
     if (result != null) {
       await ref
-          .read(learningProgressNotifierProvider.notifier)
+          .read(learningProgressProvider.notifier)
           .saveRetellSentenceIndex(widget.audioItemId, null, isFreePlay: false);
       await ref
-          .read(learningProgressNotifierProvider.notifier)
+          .read(learningProgressProvider.notifier)
           .completeCurrentSubStage(widget.audioItemId);
       await _exit(result: PracticeCompletionResult.completed);
     } else {

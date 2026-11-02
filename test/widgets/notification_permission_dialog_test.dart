@@ -19,6 +19,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../helpers/mock_providers.dart';
 
 class MockAnalyticsService extends Mock implements AnalyticsService {}
 
@@ -47,13 +48,13 @@ void main() {
 
   Widget wrap(Widget child, SharedPreferences prefs) {
     return ProviderScope(
-      overrides: [
+      overrides: dedupeOverrides([
         sharedPreferencesProvider.overrideWithValue(prefs),
         analyticsServiceProvider.overrideWithValue(analytics),
         notificationPermissionServiceProvider.overrideWithValue(
           permissionService,
         ),
-      ],
+      ]),
       child: MaterialApp(
         localizationsDelegates: AppLocalizations.localizationsDelegates,
         supportedLocales: AppLocalizations.supportedLocales,

@@ -54,7 +54,7 @@ class SubscriptionIdentity {
 final subscriptionIdentityProvider = Provider<SubscriptionIdentity>((ref) {
   final sessionState = ref.watch(supabaseSessionProvider);
   if (!sessionState.hasValue) return SubscriptionIdentity.pending;
-  final session = sessionState.valueOrNull;
+  final session = sessionState.value;
   if (session == null) return SubscriptionIdentity.anonymous;
   return SubscriptionIdentity(
     userId: session.user.id,

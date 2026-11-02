@@ -93,7 +93,7 @@ void statsDisplayTests() {
       // 验证进度已更新
       final appContext2 = tester.element(find.byType(EchoLoopApp));
       final container2 = ProviderScope.containerOf(appContext2);
-      final progressState = container2.read(learningProgressNotifierProvider);
+      final progressState = container2.read(learningProgressProvider);
       final progress = progressState.progressMap['test-audio-1'];
 
       expect(progress, isNotNull);
@@ -162,7 +162,7 @@ void statsDisplayTests() {
       // 验证难句数快照已保存
       final appContext2 = tester.element(find.byType(EchoLoopApp));
       final container2 = ProviderScope.containerOf(appContext2);
-      final progressState = container2.read(learningProgressNotifierProvider);
+      final progressState = container2.read(learningProgressProvider);
       final progress = progressState.progressMap['test-audio-1'];
 
       expect(progress, isNotNull);
@@ -240,7 +240,7 @@ void statsDisplayTests() {
       // 验证进度
       final appContext2 = tester.element(find.byType(EchoLoopApp));
       final container2 = ProviderScope.containerOf(appContext2);
-      final progressState = container2.read(learningProgressNotifierProvider);
+      final progressState = container2.read(learningProgressProvider);
       final progress = progressState.progressMap['test-audio-1'];
 
       expect(progress, isNotNull);
@@ -365,7 +365,7 @@ void statsDisplayTests() {
       // 验证 Provider 中遍数递增（1 → 2）
       final appContext2 = tester.element(find.byType(EchoLoopApp));
       final container2 = ProviderScope.containerOf(appContext2);
-      final progressState = container2.read(learningProgressNotifierProvider);
+      final progressState = container2.read(learningProgressProvider);
       final updatedProgress = progressState.progressMap['test-audio-1'];
 
       expect(updatedProgress, isNotNull);

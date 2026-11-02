@@ -181,7 +181,7 @@ List<int> _validArchive(Directory source) {
     "INSERT INTO pronunciation_audio (word, locale, audio_filename, \"order\") "
     "VALUES ('read', 'us', 'read_us.opus', 1)",
   );
-  database.dispose();
+  database.close();
   final dbBytes = dbFile.readAsBytesSync();
   final archive = Archive()
     ..addFile(ArchiveFile('pronunciation.sqlite', dbBytes.length, dbBytes))

@@ -173,7 +173,7 @@ void main() {
   test('非复述活动会话进入后台不会留下等待开口超时标记', () async {
     final backend = _FakeSpeechPracticeBackend();
     final container = ProviderContainer(
-      overrides: [
+      overrides: dedupeOverrides([
         analyticsOverride(),
         initialLearningSettingsProvider.overrideWithValue(
           const LearningSettings(),
@@ -183,7 +183,7 @@ void main() {
         offlineAsrSettingsProvider.overrideWith(
           () => _FakeOfflineAsrSettingsNotifier(),
         ),
-      ],
+      ]),
     );
     final controller = container.read(
       retellRecordingControllerProvider.notifier,
@@ -209,7 +209,7 @@ void main() {
   test('复述播放器通知进入后台后设置超时标记以阻止自动录音', () async {
     final backend = _FakeSpeechPracticeBackend();
     final container = ProviderContainer(
-      overrides: [
+      overrides: dedupeOverrides([
         analyticsOverride(),
         initialLearningSettingsProvider.overrideWithValue(
           const LearningSettings(),
@@ -219,7 +219,7 @@ void main() {
         offlineAsrSettingsProvider.overrideWith(
           () => _FakeOfflineAsrSettingsNotifier(),
         ),
-      ],
+      ]),
     );
     final controller = container.read(
       retellRecordingControllerProvider.notifier,
@@ -242,7 +242,7 @@ void main() {
   test('后台进入时会取消正在录音的回合', () async {
     final backend = _FakeSpeechPracticeBackend();
     final container = ProviderContainer(
-      overrides: [
+      overrides: dedupeOverrides([
         analyticsOverride(),
         initialLearningSettingsProvider.overrideWithValue(
           const LearningSettings(),
@@ -252,7 +252,7 @@ void main() {
         offlineAsrSettingsProvider.overrideWith(
           () => _FakeOfflineAsrSettingsNotifier(),
         ),
-      ],
+      ]),
     );
     final controller = container.read(
       retellRecordingControllerProvider.notifier,
@@ -281,7 +281,7 @@ void main() {
   test('后台进入会取消处理中识别并丢弃迟到结果', () async {
     final backend = _FakeSpeechPracticeBackend()..emitFinalTranscript = false;
     final container = ProviderContainer(
-      overrides: [
+      overrides: dedupeOverrides([
         analyticsOverride(),
         initialLearningSettingsProvider.overrideWithValue(
           const LearningSettings(),
@@ -291,7 +291,7 @@ void main() {
         offlineAsrSettingsProvider.overrideWith(
           () => _FakeOfflineAsrSettingsNotifier(),
         ),
-      ],
+      ]),
     );
     final controller = container.read(
       retellRecordingControllerProvider.notifier,
@@ -338,7 +338,7 @@ void main() {
   test('后台取消尚未完成时的新录音等待旧启动收尾后再开始', () async {
     final backend = _FakeSpeechPracticeBackend()..blockWarmup = true;
     final container = ProviderContainer(
-      overrides: [
+      overrides: dedupeOverrides([
         analyticsOverride(),
         initialLearningSettingsProvider.overrideWithValue(
           const LearningSettings(),
@@ -348,7 +348,7 @@ void main() {
         offlineAsrSettingsProvider.overrideWith(
           () => _FakeOfflineAsrSettingsNotifier(),
         ),
-      ],
+      ]),
     );
     final controller = container.read(
       retellRecordingControllerProvider.notifier,
@@ -384,7 +384,7 @@ void main() {
   test('RetellRecordingController 在停止录音后触发有效录音时长回调', () async {
     final backend = _FakeSpeechPracticeBackend();
     final container = ProviderContainer(
-      overrides: [
+      overrides: dedupeOverrides([
         analyticsOverride(),
         initialLearningSettingsProvider.overrideWithValue(
           const LearningSettings(),
@@ -394,7 +394,7 @@ void main() {
         offlineAsrSettingsProvider.overrideWith(
           () => _FakeOfflineAsrSettingsNotifier(),
         ),
-      ],
+      ]),
     );
     final controller = container.read(
       retellRecordingControllerProvider.notifier,
@@ -435,7 +435,7 @@ void main() {
   test('启动中清理会取消旧段录音，后续段落可以独立启动', () async {
     final backend = _FakeSpeechPracticeBackend()..blockWarmup = true;
     final container = ProviderContainer(
-      overrides: [
+      overrides: dedupeOverrides([
         analyticsOverride(),
         initialLearningSettingsProvider.overrideWithValue(
           const LearningSettings(),
@@ -445,7 +445,7 @@ void main() {
         offlineAsrSettingsProvider.overrideWith(
           () => _FakeOfflineAsrSettingsNotifier(),
         ),
-      ],
+      ]),
     );
     final controller = container.read(
       retellRecordingControllerProvider.notifier,
@@ -484,7 +484,7 @@ void main() {
   test('不同 prompt 不会加入旧段尚未完成的启动 future', () async {
     final backend = _FakeSpeechPracticeBackend()..blockWarmup = true;
     final container = ProviderContainer(
-      overrides: [
+      overrides: dedupeOverrides([
         analyticsOverride(),
         initialLearningSettingsProvider.overrideWithValue(
           const LearningSettings(),
@@ -494,7 +494,7 @@ void main() {
         offlineAsrSettingsProvider.overrideWith(
           () => _FakeOfflineAsrSettingsNotifier(),
         ),
-      ],
+      ]),
     );
     final controller = container.read(
       retellRecordingControllerProvider.notifier,
@@ -526,7 +526,7 @@ void main() {
   test('停止会话失败应显示通用错误而非设备不支持', () async {
     final backend = _FakeSpeechPracticeBackend()..failStopSession = true;
     final container = ProviderContainer(
-      overrides: [
+      overrides: dedupeOverrides([
         analyticsOverride(),
         initialLearningSettingsProvider.overrideWithValue(
           const LearningSettings(),
@@ -536,7 +536,7 @@ void main() {
         offlineAsrSettingsProvider.overrideWith(
           () => _FakeOfflineAsrSettingsNotifier(),
         ),
-      ],
+      ]),
     );
     final controller = container.read(
       retellRecordingControllerProvider.notifier,
@@ -568,7 +568,7 @@ void main() {
   test('RetellRecordingController 关闭复述评级时只保留录音并跳过转录评分', () async {
     final backend = _FakeSpeechPracticeBackend();
     final container = ProviderContainer(
-      overrides: [
+      overrides: dedupeOverrides([
         analyticsOverride(),
         initialLearningSettingsProvider.overrideWithValue(
           const LearningSettings(retellRatingEnabled: false),
@@ -578,7 +578,7 @@ void main() {
         offlineAsrSettingsProvider.overrideWith(
           () => _FakeOfflineAsrSettingsNotifier(),
         ),
-      ],
+      ]),
     );
     final controller = container.read(
       retellRecordingControllerProvider.notifier,
@@ -615,7 +615,7 @@ void main() {
   test('RetellRecordingController 取消录音不触发统计回调', () async {
     final backend = _FakeSpeechPracticeBackend();
     final container = ProviderContainer(
-      overrides: [
+      overrides: dedupeOverrides([
         analyticsOverride(),
         initialLearningSettingsProvider.overrideWithValue(
           const LearningSettings(),
@@ -625,7 +625,7 @@ void main() {
         offlineAsrSettingsProvider.overrideWith(
           () => _FakeOfflineAsrSettingsNotifier(),
         ),
-      ],
+      ]),
     );
     final controller = container.read(
       retellRecordingControllerProvider.notifier,
@@ -654,7 +654,7 @@ void main() {
   test('RetellRecordingController 停止录音失败不触发统计回调', () async {
     final backend = _FakeSpeechPracticeBackend()..failStopSession = true;
     final container = ProviderContainer(
-      overrides: [
+      overrides: dedupeOverrides([
         analyticsOverride(),
         initialLearningSettingsProvider.overrideWithValue(
           const LearningSettings(),
@@ -664,7 +664,7 @@ void main() {
         offlineAsrSettingsProvider.overrideWith(
           () => _FakeOfflineAsrSettingsNotifier(),
         ),
-      ],
+      ]),
     );
     final controller = container.read(
       retellRecordingControllerProvider.notifier,

@@ -81,7 +81,7 @@ Future<BackupManifest> performImport(
 
     candidateDatabase = AppDatabase(openConnectionWithName('echo_loop.db'));
     AppLogger.log('Backup', 'candidate_database_opened');
-    switchAppDatabase(candidateDatabase, ref);
+    switchAppDatabase(candidateDatabase, (p) => ref.invalidate(p));
     await _reloadDatabaseProviders(ref);
     // 可重新下载的资源不进入备份。恢复后重建词典状态，本地
     // 缺失时由现有 Provider 自动下载，失败时沿用其重试提示。
@@ -101,7 +101,7 @@ Future<BackupManifest> performImport(
     await applied?.rollback();
     if (databaseWasClosed) {
       final fallbackDb = AppDatabase(openConnectionWithName('echo_loop.db'));
-      switchAppDatabase(fallbackDb, ref);
+      switchAppDatabase(fallbackDb, (p) => ref.invalidate(p));
       await _reloadDatabaseProviders(ref);
       AppLogger.log('Backup', 'fallback_database_reopened');
     }
@@ -116,7 +116,7 @@ Future<void> _reloadDatabaseProviders(WidgetRef ref) async {
   await ref.read(audioLibraryProvider.notifier).loadLibrary();
   await ref.read(collectionListProvider.notifier).loadCollections();
   await ref.read(tagListProvider.notifier).loadTags();
-  await ref.read(learningProgressNotifierProvider.notifier).loadAll();
+  await ref.read(learningProgressProvider.notifier).loadAll();
 }
 
 /// 获取当前平台标识

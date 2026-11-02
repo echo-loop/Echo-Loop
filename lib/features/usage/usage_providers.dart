@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../utils/provider_override_error.dart';
 
 import '../../analytics/analytics_providers.dart';
 import '../onboarding_survey/providers/onboarding_survey_provider.dart';
@@ -9,7 +10,8 @@ import 'usage_tracker.dart';
 final usageCounterStoreProvider = Provider<UsageCounterStore>((ref) {
   try {
     return UsageCounterStore(ref.watch(sharedPreferencesProvider));
-  } on UnimplementedError {
+  } catch (error) {
+    if (!isProviderNotOverriddenError(error)) rethrow;
     return UsageCounterStore.memory();
   }
 });

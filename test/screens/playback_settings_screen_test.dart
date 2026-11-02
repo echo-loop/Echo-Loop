@@ -16,11 +16,11 @@ void main() {
     await tester.pumpWidget(
       createTestApp(
         const PlaybackSettingsScreen(),
-        overrides: [
+        overrides: dedupeOverrides([
           appSettingsProvider.overrideWith(
             () => TestAppSettings(const AppSettingsState()),
           ),
-        ],
+        ]),
       ),
     );
     await tester.pumpAndSettle();

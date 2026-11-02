@@ -61,7 +61,7 @@ void main() {
     await tester.pumpWidget(
       createTestApp(
         screen,
-        overrides: [
+        overrides: dedupeOverrides([
           discoverCommunityCollectionsProvider.overrideWith(
             () => _TestDiscoverCommunityCollections(
               PublicCollectionCatalogEntry(
@@ -98,7 +98,7 @@ void main() {
           communityCollectionFilesProvider('collection-1').overrideWith(
             () => detailNotifier ?? _TestCommunityCollectionFiles(files),
           ),
-        ],
+        ]),
       ),
     );
     await tester.pumpAndSettle();
@@ -363,7 +363,7 @@ void main() {
     await tester.pumpWidget(
       createTestApp(
         const CommunityCollectionDetailScreen(remoteId: 'collection-1'),
-        overrides: [
+        overrides: dedupeOverrides([
           discoverCommunityCollectionsProvider.overrideWith(
             () => _TestDiscoverCommunityCollections(
               PublicCollectionCatalogEntry(
@@ -380,7 +380,7 @@ void main() {
           communityCollectionFilesProvider(
             'collection-1',
           ).overrideWith(() => _TestCommunityCollectionFiles(files, latest)),
-        ],
+        ]),
       ),
     );
     await tester.pumpAndSettle();
@@ -410,7 +410,7 @@ void main() {
     await tester.pumpWidget(
       createTestApp(
         const CommunityCollectionDetailScreen(remoteId: 'collection-1'),
-        overrides: [
+        overrides: dedupeOverrides([
           discoverCommunityCollectionsProvider.overrideWith(
             () => _TestDiscoverCommunityCollections(
               PublicCollectionCatalogEntry(
@@ -427,7 +427,7 @@ void main() {
           communityCollectionFilesProvider(
             'collection-1',
           ).overrideWith(() => detailNotifier),
-        ],
+        ]),
       ),
     );
     await tester.pumpAndSettle();

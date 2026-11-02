@@ -305,7 +305,7 @@ class _ListenAndRepeatPlayerScreenState
     final l10n = AppLocalizations.of(context)!;
     final plan = ref.read(learningPlanForAudioProvider(widget.audioItemId));
     final progress = ref
-        .read(learningProgressNotifierProvider)
+        .read(learningProgressProvider)
         .progressMap[widget.audioItemId];
 
     final stage = progress?.currentStage ?? LearningStage.firstLearn;
@@ -430,7 +430,7 @@ class _ListenAndRepeatPlayerScreenState
   Future<void> _navigateBackToPlanAndAutoStart() async {
     if (!mounted) return;
     final nextSubStage = ref
-        .read(learningProgressNotifierProvider)
+        .read(learningProgressProvider)
         .progressMap[widget.audioItemId]
         ?.currentSubStage;
     final canAutoStart = nextSubStage == null

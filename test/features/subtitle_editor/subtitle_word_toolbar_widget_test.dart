@@ -67,10 +67,10 @@ void main() {
             return SubtitleSimpleEditorScreen(audioItem: audioItem);
           },
         ),
-        overrides: [
+        overrides: dedupeOverrides([
           audioEngineProvider.overrideWith(() => engine),
           audioItemDaoProvider.overrideWithValue(audioItemDao),
-        ],
+        ]),
       ),
     );
     // load() 在 postFrame 触发，连续 pump 让其完成（避免 pumpAndSettle 卡在引导计时器）。

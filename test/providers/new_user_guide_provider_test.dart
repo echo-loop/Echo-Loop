@@ -4,6 +4,7 @@ import 'package:echo_loop/features/onboarding_survey/providers/onboarding_survey
     show sharedPreferencesProvider;
 import 'package:echo_loop/providers/new_user_guide_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../helpers/mock_providers.dart';
 
 void main() {
   group('引导开关与跳过', () {
@@ -25,10 +26,10 @@ void main() {
       SharedPreferences.setMockInitialValues({});
       final prefs = await SharedPreferences.getInstance();
       final container = ProviderContainer(
-        overrides: [
+        overrides: dedupeOverrides([
           sharedPreferencesProvider.overrideWithValue(prefs),
           guideRegistryProvider.overrideWithValue(GuideRegistry(prefs: prefs)),
-        ],
+        ]),
       );
       addTearDown(container.dispose);
 
@@ -47,10 +48,10 @@ void main() {
       final prefs = await SharedPreferences.getInstance();
       final registry = GuideRegistry(prefs: prefs);
       final container = ProviderContainer(
-        overrides: [
+        overrides: dedupeOverrides([
           sharedPreferencesProvider.overrideWithValue(prefs),
           guideRegistryProvider.overrideWithValue(registry),
-        ],
+        ]),
       );
       addTearDown(container.dispose);
 

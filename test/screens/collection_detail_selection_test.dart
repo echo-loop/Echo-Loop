@@ -76,7 +76,7 @@ void main() {
       createTestScreen(
         const CollectionDetailScreen(collectionId: 'c1'),
         locale: locale,
-        overrides: [
+        overrides: dedupeOverrides([
           audioLibraryProvider.overrideWith(
             () =>
                 audioLibrary ??
@@ -92,7 +92,7 @@ void main() {
                   ),
                 ),
           ),
-        ],
+        ]),
       ),
     );
     await tester.pumpAndSettle();

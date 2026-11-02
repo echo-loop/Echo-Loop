@@ -307,7 +307,7 @@ void intensiveListenTests() {
       // 验证断点已保存（通过检查进度 state）
       final context = tester.element(find.byType(EchoLoopApp));
       final container2 = ProviderScope.containerOf(context);
-      final progressState = container2.read(learningProgressNotifierProvider);
+      final progressState = container2.read(learningProgressProvider);
       final progress = progressState.progressMap['test-audio-1'];
       expect(progress?.intensiveListenSentenceIndex, equals(2));
     });

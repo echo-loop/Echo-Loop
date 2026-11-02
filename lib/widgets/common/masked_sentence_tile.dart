@@ -115,7 +115,7 @@ class MaskedSentenceTile extends ConsumerWidget {
     );
     // 字幕正文样式：主题正文 + 用户的学习内容字号/字体偏好（每句只算一次）
     final textStyle = ref
-        .watch(readingTextPrefsNotifierProvider)
+        .watch(readingTextPrefsProvider)
         .applyTo(theme.textTheme.bodyMedium ?? const TextStyle());
     final words = tokenize(sentence.text);
     final binding = wordHighlightBinding;

@@ -285,10 +285,10 @@ void main() {
   }
 
   setUp(() {
-    database = AppDatabase(NativeDatabase.memory());
+    database = AppDatabase(NativeDatabase.memory(setup: configureAppDatabaseConnection));
     studyTimeService = _RecordingStudyTimeService();
     container = ProviderContainer(
-      overrides: [
+      overrides: dedupeOverrides([
         appDatabaseProvider.overrideWithValue(database),
         foregroundAudioEngineProvider.overrideWith(() => _InstantAudioEngine()),
         audioEngineProvider.overrideWith(TestAudioEngine.new),
@@ -296,7 +296,7 @@ void main() {
         speechRecordingControllerProvider.overrideWith(
           TestSpeechRecordingController.new,
         ),
-      ],
+      ]),
     );
     listenToController(container);
     controller = container.read(listenAndRepeatControllerProvider.notifier);
@@ -328,14 +328,14 @@ void main() {
         () => bookmarkDao.getBookmarkedIndices('video-1'),
       ).thenAnswer((_) async => {0});
       final container = ProviderContainer(
-        overrides: [
+        overrides: dedupeOverrides([
           foregroundAudioEngineProvider.overrideWith(
             () => _InstantAudioEngine(),
           ),
           audioEngineProvider.overrideWith(TestAudioEngine.new),
           mediaEngineProvider.overrideWith(() => mediaEngine),
           bookmarkDaoProvider.overrideWithValue(bookmarkDao),
-          learningProgressNotifierProvider.overrideWith(
+          learningProgressProvider.overrideWith(
             TestLearningProgressNotifier.new,
           ),
           listeningPracticeProvider.overrideWith(TestListeningPractice.new),
@@ -346,12 +346,12 @@ void main() {
               onStatsUpdated: () {},
             ),
           ),
-          studyStatsNotifierProvider.overrideWith(_TestStudyStatsNotifier.new),
+          studyStatsProvider.overrideWith(_TestStudyStatsNotifier.new),
           speechRecordingControllerProvider.overrideWith(
             TestSpeechRecordingController.new,
           ),
           analyticsOverride(),
-        ],
+        ]),
       );
       listenToController(container);
       return container;
@@ -505,7 +505,7 @@ void main() {
       container.dispose();
       studyTimeService = _RecordingStudyTimeService();
       container = ProviderContainer(
-        overrides: [
+        overrides: dedupeOverrides([
           appDatabaseProvider.overrideWithValue(database),
           foregroundAudioEngineProvider.overrideWith(() => controlledEngine),
           audioEngineProvider.overrideWith(TestAudioEngine.new),
@@ -513,7 +513,7 @@ void main() {
           speechRecordingControllerProvider.overrideWith(
             TestSpeechRecordingController.new,
           ),
-        ],
+        ]),
       );
       listenToController(container);
       controller = container.read(listenAndRepeatControllerProvider.notifier);
@@ -537,7 +537,7 @@ void main() {
         () => bookmarkDao.getBookmarkedIndices('test-audio'),
       ).thenAnswer((_) async => {0});
       final statsContainer = ProviderContainer(
-        overrides: [
+        overrides: dedupeOverrides([
           appDatabaseProvider.overrideWithValue(database),
           foregroundAudioEngineProvider.overrideWith(
             () => _InstantAudioEngine(),
@@ -545,17 +545,17 @@ void main() {
           audioEngineProvider.overrideWith(TestAudioEngine.new),
           mediaEngineProvider.overrideWith(() => _ControlledMediaEngine()),
           bookmarkDaoProvider.overrideWithValue(bookmarkDao),
-          learningProgressNotifierProvider.overrideWith(
+          learningProgressProvider.overrideWith(
             TestLearningProgressNotifier.new,
           ),
           listeningPracticeProvider.overrideWith(TestListeningPractice.new),
           studyTimeServiceProvider.overrideWithValue(studyTimeService),
-          studyStatsNotifierProvider.overrideWith(_TestStudyStatsNotifier.new),
+          studyStatsProvider.overrideWith(_TestStudyStatsNotifier.new),
           speechRecordingControllerProvider.overrideWith(
             TestSpeechRecordingController.new,
           ),
           analyticsOverride(),
-        ],
+        ]),
       );
       addTearDown(statsContainer.dispose);
       listenToController(statsContainer);
@@ -691,14 +691,14 @@ void main() {
       final audioEngine = _ControlledAudioEngine();
       container.dispose();
       container = ProviderContainer(
-        overrides: [
+        overrides: dedupeOverrides([
           appDatabaseProvider.overrideWithValue(database),
           foregroundAudioEngineProvider.overrideWith(() => audioEngine),
           audioEngineProvider.overrideWith(TestAudioEngine.new),
           speechRecordingControllerProvider.overrideWith(
             TestSpeechRecordingController.new,
           ),
-        ],
+        ]),
       );
       listenToController(container);
       controller = container.read(listenAndRepeatControllerProvider.notifier);
@@ -728,14 +728,14 @@ void main() {
       var repeatCount = 3;
       container.dispose();
       container = ProviderContainer(
-        overrides: [
+        overrides: dedupeOverrides([
           appDatabaseProvider.overrideWithValue(database),
           foregroundAudioEngineProvider.overrideWith(() => audioEngine),
           audioEngineProvider.overrideWith(TestAudioEngine.new),
           speechRecordingControllerProvider.overrideWith(
             TestSpeechRecordingController.new,
           ),
-        ],
+        ]),
       );
       listenToController(container);
       controller = container.read(listenAndRepeatControllerProvider.notifier);
@@ -855,7 +855,7 @@ void main() {
       );
 
       final initializedContainer = ProviderContainer(
-        overrides: [
+        overrides: dedupeOverrides([
           appDatabaseProvider.overrideWithValue(database),
           foregroundAudioEngineProvider.overrideWith(
             () => _InstantAudioEngine(),
@@ -863,7 +863,7 @@ void main() {
           audioEngineProvider.overrideWith(TestAudioEngine.new),
           mediaEngineProvider.overrideWith(() => _ControlledMediaEngine()),
           bookmarkDaoProvider.overrideWithValue(bookmarkDao),
-          learningProgressNotifierProvider.overrideWith(
+          learningProgressProvider.overrideWith(
             TestLearningProgressNotifier.new,
           ),
           listeningPracticeProvider.overrideWith(TestListeningPractice.new),
@@ -872,7 +872,7 @@ void main() {
             TestSpeechRecordingController.new,
           ),
           analyticsOverride(),
-        ],
+        ]),
       );
       addTearDown(initializedContainer.dispose);
       listenToController(initializedContainer);
@@ -909,7 +909,7 @@ void main() {
         () => bookmarkDao.getBookmarkedIndices('test-audio'),
       ).thenAnswer((_) async => <int>{});
       final fullTextContainer = ProviderContainer(
-        overrides: [
+        overrides: dedupeOverrides([
           appDatabaseProvider.overrideWithValue(database),
           foregroundAudioEngineProvider.overrideWith(
             () => _InstantAudioEngine(),
@@ -917,7 +917,7 @@ void main() {
           audioEngineProvider.overrideWith(TestAudioEngine.new),
           mediaEngineProvider.overrideWith(() => _ControlledMediaEngine()),
           bookmarkDaoProvider.overrideWithValue(bookmarkDao),
-          learningProgressNotifierProvider.overrideWith(
+          learningProgressProvider.overrideWith(
             TestLearningProgressNotifier.new,
           ),
           listeningPracticeProvider.overrideWith(TestListeningPractice.new),
@@ -926,7 +926,7 @@ void main() {
             TestSpeechRecordingController.new,
           ),
           analyticsOverride(),
-        ],
+        ]),
       );
       addTearDown(fullTextContainer.dispose);
       listenToController(fullTextContainer);
@@ -983,7 +983,7 @@ void main() {
       ).thenAnswer((_) async {});
       when(() => bookmarkDao.addBookmark(any())).thenAnswer((_) async {});
       final controlledContainer = ProviderContainer(
-        overrides: [
+        overrides: dedupeOverrides([
           appDatabaseProvider.overrideWithValue(database),
           foregroundAudioEngineProvider.overrideWith(() => controlledEngine),
           audioEngineProvider.overrideWith(TestAudioEngine.new),
@@ -991,7 +991,7 @@ void main() {
           speechRecordingControllerProvider.overrideWith(
             TestSpeechRecordingController.new,
           ),
-        ],
+        ]),
       );
       addTearDown(controlledContainer.dispose);
       listenToController(controlledContainer);
@@ -1114,7 +1114,7 @@ void main() {
     final audioEngine = _PauseResumeAudioEngine();
     container.dispose();
     container = ProviderContainer(
-      overrides: [
+      overrides: dedupeOverrides([
         appDatabaseProvider.overrideWithValue(database),
         foregroundAudioEngineProvider.overrideWith(() => audioEngine),
         audioEngineProvider.overrideWith(TestAudioEngine.new),
@@ -1122,7 +1122,7 @@ void main() {
         speechRecordingControllerProvider.overrideWith(
           TestSpeechRecordingController.new,
         ),
-      ],
+      ]),
     );
     listenToController(container);
     controller = container.read(listenAndRepeatControllerProvider.notifier);
@@ -1148,7 +1148,7 @@ void main() {
     final audioEngine = _PauseResumeAudioEngine(holdNextPlayback: false);
     container.dispose();
     container = ProviderContainer(
-      overrides: [
+      overrides: dedupeOverrides([
         appDatabaseProvider.overrideWithValue(database),
         foregroundAudioEngineProvider.overrideWith(() => audioEngine),
         audioEngineProvider.overrideWith(TestAudioEngine.new),
@@ -1156,7 +1156,7 @@ void main() {
         speechRecordingControllerProvider.overrideWith(
           TestSpeechRecordingController.new,
         ),
-      ],
+      ]),
     );
     listenToController(container);
     controller = container.read(listenAndRepeatControllerProvider.notifier);

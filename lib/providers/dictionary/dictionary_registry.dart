@@ -5,7 +5,6 @@
 /// 新增 source：实现 [DictionarySource] + 在 [dictionarySources] 列表加一行即接入。
 library;
 
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../database/providers.dart';

@@ -13,7 +13,7 @@ void main() {
       if (directory.existsSync()) directory.deleteSync(recursive: true);
     });
     final file = File('${directory.path}/echo_loop.db');
-    var database = AppDatabase(NativeDatabase(file));
+    var database = AppDatabase(NativeDatabase(file, setup: configureAppDatabaseConnection));
     await database.audioItemDao.upsert(
       AudioItemsCompanion(
         id: const Value('audio-1'),
@@ -30,10 +30,10 @@ void main() {
       raw.execute('ALTER TABLE audio_items DROP COLUMN description');
       raw.execute('PRAGMA user_version = 61');
     } finally {
-      raw.dispose();
+      raw.close();
     }
 
-    database = AppDatabase(NativeDatabase(file));
+    database = AppDatabase(NativeDatabase(file, setup: configureAppDatabaseConnection));
     final audio = await database.audioItemDao.getById('audio-1');
 
     expect(audio?.name, 'Existing lesson');

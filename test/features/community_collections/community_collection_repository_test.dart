@@ -8,6 +8,7 @@ import 'package:echo_loop/features/community_collections/data/community_collecti
 import 'package:echo_loop/features/community_collections/data/community_collection_repository.dart';
 import 'package:echo_loop/features/community_collections/models/community_collection_models.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:echo_loop/database/app_database.dart' show configureAppDatabaseConnection;
 
 class _FakeCommunityApi extends CommunityCollectionApi {
   _FakeCommunityApi() : super.withDio(Dio());
@@ -75,7 +76,7 @@ void main() {
   late db.AppDatabase database;
 
   setUp(() {
-    database = db.AppDatabase(NativeDatabase.memory());
+    database = db.AppDatabase(NativeDatabase.memory(setup: configureAppDatabaseConnection));
   });
 
   tearDown(() async {

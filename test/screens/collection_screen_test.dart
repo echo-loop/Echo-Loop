@@ -134,7 +134,7 @@ void main() {
         await tester.pumpWidget(
           createTestScreen(
             const LibraryScreen(),
-            overrides: [
+            overrides: dedupeOverrides([
               appSettingsProvider.overrideWith(() => TestAppSettings()),
               audioLibraryProvider.overrideWith(() => TestAudioLibrary()),
               collectionListProvider.overrideWith(
@@ -152,7 +152,7 @@ void main() {
                 () => TestListeningPractice(),
               ),
               audioEngineProvider.overrideWith(() => TestAudioEngine()),
-            ],
+            ]),
           ),
         );
         await tester.pumpAndSettle();
@@ -181,14 +181,14 @@ void main() {
         await tester.pumpWidget(
           createTestScreen(
             const LibraryScreen(),
-            overrides: [
+            overrides: dedupeOverrides([
               isChinaUserProvider.overrideWithValue(true),
               collectionListProvider.overrideWith(
                 () => TestCollectionList(
                   CollectionState(rawCollections: [community]),
                 ),
               ),
-            ],
+            ]),
           ),
         );
 
@@ -212,13 +212,13 @@ void main() {
         await tester.pumpWidget(
           createTestScreen(
             const LibraryScreen(),
-            overrides: [
+            overrides: dedupeOverrides([
               collectionListProvider.overrideWith(
                 () => TestCollectionList(
                   CollectionState(rawCollections: [local, community, podcast]),
                 ),
               ),
-            ],
+            ]),
           ),
         );
         await tester.pumpAndSettle();
@@ -237,13 +237,13 @@ void main() {
         await tester.pumpWidget(
           createTestScreen(
             const LibraryScreen(),
-            overrides: [
+            overrides: dedupeOverrides([
               collectionListProvider.overrideWith(
                 () => TestCollectionList(
                   CollectionState(rawCollections: [collection]),
                 ),
               ),
-            ],
+            ]),
           ),
         );
         await tester.pumpAndSettle();
@@ -270,13 +270,13 @@ void main() {
           createTestScreen(
             const LibraryScreen(),
             locale: const Locale('zh'),
-            overrides: [
+            overrides: dedupeOverrides([
               collectionListProvider.overrideWith(
                 () => TestCollectionList(
                   CollectionState(rawCollections: collections),
                 ),
               ),
-            ],
+            ]),
           ),
         );
         await tester.pumpAndSettle();
@@ -299,13 +299,13 @@ void main() {
         await tester.pumpWidget(
           createTestScreen(
             const LibraryScreen(),
-            overrides: [
+            overrides: dedupeOverrides([
               collectionListProvider.overrideWith(
                 () => TestCollectionList(
                   CollectionState(rawCollections: [deprecated]),
                 ),
               ),
-            ],
+            ]),
           ),
         );
         await tester.pumpAndSettle();
@@ -324,7 +324,7 @@ void main() {
         await tester.pumpWidget(
           createTestScreen(
             const LibraryScreen(),
-            overrides: [
+            overrides: dedupeOverrides([
               appSettingsProvider.overrideWith(() => TestAppSettings()),
               audioLibraryProvider.overrideWith(() => TestAudioLibrary()),
               collectionListProvider.overrideWith(
@@ -334,7 +334,7 @@ void main() {
                 () => TestListeningPractice(),
               ),
               audioEngineProvider.overrideWith(() => TestAudioEngine()),
-            ],
+            ]),
           ),
         );
         await tester.pumpAndSettle();
@@ -347,7 +347,7 @@ void main() {
         await tester.pumpWidget(
           createTestScreen(
             const LibraryScreen(),
-            overrides: [
+            overrides: dedupeOverrides([
               appSettingsProvider.overrideWith(() => TestAppSettings()),
               audioLibraryProvider.overrideWith(() => TestAudioLibrary()),
               collectionListProvider.overrideWith(
@@ -358,7 +358,7 @@ void main() {
                 () => TestListeningPractice(),
               ),
               audioEngineProvider.overrideWith(() => TestAudioEngine()),
-            ],
+            ]),
           ),
         );
         await tester.pump();
@@ -506,7 +506,7 @@ void main() {
         await tester.pumpWidget(
           createTestScreen(
             const LibraryScreen(),
-            overrides: [
+            overrides: dedupeOverrides([
               appSettingsProvider.overrideWith(() => TestAppSettings()),
               audioLibraryProvider.overrideWith(() => TestAudioLibrary()),
               collectionListProvider.overrideWith(
@@ -516,7 +516,7 @@ void main() {
                 () => TestListeningPractice(),
               ),
               audioEngineProvider.overrideWith(() => TestAudioEngine()),
-            ],
+            ]),
           ),
         );
         await tester.pumpAndSettle();
@@ -554,7 +554,7 @@ void main() {
         await tester.pumpWidget(
           createTestScreen(
             const LibraryScreen(),
-            overrides: [
+            overrides: dedupeOverrides([
               appSettingsProvider.overrideWith(() => TestAppSettings()),
               audioLibraryProvider.overrideWith(() => audioLib),
               collectionListProvider.overrideWith(() => collectionList),
@@ -562,7 +562,7 @@ void main() {
                 () => TestListeningPractice(),
               ),
               audioEngineProvider.overrideWith(() => TestAudioEngine()),
-            ],
+            ]),
           ),
         );
         await tester.pumpAndSettle();
@@ -615,7 +615,7 @@ void main() {
         await tester.pumpWidget(
           createTestScreen(
             const LibraryScreen(),
-            overrides: [
+            overrides: dedupeOverrides([
               appSettingsProvider.overrideWith(() => TestAppSettings()),
               audioLibraryProvider.overrideWith(() => audioLib),
               collectionListProvider.overrideWith(() => collectionList),
@@ -623,7 +623,7 @@ void main() {
                 () => TestListeningPractice(),
               ),
               audioEngineProvider.overrideWith(() => TestAudioEngine()),
-            ],
+            ]),
           ),
         );
         await tester.pumpAndSettle();
@@ -656,7 +656,7 @@ void main() {
         await tester.pumpWidget(
           createTestScreen(
             const LibraryScreen(),
-            overrides: [
+            overrides: dedupeOverrides([
               appSettingsProvider.overrideWith(() => TestAppSettings()),
               audioLibraryProvider.overrideWith(() => TestAudioLibrary()),
               collectionListProvider.overrideWith(
@@ -666,7 +666,7 @@ void main() {
                 () => TestListeningPractice(),
               ),
               audioEngineProvider.overrideWith(() => TestAudioEngine()),
-            ],
+            ]),
           ),
         );
         await tester.pumpAndSettle();
@@ -703,7 +703,7 @@ void main() {
         await tester.pumpWidget(
           createTestScreen(
             const LibraryScreen(),
-            overrides: [
+            overrides: dedupeOverrides([
               appSettingsProvider.overrideWith(() => TestAppSettings()),
               audioLibraryProvider.overrideWith(() => TestAudioLibrary()),
               collectionListProvider.overrideWith(
@@ -713,7 +713,7 @@ void main() {
                 () => TestListeningPractice(),
               ),
               audioEngineProvider.overrideWith(() => TestAudioEngine()),
-            ],
+            ]),
           ),
         );
         await tester.pumpAndSettle();

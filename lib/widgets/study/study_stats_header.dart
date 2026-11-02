@@ -33,7 +33,7 @@ class StudyStatsHeader extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final statsAsync = ref.watch(studyStatsNotifierProvider);
+    final statsAsync = ref.watch(studyStatsProvider);
 
     return statsAsync.when(
       loading: () => const SizedBox.shrink(),

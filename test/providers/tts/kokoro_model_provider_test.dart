@@ -11,6 +11,7 @@ import 'package:echo_loop/services/download/download_failure.dart';
 import 'package:echo_loop/services/reliable_http_downloader.dart';
 import 'package:echo_loop/services/resource_install_manifest.dart';
 import 'package:echo_loop/services/tts/kokoro_model_manager.dart';
+import '../../helpers/mock_providers.dart';
 
 const _fp32 = KokoroModelVariant.fp32;
 
@@ -115,12 +116,12 @@ ProviderContainer _container(
   KokoroModelsState? initial,
 }) {
   return ProviderContainer(
-    overrides: [
+    overrides: dedupeOverrides([
       kokoroModelManagerProvider.overrideWith((ref, variant) => manager),
       initialKokoroModelStateProvider.overrideWithValue(
         initial ?? KokoroModelsState.initial(),
       ),
-    ],
+    ]),
   );
 }
 

@@ -7,6 +7,7 @@ import 'package:echo_loop/features/community_collections/data/community_sync_ser
 import 'package:echo_loop/features/community_collections/models/community_collection_models.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:echo_loop/database/app_database.dart' show configureAppDatabaseConnection;
 
 class _FakeCommunityApi extends CommunityCollectionApi {
   _FakeCommunityApi(this.catalogEntries, this.filesByCollection, {this.failId})
@@ -49,7 +50,7 @@ void main() {
   late db.AppDatabase database;
 
   setUp(() {
-    database = db.AppDatabase(NativeDatabase.memory());
+    database = db.AppDatabase(NativeDatabase.memory(setup: configureAppDatabaseConnection));
   });
 
   tearDown(() async {

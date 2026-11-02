@@ -10,6 +10,7 @@ import 'package:echo_loop/features/subscription/services/revenuecat_purchase_ser
     show purchaseServiceProvider;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import '../../helpers/mock_providers.dart';
 
 const _chinaPlans = [
   SubscriptionPlan(
@@ -102,14 +103,14 @@ void main() {
     paddleRepository = _FakePaddleBillingRepository();
     now = DateTime.utc(2026, 7, 13, 8);
     container = ProviderContainer(
-      overrides: [
+      overrides: dedupeOverrides([
         purchaseServiceProvider.overrideWithValue(purchases),
         subscriptionPlansNowProvider.overrideWithValue(() => now),
         subscriptionPlansTimeoutProvider.overrideWithValue(
           const Duration(milliseconds: 20),
         ),
         paddleBillingRepositoryProvider.overrideWithValue(paddleRepository),
-      ],
+      ]),
     );
   });
 
@@ -122,7 +123,7 @@ void main() {
     container.read(subscriptionPlansProvider);
     await container.read(subscriptionPlansProvider.notifier).settled;
 
-    expect(container.read(subscriptionPlansProvider).valueOrNull, _usPlans);
+    expect(container.read(subscriptionPlansProvider).value, _usPlans);
     expect(purchases.fastFetches, 1);
     expect(purchases.fullFetches, 1);
   });
@@ -138,10 +139,10 @@ void main() {
         .refresh(force: true);
     await Future<void>.delayed(Duration.zero);
 
-    expect(container.read(subscriptionPlansProvider).valueOrNull, _chinaPlans);
+    expect(container.read(subscriptionPlansProvider).value, _chinaPlans);
     pending.complete(_usPlans);
     await refresh;
-    expect(container.read(subscriptionPlansProvider).valueOrNull, _usPlans);
+    expect(container.read(subscriptionPlansProvider).value, _usPlans);
   });
 
   test('强制刷新将 force 传递给基础套餐请求，但不重复强制补充请求', () async {
@@ -165,7 +166,7 @@ void main() {
         .read(subscriptionPlansProvider.notifier)
         .refresh(force: true);
 
-    expect(container.read(subscriptionPlansProvider).valueOrNull, _chinaPlans);
+    expect(container.read(subscriptionPlansProvider).value, _chinaPlans);
   });
 
   test('storefront 变化后立即撤下旧价格并提交新价格', () async {
@@ -183,7 +184,7 @@ void main() {
     expect(container.read(subscriptionPlansProvider).isLoading, isTrue);
     pending.complete(_usPlans);
     await refresh;
-    expect(container.read(subscriptionPlansProvider).valueOrNull, _usPlans);
+    expect(container.read(subscriptionPlansProvider).value, _usPlans);
   });
 
   test('同 storefront 在一天内不重复刷新，过期后刷新', () async {
@@ -214,7 +215,7 @@ void main() {
     first.complete(_chinaPlans);
     await Future<void>.delayed(Duration.zero);
 
-    expect(container.read(subscriptionPlansProvider).valueOrNull, _usPlans);
+    expect(container.read(subscriptionPlansProvider).value, _usPlans);
   });
 
   test('套餐查询期间 storefront 变化时丢弃旧区域结果并重试', () async {
@@ -231,7 +232,7 @@ void main() {
     container.read(subscriptionPlansProvider);
     await container.read(subscriptionPlansProvider.notifier).settled;
 
-    expect(container.read(subscriptionPlansProvider).valueOrNull, _usPlans);
+    expect(container.read(subscriptionPlansProvider).value, _usPlans);
     expect(purchases.fastFetches, 2);
   });
 
@@ -263,11 +264,11 @@ void main() {
     await container
         .read(subscriptionPlansProvider.notifier)
         .refresh(force: true);
-    expect(container.read(subscriptionPlansProvider).valueOrNull, _usPlans);
+    expect(container.read(subscriptionPlansProvider).value, _usPlans);
 
     pending.complete(_chinaPlans);
     await Future<void>.delayed(Duration.zero);
-    expect(container.read(subscriptionPlansProvider).valueOrNull, _usPlans);
+    expect(container.read(subscriptionPlansProvider).value, _usPlans);
   });
 
   test('基础套餐成功后促销查询超时仍保留基础套餐', () async {
@@ -284,7 +285,7 @@ void main() {
     await container.read(subscriptionPlansProvider.notifier).settled;
 
     expect(fullRequest, isTrue);
-    expect(container.read(subscriptionPlansProvider).valueOrNull, _chinaPlans);
+    expect(container.read(subscriptionPlansProvider).value, _chinaPlans);
   });
 
   test('Paddle 缓存先展示，网络完成后更新价格', () async {
@@ -314,7 +315,7 @@ void main() {
     await Future<void>.delayed(Duration.zero);
 
     expect(
-      container.read(paddleSubscriptionPlansProvider).valueOrNull,
+      container.read(paddleSubscriptionPlansProvider).value,
       cachedPlans,
     );
     expect(container.read(paddleSubscriptionPlansProvider).isLoading, isFalse);
@@ -322,7 +323,7 @@ void main() {
     pending.complete(updatedPlans);
     await refresh;
     expect(
-      container.read(paddleSubscriptionPlansProvider).valueOrNull,
+      container.read(paddleSubscriptionPlansProvider).value,
       updatedPlans,
     );
   });
@@ -336,7 +337,7 @@ void main() {
         .refresh(force: true);
 
     expect(
-      container.read(paddleSubscriptionPlansProvider).valueOrNull,
+      container.read(paddleSubscriptionPlansProvider).value,
       _usPlans,
     );
     expect(container.read(paddleSubscriptionPlansProvider).hasError, isFalse);
@@ -374,7 +375,7 @@ void main() {
     await firstRefresh;
 
     expect(
-      container.read(paddleSubscriptionPlansProvider).valueOrNull,
+      container.read(paddleSubscriptionPlansProvider).value,
       _usPlans,
     );
   });

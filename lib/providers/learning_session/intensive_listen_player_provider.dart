@@ -1325,7 +1325,7 @@ class IntensiveListenPlayer extends _$IntensiveListenPlayer {
 
     unawaited(
       ref
-          .read(learningProgressNotifierProvider.notifier)
+          .read(learningProgressProvider.notifier)
           .saveIntensiveListenSentenceIndex(
             itemId,
             state.currentSentenceIndex,

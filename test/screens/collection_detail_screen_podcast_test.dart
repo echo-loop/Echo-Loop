@@ -52,7 +52,7 @@ void main() {
     await tester.pumpWidget(
       createTestScreen(
         const CollectionDetailScreen(collectionId: 'community-1'),
-        overrides: [
+        overrides: dedupeOverrides([
           collectionListProvider.overrideWith(
             () => TestCollectionList(
               CollectionState(
@@ -61,7 +61,7 @@ void main() {
               ),
             ),
           ),
-        ],
+        ]),
       ),
     );
     await tester.pumpAndSettle();
@@ -125,7 +125,7 @@ void main() {
     await tester.pumpWidget(
       createTestScreen(
         const CollectionDetailScreen(collectionId: 'podcast-1'),
-        overrides: [
+        overrides: dedupeOverrides([
           audioLibraryProvider.overrideWith(
             () => TestAudioLibrary(AudioLibraryState(audioItems: items)),
           ),
@@ -140,7 +140,7 @@ void main() {
             ),
           ),
           podcastRepositoryProvider.overrideWithValue(podcastRepo),
-        ],
+        ]),
       ),
     );
     await tester.pumpAndSettle();
@@ -242,7 +242,7 @@ void main() {
     await tester.pumpWidget(
       createTestScreen(
         const CollectionDetailScreen(collectionId: 'podcast-1'),
-        overrides: [
+        overrides: dedupeOverrides([
           audioLibraryProvider.overrideWith(
             () => TestAudioLibrary(AudioLibraryState(audioItems: [item])),
           ),
@@ -257,7 +257,7 @@ void main() {
             ),
           ),
           podcastRepositoryProvider.overrideWithValue(podcastRepo),
-        ],
+        ]),
       ),
     );
     await tester.pumpAndSettle();
@@ -311,7 +311,7 @@ void main() {
     await tester.pumpWidget(
       createTestScreen(
         const CollectionDetailScreen(collectionId: 'podcast-1'),
-        overrides: [
+        overrides: dedupeOverrides([
           audioLibraryProvider.overrideWith(
             () => TestAudioLibrary(AudioLibraryState(audioItems: [item])),
           ),
@@ -326,7 +326,7 @@ void main() {
             ),
           ),
           podcastRepositoryProvider.overrideWithValue(podcastRepo),
-        ],
+        ]),
       ),
     );
     await tester.pumpAndSettle();
@@ -388,13 +388,13 @@ void main() {
     await tester.pumpWidget(
       createTestScreen(
         const CollectionDetailScreen(collectionId: 'podcast-1'),
-        overrides: [
+        overrides: dedupeOverrides([
           audioLibraryProvider.overrideWith(
             () => TestAudioLibrary(AudioLibraryState(audioItems: [item])),
           ),
           collectionListProvider.overrideWith(() => collectionList),
           podcastRepositoryProvider.overrideWithValue(podcastRepo),
-        ],
+        ]),
       ),
     );
     await tester.pumpAndSettle();

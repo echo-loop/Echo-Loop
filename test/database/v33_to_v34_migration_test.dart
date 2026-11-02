@@ -28,7 +28,7 @@ void main() {
       final file = File('${dir.path}/echo_loop.db');
       await _createV33Fixture(file);
 
-      final db = AppDatabase(NativeDatabase(file));
+      final db = AppDatabase(NativeDatabase(file, setup: configureAppDatabaseConnection));
       addTearDown(db.close);
 
       // 列存在
@@ -274,6 +274,6 @@ Future<void> _createV33Fixture(File file) async {
 
     raw.execute('PRAGMA user_version = 33');
   } finally {
-    raw.dispose();
+    raw.close();
   }
 }

@@ -19,7 +19,7 @@ class ReadingTextScale extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
-    final prefs = ref.watch(readingTextPrefsNotifierProvider);
+    final prefs = ref.watch(readingTextPrefsProvider);
     return Theme(
       data: theme.copyWith(textTheme: prefs.scaleTextTheme(theme.textTheme)),
       child: child,

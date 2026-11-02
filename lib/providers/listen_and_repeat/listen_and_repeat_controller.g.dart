@@ -6,28 +6,73 @@ part of 'listen_and_repeat_controller.dart';
 // RiverpodGenerator
 // **************************************************************************
 
-String _$listenAndRepeatControllerHash() =>
-    r'8e2e14a1afd053fae74dcd7dafececa05641101d';
+// GENERATED CODE - DO NOT MODIFY BY HAND
+// ignore_for_file: type=lint, type=warning
+/// 跟读会话控制器
+
+@ProviderFor(ListenAndRepeatController)
+final listenAndRepeatControllerProvider = ListenAndRepeatControllerProvider._();
 
 /// 跟读会话控制器
-///
-/// Copied from [ListenAndRepeatController].
-@ProviderFor(ListenAndRepeatController)
-final listenAndRepeatControllerProvider =
-    AutoDisposeNotifierProvider<
-      ListenAndRepeatController,
-      ListenAndRepeatSessionState
-    >.internal(
-      ListenAndRepeatController.new,
-      name: r'listenAndRepeatControllerProvider',
-      debugGetCreateSourceHash: const bool.fromEnvironment('dart.vm.product')
-          ? null
-          : _$listenAndRepeatControllerHash,
-      dependencies: null,
-      allTransitiveDependencies: null,
-    );
+final class ListenAndRepeatControllerProvider
+    extends
+        $NotifierProvider<
+          ListenAndRepeatController,
+          ListenAndRepeatSessionState
+        > {
+  /// 跟读会话控制器
+  ListenAndRepeatControllerProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'listenAndRepeatControllerProvider',
+        isAutoDispose: true,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
 
-typedef _$ListenAndRepeatController =
-    AutoDisposeNotifier<ListenAndRepeatSessionState>;
-// ignore_for_file: type=lint
-// ignore_for_file: subtype_of_sealed_class, invalid_use_of_internal_member, invalid_use_of_visible_for_testing_member, deprecated_member_use_from_same_package
+  @override
+  String debugGetCreateSourceHash() => _$listenAndRepeatControllerHash();
+
+  @$internal
+  @override
+  ListenAndRepeatController create() => ListenAndRepeatController();
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(ListenAndRepeatSessionState value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<ListenAndRepeatSessionState>(value),
+    );
+  }
+}
+
+String _$listenAndRepeatControllerHash() =>
+    r'b8cfbb0a69980a1f0d03cbc47c5bf55adcb076f1';
+
+/// 跟读会话控制器
+
+abstract class _$ListenAndRepeatController
+    extends $Notifier<ListenAndRepeatSessionState> {
+  ListenAndRepeatSessionState build();
+  @$mustCallSuper
+  @override
+  WhenComplete runBuild() {
+    final ref =
+        this.ref
+            as $Ref<ListenAndRepeatSessionState, ListenAndRepeatSessionState>;
+    final element =
+        ref.element
+            as $ClassProviderElement<
+              AnyNotifier<
+                ListenAndRepeatSessionState,
+                ListenAndRepeatSessionState
+              >,
+              ListenAndRepeatSessionState,
+              Object?,
+              Object?
+            >;
+    return element.handleCreate(ref, build);
+  }
+}

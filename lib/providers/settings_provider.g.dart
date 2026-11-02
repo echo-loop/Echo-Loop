@@ -6,21 +6,57 @@ part of 'settings_provider.dart';
 // RiverpodGenerator
 // **************************************************************************
 
-String _$appSettingsHash() => r'bdb8c34d424699985b9601eabb4fdbab8ca1c3ff';
+// GENERATED CODE - DO NOT MODIFY BY HAND
+// ignore_for_file: type=lint, type=warning
 
-/// See also [AppSettings].
 @ProviderFor(AppSettings)
-final appSettingsProvider =
-    NotifierProvider<AppSettings, AppSettingsState>.internal(
-      AppSettings.new,
-      name: r'appSettingsProvider',
-      debugGetCreateSourceHash: const bool.fromEnvironment('dart.vm.product')
-          ? null
-          : _$appSettingsHash,
-      dependencies: null,
-      allTransitiveDependencies: null,
-    );
+final appSettingsProvider = AppSettingsProvider._();
 
-typedef _$AppSettings = Notifier<AppSettingsState>;
-// ignore_for_file: type=lint
-// ignore_for_file: subtype_of_sealed_class, invalid_use_of_internal_member, invalid_use_of_visible_for_testing_member, deprecated_member_use_from_same_package
+final class AppSettingsProvider
+    extends $NotifierProvider<AppSettings, AppSettingsState> {
+  AppSettingsProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'appSettingsProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$appSettingsHash();
+
+  @$internal
+  @override
+  AppSettings create() => AppSettings();
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(AppSettingsState value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<AppSettingsState>(value),
+    );
+  }
+}
+
+String _$appSettingsHash() => r'8bf32fd50b779c320ac467c0a26a8fd018e0f61d';
+
+abstract class _$AppSettings extends $Notifier<AppSettingsState> {
+  AppSettingsState build();
+  @$mustCallSuper
+  @override
+  WhenComplete runBuild() {
+    final ref = this.ref as $Ref<AppSettingsState, AppSettingsState>;
+    final element =
+        ref.element
+            as $ClassProviderElement<
+              AnyNotifier<AppSettingsState, AppSettingsState>,
+              AppSettingsState,
+              Object?,
+              Object?
+            >;
+    return element.handleCreate(ref, build);
+  }
+}

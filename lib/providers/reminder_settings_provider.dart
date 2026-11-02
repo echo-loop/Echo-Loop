@@ -5,6 +5,7 @@
 library;
 
 import 'dart:convert';
+import '../utils/provider_override_error.dart';
 
 import 'package:flutter/foundation.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
@@ -35,7 +36,8 @@ class ReminderSettingsNotifier extends _$ReminderSettingsNotifier {
     final generation = ++_loadGeneration;
     try {
       return _readFromPrefs(ref.read(sharedPreferencesProvider));
-    } on UnimplementedError {
+    } catch (error) {
+      if (!isProviderNotOverriddenError(error)) rethrow;
       _loadFromPreferences(generation);
       return const ReminderSettings();
     }
@@ -60,7 +62,8 @@ class ReminderSettingsNotifier extends _$ReminderSettingsNotifier {
     final generation = ++_loadGeneration;
     try {
       state = _readFromPrefs(ref.read(sharedPreferencesProvider));
-    } on UnimplementedError {
+    } catch (error) {
+      if (!isProviderNotOverriddenError(error)) rethrow;
       _loadFromPreferences(generation);
     }
   }

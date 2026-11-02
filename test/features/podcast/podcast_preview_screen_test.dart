@@ -197,10 +197,10 @@ void main() {
               feedUrl: _feedUrl,
             ),
           ),
-          overrides: [
+          overrides: dedupeOverrides([
             collectionListProvider.overrideWith(() => TestCollectionList()),
             podcastPreviewDioProvider.overrideWithValue(dio),
-          ],
+          ]),
         ),
       );
       await tester.pumpAndSettle();
@@ -249,10 +249,10 @@ void main() {
               feedUrl: _feedUrl,
             ),
           ),
-          overrides: [
+          overrides: dedupeOverrides([
             collectionListProvider.overrideWith(() => TestCollectionList()),
             podcastPreviewProvider(_feedUrl).overrideWith((ref) async => data),
-          ],
+          ]),
         ),
       );
       await tester.pumpAndSettle();
@@ -287,12 +287,12 @@ void main() {
               feedUrl: _feedUrl,
             ),
           ),
-          overrides: [
+          overrides: dedupeOverrides([
             collectionListProvider.overrideWith(() => TestCollectionList()),
             podcastPreviewProvider(
               _feedUrl,
             ).overrideWith((ref) async => _previewData),
-          ],
+          ]),
         ),
       );
       await tester.pumpAndSettle();
@@ -316,7 +316,7 @@ void main() {
               feedUrl: _feedUrl,
             ),
           ),
-          overrides: [
+          overrides: dedupeOverrides([
             collectionListProvider.overrideWith(() => TestCollectionList()),
             podcastPreviewProvider(_feedUrl).overrideWith(
               (ref) async => const PodcastPreviewData(
@@ -336,7 +336,7 @@ void main() {
                 ],
               ),
             ),
-          ],
+          ]),
         ),
       );
       await tester.pumpAndSettle();
@@ -377,7 +377,7 @@ void main() {
               feedUrl: _feedUrl,
             ),
           ),
-          overrides: [
+          overrides: dedupeOverrides([
             collectionListProvider.overrideWith(
               () => TestCollectionList(
                 CollectionState(
@@ -396,7 +396,7 @@ void main() {
             podcastPreviewProvider(
               _feedUrl,
             ).overrideWith((ref) async => _previewData),
-          ],
+          ]),
         ),
       );
       await tester.pumpAndSettle();

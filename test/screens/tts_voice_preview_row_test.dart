@@ -10,6 +10,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../helpers/mock_providers.dart';
 
 /// 受控 Kokoro 模型 notifier：返回注入初值，下载方法空操作。
 class _ReadyKokoroNotifier extends KokoroModelNotifier {
@@ -51,11 +52,11 @@ Widget _wrap(
   TtsEngineKind engine = TtsEngineKind.kokoro,
 }) {
   return ProviderScope(
-    overrides: [
+    overrides: dedupeOverrides([
       initialTtsSettingsProvider.overrideWithValue(TtsSettings(engine: engine)),
       kokoroModelProvider.overrideWith(_ReadyKokoroNotifier.new),
       ttsControllerProvider.overrideWith(() => _FakeTtsController(speakingKey)),
-    ],
+    ]),
     child: const MaterialApp(
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,

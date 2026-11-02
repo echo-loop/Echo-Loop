@@ -13,12 +13,11 @@ import 'package:echo_loop/providers/monthly_study_records_provider.dart';
 import 'package:echo_loop/providers/study_stats_provider.dart';
 import 'package:echo_loop/screens/activity_calendar_screen.dart';
 import 'package:echo_loop/theme/app_theme.dart';
+import 'package:flutter_riverpod/misc.dart';
 
 AppDatabase _createTestDb() {
   return AppDatabase(
-    NativeDatabase.memory(
-      setup: (db) => db.execute('PRAGMA foreign_keys = ON'),
-    ),
+    NativeDatabase.memory(setup: configureAppDatabaseConnection),
   );
 }
 
@@ -31,7 +30,7 @@ Widget _createTestApp({
   final now = DateTime.now();
   final overrides = <Override>[
     appDatabaseProvider.overrideWithValue(db),
-    studyStatsNotifierProvider.overrideWith(
+    studyStatsProvider.overrideWith(
       () => _TestStudyStatsNotifier(stats),
     ),
   ];

@@ -9,7 +9,6 @@
 library;
 
 import 'dart:async';
-import 'package:flutter_riverpod/flutter_riverpod.dart' show Ref;
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../../analytics/analytics_providers.dart';
 import '../../analytics/audio_event_params.dart';
@@ -1345,7 +1344,7 @@ class ReviewDifficultPractice extends _$ReviewDifficultPractice {
 
     unawaited(
       ref
-          .read(learningProgressNotifierProvider.notifier)
+          .read(learningProgressProvider.notifier)
           .saveDifficultPracticeSentenceIndex(
             audioItemId,
             state.currentSentenceIndex,

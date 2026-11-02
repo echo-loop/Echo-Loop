@@ -19,7 +19,6 @@ import 'package:echo_loop/providers/learning_session/learning_session_provider.d
 import 'package:echo_loop/providers/learning_session/intensive_listen_playback_driver.dart';
 import 'package:echo_loop/providers/learning_session/review_difficult_practice_provider.dart';
 import 'package:echo_loop/providers/repeat_flow/repeat_flow_phase.dart';
-import 'package:echo_loop/providers/speech/speech_recording_controller.dart';
 
 import '../helpers/mock_providers.dart';
 
@@ -360,8 +359,8 @@ void main() {
       playbackDelay: const Duration(milliseconds: 100),
     );
     final container = ProviderContainer(
-      overrides: [
-        learningProgressNotifierProvider.overrideWith(
+      overrides: dedupeOverrides([
+        learningProgressProvider.overrideWith(
           () =>
               _RecordingLearningProgressNotifier(const LearningProgressState()),
         ),
@@ -377,10 +376,11 @@ void main() {
         analyticsOverride(),
         ...learningSettingsOverrides(),
         ...studyTimeOverrides(),
-      ],
+      ]),
     );
     addTearDown(container.dispose);
     final notifier = container.read(reviewDifficultPracticeProvider.notifier);
+    _listenToReviewDifficultPractice(container);
     final sentence = Sentence(
       index: 0,
       text: 'Resume this sentence.',
@@ -409,8 +409,8 @@ void main() {
   test('暂停后导航到另一句时不复用旧句的暂停位置', () async {
     final playback = _RecordingPlaybackDriver();
     final container = ProviderContainer(
-      overrides: [
-        learningProgressNotifierProvider.overrideWith(
+      overrides: dedupeOverrides([
+        learningProgressProvider.overrideWith(
           () =>
               _RecordingLearningProgressNotifier(const LearningProgressState()),
         ),
@@ -426,10 +426,11 @@ void main() {
         analyticsOverride(),
         ...learningSettingsOverrides(),
         ...studyTimeOverrides(),
-      ],
+      ]),
     );
     addTearDown(container.dispose);
     final notifier = container.read(reviewDifficultPracticeProvider.notifier);
+    _listenToReviewDifficultPractice(container);
     final sentences = [
       Sentence(
         index: 0,
@@ -474,8 +475,8 @@ void main() {
       playbackDelay: const Duration(milliseconds: 100),
     );
     final container = ProviderContainer(
-      overrides: [
-        learningProgressNotifierProvider.overrideWith(
+      overrides: dedupeOverrides([
+        learningProgressProvider.overrideWith(
           () =>
               _RecordingLearningProgressNotifier(const LearningProgressState()),
         ),
@@ -491,10 +492,11 @@ void main() {
         analyticsOverride(),
         ...learningSettingsOverrides(),
         ...studyTimeOverrides(),
-      ],
+      ]),
     );
     addTearDown(container.dispose);
     final notifier = container.read(reviewDifficultPracticeProvider.notifier);
+    _listenToReviewDifficultPractice(container);
     await notifier.initialize(
       [
         Sentence(
@@ -534,7 +536,7 @@ void main() {
       final statistics = _RecordingStudyTimeService();
       final speechController = TestSpeechRecordingController();
       final container = ProviderContainer(
-        overrides: [
+        overrides: dedupeOverrides([
           foregroundAudioEngineProvider.overrideWith(
             () => _ReplayTestAudioEngine(),
           ),
@@ -546,7 +548,7 @@ void main() {
               ),
             ),
           ),
-          learningProgressNotifierProvider.overrideWith(
+          learningProgressProvider.overrideWith(
             () => _RecordingLearningProgressNotifier(
               const LearningProgressState(),
             ),
@@ -556,12 +558,13 @@ void main() {
             studyTimeService: statistics,
             speechControllerFactory: () => speechController,
           ),
-        ],
+        ]),
       );
       addTearDown(container.dispose);
       _listenToReviewDifficultPractice(container);
 
       final notifier = container.read(reviewDifficultPracticeProvider.notifier);
+      _listenToReviewDifficultPractice(container);
       await notifier.initialize(
         [
           Sentence(
@@ -599,7 +602,7 @@ void main() {
       final statistics = _RecordingStudyTimeService();
       final speechController = TestSpeechRecordingController();
       final container = ProviderContainer(
-        overrides: [
+        overrides: dedupeOverrides([
           foregroundAudioEngineProvider.overrideWith(
             () => _ReplayTestAudioEngine(),
           ),
@@ -611,7 +614,7 @@ void main() {
               ),
             ),
           ),
-          learningProgressNotifierProvider.overrideWith(
+          learningProgressProvider.overrideWith(
             () => _RecordingLearningProgressNotifier(
               const LearningProgressState(),
             ),
@@ -621,12 +624,13 @@ void main() {
             studyTimeService: statistics,
             speechControllerFactory: () => speechController,
           ),
-        ],
+        ]),
       );
       addTearDown(container.dispose);
       _listenToReviewDifficultPractice(container);
 
       final notifier = container.read(reviewDifficultPracticeProvider.notifier);
+      _listenToReviewDifficultPractice(container);
       await notifier.initialize(
         [
           Sentence(
@@ -663,11 +667,11 @@ void main() {
       final playback = _ControlledPlaybackDriver();
       addTearDown(playback.dispose);
       final container = ProviderContainer(
-        overrides: [
+        overrides: dedupeOverrides([
           foregroundAudioEngineProvider.overrideWith(
             () => _ReplayTestAudioEngine(),
           ),
-          learningProgressNotifierProvider.overrideWith(
+          learningProgressProvider.overrideWith(
             () => _RecordingLearningProgressNotifier(
               const LearningProgressState(),
             ),
@@ -682,12 +686,13 @@ void main() {
           ),
           analyticsOverride(),
           ...studyTimeOverrides(),
-        ],
+        ]),
       );
       addTearDown(container.dispose);
       _listenToReviewDifficultPractice(container);
 
       final notifier = container.read(reviewDifficultPracticeProvider.notifier);
+      _listenToReviewDifficultPractice(container);
       await notifier.initialize(
         [
           Sentence(
@@ -723,11 +728,11 @@ void main() {
     test('媒体会话复用注入驱动播放原句且发布媒体标记', () async {
       final playback = _RecordingPlaybackDriver();
       final container = ProviderContainer(
-        overrides: [
+        overrides: dedupeOverrides([
           foregroundAudioEngineProvider.overrideWith(
             () => _ReplayTestAudioEngine(),
           ),
-          learningProgressNotifierProvider.overrideWith(
+          learningProgressProvider.overrideWith(
             () => _RecordingLearningProgressNotifier(
               const LearningProgressState(),
             ),
@@ -743,12 +748,13 @@ void main() {
           ),
           analyticsOverride(),
           ...studyTimeOverrides(),
-        ],
+        ]),
       );
       addTearDown(container.dispose);
       _listenToReviewDifficultPractice(container);
 
       final notifier = container.read(reviewDifficultPracticeProvider.notifier);
+      _listenToReviewDifficultPractice(container);
       await notifier.initialize(
         [
           Sentence(
@@ -778,8 +784,8 @@ void main() {
         playbackDelay: const Duration(milliseconds: 1),
       );
       final container = ProviderContainer(
-        overrides: [
-          learningProgressNotifierProvider.overrideWith(
+        overrides: dedupeOverrides([
+          learningProgressProvider.overrideWith(
             () => _RecordingLearningProgressNotifier(
               const LearningProgressState(),
             ),
@@ -795,12 +801,13 @@ void main() {
           ),
           analyticsOverride(),
           ...studyTimeOverrides(),
-        ],
+        ]),
       );
       addTearDown(container.dispose);
       _listenToReviewDifficultPractice(container);
 
       final notifier = container.read(reviewDifficultPracticeProvider.notifier);
+      _listenToReviewDifficultPractice(container);
       await notifier.initialize(
         [
           Sentence(
@@ -861,11 +868,11 @@ void main() {
         ),
       );
       final container = ProviderContainer(
-        overrides: [
+        overrides: dedupeOverrides([
           foregroundAudioEngineProvider.overrideWith(
             () => _ReplayTestAudioEngine(),
           ),
-          learningProgressNotifierProvider.overrideWith(() => progressNotifier),
+          learningProgressProvider.overrideWith(() => progressNotifier),
           learningSessionProvider.overrideWith(
             () => _PassiveLearningSession(
               const LearningSessionState(
@@ -876,12 +883,13 @@ void main() {
           ),
           analyticsOverride(),
           ...studyTimeOverrides(),
-        ],
+        ]),
       );
       addTearDown(container.dispose);
       _listenToReviewDifficultPractice(container);
 
       final notifier = container.read(reviewDifficultPracticeProvider.notifier);
+      _listenToReviewDifficultPractice(container);
       await notifier.initialize([
         Sentence(
           index: 0,
@@ -906,11 +914,11 @@ void main() {
 
     test('跟读模式 WaitingForUser 态修改设置后保持等待', () async {
       final container = ProviderContainer(
-        overrides: [
+        overrides: dedupeOverrides([
           foregroundAudioEngineProvider.overrideWith(
             () => _ReplayTestAudioEngine(),
           ),
-          learningProgressNotifierProvider.overrideWith(
+          learningProgressProvider.overrideWith(
             () => _RecordingLearningProgressNotifier(
               const LearningProgressState(),
             ),
@@ -923,17 +931,15 @@ void main() {
               ),
             ),
           ),
-          speechRecordingControllerProvider.overrideWith(
-            TestSpeechRecordingController.new,
-          ),
           analyticsOverride(),
           ...studyTimeOverrides(),
-        ],
+        ]),
       );
       addTearDown(container.dispose);
       _listenToReviewDifficultPractice(container);
 
       final notifier = container.read(reviewDifficultPracticeProvider.notifier);
+      _listenToReviewDifficultPractice(container);
       await notifier.initialize([
         Sentence(
           index: 0,
@@ -968,11 +974,11 @@ void main() {
 
     test('盲听模式进入 WaitingForUser 后修改设置保持等待', () async {
       final container = ProviderContainer(
-        overrides: [
+        overrides: dedupeOverrides([
           foregroundAudioEngineProvider.overrideWith(
             () => _ReplayTestAudioEngine(),
           ),
-          learningProgressNotifierProvider.overrideWith(
+          learningProgressProvider.overrideWith(
             () => _RecordingLearningProgressNotifier(
               const LearningProgressState(),
             ),
@@ -987,12 +993,13 @@ void main() {
           ),
           analyticsOverride(),
           ...studyTimeOverrides(),
-        ],
+        ]),
       );
       addTearDown(container.dispose);
       _listenToReviewDifficultPractice(container);
 
       final notifier = container.read(reviewDifficultPracticeProvider.notifier);
+      _listenToReviewDifficultPractice(container);
       await notifier.initialize([
         Sentence(
           index: 0,
@@ -1027,11 +1034,11 @@ void main() {
 
     test('盲听播放中进入 WaitingForUser 时，允许当前句自然播完', () async {
       final container = ProviderContainer(
-        overrides: [
+        overrides: dedupeOverrides([
           foregroundAudioEngineProvider.overrideWith(
             () => _SlowBlindAudioEngine(),
           ),
-          learningProgressNotifierProvider.overrideWith(
+          learningProgressProvider.overrideWith(
             () => _RecordingLearningProgressNotifier(
               const LearningProgressState(),
             ),
@@ -1046,12 +1053,13 @@ void main() {
           ),
           analyticsOverride(),
           ...studyTimeOverrides(),
-        ],
+        ]),
       );
       addTearDown(container.dispose);
       _listenToReviewDifficultPractice(container);
 
       final notifier = container.read(reviewDifficultPracticeProvider.notifier);
+      _listenToReviewDifficultPractice(container);
       await notifier.initialize(
         [
           Sentence(
@@ -1085,11 +1093,11 @@ void main() {
 
     test('dispose 后重新 initialize，盲听仍可再次播放', () async {
       final container = ProviderContainer(
-        overrides: [
+        overrides: dedupeOverrides([
           foregroundAudioEngineProvider.overrideWith(
             () => _SlowBlindAudioEngine(),
           ),
-          learningProgressNotifierProvider.overrideWith(
+          learningProgressProvider.overrideWith(
             () => _RecordingLearningProgressNotifier(
               const LearningProgressState(),
             ),
@@ -1104,12 +1112,13 @@ void main() {
           ),
           analyticsOverride(),
           ...studyTimeOverrides(),
-        ],
+        ]),
       );
       addTearDown(container.dispose);
       _listenToReviewDifficultPractice(container);
 
       final notifier = container.read(reviewDifficultPracticeProvider.notifier);
+      _listenToReviewDifficultPractice(container);
       final sentences = [
         Sentence(
           index: 0,
@@ -1156,11 +1165,11 @@ void main() {
         ),
       );
       final container = ProviderContainer(
-        overrides: [
+        overrides: dedupeOverrides([
           foregroundAudioEngineProvider.overrideWith(
             () => _ReplayTestAudioEngine(),
           ),
-          learningProgressNotifierProvider.overrideWith(() => progressNotifier),
+          learningProgressProvider.overrideWith(() => progressNotifier),
           learningSessionProvider.overrideWith(
             () => _PassiveLearningSession(
               const LearningSessionState(
@@ -1169,17 +1178,15 @@ void main() {
               ),
             ),
           ),
-          speechRecordingControllerProvider.overrideWith(
-            TestSpeechRecordingController.new,
-          ),
           analyticsOverride(),
           ...studyTimeOverrides(),
-        ],
+        ]),
       );
       addTearDown(container.dispose);
       _listenToReviewDifficultPractice(container);
 
       final notifier = container.read(reviewDifficultPracticeProvider.notifier);
+      _listenToReviewDifficultPractice(container);
       await notifier.initialize([
         Sentence(
           index: 0,
@@ -1216,9 +1223,9 @@ void main() {
     test('跟读播放中修改设置不打断也不重播，播完后进入等待', () async {
       final audioEngine = _SlowBlindAudioEngine();
       final container = ProviderContainer(
-        overrides: [
+        overrides: dedupeOverrides([
           foregroundAudioEngineProvider.overrideWith(() => audioEngine),
-          learningProgressNotifierProvider.overrideWith(
+          learningProgressProvider.overrideWith(
             () => _RecordingLearningProgressNotifier(
               const LearningProgressState(),
             ),
@@ -1231,17 +1238,15 @@ void main() {
               ),
             ),
           ),
-          speechRecordingControllerProvider.overrideWith(
-            TestSpeechRecordingController.new,
-          ),
           analyticsOverride(),
           ...studyTimeOverrides(),
-        ],
+        ]),
       );
       addTearDown(container.dispose);
       _listenToReviewDifficultPractice(container);
 
       final notifier = container.read(reviewDifficultPracticeProvider.notifier);
+      _listenToReviewDifficultPractice(container);
       await notifier.initialize(
         [
           Sentence(
@@ -1295,11 +1300,11 @@ void main() {
     );
 
     ProviderContainer buildContainer() => ProviderContainer(
-      overrides: [
+      overrides: dedupeOverrides([
         foregroundAudioEngineProvider.overrideWith(
           () => _ReplayTestAudioEngine(),
         ),
-        learningProgressNotifierProvider.overrideWith(
+        learningProgressProvider.overrideWith(
           () => _RecordingLearningProgressNotifier(
             const LearningProgressState(progressMap: {}),
           ),
@@ -1314,7 +1319,7 @@ void main() {
         ),
         analyticsOverride(),
         ...studyTimeOverrides(),
-      ],
+      ]),
     );
 
     test('跳转到合法句子更新 currentSentenceIndex', () async {
@@ -1322,6 +1327,7 @@ void main() {
       addTearDown(container.dispose);
       _listenToReviewDifficultPractice(container);
       final notifier = container.read(reviewDifficultPracticeProvider.notifier);
+      _listenToReviewDifficultPractice(container);
       await notifier.initialize(buildSentences(8));
 
       await notifier.goToSentence(5);
@@ -1337,6 +1343,7 @@ void main() {
       addTearDown(container.dispose);
       _listenToReviewDifficultPractice(container);
       final notifier = container.read(reviewDifficultPracticeProvider.notifier);
+      _listenToReviewDifficultPractice(container);
       await notifier.initialize(buildSentences(5));
 
       await notifier.goToSentence(99);
@@ -1357,6 +1364,7 @@ void main() {
       addTearDown(container.dispose);
       _listenToReviewDifficultPractice(container);
       final notifier = container.read(reviewDifficultPracticeProvider.notifier);
+      _listenToReviewDifficultPractice(container);
       await notifier.initialize(buildSentences(5));
       await notifier.goToSentence(2);
 
@@ -1375,6 +1383,7 @@ void main() {
       addTearDown(container.dispose);
       _listenToReviewDifficultPractice(container);
       final notifier = container.read(reviewDifficultPracticeProvider.notifier);
+      _listenToReviewDifficultPractice(container);
       await notifier.initialize(
         buildSentences(2),
         settings: const DifficultPracticeSettings(
@@ -1397,6 +1406,7 @@ void main() {
       addTearDown(container.dispose);
       _listenToReviewDifficultPractice(container);
       final notifier = container.read(reviewDifficultPracticeProvider.notifier);
+      _listenToReviewDifficultPractice(container);
       await notifier.initialize(
         buildSentences(2),
         settings: const DifficultPracticeSettings(
@@ -1428,6 +1438,7 @@ void main() {
       addTearDown(container.dispose);
       _listenToReviewDifficultPractice(container);
       final notifier = container.read(reviewDifficultPracticeProvider.notifier);
+      _listenToReviewDifficultPractice(container);
       await notifier.initialize(
         buildSentences(3),
         settings: const DifficultPracticeSettings(

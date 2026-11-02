@@ -17,7 +17,7 @@ void main() {
     final file = File('${dir.path}/echo_loop.db');
     await _createV32LearningProgress(file);
 
-    final db = AppDatabase(NativeDatabase(file));
+    final db = AppDatabase(NativeDatabase(file, setup: configureAppDatabaseConnection));
     addTearDown(db.close);
 
     final columns = await db
@@ -86,6 +86,6 @@ Future<void> _createV32LearningProgress(File file) async {
       )
       ..execute('PRAGMA user_version = 32');
   } finally {
-    raw.dispose();
+    raw.close();
   }
 }

@@ -291,7 +291,7 @@ class ListenAndRepeatController extends _$ListenAndRepeatController {
 
     // 从 DB 读断点
     final progress = await ref
-        .read(learningProgressNotifierProvider.notifier)
+        .read(learningProgressProvider.notifier)
         .getLatestOrEnsureProgress(audioItemId);
     if (!isCurrentEntry()) return;
     int startIndex = 0;
@@ -640,7 +640,7 @@ class ListenAndRepeatController extends _$ListenAndRepeatController {
   /// 保存断点
   Future<void> saveBreakpoint({required bool isFreePlay}) async {
     await ref
-        .read(learningProgressNotifierProvider.notifier)
+        .read(learningProgressProvider.notifier)
         .saveShadowingSentenceIndex(
           _engine.config.audioItemId,
           state.sentenceIndex,
@@ -651,7 +651,7 @@ class ListenAndRepeatController extends _$ListenAndRepeatController {
   /// 清除断点
   Future<void> clearBreakpoint({required bool isFreePlay}) async {
     await ref
-        .read(learningProgressNotifierProvider.notifier)
+        .read(learningProgressProvider.notifier)
         .saveShadowingSentenceIndex(
           _engine.config.audioItemId,
           null,
@@ -662,14 +662,14 @@ class ListenAndRepeatController extends _$ListenAndRepeatController {
   /// 递增遍数统计
   Future<void> incrementPassCount() async {
     await ref
-        .read(learningProgressNotifierProvider.notifier)
+        .read(learningProgressProvider.notifier)
         .incrementShadowingPassCount(_engine.config.audioItemId);
   }
 
   /// 标记当前子步骤完成
   Future<void> completeSubStage() async {
     await ref
-        .read(learningProgressNotifierProvider.notifier)
+        .read(learningProgressProvider.notifier)
         .completeCurrentSubStage(_engine.config.audioItemId);
   }
 
@@ -925,7 +925,7 @@ class ListenAndRepeatController extends _$ListenAndRepeatController {
     ref.invalidate(dailyStudyTimeProvider);
     ref.invalidate(studyDurationRecordsProvider);
     try {
-      await ref.read(studyStatsNotifierProvider.notifier).refresh();
+      await ref.read(studyStatsProvider.notifier).refresh();
     } catch (error, stackTrace) {
       AppLogger.log(
         'StudyExit',
@@ -978,6 +978,8 @@ class ListenAndRepeatController extends _$ListenAndRepeatController {
       sentence,
       ref.read(listenAndRepeatSettingsProvider).playbackSpeed,
     );
+    // 播放期间 controller 可能已销毁（如切库 invalidate），过期则不再访问 ref/state。
+    if (!ref.mounted) return result;
     if (result == SentencePlaybackResult.completed &&
         flowToken == state.flowToken) {
       AppLogger.log(

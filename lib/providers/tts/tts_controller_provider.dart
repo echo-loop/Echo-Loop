@@ -819,6 +819,8 @@ class TtsController extends Notifier<TtsControllerState> {
   Future<void> stop() async {
     _speakingToken++;
     await _readyCoordinator.stop();
+    // 离开页面 dispose 期间 provider 已销毁，状态无需复位。
+    if (!ref.mounted) return;
     state = _stateWithSpeaking(null);
   }
 

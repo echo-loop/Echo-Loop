@@ -325,14 +325,14 @@ class _SelectableSentenceTextState
     _ensureTokens();
     // 单词收藏集合同时供选区操作条判断“收藏 / 取消收藏”。
     _savedWordTexts =
-        ref.watch(savedWordTextsProvider).valueOrNull ?? const <String>{};
+        ref.watch(savedWordTextsProvider).value ?? const <String>{};
     // 收藏索引流式监听：加载中/降级（测试环境无 DB）时为空索引 = 无标记
     final savedMask = _ensureSavedMask(ref.watch(savedTextIndexProvider));
     // 学习内容字号偏好：在进入选区组件前缩放，几何与命中测试随样式一致
     final baseStyle = widget.style;
     final textStyle = baseStyle == null
         ? null
-        : ref.watch(readingTextPrefsNotifierProvider).applyTo(baseStyle);
+        : ref.watch(readingTextPrefsProvider).applyTo(baseStyle);
     return PlatformTextSelectionStyle(
       child: AppSelectableText(
         key: _selectableKey,

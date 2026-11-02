@@ -6,23 +6,62 @@ part of 'community_download_notifier.dart';
 // RiverpodGenerator
 // **************************************************************************
 
-String _$communityDownloadHash() => r'd2ac79bb336469c3fd62f1d3d43bc89baf1851a7';
+// GENERATED CODE - DO NOT MODIFY BY HAND
+// ignore_for_file: type=lint, type=warning
+/// 社区合集媒体和字幕下载调度器；同一时刻只运行一个任务。
+
+@ProviderFor(CommunityDownload)
+final communityDownloadProvider = CommunityDownloadProvider._();
 
 /// 社区合集媒体和字幕下载调度器；同一时刻只运行一个任务。
-///
-/// Copied from [CommunityDownload].
-@ProviderFor(CommunityDownload)
-final communityDownloadProvider =
-    NotifierProvider<CommunityDownload, DownloadProgress>.internal(
-      CommunityDownload.new,
-      name: r'communityDownloadProvider',
-      debugGetCreateSourceHash: const bool.fromEnvironment('dart.vm.product')
-          ? null
-          : _$communityDownloadHash,
-      dependencies: null,
-      allTransitiveDependencies: null,
-    );
+final class CommunityDownloadProvider
+    extends $NotifierProvider<CommunityDownload, DownloadProgress> {
+  /// 社区合集媒体和字幕下载调度器；同一时刻只运行一个任务。
+  CommunityDownloadProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'communityDownloadProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
 
-typedef _$CommunityDownload = Notifier<DownloadProgress>;
-// ignore_for_file: type=lint
-// ignore_for_file: subtype_of_sealed_class, invalid_use_of_internal_member, invalid_use_of_visible_for_testing_member, deprecated_member_use_from_same_package
+  @override
+  String debugGetCreateSourceHash() => _$communityDownloadHash();
+
+  @$internal
+  @override
+  CommunityDownload create() => CommunityDownload();
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(DownloadProgress value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<DownloadProgress>(value),
+    );
+  }
+}
+
+String _$communityDownloadHash() => r'6955a235d5fd2a047dbbea66fc9ae6723356f817';
+
+/// 社区合集媒体和字幕下载调度器；同一时刻只运行一个任务。
+
+abstract class _$CommunityDownload extends $Notifier<DownloadProgress> {
+  DownloadProgress build();
+  @$mustCallSuper
+  @override
+  WhenComplete runBuild() {
+    final ref = this.ref as $Ref<DownloadProgress, DownloadProgress>;
+    final element =
+        ref.element
+            as $ClassProviderElement<
+              AnyNotifier<DownloadProgress, DownloadProgress>,
+              DownloadProgress,
+              Object?,
+              Object?
+            >;
+    return element.handleCreate(ref, build);
+  }
+}

@@ -176,7 +176,7 @@ class _DictionaryPanelState extends ConsumerState<DictionaryPanel> {
     final word = normalizeDictionaryQueryForPrompt(queryWord);
     final normalized = normalizeWord(word);
     if (normalized.isEmpty || _lastAutoSpokenWord == normalized) return;
-    if (!ref.read(dictionarySettingsNotifierProvider).autoSpeakOnLookup) return;
+    if (!ref.read(dictionarySettingsProvider).autoSpeakOnLookup) return;
     _lastAutoSpokenWord = normalized;
     final epoch = ++_autoSpeakEpoch;
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -187,7 +187,7 @@ class _DictionaryPanelState extends ConsumerState<DictionaryPanel> {
   /// 播放自动发音并保留请求所有权，关闭面板时可直接取消尚未同步 UI 状态的 TTS。
   Future<void> _playAutoSpeak(String word, int epoch) async {
     if (!mounted || epoch != _autoSpeakEpoch) return;
-    if (!ref.read(dictionarySettingsNotifierProvider).autoSpeakOnLookup) {
+    if (!ref.read(dictionarySettingsProvider).autoSpeakOnLookup) {
       return;
     }
     _autoSpeakInFlight = true;
@@ -677,11 +677,11 @@ class _DictionaryPanelState extends ConsumerState<DictionaryPanel> {
   ) {
     // 收藏态统一读取两类底层收藏：对用户而言单词与意群没有状态差异，
     // 任一表命中即显示已收藏，避免多词在来源句查词时漏显收藏状态。
-    final textPrefs = ref.watch(readingTextPrefsNotifierProvider);
-    final savedWords = ref.watch(savedWordTextsProvider).valueOrNull;
+    final textPrefs = ref.watch(readingTextPrefsProvider);
+    final savedWords = ref.watch(savedWordTextsProvider).value;
     final savedSenseGroups = ref
         .watch(savedSenseGroupTextsProvider)
-        .valueOrNull;
+        .value;
     final isSaved =
         (savedWords ?? const <String>{}).contains(savedWord) ||
         (savedSenseGroups ?? const <String>{}).contains(savedWord);

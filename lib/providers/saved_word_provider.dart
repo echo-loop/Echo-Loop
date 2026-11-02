@@ -2,12 +2,13 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../analytics/audio_event_params.dart';
 import '../analytics/models/event_names.dart';
 import '../features/usage/usage_event.dart';
 import '../features/usage/usage_providers.dart';
-import '../database/app_database.dart';
+import '../database/app_database.dart' as db;
 import '../database/providers.dart';
 import '../models/dict_entry.dart';
 import '../services/dictionary_service.dart';
@@ -21,10 +22,13 @@ part 'saved_word_provider.g.dart';
 /// 收藏单词列表 Provider（流式）
 ///
 /// 监听所有收藏单词的变化，按收藏时间倒序。
-@Riverpod(keepAlive: true)
-class SavedWordList extends _$SavedWordList {
+///
+/// 手写而非 `@Riverpod` 生成：riverpod_generator 4.x 无法解析 drift 生成的
+/// 数据类（[db.SavedWord]）作为 provider 类型参数，会报 InvalidTypeException。
+/// analyzer 本身能正常解析该类型，运行时行为与生成版一致（非 autoDispose，常驻）。
+class SavedWordList extends StreamNotifier<List<db.SavedWord>> {
   @override
-  Stream<List<SavedWord>> build() {
+  Stream<List<db.SavedWord>> build() {
     final dao = ref.watch(savedWordDaoProvider);
     return dao.watchAll();
   }
@@ -76,6 +80,12 @@ class SavedWordList extends _$SavedWordList {
       ref.read(favoriteVocabularyLifecycleProvider).removeWord(word);
 }
 
+/// 收藏单词列表 Provider 实例（常驻，见 [SavedWordList]）
+final savedWordListProvider =
+    StreamNotifierProvider<SavedWordList, List<db.SavedWord>>(
+      SavedWordList.new,
+    );
+
 /// 监听已收藏单词的 key 集合（用于正文收藏词下划线标记）
 ///
 /// 收藏标记是辅助功能：数据库未初始化（如宿主 widget 测试环境）时
@@ -102,11 +112,11 @@ class SavedWordTexts extends _$SavedWordTexts {
 /// keepAlive + 派生自两个流 provider：索引只在收藏集合变化时重建，
 /// 被所有可见句子共享（避免每个句子组件各自重复归一化全部 key）。
 @Riverpod(keepAlive: true)
-SavedTextIndex savedTextIndex(SavedTextIndexRef ref) {
+SavedTextIndex savedTextIndex(Ref ref) {
   final words =
-      ref.watch(savedWordTextsProvider).valueOrNull ?? const <String>{};
+      ref.watch(savedWordTextsProvider).value ?? const <String>{};
   final phrases =
-      ref.watch(savedSenseGroupTextsProvider).valueOrNull ?? const <String>{};
+      ref.watch(savedSenseGroupTextsProvider).value ?? const <String>{};
   if (words.isEmpty && phrases.isEmpty) return const SavedTextIndex.empty();
   return SavedTextIndex.build(savedWords: words, savedPhrases: phrases);
 }
@@ -116,7 +126,7 @@ SavedTextIndex savedTextIndex(SavedTextIndexRef ref) {
 /// 监听 [savedWordListProvider]，当单词列表变化时批量查询所有字典释义。
 /// 避免每个列表项独立异步查询导致释义延迟闪烁。
 @riverpod
-Future<Map<String, DictEntry>> savedWordDictEntries(ref) async {
+Future<Map<String, DictEntry>> savedWordDictEntries(Ref ref) async {
   final wordsAsync = await ref.watch(savedWordListProvider.future);
   if (wordsAsync.isEmpty) return {};
   final wordStrings = wordsAsync.map((w) => w.word).toList();

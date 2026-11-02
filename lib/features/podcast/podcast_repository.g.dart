@@ -6,23 +6,52 @@ part of 'podcast_repository.dart';
 // RiverpodGenerator
 // **************************************************************************
 
-String _$podcastRepositoryHash() => r'445741831465e39b0c799b79f7c013e1770ea798';
+// GENERATED CODE - DO NOT MODIFY BY HAND
+// ignore_for_file: type=lint, type=warning
 
-/// See also [podcastRepository].
 @ProviderFor(podcastRepository)
-final podcastRepositoryProvider =
-    AutoDisposeProvider<PodcastRepository>.internal(
-      podcastRepository,
-      name: r'podcastRepositoryProvider',
-      debugGetCreateSourceHash: const bool.fromEnvironment('dart.vm.product')
-          ? null
-          : _$podcastRepositoryHash,
-      dependencies: null,
-      allTransitiveDependencies: null,
-    );
+final podcastRepositoryProvider = PodcastRepositoryProvider._();
 
-@Deprecated('Will be removed in 3.0. Use Ref instead')
-// ignore: unused_element
-typedef PodcastRepositoryRef = AutoDisposeProviderRef<PodcastRepository>;
-// ignore_for_file: type=lint
-// ignore_for_file: subtype_of_sealed_class, invalid_use_of_internal_member, invalid_use_of_visible_for_testing_member, deprecated_member_use_from_same_package
+final class PodcastRepositoryProvider
+    extends
+        $FunctionalProvider<
+          PodcastRepository,
+          PodcastRepository,
+          PodcastRepository
+        >
+    with $Provider<PodcastRepository> {
+  PodcastRepositoryProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'podcastRepositoryProvider',
+        isAutoDispose: true,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$podcastRepositoryHash();
+
+  @$internal
+  @override
+  $ProviderElement<PodcastRepository> $createElement(
+    $ProviderPointer pointer,
+  ) => $ProviderElement(pointer);
+
+  @override
+  PodcastRepository create(Ref ref) {
+    return podcastRepository(ref);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(PodcastRepository value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<PodcastRepository>(value),
+    );
+  }
+}
+
+String _$podcastRepositoryHash() => r'445741831465e39b0c799b79f7c013e1770ea798';

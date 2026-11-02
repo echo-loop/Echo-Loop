@@ -130,7 +130,7 @@ class _ReminderSettingsScreenState extends ConsumerState<ReminderSettingsScreen>
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    final settings = ref.watch(reminderSettingsNotifierProvider);
+    final settings = ref.watch(reminderSettingsProvider);
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
@@ -215,7 +215,7 @@ class _ReminderSettingsScreenState extends ConsumerState<ReminderSettingsScreen>
   }
 
   void _update(WidgetRef ref, ReminderSettings settings) {
-    ref.read(reminderSettingsNotifierProvider.notifier).update(settings);
+    ref.read(reminderSettingsProvider.notifier).update(settings);
   }
 
   /// 底部弹窗时间选择器（双列滚轮：小时 0-23 + 分钟 0/5/.../55）
@@ -251,7 +251,7 @@ class _ReminderSettingsScreenState extends ConsumerState<ReminderSettingsScreen>
     if (selectedHour != settings.savedReviewReminderHour ||
         newMinute != settings.savedReviewReminderMinute) {
       ref
-          .read(reminderSettingsNotifierProvider.notifier)
+          .read(reminderSettingsProvider.notifier)
           .update(
             settings.copyWith(
               savedReviewReminderHour: selectedHour,

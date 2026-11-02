@@ -213,8 +213,8 @@ void main() {
       ).thenAnswer((_) async => bookmarks);
     }
     final container = ProviderContainer(
-      overrides: [
-        learningProgressNotifierProvider.overrideWith(
+      overrides: dedupeOverrides([
+        learningProgressProvider.overrideWith(
           () => _TestLearningProgressNotifier(initialState),
         ),
         learningProgressDaoProvider.overrideWithValue(mockDao),
@@ -234,7 +234,7 @@ void main() {
             LearningSettings(autoSkipRetell: autoSkipRetell),
           ),
         ),
-      ],
+      ]),
     );
     addTearDown(container.dispose);
     return container;
@@ -242,12 +242,12 @@ void main() {
 
   /// 便捷方法：从 container 读取指定音频的进度
   LearningProgress? readProgress(ProviderContainer container, String id) {
-    return container.read(learningProgressNotifierProvider).progressMap[id];
+    return container.read(learningProgressProvider).progressMap[id];
   }
 
   /// 便捷方法：获取 notifier
   LearningProgressNotifier notifier(ProviderContainer container) {
-    return container.read(learningProgressNotifierProvider.notifier);
+    return container.read(learningProgressProvider.notifier);
   }
 
   // ========== Group 1: completeCurrentSubStage — 子步骤推进 ==========
@@ -299,7 +299,7 @@ void main() {
       expect(after.currentSubStage, SubStageType.blindListen);
       expect(
         container
-            .read(learningProgressNotifierProvider)
+            .read(learningProgressProvider)
             .completionsByAudio['a1'],
         containsAll(<String>[
           'firstLearn:intensiveListen',
@@ -1488,7 +1488,7 @@ void main() {
       expect(readProgress(container, 'a1'), isNull);
       expect(
         container
-            .read(learningProgressNotifierProvider)
+            .read(learningProgressProvider)
             .completionsByAudio
             .containsKey('a1'),
         isFalse,
@@ -1558,7 +1558,7 @@ void main() {
 
   group('autoSkipRetell 切换 OFF→ON 全量扫描', () {
     Future<void> enableAutoSkip(ProviderContainer container) async {
-      container.read(learningProgressNotifierProvider.notifier);
+      container.read(learningProgressProvider.notifier);
       await container
           .read(learningSettingsProvider.notifier)
           .setAutoSkipRetell(true);
@@ -1763,7 +1763,7 @@ void main() {
         autoSkipRetell: true,
       );
 
-      container.read(learningProgressNotifierProvider.notifier);
+      container.read(learningProgressProvider.notifier);
       await container
           .read(learningSettingsProvider.notifier)
           .setAutoSkipRetell(false);
@@ -1885,7 +1885,7 @@ void main() {
       final after = readProgress(container, 'a1')!;
       expect(after.skippedSubStageKeys, isNot(contains(key)));
       final completions = container
-          .read(learningProgressNotifierProvider)
+          .read(learningProgressProvider)
           .completionsFor('a1');
       expect(completions, contains(key));
     });
@@ -1934,7 +1934,7 @@ void main() {
 
       verify(() => mockStageCompletionDao.insertRecord(any())).called(1);
       final completions = container
-          .read(learningProgressNotifierProvider)
+          .read(learningProgressProvider)
           .completionsFor('a1');
       expect(completions, contains('firstLearn:retell'));
     });
@@ -1977,7 +1977,7 @@ void main() {
       );
 
       final completions = container
-          .read(learningProgressNotifierProvider)
+          .read(learningProgressProvider)
           .completionsFor('a1');
       expect(completions, {'firstLearn:blindListen', 'firstLearn:retell'});
     });
@@ -2032,7 +2032,7 @@ void main() {
       expect(reset.currentSubStage, SubStageType.intensiveListen);
       expect(readProgress(container, 'a1'), same(reset));
       expect(
-        container.read(learningProgressNotifierProvider).completionsFor('a1'),
+        container.read(learningProgressProvider).completionsFor('a1'),
         isEmpty,
       );
       verify(() => mockDao.deleteByAudioId('a1')).called(1);

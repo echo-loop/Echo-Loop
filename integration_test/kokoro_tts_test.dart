@@ -161,7 +161,7 @@ void main() {
       }
 
       // 内存 DB 提供 TtsCacheDao；缓存文件落真实 app cache 目录。
-      final db = AppDatabase(NativeDatabase.memory());
+      final db = AppDatabase(NativeDatabase.memory(setup: configureAppDatabaseConnection));
       addTearDown(db.close);
       final cacheStore = TtsCacheStore(
         resolveDao: () => db.ttsCacheDao,

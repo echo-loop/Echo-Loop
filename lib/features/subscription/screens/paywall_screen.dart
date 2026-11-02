@@ -163,7 +163,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
           );
     final specialOfferLabel = _specialOfferLabel(
       l10n,
-      plansAsync?.valueOrNull ?? const [],
+      plansAsync?.value ?? const [],
     );
     AppLogger.log(
       'Subscription',
@@ -304,7 +304,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
     final entitlement =
         ref.watch(subscriptionControllerProvider).entitlement ??
         const Entitlement(isPremium: true);
-    final plans = ref.watch(subscriptionPlansProvider).valueOrNull ?? const [];
+    final plans = ref.watch(subscriptionPlansProvider).value ?? const [];
     final summary = summarizeMembership(
       entitlement,
       now: DateTime.now(),
@@ -597,7 +597,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
         'Paddle checkout URL 已获取: planId=$checkoutPlanId '
             'host=${uri.host} path=${uri.path}',
       );
-      final email = ref.read(supabaseSessionProvider).valueOrNull?.user.email;
+      final email = ref.read(supabaseSessionProvider).value?.user.email;
       final checkoutUri = paddleCheckoutUriWithEmail(uri, email);
       opened = await launchUrl(
         checkoutUri,

@@ -13,7 +13,7 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   test('保存、重复收藏、删除和恢复会保留词汇与意群的调度状态', () async {
     AppLogger.instance.clear();
-    final db = AppDatabase(NativeDatabase.memory());
+    final db = AppDatabase(NativeDatabase.memory(setup: configureAppDatabaseConnection));
     addTearDown(db.close);
     final container = ProviderContainer(
       overrides: [appDatabaseProvider.overrideWithValue(db)],
@@ -141,7 +141,7 @@ void main() {
 
   test('建立单词调度失败时收藏写入会一起回滚', () async {
     AppLogger.instance.clear();
-    final db = AppDatabase(NativeDatabase.memory());
+    final db = AppDatabase(NativeDatabase.memory(setup: configureAppDatabaseConnection));
     addTearDown(db.close);
     final container = ProviderContainer(
       overrides: [appDatabaseProvider.overrideWithValue(db)],
@@ -185,7 +185,7 @@ void main() {
   });
 
   test('建立意群调度失败时收藏写入会一起回滚', () async {
-    final db = AppDatabase(NativeDatabase.memory());
+    final db = AppDatabase(NativeDatabase.memory(setup: configureAppDatabaseConnection));
     addTearDown(db.close);
     final container = ProviderContainer(
       overrides: [appDatabaseProvider.overrideWithValue(db)],
@@ -213,7 +213,7 @@ void main() {
   });
 
   test('删除收藏失败时已归档的调度会随事务回滚', () async {
-    final db = AppDatabase(NativeDatabase.memory());
+    final db = AppDatabase(NativeDatabase.memory(setup: configureAppDatabaseConnection));
     addTearDown(db.close);
     final container = ProviderContainer(
       overrides: [appDatabaseProvider.overrideWithValue(db)],
@@ -268,7 +268,7 @@ void main() {
   });
 
   test('恢复收藏失败时内容恢复会随事务回滚', () async {
-    final db = AppDatabase(NativeDatabase.memory());
+    final db = AppDatabase(NativeDatabase.memory(setup: configureAppDatabaseConnection));
     addTearDown(db.close);
     final container = ProviderContainer(
       overrides: [appDatabaseProvider.overrideWithValue(db)],

@@ -8,16 +8,17 @@ import 'package:echo_loop/widgets/app_startup_gate.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import '../helpers/mock_providers.dart';
 
 void main() {
   testWidgets('品牌页保持到本地数据与地区决策都就绪', (tester) async {
     final regionGate = Completer<UserRegionBootstrapResult>();
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [
+        overrides: dedupeOverrides([
           localStartupProvider.overrideWith(_ReadyLocalStartupController.new),
           userRegionBootstrapProvider.overrideWith((ref) => regionGate.future),
-        ],
+        ]),
         child: const MaterialApp(
           home: AppStartupGate(
             splashScreen: Text('startup splash'),
@@ -47,10 +48,10 @@ void main() {
     final regionGate = Completer<UserRegionBootstrapResult>();
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [
+        overrides: dedupeOverrides([
           localStartupProvider.overrideWith(_FailedLocalStartupController.new),
           userRegionBootstrapProvider.overrideWith((ref) => regionGate.future),
-        ],
+        ]),
         child: const MaterialApp(
           home: AppStartupGate(
             splashScreen: Text('startup splash'),

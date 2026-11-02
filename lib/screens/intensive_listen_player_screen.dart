@@ -295,7 +295,7 @@ class _IntensiveListenPlayerScreenState
   Future<void> _saveSentenceProgress({required bool isFreePlay}) async {
     final player = ref.read(intensiveListenPlayerProvider.notifier);
     await ref
-        .read(learningProgressNotifierProvider.notifier)
+        .read(learningProgressProvider.notifier)
         .saveIntensiveListenSentenceIndex(
           widget.audioItemId,
           player.currentIndex,
@@ -395,7 +395,7 @@ class _IntensiveListenPlayerScreenState
   Future<void> _navigateBackToPlanAndAutoStart() async {
     if (!mounted) return;
     final nextSubStage = ref
-        .read(learningProgressNotifierProvider)
+        .read(learningProgressProvider)
         .progressMap[widget.audioItemId]
         ?.currentSubStage;
     final canAutoStart = nextSubStage == null
@@ -429,7 +429,7 @@ class _IntensiveListenPlayerScreenState
     final l10n = AppLocalizations.of(context)!;
     final plan = ref.read(learningPlanForAudioProvider(widget.audioItemId));
     final progress = ref
-        .read(learningProgressNotifierProvider)
+        .read(learningProgressProvider)
         .progressMap[widget.audioItemId];
 
     final stage = progress?.currentStage ?? LearningStage.firstLearn;
@@ -499,7 +499,7 @@ class _IntensiveListenPlayerScreenState
       final l10n = AppLocalizations.of(context)!;
       // 弹窗前递增遍数
       await ref
-          .read(learningProgressNotifierProvider.notifier)
+          .read(learningProgressProvider.notifier)
           .incrementIntensiveListenPassCount(widget.audioItemId);
 
       if (!mounted) return;
@@ -521,7 +521,7 @@ class _IntensiveListenPlayerScreenState
               .read(learningSessionProvider.notifier)
               .recordCatchUpCompletionIfAny(widget.audioItemId);
           await ref
-              .read(learningProgressNotifierProvider.notifier)
+              .read(learningProgressProvider.notifier)
               .saveIntensiveListenSentenceIndex(
                 widget.audioItemId,
                 null,
@@ -540,7 +540,7 @@ class _IntensiveListenPlayerScreenState
     // 弹窗前保存统计（事实记录，不影响步骤进度）
     try {
       await ref
-          .read(learningProgressNotifierProvider.notifier)
+          .read(learningProgressProvider.notifier)
           .incrementIntensiveListenPassCount(widget.audioItemId);
     } catch (e) {
       debugPrint('精听保存统计出错: $e');
@@ -582,17 +582,17 @@ class _IntensiveListenPlayerScreenState
         totalDifficultCount,
       );
       await ref
-          .read(learningProgressNotifierProvider.notifier)
+          .read(learningProgressProvider.notifier)
           .setDifficulty(widget.audioItemId, autoDifficulty);
       await ref
-          .read(learningProgressNotifierProvider.notifier)
+          .read(learningProgressProvider.notifier)
           .saveIntensiveListenSentenceIndex(
             widget.audioItemId,
             null,
             isFreePlay: false,
           );
       await ref
-          .read(learningProgressNotifierProvider.notifier)
+          .read(learningProgressProvider.notifier)
           .completeIntensiveListenAndAutoCompleteShadowingIfNoDifficult(
             widget.audioItemId,
           );

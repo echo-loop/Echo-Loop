@@ -993,7 +993,7 @@ Set<String> _validateDatabaseSnapshot(
       code: BackupFailureCode.corruptedArchive,
     );
   } finally {
-    database?.dispose();
+    database?.close();
   }
 }
 

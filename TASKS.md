@@ -3,6 +3,19 @@
 > 当前待办与本次完成记录；此前完成任务已归档，详见 [2026-10-29 归档](./docs/tasks-archive/tasks-2026-10-29-completed.md)、[2026-09-29 归档](./docs/tasks-archive/tasks-2026-09-29-completed.md)。
 
 ## 本次完成
+- [x] 升级 Riverpod 至 3.4.3（2026-11-02）：`flutter_riverpod` 3.4.3、`riverpod_annotation` 4.0.7、`riverpod_generator` 4.0.9、`riverpod_lint` 3.1.9（analysis_server_plugin，未在 analysis_options 启用，与升级前一致）；移除 `custom_lint`。riverpod_generator 4 要求 analyzer 13，连带升级 `drift`/`drift_dev` 2.35.x、`sqlite3` 3.8.0（不再需要 `sqlite3_flutter_libs`，其已 EOL）。代码改动要点：
+  - 生成 provider 名去掉 `Notifier` 后缀（如 `studyStatsProvider`），引用同步改名；`AsyncValue.valueOrNull` → `value`；`StateNotifier` 相关文件改用 `legacy.dart`。
+  - drift 数据类（`SavedWord`/`SavedSenseGroup`）无法作为生成 provider 的类型参数（riverpod_generator 4 报 InvalidTypeException），两个列表 provider 改为手写 `StreamNotifierProvider`。
+  - `ProviderException` 会包装 `UnimplementedError`，「未 override 降级」统一改用 `isProviderNotOverriddenError`（递归解包）。
+  - Riverpod 3 对无监听者 provider 会暂停、对重复 override 断言、对销毁后访问 `ref` 抛错：生产代码在异步回调处补 `ref.mounted` 守卫；测试统一用 `dedupeOverrides`、`supabaseSessionProvider.overrideWithValue(AsyncData(...))`，并保持必要监听。
+  - 自动重试：`ProviderScope(retry: (_, __) => null)`（main.dart 与测试 helper），保持 Riverpod 2 的无重试语义。
+  - sqlite3 3.x：统一 `configureAppDatabaseConnection`（外键 ON + 双引号字符串字面量 ON，后者保留历史迁移行为），生产与测试共用。
+  - 已知语义风险（未改）：Riverpod 3 对 TickerMode 关闭的页面（被全屏页覆盖）会暂停监听；autoDispose 的 `sleepTimer`（已用 `KeepAliveLink` 持有）之外的 autoDispose notifier（如 listen-and-repeat、review-difficult）在被覆盖时仍会被销毁，需后续评估。
+  - 验证：全量 `flutter test` 通过（+5867 ~11，0 失败）；`flutter analyze lib test` 0 error / 0 warning（219 条 info 为既有项）；`flutter build macos --debug --flavor prod` 成功（`Built Echo Loop.app`）。`integration_test` 既有问题未变：`kokoro_tts_test` 的 `TtsEngineKind.echoLoop`、`review_sub_stage_tests` 的签名。
+  - 验收后修复：`pumpFullApp` 基础 overrides 与调用方重复覆盖 `audioLibraryProvider`（Riverpod 3 断言），改为统一去重；媒体释放收尾可能晚于 dispose 执行，`MediaPlayback` 对 `state` 的读写加 `ref.mounted` 守卫（`_setPlayingFlag`、`_recordGaplessStatsThrough`、释放终态），资源释放（engine detach、订阅取消）照常执行。
+  - macOS 构建注意：项目保持 CocoaPods，`macos/Flutter/GeneratedPluginRegistrant.swift` 与 `macos/Podfile.lock` 因移除 `sqlite3_flutter_libs` 有预期 diff，其余 macOS 文件已恢复 HEAD。全局设置已改：`flutter config --no-enable-swift-package-manager`（影响本机其它 Flutter 项目，需要时用 `flutter config --enable-swift-package-manager` 还原）。
+  - 构建告警（非本次引入，需跟进）：`ld` 提示 `libonnxruntime` 按 macOS 15.5 构建而工程目标为 macOS 13.4。
+  **完成时间**: 2026-11-02
 - [x] 修复随心听长按字幕菜单开合后字幕列表闪烁并被拉回播放句（2026-11-01）：根因是菜单 route 会触发媒体页的 `didPushNext` / `didPopNext`，`didPopNext` 误递增 `_focusRestoreRevision`（本意是从讲解页返回时定位），列表在菜单关闭时先 `jumpTo(alignment: 0)` 再校正到 0.4 锚点，并把用户手动滚动的位置拉回播放句。修复：`RouteTransitionObserver` 记录最近推入/弹出的路由是否为 `PopupRoute`（`lastPushedIsPopup` / `lastPoppedIsPopup`），媒体页在弹窗覆盖与关闭时既不改 `_routeVisible`，也不递增恢复计数；`main_shell` 等其它订阅方的行为不变。新增回归测试：关闭菜单后列表偏移不变（修复前偏移 207 → -86，修复后保持）、菜单打开期间播放切句关闭后仍定位到新句、observer 区分弹窗与页面。诊断日志保留 `MediaRouteFocus`（覆盖/解除）、`ParagraphListFocus`（焦点切换、快照比较、立即定位）、`SentenceContextMenu open`。真机 debug 日志验证：4 次菜单开合 `popup=true`、`restoreRevision` 不变、关闭后无定位事件。未验证：播放中开菜单、用户手动拖动后的恢复计时器路径（仅有守护测试）。仅运行相关测试 3 个文件（66 项）与 `flutter analyze` 改动范围，未运行全量 `flutter test`。**完成时间**: 2026-11-01
 - [x] 升级应用版本至 1.0.45（2026-11-01）：将 `pubspec.yaml` 中的版本从 1.0.44 提升至 1.0.45。纯版本元数据变更，`git diff --check` 通过，无需运行测试。**完成时间**: 2026-11-01
 - [x] 媒体就绪统一由学习计划页负责（2026-11-01）：共享合集与播客单集入库时只有占位行（`audioPath` 为空），此前学习 Tab 入口直接进入计划页，未下载材料可进入逐句精听并报 `file unavailable`。修复：新增 `lib/features/media_readiness/`，`resolveMediaReadiness` 纯函数统一解析就绪状态（下架 / 校验中 / 下载中 / 失败 / 通道占用 / 未开始 / 就绪），`mediaDownloadSnapshotProvider` 作为列表行与计划页共用的下载进度来源；`MediaEnsurer` 按来源分派 `CommunityMediaProvisioner`（音频 + 字幕）与 `PodcastMediaProvisioner`（音频，字幕随 RSS 附加）。计划页未就绪时只展示 `MediaPreparingView`（进度 / 等待 / 失败重试 / 下架 / 文件缺失），就绪后才加载学习内容与 autoStart；列表行点击只负责导航。清理：移除列表行与学习 Tab 中的下载分支和门禁实现，`awaitCompletion` 下线；播客失败状态携带 `audioItemId`。测试：resolver 20 项、ensurer 8 项、计划页媒体就绪 3 项，相关套件 370 项通过。**完成时间**: 2026-11-01

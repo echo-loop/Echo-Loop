@@ -78,7 +78,7 @@ void main() {
     community = _RecordingCommunityDownload(communityState);
     podcast = _RecordingPodcastDownload();
     final container = ProviderContainer(
-      overrides: [
+      overrides: dedupeOverrides([
         audioLibraryProvider.overrideWith(
           () => TestAudioLibrary(AudioLibraryState(audioItems: [item])),
         ),
@@ -87,7 +87,7 @@ void main() {
         localMediaFileExistsProvider(
           item.id,
         ).overrideWith((ref) => Future.value(localFileExists)),
-      ],
+      ]),
     );
     addTearDown(container.dispose);
     return container;

@@ -6,180 +6,51 @@ part of 'saved_sense_group_provider.dart';
 // RiverpodGenerator
 // **************************************************************************
 
-String _$isSenseGroupSavedHash() => r'e77fa7348d30e595bf44133eb7e8289413c3d508';
-
-/// Copied from Dart SDK
-class _SystemHash {
-  _SystemHash._();
-
-  static int combine(int hash, int value) {
-    // ignore: parameter_assignments
-    hash = 0x1fffffff & (hash + value);
-    // ignore: parameter_assignments
-    hash = 0x1fffffff & (hash + ((0x0007ffff & hash) << 10));
-    return hash ^ (hash >> 6);
-  }
-
-  static int finish(int hash) {
-    // ignore: parameter_assignments
-    hash = 0x1fffffff & (hash + ((0x03ffffff & hash) << 3));
-    // ignore: parameter_assignments
-    hash = hash ^ (hash >> 11);
-    return 0x1fffffff & (hash + ((0x00003fff & hash) << 15));
-  }
-}
-
-/// 监听单个意群是否已收藏
+// GENERATED CODE - DO NOT MODIFY BY HAND
+// ignore_for_file: type=lint, type=warning
+/// 监听已收藏意群的归一化文本集合（用于 badge 染色与正文收藏标记）
 ///
-/// Copied from [isSenseGroupSaved].
-@ProviderFor(isSenseGroupSaved)
-const isSenseGroupSavedProvider = IsSenseGroupSavedFamily();
+/// 收藏标记是辅助功能：数据库未初始化（如宿主 widget 测试环境）时
+/// 降级为空集，不崩宿主页（CLAUDE.md §7.18 默认值降级规则）。
+/// 降级必须留日志——keepAlive 会把空集缓存整个会话，静默降级会把
+/// 真实 DB 故障伪装成「用户没有收藏意群」。
 
-/// 监听单个意群是否已收藏
+@ProviderFor(SavedSenseGroupTexts)
+final savedSenseGroupTextsProvider = SavedSenseGroupTextsProvider._();
+
+/// 监听已收藏意群的归一化文本集合（用于 badge 染色与正文收藏标记）
 ///
-/// Copied from [isSenseGroupSaved].
-class IsSenseGroupSavedFamily extends Family<AsyncValue<bool>> {
-  /// 监听单个意群是否已收藏
+/// 收藏标记是辅助功能：数据库未初始化（如宿主 widget 测试环境）时
+/// 降级为空集，不崩宿主页（CLAUDE.md §7.18 默认值降级规则）。
+/// 降级必须留日志——keepAlive 会把空集缓存整个会话，静默降级会把
+/// 真实 DB 故障伪装成「用户没有收藏意群」。
+final class SavedSenseGroupTextsProvider
+    extends $StreamNotifierProvider<SavedSenseGroupTexts, Set<String>> {
+  /// 监听已收藏意群的归一化文本集合（用于 badge 染色与正文收藏标记）
   ///
-  /// Copied from [isSenseGroupSaved].
-  const IsSenseGroupSavedFamily();
-
-  /// 监听单个意群是否已收藏
-  ///
-  /// Copied from [isSenseGroupSaved].
-  IsSenseGroupSavedProvider call(String phraseText) {
-    return IsSenseGroupSavedProvider(phraseText);
-  }
-
-  @override
-  IsSenseGroupSavedProvider getProviderOverride(
-    covariant IsSenseGroupSavedProvider provider,
-  ) {
-    return call(provider.phraseText);
-  }
-
-  static const Iterable<ProviderOrFamily>? _dependencies = null;
-
-  @override
-  Iterable<ProviderOrFamily>? get dependencies => _dependencies;
-
-  static const Iterable<ProviderOrFamily>? _allTransitiveDependencies = null;
-
-  @override
-  Iterable<ProviderOrFamily>? get allTransitiveDependencies =>
-      _allTransitiveDependencies;
-
-  @override
-  String? get name => r'isSenseGroupSavedProvider';
-}
-
-/// 监听单个意群是否已收藏
-///
-/// Copied from [isSenseGroupSaved].
-class IsSenseGroupSavedProvider extends AutoDisposeStreamProvider<bool> {
-  /// 监听单个意群是否已收藏
-  ///
-  /// Copied from [isSenseGroupSaved].
-  IsSenseGroupSavedProvider(String phraseText)
-    : this._internal(
-        (ref) => isSenseGroupSaved(ref as IsSenseGroupSavedRef, phraseText),
-        from: isSenseGroupSavedProvider,
-        name: r'isSenseGroupSavedProvider',
-        debugGetCreateSourceHash: const bool.fromEnvironment('dart.vm.product')
-            ? null
-            : _$isSenseGroupSavedHash,
-        dependencies: IsSenseGroupSavedFamily._dependencies,
-        allTransitiveDependencies:
-            IsSenseGroupSavedFamily._allTransitiveDependencies,
-        phraseText: phraseText,
+  /// 收藏标记是辅助功能：数据库未初始化（如宿主 widget 测试环境）时
+  /// 降级为空集，不崩宿主页（CLAUDE.md §7.18 默认值降级规则）。
+  /// 降级必须留日志——keepAlive 会把空集缓存整个会话，静默降级会把
+  /// 真实 DB 故障伪装成「用户没有收藏意群」。
+  SavedSenseGroupTextsProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'savedSenseGroupTextsProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
       );
 
-  IsSenseGroupSavedProvider._internal(
-    super._createNotifier, {
-    required super.name,
-    required super.dependencies,
-    required super.allTransitiveDependencies,
-    required super.debugGetCreateSourceHash,
-    required super.from,
-    required this.phraseText,
-  }) : super.internal();
-
-  final String phraseText;
-
   @override
-  Override overrideWith(
-    Stream<bool> Function(IsSenseGroupSavedRef provider) create,
-  ) {
-    return ProviderOverride(
-      origin: this,
-      override: IsSenseGroupSavedProvider._internal(
-        (ref) => create(ref as IsSenseGroupSavedRef),
-        from: from,
-        name: null,
-        dependencies: null,
-        allTransitiveDependencies: null,
-        debugGetCreateSourceHash: null,
-        phraseText: phraseText,
-      ),
-    );
-  }
+  String debugGetCreateSourceHash() => _$savedSenseGroupTextsHash();
 
+  @$internal
   @override
-  AutoDisposeStreamProviderElement<bool> createElement() {
-    return _IsSenseGroupSavedProviderElement(this);
-  }
-
-  @override
-  bool operator ==(Object other) {
-    return other is IsSenseGroupSavedProvider && other.phraseText == phraseText;
-  }
-
-  @override
-  int get hashCode {
-    var hash = _SystemHash.combine(0, runtimeType.hashCode);
-    hash = _SystemHash.combine(hash, phraseText.hashCode);
-
-    return _SystemHash.finish(hash);
-  }
+  SavedSenseGroupTexts create() => SavedSenseGroupTexts();
 }
 
-@Deprecated('Will be removed in 3.0. Use Ref instead')
-// ignore: unused_element
-mixin IsSenseGroupSavedRef on AutoDisposeStreamProviderRef<bool> {
-  /// The parameter `phraseText` of this provider.
-  String get phraseText;
-}
-
-class _IsSenseGroupSavedProviderElement
-    extends AutoDisposeStreamProviderElement<bool>
-    with IsSenseGroupSavedRef {
-  _IsSenseGroupSavedProviderElement(super.provider);
-
-  @override
-  String get phraseText => (origin as IsSenseGroupSavedProvider).phraseText;
-}
-
-String _$savedSenseGroupListHash() =>
-    r'04a548b004050ebff030d37b692110bb8c405141';
-
-/// 收藏意群列表 Provider（流式）
-///
-/// 监听所有收藏意群的变化，按收藏时间倒序。
-///
-/// Copied from [SavedSenseGroupList].
-@ProviderFor(SavedSenseGroupList)
-final savedSenseGroupListProvider =
-    StreamNotifierProvider<SavedSenseGroupList, List<SavedSenseGroup>>.internal(
-      SavedSenseGroupList.new,
-      name: r'savedSenseGroupListProvider',
-      debugGetCreateSourceHash: const bool.fromEnvironment('dart.vm.product')
-          ? null
-          : _$savedSenseGroupListHash,
-      dependencies: null,
-      allTransitiveDependencies: null,
-    );
-
-typedef _$SavedSenseGroupList = StreamNotifier<List<SavedSenseGroup>>;
 String _$savedSenseGroupTextsHash() =>
     r'503e0e742a707ad0c8e12871dd5647356fb58764';
 
@@ -189,20 +60,99 @@ String _$savedSenseGroupTextsHash() =>
 /// 降级为空集，不崩宿主页（CLAUDE.md §7.18 默认值降级规则）。
 /// 降级必须留日志——keepAlive 会把空集缓存整个会话，静默降级会把
 /// 真实 DB 故障伪装成「用户没有收藏意群」。
-///
-/// Copied from [SavedSenseGroupTexts].
-@ProviderFor(SavedSenseGroupTexts)
-final savedSenseGroupTextsProvider =
-    StreamNotifierProvider<SavedSenseGroupTexts, Set<String>>.internal(
-      SavedSenseGroupTexts.new,
-      name: r'savedSenseGroupTextsProvider',
-      debugGetCreateSourceHash: const bool.fromEnvironment('dart.vm.product')
-          ? null
-          : _$savedSenseGroupTextsHash,
-      dependencies: null,
-      allTransitiveDependencies: null,
-    );
 
-typedef _$SavedSenseGroupTexts = StreamNotifier<Set<String>>;
-// ignore_for_file: type=lint
-// ignore_for_file: subtype_of_sealed_class, invalid_use_of_internal_member, invalid_use_of_visible_for_testing_member, deprecated_member_use_from_same_package
+abstract class _$SavedSenseGroupTexts extends $StreamNotifier<Set<String>> {
+  Stream<Set<String>> build();
+  @$mustCallSuper
+  @override
+  WhenComplete runBuild() {
+    final ref = this.ref as $Ref<AsyncValue<Set<String>>, Set<String>>;
+    final element =
+        ref.element
+            as $ClassProviderElement<
+              AnyNotifier<AsyncValue<Set<String>>, Set<String>>,
+              AsyncValue<Set<String>>,
+              Object?,
+              Object?
+            >;
+    return element.handleCreate(ref, build);
+  }
+}
+
+/// 监听单个意群是否已收藏
+
+@ProviderFor(isSenseGroupSaved)
+final isSenseGroupSavedProvider = IsSenseGroupSavedFamily._();
+
+/// 监听单个意群是否已收藏
+
+final class IsSenseGroupSavedProvider
+    extends $FunctionalProvider<AsyncValue<bool>, bool, Stream<bool>>
+    with $FutureModifier<bool>, $StreamProvider<bool> {
+  /// 监听单个意群是否已收藏
+  IsSenseGroupSavedProvider._({
+    required IsSenseGroupSavedFamily super.from,
+    required String super.argument,
+  }) : super(
+         retry: null,
+         name: r'isSenseGroupSavedProvider',
+         isAutoDispose: true,
+         dependencies: null,
+         $allTransitiveDependencies: null,
+       );
+
+  @override
+  String debugGetCreateSourceHash() => _$isSenseGroupSavedHash();
+
+  @override
+  String toString() {
+    return r'isSenseGroupSavedProvider'
+        ''
+        '($argument)';
+  }
+
+  @$internal
+  @override
+  $StreamProviderElement<bool> $createElement($ProviderPointer pointer) =>
+      $StreamProviderElement(pointer);
+
+  @override
+  Stream<bool> create(Ref ref) {
+    final argument = this.argument as String;
+    return isSenseGroupSaved(ref, argument);
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return other is IsSenseGroupSavedProvider && other.argument == argument;
+  }
+
+  @override
+  int get hashCode {
+    return argument.hashCode;
+  }
+}
+
+String _$isSenseGroupSavedHash() => r'22981f6015544409ed137aa83ea151d85fa0164a';
+
+/// 监听单个意群是否已收藏
+
+final class IsSenseGroupSavedFamily extends $Family
+    with $FunctionalFamilyOverride<Stream<bool>, String> {
+  IsSenseGroupSavedFamily._()
+    : super(
+        retry: null,
+        name: r'isSenseGroupSavedProvider',
+        dependencies: null,
+        $allTransitiveDependencies: null,
+        isAutoDispose: true,
+      );
+
+  /// 监听单个意群是否已收藏
+
+  IsSenseGroupSavedProvider call(String phraseText) =>
+      IsSenseGroupSavedProvider._(argument: phraseText, from: this);
+
+  @override
+  String toString() => r'isSenseGroupSavedProvider';
+}

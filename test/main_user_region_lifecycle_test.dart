@@ -7,6 +7,7 @@ import 'package:flutter/widgets.dart' show AppLifecycleState;
 import 'package:flutter_test/flutter_test.dart';
 
 import 'helpers/test_app.dart';
+import './helpers/mock_providers.dart';
 
 const _endpoints = RegionalServiceEndpoints(
   globalApiBaseUrl: 'https://global-api.example',
@@ -43,7 +44,7 @@ void main() {
 
     await pumpFullApp(
       tester,
-      overrides: [
+      overrides: dedupeOverrides([
         remoteConfigProvider.overrideWith(
           (ref) => _NoRefreshRemoteConfigController(),
         ),
@@ -51,7 +52,7 @@ void main() {
           () => systemCountryCode,
         ),
         userRegionEndpointRouterProvider.overrideWithValue(router),
-      ],
+      ]),
     );
 
     expect(router.apiRegion, ServiceEndpointRegion.china);

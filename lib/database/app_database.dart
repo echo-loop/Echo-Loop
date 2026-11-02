@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
+import 'package:sqlite3/common.dart' as sqlite3;
 import '../utils/app_data_dir.dart';
 import 'package:path/path.dart' as p;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -1635,15 +1636,23 @@ LazyDatabase openConnection() {
 /// 创建指定文件名的数据库连接。
 ///
 /// 用于运行时切换数据库（如演示模式使用 `echo_loop_demo.db`）。
+/// 应用数据库连接的 SQLite 配置（生产与测试共用，避免两处行为漂移）。
+///
+/// - 开启外键：应用依赖 CASCADE 删除。
+/// - 开启双引号字符串字面量：sqlite3 3.x 默认禁用（旧 sqlite3_flutter_libs 编译
+///   开启）。历史迁移（如 v28 直升时表重建的 INSERT...SELECT）依赖该回退。
+void configureAppDatabaseConnection(sqlite3.CommonDatabase db) {
+  db.execute('PRAGMA foreign_keys = ON');
+  db.config.doubleQuotedStringLiterals = true;
+}
+
 LazyDatabase openConnectionWithName(String fileName) {
   return LazyDatabase(() async {
     final dbFolder = await getAppDataDirectory();
     final file = File(p.join(dbFolder.path, fileName));
     return NativeDatabase.createInBackground(
       file,
-      setup: (db) {
-        db.execute('PRAGMA foreign_keys = ON');
-      },
+      setup: configureAppDatabaseConnection,
     );
   });
 }

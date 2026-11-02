@@ -50,7 +50,7 @@ void main() {
   final installTime = DateTime(2026, 10, 15, 11, 59);
 
   setUp(() async {
-    database = AppDatabase(NativeDatabase.memory());
+    database = AppDatabase(NativeDatabase.memory(setup: configureAppDatabaseConnection));
     SharedPreferences.setMockInitialValues({});
     preferences = await SharedPreferences.getInstance();
   });

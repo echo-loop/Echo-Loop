@@ -1,7 +1,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../database/app_database.dart';
+import '../database/app_database.dart' as db;
 import '../database/providers.dart';
 import 'favorite_vocabulary_lifecycle_provider.dart';
 
@@ -10,10 +11,13 @@ part 'saved_sense_group_provider.g.dart';
 /// 收藏意群列表 Provider（流式）
 ///
 /// 监听所有收藏意群的变化，按收藏时间倒序。
-@Riverpod(keepAlive: true)
-class SavedSenseGroupList extends _$SavedSenseGroupList {
+///
+/// 手写而非 `@Riverpod` 生成：riverpod_generator 4.x 无法解析 drift 生成的
+/// 数据类（[db.SavedSenseGroup]）作为 provider 类型参数，会报 InvalidTypeException。
+/// analyzer 本身能正常解析该类型，运行时行为与生成版一致（非 autoDispose，常驻）。
+class SavedSenseGroupList extends StreamNotifier<List<db.SavedSenseGroup>> {
   @override
-  Stream<List<SavedSenseGroup>> build() {
+  Stream<List<db.SavedSenseGroup>> build() {
     final dao = ref.watch(savedSenseGroupDaoProvider);
     return dao.watchAll();
   }
@@ -55,6 +59,12 @@ class SavedSenseGroupList extends _$SavedSenseGroupList {
       .removeSenseGroup(phraseText);
 }
 
+/// 收藏意群列表 Provider 实例（常驻，见 [SavedSenseGroupList]）
+final savedSenseGroupListProvider =
+    StreamNotifierProvider<SavedSenseGroupList, List<db.SavedSenseGroup>>(
+      SavedSenseGroupList.new,
+    );
+
 /// 监听已收藏意群的归一化文本集合（用于 badge 染色与正文收藏标记）
 ///
 /// 收藏标记是辅助功能：数据库未初始化（如宿主 widget 测试环境）时
@@ -77,7 +87,7 @@ class SavedSenseGroupTexts extends _$SavedSenseGroupTexts {
 
 /// 监听单个意群是否已收藏
 @riverpod
-Stream<bool> isSenseGroupSaved(ref, String phraseText) {
+Stream<bool> isSenseGroupSaved(Ref ref, String phraseText) {
   final dao = ref.watch(savedSenseGroupDaoProvider);
   return dao.watchIsSenseGroupSaved(phraseText);
 }

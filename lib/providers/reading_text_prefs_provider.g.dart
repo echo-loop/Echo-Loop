@@ -6,25 +6,58 @@ part of 'reading_text_prefs_provider.dart';
 // RiverpodGenerator
 // **************************************************************************
 
-String _$readingTextPrefsNotifierHash() =>
-    r'f0bf129eb2f29792d9b05c2a7cecde336c7fd45f';
+// GENERATED CODE - DO NOT MODIFY BY HAND
+// ignore_for_file: type=lint, type=warning
 
-/// See also [ReadingTextPrefsNotifier].
 @ProviderFor(ReadingTextPrefsNotifier)
-final readingTextPrefsNotifierProvider =
-    AutoDisposeNotifierProvider<
-      ReadingTextPrefsNotifier,
-      ReadingTextPrefs
-    >.internal(
-      ReadingTextPrefsNotifier.new,
-      name: r'readingTextPrefsNotifierProvider',
-      debugGetCreateSourceHash: const bool.fromEnvironment('dart.vm.product')
-          ? null
-          : _$readingTextPrefsNotifierHash,
-      dependencies: null,
-      allTransitiveDependencies: null,
-    );
+final readingTextPrefsProvider = ReadingTextPrefsNotifierProvider._();
 
-typedef _$ReadingTextPrefsNotifier = AutoDisposeNotifier<ReadingTextPrefs>;
-// ignore_for_file: type=lint
-// ignore_for_file: subtype_of_sealed_class, invalid_use_of_internal_member, invalid_use_of_visible_for_testing_member, deprecated_member_use_from_same_package
+final class ReadingTextPrefsNotifierProvider
+    extends $NotifierProvider<ReadingTextPrefsNotifier, ReadingTextPrefs> {
+  ReadingTextPrefsNotifierProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'readingTextPrefsProvider',
+        isAutoDispose: true,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$readingTextPrefsNotifierHash();
+
+  @$internal
+  @override
+  ReadingTextPrefsNotifier create() => ReadingTextPrefsNotifier();
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(ReadingTextPrefs value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<ReadingTextPrefs>(value),
+    );
+  }
+}
+
+String _$readingTextPrefsNotifierHash() =>
+    r'9e287b585db960092391045d50c80837b4c4c419';
+
+abstract class _$ReadingTextPrefsNotifier extends $Notifier<ReadingTextPrefs> {
+  ReadingTextPrefs build();
+  @$mustCallSuper
+  @override
+  WhenComplete runBuild() {
+    final ref = this.ref as $Ref<ReadingTextPrefs, ReadingTextPrefs>;
+    final element =
+        ref.element
+            as $ClassProviderElement<
+              AnyNotifier<ReadingTextPrefs, ReadingTextPrefs>,
+              ReadingTextPrefs,
+              Object?,
+              Object?
+            >;
+    return element.handleCreate(ref, build);
+  }
+}

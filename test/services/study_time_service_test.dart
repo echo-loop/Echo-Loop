@@ -13,7 +13,7 @@ void main() {
 
   setUp(() {
     binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
-    db = AppDatabase(NativeDatabase.memory());
+    db = AppDatabase(NativeDatabase.memory(setup: configureAppDatabaseConnection));
     service = StudyTimeService(
       db.dailyStudyRecordDao,
       db.dailyStageStudyRecordDao,

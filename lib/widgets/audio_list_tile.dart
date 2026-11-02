@@ -114,7 +114,7 @@ class AudioListTile extends ConsumerWidget {
 
     // 精确订阅学习进度
     final progress = ref.watch(
-      learningProgressNotifierProvider.select(
+      learningProgressProvider.select(
         (s) => s.progressMap[audioItem.id],
       ),
     );
@@ -730,7 +730,7 @@ class AudioListTile extends ConsumerWidget {
     required bool isDownloading,
   }) {
     final progressForMenu = ref.read(
-      learningProgressNotifierProvider.select(
+      learningProgressProvider.select(
         (s) => s.progressMap[audioItem.id],
       ),
     );
@@ -1083,7 +1083,7 @@ class AudioListTile extends ConsumerWidget {
     bool isPaused,
   ) async {
     final l10n = AppLocalizations.of(context)!;
-    final notifier = ref.read(learningProgressNotifierProvider.notifier);
+    final notifier = ref.read(learningProgressProvider.notifier);
 
     if (isPaused) {
       await notifier.resumeProgress(audioItem.id);
@@ -1141,7 +1141,7 @@ class AudioListTile extends ConsumerWidget {
 
     if (confirm == true) {
       await ref
-          .read(learningProgressNotifierProvider.notifier)
+          .read(learningProgressProvider.notifier)
           .resetProgress(audioItem.id);
       if (context.mounted) {
         ScaffoldMessenger.of(

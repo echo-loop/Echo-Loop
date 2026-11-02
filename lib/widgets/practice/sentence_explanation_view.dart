@@ -231,7 +231,7 @@ class _SentenceExplanationViewState
   List<WordTimestamp>? get _wordTimestamps {
     final audioItemId = widget.audioItemId;
     if (audioItemId == null) return null;
-    return ref.read(wordTimestampsProvider(audioItemId)).valueOrNull;
+    return ref.read(wordTimestampsProvider(audioItemId)).value;
   }
 
   SenseGroupResult? _senseGroupResult;
@@ -453,7 +453,7 @@ class _SentenceExplanationViewState
     if (ai == null) return;
     final accessToken = ref
         .read(supabaseSessionProvider)
-        .valueOrNull
+        .value
         ?.accessToken;
 
     ref.read(usageTrackerProvider).record(UsageEvent.senseGroupTapped);
@@ -735,7 +735,7 @@ class _SentenceExplanationViewState
         return Consumer(
           builder: (context, ref, _) {
             final savedTextsAsync = ref.watch(savedSenseGroupTextsProvider);
-            final savedTexts = savedTextsAsync.valueOrNull ?? {};
+            final savedTexts = savedTextsAsync.value ?? {};
             final isSaved = savedTexts.contains(normalized);
             final l10n = AppLocalizations.of(context)!;
             final askAiEnabled = shouldShowAiChatAssistantEntry(
@@ -957,7 +957,7 @@ class _SentenceExplanationViewState
     // 因此两处共享一次时间戳加载。
     final wordTimestamps = timestampAudioItemId == null
         ? null
-        : ref.watch(wordTimestampsProvider(timestampAudioItemId)).valueOrNull;
+        : ref.watch(wordTimestampsProvider(timestampAudioItemId)).value;
 
     // 调用方可以显式注入测试或会话级 notifier；统一页面入口未注入时，
     // 必须回退到 Provider，避免工具栏请求回调为空而整组 AI 按钮被禁用。
@@ -991,7 +991,7 @@ class _SentenceExplanationViewState
     final translationContextReady =
         !hasSentenceContextSource || (sentencesAsync?.hasValue ?? false);
     final sentences = translationContextReady
-        ? sentencesAsync?.valueOrNull
+        ? sentencesAsync?.value
         : null;
     final (previousText, nextText) = translationContextReady
         ? _neighborTexts(sentences)
@@ -1000,7 +1000,7 @@ class _SentenceExplanationViewState
     Future<(String?, String?)> resolveTranslationContext() async {
       if (!hasSentenceContextSource) return (null, null);
       final loadedSentences =
-          sentencesAsync?.valueOrNull ??
+          sentencesAsync?.value ??
           await ref.read(audioSentencesProvider(audioItemId).future);
       return _neighborTexts(loadedSentences);
     }
@@ -1020,7 +1020,7 @@ class _SentenceExplanationViewState
         : null;
     final accessToken = ref
         .watch(supabaseSessionProvider)
-        .valueOrNull
+        .value
         ?.accessToken;
     // 讲解视图自包含：是否自动请求只由认证状态和用户 AI 设置决定，
     // 宿主无需额外传入“启用自动加载”的开关。
@@ -1042,7 +1042,7 @@ class _SentenceExplanationViewState
 
     // 局部 watch 已收藏意群文本集合，避免全局重建
     final savedTextsAsync = ref.watch(savedSenseGroupTextsProvider);
-    final savedTexts = savedTextsAsync.valueOrNull ?? {};
+    final savedTexts = savedTextsAsync.value ?? {};
 
     final l10n = AppLocalizations.of(context)!;
     // 引导关闭时（PageView 离屏页）四个 step 一律为 null：SentenceAnnotationCard 的

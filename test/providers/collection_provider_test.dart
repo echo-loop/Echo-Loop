@@ -51,7 +51,7 @@ void main() {
     test('重命名会刷新 updatedAt', () async {
       final initialUpdatedAt = DateTime(2026, 1, 1);
       final container = ProviderContainer(
-        overrides: [
+        overrides: dedupeOverrides([
           collectionListProvider.overrideWith(
             () => TestCollectionList(
               CollectionState(
@@ -66,7 +66,7 @@ void main() {
               ),
             ),
           ),
-        ],
+        ]),
       );
       addTearDown(container.dispose);
 
@@ -85,7 +85,7 @@ void main() {
     test('添加与移除音频会刷新 updatedAt，置顶不会刷新', () async {
       final initialUpdatedAt = DateTime(2026, 1, 1);
       final container = ProviderContainer(
-        overrides: [
+        overrides: dedupeOverrides([
           collectionListProvider.overrideWith(
             () => TestCollectionList(
               CollectionState(
@@ -101,7 +101,7 @@ void main() {
               ),
             ),
           ),
-        ],
+        ]),
       );
       addTearDown(container.dispose);
       final notifier = container.read(collectionListProvider.notifier);
@@ -480,7 +480,7 @@ void main() {
       final other = createTestAudioItem(id: 'other', name: 'Other');
 
       final container = ProviderContainer(
-        overrides: [
+        overrides: dedupeOverrides([
           collectionListProvider.overrideWith(
             () => TestCollectionList(
               CollectionState(
@@ -496,7 +496,7 @@ void main() {
               AudioLibraryState(audioItems: [ep1, ep2, other]),
             ),
           ),
-        ],
+        ]),
       );
       addTearDown(container.dispose);
 

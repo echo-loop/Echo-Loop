@@ -129,7 +129,7 @@ class _SenseGroupTextState extends ConsumerState<SenseGroupText> {
     // 学习内容字号偏好：与句子正文同一缩放规则
     final baseStyle = rawStyle == null
         ? null
-        : ref.watch(readingTextPrefsNotifierProvider).applyTo(rawStyle);
+        : ref.watch(readingTextPrefsProvider).applyTo(rawStyle);
 
     // 收藏索引流式监听：加载中/降级（测试环境无 DB）时为空索引 = 无标记
     final savedMasks = _buildSavedMasks(ref.watch(savedTextIndexProvider));

@@ -6,26 +6,67 @@ part of 'featured_podcasts_provider.dart';
 // RiverpodGenerator
 // **************************************************************************
 
-String _$featuredPodcastsHash() => r'93c70d9d3663e239bfa51a5357d82a5e337eec07';
+// GENERATED CODE - DO NOT MODIFY BY HAND
+// ignore_for_file: type=lint, type=warning
+/// 管理精选 Podcast 的缓存恢复、页面刷新和游标分页。
+
+@ProviderFor(FeaturedPodcasts)
+final featuredPodcastsProvider = FeaturedPodcastsProvider._();
 
 /// 管理精选 Podcast 的缓存恢复、页面刷新和游标分页。
-///
-/// Copied from [FeaturedPodcasts].
-@ProviderFor(FeaturedPodcasts)
-final featuredPodcastsProvider =
-    AsyncNotifierProvider<
-      FeaturedPodcasts,
-      FeaturedPodcastDiscoveryState
-    >.internal(
-      FeaturedPodcasts.new,
-      name: r'featuredPodcastsProvider',
-      debugGetCreateSourceHash: const bool.fromEnvironment('dart.vm.product')
-          ? null
-          : _$featuredPodcastsHash,
-      dependencies: null,
-      allTransitiveDependencies: null,
-    );
+final class FeaturedPodcastsProvider
+    extends
+        $AsyncNotifierProvider<
+          FeaturedPodcasts,
+          FeaturedPodcastDiscoveryState
+        > {
+  /// 管理精选 Podcast 的缓存恢复、页面刷新和游标分页。
+  FeaturedPodcastsProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'featuredPodcastsProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
 
-typedef _$FeaturedPodcasts = AsyncNotifier<FeaturedPodcastDiscoveryState>;
-// ignore_for_file: type=lint
-// ignore_for_file: subtype_of_sealed_class, invalid_use_of_internal_member, invalid_use_of_visible_for_testing_member, deprecated_member_use_from_same_package
+  @override
+  String debugGetCreateSourceHash() => _$featuredPodcastsHash();
+
+  @$internal
+  @override
+  FeaturedPodcasts create() => FeaturedPodcasts();
+}
+
+String _$featuredPodcastsHash() => r'f978129361e0297339edbd90c9a7c1c702e04258';
+
+/// 管理精选 Podcast 的缓存恢复、页面刷新和游标分页。
+
+abstract class _$FeaturedPodcasts
+    extends $AsyncNotifier<FeaturedPodcastDiscoveryState> {
+  FutureOr<FeaturedPodcastDiscoveryState> build();
+  @$mustCallSuper
+  @override
+  WhenComplete runBuild() {
+    final ref =
+        this.ref
+            as $Ref<
+              AsyncValue<FeaturedPodcastDiscoveryState>,
+              FeaturedPodcastDiscoveryState
+            >;
+    final element =
+        ref.element
+            as $ClassProviderElement<
+              AnyNotifier<
+                AsyncValue<FeaturedPodcastDiscoveryState>,
+                FeaturedPodcastDiscoveryState
+              >,
+              AsyncValue<FeaturedPodcastDiscoveryState>,
+              Object?,
+              Object?
+            >;
+    return element.handleCreate(ref, build);
+  }
+}

@@ -18,6 +18,7 @@ import 'package:echo_loop/providers/collection_provider.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import '../../../helpers/mock_providers.dart';
 
 class _FakeCredentialRepository implements BaiduCredentialRepository {
   _FakeCredentialRepository(this.accessToken);
@@ -410,10 +411,10 @@ void main() {
       api = _FakeBaiduNetdiskApi();
       importService = _FakeImportService();
       container = ProviderContainer(
-        overrides: [
+        overrides: dedupeOverrides([
           audioLibraryProvider.overrideWith(_FakeAudioLibrary.new),
           collectionListProvider.overrideWith(_FakeCollectionList.new),
-        ],
+        ]),
       );
       controller = BaiduNetdiskImportController(
         credentialRepository: credentialRepository,

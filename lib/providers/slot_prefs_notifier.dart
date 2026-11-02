@@ -6,9 +6,11 @@
 library;
 
 import 'dart:convert';
+import '../utils/provider_override_error.dart';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_riverpod/misc.dart';
 
 import '../models/slot_prefs.dart';
 import '../services/app_logger.dart';
@@ -33,7 +35,8 @@ abstract class SlotPrefsNotifier<P> extends Notifier<SlotPrefs<P>> {
   SlotPrefs<P> loadFromPrefs() {
     try {
       return readPrefs(ref.read(sharedPreferencesProvider));
-    } on UnimplementedError {
+    } catch (error) {
+      if (!isProviderNotOverriddenError(error)) rethrow;
       return ref.read(initialProvider);
     }
   }

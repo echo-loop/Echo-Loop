@@ -15,7 +15,7 @@ void main() {
     final file = File('${dir.path}/echo_loop.db');
     await _createV44Fixture(file);
 
-    final db = AppDatabase(NativeDatabase(file));
+    final db = AppDatabase(NativeDatabase(file, setup: configureAppDatabaseConnection));
     addTearDown(db.close);
 
     final rows = await db
@@ -73,6 +73,6 @@ Future<void> _createV44Fixture(File file) async {
 
     raw.execute('PRAGMA user_version = 44');
   } finally {
-    raw.dispose();
+    raw.close();
   }
 }

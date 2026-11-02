@@ -26,7 +26,7 @@ final learningPlanForAudioProvider = Provider.family<LearningPlan, String>((
   ref,
   audioItemId,
 ) {
-  final progressState = ref.watch(learningProgressNotifierProvider);
+  final progressState = ref.watch(learningProgressProvider);
   final progress = progressState.progressMap[audioItemId];
   return LearningPlan.standard(
     stagePlanVersions: progress?.planVersionsByStage ?? const {},

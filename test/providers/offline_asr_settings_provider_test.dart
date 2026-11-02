@@ -11,6 +11,7 @@ import 'package:echo_loop/services/asr/asr_model_manager.dart';
 import 'package:echo_loop/services/asr/offline_asr_engine.dart';
 import 'package:echo_loop/services/download/download_failure.dart';
 import 'package:echo_loop/services/reliable_http_downloader.dart';
+import '../helpers/mock_providers.dart';
 
 class _FakeAsrModelManager extends AsrModelManager {
   _FakeAsrModelManager({
@@ -144,12 +145,12 @@ void main() {
       recommendedModel: recommendedModel,
     );
     final container = ProviderContainer(
-      overrides: [
+      overrides: dedupeOverrides([
         asrModelManagerProvider.overrideWithValue(manager),
         offlineAsrSettingsProvider.overrideWith(
           () => _TestOfflineAsrSettingsNotifier(initialState),
         ),
-      ],
+      ]),
     );
     addTearDown(container.dispose);
 
@@ -225,12 +226,12 @@ void main() {
       },
     );
     final container = ProviderContainer(
-      overrides: [
+      overrides: dedupeOverrides([
         asrModelManagerProvider.overrideWithValue(manager),
         offlineAsrSettingsProvider.overrideWith(
           () => _TestOfflineAsrSettingsNotifier(initialState),
         ),
-      ],
+      ]),
     );
     addTearDown(container.dispose);
 
@@ -254,12 +255,12 @@ void main() {
       recommendedModel: recommendedModel,
     );
     final container = ProviderContainer(
-      overrides: [
+      overrides: dedupeOverrides([
         asrModelManagerProvider.overrideWithValue(manager),
         offlineAsrSettingsProvider.overrideWith(
           () => _TestOfflineAsrSettingsNotifier(initialState),
         ),
-      ],
+      ]),
     );
     addTearDown(container.dispose);
 

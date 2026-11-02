@@ -8,6 +8,8 @@ library;
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+// StateNotifier / StateProvider 已移入 legacy 库（Riverpod 3），此处保留旧写法
+import 'package:flutter_riverpod/legacy.dart';
 
 import '../../services/app_logger.dart';
 import '../../services/refresh_coordinator.dart';

@@ -10,7 +10,7 @@ void main() {
   late StudyStatisticsDao dao;
 
   setUp(() {
-    db = AppDatabase(NativeDatabase.memory());
+    db = AppDatabase(NativeDatabase.memory(setup: configureAppDatabaseConnection));
     dao = db.studyStatisticsDao;
   });
 

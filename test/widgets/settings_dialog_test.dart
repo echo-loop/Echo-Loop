@@ -28,13 +28,13 @@ Widget _buildLoopPopupTest({ListeningPracticeState? practiceState}) {
       : base.copyWith(sentences: createTestSentences(count: 3));
   return createTestApp(
     const Align(child: LoopSettingsPopup()),
-    overrides: [
+    overrides: dedupeOverrides([
       appSettingsProvider.overrideWith(() => TestAppSettings()),
       listeningPracticeProvider.overrideWith(
         () => TestListeningPractice(state),
       ),
       audioEngineProvider.overrideWith(() => TestAudioEngine()),
-    ],
+    ]),
   );
 }
 
@@ -139,14 +139,14 @@ void main() {
         await tester.pumpWidget(
           createTestApp(
             const Align(child: LoopSettingsPopup()),
-            overrides: [
+            overrides: dedupeOverrides([
               appSettingsProvider.overrideWith(() => TestAppSettings()),
               listeningPracticeProvider.overrideWith(
                 // 默认 state.sentences 为空 → 无字幕。
                 () => TestListeningPractice(const ListeningPracticeState()),
               ),
               audioEngineProvider.overrideWith(() => TestAudioEngine()),
-            ],
+            ]),
           ),
         );
         await tester.pumpAndSettle();
@@ -170,13 +170,13 @@ void main() {
                 },
               ),
             ),
-            overrides: [
+            overrides: dedupeOverrides([
               appSettingsProvider.overrideWith(() => TestAppSettings()),
               listeningPracticeProvider.overrideWith(
                 () => TestListeningPractice(const ListeningPracticeState()),
               ),
               audioEngineProvider.overrideWith(() => TestAudioEngine()),
-            ],
+            ]),
           ),
         );
         await tester.pumpAndSettle();
@@ -201,7 +201,7 @@ void main() {
                 },
               ),
             ),
-            overrides: [
+            overrides: dedupeOverrides([
               appSettingsProvider.overrideWith(() => TestAppSettings()),
               listeningPracticeProvider.overrideWith(
                 () => TestListeningPractice(
@@ -213,7 +213,7 @@ void main() {
                 ),
               ),
               audioEngineProvider.overrideWith(() => TestAudioEngine()),
-            ],
+            ]),
           ),
         );
         await tester.pumpAndSettle();

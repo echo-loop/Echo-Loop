@@ -160,7 +160,7 @@ Future<void> _seedV50(File file) async {
   try {
     raw.execute('PRAGMA user_version = 50');
   } finally {
-    raw.dispose();
+    raw.close();
   }
 }
 

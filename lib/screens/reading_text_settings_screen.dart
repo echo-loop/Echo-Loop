@@ -25,8 +25,8 @@ class ReadingTextSettingsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context)!;
-    final prefs = ref.watch(readingTextPrefsNotifierProvider);
-    final controller = ref.read(readingTextPrefsNotifierProvider.notifier);
+    final prefs = ref.watch(readingTextPrefsProvider);
+    final controller = ref.read(readingTextPrefsProvider.notifier);
     final theme = Theme.of(context);
 
     return Scaffold(

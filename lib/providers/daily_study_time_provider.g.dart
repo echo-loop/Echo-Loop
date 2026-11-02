@@ -6,26 +6,66 @@ part of 'daily_study_time_provider.dart';
 // RiverpodGenerator
 // **************************************************************************
 
+// GENERATED CODE - DO NOT MODIFY BY HAND
+// ignore_for_file: type=lint, type=warning
+/// 今日学习时长 Provider（秒）
+///
+/// 从 SQLite 读取今日累计学习秒数。
+/// 每次进入/退出学习模式后刷新。
+
+@ProviderFor(DailyStudyTime)
+final dailyStudyTimeProvider = DailyStudyTimeProvider._();
+
+/// 今日学习时长 Provider（秒）
+///
+/// 从 SQLite 读取今日累计学习秒数。
+/// 每次进入/退出学习模式后刷新。
+final class DailyStudyTimeProvider
+    extends $AsyncNotifierProvider<DailyStudyTime, int> {
+  /// 今日学习时长 Provider（秒）
+  ///
+  /// 从 SQLite 读取今日累计学习秒数。
+  /// 每次进入/退出学习模式后刷新。
+  DailyStudyTimeProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'dailyStudyTimeProvider',
+        isAutoDispose: true,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$dailyStudyTimeHash();
+
+  @$internal
+  @override
+  DailyStudyTime create() => DailyStudyTime();
+}
+
 String _$dailyStudyTimeHash() => r'7008f1036f97a628b5d9bedae706f44f6ade3964';
 
 /// 今日学习时长 Provider（秒）
 ///
 /// 从 SQLite 读取今日累计学习秒数。
 /// 每次进入/退出学习模式后刷新。
-///
-/// Copied from [DailyStudyTime].
-@ProviderFor(DailyStudyTime)
-final dailyStudyTimeProvider =
-    AutoDisposeAsyncNotifierProvider<DailyStudyTime, int>.internal(
-      DailyStudyTime.new,
-      name: r'dailyStudyTimeProvider',
-      debugGetCreateSourceHash: const bool.fromEnvironment('dart.vm.product')
-          ? null
-          : _$dailyStudyTimeHash,
-      dependencies: null,
-      allTransitiveDependencies: null,
-    );
 
-typedef _$DailyStudyTime = AutoDisposeAsyncNotifier<int>;
-// ignore_for_file: type=lint
-// ignore_for_file: subtype_of_sealed_class, invalid_use_of_internal_member, invalid_use_of_visible_for_testing_member, deprecated_member_use_from_same_package
+abstract class _$DailyStudyTime extends $AsyncNotifier<int> {
+  FutureOr<int> build();
+  @$mustCallSuper
+  @override
+  WhenComplete runBuild() {
+    final ref = this.ref as $Ref<AsyncValue<int>, int>;
+    final element =
+        ref.element
+            as $ClassProviderElement<
+              AnyNotifier<AsyncValue<int>, int>,
+              AsyncValue<int>,
+              Object?,
+              Object?
+            >;
+    return element.handleCreate(ref, build);
+  }
+}

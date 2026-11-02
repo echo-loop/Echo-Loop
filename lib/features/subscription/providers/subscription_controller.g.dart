@@ -6,22 +6,58 @@ part of 'subscription_controller.dart';
 // RiverpodGenerator
 // **************************************************************************
 
+// GENERATED CODE - DO NOT MODIFY BY HAND
+// ignore_for_file: type=lint, type=warning
+
+@ProviderFor(SubscriptionController)
+final subscriptionControllerProvider = SubscriptionControllerProvider._();
+
+final class SubscriptionControllerProvider
+    extends $NotifierProvider<SubscriptionController, EntitlementState> {
+  SubscriptionControllerProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'subscriptionControllerProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$subscriptionControllerHash();
+
+  @$internal
+  @override
+  SubscriptionController create() => SubscriptionController();
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(EntitlementState value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<EntitlementState>(value),
+    );
+  }
+}
+
 String _$subscriptionControllerHash() =>
     r'bb6fd108bed6e826febd0d2b0fb57363f4b0d474';
 
-/// See also [SubscriptionController].
-@ProviderFor(SubscriptionController)
-final subscriptionControllerProvider =
-    NotifierProvider<SubscriptionController, EntitlementState>.internal(
-      SubscriptionController.new,
-      name: r'subscriptionControllerProvider',
-      debugGetCreateSourceHash: const bool.fromEnvironment('dart.vm.product')
-          ? null
-          : _$subscriptionControllerHash,
-      dependencies: null,
-      allTransitiveDependencies: null,
-    );
-
-typedef _$SubscriptionController = Notifier<EntitlementState>;
-// ignore_for_file: type=lint
-// ignore_for_file: subtype_of_sealed_class, invalid_use_of_internal_member, invalid_use_of_visible_for_testing_member, deprecated_member_use_from_same_package
+abstract class _$SubscriptionController extends $Notifier<EntitlementState> {
+  EntitlementState build();
+  @$mustCallSuper
+  @override
+  WhenComplete runBuild() {
+    final ref = this.ref as $Ref<EntitlementState, EntitlementState>;
+    final element =
+        ref.element
+            as $ClassProviderElement<
+              AnyNotifier<EntitlementState, EntitlementState>,
+              EntitlementState,
+              Object?,
+              Object?
+            >;
+    return element.handleCreate(ref, build);
+  }
+}

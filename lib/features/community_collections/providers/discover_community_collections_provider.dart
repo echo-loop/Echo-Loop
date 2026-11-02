@@ -44,7 +44,7 @@ class DiscoverCommunityCollections extends _$DiscoverCommunityCollections {
         :final error,
         :final stackTrace,
       ):
-        if (state.valueOrNull == null) {
+        if (state.value == null) {
           state = AsyncError(error, stackTrace);
         }
     }
@@ -52,7 +52,7 @@ class DiscoverCommunityCollections extends _$DiscoverCommunityCollections {
 
   /// 加载当前 cursor 链上的下一页；同一时间只允许一个分页请求。
   Future<void> loadMore() async {
-    final current = state.valueOrNull;
+    final current = state.value;
     if (current == null || current.isLoadingMore || !current.hasMore) return;
 
     final cursor = current.nextCursor;
@@ -66,7 +66,7 @@ class DiscoverCommunityCollections extends _$DiscoverCommunityCollections {
     final cached = await service.loadCachedCollectionsPage(cursor: cursor);
     if (token != _operationToken) return;
     var hasCachedPage = cached != null;
-    var latest = state.valueOrNull ?? current;
+    var latest = state.value ?? current;
     if (cached != null) {
       latest = latest.replacePage(cached);
       state = AsyncData(latest.copyWith(isLoadingMore: true));
@@ -77,7 +77,7 @@ class DiscoverCommunityCollections extends _$DiscoverCommunityCollections {
       force: true,
     );
     if (token != _operationToken) return;
-    latest = state.valueOrNull ?? latest;
+    latest = state.value ?? latest;
     switch (outcome) {
       case CommunityCollectionRefreshUpdated<
         CommunityCollectionCatalogPage<PublicCollectionCatalogEntry>
@@ -115,7 +115,7 @@ class DiscoverCommunityCollections extends _$DiscoverCommunityCollections {
     final service = ref.read(communityCollectionCatalogServiceProvider);
     final cached = await service.loadCachedCollectionsPage(cursor: null);
     if (token != _operationToken) {
-      return state.valueOrNull ??
+      return state.value ??
           const CommunityCollectionPagedState(pages: []);
     }
 
@@ -131,7 +131,7 @@ class DiscoverCommunityCollections extends _$DiscoverCommunityCollections {
       force: true,
     );
     if (token != _operationToken) {
-      return state.valueOrNull ??
+      return state.value ??
           cachedState ??
           const CommunityCollectionPagedState(pages: []);
     }

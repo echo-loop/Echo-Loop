@@ -11,6 +11,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import '../../helpers/shared/fake_notifiers.dart';
 import '../../helpers/test_app.dart';
+import '../../helpers/mock_providers.dart';
 
 /// 测试用可变合集列表：暴露 [replace] 便于模拟刷新后合集被更新。
 class _MutableCollectionList extends FakeCollectionList {
@@ -175,14 +176,14 @@ void main() {
             ),
           ),
         ),
-        overrides: [
+        overrides: dedupeOverrides([
           collectionListProvider.overrideWith(() {
             notifier = _MutableCollectionList(
               CollectionState(rawCollections: [oldCollection]),
             );
             return notifier;
           }),
-        ],
+        ]),
       ),
     );
 

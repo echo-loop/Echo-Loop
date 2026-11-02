@@ -346,7 +346,7 @@ class _MessageRow extends ConsumerWidget {
     if (identical(message, _missing)) return const SizedBox.shrink();
     return ChatMessageBubble(
       message: message,
-      textPrefs: ref.watch(readingTextPrefsNotifierProvider),
+      textPrefs: ref.watch(readingTextPrefsProvider),
       onRetry: onRetry == null ? null : () => onRetry!(messageId),
       onUpgrade: onUpgrade,
       onSignIn: onSignIn,

@@ -6,6 +6,7 @@ import 'package:echo_loop/utils/saved_text_index.dart';
 import 'package:echo_loop/widgets/practice/sense_group_text.dart';
 
 import '../helpers/test_app.dart';
+import '../helpers/mock_providers.dart';
 
 /// 跟读匹配单词的高亮绿色（与组件内常量保持一致）
 const _matchedColor = Color(0xFF2E9B51);
@@ -213,14 +214,14 @@ void main() {
     }) {
       return createTestApp(
         child,
-        overrides: [
+        overrides: dedupeOverrides([
           savedTextIndexProvider.overrideWithValue(
             SavedTextIndex.build(
               savedWords: savedWords,
               savedPhrases: savedPhrases,
             ),
           ),
-        ],
+        ]),
       );
     }
 

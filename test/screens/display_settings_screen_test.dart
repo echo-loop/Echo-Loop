@@ -6,6 +6,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../helpers/mock_providers.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -19,12 +20,12 @@ void main() {
     final prefs = await SharedPreferences.getInstance();
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [
+        overrides: dedupeOverrides([
           sharedPreferencesProvider.overrideWithValue(prefs),
           initialLearningSettingsProvider.overrideWithValue(
             LearningSettings.fromPrefsSync(prefs),
           ),
-        ],
+        ]),
         child: const MaterialApp(
           localizationsDelegates: [
             AppLocalizations.delegate,

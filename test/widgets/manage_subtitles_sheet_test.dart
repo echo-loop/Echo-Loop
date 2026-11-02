@@ -32,6 +32,7 @@ import 'package:echo_loop/features/auth/providers/auth_providers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:flutter_riverpod/misc.dart';
 
 import '../helpers/mock_providers.dart';
 import '../helpers/test_app.dart';
@@ -121,7 +122,7 @@ void main() {
             child: const Text('Open'),
           ),
         ),
-        overrides: [
+        overrides: dedupeOverrides([
           analyticsOverride(),
           appSettingsProvider.overrideWith(
             () => TestAppSettings(appSettingsState),
@@ -133,7 +134,7 @@ void main() {
           tagListProvider.overrideWith(() => TestTagList()),
           listeningPracticeProvider.overrideWith(() => TestListeningPractice()),
           audioEngineProvider.overrideWith(() => TestAudioEngine()),
-          learningProgressNotifierProvider.overrideWith(
+          learningProgressProvider.overrideWith(
             () => TestLearningProgressNotifier(
               progressState ?? const LearningProgressState(),
             ),
@@ -146,13 +147,11 @@ void main() {
           transcriptionApiClientProvider.overrideWith(
             (ref) => createTestTranscriptionApiClient(),
           ),
-          supabaseSessionProvider.overrideWith(
-            (ref) => Stream<Session?>.value(session),
-          ),
+          supabaseSessionProvider.overrideWithValue(AsyncData<Session?>(session)),
           // 已登录用户视为已解锁（Pro），使转录机制测试不被额度闸拦截。
           subscriptionEntitlementOverride(pro: subscriptionPro),
           ...extraOverrides,
-        ],
+        ]),
       );
     }
 

@@ -37,6 +37,7 @@ import 'package:echo_loop/widgets/practice/sentence_annotation_card.dart';
 import 'package:echo_loop/widgets/practice/sentence_explanation_view.dart';
 import 'package:echo_loop/widgets/dictionary/dictionary_panel_host.dart';
 import 'package:echo_loop/widgets/animated_bookmark_icon.dart';
+import 'package:flutter_riverpod/misc.dart';
 
 import '../helpers/mock_providers.dart';
 
@@ -373,7 +374,7 @@ void main() {
 
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [
+        overrides: dedupeOverrides([
           analyticsOverride(),
           usageOverride(),
           ...learningSettingsOverrides(
@@ -383,15 +384,13 @@ void main() {
             autoShowAiTranslation: autoShowAiTranslation,
             autoShowAiSenseGroups: autoShowAiSenseGroups,
           ),
-          supabaseSessionProvider.overrideWith(
-            (ref) => Stream<Session?>.value(signedIn ? testSession() : null),
-          ),
+          supabaseSessionProvider.overrideWithValue(AsyncData<Session?>(signedIn ? testSession() : null)),
           savedSenseGroupDaoProvider.overrideWithValue(savedSenseGroupDao),
           savedWordDaoProvider.overrideWithValue(savedWordDao),
           audioEngineProvider.overrideWith(() => _NoopAudioEngine()),
           subscriptionAvailabilityProvider.overrideWithValue(true),
           ...extraOverrides,
-        ],
+        ]),
         child: MaterialApp.router(
           locale: const Locale('en'),
           supportedLocales: AppLocalizations.supportedLocales,
@@ -821,7 +820,7 @@ void main() {
     final cacheDao = _MockCacheDao();
     final savedSenseGroupDao = _MockSavedSenseGroupDao();
     final audioItemDao = _MockAudioItemDao();
-    final database = AppDatabase(NativeDatabase.memory());
+    final database = AppDatabase(NativeDatabase.memory(setup: configureAppDatabaseConnection));
     addTearDown(database.close);
     final savedTexts = StreamController<Set<String>>.broadcast();
     addTearDown(savedTexts.close);

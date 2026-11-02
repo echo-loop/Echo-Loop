@@ -1067,7 +1067,7 @@ class SentenceAnnotationCardState
             style: translationStyle == null
                 ? null
                 : ref
-                      .watch(readingTextPrefsNotifierProvider)
+                      .watch(readingTextPrefsProvider)
                       .applyTo(translationStyle),
           ),
         );
@@ -1122,7 +1122,7 @@ class SentenceAnnotationCardState
       ContentLoadState.loading => const ShimmerPlaceholder(),
       ContentLoadState.loaded when content != null => _AnalysisContent(
         analysis: content,
-        textPrefs: ref.watch(readingTextPrefsNotifierProvider),
+        textPrefs: ref.watch(readingTextPrefsProvider),
       ),
       ContentLoadState.loaded => const SizedBox.shrink(),
       ContentLoadState.error => const SizedBox.shrink(),

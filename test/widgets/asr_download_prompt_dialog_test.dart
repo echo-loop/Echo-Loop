@@ -77,7 +77,7 @@ const _recommendedModel = AsrModelInfo(
 void main() {
   Widget createTestWidget(_TestOfflineAsrSettingsNotifier notifier) {
     return ProviderScope(
-      overrides: [
+      overrides: dedupeOverrides([
         analyticsOverride(),
         initialLearningSettingsProvider.overrideWithValue(
           const LearningSettings(),
@@ -86,7 +86,7 @@ void main() {
         asrModelInstallationGateProvider.overrideWithValue(
           AsrModelInstallationGate(({required shouldCommit}) async {}),
         ),
-      ],
+      ]),
       child: MaterialApp(
         locale: const Locale('en'),
         supportedLocales: const [Locale('en'), Locale('zh')],

@@ -2,6 +2,7 @@
 library;
 
 import 'dart:convert';
+import '../utils/provider_override_error.dart';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -27,7 +28,8 @@ class BookmarkReviewSettingsNotifier extends Notifier<BookmarkReviewSettings> {
     final generation = ++_loadGeneration;
     try {
       return _readFromPrefs(ref.read(sharedPreferencesProvider));
-    } on UnimplementedError {
+    } catch (error) {
+      if (!isProviderNotOverriddenError(error)) rethrow;
       _loadFromPreferences(generation);
       return const BookmarkReviewSettings();
     }
@@ -51,7 +53,8 @@ class BookmarkReviewSettingsNotifier extends Notifier<BookmarkReviewSettings> {
     final generation = ++_loadGeneration;
     try {
       state = _readFromPrefs(ref.read(sharedPreferencesProvider));
-    } on UnimplementedError {
+    } catch (error) {
+      if (!isProviderNotOverriddenError(error)) rethrow;
       _loadFromPreferences(generation);
     }
   }

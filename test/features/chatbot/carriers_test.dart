@@ -22,6 +22,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:flutter_riverpod/misc.dart';
 
 import '../../helpers/mock_providers.dart';
 import 'widgets/chatbot_widget_harness.dart';
@@ -72,9 +73,7 @@ void main() {
   List<Override> overrides() => [
     chatApiClientProvider.overrideWithValue(_EmptyApi()),
     isAuthenticatedProvider.overrideWithValue(true),
-    supabaseSessionProvider.overrideWith(
-      (ref) => Stream<Session?>.value(_session()),
-    ),
+    supabaseSessionProvider.overrideWithValue(AsyncData<Session?>(_session())),
     freeAllowancePolicyProvider.overrideWithValue(const AlwaysAllowPolicy()),
     aiTrialUsageProvider.overrideWith(() => _Trial()),
     appSettingsProvider.overrideWith(() => TestAppSettings()),

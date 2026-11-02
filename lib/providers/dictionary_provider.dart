@@ -6,6 +6,7 @@ library;
 
 import 'package:dio/dio.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../services/app_logger.dart';
 import '../services/dictionary_download_manager.dart';

@@ -38,7 +38,7 @@ class SourceSwitcher extends ConsumerWidget {
         .where((s) => s.id != 'ai')
         .toList(growable: false);
     final defaultId = ref.watch(
-      dictionarySettingsNotifierProvider.select((s) => s.defaultSourceId),
+      dictionarySettingsProvider.select((s) => s.defaultSourceId),
     );
     if (visible.isEmpty) return const SizedBox.shrink();
 

@@ -1,6 +1,5 @@
 import 'package:drift/drift.dart' hide isNotNull, isNull;
 import 'package:drift/native.dart';
-import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -10,6 +9,7 @@ import 'package:echo_loop/providers/audio_library_provider.dart';
 import 'package:echo_loop/providers/collection_provider.dart';
 import 'package:echo_loop/providers/learning_progress_provider.dart';
 import 'package:echo_loop/providers/study_task_provider.dart';
+import 'package:flutter_riverpod/misc.dart';
 
 /// 创建内存数据库用于测试
 AppDatabase _createTestDatabase() {
@@ -22,53 +22,20 @@ AppDatabase _createTestDatabase() {
   );
 }
 
-/// 辅助类：模拟 WidgetRef 的 invalidate 行为
+/// 辅助类：记录并转发 invalidate 调用
 ///
-/// 使用 ProviderContainer 代替真实 WidgetRef 来测试 provider invalidation。
-class _TestWidgetRef implements WidgetRef {
+/// Riverpod 的 Ref / WidgetRef 均为 sealed，无法替身；[switchAppDatabase]
+/// 只依赖一个 invalidate 回调，因此直接转发到 [ProviderContainer]。
+class _InvalidationRecorder {
   final ProviderContainer container;
   final List<ProviderOrFamily> invalidated = [];
 
-  _TestWidgetRef(this.container);
+  _InvalidationRecorder(this.container);
 
-  @override
   void invalidate(ProviderOrFamily provider) {
     invalidated.add(provider);
     container.invalidate(provider);
   }
-
-  @override
-  T read<T>(ProviderListenable<T> provider) => container.read(provider);
-
-  @override
-  T watch<T>(ProviderListenable<T> provider) => container.read(provider);
-
-  @override
-  bool exists(ProviderBase<Object?> provider) => container.exists(provider);
-
-  @override
-  State refresh<State>(Refreshable<State> provider) =>
-      container.refresh(provider);
-
-  @override
-  void listen<T>(
-    ProviderListenable<T> provider,
-    void Function(T? previous, T next) listener, {
-    void Function(Object error, StackTrace stackTrace)? onError,
-  }) {}
-
-  @override
-  ProviderSubscription<T> listenManual<T>(
-    ProviderListenable<T> provider,
-    void Function(T? previous, T next) listener, {
-    void Function(Object error, StackTrace stackTrace)? onError,
-    bool fireImmediately = false,
-  }) {
-    throw UnimplementedError();
-  }
-
-  @override
-  BuildContext get context => throw UnimplementedError();
 }
 
 void main() {
@@ -100,9 +67,9 @@ void main() {
 
       expect(container.read(appDatabaseProvider), db1);
 
-      final testRef = _TestWidgetRef(container);
+      final testRef = _InvalidationRecorder(container);
       await closeCurrentDatabase();
-      switchAppDatabase(db2, testRef);
+      switchAppDatabase(db2, testRef.invalidate);
 
       expect(container.read(appDatabaseProvider), db2);
     });
@@ -116,8 +83,8 @@ void main() {
       await closeCurrentDatabase();
 
       // 创建新数据库并切换
-      final testRef = _TestWidgetRef(container);
-      switchAppDatabase(db2, testRef);
+      final testRef = _InvalidationRecorder(container);
+      switchAppDatabase(db2, testRef.invalidate);
 
       // 关键验证点：新数据库是可用的，旧数据库不再是活跃实例
       expect(container.read(appDatabaseProvider), isNot(same(db1)));
@@ -132,9 +99,9 @@ void main() {
 
       final oldDao = container.read(audioItemDaoProvider);
 
-      final testRef = _TestWidgetRef(container);
+      final testRef = _InvalidationRecorder(container);
       await closeCurrentDatabase();
-      switchAppDatabase(db2, testRef);
+      switchAppDatabase(db2, testRef.invalidate);
 
       final newDao = container.read(audioItemDaoProvider);
       // DAO 应该是不同实例（来自不同的数据库）
@@ -147,9 +114,9 @@ void main() {
       final container = ProviderContainer();
       addTearDown(container.dispose);
 
-      final testRef = _TestWidgetRef(container);
+      final testRef = _InvalidationRecorder(container);
       await closeCurrentDatabase();
-      switchAppDatabase(db2, testRef);
+      switchAppDatabase(db2, testRef.invalidate);
 
       // 验证 appDatabaseProvider 被 invalidate
       expect(testRef.invalidated, contains(appDatabaseProvider));
@@ -161,9 +128,9 @@ void main() {
       final container = ProviderContainer();
       addTearDown(container.dispose);
 
-      final testRef = _TestWidgetRef(container);
+      final testRef = _InvalidationRecorder(container);
       await closeCurrentDatabase();
-      switchAppDatabase(db2, testRef);
+      switchAppDatabase(db2, testRef.invalidate);
 
       // 验证核心数据库提供者被 invalidate
       expect(testRef.invalidated, contains(appDatabaseProvider));
@@ -171,7 +138,7 @@ void main() {
       // 验证关键 keepAlive 数据提供者被 invalidate
       expect(testRef.invalidated, contains(audioLibraryProvider));
       expect(testRef.invalidated, contains(collectionListProvider));
-      expect(testRef.invalidated, contains(learningProgressNotifierProvider));
+      expect(testRef.invalidated, contains(learningProgressProvider));
       expect(testRef.invalidated, contains(studyTaskProvider));
 
       // 至少 20 个提供者被 invalidate（1 核心 + 15 keepAlive + 5 其他）

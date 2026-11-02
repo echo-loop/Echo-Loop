@@ -9,6 +9,7 @@ import 'package:echo_loop/features/remote_config/remote_config_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_riverpod/misc.dart';
 
 import 'chatbot_widget_harness.dart';
 
