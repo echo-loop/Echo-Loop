@@ -1,110 +1,144 @@
-# AGENTS.md - Codex 工作规范
+# General Development Guide
 
-## 1. 目标与边界
+## Core Principles
 
-你是 Codex，在本仓库协助完成开发任务。目标是稳定推进任务并保持改动可验证。
+* Prefer simple, explicit, and maintainable solutions.
+* Follow existing architecture, patterns, and conventions before introducing new ones.
+* Avoid unnecessary abstractions, indirection, and complexity.
+* Make the smallest change necessary to achieve the requested behavior.
+* Preserve existing behavior unless a change is explicitly required.
 
-硬性边界：
-- 不修改 Claude Code 体系文件：`CLAUDE.md`、`.claude/settings.json`、`.claude/settings.local.json`
-- 一次只做一个任务，避免顺手重构
-- 仅修改当前任务直接相关文件，保持最小改动
+## Architecture & Design
 
-## 2. 会话启动流程（必须执行）
+* Keep clear boundaries between domain logic, infrastructure, persistence, and external integrations.
+* Keep modules focused and responsibilities well separated.
+* Prefer explicit data flow and dependencies over hidden state and global state.
+* Keep I/O and side effects at system boundaries where practical.
+* Introduce abstractions only when they solve an existing problem.
+* Reuse existing abstractions and patterns instead of creating parallel implementations.
+* Avoid circular dependencies and unnecessary coupling between modules.
+* Model states and transitions explicitly. Avoid implicit state changes and inconsistent state.
+
+## Code Quality & Maintainability
+
+* Optimize for readability and maintainability over cleverness.
+* Keep functions and classes focused on a single responsibility.
+* Prefer straightforward control flow over deeply nested or overly generic logic.
+* Reduce duplication when it represents shared knowledge, but do not abstract merely to remove repeated code.
+* Use comments to explain intent, constraints, and non-obvious decisions rather than restating the code.
+* Remove dead code instead of keeping unused implementations for hypothetical future use.
+
+## Naming & Terminology
+
+* Use clear, domain-specific names and avoid vague names such as `process`, `handle`, or `data`.
+* Use the same term for the same domain concept throughout the codebase; avoid synonyms and naming drift.
+* Prefer nouns for data and types, verbs for operations, plural names for collections, and `is`, `has`, `can`, `should`, or `needs` prefixes for booleans.
+
+## Types & Data
+
+* Add explicit parameter and return types to new or modified functions and public interfaces.
+* Prefer explicit domain models and typed data structures over `Any` and loosely structured dictionaries.
+* Validate external input at system boundaries and use well-defined types internally.
+* Do not use `Any`, `cast`, `type: ignore`, or `noqa` to hide real problems; keep necessary exceptions narrowly scoped and documented.
+
+## Error Handling & Reliability
+
+* Fail fast on invalid states and handle expected failures explicitly.
+* Catch only specific exceptions that can be handled meaningfully; otherwise preserve the exception chain and propagate the failure.
+* Do not silently swallow errors or disguise failures as success by returning empty lists, `None`, or default values.
+* Avoid broad `except Exception` blocks except at deliberate application boundaries.
+* Diagnose bugs using logs and reproducible evidence, not assumptions. Verify fixes through runtime logs and relevant tests.
+
+## Testing
+
+* Prefer test-driven development (TDD) for critical business logic and bug fixes.
+* Write only high-value tests that verify meaningful behavior, edge cases, and regressions. Prioritize quality over test count or coverage.
+* Keep tests deterministic and independent. Mock external boundaries, not the logic under test.
+
+## Dependencies & Configuration
+
+* Prefer the standard library and existing dependencies before adding new ones.
+* Add a dependency only when its value clearly justifies its maintenance cost.
+* Keep configuration separate from business logic.
+* Use environment variables or configuration files for environment-specific settings.
+* Never hardcode secrets, credentials, tokens, or environment-specific values.
+
+## Documentation & Comments
+
+* Write comments and docstrings in Chinese.
+* Explain business reasons, constraints, and non-obvious trade-offs rather than restating what the code does.
+
+## Logging
+
+* Follow existing logging conventions. Use structured logs with appropriate levels and diagnostic context at critical execution points, state transitions, and failures.
+* Avoid noisy or redundant logs and never log sensitive information.
+* Write logs and commit messages in Chinese.
+
+
+---
+
+# Flutter 开发原则
+
+## 分层职责
+
+- **Screen/Page**：负责页面组装、导航和连接 UI 与状态。
+- **Widget**：负责展示和局部交互，不承载复杂业务逻辑。
+- **Provider/Notifier**：负责状态管理和业务流程协调。
+- **Repository**：负责数据访问和持久化，不负责业务流程编排。
+- **Model**：表示业务数据，独立于 UI State。
+- 保持单向数据流：UI 触发动作，Notifier 更新 State，UI 根据 State 渲染。
+- 复杂业务流程按需提取为可独立测试的 Dart 类。
+
+## 状态管理
+
+- Provider 按功能域组织，不按组件或页面外观机械拆分。
+- 局部 UI 状态优先使用 Widget State；跨页面、跨功能共享或需要独立管理生命周期的状态优先使用 Provider。
+- 每份真实状态保持单一数据来源，通过明确入口修改；复杂状态转换应显式建模。
+
+## Widget 设计
+
+- `build()` 只负责构建 UI，不执行网络请求、状态修改或其他副作用。
+- 保持 Widget 职责明确，避免过度参数化的万能组件。
+- 优先保持布局和状态订阅简单，仅在存在明显重建开销或性能问题时优化。
+
+## 异步与生命周期
+
+- 防止异步竞态和过期结果覆盖新状态，必要时使用取消机制或操作标识。
+- 异步操作完成后，使用 `BuildContext`、`WidgetRef` 或更新 State 前确认其生命周期仍有效。
+- 资源与所有者生命周期绑定，及时释放 Controller、StreamSubscription 等资源。
+- 显式处理加载、错误和空状态。
+- 网络、文件和平台调用保持合理职责边界，仅在必要时引入依赖注入。
+
+## 响应式布局
+
+- 根据实际可用空间和布局约束适配 UI，避免依赖设备型号、屏幕方向或固定尺寸。
+- 正确处理 Safe Area、键盘遮挡及窗口尺寸变化，兼容手机、平板和桌面窗口。
+
+
+---
+
+
+## 任务启动流程（必须执行）
 
 开始任何编码工作前，按顺序执行：
 1. 阅读 `PLAN.md`，确认当前里程碑和阶段
 2. 阅读 `TASKS.md`，确认待办与优先级
-3. 用简单的语言说清楚要完成的任务是啥
 
-## 3. 开发执行约束
+---
 
-- 测试优先：关键流程和功能必须补充对应测试
-- 类型安全：避免 `dynamic`、`as` 强转、`!` 非空断言
-- 小步提交：每次改动保持可运行、可检查
-- 注释规范：新增/修改的核心逻辑应有清晰中文注释（Dart doc comment）
-- 权限与命令：遵循“最小必要命令”原则；禁止执行破坏性命令（如未授权的删除/重置）
+## 任务收尾流程（必须执行）
 
-## 4. 任务收尾流程（必须执行）
+Before completing a code change:
 
-完成当前任务后，按顺序执行：
-1. 检查测试完整性（unit / widget / integration）
-2. 清理死代码（含未使用测试代码）
-3. 检查新增或修改代码的注释质量
-4. 默认只运行与本次改动直接相关的检查：
-   - `flutter analyze <改动相关文件>`
-   - `flutter test <改动相关测试文件>`
-   - 如改动影响 integration 边界，再运行对应 integration 测试
-   - 如改动影响 UI、路由或首启流程，且已有可用模拟器/真机，运行
-     Android 真机优先使用 `scripts/test_maestro_android.sh` 自动构建、安装和测试（多设备时通过 `--device <adb-serial>` 选择）；
-     已安装包或 iOS 使用 `MAESTRO_APP_ID=<目标包名> scripts/test_maestro.sh`；未运行时说明设备或 CLI 阻塞原因
-5. 仅在发版、大范围重构、跨核心模块改动，或用户明确要求时运行 `scripts/check.sh`
-6. 更新 `TASKS.md`（勾选任务并记录完成时间）
-7. 如里程碑状态变化，更新 `PLAN.md`
-8. 输出完成摘要（任务、改动文件、测试、下一步建议）
+* Review the final diff against all applicable guidelines.
+* Check architecture, naming, type safety, error handling, logging, testing, and maintainability for consistency with existing code.
+* Check for unnecessary abstractions, duplicated implementations, naming drift, hidden failures, and unrelated changes.
+* Run formatting, linting, type checking, and relevant tests.
+* If any issue or validation failure is found, diagnose the cause, fix it, and re-run the relevant checks. Repeat until all required checks pass.
+* In the final response, include a verification checklist showing the actual result of each required check, including guideline compliance, code quality, tests, formatting, linting, and type checking.
+* 更新 `TASKS.md`（勾选任务并记录完成时间），如里程碑状态变化，更新 `PLAN.md`
 
-## 5. 输出要求
+---
 
-每次任务完成时，输出至少包含：
-- 实现的任务标题
-- 修改文件列表
-- 执行的测试与结果
-- 是否执行 `scripts/check.sh`；若未执行，说明原因
-- 用户可直接执行的下一步验证方式
-
-## 6 Flutter 开发原则
-
-### 6.1 核心原则
-1. 优先保证结构清晰，不要过度设计。
-2. 按职责拆分，不按页面外观拆分。
-3. 保持单向数据流：UI 触发动作，controller 更新 state，UI 根据 state 渲染。
-4. UI 和业务逻辑分离，widget 不承载复杂业务逻辑。
-5. 优先简单、直接、稳定的方案。
-6. 函数设计要保持单一职能原则。
-7. 遵循 DRY 原则，优先复用项目中已有的代码、组件和工具函数。不要重复实现已有能力，避免产生多个逻辑来源，确保行为一致并降低维护成本。
-
-### 6.2 分层职责
-1. Screen/Page 负责页面组装、路由参数、读取 provider、分发回调。
-2. Widget 负责展示和局部交互，尽量保持纯。
-3. Provider/Notifier 负责状态和业务逻辑。
-4. Repository 负责数据获取和持久化，不负责业务流程编排。
-5. Model 表示业务数据，State 表示界面运行状态。Model 不依赖 State，State 可以包含 Model。
-
-### 6.3 状态管理
-1. Provider 按功能域拆分，不按组件个数拆分，也不按页面外观拆分。
-2. 状态只在一个 widget 树内使用且不需要跨组件共享时，用局部 state；否则用 provider。
-3. 一份真实状态只能有一个单一来源，避免多处维护同一状态。
-4. 状态变更入口要集中，只能通过明确的方法修改状态。
-5. 复杂流程提取为纯 Dart 类编排（可测试、可复用），Provider 负责连接编排层和 UI。
-
-### 6.4 Widget 设计
-1. 页面负责组装，组件负责展示。
-2. 不要做万能组件，避免大量 if 和模式开关。参数超过 10 个说明职责太广，应该拆分。
-3. build 方法只描述 UI，不做请求、不改状态、不启动副作用。
-4. 子组件只读取自己关心的状态，避免整页无意义刷新。
-
-### 6.5 可靠性
-1. 异步操作必须防竞态：启动时记录标识（token/sessionId），回调时校验标识是否仍有效，过期则丢弃。
-2. 谁创建谁销毁。资源的生命周期必须和它的所有者绑定，不能由外部隐式管理。
-3. 副作用（网络请求、文件 IO、平台调用）通过接口或回调注入，不在业务逻辑类中直接调用。
-4. 每个异步调用点都要考虑失败情况。沉默吞掉异常是 bug，应该明确处理或向上传播。
-5. 错误、加载、空状态必须显式设计，不要只写成功态。
-6. 关键环节打印出日志，方便排查、发现问题。
-
-### 6.6 可维护性
-1. 命名优先于技巧，名称必须直接表达职责。
-2. 目录结构优先按 feature 组织，再在 feature 内部分层。
-3. 先允许少量重复，确认模式稳定后再抽象。过早抽象比重复更有害。
-4. 优先测试状态流转和业务逻辑，不需要添加低价值的测试，比如文案。
-
-### 6.7 测试要求
-1. 为新增或修改的行为编写真正有价值的测试。
-2. 测试行为，不测试实现细节。
-3. 不测试无关紧要的 UI 细节，例如精确字号、颜色、间距或其他样式常量，除非它们属于明确的产品要求或回归问题。
-4. 覆盖重要的边界情况和失败路径，不要只测试正常流程。
-5. 在可行的情况下优先使用真实组件，避免过度 Mock。
-6. 修复 Bug 时应增加回归测试，该测试应在修复前失败，在修复后通过。
-7. 测试必须稳定且可重复。不要为了让异步测试通过而加入任意延时。
-8. 不要仅为了让测试通过而削弱、跳过或删除现有测试。
-9. 宁可写少量高价值测试，也不要写大量浅层测试。
-10. 不要仅为了提高覆盖率而增加测试。每个测试都应该保护重要行为，或能够发现真实可能发生的回归问题。
-11. 完成任务前，运行相关测试并确保全部通过。
+## Troubleshooting（踩坑记录）
+踩坑记录统一记录在 docs/troubleshooting.md，本文件不再收录具体条目。
