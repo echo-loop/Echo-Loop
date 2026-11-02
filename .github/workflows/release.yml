@@ -465,8 +465,10 @@ jobs:
             echo "::error::altool exited with status $STATUS" >&2
             exit "$STATUS"
           fi
-          if grep -E '^[0-9-]+ [0-9:.]+ ERROR' "$LOG" >/dev/null; then
-            echo "::error::altool reported ERROR despite exit 0 — failing step" >&2
+          # 上传链路的 500 等瞬时错误会被 altool 内部重试，成功后日志里仍留有 ERROR 行，
+          # 因此不能仅凭 ERROR 关键字判失败；以 "UPLOAD SUCCEEDED with no errors" 作为成功依据。
+          if ! grep -q 'UPLOAD SUCCEEDED with no errors' "$LOG"; then
+            echo "::error::altool did not report UPLOAD SUCCEEDED — failing step" >&2
             grep -E '^[0-9-]+ [0-9:.]+ ERROR' "$LOG" >&2 || true
             exit 1
           fi

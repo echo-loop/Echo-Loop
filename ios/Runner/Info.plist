@@ -87,6 +87,8 @@
 	<true/>
 	<key>UIFileSharingEnabled</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>This app needs camera access only when you choose to capture a photo or video for your study materials.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>This app needs access to your photo library to select audio files.</string>
 	<key>NSAppleMusicUsageDescription</key>

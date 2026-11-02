@@ -559,3 +559,15 @@
 - 语言标识参与提醒快照去重（`locale|<tag>`），切换语言后即使提醒不变也会重新调度。
 - 回归测试：`download_provider_test.dart`（fr_CN 回退）、`background_file_download_service_test.dart`（解析抛异常仍可入队）、`review_reminder_service_test.dart`「本地化文案」组、`paddle_billing_repository_test.dart`（checkout locale 注入）、`settings_provider_test.dart`「resolveUiLocale」组。
 - 排查日志：`[BackgroundFileDownload] plugin initialization failed`，`cause=AppLocalizations.delegate failed to load unsupported locale "<locale>"`。
+
+### 7.35 Release 工作流失败：Flutter SDK 对 Gradle / AGP / Kotlin 有最低版本门槛，升级 Flutter 后构建直接中止
+
+- 根因：CI 的 Flutter 升到 3.47.9 后，`flutter-gradle-plugin` 校验项目的 Gradle ≥ 8.14、AGP ≥ 8.11.1、Kotlin ≥ 2.2.20，原配置（Gradle 8.12 / AGP 8.9.1 / Kotlin 2.1.0）全部不满足，`app/build.gradle.kts` 应用插件时即失败。三项门槛按顺序逐个暴露，需要一次性对齐。
+- 规则：升级 `FLUTTER_VERSION` 时，先在本地 `./gradlew help` 验证 Android 配置阶段，再打 tag；不要只看 Flutter 版本号。
+- 排查日志：`Your project's Gradle version (8.12.0) is lower than Flutter's minimum supported version`。
+
+### 7.36 iOS 上传 altool 日志残留瞬时 500 的 ERROR 行 → 误判失败（上传实际已成功）
+
+- 根因：App Store Connect 偶发 500 时 altool 内部重试并最终 `UPLOAD SUCCEEDED with no errors`，但日志里仍保留 `ERROR:` 行。工作流以「日志含 ERROR 即失败」判定，把已成功的上传标红。
+- 规则：判定上传成功以 `UPLOAD SUCCEEDED with no errors` 为准，不以 ERROR 关键字为准；该构建号已入库，重跑同一 commit 会因构建号重复失败，需要新 commit 打新 tag。
+- 同一次上传 Apple 还邮件提示 `ITMS-90683`：`file_picker` 等依赖引入相机 API，Info.plist 缺 `NSCameraUsageDescription` 即使应用不使用相机也会被拒，须补齐并同步 `en` / `zh-Hans` 的 InfoPlist.strings。
