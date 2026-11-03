@@ -1,4 +1,6 @@
 import 'dart:io';
+
+import 'package:crypto/crypto.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:echo_loop/utils/audio_fingerprint.dart';
 
@@ -53,6 +55,15 @@ void main() {
         () => computeAudioSha256('${tempDir.path}/nonexistent.mp3'),
         throwsA(isA<FileSystemException>()),
       );
+    });
+
+    test('跨多个 64KB 分块的文件与一次性计算结果一致', () async {
+      final bytes = List.generate(64 * 1024 * 3 + 123, (i) => (i * 31) % 256);
+      final file = File('${tempDir.path}/large.mp3');
+      file.writeAsBytesSync(bytes);
+
+      final hash = await computeAudioSha256(file.path);
+      expect(hash, sha256.convert(bytes).toString());
     });
 
     test('返回值为 64 位十六进制字符串', () async {

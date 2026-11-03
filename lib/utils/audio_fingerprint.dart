@@ -3,6 +3,8 @@
 // 用于 AI 转录去重：相同内容的音频只需转录一次。
 // 使用 Isolate 异步计算，避免阻塞 UI 线程。
 import 'dart:isolate';
+import 'dart:typed_data';
+
 import 'package:crypto/crypto.dart';
 import 'package:dio/dio.dart';
 import 'package:universal_io/io.dart';
@@ -30,6 +32,9 @@ Future<String> computeAudioSha256(
   final isolate = await Isolate.spawn<_FingerprintRequest>(
     _computeSha256WithResponse,
     (absolutePath, responsePort.sendPort),
+    // isolate 未经 try 捕获的异常或异常退出时也要回传，否则 responsePort.first 永远不完成
+    onError: responsePort.sendPort,
+    onExit: responsePort.sendPort,
   );
   try {
     final result = responsePort.first.then((message) {
@@ -37,7 +42,7 @@ Future<String> computeAudioSha256(
       if (message case (false, final String error)) {
         throw FileSystemException(error, absolutePath);
       }
-      throw StateError('Invalid audio fingerprint response');
+      throw StateError('Audio fingerprint isolate ended without a result');
     });
     final canceled = cancelToken.whenCancel.then<String>(
       (error) => throw error,
@@ -69,10 +74,12 @@ String _computeSha256(String absolutePath) {
   // 流式读取，每次 64KB
   final stream = file.openSync();
   try {
-    final buffer = List<int>.filled(65536, 0);
+    // 用 Uint8List 且以视图传入：List<int> 的 sublist 每块都会复制，纯 Dart SHA-256 下约慢一倍。
+    // hash 在 add 中同步消费数据，因此复用同一缓冲区是安全的。
+    final buffer = Uint8List(65536);
     int bytesRead;
     while ((bytesRead = stream.readIntoSync(buffer)) > 0) {
-      output.add(buffer.sublist(0, bytesRead));
+      output.add(Uint8List.sublistView(buffer, 0, bytesRead));
     }
   } finally {
     stream.closeSync();
