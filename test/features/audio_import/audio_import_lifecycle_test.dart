@@ -57,10 +57,38 @@ class _BlockingImportService extends AudioImportService {
   }
 }
 
+/// 每次下载都挂起并记录令牌，直到被取消；用于验证多个单集并发。
+class _HoldingEpisodeService extends AudioImportService {
+  final List<CancelToken> tokens = [];
+
+  @override
+  Future<DownloadedAudio> downloadEpisodeToSandbox({
+    required String url,
+    required String displayName,
+    String? enclosureType,
+    CancelToken? cancelToken,
+    AudioImportProgressCallback? onProgress,
+  }) async {
+    final token = cancelToken;
+    if (token == null) throw StateError('cancel token is required');
+    tokens.add(token);
+    await token.whenCancel;
+    throw const AudioImportException(
+      AudioImportFailureCode.canceled,
+      'download canceled',
+    );
+  }
+}
+
+Future<void> _until(bool Function() condition) async {
+  for (var i = 0; i < 500 && !condition(); i++) {
+    await Future<void>.delayed(const Duration(milliseconds: 5));
+  }
+}
+
 void main() {
   group('导入控制器生命周期', () {
-    test('导入进行中 provider 被销毁（取消）时，不抛出 Ref 已销毁异常', () async {
-      // 导入中途关闭所有监听 → autoDispose 销毁并取消下载 → catch 分支不得写 state。
+    test('离开页面（关闭所有监听）后导入继续，只有用户主动取消才取消', () async {
       final service = _BlockingImportService();
       final container = ProviderContainer(
         overrides: dedupeOverrides([
@@ -74,14 +102,17 @@ void main() {
       final importing = container
           .read(audioImportControllerProvider.notifier)
           .importFromUrl('https://example.com/a.mp3');
-      await service.started.future;
+      final token = await service.started.future;
       sub.close();
       await Future<void>.delayed(Duration.zero);
+      expect(token.isCancelled, isFalse);
 
+      await container.read(audioImportControllerProvider.notifier).cancel();
       await expectLater(importing, completion(isNull));
+      expect(token.isCancelled, isTrue);
     });
 
-    test('播客单集下载进行中 provider 被销毁时，不抛出 Ref 已销毁异常', () async {
+    test('播客单集下载进行中离开页面不取消，用户取消才取消', () async {
       final service = _BlockingImportService();
       final item = createTestAudioItem(id: 'ep-1', name: 'Episode 1').copyWith(
         audioPath: null,
@@ -106,11 +137,58 @@ void main() {
       final downloading = container
           .read(podcastDownloadControllerProvider.notifier)
           .downloadPodcastEpisode(item);
-      await service.started.future;
+      final token = await service.started.future;
       sub.close();
       await Future<void>.delayed(Duration.zero);
+      expect(token.isCancelled, isFalse);
 
+      container.read(podcastDownloadControllerProvider.notifier).cancel('ep-1');
       await expectLater(downloading, completion(isFalse));
+      expect(token.isCancelled, isTrue);
+    });
+    test('不同单集可以同时下载，同一单集重复请求不会建第二个下载', () async {
+      final service = _HoldingEpisodeService();
+      final episodeA = createTestAudioItem(id: 'ep-a', name: 'A').copyWith(
+        audioPath: null,
+        totalDuration: 0,
+        podcastEnclosureUrl: 'https://example.com/a.mp3',
+        podcastEnclosureType: 'audio/mpeg',
+      );
+      final episodeB = createTestAudioItem(id: 'ep-b', name: 'B').copyWith(
+        audioPath: null,
+        totalDuration: 0,
+        podcastEnclosureUrl: 'https://example.com/b.mp3',
+        podcastEnclosureType: 'audio/mpeg',
+      );
+      final container = ProviderContainer(
+        overrides: dedupeOverrides([
+          audioImportServiceProvider.overrideWithValue(service),
+          audioLibraryProvider.overrideWith(() => TestAudioLibrary()),
+        ]),
+      );
+      addTearDown(container.dispose);
+      final notifier = container.read(
+        podcastDownloadControllerProvider.notifier,
+      );
+
+      final a = notifier.downloadPodcastEpisode(episodeA);
+      final b = notifier.downloadPodcastEpisode(episodeB);
+      expect(await notifier.downloadPodcastEpisode(episodeA), isFalse);
+
+      await _until(() => service.tokens.length == 2);
+      expect(service.tokens, hasLength(2));
+      expect(
+        container.read(podcastDownloadControllerProvider).keys,
+        unorderedEquals(['ep-a', 'ep-b']),
+      );
+
+      notifier.cancel('ep-a');
+      expect(service.tokens[0].isCancelled, isTrue);
+      expect(service.tokens[1].isCancelled, isFalse);
+
+      notifier.cancel('ep-b');
+      await a;
+      await b;
     });
   });
 }

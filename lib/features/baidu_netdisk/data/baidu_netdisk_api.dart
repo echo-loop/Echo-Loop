@@ -37,6 +37,7 @@ abstract interface class BaiduNetdiskApi {
     required String accessToken,
     required String dlink,
     required String savePath,
+    String? resourceKey,
     CancelToken? cancelToken,
     void Function(int receivedBytes, int? totalBytes)? onProgress,
   });
@@ -50,6 +51,9 @@ abstract interface class BaiduNetdiskApi {
     onProgress,
   });
 }
+
+/// 百度网盘文件的资源身份。dlink 每次获取都不同，只能用文件 id。
+String baiduResourceKey(int fsId) => 'baidu:$fsId';
 
 /// 百度网盘批量下载中的单个文件请求。
 class BaiduNetdiskDownloadRequest {
@@ -209,6 +213,7 @@ class DefaultBaiduNetdiskApi implements BaiduNetdiskApi {
     required String accessToken,
     required String dlink,
     required String savePath,
+    String? resourceKey,
     CancelToken? cancelToken,
     void Function(int receivedBytes, int? totalBytes)? onProgress,
   }) async {
@@ -223,6 +228,7 @@ class DefaultBaiduNetdiskApi implements BaiduNetdiskApi {
       await _backgroundDownloader.download(
         uri: downloadUri,
         savePath: savePath,
+        resourceKey: resourceKey,
         headers: const {'User-Agent': _baiduUserAgent},
         cancelToken: cancelToken,
         onProgress: onProgress,
@@ -248,6 +254,7 @@ class DefaultBaiduNetdiskApi implements BaiduNetdiskApi {
             id: request.id,
             uri: _downloadUri(request.dlink, accessToken),
             savePath: request.savePath,
+            resourceKey: baiduResourceKey(request.fsId),
             displayName: request.displayName,
             headers: const {'User-Agent': _baiduUserAgent},
           ),

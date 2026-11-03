@@ -8,6 +8,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+
 import '../models/audio_item.dart';
 import '../utils/time_format.dart';
 import '../models/learning_progress.dart';
@@ -133,6 +134,9 @@ class AudioListTile extends ConsumerWidget {
     );
     // 本项下载进度与计划页共用同一派生源（mediaDownloadSnapshotProvider）。
     // double? 语义：null 表示未在下载本项；非 null（含 -1 不定态）表示正在下载。
+    final bool downloadQueued = ref.watch(
+      mediaDownloadQueuedProvider(audioItem.id),
+    );
     final double? downloadProgress = ref.watch(
       mediaDownloadSnapshotProvider(
         audioItem.id,
@@ -199,6 +203,7 @@ class AudioListTile extends ConsumerWidget {
                                   tagData,
                                   transcriptionTask,
                                   downloadProgress,
+                                  downloadQueued,
                                   difficulty,
                                 ),
                               ],
@@ -335,6 +340,7 @@ class AudioListTile extends ConsumerWidget {
     List<Tag> tagData,
     TranscriptionTaskState? transcriptionTask,
     double? downloadProgress,
+    bool downloadQueued,
     CommunityDifficulty? difficulty,
   ) {
     // 是否有进行中的转录任务
@@ -593,7 +599,12 @@ class AudioListTile extends ConsumerWidget {
                 ),
               ),
               if (downloadProgress != null)
-                _buildDownloadProgress(theme, l10n, downloadProgress),
+                _buildDownloadProgress(
+                  theme,
+                  l10n,
+                  downloadProgress,
+                  queued: downloadQueued,
+                ),
             ],
           ),
         ],
@@ -607,8 +618,9 @@ class AudioListTile extends ConsumerWidget {
   Widget _buildDownloadProgress(
     ThemeData theme,
     AppLocalizations l10n,
-    double progress,
-  ) {
+    double progress, {
+    required bool queued,
+  }) {
     final value = progress < 0 ? null : progress.clamp(0.0, 1.0);
     final percent = value == null ? null : (value * 100).toStringAsFixed(0);
     return SizedBox(
@@ -621,7 +633,9 @@ class AudioListTile extends ConsumerWidget {
           const SizedBox(width: 6),
           Flexible(
             child: Text(
-              percent == null
+              queued
+                  ? l10n.audioQueued
+                  : percent == null
                   ? l10n.audioDownloadInProgress
                   : '${l10n.audioDownloadInProgress} $percent%',
               overflow: TextOverflow.ellipsis,
@@ -892,11 +906,15 @@ class AudioListTile extends ConsumerWidget {
         onSelected: (value) {
           if (value == 'cancelDownload') {
             if (isPodcastEpisode) {
-              unawaited(
-                ref.read(podcastDownloadControllerProvider.notifier).cancel(),
-              );
+              ref
+                  .read(podcastDownloadControllerProvider.notifier)
+                  .cancel(audioItem.id);
             } else if (isCommunity) {
-              unawaited(ref.read(communityDownloadProvider.notifier).cancel());
+              unawaited(
+                ref
+                    .read(communityDownloadProvider.notifier)
+                    .cancel(audioItem.id),
+              );
             }
           } else if (value == 'togglePin') {
             ref.read(audioLibraryProvider.notifier).togglePin(audioItem.id);

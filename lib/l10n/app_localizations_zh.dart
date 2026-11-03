@@ -3736,9 +3736,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get mediaPreparingHint => '正在下载音频和字幕…';
 
   @override
-  String get mediaWaitingOtherDownload => '另一项下载进行中，完成后将自动开始。';
-
-  @override
   String get guideNext => '下一步';
 
   @override
@@ -4818,6 +4815,12 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get audioDownloadInProgress => '正在下载';
+
+  @override
+  String get audioQueued => '排队中';
+
+  @override
+  String get mediaQueued => '排队中...';
 
   @override
   String get audioImportComplete => '导入完成';

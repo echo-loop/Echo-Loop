@@ -8,15 +8,25 @@ part of 'community_download_notifier.dart';
 
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // ignore_for_file: type=lint, type=warning
-/// 社区合集媒体和字幕下载调度器；同一时刻只运行一个任务。
+/// 社区合集媒体和字幕下载调度器。
+///
+/// 状态按条目（audioItemId）保存：不同条目可以同时下载，超出并发的由下载队列排队；
+/// 同一条目重复请求不会建第二个任务。
 
 @ProviderFor(CommunityDownload)
 final communityDownloadProvider = CommunityDownloadProvider._();
 
-/// 社区合集媒体和字幕下载调度器；同一时刻只运行一个任务。
+/// 社区合集媒体和字幕下载调度器。
+///
+/// 状态按条目（audioItemId）保存：不同条目可以同时下载，超出并发的由下载队列排队；
+/// 同一条目重复请求不会建第二个任务。
 final class CommunityDownloadProvider
-    extends $NotifierProvider<CommunityDownload, DownloadProgress> {
-  /// 社区合集媒体和字幕下载调度器；同一时刻只运行一个任务。
+    extends
+        $NotifierProvider<CommunityDownload, Map<String, DownloadProgress>> {
+  /// 社区合集媒体和字幕下载调度器。
+  ///
+  /// 状态按条目（audioItemId）保存：不同条目可以同时下载，超出并发的由下载队列排队；
+  /// 同一条目重复请求不会建第二个任务。
   CommunityDownloadProvider._()
     : super(
         from: null,
@@ -36,29 +46,43 @@ final class CommunityDownloadProvider
   CommunityDownload create() => CommunityDownload();
 
   /// {@macro riverpod.override_with_value}
-  Override overrideWithValue(DownloadProgress value) {
+  Override overrideWithValue(Map<String, DownloadProgress> value) {
     return $ProviderOverride(
       origin: this,
-      providerOverride: $SyncValueProvider<DownloadProgress>(value),
+      providerOverride: $SyncValueProvider<Map<String, DownloadProgress>>(
+        value,
+      ),
     );
   }
 }
 
-String _$communityDownloadHash() => r'6955a235d5fd2a047dbbea66fc9ae6723356f817';
+String _$communityDownloadHash() => r'59bdb46141ca9272b5456ac650bfb8da5a205d3c';
 
-/// 社区合集媒体和字幕下载调度器；同一时刻只运行一个任务。
+/// 社区合集媒体和字幕下载调度器。
+///
+/// 状态按条目（audioItemId）保存：不同条目可以同时下载，超出并发的由下载队列排队；
+/// 同一条目重复请求不会建第二个任务。
 
-abstract class _$CommunityDownload extends $Notifier<DownloadProgress> {
-  DownloadProgress build();
+abstract class _$CommunityDownload
+    extends $Notifier<Map<String, DownloadProgress>> {
+  Map<String, DownloadProgress> build();
   @$mustCallSuper
   @override
   WhenComplete runBuild() {
-    final ref = this.ref as $Ref<DownloadProgress, DownloadProgress>;
+    final ref =
+        this.ref
+            as $Ref<
+              Map<String, DownloadProgress>,
+              Map<String, DownloadProgress>
+            >;
     final element =
         ref.element
             as $ClassProviderElement<
-              AnyNotifier<DownloadProgress, DownloadProgress>,
-              DownloadProgress,
+              AnyNotifier<
+                Map<String, DownloadProgress>,
+                Map<String, DownloadProgress>
+              >,
+              Map<String, DownloadProgress>,
               Object?,
               Object?
             >;

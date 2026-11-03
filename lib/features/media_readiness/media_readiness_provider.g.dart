@@ -164,7 +164,7 @@ final class MediaReadinessProvider
   }
 }
 
-String _$mediaReadinessHash() => r'c96321cc1792ff93d8e9575b23887ae80015abb5';
+String _$mediaReadinessHash() => r'f416bedc0d4c0406ad8fc68d11de13035fee3912';
 
 /// 计划页使用的媒体就绪状态。唯一的「就绪」判断来源。
 
@@ -186,6 +186,93 @@ final class MediaReadinessFamily extends $Family
 
   @override
   String toString() => r'mediaReadinessProvider';
+}
+
+/// 列表行是否显示"排队中"；与计划页使用同一判断。
+
+@ProviderFor(mediaDownloadQueued)
+final mediaDownloadQueuedProvider = MediaDownloadQueuedFamily._();
+
+/// 列表行是否显示"排队中"；与计划页使用同一判断。
+
+final class MediaDownloadQueuedProvider
+    extends $FunctionalProvider<bool, bool, bool>
+    with $Provider<bool> {
+  /// 列表行是否显示"排队中"；与计划页使用同一判断。
+  MediaDownloadQueuedProvider._({
+    required MediaDownloadQueuedFamily super.from,
+    required String super.argument,
+  }) : super(
+         retry: null,
+         name: r'mediaDownloadQueuedProvider',
+         isAutoDispose: true,
+         dependencies: null,
+         $allTransitiveDependencies: null,
+       );
+
+  @override
+  String debugGetCreateSourceHash() => _$mediaDownloadQueuedHash();
+
+  @override
+  String toString() {
+    return r'mediaDownloadQueuedProvider'
+        ''
+        '($argument)';
+  }
+
+  @$internal
+  @override
+  $ProviderElement<bool> $createElement($ProviderPointer pointer) =>
+      $ProviderElement(pointer);
+
+  @override
+  bool create(Ref ref) {
+    final argument = this.argument as String;
+    return mediaDownloadQueued(ref, argument);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(bool value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<bool>(value),
+    );
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return other is MediaDownloadQueuedProvider && other.argument == argument;
+  }
+
+  @override
+  int get hashCode {
+    return argument.hashCode;
+  }
+}
+
+String _$mediaDownloadQueuedHash() =>
+    r'645d9ae5b35a3dadcff9c3861773854fa0c789d2';
+
+/// 列表行是否显示"排队中"；与计划页使用同一判断。
+
+final class MediaDownloadQueuedFamily extends $Family
+    with $FunctionalFamilyOverride<bool, String> {
+  MediaDownloadQueuedFamily._()
+    : super(
+        retry: null,
+        name: r'mediaDownloadQueuedProvider',
+        dependencies: null,
+        $allTransitiveDependencies: null,
+        isAutoDispose: true,
+      );
+
+  /// 列表行是否显示"排队中"；与计划页使用同一判断。
+
+  MediaDownloadQueuedProvider call(String audioItemId) =>
+      MediaDownloadQueuedProvider._(argument: audioItemId, from: this);
+
+  @override
+  String toString() => r'mediaDownloadQueuedProvider';
 }
 
 /// 列表行的下载进度快照；未在下载时为 null。列表行与计划页共用同一来源。
@@ -257,7 +344,7 @@ final class MediaDownloadSnapshotProvider
 }
 
 String _$mediaDownloadSnapshotHash() =>
-    r'1b56bf10a2c0d8cf301d0e07faac7244cf15eadb';
+    r'3428b885660f71b347631e1118eb1c1f8a6194ac';
 
 /// 列表行的下载进度快照；未在下载时为 null。列表行与计划页共用同一来源。
 

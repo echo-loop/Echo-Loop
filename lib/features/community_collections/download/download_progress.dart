@@ -1,11 +1,6 @@
-/// 下载任务状态；sealed class 便于 switch 穷举。
+/// 单个条目的下载状态；无记录即表示空闲。sealed class 便于 switch 穷举。
 sealed class DownloadProgress {
   const DownloadProgress();
-}
-
-/// 空闲（无任务或已完成）。
-class DownloadIdle extends DownloadProgress {
-  const DownloadIdle();
 }
 
 /// 下载中：0.0 - 1.0 的比例 + 字节信息（可选）。
@@ -46,3 +41,6 @@ class DownloadFailed extends DownloadProgress {
     required this.error,
   });
 }
+
+/// 社区合集文件的下载资源 key，按远端文件 id（不随地区或签名变化）。
+String communityResourceKey(String remoteAudioId) => 'community:$remoteAudioId';

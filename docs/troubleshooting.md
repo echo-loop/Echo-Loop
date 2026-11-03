@@ -46,6 +46,7 @@
 - 7.31 复述重听本段：清理录音置 idle 触发自动录音，抢在原文播放前启动 → 原音被录进去
 - 7.32 media_kit 区间播放：软停止越过句尾带出下一句；seek 未落定就起播
 - 7.33 共享合集 / 播客未下载材料进入学习计划页：入口判断分散 → 进入逐句精听报 `file unavailable`
+- 7.37 同一资源多入口下载：查找再登记导致重复任务，取消需绑定具体任务
 
 ---
 
@@ -571,3 +572,18 @@
 - 根因：App Store Connect 偶发 500 时 altool 内部重试并最终 `UPLOAD SUCCEEDED with no errors`，但日志里仍保留 `ERROR:` 行。工作流以「日志含 ERROR 即失败」判定，把已成功的上传标红。
 - 规则：判定上传成功以 `UPLOAD SUCCEEDED with no errors` 为准，不以 ERROR 关键字为准；该构建号已入库，重跑同一 commit 会因构建号重复失败，需要新 commit 打新 tag。
 - 同一次上传 Apple 还邮件提示 `ITMS-90683`：`file_picker` 等依赖引入相机 API，Info.plist 缺 `NSCameraUsageDescription` 即使应用不使用相机也会被拒，须补齐并同步 `en` / `zh-Hans` 的 InfoPlist.strings。
+
+### 7.37 同一资源多入口下载：「查找再登记」必然重复建任务，取消也要绑定到具体任务
+
+- 根因：资源下载按入口分别调用时，若先查「是否有活动任务」再异步提交，并发调用会各自新建任务，写同一临时文件。插件自带的 `transfers.getOrStart` 也是先查后 `await` 入队，同样不能当作互斥守卫；且它会返回已完成的旧 transfer，与「文件被删后可重新下载」冲突。
+- 解法：`ResourceDownloadRegistry`（进程内单例，`BackgroundFileDownloadService` 默认共用）以资源 key 同步登记（check 与 insert 之间没有 `await`）。取消中的任务不可加入，新任务通过 `predecessor` 等待旧任务结束后再提交原生任务。
+- 规则：
+  - 取消回调必须绑定到具体任务（`cancelEntry(download)`），不能按 key 取消。否则旧调用方的 `CancelToken` 迟到触发时会误取消之后的新任务。
+  - 登记表是唯一状态来源，Riverpod 只做镜像（`resourceDownloadsProvider`），不得持有第二份状态。
+  - 进程级清理（`reset(group)`）只能在本进程没有 owner 的任务上执行，且每个 `FileDownloader` 只执行一次；多个 runner 共用同一个插件单例。
+- 测试约定：
+  - Riverpod 3 的 `container.listen` 回调是异步派发的。断言前需要 `await Future<void>.delayed(Duration.zero)`，否则会看到旧值。
+  - 「取消后立即再提交」的断言，不能先 `await cancelResource(...)`，那会等旧任务结束，测不到取消中的分支。需要让测试替身的取消完成可手动控制。
+  - 测试里提前 `await` 取消会触发结果报错，断言要在触发取消前挂上（`expectLater` 先于触发）。
+- 相关代码：`lib/services/resource_download_registry.dart`、`lib/services/background_file_download_service.dart`（`downloadBatch` / `_execute` / `_subscribeProgress`）。
+- 修复时间：2026-11-03。

@@ -34,85 +34,101 @@ part 'community_download_notifier.g.dart';
 final GlobalKey<ScaffoldMessengerState> communityDownloadScaffoldMessengerKey =
     GlobalKey<ScaffoldMessengerState>();
 
-/// 社区合集媒体和字幕下载调度器；同一时刻只运行一个任务。
+/// 社区合集媒体和字幕下载调度器。
+///
+/// 状态按条目（audioItemId）保存：不同条目可以同时下载，超出并发的由下载队列排队；
+/// 同一条目重复请求不会建第二个任务。
 @Riverpod(keepAlive: true)
 class CommunityDownload extends _$CommunityDownload {
-  CancelToken? _cancelToken;
-  int _sessionId = 0;
-  String? _activeDisplayName;
-  Future<bool>? _activeDownload;
+  final Map<String, _ActiveDownload> _active = {};
+  final Set<String> _starting = {};
+  int _sessionCounter = 0;
 
   @override
-  DownloadProgress build() => const DownloadIdle();
+  Map<String, DownloadProgress> build() => const {};
 
   /// 下载文件及对应字幕，下载前通过 remote collection/file ID 定位资源。
   Future<StartResult> start({
     required String audioItemId,
     required String displayName,
   }) async {
-    if (state is DownloadInProgress) {
+    if (state.containsKey(audioItemId) || !_starting.add(audioItemId)) {
       AppLogger.log(
         'CommunityDownload',
-        'start rejected: busy id=$audioItemId',
+        'start rejected: already running id=$audioItemId',
       );
-      return StartResult.busy;
+      return StartResult.alreadyRunning;
     }
-    final database = ref.read(appDatabaseProvider);
-    final item = await database.audioItemDao.getById(audioItemId);
-    if (item?.communityUnavailableAt != null) {
-      AppLogger.log(
-        'CommunityDownload',
-        'start rejected: unavailable id=$audioItemId',
-      );
-      return StartResult.unavailable;
-    }
-    if (item == null || item.remoteAudioId == null || item.audioPath != null) {
-      AppLogger.log(
-        'CommunityDownload',
-        'start rejected: already ready or not remote id=$audioItemId',
-      );
-      return StartResult.alreadyDownloaded;
-    }
-    final collectionId = await database.collectionDao
-        .getCommunityRemoteIdForAudio(audioItemId);
-    if (collectionId == null) {
-      AppLogger.log(
-        'CommunityDownload',
-        'start rejected: not community id=$audioItemId',
-      );
-      return StartResult.notCommunity;
-    }
+    try {
+      final database = ref.read(appDatabaseProvider);
+      final item = await database.audioItemDao.getById(audioItemId);
+      if (item?.communityUnavailableAt != null) {
+        AppLogger.log(
+          'CommunityDownload',
+          'start rejected: unavailable id=$audioItemId',
+        );
+        return StartResult.unavailable;
+      }
+      if (item == null ||
+          item.remoteAudioId == null ||
+          item.audioPath != null) {
+        AppLogger.log(
+          'CommunityDownload',
+          'start rejected: already ready or not remote id=$audioItemId',
+        );
+        return StartResult.alreadyDownloaded;
+      }
+      final collectionId = await database.collectionDao
+          .getCommunityRemoteIdForAudio(audioItemId);
+      if (collectionId == null) {
+        AppLogger.log(
+          'CommunityDownload',
+          'start rejected: not community id=$audioItemId',
+        );
+        return StartResult.notCommunity;
+      }
 
-    final sessionId = ++_sessionId;
-    AppLogger.log(
-      'CommunityDownload',
-      'start session=$sessionId id=$audioItemId '
-          'collection=$collectionId remoteAudio=${item.remoteAudioId}',
-    );
-    final token = CancelToken();
-    _cancelToken = token;
-    _activeDisplayName = displayName;
-    state = DownloadInProgress(
-      audioItemId: audioItemId,
-      displayName: displayName,
-      progress: -1,
-    );
-    final future = _runDownload(sessionId, item, collectionId, token);
-    _activeDownload = future;
-    unawaited(future);
-    return StartResult.started;
+      final sessionId = ++_sessionCounter;
+      AppLogger.log(
+        'CommunityDownload',
+        'start session=$sessionId id=$audioItemId '
+            'collection=$collectionId remoteAudio=${item.remoteAudioId}',
+      );
+      final active = _ActiveDownload(
+        sessionId: sessionId,
+        token: CancelToken(),
+      );
+      _active[audioItemId] = active;
+      state = {
+        ...state,
+        audioItemId: DownloadInProgress(
+          audioItemId: audioItemId,
+          displayName: displayName,
+          progress: -1,
+        ),
+      };
+      active.future = _runDownload(
+        sessionId,
+        item,
+        collectionId,
+        active.token,
+        displayName,
+      );
+      unawaited(active.future);
+      return StartResult.started;
+    } finally {
+      _starting.remove(audioItemId);
+    }
   }
 
-  /// 取消当前任务，并等待旧任务清理临时文件。
-  Future<void> cancel() async {
-    if (state is! DownloadInProgress) return;
-    final future = _activeDownload;
-    _sessionId++;
-    AppLogger.log('CommunityDownload', 'cancel by user');
-    _cancelToken?.cancel('user-cancelled');
-    _cancelToken = null;
-    state = const DownloadIdle();
-    if (future != null) await future;
+  /// 取消某个条目的下载，并等待旧任务清理临时文件。
+  Future<void> cancel(String audioItemId) async {
+    final active = _active.remove(audioItemId);
+    _remove(audioItemId);
+    if (active == null) return;
+    AppLogger.log('CommunityDownload', 'cancel by user id=$audioItemId');
+    active.token.cancel('user-cancelled');
+    await active.future;
   }
 
   /// 拉取最新字幕并清理依赖旧句子索引的学习状态。
@@ -174,6 +190,7 @@ class CommunityDownload extends _$CommunityDownload {
     db.AudioItem item,
     String collectionId,
     CancelToken cancelToken,
+    String displayName,
   ) async {
     File? tempFile;
     try {
@@ -203,7 +220,7 @@ class CommunityDownload extends _$CommunityDownload {
           ) ??
           file.mediaUrl;
       final subtitle = detail.subtitle;
-      if (sessionId != _sessionId) return false;
+      if (_isStale(item.id, sessionId)) return false;
       final database = ref.read(appDatabaseProvider);
       final localCollection = await database.collectionDao.getByRemoteId(
         collectionId,
@@ -233,12 +250,14 @@ class CommunityDownload extends _$CommunityDownload {
           .download(
             uri: Uri.parse(mediaUrl),
             savePath: tempFile.path,
+            resourceKey: communityResourceKey(remoteAudioId),
             // 通知展示社区合集标题，避免回退显示 `.part` 临时文件名。
             displayName: file.title,
             cancelToken: cancelToken,
-            onProgress: _updateProgress,
+            onProgress: (received, total) =>
+                _updateProgress(item.id, sessionId, received, total),
           );
-      if (sessionId != _sessionId) return false;
+      if (_isStale(item.id, sessionId)) return false;
       await tempFile.rename(finalFile.path);
 
       final hasTranscript = item.transcriptSrt?.isNotEmpty ?? false;
@@ -261,33 +280,37 @@ class CommunityDownload extends _$CommunityDownload {
         database.audioItems,
       )..where((table) => table.id.equals(item.id))).write(companion);
       await ref.read(audioLibraryProvider.notifier).loadLibrary();
-      if (sessionId != _sessionId) return false;
-      state = const DownloadIdle();
+      if (_isStale(item.id, sessionId)) return false;
+      _remove(item.id);
       AppLogger.log(
         'CommunityDownload',
         'done session=$sessionId id=${item.id} audioPath=$relativePath',
       );
       return true;
     } catch (error, stackTrace) {
-      if (sessionId == _sessionId) {
+      if (!_isStale(item.id, sessionId)) {
         AppLogger.log('CommunityDownload', 'failed: $error');
         AppLogger.log('CommunityDownload', stackTrace.toString());
-        state = DownloadFailed(
-          audioItemId: item.id,
-          displayName: _activeDisplayName ?? item.name,
-          error: error,
+        _put(
+          item.id,
+          DownloadFailed(
+            audioItemId: item.id,
+            displayName: displayName,
+            error: error,
+          ),
         );
         final messenger = communityDownloadScaffoldMessengerKey.currentState;
         final l10n = _pickL10n();
         if (messenger != null && l10n != null) {
           final message = error is CommunityFileUnavailable
               ? l10n.communityFileUnavailable
-              : l10n.downloadFailed(_activeDisplayName ?? item.name);
+              : l10n.downloadFailed(displayName);
           messenger.showSnackBar(SnackBar(content: Text(message)));
         }
       }
       return false;
     } finally {
+      if (_active[item.id]?.sessionId == sessionId) _active.remove(item.id);
       if (tempFile != null && await tempFile.exists()) {
         await tempFile.delete();
       }
@@ -336,16 +359,38 @@ class CommunityDownload extends _$CommunityDownload {
     await ref.read(collectionListProvider.notifier).loadCollections();
   }
 
-  void _updateProgress(int received, int? total) {
-    final current = state;
+  void _updateProgress(
+    String audioItemId,
+    int sessionId,
+    int received,
+    int? total,
+  ) {
+    if (_isStale(audioItemId, sessionId)) return;
+    final current = state[audioItemId];
     if (current is! DownloadInProgress) return;
-    state = DownloadInProgress(
-      audioItemId: current.audioItemId,
-      displayName: current.displayName,
-      progress: total != null && total > 0 ? received / total : -1,
-      receivedBytes: received,
-      totalBytes: total,
+    _put(
+      audioItemId,
+      DownloadInProgress(
+        audioItemId: current.audioItemId,
+        displayName: current.displayName,
+        progress: total != null && total > 0 ? received / total : -1,
+        receivedBytes: received,
+        totalBytes: total,
+      ),
     );
+  }
+
+  /// 该 session 是否已不再是条目的当前任务（已取消、已完成或被新任务替换）。
+  bool _isStale(String audioItemId, int sessionId) =>
+      _active[audioItemId]?.sessionId != sessionId;
+
+  void _put(String audioItemId, DownloadProgress value) {
+    state = {...state, audioItemId: value};
+  }
+
+  void _remove(String audioItemId) {
+    if (!state.containsKey(audioItemId)) return;
+    state = Map.of(state)..remove(audioItemId);
   }
 
   String _toSrt(CommunitySubtitle subtitle) {
@@ -395,7 +440,22 @@ class CommunityDownload extends _$CommunityDownload {
   }
 }
 
-enum StartResult { started, alreadyDownloaded, busy, notCommunity, unavailable }
+enum StartResult {
+  started,
+  alreadyDownloaded,
+  alreadyRunning,
+  notCommunity,
+  unavailable,
+}
+
+/// 单个条目的进行中任务。[future] 在启动后立即赋值。
+class _ActiveDownload {
+  _ActiveDownload({required this.sessionId, required this.token});
+
+  final int sessionId;
+  final CancelToken token;
+  late Future<bool> future;
+}
 
 enum SubtitleUpdateResult { updated, notFound, notCommunity }
 

@@ -603,7 +603,7 @@ class _LearningPlanScreenState extends ConsumerState<LearningPlanScreen> {
         }
       case MediaChecking() ||
           MediaDownloading() ||
-          MediaWaiting() ||
+          MediaQueued() ||
           MediaFailed() ||
           MediaUnavailable() ||
           MediaFileMissing() ||

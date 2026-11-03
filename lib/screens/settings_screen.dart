@@ -65,6 +65,7 @@ import 'playback_settings_screen.dart';
 import 'reading_text_settings_screen.dart';
 import 'preferences_viewer_screen.dart';
 import 'storage_browser_screen.dart';
+import 'download_tasks_screen.dart';
 import 'reminder_settings_screen.dart';
 import '../services/runtime_endpoint_router.dart';
 import '../widgets/app_update_dialog.dart';
@@ -906,6 +907,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           onTap: () => Navigator.of(context).push(
             MaterialPageRoute<void>(
               builder: (_) => const StorageBrowserScreen(),
+            ),
+          ),
+        ),
+        ListTile(
+          leading: _emojiIcon('⬇️'),
+          title: const Text('下载任务'),
+          trailing: const Icon(Icons.chevron_right),
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute<void>(
+              builder: (_) => const DownloadTasksScreen(),
             ),
           ),
         ),

@@ -23,16 +23,15 @@ AudioImportService audioImportService(Ref ref) {
   );
 }
 
-@riverpod
+// keepAlive：离开页面不销毁控制器，下载在后台继续，完成后照常入库。
+// 下载只能由用户主动 cancel() 取消，不能因为页面销毁而取消。
+@Riverpod(keepAlive: true)
 class AudioImportController extends _$AudioImportController {
   CancelToken? _cancelToken;
   int _sessionId = 0;
 
   @override
-  AudioImportState build() {
-    ref.onDispose(() => _cancelToken?.cancel('disposed'));
-    return const AudioImportIdle();
-  }
+  AudioImportState build() => const AudioImportIdle();
 
   /// 异步结果是否已过期：用户开启了新会话，或 provider 已销毁（销毁会取消下载）。
   /// 过期时不得再读 [ref] 或写 state。
@@ -119,20 +118,28 @@ class AudioImportController extends _$AudioImportController {
 /// 与 [AudioImportController]（从链接导入）**完全独立**：两条流程各自持有状态，
 /// 一方的下载失败不会污染另一方的 UI（避免播客下载失败后，打开「从链接导入」
 /// 误显下载失败提示）。复用同一套 [AudioImportState] 模型类。
-@riverpod
+// keepAlive：同 AudioImportController，离开页面后下载继续。
+@Riverpod(keepAlive: true)
 class PodcastDownloadController extends _$PodcastDownloadController {
-  CancelToken? _cancelToken;
-  int _sessionId = 0;
+  final Map<String, _PodcastDownload> _active = {};
+  int _sessionCounter = 0;
 
+  /// 每个单集一个状态；不同单集可以同时下载，超出并发的由下载队列排队。
   @override
-  AudioImportState build() {
-    ref.onDispose(() => _cancelToken?.cancel('disposed'));
-    return const AudioImportIdle();
+  Map<String, AudioImportState> build() => const {};
+
+  /// 异步结果是否已过期：该单集已取消、已结束或被新会话替换。过期时不得写 state。
+  bool _isStale(String audioItemId, int sid) =>
+      _active[audioItemId]?.sessionId != sid || !ref.mounted;
+
+  void _put(String audioItemId, AudioImportState value) {
+    state = {...state, audioItemId: value};
   }
 
-  /// 异步结果是否已过期：用户开启了新会话，或 provider 已销毁（销毁会取消下载）。
-  /// 过期时不得再读 [ref] 或写 state。
-  bool _isStale(int sid) => sid != _sessionId || !ref.mounted;
+  void _remove(String audioItemId) {
+    if (!state.containsKey(audioItemId)) return;
+    state = Map.of(state)..remove(audioItemId);
+  }
 
   /// Podcast 单集懒下载：下载 enclosure 到沙盒并**就地更新现有占位条目**，
   /// 不新建 [AudioItem]（避免资源库出现重复孤儿条目）。
@@ -141,18 +148,19 @@ class PodcastDownloadController extends _$PodcastDownloadController {
   /// [AudioImportFailed]。后台下载通知沿用列表项的 [AudioItem.name]；state 的
   /// displayName 仍取 enclosure URL，与列表项的行内进度条匹配逻辑一致。
   Future<bool> downloadPodcastEpisode(AudioItem item) async {
-    if (state is AudioImportDownloading || state is AudioImportSaving) {
-      return false;
-    }
+    // 同一单集已在下载或保存中：不再建第二个任务。
+    if (state.containsKey(item.id)) return false;
     final enclosureUrl = item.podcastEnclosureUrl;
     if (enclosureUrl == null || enclosureUrl.isEmpty) return false;
 
-    _sessionId++;
-    final sid = _sessionId;
+    final sid = ++_sessionCounter;
     final cancelToken = CancelToken();
-    _cancelToken = cancelToken;
+    _active[item.id] = _PodcastDownload(sid, cancelToken);
     // 立即进入下载态，保证行内进度条第一时间出现（不定进度）。
-    state = AudioImportDownloading(displayName: enclosureUrl, progress: -1.0);
+    _put(
+      item.id,
+      AudioImportDownloading(displayName: enclosureUrl, progress: -1.0),
+    );
 
     final service = ref.read(audioImportServiceProvider);
     try {
@@ -162,19 +170,22 @@ class PodcastDownloadController extends _$PodcastDownloadController {
         enclosureType: item.podcastEnclosureType,
         cancelToken: cancelToken,
         onProgress: (received, total) {
-          if (_isStale(sid)) return;
+          if (_isStale(item.id, sid)) return;
           final progress = total == null || total <= 0
               ? -1.0
               : received / total;
-          state = AudioImportDownloading(
-            displayName: enclosureUrl,
-            progress: progress,
-            receivedBytes: received,
-            totalBytes: total,
+          _put(
+            item.id,
+            AudioImportDownloading(
+              displayName: enclosureUrl,
+              progress: progress,
+              receivedBytes: received,
+              totalBytes: total,
+            ),
           );
         },
       );
-      if (_isStale(sid)) {
+      if (_isStale(item.id, sid)) {
         await service.discardDownloadedAudio(result);
         return false;
       }
@@ -194,7 +205,7 @@ class PodcastDownloadController extends _$PodcastDownloadController {
       await _attachPodcastTranscript(downloadedItem.id, sid, cancelToken);
       // 音频已写回资源库；provider 若已销毁则不再写 state（结果已持久化，无需回滚）。
       if (!ref.mounted) return true;
-      state = const AudioImportIdle();
+      _remove(item.id);
       // 后台检测内容有效性（复用已算出的解码时长，不阻塞返回）。
       unawaited(
         ref
@@ -206,22 +217,25 @@ class PodcastDownloadController extends _$PodcastDownloadController {
       );
       return true;
     } on AudioImportException catch (e) {
-      if (_isStale(sid)) return false;
-      state = AudioImportFailed(e, audioItemId: item.id);
+      if (_isStale(item.id, sid)) return false;
+      _put(item.id, AudioImportFailed(e, audioItemId: item.id));
       return false;
     } catch (e) {
-      if (_isStale(sid)) return false;
-      state = AudioImportFailed(
-        AudioImportException(
-          AudioImportFailureCode.unknown,
-          'Podcast episode download failed',
-          e,
+      if (_isStale(item.id, sid)) return false;
+      _put(
+        item.id,
+        AudioImportFailed(
+          AudioImportException(
+            AudioImportFailureCode.unknown,
+            'Podcast episode download failed',
+            e,
+          ),
+          audioItemId: item.id,
         ),
-        audioItemId: item.id,
       );
       return false;
     } finally {
-      if (sid == _sessionId) _cancelToken = null;
+      if (_active[item.id]?.sessionId == sid) _active.remove(item.id);
     }
   }
 
@@ -249,7 +263,7 @@ class PodcastDownloadController extends _$PodcastDownloadController {
       final text = await ref
           .read(podcastTranscriptDownloaderProvider)
           .download(url, format: format, cancelToken: cancelToken);
-      if (_isStale(sid)) return;
+      if (_isStale(audioItemId, sid)) return;
       // 等待期间条目可能已被其它入口加入字幕，入库前再确认一次。
       final latest = ref
           .read(audioLibraryProvider)
@@ -261,7 +275,7 @@ class PodcastDownloadController extends _$PodcastDownloadController {
       // 空字幕（解析后无句子）不入库，避免条目被标记为"有字幕"却没有内容。
       final sentences = await parseSupportedSubtitle(text, ext: format);
       // 解析期间会话可能已过期或 provider 已销毁，入库前必须再确认。
-      if (_isStale(sid)) return;
+      if (_isStale(audioItemId, sid)) return;
       if (sentences.isEmpty) {
         AppLogger.log(
           'PodcastTranscript',
@@ -285,19 +299,18 @@ class PodcastDownloadController extends _$PodcastDownloadController {
     }
   }
 
-  /// 取消播客单集下载，并让迟到的下载结果失效。
-  Future<void> cancel() async {
-    if (state is! AudioImportDownloading && state is! AudioImportSaving) {
-      return;
-    }
-    _sessionId++;
-    _cancelToken?.cancel('user-cancelled');
-    _cancelToken = null;
-    state = const AudioImportIdle();
+  /// 取消某个单集的下载，并让迟到的下载结果失效。
+  void cancel(String audioItemId) {
+    final active = _active.remove(audioItemId);
+    _remove(audioItemId);
+    active?.token.cancel('user-cancelled');
   }
+}
 
-  void reset() {
-    if (state is AudioImportDownloading || state is AudioImportSaving) return;
-    state = const AudioImportIdle();
-  }
+/// 单个单集的进行中下载。
+class _PodcastDownload {
+  _PodcastDownload(this.sessionId, this.token);
+
+  final int sessionId;
+  final CancelToken token;
 }

@@ -21,16 +21,16 @@ final class MediaNotDownloaded extends MediaReadiness {
   const MediaNotDownloaded();
 }
 
+/// 本条目已提交但尚未开始下载：正在等待下载队列的并发名额。
+final class MediaQueued extends MediaReadiness {
+  const MediaQueued();
+}
+
 /// 本条目正在下载。[progress] 为 0..1；null 表示总大小未知的不定态。
 final class MediaDownloading extends MediaReadiness {
   const MediaDownloading({this.progress});
 
   final double? progress;
-}
-
-/// 同一下载通道正被其它材料占用，本条目会在通道空闲后自动开始。
-final class MediaWaiting extends MediaReadiness {
-  const MediaWaiting();
 }
 
 /// 本条目下载失败，可以重试。

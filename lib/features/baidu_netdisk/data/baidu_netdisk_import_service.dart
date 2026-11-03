@@ -676,6 +676,7 @@ class DefaultBaiduNetdiskImportService implements BaiduNetdiskImportService {
         accessToken: accessToken,
         dlink: link.dlink,
         savePath: savePath,
+        resourceKey: baiduResourceKey(entry.fsId),
         cancelToken: cancelToken,
         onProgress: (received, total) =>
             onProgress?.call(entry, received, total),
@@ -694,6 +695,7 @@ class DefaultBaiduNetdiskImportService implements BaiduNetdiskImportService {
         accessToken: accessToken,
         dlink: refreshed.dlink,
         savePath: savePath,
+        resourceKey: baiduResourceKey(entry.fsId),
         cancelToken: cancelToken,
         onProgress: (received, total) =>
             onProgress?.call(entry, received, total),

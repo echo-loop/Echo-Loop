@@ -68,7 +68,7 @@ final class AudioImportControllerProvider
         argument: null,
         retry: null,
         name: r'audioImportControllerProvider',
-        isAutoDispose: true,
+        isAutoDispose: false,
         dependencies: null,
         $allTransitiveDependencies: null,
       );
@@ -90,7 +90,7 @@ final class AudioImportControllerProvider
 }
 
 String _$audioImportControllerHash() =>
-    r'89bb3214ffdd3585eb2361a753a6562cac7725de';
+    r'17da01d2d262dc8a298c2049098c870441eb79f5';
 
 abstract class _$AudioImportController extends $Notifier<AudioImportState> {
   AudioImportState build();
@@ -115,6 +115,7 @@ abstract class _$AudioImportController extends $Notifier<AudioImportState> {
 /// 与 [AudioImportController]（从链接导入）**完全独立**：两条流程各自持有状态，
 /// 一方的下载失败不会污染另一方的 UI（避免播客下载失败后，打开「从链接导入」
 /// 误显下载失败提示）。复用同一套 [AudioImportState] 模型类。
+// keepAlive：同 AudioImportController，离开页面后下载继续。
 
 @ProviderFor(PodcastDownloadController)
 final podcastDownloadControllerProvider = PodcastDownloadControllerProvider._();
@@ -124,20 +125,26 @@ final podcastDownloadControllerProvider = PodcastDownloadControllerProvider._();
 /// 与 [AudioImportController]（从链接导入）**完全独立**：两条流程各自持有状态，
 /// 一方的下载失败不会污染另一方的 UI（避免播客下载失败后，打开「从链接导入」
 /// 误显下载失败提示）。复用同一套 [AudioImportState] 模型类。
+// keepAlive：同 AudioImportController，离开页面后下载继续。
 final class PodcastDownloadControllerProvider
-    extends $NotifierProvider<PodcastDownloadController, AudioImportState> {
+    extends
+        $NotifierProvider<
+          PodcastDownloadController,
+          Map<String, AudioImportState>
+        > {
   /// Podcast 单集懒下载控制器。
   ///
   /// 与 [AudioImportController]（从链接导入）**完全独立**：两条流程各自持有状态，
   /// 一方的下载失败不会污染另一方的 UI（避免播客下载失败后，打开「从链接导入」
   /// 误显下载失败提示）。复用同一套 [AudioImportState] 模型类。
+  // keepAlive：同 AudioImportController，离开页面后下载继续。
   PodcastDownloadControllerProvider._()
     : super(
         from: null,
         argument: null,
         retry: null,
         name: r'podcastDownloadControllerProvider',
-        isAutoDispose: true,
+        isAutoDispose: false,
         dependencies: null,
         $allTransitiveDependencies: null,
       );
@@ -150,34 +157,46 @@ final class PodcastDownloadControllerProvider
   PodcastDownloadController create() => PodcastDownloadController();
 
   /// {@macro riverpod.override_with_value}
-  Override overrideWithValue(AudioImportState value) {
+  Override overrideWithValue(Map<String, AudioImportState> value) {
     return $ProviderOverride(
       origin: this,
-      providerOverride: $SyncValueProvider<AudioImportState>(value),
+      providerOverride: $SyncValueProvider<Map<String, AudioImportState>>(
+        value,
+      ),
     );
   }
 }
 
 String _$podcastDownloadControllerHash() =>
-    r'c834b3a7d27fe38f1ee513ca474534d7f86af38f';
+    r'62f2a02a4129f020df4baf5d42794befc0e8ab69';
 
 /// Podcast 单集懒下载控制器。
 ///
 /// 与 [AudioImportController]（从链接导入）**完全独立**：两条流程各自持有状态，
 /// 一方的下载失败不会污染另一方的 UI（避免播客下载失败后，打开「从链接导入」
 /// 误显下载失败提示）。复用同一套 [AudioImportState] 模型类。
+// keepAlive：同 AudioImportController，离开页面后下载继续。
 
-abstract class _$PodcastDownloadController extends $Notifier<AudioImportState> {
-  AudioImportState build();
+abstract class _$PodcastDownloadController
+    extends $Notifier<Map<String, AudioImportState>> {
+  Map<String, AudioImportState> build();
   @$mustCallSuper
   @override
   WhenComplete runBuild() {
-    final ref = this.ref as $Ref<AudioImportState, AudioImportState>;
+    final ref =
+        this.ref
+            as $Ref<
+              Map<String, AudioImportState>,
+              Map<String, AudioImportState>
+            >;
     final element =
         ref.element
             as $ClassProviderElement<
-              AnyNotifier<AudioImportState, AudioImportState>,
-              AudioImportState,
+              AnyNotifier<
+                Map<String, AudioImportState>,
+                Map<String, AudioImportState>
+              >,
+              Map<String, AudioImportState>,
               Object?,
               Object?
             >;

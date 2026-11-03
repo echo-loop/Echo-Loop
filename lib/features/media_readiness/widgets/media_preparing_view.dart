@@ -44,9 +44,9 @@ class MediaPreparingView extends ConsumerWidget {
     return switch (readiness) {
       MediaReady() => const SizedBox.shrink(),
       MediaChecking() => const CircularProgressIndicator(),
-      MediaWaiting() => _statusColumn(
+      MediaQueued() => _statusColumn(
         const CircularProgressIndicator(),
-        Text(l10n.mediaWaitingOtherDownload, textAlign: TextAlign.center),
+        Text(l10n.mediaQueued, textAlign: TextAlign.center),
       ),
       MediaDownloading(:final progress) => _downloadingColumn(l10n, progress),
       MediaNotDownloaded() => _retryColumn(

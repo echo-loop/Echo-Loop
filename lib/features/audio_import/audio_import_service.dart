@@ -15,6 +15,7 @@ import '../../utils/media_duration.dart';
 import 'audio_finalization_service.dart';
 import 'audio_import_cancel.dart';
 import 'audio_import_models.dart';
+import 'podcast_audio_uri.dart';
 import 'audio_registration_service.dart';
 import 'audio_transcode_service.dart';
 
@@ -169,7 +170,7 @@ class AudioImportService {
       );
     }
 
-    final normalizedUri = _normalizePodcastAudioUri(uri);
+    final normalizedUri = normalizePodcastAudioUri(uri);
     final extension =
         _extensionFromUri(normalizedUri) ??
         _extensionFromMimeType(enclosureType) ??
@@ -314,6 +315,7 @@ class AudioImportService {
         await _backgroundDownloader.download(
           uri: resolved.uri,
           savePath: downloadedFile.path,
+          resourceKey: resourceKeyForUrl(resolved.uri),
           displayName: resolved.displayName,
           cancelToken: cancelToken,
           onProgress: (received, total) => onProgress?.call(received, total),
@@ -380,47 +382,6 @@ class AudioImportService {
     final ext = p.extension(uri.path).replaceFirst('.', '').toLowerCase();
     if (ext.isEmpty) return null;
     return ext;
-  }
-
-  /// BBC RSS 历史数据常落库为 HTTP enclosure，而同一 feed 同时提供 HTTPS 版本。
-  /// Anchor 的 podcast/play enclosure 会把真实媒体 URL 编码在路径最后一段；
-  /// 直接请求该地址，避免下载器依赖 Anchor 重定向服务。
-  /// BBC RSS 历史数据则升级到 HTTPS，避免 Android cleartext 策略拦截 HTTP。
-  Uri _normalizePodcastAudioUri(Uri uri) {
-    if (uri.host == 'anchor.fm' || uri.host == 'www.anchor.fm') {
-      final segments = uri.pathSegments;
-      if (segments.length >= 5 &&
-          segments[2] == 'podcast' &&
-          segments[3] == 'play') {
-        try {
-          final mediaUri = Uri.tryParse(Uri.decodeComponent(segments.last));
-          if (mediaUri != null &&
-              (mediaUri.scheme == 'http' || mediaUri.scheme == 'https') &&
-              mediaUri.host.isNotEmpty) {
-            AppLogger.log(
-              _logTag,
-              'resolved Anchor media URL host=${mediaUri.host}',
-            );
-            return mediaUri;
-          }
-        } on FormatException {
-          // URL 编码损坏时保留原始 enclosure，让下载器返回实际错误。
-        }
-      }
-    }
-    if (uri.scheme != 'http' || uri.host != 'open.live.bbc.co.uk') {
-      return uri;
-    }
-    final segments = uri.pathSegments;
-    final protoIndex = segments.indexOf('proto');
-    if (protoIndex == -1 || protoIndex + 1 >= segments.length) {
-      return uri.replace(scheme: 'https');
-    }
-    final nextSegments = List<String>.from(segments);
-    if (nextSegments[protoIndex + 1] == 'http') {
-      nextSegments[protoIndex + 1] = 'https';
-    }
-    return uri.replace(scheme: 'https', pathSegments: nextSegments);
   }
 
   void _logDownloadFailure(Uri uri, BackgroundFileDownloadException error) {

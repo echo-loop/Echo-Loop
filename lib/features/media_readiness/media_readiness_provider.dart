@@ -9,6 +9,8 @@ import '../../providers/audio_library_provider.dart';
 import '../../utils/app_data_dir.dart';
 import '../audio_import/audio_import_provider.dart';
 import '../community_collections/download/community_download_notifier.dart';
+import '../../providers/download_provider.dart';
+import '../../services/resource_download_registry.dart';
 import 'media_readiness.dart';
 import 'media_readiness_resolver.dart';
 
@@ -47,8 +49,12 @@ MediaReadiness mediaReadiness(Ref ref, String audioItemId) {
   );
   if (item == null) return const MediaItemMissing();
 
-  final community = ref.watch(communityDownloadProvider);
-  final podcast = ref.watch(podcastDownloadControllerProvider);
+  final community = ref.watch(
+    communityDownloadProvider.select((states) => states[audioItemId]),
+  );
+  final podcast = ref.watch(
+    podcastDownloadControllerProvider.select((states) => states[audioItemId]),
+  );
 
   bool? fileExists;
   if (item.isAudioReady) {
@@ -62,7 +68,27 @@ MediaReadiness mediaReadiness(Ref ref, String audioItemId) {
     communityDownload: community,
     podcastDownload: podcast,
     fileExists: fileExists,
+    isQueued: _isQueued(ref, item),
   );
+}
+
+/// 条目的下载是否仍在排队（登记表里为 [ResourceQueued]）。
+bool _isQueued(Ref ref, AudioItem item) {
+  final key = downloadResourceKeyFor(item);
+  if (key == null) return false;
+  return ref.watch(resourceDownloadProvider(key)) is ResourceQueued;
+}
+
+/// 列表行是否显示"排队中"；与计划页使用同一判断。
+@riverpod
+bool mediaDownloadQueued(Ref ref, String audioItemId) {
+  final item = ref.watch(
+    audioLibraryProvider.select(
+      (state) => _findItem(state.audioItems, audioItemId),
+    ),
+  );
+  if (item == null) return false;
+  return _isQueued(ref, item);
 }
 
 /// 列表行的下载进度快照；未在下载时为 null。列表行与计划页共用同一来源。
@@ -76,7 +102,11 @@ MediaDownloadSnapshot? mediaDownloadSnapshot(Ref ref, String audioItemId) {
   if (item == null) return null;
   return downloadSnapshotFor(
     item: item,
-    community: ref.watch(communityDownloadProvider),
-    podcast: ref.watch(podcastDownloadControllerProvider),
+    communityDownload: ref.watch(
+      communityDownloadProvider.select((states) => states[audioItemId]),
+    ),
+    podcastDownload: ref.watch(
+      podcastDownloadControllerProvider.select((states) => states[audioItemId]),
+    ),
   );
 }

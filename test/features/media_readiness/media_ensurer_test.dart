@@ -15,11 +15,11 @@ import '../../helpers/mock_providers.dart';
 class _RecordingCommunityDownload extends CommunityDownload {
   _RecordingCommunityDownload(this.initial);
 
-  final DownloadProgress initial;
+  final Map<String, DownloadProgress> initial;
   final List<String> startedIds = [];
 
   @override
-  DownloadProgress build() => initial;
+  Map<String, DownloadProgress> build() => initial;
 
   @override
   Future<StartResult> start({
@@ -27,11 +27,14 @@ class _RecordingCommunityDownload extends CommunityDownload {
     required String displayName,
   }) async {
     startedIds.add(audioItemId);
-    state = DownloadInProgress(
-      audioItemId: audioItemId,
-      displayName: displayName,
-      progress: -1,
-    );
+    state = {
+      ...state,
+      audioItemId: DownloadInProgress(
+        audioItemId: audioItemId,
+        displayName: displayName,
+        progress: -1,
+      ),
+    };
     return StartResult.started;
   }
 }
@@ -40,7 +43,7 @@ class _RecordingPodcastDownload extends PodcastDownloadController {
   final List<String> downloadedIds = [];
 
   @override
-  AudioImportState build() => const AudioImportIdle();
+  Map<String, AudioImportState> build() => const {};
 
   @override
   Future<bool> downloadPodcastEpisode(AudioItem item) async {
@@ -72,7 +75,7 @@ void main() {
 
   ProviderContainer makeContainer(
     AudioItem item, {
-    DownloadProgress communityState = const DownloadIdle(),
+    Map<String, DownloadProgress> communityState = const {},
     bool localFileExists = false,
   }) {
     community = _RecordingCommunityDownload(communityState);
@@ -126,11 +129,13 @@ void main() {
   test('失败后再次 ensure 视为用户重试并重新启动', () async {
     final container = makeContainer(
       _community(),
-      communityState: const DownloadFailed(
-        audioItemId: 'audio-1',
-        displayName: 'Puma',
-        error: 'network',
-      ),
+      communityState: {
+        'audio-1': const DownloadFailed(
+          audioItemId: 'audio-1',
+          displayName: 'Puma',
+          error: 'network',
+        ),
+      },
     );
 
     await ensure(container, 'audio-1');

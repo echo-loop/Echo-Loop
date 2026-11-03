@@ -2545,7 +2545,9 @@ void main() {
         displayName: notDownloaded.name,
         error: 'network',
       );
-      final community = _RecordingCommunityDownload(initial: failed);
+      final community = _RecordingCommunityDownload(
+        initial: {notDownloaded.id: failed},
+      );
 
       await tester.pumpWidget(
         createTestWidget(
@@ -2576,13 +2578,13 @@ void main() {
 
 /// 记录下载启动请求；由测试决定初始状态，启动后进入下载中。
 class _RecordingCommunityDownload extends CommunityDownload {
-  _RecordingCommunityDownload({this.initial = const DownloadIdle()});
+  _RecordingCommunityDownload({this.initial = const {}});
 
-  final DownloadProgress initial;
+  final Map<String, DownloadProgress> initial;
   final List<String> startedIds = [];
 
   @override
-  DownloadProgress build() => initial;
+  Map<String, DownloadProgress> build() => initial;
 
   @override
   Future<StartResult> start({

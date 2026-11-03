@@ -1,7 +1,17 @@
 import '../../models/audio_item.dart';
 import '../audio_import/audio_import_models.dart';
+import '../audio_import/podcast_audio_uri.dart';
 import '../community_collections/download/download_progress.dart';
 import 'media_readiness.dart';
+
+/// 条目对应的下载资源 key；没有下载来源时为 null。与下载时提交的 key 一致。
+String? downloadResourceKeyFor(AudioItem item) {
+  final remoteAudioId = item.remoteAudioId;
+  if (remoteAudioId != null) return communityResourceKey(remoteAudioId);
+  final enclosureUrl = item.podcastEnclosureUrl;
+  if (enclosureUrl != null) return podcastResourceKey(enclosureUrl);
+  return null;
+}
 
 /// 某条目的下载快照；列表行与计划页共用同一份数据，保证两处进度一致。
 class MediaDownloadSnapshot {
@@ -24,43 +34,42 @@ bool isCommunityMediaItem(AudioItem item) => item.remoteAudioId != null;
 /// 播客单集：存在 enclosure 地址，由播客下载控制器负责。
 bool isPodcastMediaItem(AudioItem item) => item.podcastEnclosureUrl != null;
 
-/// 返回本条目正在进行的下载快照；其它条目占用通道时返回 null。
+/// 本条目正在进行的下载快照；未在下载时为 null。
 ///
-/// 这是「本条目是否在下载」的唯一判断，列表行进度与计划页状态都由它派生。
+/// 两个入参都是「本条目」的状态（由调用方按 audioItemId 选出），不再按通道全局判断。
 MediaDownloadSnapshot? downloadSnapshotFor({
   required AudioItem item,
-  required DownloadProgress community,
-  required AudioImportState podcast,
+  required DownloadProgress? communityDownload,
+  required AudioImportState? podcastDownload,
 }) {
   if (isCommunityMediaItem(item)) {
-    final state = community;
-    if (state is DownloadInProgress && state.audioItemId == item.id) {
+    final state = communityDownload;
+    if (state is DownloadInProgress) {
       return MediaDownloadSnapshot(progress: state.progress);
     }
     return null;
   }
-  final enclosureUrl = item.podcastEnclosureUrl;
-  if (enclosureUrl == null) return null;
-  final state = podcast;
-  if (state is AudioImportDownloading && state.displayName == enclosureUrl) {
+  final state = podcastDownload;
+  if (state is AudioImportDownloading) {
     return MediaDownloadSnapshot(progress: state.progress);
   }
   // 保存阶段（写入本地）没有可靠进度，按不定态展示。
-  if (state is AudioImportSaving && state.displayName == enclosureUrl) {
+  if (state is AudioImportSaving) {
     return const MediaDownloadSnapshot(progress: -1);
   }
   return null;
 }
 
-/// 根据条目与两个下载通道的状态，解析计划页需要的媒体就绪状态。
+/// 根据条目与其自身的下载状态，解析计划页需要的媒体就绪状态。
 ///
 /// 纯函数，无副作用。优先级：下架 → 已就绪（校验文件）→ 本条目下载中 →
-/// 本条目失败 → 同通道被其它材料占用 → 未开始。
+/// 本条目失败 → 未开始。
 MediaReadiness resolveMediaReadiness({
   required AudioItem item,
-  required DownloadProgress communityDownload,
-  required AudioImportState podcastDownload,
+  required DownloadProgress? communityDownload,
+  required AudioImportState? podcastDownload,
   required bool? fileExists,
+  bool isQueued = false,
 }) {
   if (item.isCommunityUnavailable) return const MediaUnavailable();
 
@@ -71,10 +80,11 @@ MediaReadiness resolveMediaReadiness({
 
   final snapshot = downloadSnapshotFor(
     item: item,
-    community: communityDownload,
-    podcast: podcastDownload,
+    communityDownload: communityDownload,
+    podcastDownload: podcastDownload,
   );
   if (snapshot != null) {
+    if (isQueued) return const MediaQueued();
     return MediaDownloading(
       progress: snapshot.progress < 0 ? null : snapshot.progress,
     );
@@ -82,10 +92,6 @@ MediaReadiness resolveMediaReadiness({
 
   final failure = _ownFailure(item, communityDownload, podcastDownload);
   if (failure != null) return MediaFailed(failure);
-
-  if (_channelBusyWithOther(item, communityDownload, podcastDownload)) {
-    return const MediaWaiting();
-  }
 
   if (isCommunityMediaItem(item) || isPodcastMediaItem(item)) {
     return const MediaNotDownloaded();
@@ -96,32 +102,15 @@ MediaReadiness resolveMediaReadiness({
 
 Object? _ownFailure(
   AudioItem item,
-  DownloadProgress community,
-  AudioImportState podcast,
+  DownloadProgress? community,
+  AudioImportState? podcast,
 ) {
   if (isCommunityMediaItem(item)) {
     final state = community;
-    if (state is DownloadFailed && state.audioItemId == item.id) {
-      return state.error;
-    }
+    if (state is DownloadFailed) return state.error;
     return null;
   }
   final state = podcast;
-  if (state is AudioImportFailed && state.audioItemId == item.id) {
-    return state.error;
-  }
+  if (state is AudioImportFailed) return state.error;
   return null;
-}
-
-/// 同一下载通道正被其它材料占用（本条目自身的下载已在前面判定）。
-bool _channelBusyWithOther(
-  AudioItem item,
-  DownloadProgress community,
-  AudioImportState podcast,
-) {
-  if (isCommunityMediaItem(item)) return community is DownloadInProgress;
-  if (isPodcastMediaItem(item)) {
-    return podcast is AudioImportDownloading || podcast is AudioImportSaving;
-  }
-  return false;
 }

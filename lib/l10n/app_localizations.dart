@@ -6818,12 +6818,6 @@ abstract class AppLocalizations {
   /// **'Downloading audio and subtitles…'**
   String get mediaPreparingHint;
 
-  /// No description provided for @mediaWaitingOtherDownload.
-  ///
-  /// In en, this message translates to:
-  /// **'Another download is in progress. This one will start automatically.'**
-  String get mediaWaitingOtherDownload;
-
   /// No description provided for @guideNext.
   ///
   /// In en, this message translates to:
@@ -8869,6 +8863,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Downloading'**
   String get audioDownloadInProgress;
+
+  /// No description provided for @audioQueued.
+  ///
+  /// In en, this message translates to:
+  /// **'Queued'**
+  String get audioQueued;
+
+  /// No description provided for @mediaQueued.
+  ///
+  /// In en, this message translates to:
+  /// **'Queued...'**
+  String get mediaQueued;
 
   /// No description provided for @audioImportComplete.
   ///

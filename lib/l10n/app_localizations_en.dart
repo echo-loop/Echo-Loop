@@ -3907,10 +3907,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get mediaPreparingHint => 'Downloading audio and subtitles…';
 
   @override
-  String get mediaWaitingOtherDownload =>
-      'Another download is in progress. This one will start automatically.';
-
-  @override
   String get guideNext => 'Next';
 
   @override
@@ -5061,6 +5057,12 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get audioDownloadInProgress => 'Downloading';
+
+  @override
+  String get audioQueued => 'Queued';
+
+  @override
+  String get mediaQueued => 'Queued...';
 
   @override
   String get audioImportComplete => 'Import complete';

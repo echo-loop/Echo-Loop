@@ -42,13 +42,19 @@ class _AudioListTileWrapper extends ConsumerWidget {
 }
 
 class _DownloadingAudioImportController extends PodcastDownloadController {
+  _DownloadingAudioImportController(this.audioItemId);
+
+  final String audioItemId;
+
   @override
-  AudioImportState build() => const AudioImportDownloading(
-    displayName: 'https://example.com/episode.mp3',
-    progress: 0.42,
-    receivedBytes: 42,
-    totalBytes: 100,
-  );
+  Map<String, AudioImportState> build() => {
+    audioItemId: const AudioImportDownloading(
+      displayName: 'https://example.com/episode.mp3',
+      progress: 0.42,
+      receivedBytes: 42,
+      totalBytes: 100,
+    ),
+  };
 }
 
 class _DownloadingCommunity extends CommunityDownload {
@@ -57,20 +63,22 @@ class _DownloadingCommunity extends CommunityDownload {
   final String audioItemId;
 
   @override
-  DownloadProgress build() => DownloadInProgress(
-    audioItemId: audioItemId,
-    displayName: 'Community Audio',
-    progress: 0.42,
-    receivedBytes: 42,
-    totalBytes: 100,
-  );
+  Map<String, DownloadProgress> build() => {
+    audioItemId: DownloadInProgress(
+      audioItemId: audioItemId,
+      displayName: 'Community Audio',
+      progress: 0.42,
+      receivedBytes: 42,
+      totalBytes: 100,
+    ),
+  };
 }
 
 class _CountingAudioImportController extends PodcastDownloadController {
   int downloadCalls = 0;
 
   @override
-  AudioImportState build() => const AudioImportIdle();
+  Map<String, AudioImportState> build() => const {};
 
   @override
   Future<bool> downloadPodcastEpisode(AudioItem item) async {
@@ -389,7 +397,7 @@ void main() {
               () => TestAudioLibrary(AudioLibraryState(audioItems: [item])),
             ),
             podcastDownloadControllerProvider.overrideWith(
-              _DownloadingAudioImportController.new,
+              () => _DownloadingAudioImportController(item.id),
             ),
           ]),
         ),
@@ -725,7 +733,7 @@ void main() {
               () => TestAudioLibrary(AudioLibraryState(audioItems: [item])),
             ),
             podcastDownloadControllerProvider.overrideWith(
-              _DownloadingAudioImportController.new,
+              () => _DownloadingAudioImportController(item.id),
             ),
           ]),
         ),
@@ -836,7 +844,7 @@ void main() {
               () => TestAudioLibrary(AudioLibraryState(audioItems: [item])),
             ),
             podcastDownloadControllerProvider.overrideWith(
-              _DownloadingAudioImportController.new,
+              () => _DownloadingAudioImportController(item.id),
             ),
           ]),
         ),
