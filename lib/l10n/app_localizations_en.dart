@@ -2367,6 +2367,17 @@ class AppLocalizationsEn extends AppLocalizations {
       'Provided by the podcast, no transcription needed';
 
   @override
+  String get podcastTranscriptReminderTitle =>
+      'Podcast subtitles may be inaccurate';
+
+  @override
+  String get podcastTranscriptReminderMessage =>
+      'Subtitles provided by podcasts vary in quality and may not match the audio. If they are inaccurate, you can use cloud transcription to generate subtitles instead.';
+
+  @override
+  String get podcastTranscriptReminderConfirm => 'Got it';
+
+  @override
   String get downloadSubtitle => 'Download Subtitles';
 
   @override

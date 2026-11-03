@@ -2261,6 +2261,16 @@ class AppLocalizationsZh extends AppLocalizations {
   String get downloadPodcastSubtitleSubtitle => '播客已提供字幕，无需转录';
 
   @override
+  String get podcastTranscriptReminderTitle => '播客字幕可能不准确';
+
+  @override
+  String get podcastTranscriptReminderMessage =>
+      '播客提供的字幕质量参差不齐，可能与音频对不上。如果不准确，可以改用云端转录重新生成字幕。';
+
+  @override
+  String get podcastTranscriptReminderConfirm => '知道了';
+
+  @override
   String get downloadSubtitle => '下载字幕';
 
   @override

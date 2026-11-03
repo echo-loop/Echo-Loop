@@ -29,6 +29,8 @@ class LocalUserPreferencesStore {
     LearningSettingsKeys.pdfExportReminderShown: 'pdfExportReminderShown',
     LearningSettingsKeys.unclearAutoSaveReminderShown:
         'unclearAutoSaveReminderShown',
+    LearningSettingsKeys.podcastTranscriptReminderShown:
+        'podcastTranscriptReminderShown',
   };
 
   static const _practiceKeys = <String, String>{

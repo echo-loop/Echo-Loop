@@ -5,12 +5,8 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../models/audio_item.dart';
 import '../../providers/audio_library_provider.dart';
-import '../../providers/audio_sentences_provider.dart';
 import '../../providers/collection_provider.dart';
 import '../../providers/download_provider.dart';
-import '../../services/app_logger.dart';
-import '../../utils/transcript_picker.dart';
-import '../podcast/podcast_transcript_downloader.dart';
 import 'audio_import_models.dart';
 import 'audio_import_service.dart';
 
@@ -149,7 +145,9 @@ class PodcastDownloadController extends _$PodcastDownloadController {
   /// displayName 仍取 enclosure URL，与列表项的行内进度条匹配逻辑一致。
   Future<bool> downloadPodcastEpisode(AudioItem item) async {
     // 同一单集已在下载或保存中：不再建第二个任务。
-    if (state.containsKey(item.id)) return false;
+    // 上一次失败留下的 AudioImportFailed 不是进行中的任务，必须允许用户重试覆盖它。
+    final current = state[item.id];
+    if (current != null && current is! AudioImportFailed) return false;
     final enclosureUrl = item.podcastEnclosureUrl;
     if (enclosureUrl == null || enclosureUrl.isEmpty) return false;
 
@@ -201,8 +199,6 @@ class PodcastDownloadController extends _$PodcastDownloadController {
       await ref
           .read(audioLibraryProvider.notifier)
           .updateAudioItem(downloadedItem);
-      // RSS 字幕随音频一并获取；失败只记日志，不影响音频下载结果。
-      await _attachPodcastTranscript(downloadedItem.id, sid, cancelToken);
       // 音频已写回资源库；provider 若已销毁则不再写 state（结果已持久化，无需回滚）。
       if (!ref.mounted) return true;
       _remove(item.id);
@@ -236,66 +232,6 @@ class PodcastDownloadController extends _$PodcastDownloadController {
       return false;
     } finally {
       if (_active[item.id]?.sessionId == sid) _active.remove(item.id);
-    }
-  }
-
-  /// 下载 RSS 字幕并以本地字幕主干入库（与本地上传字幕同一条路径）。
-  ///
-  /// 仅在条目尚无字幕且带字幕地址时执行。任何失败（网络、解析、空字幕、取消）都静默
-  /// 降级为「无字幕」，用户仍可手动转录或上传。判断与回写都基于资源库中的最新条目，
-  /// 而非下载开始时的快照，避免覆盖下载期间用户加入的字幕。
-  Future<void> _attachPodcastTranscript(
-    String audioItemId,
-    int sid,
-    CancelToken? cancelToken,
-  ) async {
-    final item = ref
-        .read(audioLibraryProvider)
-        .audioItems
-        .where((candidate) => candidate.id == audioItemId)
-        .firstOrNull;
-    if (item == null) return;
-    final url = item.podcastTranscriptUrl;
-    final format = item.podcastTranscriptFormat;
-    if (url == null || format == null || item.hasTranscript) return;
-
-    try {
-      final text = await ref
-          .read(podcastTranscriptDownloaderProvider)
-          .download(url, format: format, cancelToken: cancelToken);
-      if (_isStale(audioItemId, sid)) return;
-      // 等待期间条目可能已被其它入口加入字幕，入库前再确认一次。
-      final latest = ref
-          .read(audioLibraryProvider)
-          .audioItems
-          .where((candidate) => candidate.id == audioItemId)
-          .firstOrNull;
-      if (latest == null || latest.hasTranscript) return;
-
-      // 空字幕（解析后无句子）不入库，避免条目被标记为"有字幕"却没有内容。
-      final sentences = await parseSupportedSubtitle(text, ext: format);
-      // 解析期间会话可能已过期或 provider 已销毁，入库前必须再确认。
-      if (_isStale(audioItemId, sid)) return;
-      if (sentences.isEmpty) {
-        AppLogger.log(
-          'PodcastTranscript',
-          'empty subtitle skipped id=$audioItemId',
-        );
-        return;
-      }
-
-      await importLocalSubtitleWithRef(ref, latest, text: text, ext: format);
-      if (!ref.mounted) return;
-      ref.invalidate(audioSentencesProvider(audioItemId));
-      AppLogger.log(
-        'PodcastTranscript',
-        'imported id=$audioItemId format=$format sentences=${sentences.length}',
-      );
-    } catch (e) {
-      AppLogger.log(
-        'PodcastTranscript',
-        'skipped id=$audioItemId url=$url error=$e',
-      );
     }
   }
 

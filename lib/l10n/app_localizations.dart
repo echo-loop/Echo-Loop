@@ -4148,6 +4148,24 @@ abstract class AppLocalizations {
   /// **'Provided by the podcast, no transcription needed'**
   String get downloadPodcastSubtitleSubtitle;
 
+  /// No description provided for @podcastTranscriptReminderTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Podcast subtitles may be inaccurate'**
+  String get podcastTranscriptReminderTitle;
+
+  /// No description provided for @podcastTranscriptReminderMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Subtitles provided by podcasts vary in quality and may not match the audio. If they are inaccurate, you can use cloud transcription to generate subtitles instead.'**
+  String get podcastTranscriptReminderMessage;
+
+  /// No description provided for @podcastTranscriptReminderConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Got it'**
+  String get podcastTranscriptReminderConfirm;
+
   /// No description provided for @downloadSubtitle.
   ///
   /// In en, this message translates to:

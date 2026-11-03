@@ -127,6 +127,12 @@ class _TestLearningSettingsNotifier extends Notifier<LearningSettings>
   }
 
   @override
+  Future<void> markPodcastTranscriptReminderShown() async {
+    if (state.podcastTranscriptReminderShown) return;
+    state = state.copyWith(podcastTranscriptReminderShown: true);
+  }
+
+  @override
   Future<void> setRetellRatingEnabled(bool enabled) async {
     if (state.retellRatingEnabled == enabled) return;
     state = state.copyWith(retellRatingEnabled: enabled);

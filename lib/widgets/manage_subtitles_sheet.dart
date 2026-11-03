@@ -27,12 +27,14 @@ import '../providers/audio_library_provider.dart';
 import '../providers/favorite_sentence_lifecycle_provider.dart';
 import '../providers/audio_sentences_provider.dart';
 import '../providers/learning_progress_provider.dart';
+import '../providers/learning_settings_provider.dart';
 import '../providers/listening_practice/listening_practice_provider.dart';
 import '../providers/settings_provider.dart';
 import '../providers/transcription_task_provider.dart';
 import '../providers/local_transcription_task_provider.dart';
 import '../providers/local_transcription_model_provider.dart';
 import '../providers/offline_asr_settings_provider.dart';
+import 'dialogs/podcast_transcript_reminder_dialog.dart';
 import '../l10n/app_localizations.dart';
 import '../router/app_router.dart';
 import '../services/app_logger.dart';
@@ -136,10 +138,6 @@ class _ManageSubtitlesSheetState extends ConsumerState<ManageSubtitlesSheet> {
     _autoMergeShortSentences = ref
         .read(appSettingsProvider)
         .aiTranscriptionAutoMergeEnabled;
-    // 播客已提供字幕地址时默认选中「下载播客字幕」（免费且更快）
-    if (_hasPodcastTranscript(widget.audioItem)) {
-      _selectedAction = _SubtitleAction.podcastDownload;
-    }
     // 打开弹窗时异步清除之前的失败/空结果状态
     final taskState = ref.read(
       transcriptionTaskManagerProvider,
@@ -1710,6 +1708,17 @@ class _ManageSubtitlesSheetState extends ConsumerState<ManageSubtitlesSheet> {
     if (audioItem.hasTranscript) {
       final confirmed = await _confirmOverwriteSubtitle(context);
       if (!confirmed || !mounted) return;
+    }
+
+    // 播客字幕质量参差不齐：首次下载前提醒一次，之后不再打扰。
+    if (!ref.read(learningSettingsProvider).podcastTranscriptReminderShown) {
+      if (!context.mounted) return;
+      await showPodcastTranscriptReminderDialog(context);
+      if (!mounted) return;
+      await ref
+          .read(learningSettingsProvider.notifier)
+          .markPodcastTranscriptReminderShown();
+      if (!mounted) return;
     }
 
     setState(() {

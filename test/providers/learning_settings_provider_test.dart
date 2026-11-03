@@ -363,6 +363,31 @@ void main() {
       );
     });
 
+    test('markPodcastTranscriptReminderShown 写 SP + 翻转 state，重复调用幂等', () async {
+      SharedPreferences.setMockInitialValues({});
+      final prefs = await SharedPreferences.getInstance();
+      final container = makeContainer(prefs);
+      addTearDown(container.dispose);
+
+      final notifier = container.read(learningSettingsProvider.notifier);
+      expect(
+        container.read(learningSettingsProvider).podcastTranscriptReminderShown,
+        isFalse,
+      );
+
+      await notifier.markPodcastTranscriptReminderShown();
+      await notifier.markPodcastTranscriptReminderShown();
+
+      expect(
+        container.read(learningSettingsProvider).podcastTranscriptReminderShown,
+        isTrue,
+      );
+      expect(
+        prefs.getBool(LearningSettingsKeys.podcastTranscriptReminderShown),
+        isTrue,
+      );
+    });
+
     test('markUnclearAutoSaveReminderShown 写 SP + 翻转 state，重复调用幂等', () async {
       SharedPreferences.setMockInitialValues({});
       final prefs = await SharedPreferences.getInstance();

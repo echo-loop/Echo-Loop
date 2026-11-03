@@ -51,6 +51,8 @@ abstract final class LearningSettingsKeys {
   static const autoSaveOnUnclear = 'learning_auto_favorite_on_cant_understand';
   static const unclearAutoSaveReminderShown =
       'learning_unclear_auto_save_reminder_shown';
+  static const podcastTranscriptReminderShown =
+      'learning_podcast_transcript_reminder_shown';
 
   /// 历史 SP key，启动期会被清理。
   static const legacyOfflineAsrEnabled = 'offline_asr_enabled';
@@ -104,6 +106,9 @@ class LearningSettings {
   /// 是否已弹过「听不太懂自动收藏」说明弹窗（默认 false，参与跨设备同步）。
   final bool unclearAutoSaveReminderShown;
 
+  /// 是否已弹过「播客字幕可能不准确」提醒（默认 false，参与跨设备同步）。
+  final bool podcastTranscriptReminderShown;
+
   const LearningSettings({
     this.autoSkipRetell = false,
     this.autoExpandCachedAnnotation = true,
@@ -119,6 +124,7 @@ class LearningSettings {
     this.showStudyRecommendation = true,
     this.autoSaveOnUnclear = true,
     this.unclearAutoSaveReminderShown = false,
+    this.podcastTranscriptReminderShown = false,
   });
 
   /// 同步从 [SharedPreferences] 派生当前状态，用于启动期 override 注入。
@@ -159,6 +165,9 @@ class LearningSettings {
       unclearAutoSaveReminderShown:
           prefs.getBool(LearningSettingsKeys.unclearAutoSaveReminderShown) ??
           false,
+      podcastTranscriptReminderShown:
+          prefs.getBool(LearningSettingsKeys.podcastTranscriptReminderShown) ??
+          false,
     );
   }
 
@@ -177,6 +186,7 @@ class LearningSettings {
     bool? showStudyRecommendation,
     bool? autoSaveOnUnclear,
     bool? unclearAutoSaveReminderShown,
+    bool? podcastTranscriptReminderShown,
   }) {
     return LearningSettings(
       autoSkipRetell: autoSkipRetell ?? this.autoSkipRetell,
@@ -204,6 +214,8 @@ class LearningSettings {
       autoSaveOnUnclear: autoSaveOnUnclear ?? this.autoSaveOnUnclear,
       unclearAutoSaveReminderShown:
           unclearAutoSaveReminderShown ?? this.unclearAutoSaveReminderShown,
+      podcastTranscriptReminderShown:
+          podcastTranscriptReminderShown ?? this.podcastTranscriptReminderShown,
     );
   }
 
@@ -227,7 +239,9 @@ class LearningSettings {
           pdfExportReminderShown == other.pdfExportReminderShown &&
           showStudyRecommendation == other.showStudyRecommendation &&
           autoSaveOnUnclear == other.autoSaveOnUnclear &&
-          unclearAutoSaveReminderShown == other.unclearAutoSaveReminderShown;
+          unclearAutoSaveReminderShown == other.unclearAutoSaveReminderShown &&
+          podcastTranscriptReminderShown ==
+              other.podcastTranscriptReminderShown;
 
   @override
   int get hashCode => Object.hash(
@@ -245,6 +259,7 @@ class LearningSettings {
     showStudyRecommendation,
     autoSaveOnUnclear,
     unclearAutoSaveReminderShown,
+    podcastTranscriptReminderShown,
   );
 }
 
@@ -452,6 +467,27 @@ class LearningSettingsNotifier extends Notifier<LearningSettings> {
       AppLogger.log(
         'LearningSettings',
         'markUnclearAutoSaveReminderShown 写 SP 失败: $e',
+      );
+    }
+  }
+
+  /// 标记「播客字幕可能不准确」提醒已展示。
+  ///
+  /// 参与跨设备同步，多设备上只提醒一次。
+  Future<void> markPodcastTranscriptReminderShown() async {
+    if (state.podcastTranscriptReminderShown) return;
+    state = state.copyWith(podcastTranscriptReminderShown: true);
+    try {
+      final prefs = ref.read(sharedPreferencesProvider);
+      await prefs.setBool(
+        LearningSettingsKeys.podcastTranscriptReminderShown,
+        true,
+      );
+      userPreferencesSyncEvents.notifyLocalChange();
+    } catch (e) {
+      AppLogger.log(
+        'LearningSettings',
+        'markPodcastTranscriptReminderShown 写 SP 失败: $e',
       );
     }
   }

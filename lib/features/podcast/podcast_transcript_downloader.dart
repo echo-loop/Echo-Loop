@@ -2,7 +2,7 @@
 ///
 /// 下载 RSS `<podcast:transcript>` 指向的字幕文件，并解码为文本。
 /// 只负责「取字节 → 解码」，不解析句子、不入库；入库由调用方统一走
-/// `importLocalSubtitleWithRef`，与本地字幕导入保持同一主干。
+/// `importLocalSubtitle`，与本地字幕导入保持同一主干。
 library;
 
 import 'package:dio/dio.dart';
