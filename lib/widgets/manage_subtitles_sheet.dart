@@ -1921,9 +1921,8 @@ class _ManageSubtitlesSheetState extends ConsumerState<ManageSubtitlesSheet> {
     AudioItem audioItem,
   ) async {
     final l10n = AppLocalizations.of(context)!;
-    final accessToken = (await ref.read(
-      supabaseSessionProvider.future,
-    ))?.accessToken;
+    final accessToken = (await ref.read(supabaseSessionProvider.future))
+        ?.accessToken;
     if (!mounted || !context.mounted) return;
     if (accessToken == null || accessToken.isEmpty) {
       await _showTranscriptionSignInDialog(context);
@@ -2132,9 +2131,7 @@ class _ManageSubtitlesSheetState extends ConsumerState<ManageSubtitlesSheet> {
       title:
           l10n?.transcriptionSignInRequiredTitle ??
           'Sign in to use AI transcription',
-      message:
-          l10n?.transcriptionSignInRequiredMessage ??
-          'AI transcription uses the cloud transcription service. Sign in to transcribe audio with AI.',
+      message: l10n?.transcriptionSignInRequiredMessage ?? 'AI transcription uses the cloud transcription service. Sign in to transcribe audio with AI.',
     );
   }
 

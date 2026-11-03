@@ -400,21 +400,21 @@ void main() {
       ),
     );
 
-      final outcomes = await service.downloadBatch(
-        requests: [
-          BackgroundFileDownloadRequest(
-            id: 'first',
-            uri: Uri.parse('https://example.com/first.mp3'),
-            savePath: '${dataDir.path}/first.mp3',
-            displayName: 'First episode.mp3',
-          ),
-          BackgroundFileDownloadRequest(
-            id: 'second',
-            uri: Uri.parse('https://example.com/second.mp3'),
-            savePath: '${dataDir.path}/second.mp3',
-          ),
-        ],
-      );
+    final outcomes = await service.downloadBatch(
+      requests: [
+        BackgroundFileDownloadRequest(
+          id: 'first',
+          uri: Uri.parse('https://example.com/first.mp3'),
+          savePath: '${dataDir.path}/first.mp3',
+          displayName: 'First episode.mp3',
+        ),
+        BackgroundFileDownloadRequest(
+          id: 'second',
+          uri: Uri.parse('https://example.com/second.mp3'),
+          savePath: '${dataDir.path}/second.mp3',
+        ),
+      ],
+    );
 
     expect(downloader.enqueuedFileNames, ['first.mp3', 'second.mp3']);
     expect(downloader.enqueuedDisplayNames, [

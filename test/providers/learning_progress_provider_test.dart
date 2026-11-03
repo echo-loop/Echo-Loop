@@ -14,6 +14,7 @@ import 'package:echo_loop/providers/notification_permission_provider.dart';
 import 'package:echo_loop/providers/time_provider.dart';
 import 'package:echo_loop/services/notification_permission_service.dart';
 import 'package:mocktail/mocktail.dart';
+
 import '../helpers/mock_providers.dart';
 
 // ========== Mock 类 ==========
@@ -190,16 +191,13 @@ void main() {
     when(() => mockDao.upsert(any())).thenAnswer((_) async {});
     when(() => mockDao.getByAudioId(any())).thenAnswer((_) async => null);
     when(() => mockDao.deleteByAudioId(any())).thenAnswer((_) async {});
-    when(
-      () => mockStageCompletionDao.insertRecord(any()),
-    ).thenAnswer((_) async {});
-    when(
-      () => mockStageCompletionDao.deleteByAudioId(any()),
-    ).thenAnswer((_) async {});
+    when(() => mockStageCompletionDao.insertRecord(any()))
+        .thenAnswer((_) async {});
+    when(() => mockStageCompletionDao.deleteByAudioId(any()))
+        .thenAnswer((_) async {});
     // 默认无难句书签
-    when(
-      () => mockBookmarkDao.getBookmarkedIndices(any()),
-    ).thenAnswer((_) async => <int>{});
+    when(() => mockBookmarkDao.getBookmarkedIndices(any()))
+        .thenAnswer((_) async => <int>{});
   });
 
   /// 创建带 mock DAO 的 ProviderContainer
@@ -214,9 +212,8 @@ void main() {
     NotificationPermissionService? notificationPermissionService,
   }) {
     if (bookmarks != null) {
-      when(
-        () => mockBookmarkDao.getBookmarkedIndices(any()),
-      ).thenAnswer((_) async => bookmarks);
+      when(() => mockBookmarkDao.getBookmarkedIndices(any()))
+          .thenAnswer((_) async => bookmarks);
     }
     final container = ProviderContainer(
       overrides: dedupeOverrides([
@@ -297,16 +294,13 @@ void main() {
         nowGetter: () => now,
       );
 
-      await notifier(
-        container,
-      ).completeIntensiveListenAndAutoCompleteShadowingIfNoDifficult('a1');
+      await notifier(container)
+          .completeIntensiveListenAndAutoCompleteShadowingIfNoDifficult('a1');
 
       final after = readProgress(container, 'a1')!;
       expect(after.currentSubStage, SubStageType.blindListen);
       expect(
-        container
-            .read(learningProgressProvider)
-            .completionsByAudio['a1'],
+        container.read(learningProgressProvider).completionsByAudio['a1'],
         containsAll(<String>[
           'firstLearn:intensiveListen',
           'firstLearn:listenAndRepeat',
@@ -330,9 +324,8 @@ void main() {
         bookmarks: const {0},
       );
 
-      await notifier(
-        container,
-      ).completeIntensiveListenAndAutoCompleteShadowingIfNoDifficult('a1');
+      await notifier(container)
+          .completeIntensiveListenAndAutoCompleteShadowingIfNoDifficult('a1');
 
       expect(
         readProgress(container, 'a1')!.currentSubStage,
@@ -340,32 +333,29 @@ void main() {
       );
     });
 
-    test(
-      '首次学习最后一步 retell → review0.reviewDifficultPractice，设置 firstLearnCompletedAt',
-      () async {
-        final now = DateTime(2026, 3, 1, 10, 0);
-        final progress = LearningProgress(
-          audioItemId: 'a1',
-          currentStage: LearningStage.firstLearn,
-          currentSubStage: SubStageType.retell,
-          currentStageStartedAt: now,
-          updatedAt: now,
-        );
+    test('首次学习最后一步 retell → review0.reviewDifficultPractice，设置 firstLearnCompletedAt', () async {
+      final now = DateTime(2026, 3, 1, 10, 0);
+      final progress = LearningProgress(
+        audioItemId: 'a1',
+        currentStage: LearningStage.firstLearn,
+        currentSubStage: SubStageType.retell,
+        currentStageStartedAt: now,
+        updatedAt: now,
+      );
 
-        final container = createContainer(
-          LearningProgressState(progressMap: {'a1': progress}),
-          nowGetter: () => now,
-        );
+      final container = createContainer(
+        LearningProgressState(progressMap: {'a1': progress}),
+        nowGetter: () => now,
+      );
 
-        await notifier(container).completeCurrentSubStage('a1');
+      await notifier(container).completeCurrentSubStage('a1');
 
-        final after = readProgress(container, 'a1')!;
-        expect(after.currentStage, LearningStage.review0);
-        expect(after.currentSubStage, SubStageType.reviewDifficultPractice);
-        expect(after.firstLearnCompletedAt, isNotNull);
-        expect(after.lastStageCompletedAt, isNotNull);
-      },
-    );
+      final after = readProgress(container, 'a1')!;
+      expect(after.currentStage, LearningStage.review0);
+      expect(after.currentSubStage, SubStageType.reviewDifficultPractice);
+      expect(after.firstLearnCompletedAt, isNotNull);
+      expect(after.lastStageCompletedAt, isNotNull);
+    });
 
     test('首次学习最后一步完成后触发通知权限 pre-prompt 锚点', () async {
       final now = DateTime(2026, 3, 1, 10, 0);
@@ -377,9 +367,8 @@ void main() {
         updatedAt: now,
       );
       final notificationService = MockNotificationPermissionService();
-      when(
-        () => notificationService.maybeTriggerPrompt(),
-      ).thenAnswer((_) async {});
+      when(() => notificationService.maybeTriggerPrompt())
+          .thenAnswer((_) async {});
 
       final container = createContainer(
         LearningProgressState(progressMap: {'a1': progress}),
@@ -403,9 +392,8 @@ void main() {
         updatedAt: now,
       );
       final notificationService = MockNotificationPermissionService();
-      when(
-        () => notificationService.maybeTriggerPrompt(),
-      ).thenAnswer((_) async {});
+      when(() => notificationService.maybeTriggerPrompt())
+          .thenAnswer((_) async {});
 
       final container = createContainer(
         LearningProgressState(progressMap: {'a1': progress}),
@@ -536,42 +524,36 @@ void main() {
       },
     );
 
-    test(
-      'review28 v1（有 completion 走 v1 plan）最后一步推进：reviewRetellSummary → completed',
-      () async {
-        final now = DateTime(2026, 5, 1, 10, 0);
-        final completedAt = now.subtract(const Duration(days: 30));
-        // 有 review28 completion → v1 plan = [blind, difficult, summary]
-        final progress = LearningProgress(
-          audioItemId: 'a1',
-          currentStage: LearningStage.review28,
-          currentSubStage: SubStageType.reviewRetellSummary,
-          firstLearnCompletedAt: DateTime(2026, 3, 1),
-          lastStageCompletedAt: completedAt,
-          currentStageStartedAt: now,
-          updatedAt: now,
-        );
+    test('review28 v1（有 completion 走 v1 plan）最后一步推进：reviewRetellSummary → completed', () async {
+      final now = DateTime(2026, 5, 1, 10, 0);
+      final completedAt = now.subtract(const Duration(days: 30));
+      // 有 review28 completion → v1 plan = [blind, difficult, summary]
+      final progress = LearningProgress(
+        audioItemId: 'a1',
+        currentStage: LearningStage.review28,
+        currentSubStage: SubStageType.reviewRetellSummary,
+        firstLearnCompletedAt: DateTime(2026, 3, 1),
+        lastStageCompletedAt: completedAt,
+        currentStageStartedAt: now,
+        updatedAt: now,
+      );
 
-        final container = createContainer(
-          LearningProgressState(
-            progressMap: {'a1': progress},
-            completionsByAudio: const {
-              'a1': {
-                'review28:blindListen',
-                'review28:reviewDifficultPractice',
-              },
-            },
-          ),
-          nowGetter: () => now,
-        );
+      final container = createContainer(
+        LearningProgressState(
+          progressMap: {'a1': progress},
+          completionsByAudio: const {
+            'a1': {'review28:blindListen', 'review28:reviewDifficultPractice'},
+          },
+        ),
+        nowGetter: () => now,
+      );
 
-        await notifier(container).completeCurrentSubStage('a1');
+      await notifier(container).completeCurrentSubStage('a1');
 
-        final after = readProgress(container, 'a1')!;
-        expect(after.currentStage, LearningStage.completed);
-        expect(after.isCompleted, isTrue);
-      },
-    );
+      final after = readProgress(container, 'a1')!;
+      expect(after.currentStage, LearningStage.completed);
+      expect(after.isCompleted, isTrue);
+    });
 
     test('已完成状态不推进', () async {
       final now = DateTime(2026, 3, 1);
@@ -919,35 +901,32 @@ void main() {
       expect(after.currentSubStage, SubStageType.blindListen);
     });
 
-    test(
-      'autoSkipRetell=true：review28 snapshot v1 难句补练完成 → completed（自动跳过 summary）',
-      () async {
-        final now = DateTime(2026, 4, 1, 10, 0);
-        final completedAt = now.subtract(const Duration(days: 30));
-        // 显式 stamp review28=1 → v1 plan = [blindListen, difficult, summary]
-        // 完成 difficult → next = summary（retell 类）→ autoSkip 触发 → completed
-        final progress = LearningProgress(
-          audioItemId: 'a1',
-          currentStage: LearningStage.review28,
-          currentSubStage: SubStageType.reviewDifficultPractice,
-          lastStageCompletedAt: completedAt,
-          currentStageStartedAt: now,
-          updatedAt: now,
-          planVersionsByStage: const {LearningStage.review28: 1},
-        );
+    test('autoSkipRetell=true：review28 snapshot v1 难句补练完成 → completed（自动跳过 summary）', () async {
+      final now = DateTime(2026, 4, 1, 10, 0);
+      final completedAt = now.subtract(const Duration(days: 30));
+      // 显式 stamp review28=1 → v1 plan = [blindListen, difficult, summary]
+      // 完成 difficult → next = summary（retell 类）→ autoSkip 触发 → completed
+      final progress = LearningProgress(
+        audioItemId: 'a1',
+        currentStage: LearningStage.review28,
+        currentSubStage: SubStageType.reviewDifficultPractice,
+        lastStageCompletedAt: completedAt,
+        currentStageStartedAt: now,
+        updatedAt: now,
+        planVersionsByStage: const {LearningStage.review28: 1},
+      );
 
-        final container = createContainer(
-          LearningProgressState(progressMap: {'a1': progress}),
-          nowGetter: () => now,
-          autoSkipRetell: true,
-        );
+      final container = createContainer(
+        LearningProgressState(progressMap: {'a1': progress}),
+        nowGetter: () => now,
+        autoSkipRetell: true,
+      );
 
-        await notifier(container).completeCurrentSubStage('a1');
+      await notifier(container).completeCurrentSubStage('a1');
 
-        final after = readProgress(container, 'a1')!;
-        expect(after.currentStage, LearningStage.completed);
-      },
-    );
+      final after = readProgress(container, 'a1')!;
+      expect(after.currentStage, LearningStage.completed);
+    });
 
     test(
       'autoSkipRetell=true：review28 v2 难句补练完成 → 停在全文盲听（非 retell，不触发 autoSkip）',
@@ -1151,9 +1130,8 @@ void main() {
         LearningProgressState(progressMap: {'a1': baseProgress}),
       );
 
-      await notifier(
-        container,
-      ).saveIntensiveListenSentenceIndex('a1', 5, isFreePlay: false);
+      await notifier(container)
+          .saveIntensiveListenSentenceIndex('a1', 5, isFreePlay: false);
 
       final after = readProgress(container, 'a1')!;
       expect(after.intensiveListenSentenceIndex, 5);
@@ -1165,9 +1143,8 @@ void main() {
         LearningProgressState(progressMap: {'a1': baseProgress}),
       );
 
-      await notifier(
-        container,
-      ).saveIntensiveListenSentenceIndex('a1', 5, isFreePlay: true);
+      await notifier(container)
+          .saveIntensiveListenSentenceIndex('a1', 5, isFreePlay: true);
 
       final after = readProgress(container, 'a1')!;
       expect(after.freePlayIntensiveListenSentenceIndex, 5);
@@ -1183,9 +1160,8 @@ void main() {
         LearningProgressState(progressMap: {'a1': progressWithIndex}),
       );
 
-      await notifier(
-        container,
-      ).saveIntensiveListenSentenceIndex('a1', null, isFreePlay: false);
+      await notifier(container)
+          .saveIntensiveListenSentenceIndex('a1', null, isFreePlay: false);
 
       final after = readProgress(container, 'a1')!;
       expect(after.intensiveListenSentenceIndex, isNull);
@@ -1196,9 +1172,8 @@ void main() {
         LearningProgressState(progressMap: {'a1': baseProgress}),
       );
 
-      await notifier(
-        container,
-      ).saveShadowingSentenceIndex('a1', 3, isFreePlay: false);
+      await notifier(container)
+          .saveShadowingSentenceIndex('a1', 3, isFreePlay: false);
 
       final after = readProgress(container, 'a1')!;
       expect(after.shadowingSentenceIndex, 3);
@@ -1212,9 +1187,8 @@ void main() {
         LearningProgressState(progressMap: {'a1': progressWithIndex}),
       );
 
-      await notifier(
-        container,
-      ).saveShadowingSentenceIndex('a1', null, isFreePlay: false);
+      await notifier(container)
+          .saveShadowingSentenceIndex('a1', null, isFreePlay: false);
 
       final after = readProgress(container, 'a1')!;
       expect(after.shadowingSentenceIndex, isNull);
@@ -1225,9 +1199,8 @@ void main() {
         LearningProgressState(progressMap: {'a1': baseProgress}),
       );
 
-      await notifier(
-        container,
-      ).saveDifficultPracticeSentenceIndex('a1', 7, isFreePlay: false);
+      await notifier(container)
+          .saveDifficultPracticeSentenceIndex('a1', 7, isFreePlay: false);
 
       final after = readProgress(container, 'a1')!;
       expect(after.difficultPracticeSentenceIndex, 7);
@@ -1241,9 +1214,8 @@ void main() {
         LearningProgressState(progressMap: {'a1': progressWithIndex}),
       );
 
-      await notifier(
-        container,
-      ).saveDifficultPracticeSentenceIndex('a1', null, isFreePlay: false);
+      await notifier(container)
+          .saveDifficultPracticeSentenceIndex('a1', null, isFreePlay: false);
 
       final after = readProgress(container, 'a1')!;
       expect(after.difficultPracticeSentenceIndex, isNull);
@@ -1254,9 +1226,8 @@ void main() {
         LearningProgressState(progressMap: {'a1': baseProgress}),
       );
 
-      await notifier(
-        container,
-      ).saveRetellSentenceIndex('a1', 2, isFreePlay: false);
+      await notifier(container)
+          .saveRetellSentenceIndex('a1', 2, isFreePlay: false);
 
       final after = readProgress(container, 'a1')!;
       expect(after.retellSentenceIndex, 2);
@@ -1268,9 +1239,8 @@ void main() {
         LearningProgressState(progressMap: {'a1': progressWithIndex}),
       );
 
-      await notifier(
-        container,
-      ).saveRetellSentenceIndex('a1', null, isFreePlay: false);
+      await notifier(container)
+          .saveRetellSentenceIndex('a1', null, isFreePlay: false);
 
       final after = readProgress(container, 'a1')!;
       expect(after.retellSentenceIndex, isNull);
@@ -1282,15 +1252,13 @@ void main() {
       await notifier(
         container,
       ).saveIntensiveListenSentenceIndex('nonexistent', 5, isFreePlay: false);
-      await notifier(
-        container,
-      ).saveShadowingSentenceIndex('nonexistent', 5, isFreePlay: false);
+      await notifier(container)
+          .saveShadowingSentenceIndex('nonexistent', 5, isFreePlay: false);
       await notifier(
         container,
       ).saveDifficultPracticeSentenceIndex('nonexistent', 5, isFreePlay: false);
-      await notifier(
-        container,
-      ).saveRetellSentenceIndex('nonexistent', 5, isFreePlay: false);
+      await notifier(container)
+          .saveRetellSentenceIndex('nonexistent', 5, isFreePlay: false);
 
       final progress = readProgress(container, 'nonexistent');
       expect(progress?.intensiveListenSentenceIndex, 5);
@@ -1376,9 +1344,8 @@ void main() {
       final container = createContainer(const LearningProgressState());
 
       await notifier(container).incrementBlindListenPassCount('nonexistent');
-      await notifier(
-        container,
-      ).incrementIntensiveListenPassCount('nonexistent');
+      await notifier(container)
+          .incrementIntensiveListenPassCount('nonexistent');
       await notifier(container).incrementShadowingPassCount('nonexistent');
       await notifier(container).incrementRetellPassCount('nonexistent');
 
@@ -1456,9 +1423,8 @@ void main() {
         planVersionsJson: '{}',
         updatedAt: DateTime(2026, 3, 11, 9, 30),
       );
-      when(
-        () => mockDao.getByAudioId('a1'),
-      ).thenAnswer((_) async => persistedRow);
+      when(() => mockDao.getByAudioId('a1'))
+          .thenAnswer((_) async => persistedRow);
 
       final container = createContainer(const LearningProgressState());
 
@@ -1539,9 +1505,8 @@ void main() {
         planVersionsJson: '{}',
         updatedAt: DateTime(2026, 3, 11, 9, 30),
       );
-      when(
-        () => mockDao.getByAudioId('a1'),
-      ).thenAnswer((_) async => persistedRow);
+      when(() => mockDao.getByAudioId('a1'))
+          .thenAnswer((_) async => persistedRow);
 
       final container = createContainer(
         LearningProgressState(progressMap: {'a1': stale}),
@@ -1918,9 +1883,8 @@ void main() {
     test('audioItemId 不存在时安全返回', () async {
       final container = createContainer(const LearningProgressState());
 
-      await notifier(
-        container,
-      ).setDifficulty('nonexistent', DifficultyLevel.hard);
+      await notifier(container)
+          .setDifficulty('nonexistent', DifficultyLevel.hard);
       verifyNever(() => mockDao.upsert(any()));
     });
   });
@@ -2011,9 +1975,8 @@ void main() {
 
       await notifier(container).deleteProgress('nonexistent');
       verify(() => mockDao.deleteByAudioId('nonexistent')).called(1);
-      verify(
-        () => mockStageCompletionDao.deleteByAudioId('nonexistent'),
-      ).called(1);
+      verify(() => mockStageCompletionDao.deleteByAudioId('nonexistent'))
+          .called(1);
     });
 
     test('resetProgress 删除旧状态后立即创建逐句精听首步', () async {
@@ -2465,9 +2428,8 @@ void main() {
         bookmarks: {3},
       );
 
-      final result = await notifier(
-        container,
-      ).refreshDifficultyFromBookmarks('a1', 9);
+      final result = await notifier(container)
+          .refreshDifficultyFromBookmarks('a1', 9);
 
       expect(result, DifficultyLevel.medium);
       expect(readProgress(container, 'a1')!.difficulty, DifficultyLevel.medium);
@@ -2482,9 +2444,8 @@ void main() {
         bookmarks: <int>{},
       );
 
-      final result = await notifier(
-        container,
-      ).refreshDifficultyFromBookmarks('a1', 9);
+      final result = await notifier(container)
+          .refreshDifficultyFromBookmarks('a1', 9);
 
       expect(result, DifficultyLevel.veryEasy);
       expect(
@@ -2501,9 +2462,8 @@ void main() {
         bookmarks: {0, 1, 2, 3},
       );
 
-      final result = await notifier(
-        container,
-      ).refreshDifficultyFromBookmarks('a1', 9);
+      final result = await notifier(container)
+          .refreshDifficultyFromBookmarks('a1', 9);
 
       expect(result, DifficultyLevel.veryHard);
     });
@@ -2516,9 +2476,8 @@ void main() {
         bookmarks: {3}, // 1/9 → medium，与现有一致
       );
 
-      final result = await notifier(
-        container,
-      ).refreshDifficultyFromBookmarks('a1', 9);
+      final result = await notifier(container)
+          .refreshDifficultyFromBookmarks('a1', 9);
 
       expect(result, DifficultyLevel.medium);
       verifyNever(() => mockDao.upsert(any()));
@@ -2532,9 +2491,8 @@ void main() {
         bookmarks: <int>{},
       );
 
-      final result = await notifier(
-        container,
-      ).refreshDifficultyFromBookmarks('a1', 0);
+      final result = await notifier(container)
+          .refreshDifficultyFromBookmarks('a1', 0);
 
       expect(result, DifficultyLevel.hard);
       expect(readProgress(container, 'a1')!.difficulty, DifficultyLevel.hard);
@@ -2547,9 +2505,8 @@ void main() {
         bookmarks: {0, 1, 2, 3},
       );
 
-      final result = await notifier(
-        container,
-      ).refreshDifficultyFromBookmarks('missing', 9);
+      final result = await notifier(container)
+          .refreshDifficultyFromBookmarks('missing', 9);
 
       expect(result, DifficultyLevel.medium);
       verifyNever(() => mockDao.upsert(any()));

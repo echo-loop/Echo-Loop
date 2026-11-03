@@ -162,9 +162,15 @@ void main() {
           transcriptionApiClientProvider.overrideWith(
             (ref) => createTestTranscriptionApiClient(),
           ),
-          supabaseSessionProvider.overrideWithValue(AsyncData<Session?>(session)),
+          supabaseSessionProvider.overrideWithValue(
+            AsyncData<Session?>(session),
+          ),
           // 已登录用户视为已解锁（Pro），使转录机制测试不被额度闸拦截。
           subscriptionEntitlementOverride(pro: subscriptionPro),
+          ...learningSettingsOverrides(
+            podcastTranscriptReminderShown: podcastTranscriptReminderShown,
+            prefs: prefs,
+          ),
           ...extraOverrides,
         ]),
       );
@@ -468,9 +474,8 @@ void main() {
       });
 
       testWidgets('AI 转录读取远程时长限制并在弹窗内显示错误提示', (tester) async {
-        final item = createTestAudioItem(
-          totalDuration: 2 * 60,
-        ).copyWith(transcriptSource: TranscriptSource.local);
+        final item = createTestAudioItem(totalDuration: 2 * 60)
+            .copyWith(transcriptSource: TranscriptSource.local);
         await tester.pumpWidget(
           buildSheet(
             item,
