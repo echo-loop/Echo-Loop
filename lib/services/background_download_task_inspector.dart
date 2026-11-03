@@ -50,11 +50,14 @@ class DownloadTaskInspector {
 
   final FileDownloader downloader;
 
+  /// 按创建时间倒序返回，最近发起的下载排在最前；插件默认顺序不保证。
   Future<List<DownloadTaskInfo>> list() async {
     final records = await downloader.database.allRecords(
       group: kUserFilesDownloadGroup,
     );
-    return records.map(_toInfo).toList(growable: false);
+    final sortedRecords = [...records]
+      ..sort((a, b) => b.task.creationTime.compareTo(a.task.creationTime));
+    return sortedRecords.map(_toInfo).toList(growable: false);
   }
 
   /// 取消仍在运行或排队的任务，再删除持久化记录。

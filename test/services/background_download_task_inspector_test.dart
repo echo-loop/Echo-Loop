@@ -24,6 +24,7 @@ void main() {
     String taskId, {
     String fileName = 'a.mp3',
     String displayName = '',
+    DateTime? creationTime,
   }) {
     return DownloadTask(
       taskId: taskId,
@@ -33,8 +34,45 @@ void main() {
       retries: 2,
       metaData: 'audio:$taskId',
       displayName: displayName,
+      creationTime: creationTime,
     );
   }
+
+  test('lists tasks newest first by creation time', () async {
+    final base = DateTime(2026, 11, 1);
+    when(() => database.allRecords(group: kUserFilesDownloadGroup)).thenAnswer(
+      (_) async => [
+        TaskRecord(
+          taskWithId('oldest', creationTime: base),
+          TaskStatus.complete,
+          1,
+          100,
+        ),
+        TaskRecord(
+          taskWithId(
+            'newest',
+            creationTime: base.add(const Duration(hours: 2)),
+          ),
+          TaskStatus.running,
+          0.5,
+          100,
+        ),
+        TaskRecord(
+          taskWithId(
+            'middle',
+            creationTime: base.add(const Duration(hours: 1)),
+          ),
+          TaskStatus.failed,
+          -1,
+          -1,
+        ),
+      ],
+    );
+
+    final infos = await inspector.list();
+
+    expect(infos.map((info) => info.taskId), ['newest', 'middle', 'oldest']);
+  });
 
   test('maps records to view models without leaking the full url', () async {
     final failedTask = taskWithId('failed', fileName: 'b.mp3');
