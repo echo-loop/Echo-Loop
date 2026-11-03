@@ -48,3 +48,43 @@ class DeveloperOptions extends Notifier<bool> {
     }
   }
 }
+
+const _useSystemProxyForDownloadsKey = 'developer_use_system_proxy';
+
+/// 后台下载是否使用 macOS 系统代理，默认开启。
+///
+/// 没有系统代理时开关不改变行为（直连），因此默认开启不会影响未设代理的用户。
+/// 下载入队时直接读取持久化值，而不是依赖 [useSystemProxyForDownloadsProvider] 的
+/// 异步加载结果，避免应用刚启动时的第一次下载读到默认值。
+const _useSystemProxyForDownloadsDefault = true;
+
+Future<bool> readUseSystemProxyForDownloads() async {
+  final prefs = await SharedPreferences.getInstance();
+  return prefs.getBool(_useSystemProxyForDownloadsKey) ??
+      _useSystemProxyForDownloadsDefault;
+}
+
+final useSystemProxyForDownloadsProvider =
+    NotifierProvider<UseSystemProxyForDownloads, bool>(
+      UseSystemProxyForDownloads.new,
+    );
+
+/// 「使用系统代理下载」开关状态，写入 SharedPreferences。
+class UseSystemProxyForDownloads extends Notifier<bool> {
+  @override
+  bool build() {
+    unawaited(_loadFromPrefs());
+    return _useSystemProxyForDownloadsDefault;
+  }
+
+  Future<void> _loadFromPrefs() async {
+    final saved = await readUseSystemProxyForDownloads();
+    if (saved != state) state = saved;
+  }
+
+  Future<void> setEnabled(bool value) async {
+    state = value;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_useSystemProxyForDownloadsKey, value);
+  }
+}

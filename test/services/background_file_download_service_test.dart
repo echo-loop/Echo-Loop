@@ -6,6 +6,7 @@ import 'package:echo_loop/services/app_logger.dart';
 import 'package:flutter/foundation.dart' show FlutterError;
 import 'package:echo_loop/services/background_file_download_service.dart';
 import 'package:echo_loop/services/resource_download_registry.dart';
+import 'package:echo_loop/services/system_proxy.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 
@@ -23,6 +24,12 @@ class _FakeFileDownloader extends Mock implements FileDownloader {
   TaskNotification? taskErrorNotification;
   bool notificationProgressBar = false;
   dynamic configuredGlobalConfig;
+
+  /// 系统代理相关的 configure 调用，按调用顺序记录。
+  final proxyConfigs = <List<(String, dynamic)>>[];
+
+  /// 代理配置与入队的先后顺序，用于验证代理先于入队生效。
+  final events = <String>[];
   final enqueuedFileNames = <String>[];
   final enqueuedDisplayNames = <String?>[];
   final enqueuedTasks = <DownloadTask>[];
@@ -59,8 +66,14 @@ class _FakeFileDownloader extends Mock implements FileDownloader {
     dynamic iOSConfig,
     dynamic desktopConfig,
   }) async {
-    calls.add('configure');
-    configuredGlobalConfig = globalConfig;
+    final entries = (globalConfig as List).cast<(String, dynamic)>();
+    if (entries.any((entry) => entry.$1 == Config.proxy)) {
+      proxyConfigs.add(entries);
+      events.add('proxy');
+    } else {
+      calls.add('configure');
+      configuredGlobalConfig = globalConfig;
+    }
     return const <(String, String)>[];
   }
 
@@ -138,6 +151,7 @@ class _FakeFileDownloader extends Mock implements FileDownloader {
 
   @override
   Future<bool> enqueue(Task task) async {
+    events.add('enqueue');
     if (task case final DownloadTask downloadTask) {
       enqueuedFileNames.add(downloadTask.filename);
       enqueuedDisplayNames.add(downloadTask.displayName);
@@ -843,5 +857,108 @@ void main() {
     );
 
     expect(progress.last, (100, 100));
+  });
+
+  group('系统代理', () {
+    /// 触发一次下载；假插件固定返回失败，这里只关心入队前的代理配置。
+    Future<void> downloadOnce(
+      PluginBackgroundDownloadRunner runner,
+      Directory dataDir,
+      String id,
+    ) {
+      final service = BackgroundFileDownloadService(runner: runner);
+      return expectLater(
+        service.download(
+          uri: Uri.parse('https://example.com/$id.mp3'),
+          savePath: '${dataDir.path}/$id.mp3',
+        ),
+        throwsA(anything),
+      );
+    }
+
+    test('开启系统代理时，入队前把代理端点写入插件配置', () async {
+      final dataDir = await Directory.systemTemp.createTemp('proxy_on_');
+      addTearDown(() => dataDir.delete(recursive: true));
+      final downloader = _FakeFileDownloader(
+        TaskFileSystemException('simulated failure'),
+      );
+      final runner = PluginBackgroundDownloadRunner(
+        resolveDataDir: () async => dataDir,
+        downloader: downloader,
+        resolveDownloadProxy: () async =>
+            const SystemProxyEndpoint(host: '127.0.0.1', port: 7897),
+      );
+
+      await downloadOnce(runner, dataDir, 'episode');
+
+      expect(downloader.proxyConfigs, [
+        [(Config.proxy, ('127.0.0.1', 7897))],
+      ]);
+      // 代理配置必须早于入队，否则本次任务仍会直连。
+      expect(downloader.events, ['proxy', 'enqueue']);
+    });
+
+    test('关闭系统代理时，明确清除插件中的代理配置', () async {
+      final dataDir = await Directory.systemTemp.createTemp('proxy_off_');
+      addTearDown(() => dataDir.delete(recursive: true));
+      final downloader = _FakeFileDownloader(
+        TaskFileSystemException('simulated failure'),
+      );
+      final runner = PluginBackgroundDownloadRunner(
+        resolveDataDir: () async => dataDir,
+        downloader: downloader,
+        resolveDownloadProxy: () async => null,
+      );
+
+      await downloadOnce(runner, dataDir, 'episode');
+
+      expect(downloader.proxyConfigs, [
+        [(Config.proxy, false)],
+      ]);
+    });
+
+    test('代理端点未变化时，连续下载只配置一次', () async {
+      final dataDir = await Directory.systemTemp.createTemp('proxy_same_');
+      addTearDown(() => dataDir.delete(recursive: true));
+      final downloader = _FakeFileDownloader(
+        TaskFileSystemException('simulated failure'),
+      );
+      final runner = PluginBackgroundDownloadRunner(
+        resolveDataDir: () async => dataDir,
+        downloader: downloader,
+        resolveDownloadProxy: () async =>
+            const SystemProxyEndpoint(host: '127.0.0.1', port: 7897),
+      );
+
+      await downloadOnce(runner, dataDir, 'first');
+      await downloadOnce(runner, dataDir, 'second');
+
+      expect(downloader.proxyConfigs, hasLength(1));
+    });
+
+    test('用户在两次下载之间切换开关时，下一次下载生效', () async {
+      final dataDir = await Directory.systemTemp.createTemp('proxy_switch_');
+      addTearDown(() => dataDir.delete(recursive: true));
+      final downloader = _FakeFileDownloader(
+        TaskFileSystemException('simulated failure'),
+      );
+      var enabled = false;
+      final runner = PluginBackgroundDownloadRunner(
+        resolveDataDir: () async => dataDir,
+        downloader: downloader,
+        resolveDownloadProxy: () async => enabled
+            ? const SystemProxyEndpoint(host: '127.0.0.1', port: 7897)
+            : null,
+      );
+
+      await downloadOnce(runner, dataDir, 'first');
+      enabled = true;
+      await downloadOnce(runner, dataDir, 'second');
+
+      expect(downloader.proxyConfigs, [
+        [(Config.proxy, false)],
+        [(Config.proxy, ('127.0.0.1', 7897))],
+      ]);
+    });
   });
 }

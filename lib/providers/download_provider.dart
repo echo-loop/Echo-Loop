@@ -7,12 +7,14 @@ import '../l10n/app_localizations.dart';
 import '../services/background_download_task_inspector.dart';
 import '../services/background_file_download_service.dart';
 import '../services/resource_download_registry.dart';
+import '../services/system_proxy.dart';
 import '../services/download/download_resource.dart';
 import '../services/download/download_task_coordinator.dart';
 import '../services/download/download_task_store.dart';
 import '../services/resource_download_registry.dart';
 import '../features/onboarding_survey/providers/onboarding_survey_provider.dart'
     show sharedPreferencesProvider;
+import 'developer_options_provider.dart';
 import 'settings_provider.dart';
 
 final downloadResourcesProvider = Provider<List<DownloadResource>>(
@@ -56,6 +58,10 @@ final backgroundFileDownloadServiceProvider =
           settingLocale: ref.read(appSettingsProvider).locale,
           systemLocale: PlatformDispatcher.instance.locale,
         ),
+        resolveDownloadProxy: () async {
+          if (!await readUseSystemProxyForDownloads()) return null;
+          return readSystemProxy();
+        },
       ),
     );
 

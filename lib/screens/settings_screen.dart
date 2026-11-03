@@ -920,6 +920,17 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ),
           ),
         ),
+        // 仅 macOS：插件桌面端客户端不读取系统代理，开启后把系统代理写入下载插件。
+        if (defaultTargetPlatform == TargetPlatform.macOS)
+          SwitchListTile(
+            secondary: _emojiIcon('🌐'),
+            title: const Text('下载使用系统代理'),
+            subtitle: const Text('默认开启；读取 macOS 系统代理，对之后开始的下载生效。无系统代理时直连'),
+            value: ref.watch(useSystemProxyForDownloadsProvider),
+            onChanged: (value) => ref
+                .read(useSystemProxyForDownloadsProvider.notifier)
+                .setEnabled(value),
+          ),
       ],
     );
   }

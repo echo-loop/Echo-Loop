@@ -9,6 +9,7 @@ import 'package:uuid/uuid.dart';
 import 'app_logger.dart';
 import 'background_file_download_exception.dart';
 import 'resource_download_registry.dart';
+import 'system_proxy.dart';
 import '../utils/app_data_dir.dart';
 
 export 'background_file_download_exception.dart';
@@ -260,8 +261,14 @@ class BackgroundFileDownloadService {
     ResourceDownloadRegistry? registry,
     Future<Directory> Function()? resolveDataDir,
     BackgroundFileDownloadNotificationLabelResolver? resolveNotificationLabels,
+    DownloadProxyResolver? resolveDownloadProxy,
   }) : _runner =
-           runner ?? _defaultRunner(resolveDataDir, resolveNotificationLabels),
+           runner ??
+           _defaultRunner(
+             resolveDataDir,
+             resolveNotificationLabels,
+             resolveDownloadProxy,
+           ),
        _registry = registry ?? sharedResourceDownloadRegistry;
 
   final ResourceDownloadRegistry _registry;
@@ -269,10 +276,12 @@ class BackgroundFileDownloadService {
   static BackgroundDownloadRunner _defaultRunner(
     Future<Directory> Function()? resolveDataDir,
     BackgroundFileDownloadNotificationLabelResolver? resolveNotificationLabels,
+    DownloadProxyResolver? resolveDownloadProxy,
   ) {
     return PluginBackgroundDownloadRunner(
       resolveDataDir: resolveDataDir ?? getAppDataDirectory,
       resolveNotificationLabels: resolveNotificationLabels,
+      resolveDownloadProxy: resolveDownloadProxy,
     );
   }
 
@@ -622,6 +631,9 @@ class BackgroundFileDownloadService {
 }
 
 /// `background_downloader` 的平台队列适配器。
+/// 返回本次下载应使用的代理；null 表示直连。每次入队前调用，以便开关即时生效。
+typedef DownloadProxyResolver = Future<SystemProxyEndpoint?> Function();
+
 class PluginBackgroundDownloadRunner
     implements BackgroundDownloadRunner, BackgroundDownloadBatchRunner {
   PluginBackgroundDownloadRunner({
@@ -629,20 +641,27 @@ class PluginBackgroundDownloadRunner
     FileDownloader? downloader,
     Uuid? uuid,
     BackgroundFileDownloadNotificationLabelResolver? resolveNotificationLabels,
+    DownloadProxyResolver? resolveDownloadProxy,
   }) : _resolveDataDir = resolveDataDir,
        _downloader = downloader ?? FileDownloader(),
        _uuid = uuid ?? const Uuid(),
        _resolveNotificationLabels = _guardNotificationLabels(
          resolveNotificationLabels ?? _englishNotificationLabels,
-       );
+       ),
+       _resolveDownloadProxy = resolveDownloadProxy ?? _noDownloadProxy;
 
   final Future<Directory> Function() _resolveDataDir;
   final FileDownloader _downloader;
   final Uuid _uuid;
   final BackgroundFileDownloadNotificationLabelResolver
   _resolveNotificationLabels;
+  final DownloadProxyResolver _resolveDownloadProxy;
   final Map<String, _PendingDownload> _pending = {};
   Future<void>? _initialization;
+
+  /// 已写入插件的代理端点；尚未写入过时 [_hasAppliedProxy] 为 false。
+  SystemProxyEndpoint? _appliedProxy;
+  bool _hasAppliedProxy = false;
 
   @override
   Future<BackgroundDownloadResult> enqueue({
@@ -679,6 +698,7 @@ class PluginBackgroundDownloadRunner
     }
 
     await _ensureInitialized();
+    await _applyDownloadProxyIfChanged();
     final dataDir = await _resolveDataDir();
     final rootPath = p.normalize(dataDir.path);
     final targetPath = p.normalize(savePath);
@@ -801,6 +821,25 @@ class PluginBackgroundDownloadRunner
           );
         }
       }),
+    );
+  }
+
+  /// 把当前代理设置写入插件；端点与上次相同时不重复配置。
+  ///
+  /// 插件的桌面端 HTTP 客户端只使用 [Config.proxy]，不读取系统代理，所以必须显式写入。
+  /// 配置在任务启动时被读取：已在传输中的任务保持原代理，只影响之后入队的任务。
+  Future<void> _applyDownloadProxyIfChanged() async {
+    final proxy = await _resolveDownloadProxy();
+    if (_hasAppliedProxy && proxy == _appliedProxy) return;
+    final configValue = proxy == null ? false : (proxy.host, proxy.port);
+    await _downloader.configure(globalConfig: [(Config.proxy, configValue)]);
+    _appliedProxy = proxy;
+    _hasAppliedProxy = true;
+    AppLogger.log(
+      'BackgroundFileDownload',
+      proxy == null
+          ? 'proxy disabled, downloads connect directly'
+          : 'proxy applied host=${proxy.host} port=${proxy.port}',
     );
   }
 
@@ -1015,6 +1054,8 @@ BackgroundFileDownloadNotificationLabelResolver _guardNotificationLabels(
     }
   };
 }
+
+Future<SystemProxyEndpoint?> _noDownloadProxy() async => null;
 
 class _PendingDownload {
   _PendingDownload({
