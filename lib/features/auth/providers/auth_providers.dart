@@ -347,6 +347,42 @@ final supabaseSessionProvider = StreamProvider<Session?>((ref) {
   return _sessionAfterStartup(ref, authConfiguration);
 });
 
+/// Supabase Auth 客户端入口；测试可替换为内存实现。
+final supabaseAuthClientProvider = Provider<GoTrueClient>((ref) {
+  return Supabase.instance.client.auth;
+});
+
+/// 启动期接管 [supabaseSessionProvider]：先挂常驻监听，再等待首个 session。
+///
+/// 顺序是契约，不可颠倒。Riverpod 3 会暂停没有监听者的 StreamProvider，连带暂停
+/// 底层 Supabase 订阅、缓冲事件而不投递。若先 `read(.future)`，在没有 widget 监听时
+/// 会永久挂起，常驻监听也就装不上；会话状态只能停在 loading，直到某个页面 watch 才恢复，
+/// 期间登录成功也不会被感知（表现为已登录却仍提示未登录）。
+///
+/// 返回的订阅需由调用方持有到应用退出；之后每次认证状态变化都会回调 [onChanged]。
+({
+  ProviderSubscription<AsyncValue<Session?>> subscription,
+  Future<Session?> initialSession,
+})
+startSupabaseSessionTracking(
+  ProviderContainer container, {
+  required void Function(
+    AsyncValue<Session?>? previous,
+    AsyncValue<Session?> next,
+  )
+  onChanged,
+}) {
+  final subscription = container.listen(
+    supabaseSessionProvider,
+    onChanged,
+    fireImmediately: true,
+  );
+  return (
+    subscription: subscription,
+    initialSession: container.read(supabaseSessionProvider.future),
+  );
+}
+
 Stream<Session?> _sessionAfterStartup(
   Ref ref,
   Future<bool> authConfiguration,
@@ -387,7 +423,7 @@ Stream<Session?> _sessionAfterStartup(
     return;
   }
 
-  final auth = Supabase.instance.client.auth;
+  final auth = ref.read(supabaseAuthClientProvider);
   final initialSession = auth.currentSession;
   AppLogger.log(
     'AuthSession',

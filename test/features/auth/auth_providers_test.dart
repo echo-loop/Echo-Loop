@@ -65,6 +65,41 @@ class _ThrowingGoogleCredentialsProvider
 
 class _FakeUserAttributes extends Fake implements UserAttributes {}
 
+/// 模拟 gotrue 的 `onAuthStateChange`：每个新订阅都会先回放最近一次认证状态。
+class _ReplayingAuthStateChanges {
+  final StreamController<AuthState> _broadcast =
+      StreamController<AuthState>.broadcast();
+  AuthState? _latest;
+
+  Stream<AuthState> get stream => Stream<AuthState>.multi((controller) {
+    final latest = _latest;
+    if (latest != null) controller.add(latest);
+    final subscription = _broadcast.stream.listen(
+      controller.add,
+      onError: controller.addError,
+      onDone: controller.close,
+    );
+    controller.onCancel = subscription.cancel;
+  });
+
+  void emit(AuthState state) {
+    _latest = state;
+    _broadcast.add(state);
+  }
+}
+
+Session _sessionFor(String userId) => Session(
+  accessToken: 'token-$userId',
+  tokenType: 'bearer',
+  user: User(
+    id: userId,
+    appMetadata: const {},
+    userMetadata: const {},
+    aud: 'authenticated',
+    createdAt: '2026-11-03T00:00:00.000Z',
+  ),
+);
+
 void main() {
   setUpAll(() {
     registerFallbackValue(_FakeUserAttributes());
@@ -162,6 +197,75 @@ void main() {
       addTearDown(container.dispose);
 
       expect(await _sessionFuture(container), isNull);
+    });
+  });
+
+  group('startSupabaseSessionTracking（启动期常驻监听）', () {
+    late _MockGoTrueClient auth;
+    late _ReplayingAuthStateChanges authStates;
+    late ProviderContainer container;
+
+    setUp(() {
+      auth = _MockGoTrueClient();
+      authStates = _ReplayingAuthStateChanges();
+      when(() => auth.onAuthStateChange).thenAnswer((_) => authStates.stream);
+      when(() => auth.currentSession).thenReturn(null);
+      container = ProviderContainer(
+        overrides: dedupeOverrides([
+          supabaseAuthConfiguredProvider.overrideWith((ref) async => true),
+          thirdPartyStartupProvider.overrideWith(
+            (ref) async => const ThirdPartyStartupReport(
+              issues: [],
+              isSupabaseReady: true,
+              isRevenueCatReady: false,
+            ),
+          ),
+          supabaseAuthClientProvider.overrideWithValue(auth),
+        ]),
+      );
+    });
+
+    tearDown(() {
+      container.dispose();
+    });
+
+    test('无 widget 监听时，仍能等到已恢复的 session', () async {
+      authStates.emit(
+        AuthState(AuthChangeEvent.initialSession, _sessionFor('restored-user')),
+      );
+
+      final tracking = startSupabaseSessionTracking(
+        container,
+        onChanged: (_, __) {},
+      );
+      addTearDown(tracking.subscription.close);
+
+      final session = await tracking.initialSession.timeout(
+        const Duration(seconds: 2),
+      );
+      expect(session?.user.id, 'restored-user');
+    });
+
+    test('接管后，无其它监听者时的登录与登出都会反映到 isAuthenticatedProvider', () async {
+      authStates.emit(const AuthState(AuthChangeEvent.initialSession, null));
+
+      final tracking = startSupabaseSessionTracking(
+        container,
+        onChanged: (_, __) {},
+      );
+      addTearDown(tracking.subscription.close);
+      await tracking.initialSession;
+      expect(container.read(isAuthenticatedProvider), isFalse);
+
+      authStates.emit(
+        AuthState(AuthChangeEvent.signedIn, _sessionFor('user-1')),
+      );
+      await Future<void>.delayed(Duration.zero);
+      expect(container.read(isAuthenticatedProvider), isTrue);
+
+      authStates.emit(const AuthState(AuthChangeEvent.signedOut, null));
+      await Future<void>.delayed(Duration.zero);
+      expect(container.read(isAuthenticatedProvider), isFalse);
     });
   });
 

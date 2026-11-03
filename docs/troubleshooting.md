@@ -47,6 +47,7 @@
 - 7.32 media_kit 区间播放：软停止越过句尾带出下一句；seek 未落定就起播
 - 7.33 共享合集 / 播客未下载材料进入学习计划页：入口判断分散 → 进入逐句精听报 `file unavailable`
 - 7.37 同一资源多入口下载：查找再登记导致重复任务，取消需绑定具体任务
+- 7.38 Riverpod 3 暂停无监听 StreamProvider：启动会话永久挂起，登录后仍提示未登录
 
 ---
 
@@ -586,4 +587,17 @@
   - 「取消后立即再提交」的断言，不能先 `await cancelResource(...)`，那会等旧任务结束，测不到取消中的分支。需要让测试替身的取消完成可手动控制。
   - 测试里提前 `await` 取消会触发结果报错，断言要在触发取消前挂上（`expectLater` 先于触发）。
 - 相关代码：`lib/services/resource_download_registry.dart`、`lib/services/background_file_download_service.dart`（`downloadBatch` / `_execute` / `_subscribeProgress`）。
+- 修复时间：2026-11-03。
+
+### 7.38 Riverpod 3 暂停无监听 StreamProvider：启动会话永久挂起，登录后仍提示未登录
+
+- 现象：1.0.46 冷启动后，已登录用户在播客订阅页点「+」仍弹「请先登录」；去登录、登录成功后再点仍弹窗，反复数次；进入设置等页面或返回上一页再进来后恢复正常。
+- 根因：Riverpod 2 → 3（升级提交 `b880e422`，随 1.0.46 发布）起，没有任何监听者的 provider 会被暂停，StreamProvider 连带暂停底层订阅，事件只缓冲不投递。启动链路 `await ref.read(supabaseSessionProvider.future)` 发生在根级常驻监听安装之前，无 widget 监听时永久挂起，监听也装不上。会话长期停在 loading（`value == null`），`isAuthenticatedProvider` 为 `false`；登录成功的 `signedIn` 也被缓冲，直到某个页面 watch 会话才 flush。
+- 解法：`startSupabaseSessionTracking`（`auth_providers.dart`）把顺序固化为「先 `container.listen` 常驻监听，再等待 `.future`」，`main.dart` 启动时改用它；订阅由 `_EchoLoopAppState` 持有到退出。测试注入点 `supabaseAuthClientProvider` 替换 Supabase 客户端。
+- 规则：
+  - 在 Riverpod 3 中，`ref.read(streamProvider.future)` 只有在 provider 已有活跃监听者时才会完成。需要「等首值」时，先挂常驻监听（`container.listen` / `listenManual`，由 widget 或应用级 State 持有），再等待。
+  - 依赖 `provider.value` 做认证判断的代码，必须保证会话 provider 有常驻监听者，否则读到的是暂停前的旧值。仅在 provider 内部 `ref.listen` 不够：那个监听同样会随 provider 一起被暂停。
+  - 排查「登录了却仍未登录」时，先看日志里 `identity_sync_pending` 是否长时间不结束、`auth_state_changed` 是否晚于登录页 pop。
+- 测试约定：`auth_providers_test.dart` 中 `startSupabaseSessionTracking` 用例：先回放 `initialSession` 再启动接管，断言首值可在超时内到达；启动后无其它监听者时，登录 / 登出都能反映到 `isAuthenticatedProvider`。把顺序改回「先 await、后监听」会超时失败。
+- 相关代码：`lib/features/auth/providers/auth_providers.dart`（`startSupabaseSessionTracking`、`supabaseAuthClientProvider`）、`lib/main.dart`（`_startThirdPartyDependentTasks`）。
 - 修复时间：2026-11-03。
