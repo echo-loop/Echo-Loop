@@ -17,10 +17,12 @@ import 'package:echo_loop/config/client_distribution.dart';
 import 'package:echo_loop/features/subscription/state/entitlement_state.dart';
 import 'package:echo_loop/services/entitlement_signal_interceptor.dart';
 import 'package:fake_async/fake_async.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:flutter_riverpod/legacy.dart';
+
 import '../../helpers/mock_providers.dart';
 
 class _MockDio extends Mock implements Dio {}
@@ -697,6 +699,48 @@ void main() {
       expect(purchases.identifyCalls, contains(null));
       expect(cache.clears, greaterThanOrEqualTo(1));
     });
+  });
+
+  testWidgets('登出发生在页面构建期间 → 仍清权益、清缓存并解绑购买身份', (tester) async {
+    final cache = FakeEntitlementCache();
+    final purchases = FakePurchaseService();
+    final container = makeContainer(
+      identity: signedIn,
+      repo: FakeEntitlementRepository((_) async => proEntitlement),
+      cache: cache,
+      purchases: purchases,
+    );
+    container.listen(subscriptionControllerProvider, (_, __) {});
+    await tester.runAsync(() => Future<void>.delayed(Duration.zero));
+    expect(
+      container.read(subscriptionControllerProvider).status,
+      EntitlementStatus.premium,
+    );
+
+    // 页面 watch 身份：登出时身份重算发生在 build 中，触发 controller 监听。
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: Consumer(
+          builder: (context, ref, _) {
+            ref.watch(subscriptionIdentityProvider);
+            return const SizedBox();
+          },
+        ),
+      ),
+    );
+    container.read(testIdentityProvider.notifier).state =
+        SubscriptionIdentity.anonymous;
+    await tester.pump();
+    await tester.runAsync(() => Future<void>.delayed(Duration.zero));
+    await tester.pump();
+
+    expect(
+      container.read(subscriptionControllerProvider).status,
+      EntitlementStatus.free,
+    );
+    expect(purchases.identifyCalls, contains(null));
+    expect(cache.clears, greaterThanOrEqualTo(1));
   });
 
   test('登出时 RC 解绑未完成 → 本地立即清权益与缓存', () async {

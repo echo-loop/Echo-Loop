@@ -694,7 +694,11 @@ class SubscriptionController extends _$SubscriptionController {
         return;
       }
       // 登出是账号隔离边界：先本地 fail-closed，最后 best-effort 解绑购买身份。
-      _setEntitlementState(const EntitlementState.free());
+      // 登出可能由页面 build 期间的身份重算触发，此时 Riverpod 禁止修改 provider；
+      // 因此 state 写入推迟到当前帧结束，否则异常会中断后续清缓存与解绑。
+      await Future<void>.microtask(
+        () => _setEntitlementState(const EntitlementState.free()),
+      );
       await _cache.clear();
       try {
         await _purchases.identify(null);
