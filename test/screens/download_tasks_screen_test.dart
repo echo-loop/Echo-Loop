@@ -12,7 +12,7 @@ class _MockInspector extends Mock implements DownloadTaskInspector {}
 const _runningTask = DownloadTaskInfo(
   taskId: 'task-1',
   resourceKey: 'audio:42',
-  fileName: 'episode.mp3',
+  displayName: 'episode.mp3',
   host: 'cdn.example.com',
   status: TaskStatus.running,
   progress: 0.5,

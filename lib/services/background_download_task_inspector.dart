@@ -9,7 +9,7 @@ class DownloadTaskInfo {
   const DownloadTaskInfo({
     required this.taskId,
     required this.resourceKey,
-    required this.fileName,
+    required this.displayName,
     required this.host,
     required this.status,
     required this.progress,
@@ -23,7 +23,9 @@ class DownloadTaskInfo {
 
   /// 资源标识；同一资源的所有入口共享同一个下载任务。
   final String resourceKey;
-  final String fileName;
+
+  /// 用户可读名称（与下载通知一致）；未提供时回退为落盘文件名，后者常是 UUID。
+  final String displayName;
   final String host;
   final TaskStatus status;
 
@@ -87,7 +89,9 @@ class DownloadTaskInspector {
     return DownloadTaskInfo(
       taskId: record.taskId,
       resourceKey: record.task.metaData,
-      fileName: record.task.filename,
+      displayName: record.task.displayName.isNotEmpty
+          ? record.task.displayName
+          : record.task.filename,
       host: _hostOf(record.task.url),
       status: record.status,
       progress: progress,

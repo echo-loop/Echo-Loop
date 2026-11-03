@@ -97,7 +97,11 @@ class _DownloadTaskTile extends StatelessWidget {
     final theme = Theme.of(context);
     final progress = task.progress;
     return ListTile(
-      title: Text(task.fileName, maxLines: 1, overflow: TextOverflow.ellipsis),
+      title: Text(
+        task.displayName,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+      ),
       subtitle: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
