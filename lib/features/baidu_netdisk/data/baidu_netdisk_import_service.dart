@@ -21,26 +21,28 @@ import 'baidu_credential_repository.dart';
 import 'baidu_netdisk_api.dart';
 
 /// 百度网盘导入进度回调。
-typedef BaiduNetdiskImportProgressCallback =
-    void Function(CloudDriveEntry entry, int receivedBytes, int? totalBytes);
-
-/// 百度网盘批量导入中单条音频的最终结果回调。
-typedef BaiduNetdiskImportItemResultCallback =
-    void Function(CloudDriveImportItemResult result);
+typedef BaiduNetdiskImportProgressCallback = void Function(
+  CloudDriveEntry entry,
+  int receivedBytes,
+  int? totalBytes,
+);
 
 /// 百度网盘导入后给音频挂载字幕的回调。
-typedef BaiduNetdiskSubtitleImporter =
-    Future<void> Function(
-      AudioItem item, {
-      required String text,
-      required String ext,
-    });
+typedef BaiduNetdiskSubtitleImporter = Future<void> Function(
+  AudioItem item, {
+  required String text,
+  required String ext,
+});
 
 /// 百度网盘音频导入服务抽象。
 abstract interface class BaiduNetdiskImportService {
-  /// 导入单个百度网盘音频文件。
+  /// 导入单个百度网盘音频文件；提供 [subtitleEntry] 时同批下载并挂载字幕。
+  ///
+  /// 重复、失败、取消均以异常表达（[AudioImportException]）。字幕失败只记日志，
+  /// 不影响已入库的音频。
   Future<AudioItem> importAudio({
     required CloudDriveEntry entry,
+    CloudDriveEntry? subtitleEntry,
     required AudioLibrary audioLibrary,
     required AudioLibraryState audioLibraryState,
     CollectionList? collectionList,
@@ -48,20 +50,6 @@ abstract interface class BaiduNetdiskImportService {
     String? collectionId,
     CancelToken? cancelToken,
     BaiduNetdiskImportProgressCallback? onProgress,
-  });
-
-  /// 批量导入百度网盘音频文件。
-  Future<CloudDriveImportOutcome> importAudios({
-    required List<CloudDriveEntry> entries,
-    List<CloudDriveEntry> subtitleEntries = const <CloudDriveEntry>[],
-    required AudioLibrary audioLibrary,
-    required AudioLibraryState audioLibraryState,
-    CollectionList? collectionList,
-    CollectionState? collectionState,
-    String? collectionId,
-    CancelToken? cancelToken,
-    BaiduNetdiskImportProgressCallback? onProgress,
-    BaiduNetdiskImportItemResultCallback? onItemResult,
   });
 }
 
@@ -92,6 +80,7 @@ class DefaultBaiduNetdiskImportService implements BaiduNetdiskImportService {
   @override
   Future<AudioItem> importAudio({
     required CloudDriveEntry entry,
+    CloudDriveEntry? subtitleEntry,
     required AudioLibrary audioLibrary,
     required AudioLibraryState audioLibraryState,
     CollectionList? collectionList,
@@ -99,18 +88,23 @@ class DefaultBaiduNetdiskImportService implements BaiduNetdiskImportService {
     String? collectionId,
     CancelToken? cancelToken,
     BaiduNetdiskImportProgressCallback? onProgress,
-    BaiduNetdiskImportItemResultCallback? onItemResult,
   }) async {
-    if (entry.isDirectory) {
-      throw AudioImportException(
-        AudioImportFailureCode.unsupportedFormat,
-        'Cannot import a directory: ${entry.name}',
-      );
-    }
-    if (!isImportablePrimaryMediaExtension(entry.extension)) {
-      throw AudioImportException(
-        AudioImportFailureCode.unsupportedFormat,
-        'Unsupported media format: .${entry.extension}',
+    _validateImportEntry(entry);
+
+    // 同一百度文件已在资源库中：不重复下载音频，只做合集关联与字幕挂载。
+    final existingItem = findBaiduLibraryItem(
+      audioLibraryState.audioItems,
+      entry.fsId,
+    );
+    if (existingItem != null) {
+      return _attachToExistingItem(
+        existingItem: existingItem,
+        subtitleEntry: subtitleEntry,
+        audioLibrary: audioLibrary,
+        collectionList: collectionList,
+        collectionState: collectionState,
+        collectionId: collectionId,
+        cancelToken: cancelToken,
       );
     }
 
@@ -127,7 +121,7 @@ class DefaultBaiduNetdiskImportService implements BaiduNetdiskImportService {
       cancelToken: cancelToken,
       onProgress: onProgress,
     );
-    return _finalizeAndRegisterAudio(
+    final item = await _finalizeAndRegisterAudio(
       entry: entry,
       dataDir: dataDir,
       tempRelativePath: tempRelativePath,
@@ -138,6 +132,97 @@ class DefaultBaiduNetdiskImportService implements BaiduNetdiskImportService {
       collectionId: collectionId,
       cancelToken: cancelToken,
     );
+    final importer = _subtitleImporter;
+    if (subtitleEntry == null || importer == null) return item;
+    return _attachSubtitleEntry(
+      item: item,
+      subtitleEntry: subtitleEntry,
+      dataDir: dataDir,
+      accessToken: accessToken,
+      cancelToken: cancelToken,
+    );
+  }
+
+  /// 已导入的素材再次导入：加入目标合集（若尚未在其中），并在没有字幕时补挂字幕。
+  Future<AudioItem> _attachToExistingItem({
+    required AudioItem existingItem,
+    required CloudDriveEntry? subtitleEntry,
+    required AudioLibrary audioLibrary,
+    required CollectionList? collectionList,
+    required CollectionState? collectionState,
+    required String? collectionId,
+    required CancelToken? cancelToken,
+  }) async {
+    AppLogger.log(
+      'BaiduNetdiskImport',
+      '素材已在资源库中，跳过音频下载 item=${existingItem.id}',
+    );
+    if (collectionId != null) {
+      final audioIds =
+          collectionState?.getAudioIds(collectionId) ?? const <String>[];
+      if (!audioIds.contains(existingItem.id)) {
+        await collectionList?.addAudioToCollection(
+          collectionId,
+          existingItem.id,
+        );
+      }
+    }
+    final importer = _subtitleImporter;
+    if (subtitleEntry == null ||
+        importer == null ||
+        existingItem.hasTranscript) {
+      return existingItem;
+    }
+    final accessToken = await _credentialRepository.getValidAccessToken();
+    if (accessToken == null) {
+      throw const BaiduReauthorizationRequiredException();
+    }
+    return _attachSubtitleEntry(
+      item: existingItem,
+      subtitleEntry: subtitleEntry,
+      dataDir: await _resolveDataDir(),
+      accessToken: accessToken,
+      cancelToken: cancelToken,
+    );
+  }
+
+  /// 下载同名字幕并挂载到已入库的音频。字幕任何失败只记日志，音频保持入库。
+  Future<AudioItem> _attachSubtitleEntry({
+    required AudioItem item,
+    required CloudDriveEntry subtitleEntry,
+    required Directory dataDir,
+    required String accessToken,
+    required CancelToken? cancelToken,
+  }) async {
+    final savePath = _temporaryPath(dataDir, subtitleEntry);
+    try {
+      // 已导入素材不会经过音频下载，临时目录需要在这里确保存在。
+      await File(savePath).parent.create(recursive: true);
+      await _downloadWithFreshLink(
+        accessToken: accessToken,
+        entry: subtitleEntry,
+        savePath: savePath,
+        cancelToken: cancelToken,
+        onProgress: null,
+      );
+      final attached = await _attachDownloadedSubtitle(
+        item: item,
+        subtitleEntry: subtitleEntry,
+        savePath: savePath,
+        cancelToken: cancelToken,
+      );
+      return attached
+          ? item.copyWith(transcriptSource: TranscriptSource.local)
+          : item;
+    } on Object catch (error) {
+      AppLogger.log(
+        'BaiduNetdiskImport',
+        'subtitle download failed for "${item.name}": $error',
+      );
+      return item;
+    } finally {
+      await _deleteIfExists(File(savePath));
+    }
   }
 
   Future<AudioItem> _finalizeAndRegisterAudio({
@@ -207,324 +292,6 @@ class DefaultBaiduNetdiskImportService implements BaiduNetdiskImportService {
     }
   }
 
-  @override
-  Future<CloudDriveImportOutcome> importAudios({
-    required List<CloudDriveEntry> entries,
-    List<CloudDriveEntry> subtitleEntries = const <CloudDriveEntry>[],
-    required AudioLibrary audioLibrary,
-    required AudioLibraryState audioLibraryState,
-    CollectionList? collectionList,
-    CollectionState? collectionState,
-    String? collectionId,
-    CancelToken? cancelToken,
-    BaiduNetdiskImportProgressCallback? onProgress,
-    BaiduNetdiskImportItemResultCallback? onItemResult,
-  }) async {
-    final added = <CloudDriveEntry>[];
-    final addedItems = <AudioItem>[];
-    final duplicateDetails = <AudioImportDuplicate>[];
-    final duplicateEntries = <CloudDriveEntry>[];
-    final failures = <CloudDriveImportFailure>[];
-    var currentLibraryState = audioLibraryState;
-    var wasCanceled = false;
-    final subtitleByAudio = _matchSubtitleEntries(entries, subtitleEntries);
-    final dataDir = await _resolveDataDir();
-    final accessToken = await _credentialRepository.getValidAccessToken();
-    if (accessToken == null) {
-      throw const BaiduReauthorizationRequiredException();
-    }
-
-    final requestsById = <String, BaiduNetdiskDownloadRequest>{};
-    final failuresByRequestId = <String, Object>{};
-    final entryByAudioRequestId = <String, CloudDriveEntry>{};
-    final requestIdByAudioId = <int, String>{};
-    final requestIdBySubtitleAudioId = <int, String>{};
-    final subtitleByRequestId = <String, CloudDriveEntry>{};
-
-    // 先解析整批 dlink，再交给原生下载队列，后台挂起时队列也能启动后续文件。
-    for (final entry in entries) {
-      if (cancelToken?.isCancelled ?? false) {
-        wasCanceled = true;
-        break;
-      }
-      final requestId = 'audio-${entry.fsId}';
-      requestIdByAudioId[entry.fsId] = requestId;
-      entryByAudioRequestId[requestId] = entry;
-      try {
-        _validateImportEntry(entry);
-        final link = await _api.fetchDownloadLink(
-          accessToken: accessToken,
-          fsId: entry.fsId,
-        );
-        requestsById[requestId] = BaiduNetdiskDownloadRequest(
-          id: requestId,
-          fsId: entry.fsId,
-          displayName: entry.name,
-          dlink: link.dlink,
-          savePath: _temporaryPath(dataDir, entry),
-        );
-      } on Object catch (error) {
-        failuresByRequestId[requestId] = error;
-      }
-    }
-
-    if (!wasCanceled && _subtitleImporter != null) {
-      for (final entry in entries) {
-        final subtitle = subtitleByAudio[entry.fsId];
-        if (subtitle == null) continue;
-        if (cancelToken?.isCancelled ?? false) {
-          wasCanceled = true;
-          break;
-        }
-        final requestId = 'subtitle-${subtitle.fsId}';
-        requestIdBySubtitleAudioId[entry.fsId] = requestId;
-        subtitleByRequestId[requestId] = subtitle;
-        try {
-          final link = await _api.fetchDownloadLink(
-            accessToken: accessToken,
-            fsId: subtitle.fsId,
-          );
-          requestsById[requestId] = BaiduNetdiskDownloadRequest(
-            id: requestId,
-            fsId: subtitle.fsId,
-            displayName: subtitle.name,
-            dlink: link.dlink,
-            savePath: _temporaryPath(dataDir, subtitle),
-          );
-        } on Object catch (error) {
-          failuresByRequestId[requestId] = error;
-        }
-      }
-    }
-
-    final resultsById = <String, BaiduNetdiskDownloadItemResult>{};
-    final requests = requestsById.values.toList(growable: false);
-    if (!wasCanceled && requests.isNotEmpty) {
-      final results = await _api.downloadFiles(
-        accessToken: accessToken,
-        requests: requests,
-        cancelToken: cancelToken,
-        onProgress: (requestId, received, total) {
-          final entry = entryByAudioRequestId[requestId];
-          if (entry != null) onProgress?.call(entry, received, total);
-        },
-      );
-      for (final result in results) {
-        resultsById[result.request.id] = result;
-      }
-
-      // dlink 过期或网络错误仍刷新一次，再把失败任务交回同一通用队列。
-      final retryRequests = <BaiduNetdiskDownloadRequest>[];
-      for (final result in results) {
-        final failure = result.failure;
-        if (failure == null || !_shouldRefreshDlink(failure)) continue;
-        try {
-          final refreshed = await _api.fetchDownloadLink(
-            accessToken: accessToken,
-            fsId: result.request.fsId,
-          );
-          retryRequests.add(
-            BaiduNetdiskDownloadRequest(
-              id: result.request.id,
-              fsId: result.request.fsId,
-              displayName: result.request.displayName,
-              dlink: refreshed.dlink,
-              savePath: result.request.savePath,
-            ),
-          );
-        } on Object catch (error) {
-          failuresByRequestId[result.request.id] = error;
-        }
-      }
-      if (retryRequests.isNotEmpty && !(cancelToken?.isCancelled ?? false)) {
-        final retryResults = await _api.downloadFiles(
-          accessToken: accessToken,
-          requests: retryRequests,
-          cancelToken: cancelToken,
-          onProgress: (requestId, received, total) {
-            final entry = entryByAudioRequestId[requestId];
-            if (entry != null) onProgress?.call(entry, received, total);
-          },
-        );
-        for (final result in retryResults) {
-          resultsById[result.request.id] = result;
-        }
-      }
-    }
-    if (cancelToken?.isCancelled ?? false) wasCanceled = true;
-
-    try {
-      for (final entry in entries) {
-        final requestId =
-            requestIdByAudioId[entry.fsId] ?? 'audio-${entry.fsId}';
-        final error =
-            failuresByRequestId[requestId] ?? resultsById[requestId]?.failure;
-        if (error != null) {
-          if (_isCanceled(error)) {
-            wasCanceled = true;
-            continue;
-          }
-          _reportFailure(entry, error, failures, onItemResult);
-          continue;
-        }
-        final request = requestsById[requestId];
-        if (request == null) {
-          if (cancelToken?.isCancelled ?? false) {
-            wasCanceled = true;
-            continue;
-          }
-          _reportFailure(
-            entry,
-            StateError('Missing prepared download for ${entry.name}'),
-            failures,
-            onItemResult,
-          );
-          continue;
-        }
-        if (!resultsById.containsKey(requestId)) {
-          if (cancelToken?.isCancelled ?? false) {
-            wasCanceled = true;
-            continue;
-          }
-          _reportFailure(
-            entry,
-            StateError('Missing completed download for ${entry.name}'),
-            failures,
-            onItemResult,
-          );
-          continue;
-        }
-
-        try {
-          // 取消整批时仍完成已下载文件的入库，避免丢弃此前已完成的任务。
-          final itemCancelToken = cancelToken?.isCancelled ?? false
-              ? null
-              : cancelToken;
-          final item = await _finalizeAndRegisterAudio(
-            entry: entry,
-            dataDir: dataDir,
-            tempRelativePath: p.relative(request.savePath, from: dataDir.path),
-            audioLibrary: audioLibrary,
-            audioLibraryState: currentLibraryState,
-            collectionList: collectionList,
-            collectionState: collectionState,
-            collectionId: collectionId,
-            cancelToken: itemCancelToken,
-          );
-          var importedItem = item;
-          final subtitleRequestId = requestIdBySubtitleAudioId[entry.fsId];
-          final subtitleRequest = subtitleRequestId == null
-              ? null
-              : requestsById[subtitleRequestId];
-          final subtitleError = subtitleRequestId == null
-              ? null
-              : failuresByRequestId[subtitleRequestId] ??
-                    resultsById[subtitleRequestId]?.failure;
-          final subtitleCanceled =
-              subtitleError != null && _isCanceled(subtitleError);
-          if (subtitleError != null) {
-            AppLogger.log(
-              'BaiduNetdiskImport',
-              'subtitle download failed for "${entry.name}": $subtitleError',
-            );
-          }
-          if (subtitleCanceled) wasCanceled = true;
-          if (subtitleRequest != null && subtitleError == null) {
-            final subtitle = subtitleByRequestId[subtitleRequestId];
-            if (subtitle != null &&
-                await _attachDownloadedSubtitle(
-                  item: importedItem,
-                  subtitleEntry: subtitle,
-                  savePath: subtitleRequest.savePath,
-                  cancelToken: itemCancelToken,
-                )) {
-              importedItem = importedItem.copyWith(
-                transcriptSource: TranscriptSource.local,
-              );
-            }
-          }
-          added.add(entry);
-          addedItems.add(importedItem);
-          onItemResult?.call(
-            CloudDriveImportItemResult.added(entry: entry, item: importedItem),
-          );
-          currentLibraryState = currentLibraryState.copyWith(
-            audioItems: [...currentLibraryState.audioItems, importedItem],
-          );
-        } on AudioImportException catch (error) {
-          if (error.code == AudioImportFailureCode.canceled) {
-            wasCanceled = true;
-            break;
-          }
-          if (error.code == AudioImportFailureCode.duplicate) {
-            final existingName = _existingNameFromDuplicateMessage(
-              error.message,
-            );
-            duplicateEntries.add(entry);
-            duplicateDetails.add((
-              attempted: _displayNameForEntry(entry),
-              existing: existingName,
-            ));
-            onItemResult?.call(
-              CloudDriveImportItemResult.duplicate(
-                entry: entry,
-                existingName: existingName,
-              ),
-            );
-            continue;
-          }
-          _reportFailure(entry, error, failures, onItemResult);
-        } on Object catch (error, stackTrace) {
-          if (_isCanceled(error)) {
-            wasCanceled = true;
-            break;
-          }
-          AppLogger.log(
-            'BaiduNetdiskImport',
-            'import "${entry.name}" failed unexpectedly: $error\n$stackTrace',
-          );
-          _reportFailure(entry, error, failures, onItemResult);
-        }
-      }
-    } finally {
-      for (final request in requestsById.values) {
-        await _deleteIfExists(File(request.savePath));
-      }
-    }
-
-    return CloudDriveImportOutcome(
-      added: added,
-      addedItems: addedItems,
-      duplicateDetails: duplicateDetails,
-      duplicateEntries: duplicateEntries,
-      failures: failures,
-      wasCanceled: wasCanceled,
-    );
-  }
-
-  Map<int, CloudDriveEntry> _matchSubtitleEntries(
-    List<CloudDriveEntry> audioEntries,
-    List<CloudDriveEntry> subtitleEntries,
-  ) {
-    if (audioEntries.isEmpty || subtitleEntries.isEmpty) {
-      return const <int, CloudDriveEntry>{};
-    }
-    final entriesByName = <String, CloudDriveEntry>{
-      for (final entry in [...audioEntries, ...subtitleEntries])
-        entry.name: entry,
-    };
-    final pairing = matchSubtitlesForAudios(entriesByName.keys);
-    final result = <int, CloudDriveEntry>{};
-    for (final audio in audioEntries) {
-      final subtitleName = pairing[audio.name];
-      final subtitle = subtitleName == null
-          ? null
-          : entriesByName[subtitleName];
-      if (subtitle != null) result[audio.fsId] = subtitle;
-    }
-    return result;
-  }
-
   /// 验证批量导入中的主媒体类型。
   void _validateImportEntry(CloudDriveEntry entry) {
     if (entry.isDirectory) {
@@ -548,38 +315,6 @@ class DefaultBaiduNetdiskImportService implements BaiduNetdiskImportService {
     'baidu_netdisk',
     '${entry.fsId}.${entry.extension}',
   );
-
-  bool _isCanceled(Object error) => switch (error) {
-    AudioImportException(code: AudioImportFailureCode.canceled) => true,
-    BaiduNetdiskFileException(kind: BaiduNetdiskFileErrorKind.canceled) => true,
-    DioException() when CancelToken.isCancel(error) => true,
-    _ => false,
-  };
-
-  void _reportFailure(
-    CloudDriveEntry entry,
-    Object error,
-    List<CloudDriveImportFailure> failures,
-    BaiduNetdiskImportItemResultCallback? onItemResult,
-  ) {
-    final failure = CloudDriveImportFailure(
-      entry: entry,
-      message: switch (error) {
-        AudioImportException(:final message) => message,
-        BaiduNetdiskFileException(:final message) => message,
-        _ => _messageForUnexpectedError(error),
-      },
-      errorKind: switch (error) {
-        AudioImportException(:final code) => code.name,
-        BaiduNetdiskFileException(:final kind) => kind.name,
-        _ => 'unknown',
-      },
-    );
-    failures.add(failure);
-    onItemResult?.call(
-      CloudDriveImportItemResult.failed(entry: entry, failure: failure),
-    );
-  }
 
   Future<bool> _attachDownloadedSubtitle({
     required AudioItem item,
@@ -676,6 +411,7 @@ class DefaultBaiduNetdiskImportService implements BaiduNetdiskImportService {
         accessToken: accessToken,
         dlink: link.dlink,
         savePath: savePath,
+        displayName: entry.name,
         resourceKey: baiduResourceKey(entry.fsId),
         cancelToken: cancelToken,
         onProgress: (received, total) =>
@@ -695,6 +431,7 @@ class DefaultBaiduNetdiskImportService implements BaiduNetdiskImportService {
         accessToken: accessToken,
         dlink: refreshed.dlink,
         savePath: savePath,
+        displayName: entry.name,
         resourceKey: baiduResourceKey(entry.fsId),
         cancelToken: cancelToken,
         onProgress: (received, total) =>
@@ -720,19 +457,8 @@ class DefaultBaiduNetdiskImportService implements BaiduNetdiskImportService {
     return name.isEmpty ? entry.name : name;
   }
 
-  String _existingNameFromDuplicateMessage(String message) {
-    const prefix = 'Audio already exists: ';
-    if (!message.startsWith(prefix)) return message;
-    return message.substring(prefix.length);
-  }
-
   String _sourceUrlForEntry(CloudDriveEntry entry) {
     return 'baidunetdisk://fs/${entry.fsId}?path=${Uri.encodeComponent(entry.path)}';
-  }
-
-  String _messageForUnexpectedError(Object error) {
-    final message = error.toString().trim();
-    return message.isEmpty ? 'Baidu Netdisk import failed.' : message;
   }
 
   Future<void> _deleteIfExists(File file) async {
@@ -741,4 +467,28 @@ class DefaultBaiduNetdiskImportService implements BaiduNetdiskImportService {
       await file.delete();
     } catch (_) {}
   }
+}
+
+/// 从百度网盘导入来源 URL（`baidunetdisk://fs/<fsId>?path=...`）解析 fs_id。
+///
+/// 与 [DefaultBaiduNetdiskImportService] 写入的格式保持一致；非百度来源返回 null。
+int? baiduFsIdFromImportSourceUrl(String? url) {
+  if (url == null) return null;
+  final uri = Uri.tryParse(url);
+  if (uri == null || uri.scheme != 'baidunetdisk' || uri.host != 'fs') {
+    return null;
+  }
+  if (uri.pathSegments.isEmpty) return null;
+  return int.tryParse(uri.pathSegments.first);
+}
+
+/// 在资源库中查找由同一百度文件（fs_id）导入的素材；没有时返回 null。
+AudioItem? findBaiduLibraryItem(Iterable<AudioItem> items, int fsId) {
+  for (final item in items) {
+    if (item.importSourceType != AudioImportSourceType.cloudDrive) continue;
+    if (baiduFsIdFromImportSourceUrl(item.importSourceUrl) == fsId) {
+      return item;
+    }
+  }
+  return null;
 }

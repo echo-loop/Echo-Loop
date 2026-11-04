@@ -15,17 +15,25 @@ String? downloadResourceKeyFor(AudioItem item) {
 
 /// 某条目的下载快照；列表行与计划页共用同一份数据，保证两处进度一致。
 class MediaDownloadSnapshot {
-  const MediaDownloadSnapshot({required this.progress});
+  const MediaDownloadSnapshot({
+    required this.progress,
+    this.speedBytesPerSecond,
+  });
 
   /// 0..1；-1 表示总大小未知（不定态），与下载器的原始语义保持一致。
   final double progress;
 
-  @override
-  bool operator ==(Object other) =>
-      other is MediaDownloadSnapshot && other.progress == progress;
+  /// 最近窗口内的平均下载速度（字节/秒）；采样不足时为 null。
+  final double? speedBytesPerSecond;
 
   @override
-  int get hashCode => progress.hashCode;
+  bool operator ==(Object other) =>
+      other is MediaDownloadSnapshot &&
+      other.progress == progress &&
+      other.speedBytesPerSecond == speedBytesPerSecond;
+
+  @override
+  int get hashCode => Object.hash(progress, speedBytesPerSecond);
 }
 
 /// 社区合集音频：存在 remoteAudioId，由社区下载器负责。
@@ -45,13 +53,19 @@ MediaDownloadSnapshot? downloadSnapshotFor({
   if (isCommunityMediaItem(item)) {
     final state = communityDownload;
     if (state is DownloadInProgress) {
-      return MediaDownloadSnapshot(progress: state.progress);
+      return MediaDownloadSnapshot(
+        progress: state.progress,
+        speedBytesPerSecond: state.speedBytesPerSecond,
+      );
     }
     return null;
   }
   final state = podcastDownload;
   if (state is AudioImportDownloading) {
-    return MediaDownloadSnapshot(progress: state.progress);
+    return MediaDownloadSnapshot(
+      progress: state.progress,
+      speedBytesPerSecond: state.speedBytesPerSecond,
+    );
   }
   // 保存阶段（写入本地）没有可靠进度，按不定态展示。
   if (state is AudioImportSaving) {
@@ -87,6 +101,7 @@ MediaReadiness resolveMediaReadiness({
     if (isQueued) return const MediaQueued();
     return MediaDownloading(
       progress: snapshot.progress < 0 ? null : snapshot.progress,
+      speedBytesPerSecond: snapshot.speedBytesPerSecond,
     );
   }
 

@@ -3661,9 +3661,6 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String get importList => '导入列表';
-
-  @override
   String filesSelected(int count) {
     return '已选择 $count 个文件';
   }
@@ -4776,9 +4773,6 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String get baiduNetdiskImporting => '正在导入...';
-
-  @override
   String baiduNetdiskImportingFile(String name) {
     return '正在导入 $name...';
   }
@@ -4828,6 +4822,28 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get audioQueued => '排队中';
+
+  @override
+  String get baiduImportedToLibrary => '已导入到资源库';
+
+  @override
+  String baiduImportedToCollections(String names) {
+    return '已导入到：$names';
+  }
+
+  @override
+  String get baiduImportDuplicate => '已存在';
+
+  @override
+  String get baiduSubtitleUnmatched => '没有匹配到同名音频';
+
+  @override
+  String get baiduDisconnectActiveTitle => '有文件正在导入';
+
+  @override
+  String baiduDisconnectActiveMessage(int count) {
+    return '$count 个文件正在下载或排队，断开连接后这些导入会被取消。';
+  }
 
   @override
   String get mediaQueued => '排队中...';

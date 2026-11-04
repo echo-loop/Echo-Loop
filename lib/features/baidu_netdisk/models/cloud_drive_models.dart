@@ -3,9 +3,6 @@
 /// 任务 2 先定义稳定模型边界；实际目录列表、下载和入库会在后续任务中实现。
 library;
 
-import '../../audio_import/audio_import_models.dart';
-import '../../../models/audio_item.dart';
-
 /// 云盘条目。
 class CloudDriveEntry {
   /// 构造云盘条目。
@@ -74,121 +71,6 @@ class CloudDriveListPage {
 
   /// 是否可能还有下一页。
   final bool hasMore;
-}
-
-/// 云盘导入失败条目。
-class CloudDriveImportFailure {
-  /// 构造失败条目。
-  const CloudDriveImportFailure({
-    required this.entry,
-    required this.message,
-    required this.errorKind,
-  });
-
-  /// 失败的云盘条目。
-  final CloudDriveEntry entry;
-
-  /// 可展示错误信息。
-  final String message;
-
-  /// 稳定错误分类。
-  final String errorKind;
-}
-
-/// 云盘批量导入中单条音频的最终状态。
-enum CloudDriveImportItemStatus {
-  /// 已成功新增。
-  added,
-
-  /// 因内容重复跳过。
-  duplicate,
-
-  /// 因非取消错误失败。
-  failed,
-}
-
-/// 云盘批量导入中单条音频的最终结果。
-class CloudDriveImportItemResult {
-  /// 构造单条结果。
-  const CloudDriveImportItemResult({
-    required this.entry,
-    required this.status,
-    this.item,
-    this.duplicateExistingName,
-    this.failure,
-  });
-
-  /// 成功新增。
-  const CloudDriveImportItemResult.added({
-    required CloudDriveEntry entry,
-    required AudioItem item,
-  }) : this(entry: entry, status: CloudDriveImportItemStatus.added, item: item);
-
-  /// 内容重复跳过。
-  const CloudDriveImportItemResult.duplicate({
-    required CloudDriveEntry entry,
-    required String existingName,
-  }) : this(
-         entry: entry,
-         status: CloudDriveImportItemStatus.duplicate,
-         duplicateExistingName: existingName,
-       );
-
-  /// 导入失败。
-  const CloudDriveImportItemResult.failed({
-    required CloudDriveEntry entry,
-    required CloudDriveImportFailure failure,
-  }) : this(
-         entry: entry,
-         status: CloudDriveImportItemStatus.failed,
-         failure: failure,
-       );
-
-  /// 对应云盘条目。
-  final CloudDriveEntry entry;
-
-  /// 最终状态。
-  final CloudDriveImportItemStatus status;
-
-  /// 成功入库的音频。
-  final AudioItem? item;
-
-  /// 重复跳过时，库中已有音频名。
-  final String? duplicateExistingName;
-
-  /// 失败详情。
-  final CloudDriveImportFailure? failure;
-}
-
-/// 云盘批量导入结果。
-class CloudDriveImportOutcome {
-  /// 构造批量导入结果。
-  const CloudDriveImportOutcome({
-    required this.added,
-    this.addedItems = const <AudioItem>[],
-    this.duplicateDetails = const <AudioImportDuplicate>[],
-    this.duplicateEntries = const <CloudDriveEntry>[],
-    this.failures = const <CloudDriveImportFailure>[],
-    this.wasCanceled = false,
-  });
-
-  /// 成功新增条目。
-  final List<CloudDriveEntry> added;
-
-  /// 成功入库的音频项，供统一导入完成页展示字幕数量等音频级状态。
-  final List<AudioItem> addedItems;
-
-  /// 重复详情：导入素材名与库中已有素材名，用于结果说明。
-  final List<AudioImportDuplicate> duplicateDetails;
-
-  /// 重复的云盘源条目，用于列表行状态和按 `fsId` 合并重试结果。
-  final List<CloudDriveEntry> duplicateEntries;
-
-  /// 失败条目。
-  final List<CloudDriveImportFailure> failures;
-
-  /// 是否由用户取消。
-  final bool wasCanceled;
 }
 
 /// 百度 dlink 元信息。

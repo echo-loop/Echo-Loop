@@ -10,6 +10,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../models/audio_item.dart';
+import '../utils/file_size.dart';
 import '../utils/time_format.dart';
 import '../models/learning_progress.dart';
 import '../models/tag.dart';
@@ -115,9 +116,7 @@ class AudioListTile extends ConsumerWidget {
 
     // 精确订阅学习进度
     final progress = ref.watch(
-      learningProgressProvider.select(
-        (s) => s.progressMap[audioItem.id],
-      ),
+      learningProgressProvider.select((s) => s.progressMap[audioItem.id]),
     );
 
     // 全局上下文：精确订阅所属合集名称
@@ -138,9 +137,12 @@ class AudioListTile extends ConsumerWidget {
       mediaDownloadQueuedProvider(audioItem.id),
     );
     final double? downloadProgress = ref.watch(
-      mediaDownloadSnapshotProvider(
-        audioItem.id,
-      ).select((snapshot) => snapshot?.progress),
+      mediaDownloadSnapshotProvider(audioItem.id)
+          .select((snapshot) => snapshot?.progress),
+    );
+    final double? downloadSpeed = ref.watch(
+      mediaDownloadSnapshotProvider(audioItem.id)
+          .select((snapshot) => snapshot?.speedBytesPerSecond),
     );
 
     return LayoutBuilder(
@@ -204,6 +206,7 @@ class AudioListTile extends ConsumerWidget {
                                   transcriptionTask,
                                   downloadProgress,
                                   downloadQueued,
+                                  downloadSpeed,
                                   difficulty,
                                 ),
                               ],
@@ -341,6 +344,7 @@ class AudioListTile extends ConsumerWidget {
     TranscriptionTaskState? transcriptionTask,
     double? downloadProgress,
     bool downloadQueued,
+    double? downloadSpeed,
     CommunityDifficulty? difficulty,
   ) {
     // 是否有进行中的转录任务
@@ -604,6 +608,7 @@ class AudioListTile extends ConsumerWidget {
                   l10n,
                   downloadProgress,
                   queued: downloadQueued,
+                  speedBytesPerSecond: downloadSpeed,
                 ),
             ],
           ),
@@ -620,12 +625,16 @@ class AudioListTile extends ConsumerWidget {
     AppLocalizations l10n,
     double progress, {
     required bool queued,
+    double? speedBytesPerSecond,
   }) {
     final value = progress < 0 ? null : progress.clamp(0.0, 1.0);
     final percent = value == null ? null : (value * 100).toStringAsFixed(0);
+    final speed = speedBytesPerSecond == null
+        ? ''
+        : ' · ${formatBytes(speedBytesPerSecond.round())}/s';
     return SizedBox(
       key: const Key('audio_list_tile_download_progress'),
-      width: 180,
+      width: 220,
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -635,9 +644,8 @@ class AudioListTile extends ConsumerWidget {
             child: Text(
               queued
                   ? l10n.audioQueued
-                  : percent == null
-                  ? l10n.audioDownloadInProgress
-                  : '${l10n.audioDownloadInProgress} $percent%',
+                  : '${l10n.audioDownloadInProgress}'
+                        '${percent == null ? '' : ' $percent%'}$speed',
               overflow: TextOverflow.ellipsis,
               style: theme.textTheme.labelSmall?.copyWith(
                 color: theme.colorScheme.primary,
@@ -744,9 +752,7 @@ class AudioListTile extends ConsumerWidget {
     required bool isDownloading,
   }) {
     final progressForMenu = ref.read(
-      learningProgressProvider.select(
-        (s) => s.progressMap[audioItem.id],
-      ),
+      learningProgressProvider.select((s) => s.progressMap[audioItem.id]),
     );
     final hasProgress = progressForMenu?.isStarted ?? false;
     final isPausedForMenu = progressForMenu?.isPaused ?? false;
@@ -1060,9 +1066,8 @@ class AudioListTile extends ConsumerWidget {
       }
     } on CommunitySubtitleUnavailable {
       if (!context.mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(l10n.noTranscript)));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(l10n.noTranscript)));
     } catch (_) {
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(

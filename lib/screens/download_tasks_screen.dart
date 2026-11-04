@@ -8,6 +8,7 @@ import 'package:background_downloader/background_downloader.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../features/baidu_netdisk/providers/baidu_netdisk_import_tasks_provider.dart';
 import '../providers/download_provider.dart';
 import '../services/app_logger.dart';
 import '../services/background_download_task_inspector.dart';
@@ -37,24 +38,36 @@ class DownloadTasksScreen extends ConsumerWidget {
         ],
       ),
       body: tasks.when(
-        data: (items) => items.isEmpty
-            ? const Center(child: Text('暂无下载任务'))
-            : ListView.separated(
-                itemCount: items.length,
-                separatorBuilder: (_, _) => const Divider(height: 1),
-                itemBuilder: (context, index) {
-                  final task = items[index];
-                  return _DownloadTaskTile(
-                    task: task,
-                    onRemove: () => _runAction(
-                      context,
-                      ref,
-                      failureMessage: '删除下载任务失败',
-                      action: (inspector) => inspector.remove(task.taskId),
-                    ),
-                  );
-                },
-              ),
+        data: (items) {
+          // 排队中的任务尚未提交给原生下载器，排在前面且不可删除。
+          final waiting = ref.watch(baiduWaitingDownloadInfosProvider);
+          if (waiting.isEmpty && items.isEmpty) {
+            return const Center(child: Text('暂无下载任务'));
+          }
+          final rows = [
+            for (final task in waiting) (task: task, removable: false),
+            for (final task in items) (task: task, removable: true),
+          ];
+          return ListView.separated(
+            itemCount: rows.length,
+            separatorBuilder: (_, _) => const Divider(height: 1),
+            itemBuilder: (context, index) {
+              final row = rows[index];
+              final task = row.task;
+              return _DownloadTaskTile(
+                task: task,
+                onRemove: row.removable
+                    ? () => _runAction(
+                        context,
+                        ref,
+                        failureMessage: '删除下载任务失败',
+                        action: (inspector) => inspector.remove(task.taskId),
+                      )
+                    : null,
+              );
+            },
+          );
+        },
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, _) => Center(child: Text('读取下载任务失败：$error')),
       ),
@@ -87,10 +100,12 @@ class DownloadTasksScreen extends ConsumerWidget {
 }
 
 class _DownloadTaskTile extends StatelessWidget {
-  const _DownloadTaskTile({required this.task, required this.onRemove});
+  const _DownloadTaskTile({required this.task, this.onRemove});
 
   final DownloadTaskInfo task;
-  final VoidCallback onRemove;
+
+  /// 为 null 时不显示删除按钮（排队中的任务没有原生记录）。
+  final VoidCallback? onRemove;
 
   @override
   Widget build(BuildContext context) {
@@ -129,11 +144,13 @@ class _DownloadTaskTile extends StatelessWidget {
             ),
         ],
       ),
-      trailing: IconButton(
-        tooltip: '删除',
-        icon: const Icon(Icons.delete_outline),
-        onPressed: onRemove,
-      ),
+      trailing: onRemove == null
+          ? null
+          : IconButton(
+              tooltip: '删除',
+              icon: const Icon(Icons.delete_outline),
+              onPressed: onRemove,
+            ),
     );
   }
 

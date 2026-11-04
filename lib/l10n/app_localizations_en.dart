@@ -3832,9 +3832,6 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get importList => 'Import List';
-
-  @override
   String filesSelected(int count) {
     return '$count files selected';
   }
@@ -5018,9 +5015,6 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get baiduNetdiskImporting => 'Importing...';
-
-  @override
   String baiduNetdiskImportingFile(String name) {
     return 'Importing $name...';
   }
@@ -5071,6 +5065,28 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get audioQueued => 'Queued';
+
+  @override
+  String get baiduImportedToLibrary => 'Imported to library';
+
+  @override
+  String baiduImportedToCollections(String names) {
+    return 'Imported to: $names';
+  }
+
+  @override
+  String get baiduImportDuplicate => 'Already exists';
+
+  @override
+  String get baiduSubtitleUnmatched => 'No matching audio file';
+
+  @override
+  String get baiduDisconnectActiveTitle => 'Imports in progress';
+
+  @override
+  String baiduDisconnectActiveMessage(int count) {
+    return '$count file(s) are downloading or queued. Disconnecting will cancel them.';
+  }
 
   @override
   String get mediaQueued => 'Queued...';

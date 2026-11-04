@@ -28,9 +28,12 @@ final class MediaQueued extends MediaReadiness {
 
 /// 本条目正在下载。[progress] 为 0..1；null 表示总大小未知的不定态。
 final class MediaDownloading extends MediaReadiness {
-  const MediaDownloading({this.progress});
+  const MediaDownloading({this.progress, this.speedBytesPerSecond});
 
   final double? progress;
+
+  /// 最近窗口内的平均下载速度（字节/秒）；采样不足时为 null。
+  final double? speedBytesPerSecond;
 }
 
 /// 本条目下载失败，可以重试。

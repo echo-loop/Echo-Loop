@@ -202,6 +202,7 @@ class AudioImportDownloading extends AudioImportState {
     required this.progress,
     this.receivedBytes,
     this.totalBytes,
+    this.speedBytesPerSecond,
   });
 
   final String displayName;
@@ -210,6 +211,9 @@ class AudioImportDownloading extends AudioImportState {
   final double progress;
   final int? receivedBytes;
   final int? totalBytes;
+
+  /// 最近窗口内的平均下载速度（字节/秒）；采样不足时为 null。
+  final double? speedBytesPerSecond;
 }
 
 class AudioImportSaving extends AudioImportState {

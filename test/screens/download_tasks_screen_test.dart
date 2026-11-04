@@ -1,4 +1,5 @@
 import 'package:background_downloader/background_downloader.dart';
+import 'package:echo_loop/features/baidu_netdisk/providers/baidu_netdisk_import_tasks_provider.dart';
 import 'package:echo_loop/providers/download_provider.dart';
 import 'package:echo_loop/screens/download_tasks_screen.dart';
 import 'package:echo_loop/services/background_download_task_inspector.dart';
@@ -26,12 +27,14 @@ Future<void> _pumpScreen(
   WidgetTester tester, {
   required List<DownloadTaskInfo> tasks,
   required DownloadTaskInspector inspector,
+  List<DownloadTaskInfo> waiting = const [],
 }) async {
   await tester.pumpWidget(
     ProviderScope(
       overrides: [
         downloadTaskInspectorProvider.overrideWithValue(inspector),
         downloadTaskInfosProvider.overrideWith((ref) => Stream.value(tasks)),
+        baiduWaitingDownloadInfosProvider.overrideWithValue(waiting),
       ],
       child: const MaterialApp(home: DownloadTasksScreen()),
     ),
@@ -76,5 +79,35 @@ void main() {
     await tester.pumpAndSettle();
 
     verify(() => inspector.remove('task-1')).called(1);
+  });
+
+  testWidgets('排队中的导入任务排在前面显示，且没有删除按钮', (tester) async {
+    const waitingTask = DownloadTaskInfo(
+      taskId: 'waiting-7',
+      resourceKey: 'baidu:7',
+      displayName: 'waiting.mp3',
+      host: '',
+      status: TaskStatus.enqueued,
+      progress: null,
+      receivedBytes: null,
+      expectedBytes: null,
+      retriesRemaining: 2,
+      errorDescription: null,
+    );
+    final inspector = _MockInspector();
+    await _pumpScreen(
+      tester,
+      tasks: const [_runningTask],
+      inspector: inspector,
+      waiting: const [waitingTask],
+    );
+
+    expect(find.text('waiting.mp3'), findsOneWidget);
+    expect(find.textContaining('排队中'), findsOneWidget);
+    expect(find.byIcon(Icons.delete_outline), findsOneWidget);
+    expect(
+      tester.getTopLeft(find.text('waiting.mp3')).dy,
+      lessThan(tester.getTopLeft(find.text('episode.mp3')).dy),
+    );
   });
 }

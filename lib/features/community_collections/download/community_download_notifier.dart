@@ -17,8 +17,10 @@ import '../../../providers/collection_provider.dart';
 import '../../../providers/favorite_sentence_lifecycle_provider.dart';
 import '../../../providers/learning_progress_provider.dart';
 import '../../../providers/listening_practice/listening_practice_provider.dart';
+import '../../../providers/download_clock_provider.dart';
 import '../../../providers/download_provider.dart';
 import '../../../services/app_logger.dart';
+import '../../../services/download_speed_meter.dart';
 import '../../../utils/app_data_dir.dart';
 import '../../../utils/srt_generator.dart';
 import '../../../utils/transcript_stats.dart';
@@ -97,6 +99,7 @@ class CommunityDownload extends _$CommunityDownload {
       final active = _ActiveDownload(
         sessionId: sessionId,
         token: CancelToken(),
+        speedMeter: DownloadSpeedMeter(now: ref.read(downloadClockProvider)),
       );
       _active[audioItemId] = active;
       state = {
@@ -376,6 +379,7 @@ class CommunityDownload extends _$CommunityDownload {
         progress: total != null && total > 0 ? received / total : -1,
         receivedBytes: received,
         totalBytes: total,
+        speedBytesPerSecond: _active[audioItemId]?.speedMeter.record(received),
       ),
     );
   }
@@ -450,10 +454,15 @@ enum StartResult {
 
 /// 单个条目的进行中任务。[future] 在启动后立即赋值。
 class _ActiveDownload {
-  _ActiveDownload({required this.sessionId, required this.token});
+  _ActiveDownload({
+    required this.sessionId,
+    required this.token,
+    required this.speedMeter,
+  });
 
   final int sessionId;
   final CancelToken token;
+  final DownloadSpeedMeter speedMeter;
   late Future<bool> future;
 }
 

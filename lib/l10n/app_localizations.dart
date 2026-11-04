@@ -6710,12 +6710,6 @@ abstract class AppLocalizations {
   /// **'{count} items'**
   String recycleBinItemCount(int count);
 
-  /// No description provided for @importList.
-  ///
-  /// In en, this message translates to:
-  /// **'Import List'**
-  String get importList;
-
   /// No description provided for @filesSelected.
   ///
   /// In en, this message translates to:
@@ -8792,12 +8786,6 @@ abstract class AppLocalizations {
   /// **'Import ({audioCount, plural, =0{} =1{1 item} other{{audioCount} items}}{subtitleCount, plural, =0{} =1{, 1 subtitle} other{, {subtitleCount} subtitles}})'**
   String importAudioAndSubtitleCount(int audioCount, int subtitleCount);
 
-  /// No description provided for @baiduNetdiskImporting.
-  ///
-  /// In en, this message translates to:
-  /// **'Importing...'**
-  String get baiduNetdiskImporting;
-
   /// No description provided for @baiduNetdiskImportingFile.
   ///
   /// In en, this message translates to:
@@ -8887,6 +8875,42 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Queued'**
   String get audioQueued;
+
+  /// No description provided for @baiduImportedToLibrary.
+  ///
+  /// In en, this message translates to:
+  /// **'Imported to library'**
+  String get baiduImportedToLibrary;
+
+  /// No description provided for @baiduImportedToCollections.
+  ///
+  /// In en, this message translates to:
+  /// **'Imported to: {names}'**
+  String baiduImportedToCollections(String names);
+
+  /// No description provided for @baiduImportDuplicate.
+  ///
+  /// In en, this message translates to:
+  /// **'Already exists'**
+  String get baiduImportDuplicate;
+
+  /// No description provided for @baiduSubtitleUnmatched.
+  ///
+  /// In en, this message translates to:
+  /// **'No matching audio file'**
+  String get baiduSubtitleUnmatched;
+
+  /// No description provided for @baiduDisconnectActiveTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Imports in progress'**
+  String get baiduDisconnectActiveTitle;
+
+  /// No description provided for @baiduDisconnectActiveMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} file(s) are downloading or queued. Disconnecting will cancel them.'**
+  String baiduDisconnectActiveMessage(int count);
 
   /// No description provided for @mediaQueued.
   ///

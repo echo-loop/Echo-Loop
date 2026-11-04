@@ -20,12 +20,16 @@ class DownloadInProgress extends DownloadProgress {
   /// 总字节（可空）。
   final int? totalBytes;
 
+  /// 最近窗口内的平均下载速度（字节/秒）；采样不足时为 null。
+  final double? speedBytesPerSecond;
+
   const DownloadInProgress({
     required this.audioItemId,
     required this.displayName,
     required this.progress,
     this.receivedBytes,
     this.totalBytes,
+    this.speedBytesPerSecond,
   });
 }
 

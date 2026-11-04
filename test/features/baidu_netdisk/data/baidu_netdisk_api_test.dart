@@ -284,11 +284,13 @@ void main() {
         accessToken: 'access-token',
         dlink: 'https://d.pcs.baidu.com/file/lesson?x=1',
         savePath: savePath,
+        displayName: 'Lesson 1.mp3',
       );
 
       expect(downloader.uri?.queryParameters['x'], '1');
       expect(downloader.uri?.queryParameters['access_token'], 'access-token');
       expect(downloader.savePath, savePath);
+      expect(downloader.displayNames.last, 'Lesson 1.mp3');
       expect(downloader.headers?['User-Agent'], 'pan.baidu.com');
       expect(await File(savePath).readAsBytes(), const <int>[1, 2]);
     });
@@ -304,6 +306,7 @@ void main() {
           accessToken: 'access-token',
           dlink: 'https://d.pcs.baidu.com/file/lesson',
           savePath: '${tempDirectory.path}/lesson.mp3',
+          displayName: 'Lesson 1.mp3',
         ),
         throwsA(
           isA<BaiduNetdiskFileException>()
@@ -333,6 +336,7 @@ void main() {
           accessToken: 'access-token',
           dlink: 'https://d.pcs.baidu.com/file/lesson',
           savePath: '${tempDirectory.path}/lesson.mp3',
+          displayName: 'Lesson 1.mp3',
         ),
         throwsA(
           isA<BaiduNetdiskFileException>().having(
@@ -355,6 +359,7 @@ void main() {
           accessToken: 'access-token',
           dlink: 'https://d.pcs.baidu.com/file/lesson',
           savePath: '${tempDirectory.path}/lesson.mp3',
+          displayName: 'Lesson 1.mp3',
         ),
         throwsA(
           isA<BaiduNetdiskFileException>().having(

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../l10n/app_localizations.dart';
 import '../../../theme/app_theme.dart';
+import '../../../utils/file_size.dart';
 import '../media_failure_message.dart';
 import '../media_provisioner.dart';
 import '../media_readiness.dart';
@@ -48,7 +49,8 @@ class MediaPreparingView extends ConsumerWidget {
         const CircularProgressIndicator(),
         Text(l10n.mediaQueued, textAlign: TextAlign.center),
       ),
-      MediaDownloading(:final progress) => _downloadingColumn(l10n, progress),
+      MediaDownloading(:final progress, :final speedBytesPerSecond) =>
+        _downloadingColumn(l10n, progress, speedBytesPerSecond),
       MediaNotDownloaded() => _retryColumn(
         ref,
         l10n,
@@ -74,14 +76,21 @@ class MediaPreparingView extends ConsumerWidget {
     };
   }
 
-  Widget _downloadingColumn(AppLocalizations l10n, double? progress) {
+  Widget _downloadingColumn(
+    AppLocalizations l10n,
+    double? progress,
+    double? speedBytesPerSecond,
+  ) {
     final percent = progress == null
         ? ''
         : ' ${(progress * 100).clamp(0, 100).round()}%';
+    final speed = speedBytesPerSecond == null
+        ? ''
+        : ' · ${formatBytes(speedBytesPerSecond.round())}/s';
     return _statusColumn(
       CircularProgressIndicator(value: progress),
       Text(
-        '${l10n.audioDownloadInProgress}$percent',
+        '${l10n.audioDownloadInProgress}$percent$speed',
         key: const Key('media_preparing_progress_text'),
       ),
     );

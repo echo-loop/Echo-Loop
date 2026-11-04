@@ -1578,7 +1578,6 @@
   "recycleBinSortTimeDesc": "最近移除",
   "recycleBinSortTimeAsc": "最早移除",
   "recycleBinItemCount": "{count} 条",
-  "importList": "导入列表",
   "filesSelected": "已选择 {count} 个文件",
   "processingFileOf": "正在处理 {current}/{total}...",
   "importingFileProgress": "正在导入 {current}/{total}：{name}",
@@ -2019,7 +2018,6 @@
       "subtitleCount": {"type": "int"}
     }
   },
-  "baiduNetdiskImporting": "正在导入...",
   "baiduNetdiskImportingFile": "正在导入 {name}...",
   "@baiduNetdiskImportingFile": {
     "placeholders": {
@@ -2051,6 +2049,14 @@
   "audioDownloadFailed": "下载音频失败",
   "audioDownloadInProgress": "正在下载",
   "audioQueued": "排队中",
+  "baiduImportedToLibrary": "已导入到资源库",
+  "baiduImportedToCollections": "已导入到：{names}",
+  "@baiduImportedToCollections": {"placeholders": {"names": {"type": "String"}}},
+  "baiduImportDuplicate": "已存在",
+  "baiduSubtitleUnmatched": "没有匹配到同名音频",
+  "baiduDisconnectActiveTitle": "有文件正在导入",
+  "baiduDisconnectActiveMessage": "{count} 个文件正在下载或排队，断开连接后这些导入会被取消。",
+  "@baiduDisconnectActiveMessage": {"placeholders": {"count": {"type": "int"}}},
   "mediaQueued": "排队中...",
   "audioImportComplete": "导入完成",
   "audioImportCanceled": "已取消音频导入",

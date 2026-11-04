@@ -5,16 +5,17 @@ import 'package:dio/dio.dart';
 import 'package:echo_loop/features/baidu_netdisk/data/baidu_credential_repository.dart';
 import 'package:echo_loop/features/baidu_netdisk/data/baidu_netdisk_api.dart';
 import 'package:echo_loop/features/baidu_netdisk/data/baidu_netdisk_import_service.dart';
+import 'package:echo_loop/providers/download_clock_provider.dart';
 import 'package:echo_loop/features/baidu_netdisk/models/baidu_credential_bundle.dart';
 import 'package:echo_loop/features/baidu_netdisk/models/baidu_oauth_session.dart';
 import 'package:echo_loop/features/baidu_netdisk/models/baidu_oauth_session_status.dart';
 import 'package:echo_loop/features/baidu_netdisk/models/baidu_account_profile.dart';
 import 'package:echo_loop/features/baidu_netdisk/models/cloud_drive_models.dart';
+import 'package:echo_loop/features/baidu_netdisk/providers/baidu_netdisk_import_tasks_provider.dart';
 import 'package:echo_loop/features/baidu_netdisk/providers/baidu_netdisk_providers.dart';
 import 'package:echo_loop/features/remote_config/remote_config.dart';
 import 'package:echo_loop/features/remote_config/remote_config_providers.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -22,6 +23,7 @@ import 'package:echo_loop/features/audio_import/audio_import_models.dart';
 import 'package:echo_loop/features/audio_import/audio_import_provider.dart';
 import 'package:echo_loop/models/audio_item.dart';
 import 'package:echo_loop/providers/audio_library_provider.dart';
+import 'package:echo_loop/models/collection.dart';
 import 'package:echo_loop/providers/collection_provider.dart';
 import 'package:echo_loop/providers/settings_provider.dart';
 import 'package:echo_loop/widgets/import_audio_selection_list.dart';
@@ -136,6 +138,7 @@ class _PendingBaiduNetdiskApi implements BaiduNetdiskApi {
     required String accessToken,
     required String dlink,
     required String savePath,
+    required String displayName,
     String? resourceKey,
     CancelToken? cancelToken,
     void Function(int receivedBytes, int? totalBytes)? onProgress,
@@ -225,6 +228,7 @@ class _StaticBaiduNetdiskApi implements BaiduNetdiskApi {
     required String accessToken,
     required String dlink,
     required String savePath,
+    required String displayName,
     String? resourceKey,
     CancelToken? cancelToken,
     void Function(int receivedBytes, int? totalBytes)? onProgress,
@@ -266,279 +270,109 @@ class _StaticBaiduNetdiskApi implements BaiduNetdiskApi {
   }
 }
 
-class _ImmediateBaiduImportService implements BaiduNetdiskImportService {
-  List<CloudDriveEntry> importedEntries = const <CloudDriveEntry>[];
-  List<CloudDriveEntry> importedSubtitleEntries = const <CloudDriveEntry>[];
+/// 挂起的单文件导入执行函数：记录取消令牌，不结束下载。
+class _PendingItemRunner {
+  _PendingItemRunner({this.succeed = false});
 
-  @override
-  Future<AudioItem> importAudio({
+  /// 为 true 时立即成功，用于验证导入完成后的状态。
+  final bool succeed;
+  final List<CancelToken> tokens = <CancelToken>[];
+  BaiduNetdiskImportProgressCallback? _onProgress;
+
+  Future<AudioItem> call({
     required CloudDriveEntry entry,
-    required AudioLibrary audioLibrary,
-    required AudioLibraryState audioLibraryState,
-    CollectionList? collectionList,
-    CollectionState? collectionState,
+    CloudDriveEntry? subtitleEntry,
     String? collectionId,
-    CancelToken? cancelToken,
-    BaiduNetdiskImportProgressCallback? onProgress,
+    required CancelToken cancelToken,
+    required BaiduNetdiskImportProgressCallback onProgress,
   }) {
-    throw UnimplementedError();
-  }
-
-  @override
-  Future<CloudDriveImportOutcome> importAudios({
-    required List<CloudDriveEntry> entries,
-    List<CloudDriveEntry> subtitleEntries = const <CloudDriveEntry>[],
-    required AudioLibrary audioLibrary,
-    required AudioLibraryState audioLibraryState,
-    CollectionList? collectionList,
-    CollectionState? collectionState,
-    String? collectionId,
-    CancelToken? cancelToken,
-    BaiduNetdiskImportProgressCallback? onProgress,
-    BaiduNetdiskImportItemResultCallback? onItemResult,
-  }) async {
-    importedEntries = entries;
-    importedSubtitleEntries = subtitleEntries;
-    final items = <AudioItem>[];
-    for (final entry in entries) {
-      onProgress?.call(entry, entry.size, entry.size);
-      final item = AudioItem(
-        id: 'baidu-${entry.fsId}',
-        name: entry.name.replaceFirst(RegExp(r'\.[^.]+$'), ''),
-        audioPath: 'audios/imported/${entry.fsId}.mp3',
-        addedDate: DateTime(2026, 7, 18),
-        transcriptSource:
-            subtitleEntries.any(
-              (subtitle) =>
-                  subtitle.name.replaceFirst(RegExp(r'\.[^.]+$'), '') ==
-                  entry.name.replaceFirst(RegExp(r'\.[^.]+$'), ''),
-            )
-            ? TranscriptSource.local
-            : null,
-      );
-      items.add(item);
-      await audioLibrary.addAudioItem(item);
-      onItemResult?.call(
-        CloudDriveImportItemResult.added(entry: entry, item: item),
-      );
-    }
-    return CloudDriveImportOutcome(added: entries, addedItems: items);
-  }
-}
-
-class _BlockingBaiduImportService extends _ImmediateBaiduImportService {
-  final completer = Completer<CloudDriveImportOutcome>();
-
-  @override
-  Future<CloudDriveImportOutcome> importAudios({
-    required List<CloudDriveEntry> entries,
-    List<CloudDriveEntry> subtitleEntries = const <CloudDriveEntry>[],
-    required AudioLibrary audioLibrary,
-    required AudioLibraryState audioLibraryState,
-    CollectionList? collectionList,
-    CollectionState? collectionState,
-    String? collectionId,
-    CancelToken? cancelToken,
-    BaiduNetdiskImportProgressCallback? onProgress,
-    BaiduNetdiskImportItemResultCallback? onItemResult,
-  }) async {
-    importedEntries = entries;
-    importedSubtitleEntries = subtitleEntries;
-    if (entries.isNotEmpty) {
-      onProgress?.call(
-        entries.first,
-        entries.first.size ~/ 2,
-        entries.first.size,
-      );
-    }
-    return completer.future;
-  }
-}
-
-class _DuplicateBaiduImportService extends _ImmediateBaiduImportService {
-  @override
-  Future<CloudDriveImportOutcome> importAudios({
-    required List<CloudDriveEntry> entries,
-    List<CloudDriveEntry> subtitleEntries = const <CloudDriveEntry>[],
-    required AudioLibrary audioLibrary,
-    required AudioLibraryState audioLibraryState,
-    CollectionList? collectionList,
-    CollectionState? collectionState,
-    String? collectionId,
-    CancelToken? cancelToken,
-    BaiduNetdiskImportProgressCallback? onProgress,
-    BaiduNetdiskImportItemResultCallback? onItemResult,
-  }) async {
-    importedEntries = entries;
-    importedSubtitleEntries = subtitleEntries;
-    if (entries.isNotEmpty) {
-      final entry = entries.first;
-      onProgress?.call(entry, entry.size, entry.size);
-      onItemResult?.call(
-        CloudDriveImportItemResult.duplicate(
-          entry: entry,
-          existingName: '已存在课程',
+    tokens.add(cancelToken);
+    _onProgress = onProgress;
+    if (succeed) {
+      return Future.value(
+        AudioItem(
+          id: 'new-${entry.fsId}',
+          name: entry.name,
+          audioPath: 'audios/imported/${entry.fsId}.mp3',
+          addedDate: DateTime(2026, 1, 1),
         ),
       );
-      return CloudDriveImportOutcome(
-        added: const <CloudDriveEntry>[],
-        duplicateDetails: [
-          (
-            attempted: entry.name.replaceFirst(RegExp(r'\.[^.]+$'), ''),
-            existing: '已存在课程',
+    }
+    return Completer<AudioItem>().future;
+  }
+
+  /// 模拟底层下载回调上报进度。
+  void reportProgress(int received, int total) {
+    _onProgress!(_baiduLessonFile, received, total);
+  }
+}
+
+/// 可手动推进的时钟，用于验证下载速度。
+class _FakeClock {
+  DateTime now = DateTime(2026, 11, 4, 10);
+
+  void advance(Duration duration) {
+    now = now.add(duration);
+  }
+}
+
+const _baiduLessonFile = CloudDriveEntry(
+  fsId: 2,
+  name: 'lesson.mp3',
+  path: '/lesson.mp3',
+  isDirectory: false,
+  size: 1536,
+);
+
+Future<void> _pumpBaiduDirectory(
+  WidgetTester tester, {
+  required _PendingItemRunner runner,
+  _TokenCredentialRepository? credentialRepository,
+  _FakeClock? clock,
+  List<CloudDriveEntry> entries = const [_baiduLessonFile],
+  List<AudioItem> libraryItems = const [],
+  CollectionState? collectionState,
+}) async {
+  final api = _StaticBaiduNetdiskApi({'/': entries});
+  await tester.pumpWidget(
+    _buildApp(
+      locale: const Locale('zh'),
+      overrides: dedupeOverrides([
+        baiduCredentialRepositoryProvider.overrideWithValue(
+          credentialRepository ?? _TokenCredentialRepository(),
+        ),
+        baiduNetdiskApiProvider.overrideWithValue(api),
+        baiduImportItemRunnerProvider.overrideWithValue(runner.call),
+        if (clock != null)
+          downloadClockProvider.overrideWithValue(() => clock.now),
+        if (libraryItems.isNotEmpty)
+          audioLibraryProvider.overrideWith(
+            () => TestAudioLibrary(AudioLibraryState(audioItems: libraryItems)),
           ),
-        ],
-      );
-    }
-    return const CloudDriveImportOutcome(added: <CloudDriveEntry>[]);
-  }
+        if (collectionState != null)
+          collectionListProvider.overrideWith(
+            () => TestCollectionList(collectionState),
+          ),
+      ]),
+    ),
+  );
+  await _reopenBaiduDirectory(tester);
 }
 
-class _FailingBaiduImportService extends _ImmediateBaiduImportService {
-  @override
-  Future<CloudDriveImportOutcome> importAudios({
-    required List<CloudDriveEntry> entries,
-    List<CloudDriveEntry> subtitleEntries = const <CloudDriveEntry>[],
-    required AudioLibrary audioLibrary,
-    required AudioLibraryState audioLibraryState,
-    CollectionList? collectionList,
-    CollectionState? collectionState,
-    String? collectionId,
-    CancelToken? cancelToken,
-    BaiduNetdiskImportProgressCallback? onProgress,
-    BaiduNetdiskImportItemResultCallback? onItemResult,
-  }) async {
-    importedEntries = entries;
-    importedSubtitleEntries = subtitleEntries;
-    if (entries.isEmpty) {
-      return const CloudDriveImportOutcome(added: <CloudDriveEntry>[]);
-    }
-    final entry = entries.first;
-    onProgress?.call(entry, entry.size, entry.size);
-    final failure = CloudDriveImportFailure(
-      entry: entry,
-      message: 'Baidu download failed. Connection terminated during handshake',
-      errorKind: 'network',
-    );
-    onItemResult?.call(
-      CloudDriveImportItemResult.failed(entry: entry, failure: failure),
-    );
-    return CloudDriveImportOutcome(
-      added: const <CloudDriveEntry>[],
-      failures: [failure],
-    );
-  }
+/// 从主页打开导入弹窗并进入百度网盘根目录。
+Future<void> _reopenBaiduDirectory(WidgetTester tester) async {
+  await tester.tap(find.text('Open Import'));
+  await _pumpFrames(tester);
+  await tester.tap(find.text('从网盘导入'));
+  await _pumpFrames(tester);
+  await tester.tap(find.text('百度网盘'));
+  await _pumpFrames(tester);
 }
 
-class _RetryableBaiduImportService extends _ImmediateBaiduImportService {
-  _RetryableBaiduImportService(this.failOnceFsId);
-
-  final int failOnceFsId;
-  final _failedFsIds = <int>{};
-  var importAudiosCalls = 0;
-
-  @override
-  Future<CloudDriveImportOutcome> importAudios({
-    required List<CloudDriveEntry> entries,
-    List<CloudDriveEntry> subtitleEntries = const <CloudDriveEntry>[],
-    required AudioLibrary audioLibrary,
-    required AudioLibraryState audioLibraryState,
-    CollectionList? collectionList,
-    CollectionState? collectionState,
-    String? collectionId,
-    CancelToken? cancelToken,
-    BaiduNetdiskImportProgressCallback? onProgress,
-    BaiduNetdiskImportItemResultCallback? onItemResult,
-  }) async {
-    importAudiosCalls += 1;
-    importedEntries = entries;
-    importedSubtitleEntries = subtitleEntries;
-    final added = <CloudDriveEntry>[];
-    final addedItems = <AudioItem>[];
-    final failures = <CloudDriveImportFailure>[];
-    for (final entry in entries) {
-      onProgress?.call(entry, entry.size, entry.size);
-      if (entry.fsId == failOnceFsId && _failedFsIds.add(entry.fsId)) {
-        final failure = CloudDriveImportFailure(
-          entry: entry,
-          message:
-              'Baidu download failed. Connection terminated during handshake',
-          errorKind: 'network',
-        );
-        failures.add(failure);
-        onItemResult?.call(
-          CloudDriveImportItemResult.failed(entry: entry, failure: failure),
-        );
-        continue;
-      }
-      final item = AudioItem(
-        id: 'baidu-${entry.fsId}',
-        name: entry.name.replaceFirst(RegExp(r'\.[^.]+$'), ''),
-        audioPath: 'audios/imported/${entry.fsId}.mp3',
-        addedDate: DateTime(2026, 7, 18),
-      );
-      added.add(entry);
-      addedItems.add(item);
-      await audioLibrary.addAudioItem(item);
-      onItemResult?.call(
-        CloudDriveImportItemResult.added(entry: entry, item: item),
-      );
-    }
-    return CloudDriveImportOutcome(
-      added: added,
-      addedItems: addedItems,
-      failures: failures,
-    );
-  }
-}
-
-class _MixedDuplicateBaiduImportService extends _ImmediateBaiduImportService {
-  @override
-  Future<CloudDriveImportOutcome> importAudios({
-    required List<CloudDriveEntry> entries,
-    List<CloudDriveEntry> subtitleEntries = const <CloudDriveEntry>[],
-    required AudioLibrary audioLibrary,
-    required AudioLibraryState audioLibraryState,
-    CollectionList? collectionList,
-    CollectionState? collectionState,
-    String? collectionId,
-    CancelToken? cancelToken,
-    BaiduNetdiskImportProgressCallback? onProgress,
-    BaiduNetdiskImportItemResultCallback? onItemResult,
-  }) async {
-    importedEntries = entries;
-    importedSubtitleEntries = subtitleEntries;
-    final duplicate = entries.first;
-    final added = entries.last;
-    onProgress?.call(duplicate, duplicate.size, duplicate.size);
-    onItemResult?.call(
-      CloudDriveImportItemResult.duplicate(
-        entry: duplicate,
-        existingName: '已存在课程',
-      ),
-    );
-    onProgress?.call(added, added.size, added.size);
-    final item = AudioItem(
-      id: 'baidu-${added.fsId}',
-      name: added.name.replaceFirst(RegExp(r'\.[^.]+$'), ''),
-      audioPath: 'audios/imported/${added.fsId}.mp3',
-      addedDate: DateTime(2026, 7, 18),
-    );
-    await audioLibrary.addAudioItem(item);
-    onItemResult?.call(
-      CloudDriveImportItemResult.added(entry: added, item: item),
-    );
-    return CloudDriveImportOutcome(
-      added: [added],
-      addedItems: [item],
-      duplicateDetails: [
-        (
-          attempted: duplicate.name.replaceFirst(RegExp(r'\.[^.]+$'), ''),
-          existing: '已存在课程',
-        ),
-      ],
-    );
-  }
+/// 推进固定时长。下载中的进度圈是无限动画，pumpAndSettle 无法收敛。
+Future<void> _pumpFrames(WidgetTester tester) async {
+  await tester.pump();
+  await tester.pump(const Duration(milliseconds: 400));
 }
 
 Widget _buildApp({
@@ -1104,432 +938,263 @@ void main() {
     );
   });
 
-  testWidgets('百度网盘点击导入先显示导入列表，完成后仍在列表内展示汇总', (tester) async {
-    final api = _StaticBaiduNetdiskApi({
-      '/': [
-        const CloudDriveEntry(
-          fsId: 2,
-          name: 'lesson.mp3',
-          path: '/lesson.mp3',
-          isDirectory: false,
-          size: 1536,
-        ),
-        const CloudDriveEntry(
-          fsId: 3,
-          name: 'lesson.srt',
-          path: '/lesson.srt',
-          isDirectory: false,
-          size: 256,
-        ),
-      ],
-    });
-    final importService = _ImmediateBaiduImportService();
-    await tester.pumpWidget(
-      _buildApp(
-        locale: const Locale('zh'),
-        overrides: dedupeOverrides([
-          baiduCredentialRepositoryProvider.overrideWithValue(
-            _TokenCredentialRepository(),
-          ),
-          baiduNetdiskApiProvider.overrideWithValue(api),
-          baiduNetdiskImportServiceProvider.overrideWithValue(importService),
-        ]),
-      ),
-    );
-    await tester.tap(find.text('Open Import'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('从网盘导入'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('百度网盘'));
-    await tester.pumpAndSettle();
+  testWidgets('百度网盘选中音频导入后关闭弹窗，再次打开仍显示下载状态', (tester) async {
+    final runner = _PendingItemRunner();
+    await _pumpBaiduDirectory(tester, runner: runner);
 
     await tester.tap(find.text('lesson.mp3'));
-    await tester.pump();
-    await tester.tap(find.widgetWithText(TextButton, '全选'));
-    await tester.pump();
-    await tester.tap(find.widgetWithText(FilledButton, '导入（1 个素材，1 个字幕）'));
-    await tester.pumpAndSettle();
+    await _pumpFrames(tester);
+    await tester.tap(find.textContaining('个素材'));
+    await _pumpFrames(tester);
 
-    expect(find.text('已选择 1 个文件  ·  1.5 KB'), findsOneWidget);
-    expect(find.text('lesson.mp3'), findsOneWidget);
-    expect(find.text('lesson.srt'), findsNothing);
-    expect(find.byIcon(Icons.closed_caption_outlined), findsOneWidget);
+    expect(runner.tokens, hasLength(1));
+    expect(find.widgetWithText(TextButton, '取消'), findsOneWidget);
 
-    await tester.tap(find.widgetWithText(FilledButton, '导入（1 个素材，1 个字幕）'));
-    await tester.pumpAndSettle();
+    Navigator.of(tester.element(find.byType(ImportAudioFlowSheet))).pop();
+    await _pumpFrames(tester);
 
-    expect(importService.importedEntries.single.name, 'lesson.mp3');
-    expect(importService.importedSubtitleEntries.single.name, 'lesson.srt');
-    expect(find.text('导入列表'), findsOneWidget);
-    expect(find.text('lesson.mp3'), findsOneWidget);
-    expect(find.textContaining('成功导入 1 个素材'), findsOneWidget);
-    expect(find.textContaining('其中 1 个包含字幕'), findsOneWidget);
-    expect(find.widgetWithText(FilledButton, '完成'), findsOneWidget);
+    expect(runner.tokens.single.isCancelled, isFalse);
+
+    await _reopenBaiduDirectory(tester);
+
+    expect(find.widgetWithText(TextButton, '取消'), findsOneWidget);
+    expect(find.byType(CircularProgressIndicator), findsOneWidget);
   });
 
-  testWidgets('百度网盘导入列表可移除误选音频', (tester) async {
-    final api = _StaticBaiduNetdiskApi({
-      '/': [
-        const CloudDriveEntry(
-          fsId: 2,
-          name: 'lesson.mp3',
-          path: '/lesson.mp3',
-          isDirectory: false,
-          size: 1536,
-        ),
-        const CloudDriveEntry(
-          fsId: 4,
-          name: 'review.mp3',
-          path: '/review.mp3',
-          isDirectory: false,
-          size: 2048,
-        ),
-      ],
-    });
-    final importService = _ImmediateBaiduImportService();
-    await tester.pumpWidget(
-      _buildApp(
-        locale: const Locale('zh'),
-        overrides: dedupeOverrides([
-          baiduCredentialRepositoryProvider.overrideWithValue(
-            _TokenCredentialRepository(),
-          ),
-          baiduNetdiskApiProvider.overrideWithValue(api),
-          baiduNetdiskImportServiceProvider.overrideWithValue(importService),
-        ]),
-      ),
-    );
-    await tester.tap(find.text('Open Import'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('从网盘导入'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('百度网盘'));
-    await tester.pumpAndSettle();
+  testWidgets('百度网盘任务行取消只取消该文件，文件恢复为可选', (tester) async {
+    final runner = _PendingItemRunner();
+    await _pumpBaiduDirectory(tester, runner: runner);
 
     await tester.tap(find.text('lesson.mp3'));
-    await tester.pump();
-    await tester.tap(find.widgetWithText(TextButton, '全选'));
-    await tester.pump();
-    await tester.tap(find.widgetWithText(FilledButton, '导入（2 个素材）'));
-    await tester.pumpAndSettle();
+    await _pumpFrames(tester);
+    await tester.tap(find.textContaining('个素材'));
+    await _pumpFrames(tester);
 
-    expect(find.text('导入列表'), findsOneWidget);
-    expect(find.text('lesson.mp3'), findsOneWidget);
-    expect(find.text('review.mp3'), findsOneWidget);
-    expect(find.byIcon(Icons.delete_outline), findsNWidgets(2));
+    await tester.tap(find.widgetWithText(TextButton, '取消'));
+    await _pumpFrames(tester);
 
-    await tester.tap(find.byIcon(Icons.delete_outline).first);
-    await tester.pumpAndSettle();
-
-    expect(find.text('lesson.mp3'), findsNothing);
-    expect(find.text('review.mp3'), findsOneWidget);
-    expect(find.text('已选择 1 个文件  ·  2.0 KB'), findsOneWidget);
-
-    await tester.tap(find.widgetWithText(FilledButton, '导入（1 个素材）'));
-    await tester.pumpAndSettle();
-
-    expect(importService.importedEntries.map((entry) => entry.name), [
-      'review.mp3',
-    ]);
+    expect(runner.tokens.single.isCancelled, isTrue);
+    expect(find.widgetWithText(TextButton, '取消'), findsNothing);
+    expect(find.byType(Checkbox), findsOneWidget);
   });
 
-  testWidgets('百度网盘重复项在导入列表内展示跳过状态和重复文件名', (tester) async {
-    final api = _StaticBaiduNetdiskApi({
-      '/': [
-        const CloudDriveEntry(
-          fsId: 2,
-          name: 'lesson.mp3',
-          path: '/lesson.mp3',
-          isDirectory: false,
-          size: 1536,
-        ),
-      ],
-    });
-    final importService = _DuplicateBaiduImportService();
-    await tester.pumpWidget(
-      _buildApp(
-        locale: const Locale('zh'),
-        overrides: dedupeOverrides([
-          baiduCredentialRepositoryProvider.overrideWithValue(
-            _TokenCredentialRepository(),
-          ),
-          baiduNetdiskApiProvider.overrideWithValue(api),
-          baiduNetdiskImportServiceProvider.overrideWithValue(importService),
-        ]),
-      ),
-    );
-    await tester.tap(find.text('Open Import'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('从网盘导入'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('百度网盘'));
-    await tester.pumpAndSettle();
+  testWidgets('百度网盘下载中的行在副标题显示当前速度', (tester) async {
+    final runner = _PendingItemRunner();
+    final clock = _FakeClock();
+    await _pumpBaiduDirectory(tester, runner: runner, clock: clock);
 
     await tester.tap(find.text('lesson.mp3'));
-    await tester.pump();
-    await tester.tap(find.widgetWithText(FilledButton, '导入（1 个素材）'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.widgetWithText(FilledButton, '导入（1 个素材）'));
-    await tester.pumpAndSettle();
+    await _pumpFrames(tester);
+    await tester.tap(find.textContaining('个素材'));
+    await _pumpFrames(tester);
 
-    expect(find.text('导入列表'), findsOneWidget);
-    expect(find.textContaining('成功导入 0 个素材'), findsOneWidget);
-    expect(find.textContaining('跳过 1 个重复项'), findsOneWidget);
-    expect(find.text('重复文件名: 已存在课程'), findsOneWidget);
-    expect(find.byIcon(Icons.copy_all_outlined), findsNothing);
-    expect(find.textContaining('其中 0 个包含字幕'), findsNothing);
-    expect(find.byIcon(Icons.skip_next_rounded), findsNothing);
-    expect(find.byIcon(Icons.warning_amber_rounded), findsWidgets);
-    expect(find.byIcon(Icons.cancel_rounded), findsNothing);
-    expect(find.widgetWithText(FilledButton, '完成'), findsOneWidget);
+    runner.reportProgress(0, 10240);
+    clock.advance(const Duration(seconds: 1));
+    runner.reportProgress(2048, 10240);
+    await _pumpFrames(tester);
+
+    expect(find.textContaining('2.0 KB/s'), findsOneWidget);
+    expect(find.text('20%'), findsOneWidget);
   });
 
-  testWidgets('百度网盘失败项在导入列表内展示红叉和错误原因', (tester) async {
-    final api = _StaticBaiduNetdiskApi({
-      '/': [
-        const CloudDriveEntry(
-          fsId: 2,
-          name: 'lesson.mp4',
-          path: '/lesson.mp4',
-          isDirectory: false,
-          size: 1536,
-        ),
-      ],
-    });
-    final importService = _FailingBaiduImportService();
-    await tester.pumpWidget(
-      _buildApp(
-        locale: const Locale('zh'),
-        overrides: dedupeOverrides([
-          baiduCredentialRepositoryProvider.overrideWithValue(
-            _TokenCredentialRepository(),
-          ),
-          baiduNetdiskApiProvider.overrideWithValue(api),
-          baiduNetdiskImportServiceProvider.overrideWithValue(importService),
-        ]),
-      ),
-    );
-    await tester.tap(find.text('Open Import'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('从网盘导入'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('百度网盘'));
-    await tester.pumpAndSettle();
-
-    await tester.tap(find.text('lesson.mp4'));
-    await tester.pump();
-    await tester.tap(find.widgetWithText(FilledButton, '导入（1 个素材）'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.widgetWithText(FilledButton, '导入（1 个素材）'));
-    await tester.pumpAndSettle();
-
-    expect(find.text('导入列表'), findsOneWidget);
-    expect(find.textContaining('成功导入 0 个素材'), findsOneWidget);
-    expect(
-      find.text(
-        'Baidu download failed. Connection terminated during handshake',
-      ),
-      findsOneWidget,
-    );
-    expect(find.byIcon(Icons.warning_amber_rounded), findsNothing);
-    expect(find.text('失败 1 个'), findsOneWidget);
-    expect(find.byIcon(Icons.cancel_rounded), findsNWidgets(2));
-    expect(find.widgetWithText(FilledButton, '完成'), findsOneWidget);
-  });
-
-  testWidgets('百度网盘失败项鼠标悬停后可单独重试', (tester) async {
-    final api = _StaticBaiduNetdiskApi({
-      '/': [
-        const CloudDriveEntry(
-          fsId: 2,
-          name: 'lesson.mp4',
-          path: '/lesson.mp4',
-          isDirectory: false,
-          size: 1536,
-        ),
-      ],
-    });
-    final importService = _RetryableBaiduImportService(2);
-    await tester.pumpWidget(
-      _buildApp(
-        locale: const Locale('zh'),
-        overrides: dedupeOverrides([
-          baiduCredentialRepositoryProvider.overrideWithValue(
-            _TokenCredentialRepository(),
-          ),
-          baiduNetdiskApiProvider.overrideWithValue(api),
-          baiduNetdiskImportServiceProvider.overrideWithValue(importService),
-        ]),
-      ),
-    );
-    await tester.tap(find.text('Open Import'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('从网盘导入'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('百度网盘'));
-    await tester.pumpAndSettle();
-
-    await tester.tap(find.text('lesson.mp4'));
-    await tester.pump();
-    await tester.tap(find.widgetWithText(FilledButton, '导入（1 个素材）'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.widgetWithText(FilledButton, '导入（1 个素材）'));
-    await tester.pumpAndSettle();
-
-    expect(find.byIcon(Icons.cancel_rounded), findsNWidgets(2));
-    expect(find.byIcon(Icons.refresh_rounded), findsNothing);
-
-    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
-    addTearDown(mouse.removePointer);
-    await mouse.addPointer();
-    await mouse.moveTo(tester.getCenter(find.text('lesson.mp4')));
-    await tester.pumpAndSettle();
-
-    expect(find.byIcon(Icons.cancel_rounded), findsOneWidget);
-    expect(find.byIcon(Icons.refresh_rounded), findsOneWidget);
-
-    await tester.tap(find.byIcon(Icons.refresh_rounded));
-    await tester.pumpAndSettle();
-
-    expect(importService.importAudiosCalls, 2);
-    expect(importService.importedEntries.single.name, 'lesson.mp4');
-    expect(find.byIcon(Icons.check_circle), findsWidgets);
-    expect(find.byIcon(Icons.cancel_rounded), findsNothing);
-    expect(
-      find.text(
-        'Baidu download failed. Connection terminated during handshake',
-      ),
-      findsNothing,
-    );
-  });
-
-  testWidgets('百度网盘成功项无字幕时摘要不误报包含字幕', (tester) async {
-    final api = _StaticBaiduNetdiskApi({
-      '/': [
-        const CloudDriveEntry(
-          fsId: 2,
-          name: 'duplicate.mp3',
-          path: '/duplicate.mp3',
-          isDirectory: false,
-          size: 1536,
-        ),
-        const CloudDriveEntry(
-          fsId: 3,
-          name: 'duplicate.lrc',
-          path: '/duplicate.lrc',
-          isDirectory: false,
-          size: 256,
-        ),
-        const CloudDriveEntry(
-          fsId: 4,
-          name: 'fresh.mp3',
-          path: '/fresh.mp3',
-          isDirectory: false,
-          size: 2048,
-        ),
-      ],
-    });
-    final importService = _MixedDuplicateBaiduImportService();
-    await tester.pumpWidget(
-      _buildApp(
-        locale: const Locale('zh'),
-        overrides: dedupeOverrides([
-          baiduCredentialRepositoryProvider.overrideWithValue(
-            _TokenCredentialRepository(),
-          ),
-          baiduNetdiskApiProvider.overrideWithValue(api),
-          baiduNetdiskImportServiceProvider.overrideWithValue(importService),
-        ]),
-      ),
-    );
-    await tester.tap(find.text('Open Import'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('从网盘导入'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('百度网盘'));
-    await tester.pumpAndSettle();
-
-    await tester.tap(find.text('duplicate.mp3'));
-    await tester.pump();
-    await tester.tap(find.widgetWithText(TextButton, '全选'));
-    await tester.pump();
-    await tester.tap(find.widgetWithText(FilledButton, '导入（2 个素材，1 个字幕）'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.widgetWithText(FilledButton, '导入（2 个素材，1 个字幕）'));
-    await tester.pumpAndSettle();
-
-    expect(importService.importedEntries.map((entry) => entry.name), [
-      'duplicate.mp3',
-      'fresh.mp3',
-    ]);
-    expect(importService.importedSubtitleEntries.single.name, 'duplicate.lrc');
-    expect(find.textContaining('成功导入 1 个素材'), findsOneWidget);
-    expect(find.textContaining('其中 1 个包含字幕'), findsNothing);
-    expect(find.byIcon(Icons.closed_caption_outlined), findsOneWidget);
-    expect(find.byIcon(Icons.warning_amber_rounded), findsNWidgets(2));
-    expect(find.byIcon(Icons.cancel_rounded), findsNothing);
-  });
-
-  testWidgets('百度网盘导入进度留在待导入列表内展示', (tester) async {
-    final api = _StaticBaiduNetdiskApi({
-      '/': [
-        const CloudDriveEntry(
-          fsId: 2,
-          name: 'lesson.mp3',
-          path: '/lesson.mp3',
-          isDirectory: false,
-          size: 2048,
-        ),
-        const CloudDriveEntry(
-          fsId: 3,
-          name: 'lesson.srt',
-          path: '/lesson.srt',
-          isDirectory: false,
-          size: 256,
-        ),
-      ],
-    });
-    final importService = _BlockingBaiduImportService();
-    await tester.pumpWidget(
-      _buildApp(
-        locale: const Locale('zh'),
-        overrides: dedupeOverrides([
-          baiduCredentialRepositoryProvider.overrideWithValue(
-            _TokenCredentialRepository(),
-          ),
-          baiduNetdiskApiProvider.overrideWithValue(api),
-          baiduNetdiskImportServiceProvider.overrideWithValue(importService),
-        ]),
-      ),
-    );
-    await tester.tap(find.text('Open Import'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('从网盘导入'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('百度网盘'));
-    await tester.pumpAndSettle();
+  testWidgets('百度网盘本次导入成功的文件显示对勾，关闭弹窗后对勾消失', (tester) async {
+    final runner = _PendingItemRunner(succeed: true);
+    await _pumpBaiduDirectory(tester, runner: runner);
 
     await tester.tap(find.text('lesson.mp3'));
-    await tester.pump();
-    await tester.tap(find.widgetWithText(FilledButton, '导入（1 个素材）'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.widgetWithText(FilledButton, '导入（1 个素材）'));
-    await tester.pump();
+    await _pumpFrames(tester);
+    await tester.tap(find.textContaining('个素材'));
+    await _pumpFrames(tester);
 
-    expect(find.text('已选择 1 个文件  ·  2.0 KB'), findsOneWidget);
-    expect(find.text('lesson.mp3'), findsOneWidget);
-    expect(find.text('正在导入 1/1：lesson.mp3'), findsOneWidget);
-    expect(find.byType(LinearProgressIndicator), findsOneWidget);
-    expect(
-      tester.widget<FilledButton>(find.byType(FilledButton).last).onPressed,
-      isNotNull,
+    expect(find.byIcon(Icons.check_circle), findsOneWidget);
+    // 本次会话已导入的文件不可再选，不显示复选框。
+    expect(find.byType(Checkbox), findsNothing);
+
+    Navigator.of(tester.element(find.byType(ImportAudioFlowSheet))).pop();
+    await _pumpFrames(tester);
+    await _reopenBaiduDirectory(tester);
+
+    expect(find.byIcon(Icons.check_circle), findsNothing);
+  });
+
+  testWidgets('百度网盘已导入到合集的素材仍可勾选，并以绿色标签列出所在合集', (tester) async {
+    final imported = AudioItem(
+      id: 'imported-lesson',
+      name: 'lesson',
+      audioPath: 'audios/imported/lesson.mp3',
+      addedDate: DateTime(2026, 1, 1),
+      importSourceType: AudioImportSourceType.cloudDrive,
+      importSourceUrl: 'baidunetdisk://fs/2?path=%2Flesson.mp3',
+    );
+    final runner = _PendingItemRunner();
+    await _pumpBaiduDirectory(
+      tester,
+      runner: runner,
+      libraryItems: [imported],
+      collectionState: CollectionState(
+        rawCollections: [
+          Collection(
+            id: 'c1',
+            name: '英语',
+            createdDate: DateTime(2026, 1, 1),
+            updatedAt: DateTime(2026, 1, 1),
+          ),
+          Collection(
+            id: 'c2',
+            name: '口语',
+            createdDate: DateTime(2026, 1, 1),
+            updatedAt: DateTime(2026, 1, 1),
+          ),
+        ],
+        audioIdsMap: const {
+          'c1': ['imported-lesson'],
+          'c2': ['imported-lesson'],
+        },
+      ),
     );
 
-    importService.completer.complete(
-      const CloudDriveImportOutcome(added: <CloudDriveEntry>[]),
+    expect(find.text('已导入到：英语、口语'), findsOneWidget);
+
+    await tester.tap(find.text('lesson.mp3'));
+    await _pumpFrames(tester);
+
+    expect(runner.tokens, isEmpty);
+    expect(find.textContaining('个素材'), findsOneWidget);
+  });
+
+  testWidgets('百度网盘选中的字幕与已导入的同名音频配对，不显示未匹配提示', (tester) async {
+    final imported = AudioItem(
+      id: 'imported-lesson',
+      name: 'lesson',
+      audioPath: 'audios/imported/lesson.mp3',
+      addedDate: DateTime(2026, 1, 1),
+      importSourceType: AudioImportSourceType.cloudDrive,
+      importSourceUrl: 'baidunetdisk://fs/2?path=%2Flesson.mp3',
     );
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 200));
+    const srt = CloudDriveEntry(
+      fsId: 9,
+      name: 'lesson.srt',
+      path: '/lesson.srt',
+      isDirectory: false,
+      size: 10,
+    );
+    final runner = _PendingItemRunner();
+    await _pumpBaiduDirectory(
+      tester,
+      runner: runner,
+      entries: [_baiduLessonFile, srt],
+      libraryItems: [imported],
+    );
+
+    await tester.tap(find.text('lesson.srt'));
+    await _pumpFrames(tester);
+
+    expect(find.text('没有匹配到同名音频'), findsNothing);
+    expect(find.textContaining('1 个字幕'), findsOneWidget);
+
+    await tester.tap(find.textContaining('1 个字幕'));
+    await _pumpFrames(tester);
+
+    expect(runner.tokens, hasLength(1));
+  });
+
+  testWidgets('百度网盘已导入的素材仍可勾选，并在副标题下方显示已导入', (tester) async {
+    final imported = AudioItem(
+      id: 'imported-lesson',
+      name: 'lesson',
+      audioPath: 'audios/imported/lesson.mp3',
+      addedDate: DateTime(2026, 1, 1),
+      importSourceType: AudioImportSourceType.cloudDrive,
+      importSourceUrl: 'baidunetdisk://fs/2?path=%2Flesson.mp3',
+    );
+    final runner = _PendingItemRunner();
+    await _pumpBaiduDirectory(tester, runner: runner, libraryItems: [imported]);
+
+    expect(find.text('已导入到资源库'), findsOneWidget);
+
+    await tester.tap(find.text('lesson.mp3'));
+    await _pumpFrames(tester);
+    await tester.tap(find.textContaining('个素材'));
+    await _pumpFrames(tester);
+
+    expect(runner.tokens, hasLength(1));
+  });
+
+  testWidgets('百度网盘已勾选但没有同名音频的字幕显示未匹配提示，配对上的字幕不显示', (tester) async {
+    const unmatchedSubtitle = CloudDriveEntry(
+      fsId: 7,
+      name: 'orphan.srt',
+      path: '/orphan.srt',
+      isDirectory: false,
+      size: 10,
+    );
+    const matchedSubtitle = CloudDriveEntry(
+      fsId: 8,
+      name: 'lesson.srt',
+      path: '/lesson.srt',
+      isDirectory: false,
+      size: 10,
+    );
+    final runner = _PendingItemRunner();
+    await _pumpBaiduDirectory(
+      tester,
+      runner: runner,
+      entries: [_baiduLessonFile, matchedSubtitle, unmatchedSubtitle],
+    );
+
+    bool hasUnmatchedLabel(String name) {
+      return find
+          .descendant(
+            of: find.ancestor(
+              of: find.text(name),
+              matching: find.byType(ListTile),
+            ),
+            matching: find.byKey(const Key('baidu_subtitle_unmatched_label')),
+          )
+          .evaluate()
+          .isNotEmpty;
+    }
+
+    await tester.tap(find.text('lesson.mp3'));
+    await _pumpFrames(tester);
+    await tester.tap(find.text('lesson.srt'));
+    await _pumpFrames(tester);
+    await tester.tap(find.text('orphan.srt'));
+    await _pumpFrames(tester);
+
+    expect(hasUnmatchedLabel('lesson.srt'), isFalse);
+    expect(hasUnmatchedLabel('orphan.srt'), isTrue);
+    expect(find.text('没有匹配到同名音频'), findsOneWidget);
+  });
+
+  testWidgets('百度网盘有进行中的导入时断开连接需确认，取消则保留下载', (tester) async {
+    final runner = _PendingItemRunner();
+    final credentialRepository = _TokenCredentialRepository();
+    await _pumpBaiduDirectory(
+      tester,
+      runner: runner,
+      credentialRepository: credentialRepository,
+    );
+
+    await tester.tap(find.text('lesson.mp3'));
+    await _pumpFrames(tester);
+    await tester.tap(find.textContaining('个素材'));
+    await _pumpFrames(tester);
+
+    await tester.tap(find.byKey(const ValueKey('baidu-account-button')));
+    await _pumpFrames(tester);
+    await tester.tap(find.text('断开百度网盘连接'));
+    await _pumpFrames(tester);
+
+    expect(find.text('有文件正在导入'), findsOneWidget);
+
+    await tester.tap(
+      find.descendant(of: find.byType(AlertDialog), matching: find.text('取消')),
+    );
+    await _pumpFrames(tester);
+
+    expect(credentialRepository.cleared, isFalse);
+    expect(runner.tokens.single.isCancelled, isFalse);
   });
 
   testWidgets('百度网盘返回按钮在子目录返回父目录，根目录返回网盘来源', (tester) async {

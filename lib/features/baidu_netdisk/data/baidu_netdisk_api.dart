@@ -37,6 +37,7 @@ abstract interface class BaiduNetdiskApi {
     required String accessToken,
     required String dlink,
     required String savePath,
+    required String displayName,
     String? resourceKey,
     CancelToken? cancelToken,
     void Function(int receivedBytes, int? totalBytes)? onProgress,
@@ -213,6 +214,7 @@ class DefaultBaiduNetdiskApi implements BaiduNetdiskApi {
     required String accessToken,
     required String dlink,
     required String savePath,
+    required String displayName,
     String? resourceKey,
     CancelToken? cancelToken,
     void Function(int receivedBytes, int? totalBytes)? onProgress,
@@ -228,6 +230,7 @@ class DefaultBaiduNetdiskApi implements BaiduNetdiskApi {
       await _backgroundDownloader.download(
         uri: downloadUri,
         savePath: savePath,
+        displayName: displayName,
         resourceKey: resourceKey,
         headers: const {'User-Agent': _baiduUserAgent},
         cancelToken: cancelToken,

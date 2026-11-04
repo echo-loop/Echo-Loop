@@ -9,16 +9,15 @@ import '../features/audio_import/subtitle_pairing.dart';
 import '../features/baidu_netdisk/models/cloud_drive_models.dart';
 import '../features/baidu_netdisk/models/baidu_account_profile.dart';
 import '../features/baidu_netdisk/providers/baidu_netdisk_import_controller.dart';
+import '../features/baidu_netdisk/providers/baidu_netdisk_import_tasks_provider.dart';
 import '../features/baidu_netdisk/providers/baidu_netdisk_providers.dart';
 import '../features/remote_config/remote_config.dart';
 import '../features/remote_config/remote_config_providers.dart';
 import '../l10n/app_localizations.dart';
-import '../models/audio_item.dart';
 import '../theme/app_theme.dart';
 import 'add_audio_dialog.dart';
 import 'common/form_input_style.dart';
 import 'common/secondary_action_button.dart';
-import 'import_audio_selection_list.dart';
 import 'media_type_icon.dart';
 
 /// 显示统一的音频导入流程。
@@ -58,8 +57,17 @@ class _ImportAudioFlowSheetState extends ConsumerState<ImportAudioFlowSheet> {
   final _urlController = TextEditingController();
   _ImportStep _step = _ImportStep.chooseSource;
   AudioImportOutcome _outcome = (added: const [], duplicates: const []);
-  bool _baiduConfirming = false;
   bool _localImporting = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // 对勾只在本次导入弹窗内有效：每次打开时清除上一次会话的成功标记。
+    Future<void>.microtask(() {
+      if (!mounted) return;
+      ref.read(baiduNetdiskImportTasksProvider.notifier).clearAddedTasks();
+    });
+  }
 
   @override
   void dispose() {
@@ -76,14 +84,13 @@ class _ImportAudioFlowSheetState extends ConsumerState<ImportAudioFlowSheet> {
     final baiduController = ref.read(
       baiduNetdiskImportControllerProvider.notifier,
     );
+    final baiduTasks = ref.watch(baiduNetdiskImportTasksProvider);
+    final unavailableFsIds = _unavailableBaiduFsIds(baiduTasks);
     final cloudDriveImportEnabled = ref.watch(
       remoteFeatureEnabledProvider(RemoteFeature.cloudDriveImport),
     );
     final busy = _isBusy(state) || baiduState.isBusy || _localImporting;
-    final importing =
-        _isBusy(state) ||
-        baiduState.phase == BaiduNetdiskImportPhase.importing ||
-        _localImporting;
+    final importing = _isBusy(state) || _localImporting;
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
 
     return PopScope(
@@ -103,14 +110,16 @@ class _ImportAudioFlowSheetState extends ConsumerState<ImportAudioFlowSheet> {
                   title: _titleFor(l10n, baiduState),
                   showBack: _step != _ImportStep.chooseSource && !busy,
                   showClose: !importing,
-                  titleSmall:
-                      _step == _ImportStep.baiduNetdisk && !_baiduConfirming,
+                  titleSmall: _step == _ImportStep.baiduNetdisk,
                   onBack: _goBack,
                   trailing: _baiduHeaderTrailing(
                     l10n: l10n,
                     state: baiduState,
                     busy: busy,
-                    onToggleSelectAll: baiduController.toggleSelectAll,
+                    unavailableFsIds: unavailableFsIds,
+                    onToggleSelectAll: () => baiduController.toggleSelectAll(
+                      unavailableFsIds: unavailableFsIds,
+                    ),
                   ),
                   onClose: () => Navigator.pop(context),
                 ),
@@ -144,22 +153,20 @@ class _ImportAudioFlowSheetState extends ConsumerState<ImportAudioFlowSheet> {
     required AppLocalizations l10n,
     required BaiduNetdiskImportState state,
     required bool busy,
+    required Set<int> unavailableFsIds,
     required VoidCallback onToggleSelectAll,
   }) {
-    if (_step != _ImportStep.baiduNetdisk || _baiduConfirming) return null;
+    if (_step != _ImportStep.baiduNetdisk) return null;
     if (state.selectedFsIds.isNotEmpty) {
       return _HeaderTextButton(
-        label: state.isAllSelectableSelected
+        label: state.isAllSelectableSelected(unavailableFsIds: unavailableFsIds)
             ? l10n.baiduNetdiskClearSelectionAction
             : l10n.baiduNetdiskSelectAllAction,
         onPressed: busy ? null : onToggleSelectAll,
       );
     }
     final canLogout = switch (state.phase) {
-      BaiduNetdiskImportPhase.ready ||
-      BaiduNetdiskImportPhase.importing ||
-      BaiduNetdiskImportPhase.completed ||
-      BaiduNetdiskImportPhase.failed => true,
+      BaiduNetdiskImportPhase.ready || BaiduNetdiskImportPhase.failed => true,
       BaiduNetdiskImportPhase.idle ||
       BaiduNetdiskImportPhase.authorizationRequired ||
       BaiduNetdiskImportPhase.authorizing ||
@@ -182,6 +189,20 @@ class _ImportAudioFlowSheetState extends ConsumerState<ImportAudioFlowSheet> {
         profile: state.accountProfile,
         loading: state.accountProfileLoading,
         onDisconnect: () async {
+          final activeCount = ref
+              .read(baiduNetdiskImportTasksProvider)
+              .values
+              .where((task) => task.isActive)
+              .length;
+          if (activeCount > 0) {
+            final confirmed = await _confirmCancelActiveImports(
+              dialogContext,
+              l10n,
+              activeCount,
+            );
+            if (!confirmed || !dialogContext.mounted) return;
+          }
+          ref.read(baiduNetdiskImportTasksProvider.notifier).cancelAll();
           await ref.read(baiduCredentialRepositoryProvider).disconnect();
           if (!dialogContext.mounted) return;
           Navigator.pop(dialogContext);
@@ -192,16 +213,39 @@ class _ImportAudioFlowSheetState extends ConsumerState<ImportAudioFlowSheet> {
     );
   }
 
+  /// 断开连接会取消进行中的导入，先让用户确认，避免误丢下载。
+  Future<bool> _confirmCancelActiveImports(
+    BuildContext context,
+    AppLocalizations l10n,
+    int activeCount,
+  ) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(l10n.baiduDisconnectActiveTitle),
+        content: Text(l10n.baiduDisconnectActiveMessage(activeCount)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: Text(l10n.cancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: Text(l10n.baiduNetdiskDisconnect),
+          ),
+        ],
+      ),
+    );
+    return confirmed ?? false;
+  }
+
   String _titleFor(AppLocalizations l10n, BaiduNetdiskImportState baiduState) {
     return switch (_step) {
       _ImportStep.chooseSource => l10n.importAudio,
       _ImportStep.localFile => l10n.importAudioFromFile,
       _ImportStep.directUrl => l10n.importAudioFromUrl,
       _ImportStep.cloudDrive => l10n.importAudioFromCloudDrive,
-      _ImportStep.baiduNetdisk =>
-        _baiduConfirming
-            ? l10n.importList
-            : _directoryName(l10n, baiduState.currentPath),
+      _ImportStep.baiduNetdisk => _directoryName(l10n, baiduState.currentPath),
       _ImportStep.completed => l10n.audioImportComplete,
     };
   }
@@ -250,9 +294,6 @@ class _ImportAudioFlowSheetState extends ConsumerState<ImportAudioFlowSheet> {
         _ImportStep.baiduNetdisk => _BaiduNetdiskPanel(
           key: const ValueKey('baidu-netdisk'),
           collectionId: widget.collectionId,
-          confirming: _baiduConfirming,
-          onShowConfirm: () => setState(() => _baiduConfirming = true),
-          onHideConfirm: () => setState(() => _baiduConfirming = false),
           onBack: _goBackFromBaiduNetdisk,
         ),
         _ImportStep.completed => _CompletedPanel(
@@ -269,7 +310,6 @@ class _ImportAudioFlowSheetState extends ConsumerState<ImportAudioFlowSheet> {
     ref.read(baiduNetdiskImportControllerProvider.notifier).reset();
     setState(() {
       _step = _ImportStep.chooseSource;
-      _baiduConfirming = false;
     });
   }
 
@@ -277,7 +317,6 @@ class _ImportAudioFlowSheetState extends ConsumerState<ImportAudioFlowSheet> {
     ref.read(baiduNetdiskImportControllerProvider.notifier).reset();
     setState(() {
       _step = _ImportStep.cloudDrive;
-      _baiduConfirming = false;
     });
   }
 
@@ -293,17 +332,6 @@ class _ImportAudioFlowSheetState extends ConsumerState<ImportAudioFlowSheet> {
 
   void _goBack() {
     if (_step == _ImportStep.baiduNetdisk) {
-      if (_baiduConfirming) {
-        final baiduController = ref.read(
-          baiduNetdiskImportControllerProvider.notifier,
-        );
-        final baiduPhase = ref.read(baiduNetdiskImportControllerProvider).phase;
-        if (baiduPhase == BaiduNetdiskImportPhase.completed) {
-          baiduController.returnToReady();
-        }
-        setState(() => _baiduConfirming = false);
-        return;
-      }
       _goBackFromBaiduNetdisk();
       return;
     }
@@ -320,7 +348,6 @@ class _ImportAudioFlowSheetState extends ConsumerState<ImportAudioFlowSheet> {
     setState(() {
       _outcome = outcome;
       _step = _ImportStep.completed;
-      _baiduConfirming = false;
     });
   }
 
@@ -395,9 +422,8 @@ class _ImportHeader extends StatelessWidget {
                     : showBack
                     ? IconButton(
                         onPressed: onBack,
-                        tooltip: MaterialLocalizations.of(
-                          context,
-                        ).backButtonTooltip,
+                        tooltip: MaterialLocalizations.of(context)
+                            .backButtonTooltip,
                         icon: const Icon(
                           Icons.arrow_back_ios_new_rounded,
                           size: 28,
@@ -414,9 +440,8 @@ class _ImportHeader extends StatelessWidget {
                     : _HeaderIconButton(
                         icon: Icons.close,
                         onPressed: onClose,
-                        tooltip: MaterialLocalizations.of(
-                          context,
-                        ).closeButtonTooltip,
+                        tooltip: MaterialLocalizations.of(context)
+                            .closeButtonTooltip,
                       ),
               ),
             ),
@@ -729,16 +754,10 @@ class _BaiduNetdiskPanel extends ConsumerStatefulWidget {
   const _BaiduNetdiskPanel({
     super.key,
     required this.collectionId,
-    required this.confirming,
-    required this.onShowConfirm,
-    required this.onHideConfirm,
     required this.onBack,
   });
 
   final String? collectionId;
-  final bool confirming;
-  final VoidCallback onShowConfirm;
-  final VoidCallback onHideConfirm;
   final VoidCallback onBack;
 
   @override
@@ -759,6 +778,21 @@ class _BaiduNetdiskPanelState extends ConsumerState<_BaiduNetdiskPanel> {
   Widget build(BuildContext context) {
     final state = ref.watch(baiduNetdiskImportControllerProvider);
     final controller = ref.read(baiduNetdiskImportControllerProvider.notifier);
+    final tasks = ref.watch(baiduNetdiskImportTasksProvider);
+    final tasksController = ref.read(baiduNetdiskImportTasksProvider.notifier);
+    final importedFsIds = ref.watch(baiduImportedFsIdsProvider);
+    final importedCollectionNames = ref.watch(
+      baiduImportedCollectionNamesProvider,
+    );
+    final plan = planBaiduImport(
+      selectedAudios: state.selectedAudioEntries,
+      selectedSubtitles: state.selectedSubtitleEntries,
+      importedAudios: [
+        for (final entry in state.entries)
+          if (_isImportableAudio(entry) && importedFsIds.contains(entry.fsId))
+            entry,
+      ],
+    );
     final l10n = AppLocalizations.of(context)!;
     final theme = Theme.of(context);
 
@@ -768,13 +802,7 @@ class _BaiduNetdiskPanelState extends ConsumerState<_BaiduNetdiskPanel> {
           ? null
           : (details) {
               final velocity = details.primaryVelocity ?? 0;
-              if (velocity > 300) {
-                if (widget.confirming) {
-                  widget.onHideConfirm();
-                } else {
-                  widget.onBack();
-                }
-              }
+              if (velocity > 300) widget.onBack();
             },
       child: SizedBox(
         height: MediaQuery.of(context).size.height * 0.58,
@@ -796,57 +824,25 @@ class _BaiduNetdiskPanelState extends ConsumerState<_BaiduNetdiskPanel> {
                 BaiduNetdiskImportPhase.loading => _BaiduBusyPanel(
                   message: l10n.baiduNetdiskLoadingFiles,
                 ),
-                BaiduNetdiskImportPhase.ready =>
-                  widget.confirming
-                      ? _BaiduSelectedFilesConfirmPanel(
-                          state: state,
-                          onImport: () => controller.importSelected(
-                            collectionId: widget.collectionId,
-                          ),
-                          onCancel: controller.cancel,
-                          onRemove: controller.toggleEntry,
-                          onRetryFailed: null,
-                          onDone: () => Navigator.pop(context),
-                        )
-                      : _BaiduFileBrowser(
-                          state: state,
-                          onOpenDirectory: controller.loadDirectory,
-                          onToggle: controller.toggleEntry,
-                          onImport: widget.onShowConfirm,
-                        ),
-                BaiduNetdiskImportPhase.importing =>
-                  widget.confirming
-                      ? _BaiduSelectedFilesConfirmPanel(
-                          state: state,
-                          onImport: () {},
-                          onCancel: controller.cancel,
-                          onRemove: null,
-                          onRetryFailed: null,
-                          onDone: () => Navigator.pop(context),
-                        )
-                      : _BaiduImportingPanel(
-                          state: state,
-                          onCancel: controller.cancel,
-                        ),
-                BaiduNetdiskImportPhase.completed =>
-                  widget.confirming
-                      ? _BaiduSelectedFilesConfirmPanel(
-                          state: state,
-                          onImport: () {},
-                          onCancel: null,
-                          onRemove: null,
-                          onRetryFailed: (entry) => controller.retryFailedEntry(
-                            entry,
-                            collectionId: widget.collectionId,
-                          ),
-                          onDone: () => Navigator.pop(context),
-                        )
-                      : _BaiduFileBrowser(
-                          state: state,
-                          onOpenDirectory: controller.loadDirectory,
-                          onToggle: controller.toggleEntry,
-                          onImport: widget.onShowConfirm,
-                        ),
+                BaiduNetdiskImportPhase.ready => _BaiduFileBrowser(
+                  state: state,
+                  plan: plan,
+                  importedCollectionNames: importedCollectionNames,
+                  tasks: tasks,
+                  importedFsIds: importedFsIds,
+                  onOpenDirectory: controller.loadDirectory,
+                  onToggle: controller.toggleEntry,
+                  onImport: () {
+                    controller.clearSelection();
+                    tasksController.enqueue(
+                      audioEntries: plan.audioEntries,
+                      subtitleEntries: plan.subtitleEntries,
+                      collectionId: widget.collectionId,
+                    );
+                  },
+                  onCancelTask: tasksController.cancel,
+                  onRetryTask: tasksController.retry,
+                ),
                 BaiduNetdiskImportPhase.failed => Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -931,15 +927,27 @@ class _BaiduBusyPanel extends StatelessWidget {
 class _BaiduFileBrowser extends StatefulWidget {
   const _BaiduFileBrowser({
     required this.state,
+    required this.plan,
+    required this.importedCollectionNames,
+    required this.tasks,
+    required this.importedFsIds,
     required this.onOpenDirectory,
     required this.onToggle,
     required this.onImport,
+    required this.onCancelTask,
+    required this.onRetryTask,
   });
 
   final BaiduNetdiskImportState state;
+  final BaiduImportPlan plan;
+  final Map<int, List<String>> importedCollectionNames;
+  final Map<int, BaiduImportTask> tasks;
+  final Set<int> importedFsIds;
   final ValueChanged<String> onOpenDirectory;
   final ValueChanged<CloudDriveEntry> onToggle;
   final VoidCallback onImport;
+  final ValueChanged<int> onCancelTask;
+  final ValueChanged<int> onRetryTask;
 
   @override
   State<_BaiduFileBrowser> createState() => _BaiduFileBrowserState();
@@ -964,8 +972,7 @@ class _BaiduFileBrowserState extends State<_BaiduFileBrowser> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final l10n = AppLocalizations.of(context)!;
-    final selectedCount = widget.state.selectedAudioEntries.length;
-    final selectedSubtitleCount = _matchedSubtitleFsIdsFor(widget.state).length;
+    final plan = widget.plan;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -984,11 +991,30 @@ class _BaiduFileBrowserState extends State<_BaiduFileBrowser> {
                   Divider(height: 1, color: theme.colorScheme.outlineVariant),
               itemBuilder: (context, index) {
                 final entry = widget.state.entries[index];
+                final task = _taskCarrying(entry, widget.tasks);
+                final status = _rowStatusFor(
+                  task,
+                  isImported: widget.importedFsIds.contains(entry.fsId),
+                );
+                // 已勾选却没有匹配到同名音频（本次选中或已导入）的字幕，需要提示用户。
+                final isUnmatchedSubtitle = plan.unmatchedSubtitleFsIds
+                    .contains(entry.fsId);
                 return _BaiduFileTile(
                   entry: entry,
                   selected: widget.state.selectedFsIds.contains(entry.fsId),
+                  status: status,
+                  task: task,
+                  unmatchedSubtitle: isUnmatchedSubtitle,
+                  collectionNames:
+                      widget.importedCollectionNames[entry.fsId] ?? const [],
                   onOpenDirectory: widget.onOpenDirectory,
                   onToggle: widget.onToggle,
+                  onCancel: task == null || !task.isActive
+                      ? null
+                      : () => widget.onCancelTask(task.audioEntry.fsId),
+                  onRetry: task == null
+                      ? null
+                      : () => widget.onRetryTask(task.audioEntry.fsId),
                 );
               },
             ),
@@ -998,13 +1024,13 @@ class _BaiduFileBrowserState extends State<_BaiduFileBrowser> {
         SizedBox(
           width: double.infinity,
           child: FilledButton(
-            onPressed: selectedCount == 0 ? null : widget.onImport,
+            onPressed: plan.audioEntries.isEmpty ? null : widget.onImport,
             child: Text(
-              selectedCount == 0
+              plan.audioEntries.isEmpty
                   ? l10n.importAudioShort
                   : l10n.importAudioAndSubtitleCount(
-                      selectedCount,
-                      selectedSubtitleCount,
+                      plan.audioEntries.length,
+                      plan.subtitleByAudio.length,
                     ),
             ),
           ),
@@ -1014,27 +1040,122 @@ class _BaiduFileBrowserState extends State<_BaiduFileBrowser> {
   }
 }
 
+/// 目录行的导入展示状态，由下载任务与音频库派生。
+enum _BaiduRowStatus {
+  pending,
+  queued,
+  downloading,
+
+  /// 资源库中已有该素材（副标题显示"已导入"，仍可勾选）。
+  added,
+
+  /// 本次导入弹窗内成功导入（额外显示对勾）。
+  addedThisSession,
+  duplicate,
+  failed,
+}
+
+_BaiduRowStatus _rowStatusFor(
+  BaiduImportTask? task, {
+  required bool isImported,
+}) {
+  if (task != null) {
+    return switch (task.status) {
+      BaiduImportTaskStatus.queued => _BaiduRowStatus.queued,
+      BaiduImportTaskStatus.downloading => _BaiduRowStatus.downloading,
+      BaiduImportTaskStatus.added => _BaiduRowStatus.addedThisSession,
+      BaiduImportTaskStatus.duplicate => _BaiduRowStatus.duplicate,
+      BaiduImportTaskStatus.failed => _BaiduRowStatus.failed,
+    };
+  }
+  return isImported ? _BaiduRowStatus.added : _BaiduRowStatus.pending;
+}
+
+/// 返回承载该条目的任务：音频取自身任务，字幕取其配对音频的任务。
+BaiduImportTask? _taskCarrying(
+  CloudDriveEntry entry,
+  Map<int, BaiduImportTask> tasks,
+) {
+  final own = tasks[entry.fsId];
+  if (own != null) return own;
+  for (final task in tasks.values) {
+    if (task.subtitleEntry?.fsId == entry.fsId) return task;
+  }
+  return null;
+}
+
+/// 下载中的行在副标题末尾追加当前速度；速度未知时保持原副标题。
+String? _withSpeed(String? subtitle, double? bytesPerSecond) {
+  if (bytesPerSecond == null) return subtitle;
+  final speedText = '${_formatBytes(bytesPerSecond.round())}/s';
+  return subtitle == null ? speedText : '$subtitle · $speedText';
+}
+
+/// 不可再勾选的百度条目：下载任务中的音频及其字幕，以及本次会话已成功导入的条目。
+///
+/// 资源库中之前导入的素材不计入此处，仍可勾选。
+Set<int> _unavailableBaiduFsIds(Map<int, BaiduImportTask> tasks) {
+  return {
+    for (final task in tasks.values) ...[
+      task.audioEntry.fsId,
+      ?task.subtitleEntry?.fsId,
+    ],
+  };
+}
+
 class _BaiduFileTile extends StatelessWidget {
   const _BaiduFileTile({
     required this.entry,
     required this.selected,
+    required this.status,
+    required this.task,
+    required this.unmatchedSubtitle,
+    required this.collectionNames,
     required this.onOpenDirectory,
     required this.onToggle,
+    required this.onCancel,
+    required this.onRetry,
   });
 
   final CloudDriveEntry entry;
   final bool selected;
+  final _BaiduRowStatus status;
+  final BaiduImportTask? task;
+
+  /// 已勾选但没有匹配到同名音频的字幕，副标题下方会显示提示。
+  final bool unmatchedSubtitle;
+
+  /// 已导入素材所在的合集名称；仅在资源库中时为空列表。
+  final List<String> collectionNames;
   final ValueChanged<String> onOpenDirectory;
   final ValueChanged<CloudDriveEntry> onToggle;
+  final VoidCallback? onCancel;
+  final VoidCallback? onRetry;
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final isAudio = _isImportableAudio(entry);
     final isSubtitle = _isImportableSubtitle(entry);
     final isSelectableFile = isAudio || isSubtitle;
-    final isUnsupportedFile = !entry.isDirectory && !isAudio && !isSubtitle;
+    final isUnsupportedFile = !entry.isDirectory && !isSelectableFile;
+    // 已导入的素材仍可勾选，用于加入其他合集或补挂字幕。
+    // 本次会话已导入的不可再选；资源库中之前导入的仍可选（加入其他合集或补挂字幕）。
+    final isSelectable =
+        status == _BaiduRowStatus.pending || status == _BaiduRowStatus.added;
+    final isAdded =
+        status == _BaiduRowStatus.added ||
+        status == _BaiduRowStatus.addedThisSession;
+    final isFailed = status == _BaiduRowStatus.failed;
+    final speed = status == _BaiduRowStatus.downloading
+        ? task?.speedBytesPerSecond
+        : null;
+    final baseSubtitle = _entrySubtitle(entry);
+    final subtitleText = isFailed
+        ? l10n.baiduNetdiskImportFailed
+        : _withSpeed(baseSubtitle, speed);
     final iconColor = isUnsupportedFile
         ? colorScheme.onSurfaceVariant.withValues(alpha: 0.38)
         : colorScheme.primary;
@@ -1061,320 +1182,144 @@ class _BaiduFileTile extends StatelessWidget {
               )
             : null,
       ),
-      subtitle: _entrySubtitle(entry) == null
+      subtitle: subtitleText == null && !unmatchedSubtitle && !isAdded
           ? null
-          : Text(
-              _entrySubtitle(entry)!,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: colorScheme.onSurfaceVariant.withValues(
-                  alpha: isUnsupportedFile ? 0.44 : 0.64,
-                ),
-              ),
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (subtitleText != null)
+                  Text(
+                    subtitleText,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: isFailed
+                          ? colorScheme.error
+                          : colorScheme.onSurfaceVariant.withValues(
+                              alpha: isUnsupportedFile ? 0.44 : 0.64,
+                            ),
+                    ),
+                  ),
+                if (isAdded)
+                  Text(
+                    collectionNames.isEmpty
+                        ? l10n.baiduImportedToLibrary
+                        : l10n.baiduImportedToCollections(
+                            collectionNames.join('、'),
+                          ),
+                    key: const Key('baidu_import_added_label'),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: AppTheme.successColor,
+                    ),
+                  ),
+                if (unmatchedSubtitle)
+                  Text(
+                    l10n.baiduSubtitleUnmatched,
+                    key: const Key('baidu_subtitle_unmatched_label'),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: colorScheme.error,
+                    ),
+                  ),
+              ],
             ),
       trailing: entry.isDirectory
           ? const Icon(Icons.chevron_right)
           : isSelectableFile
-          ? Checkbox(
-              value: selected,
-              side: BorderSide(
-                color: colorScheme.onSurfaceVariant.withValues(alpha: 0.62),
-                width: 1.6,
-              ),
-              fillColor: WidgetStateProperty.resolveWith((states) {
-                if (states.contains(WidgetState.selected)) {
-                  return colorScheme.primary.withValues(alpha: 0.86);
-                }
-                return Colors.transparent;
-              }),
-              checkColor: colorScheme.onPrimary,
-              onChanged: (_) => onToggle(entry),
-            )
+          ? _statusTrailing(l10n, theme)
           : null,
       onTap: entry.isDirectory
           ? () => onOpenDirectory(entry.path)
-          : isSelectableFile
+          : isSelectableFile && isSelectable
           ? () => onToggle(entry)
           : null,
     );
   }
-}
 
-class _BaiduSelectedFilesConfirmPanel extends StatelessWidget {
-  const _BaiduSelectedFilesConfirmPanel({
-    required this.state,
-    required this.onImport,
-    required this.onCancel,
-    required this.onRemove,
-    required this.onRetryFailed,
-    required this.onDone,
-  });
-
-  final BaiduNetdiskImportState state;
-  final VoidCallback onImport;
-  final VoidCallback? onCancel;
-  final ValueChanged<CloudDriveEntry>? onRemove;
-  final ValueChanged<CloudDriveEntry>? onRetryFailed;
-  final VoidCallback onDone;
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
-    final matchedSubtitleFsIds = _matchedSubtitleFsIdsFor(state);
-    final audios = state.selectedAudioEntries;
-    final completed = state.phase == BaiduNetdiskImportPhase.completed;
-    final importing = state.phase == BaiduNetdiskImportPhase.importing;
-    final subtitleCount = matchedSubtitleFsIds.length;
-    final retryFailed = onRetryFailed;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Expanded(
-          child: ImportAudioSelectionList(
-            items: [
-              for (final entry in audios)
-                _selectionItemFor(entry, matchedSubtitleFsIds),
-            ],
-            progress: _importProgress(l10n, state),
-            summary: _summaryFor(state),
-            onRemove: onRemove == null
-                ? null
-                : (id) {
-                    final fsId = int.tryParse(id);
-                    if (fsId == null) return;
-                    for (final entry in audios) {
-                      if (entry.fsId == fsId) {
-                        onRemove!(entry);
-                        return;
-                      }
-                    }
-                  },
-            onRetryFailed: retryFailed == null
-                ? null
-                : (id) {
-                    final fsId = int.tryParse(id);
-                    if (fsId == null) return;
-                    for (final entry in audios) {
-                      if (entry.fsId == fsId) {
-                        retryFailed(entry);
-                        return;
-                      }
-                    }
-                  },
-            maxHeight: double.infinity,
-          ),
+  Widget _statusTrailing(AppLocalizations l10n, ThemeData theme) {
+    final colorScheme = theme.colorScheme;
+    return switch (status) {
+      _BaiduRowStatus.pending ||
+      _BaiduRowStatus.added => _selectionCheckbox(colorScheme),
+      // 本次导入会话中已成功导入的文件不可再选，只显示对勾。
+      _BaiduRowStatus.addedThisSession => Icon(
+        Icons.check_circle,
+        size: 18,
+        color: colorScheme.primary,
+      ),
+      _BaiduRowStatus.queued => Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(l10n.audioQueued, style: theme.textTheme.bodySmall),
+          _cancelButton(l10n),
+        ],
+      ),
+      _BaiduRowStatus.downloading => _downloadingTrailing(l10n, theme),
+      _BaiduRowStatus.duplicate => Text(
+        l10n.baiduImportDuplicate,
+        style: theme.textTheme.bodySmall?.copyWith(
+          color: colorScheme.onSurfaceVariant,
         ),
-        const SizedBox(height: AppSpacing.l),
-        if (completed)
-          SizedBox(
-            width: double.infinity,
-            child: FilledButton(onPressed: onDone, child: Text(l10n.done)),
-          )
-        else
-          SizedBox(
-            width: double.infinity,
-            child: FilledButton(
-              onPressed: importing
-                  ? onCancel
-                  : audios.isEmpty
-                  ? null
-                  : onImport,
-              child: state.isBusy
-                  ? Text(l10n.cancelImport)
-                  : Text(
-                      audios.isEmpty
-                          ? l10n.importAudioShort
-                          : l10n.importAudioAndSubtitleCount(
-                              audios.length,
-                              subtitleCount,
-                            ),
-                    ),
-            ),
-          ),
-      ],
-    );
+      ),
+      _BaiduRowStatus.failed => IconButton(
+        icon: const Icon(Icons.refresh),
+        tooltip: l10n.retry,
+        onPressed: onRetry,
+      ),
+    };
   }
 
-  AudioImportSelectionItem _selectionItemFor(
-    CloudDriveEntry entry,
-    Set<int> matchedSubtitleFsIds,
-  ) {
-    final duplicateExistingName = _duplicateExistingNameFor(entry);
-    return AudioImportSelectionItem(
-      id: entry.fsId.toString(),
-      displayName: entry.name,
-      fileSize: entry.size,
-      hasSubtitle: _hasSubtitleForEntry(entry, matchedSubtitleFsIds),
-      isVideo: isVideoImportExtension(entry.extension),
-      status: _selectionStatusFor(entry, duplicateExistingName),
-      duplicateExistingName: duplicateExistingName,
-      failureMessage: _failureMessageFor(entry),
-    );
-  }
-
-  bool _hasSubtitleForEntry(
-    CloudDriveEntry entry,
-    Set<int> matchedSubtitleFsIds,
-  ) {
-    final outcome = state.importOutcome;
-    if (state.phase == BaiduNetdiskImportPhase.completed && outcome != null) {
-      final importedItem = state.importedItemsByFsId[entry.fsId];
-      if (importedItem != null) {
-        return importedItem.transcriptSource == TranscriptSource.local;
-      }
-      for (var i = 0; i < outcome.added.length; i++) {
-        if (outcome.added[i].fsId != entry.fsId) continue;
-        final item = i < outcome.addedItems.length
-            ? outcome.addedItems[i]
-            : null;
-        return item?.transcriptSource == TranscriptSource.local;
-      }
-    }
-    return matchedSubtitleFsIds.contains(entry.fsId);
-  }
-
-  AudioImportSelectionStatus _selectionStatusFor(
-    CloudDriveEntry entry,
-    String? duplicateExistingName,
-  ) {
-    final status = state.importItemStatuses[entry.fsId];
-    if (status != null &&
-        (state.phase == BaiduNetdiskImportPhase.importing ||
-            state.phase == BaiduNetdiskImportPhase.completed)) {
-      return status;
-    }
-    if (state.phase == BaiduNetdiskImportPhase.importing) {
-      return state.importingEntry?.fsId == entry.fsId
-          ? AudioImportSelectionStatus.importing
-          : AudioImportSelectionStatus.pending;
-    }
-    if (state.phase == BaiduNetdiskImportPhase.completed) {
-      final outcome = state.importOutcome;
-      final addedFsIds =
-          outcome?.added.map((entry) => entry.fsId).toSet() ?? const <int>{};
-      if (addedFsIds.contains(entry.fsId)) {
-        return AudioImportSelectionStatus.added;
-      }
-      if (duplicateExistingName != null) {
-        return AudioImportSelectionStatus.skipped;
-      }
-      if (_failureMessageFor(entry) != null) {
-        return AudioImportSelectionStatus.failed;
-      }
-    }
-    return AudioImportSelectionStatus.pending;
-  }
-
-  String? _duplicateExistingNameFor(CloudDriveEntry entry) {
-    final stateName = state.importDuplicateExistingNames[entry.fsId];
-    if (stateName != null) return stateName;
-    final duplicates =
-        state.importOutcome?.duplicateDetails ?? const <AudioImportDuplicate>[];
-    final displayName = _entryDisplayNameWithoutExtension(entry);
-    for (final duplicate in duplicates) {
-      if (duplicate.attempted == displayName) return duplicate.existing;
-    }
-    return null;
-  }
-
-  String? _failureMessageFor(CloudDriveEntry entry) {
-    final stateMessage = state.importFailureMessages[entry.fsId];
-    if (stateMessage != null) return stateMessage;
-    final failures =
-        state.importOutcome?.failures ?? const <CloudDriveImportFailure>[];
-    for (final failure in failures) {
-      if (failure.entry.fsId == entry.fsId) return failure.message;
-    }
-    return null;
-  }
-
-  AudioImportSelectionSummary? _summaryFor(BaiduNetdiskImportState state) {
-    if (state.phase != BaiduNetdiskImportPhase.completed) return null;
-    final outcome = state.importOutcome;
-    if (outcome == null) return null;
-    return AudioImportSelectionSummary(
-      addedCount: outcome.addedItems.length,
-      subtitleCount: outcome.addedItems
-          .where((item) => item.transcriptSource == TranscriptSource.local)
-          .length,
-      skippedCount: outcome.duplicateDetails.length,
-      failedCount: outcome.failures.length,
-    );
-  }
-
-  AudioImportSelectionProgress? _importProgress(
-    AppLocalizations l10n,
-    BaiduNetdiskImportState state,
-  ) {
-    if (state.phase != BaiduNetdiskImportPhase.importing) return null;
-    final entry = state.importingEntry;
-    final progressPercent = state.importProgress < 0
-        ? null
-        : (state.importProgress * 100).clamp(0, 100).round();
-    return AudioImportSelectionProgress(
-      value: state.importProgress < 0 ? null : state.importProgress,
-      progressPercent: progressPercent,
-      speedBytesPerSecond: state.importSpeedBytesPerSecond,
-      label: entry == null
-          ? l10n.baiduNetdiskImporting
-          : l10n.importingFileProgress(
-              state.importingIndex <= 0 ? 1 : state.importingIndex,
-              state.importTotal <= 0
-                  ? state.selectedAudioEntries.length
-                  : state.importTotal,
-              entry.name,
-            ),
-    );
-  }
-}
-
-Set<int> _matchedSubtitleFsIdsFor(BaiduNetdiskImportState state) {
-  final audios = state.selectedAudioEntries;
-  final subtitles = state.selectedSubtitleEntries;
-  if (audios.isEmpty || subtitles.isEmpty) return const <int>{};
-  final entriesByName = <String, CloudDriveEntry>{
-    for (final entry in [...audios, ...subtitles]) entry.name: entry,
-  };
-  final pairing = matchSubtitlesForAudios(entriesByName.keys);
-  return {
-    for (final audio in audios)
-      if (pairing[audio.name] != null) audio.fsId,
-  };
-}
-
-class _BaiduImportingPanel extends StatelessWidget {
-  const _BaiduImportingPanel({required this.state, required this.onCancel});
-
-  final BaiduNetdiskImportState state;
-  final VoidCallback onCancel;
-
-  @override
-  Widget build(BuildContext context) {
-    final entry = state.importingEntry;
-    final l10n = AppLocalizations.of(context)!;
-    final current = state.importingIndex <= 0 ? 1 : state.importingIndex;
-    final total = state.importTotal <= 0 ? 1 : state.importTotal;
-    return Column(
+  /// 下载中：进度圈 + 百分比（总量未知时只显示不定进度）+ 取消。
+  Widget _downloadingTrailing(AppLocalizations l10n, ThemeData theme) {
+    final progress = task?.progress;
+    return Row(
       mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        LinearProgressIndicator(
-          value: state.importProgress < 0 ? null : state.importProgress,
-        ),
-        const SizedBox(height: 12),
-        Text(
-          entry == null
-              ? l10n.baiduNetdiskImporting
-              : l10n.importingFileProgress(current, total, entry.name),
-        ),
-        const SizedBox(height: AppSpacing.l),
         SizedBox(
-          width: double.infinity,
-          child: FilledButton(
-            onPressed: onCancel,
-            child: Text(l10n.cancelImport),
-          ),
+          width: 20,
+          height: 20,
+          child: CircularProgressIndicator(value: progress, strokeWidth: 2.5),
         ),
+        if (progress != null) ...[
+          const SizedBox(width: 6),
+          Text(
+            '${(progress * 100).round()}%',
+            style: theme.textTheme.bodySmall,
+          ),
+        ],
+        _cancelButton(l10n),
       ],
+    );
+  }
+
+  Widget _selectionCheckbox(ColorScheme colorScheme) {
+    return Checkbox(
+      value: selected,
+      side: BorderSide(
+        color: colorScheme.onSurfaceVariant.withValues(alpha: 0.62),
+        width: 1.6,
+      ),
+      fillColor: WidgetStateProperty.resolveWith((states) {
+        if (states.contains(WidgetState.selected)) {
+          return colorScheme.primary.withValues(alpha: 0.86);
+        }
+        return Colors.transparent;
+      }),
+      checkColor: colorScheme.onPrimary,
+      onChanged: (_) => onToggle(entry),
+    );
+  }
+
+  /// 文字按钮：目录行里的 X 图标含义不直观，尤其在触屏设备上没有悬停提示。
+  Widget _cancelButton(AppLocalizations l10n) {
+    return TextButton(
+      onPressed: onCancel,
+      style: TextButton.styleFrom(visualDensity: VisualDensity.compact),
+      child: Text(l10n.cancel),
     );
   }
 }
@@ -1941,13 +1886,6 @@ String _lastPathSegment(String path) {
   final slash = trimmed.lastIndexOf('/');
   if (slash < 0 || slash == trimmed.length - 1) return trimmed;
   return trimmed.substring(slash + 1);
-}
-
-String _entryDisplayNameWithoutExtension(CloudDriveEntry entry) {
-  final name = entry.name;
-  final dot = name.lastIndexOf('.');
-  if (dot <= 0) return name;
-  return name.substring(0, dot);
 }
 
 String? _entrySubtitle(CloudDriveEntry entry) {

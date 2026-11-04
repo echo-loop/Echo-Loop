@@ -2021,7 +2021,6 @@
       "count": {"type": "int"}
     }
   },
-  "importList": "Import List",
   "filesSelected": "{count} files selected",
   "@filesSelected": {
     "placeholders": {
@@ -2493,7 +2492,6 @@
       "subtitleCount": {"type": "int"}
     }
   },
-  "baiduNetdiskImporting": "Importing...",
   "baiduNetdiskImportingFile": "Importing {name}...",
   "@baiduNetdiskImportingFile": {
     "placeholders": {
@@ -2525,6 +2523,14 @@
   "audioDownloadFailed": "Failed to download audio",
   "audioDownloadInProgress": "Downloading",
   "audioQueued": "Queued",
+  "baiduImportedToLibrary": "Imported to library",
+  "baiduImportedToCollections": "Imported to: {names}",
+  "@baiduImportedToCollections": {"placeholders": {"names": {"type": "String"}}},
+  "baiduImportDuplicate": "Already exists",
+  "baiduSubtitleUnmatched": "No matching audio file",
+  "baiduDisconnectActiveTitle": "Imports in progress",
+  "baiduDisconnectActiveMessage": "{count} file(s) are downloading or queued. Disconnecting will cancel them.",
+  "@baiduDisconnectActiveMessage": {"placeholders": {"count": {"type": "int"}}},
   "mediaQueued": "Queued...",
   "audioImportComplete": "Import complete",
   "audioImportCanceled": "Audio import canceled",

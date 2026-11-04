@@ -6,7 +6,9 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../../models/audio_item.dart';
 import '../../providers/audio_library_provider.dart';
 import '../../providers/collection_provider.dart';
+import '../../providers/download_clock_provider.dart';
 import '../../providers/download_provider.dart';
+import '../../services/download_speed_meter.dart';
 import 'audio_import_models.dart';
 import 'audio_import_service.dart';
 
@@ -161,6 +163,7 @@ class PodcastDownloadController extends _$PodcastDownloadController {
     );
 
     final service = ref.read(audioImportServiceProvider);
+    final speedMeter = DownloadSpeedMeter(now: ref.read(downloadClockProvider));
     try {
       final result = await service.downloadEpisodeToSandbox(
         url: enclosureUrl,
@@ -179,6 +182,7 @@ class PodcastDownloadController extends _$PodcastDownloadController {
               progress: progress,
               receivedBytes: received,
               totalBytes: total,
+              speedBytesPerSecond: speedMeter.record(received),
             ),
           );
         },
