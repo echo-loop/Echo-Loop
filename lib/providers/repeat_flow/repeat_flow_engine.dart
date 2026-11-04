@@ -508,9 +508,8 @@ class RepeatFlowEngine {
   Future<void> resumeCurrentSentence(Duration startAt) async {
     if (currentSentence == null) return;
     _waitAfterCurrentPrompt = false;
-    callbacks.pauseAudio();
-    _countdown.cancel();
-    _playbackService.stop();
+    // 录音中点播放会走这里，必须同时释放麦克风，与 _stopActiveResources 保持一致。
+    _stopActiveResources();
     _updateState(
       _state.copyWith(phase: const Idle(), flowToken: _state.flowToken + 1),
     );

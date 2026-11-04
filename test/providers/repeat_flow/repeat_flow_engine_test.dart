@@ -118,6 +118,69 @@ void main() {
     engine.dispose();
   });
 
+  test('录音中从暂停位置恢复播放会取消录音', () async {
+    final firstPlayback = Completer<SentencePlaybackResult>();
+    var cancelRecordingCount = 0;
+    final resumeOffsets = <Duration>[];
+    final engine = RepeatFlowEngine(
+      onStateChanged: (_) {},
+      callbacks: RepeatFlowCallbacks(
+        pauseAudio: () {},
+        playSentence: (_, _) => firstPlayback.future,
+        resumeSentence: (_, _, startAt) async {
+          resumeOffsets.add(startAt);
+          return SentencePlaybackResult.completed;
+        },
+        startRecording:
+            ({
+              required promptId,
+              required referenceText,
+              required maxDuration,
+              referenceDuration,
+            }) {},
+        cancelRecording: () async {
+          cancelRecordingCount++;
+        },
+        stopAndEvaluate: ({required referenceText}) async {},
+        clearRecording: () {},
+        setMaxRecordingDuration: (_) {},
+        hasDetectedSpeech: () => false,
+      ),
+    );
+    engine.prepare(
+      sentences: [
+        Sentence(
+          index: 0,
+          text: 'Resume while recording.',
+          startTime: Duration.zero,
+          endTime: const Duration(seconds: 1),
+        ),
+      ],
+      config: RepeatFlowConfig(
+        audioItemId: 'audio-resume-recording',
+        getRepeatCount: (_) => 3,
+        getIntervalDuration: (_) => const Duration(seconds: 30),
+        isManualMode: () => false,
+      ),
+    );
+    final initialPlayback = engine.startPlaying();
+    await Future<void>.delayed(Duration.zero);
+    engine.enterWaitingForUser();
+    engine.startManualRecording();
+    expect(engine.state.phase, isA<Recording>());
+
+    // 只统计 resume 这一步的取消，排除进入等待态时已触发的取消。
+    cancelRecordingCount = 0;
+    const pausedAt = Duration(milliseconds: 420);
+    await engine.resumeCurrentSentence(pausedAt);
+    firstPlayback.complete(SentencePlaybackResult.cancelled);
+    await initialPlayback;
+
+    expect(cancelRecordingCount, 1);
+    expect(resumeOffsets, [pausedAt]);
+    engine.dispose();
+  });
+
   test('恢复检查等待期间切句不会把暂停位置用于新句', () async {
     final firstPlayback = Completer<SentencePlaybackResult>();
     final firstPlaybackStarted = Completer<void>();

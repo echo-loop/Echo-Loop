@@ -601,3 +601,13 @@
 - 测试约定：`auth_providers_test.dart` 中 `startSupabaseSessionTracking` 用例：先回放 `initialSession` 再启动接管，断言首值可在超时内到达；启动后无其它监听者时，登录 / 登出都能反映到 `isAuthenticatedProvider`。把顺序改回「先 await、后监听」会超时失败。
 - 相关代码：`lib/features/auth/providers/auth_providers.dart`（`startSupabaseSessionTracking`、`supabaseAuthClientProvider`）、`lib/main.dart`（`_startThirdPartyDependentTasks`）。
 - 修复时间：2026-11-03。
+
+### 7.39 跟读页录音中点播放，麦克风未释放：暂停续播分支漏掉 cancelRecording
+
+- 现象：跟读页先暂停原句（保存了续播位置），再点录音，录音中点播放键。播放正常从原位置续播，但系统状态栏麦克风指示仍亮，录音持续进行。
+- 根因：`ListenAndRepeatController.resumeOrReplayCurrentSentence` 在存在续播位置时调用 `RepeatFlowEngine.resumeCurrentSentence`，该方法只做 pauseAudio / 倒计时取消 / 回放停止，没有调用 `callbacks.cancelRecording()`。无续播位置时走 `replayCurrentSentence` → `_atomicReset` → `_stopActiveResources`，录音会被正确释放，所以只有「先暂停再录音再播放」才会复现。
+- 解法：`resumeCurrentSentence` 改为调用 `_stopActiveResources()`，与其它打断路径保持同一套释放顺序。
+- 规则：引擎内任何「打断当前句」的入口都必须走 `_stopActiveResources()`，不得手写一份资源释放列表，否则新增资源（如录音）时会漏掉。共用此引擎的难句补练跟读同样受益。
+- 测试约定：`repeat_flow_engine_test.dart` 中「录音中从暂停位置恢复播放会取消录音」。进入等待态时 `enterWaitingForUser` 本身也会触发一次 `cancelRecording`，断言前需先重置计数，只统计 resume 这一步。
+- 相关代码：`lib/providers/repeat_flow/repeat_flow_engine.dart`（`resumeCurrentSentence`、`_stopActiveResources`）。
+- 修复时间：2026-11-04。
