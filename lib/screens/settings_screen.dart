@@ -108,12 +108,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             children: [
               _buildThemeModeTile(context, l10n, settings, settingsController),
               _buildLanguageTile(context, l10n, settings, settingsController),
-              _buildNativeLanguageTile(
-                context,
-                l10n,
-                settings,
-                settingsController,
-              ),
               _buildReadingTextTile(context, l10n),
             ],
           ),
@@ -329,6 +323,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final reminderSettings = ref.watch(reminderSettingsProvider);
     final colorScheme = Theme.of(context).colorScheme;
     final showAsr = ref.watch(showOfflineAsrSectionProvider);
+    final settings = ref.watch(appSettingsProvider);
+    final settingsController = ref.read(appSettingsProvider.notifier);
 
     return _buildSection(
       context,
@@ -433,6 +429,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ),
           ),
         ),
+        _buildNativeLanguageTile(context, l10n, settings, settingsController),
         ListTile(
           leading: _settingsSvgIcon('assets/icon/locale-1.svg'),
           title: Text(l10n.dictionarySettings),
