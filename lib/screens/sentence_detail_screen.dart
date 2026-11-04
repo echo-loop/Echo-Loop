@@ -30,6 +30,7 @@ import '../providers/listening_practice/bookmark_manager.dart';
 import '../providers/favorite_sentence_lifecycle_provider.dart';
 import '../providers/notification_permission_provider.dart';
 import '../providers/sentence_ai_provider.dart';
+import '../providers/settings_provider.dart';
 import '../services/app_logger.dart';
 import '../theme/app_theme.dart';
 import '../widgets/common/bookmark_toggle_row.dart';
@@ -372,8 +373,11 @@ class _SentenceDetailScreenState extends ConsumerState<SentenceDetailScreen> {
       null => _engine.absoluteCurrentPosition,
       _ => null,
     };
+    final resumeFromSentenceStart = ref
+        .read(appSettingsProvider)
+        .resumeFromSentenceStartEnabled;
     _resumePosition = position != null && position >= start && position < end
-        ? position
+        ? (resumeFromSentenceStart ? start : position)
         : null;
     _playbackGeneration++;
     if (mounted) setState(() => _isPlaying = false);

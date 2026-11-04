@@ -6,6 +6,7 @@ import 'package:echo_loop/models/sense_group_range_playback.dart';
 import 'package:echo_loop/models/media_playback_state.dart';
 import 'package:echo_loop/providers/media_engine/media_engine_provider.dart';
 import 'package:echo_loop/providers/media_playback/media_playback_provider.dart';
+import 'package:echo_loop/providers/settings_provider.dart';
 import 'package:echo_loop/providers/sentence_ai_provider.dart';
 import 'package:echo_loop/screens/sentence_detail_screen.dart';
 import 'package:echo_loop/services/sentence_ai_api_client.dart';
@@ -201,6 +202,56 @@ void main() {
       const Duration(milliseconds: 1840),
     ]);
     expect(rangePlayback.start, const Duration(milliseconds: 1840));
+    expect(rangePlayback.end, const Duration(seconds: 3));
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(milliseconds: 1));
+  });
+
+  testWidgets('开启暂停后从句首继续时，句子讲解页暂停后从句首重新播放', (tester) async {
+    final rangePlayback = _RecordingRangePlayback()..holdNextPlay = true;
+    await tester.pumpWidget(
+      createTestApp(
+        SentenceDetailScreen(
+          args: SentenceDetailArgs(
+            audioItemId: 'media-item',
+            audioName: 'Media item',
+            sentenceText: 'A sentence for media playback.',
+            sentenceIndex: 0,
+            startTimeMs: 1000,
+            endTimeMs: 3000,
+            rangePlayback: rangePlayback,
+            wordHighlightSource: const WordHighlightSource(
+              audioItemId: 'media-item',
+              positionStream: Stream<Duration>.empty(),
+              currentPosition: Duration.zero,
+              playbackStatus: WordHighlightPlaybackStatus.idle,
+              playbackStatusStream: Stream<WordHighlightPlaybackStatus>.empty(),
+            ),
+          ),
+        ),
+        overrides: [
+          ...detailOverrides(),
+          appSettingsProvider.overrideWith(
+            () => TestAppSettings(
+              const AppSettingsState(resumeFromSentenceStartEnabled: true),
+            ),
+          ),
+        ],
+      ),
+    );
+    await tester.pump();
+
+    await tester.tap(find.byIcon(Icons.play_arrow_rounded));
+    await tester.pump();
+
+    rangePlayback.currentPosition = const Duration(milliseconds: 1840);
+    await tester.tap(find.byIcon(Icons.stop_rounded));
+    await tester.pump();
+
+    await tester.tap(find.byIcon(Icons.play_arrow_rounded));
+    await tester.pump();
+    expect(rangePlayback.start, const Duration(seconds: 1));
     expect(rangePlayback.end, const Duration(seconds: 3));
 
     await tester.pumpWidget(const SizedBox.shrink());

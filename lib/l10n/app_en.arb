@@ -2318,6 +2318,9 @@
   "skipSilenceDescription": "Skip long silences between sentences",
   "wordHighlightTitle": "Highlight Words During Playback",
   "wordHighlightDescription": "Highlight each word as it is spoken in the original audio",
+  "resumeFromSentenceStartTitle": "Replay from Sentence Start",
+  "resumeFromSentenceStartEnabledDescription": "When replaying the current sentence, playback will start from its beginning",
+  "resumeFromSentenceStartDisabledDescription": "When replaying the current sentence, playback will resume from where you paused",
   "silenceThreshold": "Silence Threshold",
   "silenceThresholdValue": "{seconds}s",
   "@silenceThresholdValue": {

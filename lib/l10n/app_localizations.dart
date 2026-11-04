@@ -7928,6 +7928,24 @@ abstract class AppLocalizations {
   /// **'Highlight each word as it is spoken in the original audio'**
   String get wordHighlightDescription;
 
+  /// No description provided for @resumeFromSentenceStartTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Replay from Sentence Start'**
+  String get resumeFromSentenceStartTitle;
+
+  /// No description provided for @resumeFromSentenceStartEnabledDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'When replaying the current sentence, playback will start from its beginning'**
+  String get resumeFromSentenceStartEnabledDescription;
+
+  /// No description provided for @resumeFromSentenceStartDisabledDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'When replaying the current sentence, playback will resume from where you paused'**
+  String get resumeFromSentenceStartDisabledDescription;
+
   /// No description provided for @silenceThreshold.
   ///
   /// In en, this message translates to:

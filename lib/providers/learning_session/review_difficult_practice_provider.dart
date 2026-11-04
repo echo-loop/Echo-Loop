@@ -37,6 +37,7 @@ import '../media_engine/media_sense_group_range_playback.dart';
 import '../repeat_flow/repeat_flow_engine.dart';
 import '../repeat_flow/repeat_flow_phase.dart';
 import '../repeat_flow/repeat_flow_state.dart';
+import '../settings_provider.dart';
 import '../speech/speech_recording_controller.dart';
 import 'intensive_listen_playback_driver.dart';
 import 'learning_session_provider.dart';
@@ -494,10 +495,16 @@ class ReviewDifficultPractice extends _$ReviewDifficultPractice {
     if (sentence != null &&
         position >= sentence.startTime &&
         position < sentence.endTime) {
+      final resumeFromSentenceStart = ref
+          .read(appSettingsProvider)
+          .resumeFromSentenceStartEnabled;
+      final resumePosition = resumeFromSentenceStart
+          ? sentence.startTime
+          : position;
       if (state.isAnnotationMode) {
-        _repeatResumePosition = position;
+        _repeatResumePosition = resumePosition;
       } else {
-        _blindResumePosition = position;
+        _blindResumePosition = resumePosition;
       }
     }
     unawaited(_playback.invalidateSession());

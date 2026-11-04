@@ -30,6 +30,7 @@ import '../intensive_annotation/intensive_annotation_state.dart';
 import '../intensive_listen_prefs_provider.dart';
 import '../learning_progress_provider.dart';
 import '../learning_settings_provider.dart';
+import '../settings_provider.dart';
 import 'countdown_controller.dart';
 import 'learning_session_provider.dart';
 import 'intensive_listen_playback_driver.dart';
@@ -357,7 +358,12 @@ class IntensiveListenPlayer extends _$IntensiveListenPlayer {
           sentence != null &&
           position >= sentence.startTime &&
           position < sentence.endTime) {
-        _annotationResumePosition = position;
+        final resumeFromSentenceStart = ref
+            .read(appSettingsProvider)
+            .resumeFromSentenceStartEnabled;
+        _annotationResumePosition = resumeFromSentenceStart
+            ? sentence.startTime
+            : position;
         _annotationResumePlayCount = state.currentPlayCount;
       }
       _cleanupAnnotationSession();
@@ -371,7 +377,12 @@ class IntensiveListenPlayer extends _$IntensiveListenPlayer {
     if (sentence != null &&
         position >= sentence.startTime &&
         position < sentence.endTime) {
-      _blindResumePosition = position;
+      final resumeFromSentenceStart = ref
+          .read(appSettingsProvider)
+          .resumeFromSentenceStartEnabled;
+      _blindResumePosition = resumeFromSentenceStart
+          ? sentence.startTime
+          : position;
     }
     _blindEngine.enterWaitingForUser();
     state = state.copyWith(

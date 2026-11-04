@@ -1844,6 +1844,9 @@
   "skipSilenceDescription": "跳过句子之间较长的静音部分",
   "wordHighlightTitle": "逐词高亮",
   "wordHighlightDescription": "播放原音时高亮当前读到的单词",
+  "resumeFromSentenceStartTitle": "重播时从句首开始",
+  "resumeFromSentenceStartEnabledDescription": "重播当前句子时将从句首开始播放",
+  "resumeFromSentenceStartDisabledDescription": "重播当前句子时将从暂停位置继续播放。",
   "silenceThreshold": "静音阈值",
   "silenceThresholdValue": "{seconds} 秒",
   "@silenceThresholdValue": {

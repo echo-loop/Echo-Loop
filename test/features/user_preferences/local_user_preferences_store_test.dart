@@ -191,4 +191,38 @@ void main() {
     expect(prefs.getInt('developer_time_machine_at_ms'), 987);
     expect(prefs.getBool('learning_retell_auto_playback_prompt_shown'), isTrue);
   });
+
+  test('暂停后从句首继续开关随 playback 分组双向同步', () async {
+    SharedPreferences.setMockInitialValues({});
+    final prefs = await SharedPreferences.getInstance();
+    final store = LocalUserPreferencesStore(prefs);
+
+    await store.apply(
+      UserPreferencesDocument({
+        'playback': {'resumeFromSentenceStartEnabled': true},
+      }),
+    );
+    expect(prefs.getBool('resume_from_sentence_start_enabled'), isTrue);
+
+    final document = store.capture();
+    expect(
+      (document.preferences['playback']
+          as Map)['resumeFromSentenceStartEnabled'],
+      isTrue,
+    );
+  });
+
+  test('未设置暂停后从句首继续时云端快照默认为关闭', () async {
+    SharedPreferences.setMockInitialValues({});
+    final prefs = await SharedPreferences.getInstance();
+    final store = LocalUserPreferencesStore(prefs);
+
+    final document = store.capture();
+
+    expect(
+      (document.preferences['playback']
+          as Map)['resumeFromSentenceStartEnabled'],
+      isFalse,
+    );
+  });
 }

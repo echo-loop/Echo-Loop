@@ -74,6 +74,8 @@ class LocalUserPreferencesStore {
       'silenceThresholdSeconds': (storedThreshold ?? 2).clamp(1, 10),
       'wordHighlightEnabled':
           _preferences.getBool('word_highlight_enabled') ?? true,
+      'resumeFromSentenceStartEnabled':
+          _preferences.getBool('resume_from_sentence_start_enabled') ?? false,
       'aiTranscriptionAutoMergeEnabled':
           _preferences.getBool('ai_transcription_auto_merge_enabled') ?? true,
     };
@@ -160,6 +162,11 @@ class LocalUserPreferencesStore {
       'word_highlight_enabled',
       playback['wordHighlightEnabled'],
       true,
+    );
+    await _writeBool(
+      'resume_from_sentence_start_enabled',
+      playback['resumeFromSentenceStartEnabled'],
+      false,
     );
     await _writeBool(
       'ai_transcription_auto_merge_enabled',

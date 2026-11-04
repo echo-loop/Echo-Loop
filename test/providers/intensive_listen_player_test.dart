@@ -20,6 +20,7 @@ import 'package:echo_loop/providers/learning_session/intensive_listen_player_pro
 import 'package:echo_loop/providers/learning_session/intensive_listen_playback_driver.dart';
 import 'package:echo_loop/providers/learning_session/learning_session_provider.dart';
 import 'package:echo_loop/providers/learning_settings_provider.dart';
+import 'package:echo_loop/providers/settings_provider.dart';
 import '../helpers/mock_providers.dart';
 
 class _ReplayTestAudioEngine extends TestAudioEngine {
@@ -566,10 +567,18 @@ void main() {
     ProviderContainer createContainer({
       TestAudioEngine? audioEngine,
       LearningSettings? learningSettings,
+      bool resumeFromSentenceStart = false,
     }) {
       studyTimeService = _RecordingStudyTimeService();
       return ProviderContainer(
         overrides: dedupeOverrides([
+          appSettingsProvider.overrideWith(
+            () => TestAppSettings(
+              AppSettingsState(
+                resumeFromSentenceStartEnabled: resumeFromSentenceStart,
+              ),
+            ),
+          ),
           initialLearningSettingsProvider.overrideWithValue(
             const LearningSettings(),
           ),
@@ -716,6 +725,29 @@ void main() {
         audioEngine.playedStartPositions.first,
         const Duration(milliseconds: 500),
       );
+    });
+
+    test('开启暂停后从句首继续时，讲解页整句重播从句首开始', () async {
+      final audioEngine = _PositionedReplayTestAudioEngine();
+      container = createContainer(
+        audioEngine: audioEngine,
+        resumeFromSentenceStart: true,
+      );
+      final notifier = container.read(intensiveListenPlayerProvider.notifier);
+      final sentence = createTestSentences(count: 1).single;
+      await _initializeWithTestAudio(container, notifier, [sentence]);
+      notifier.enterAnnotationMode();
+
+      final firstReplay = notifier.replayInAnnotationMode();
+      await Future<void>.delayed(Duration.zero);
+      audioEngine.position = const Duration(milliseconds: 500);
+      await notifier.pause();
+      await firstReplay;
+
+      audioEngine.playedStartPositions.clear();
+      await notifier.resume();
+
+      expect(audioEngine.playedStartPositions.first, sentence.startTime);
     });
 
     test('讲解页句子自然播放完后再次播放仍从句首开始', () async {

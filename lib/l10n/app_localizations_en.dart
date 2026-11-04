@@ -4538,6 +4538,17 @@ class AppLocalizationsEn extends AppLocalizations {
       'Highlight each word as it is spoken in the original audio';
 
   @override
+  String get resumeFromSentenceStartTitle => 'Replay from Sentence Start';
+
+  @override
+  String get resumeFromSentenceStartEnabledDescription =>
+      'When replaying the current sentence, playback will start from its beginning';
+
+  @override
+  String get resumeFromSentenceStartDisabledDescription =>
+      'When replaying the current sentence, playback will resume from where you paused';
+
+  @override
   String get silenceThreshold => 'Silence Threshold';
 
   @override

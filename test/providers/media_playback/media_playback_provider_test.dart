@@ -18,6 +18,7 @@ import 'package:echo_loop/providers/audio_engine/audio_engine_provider.dart';
 import 'package:echo_loop/providers/learned_vocabulary_tracker_provider.dart';
 import 'package:echo_loop/providers/media_engine/media_engine_provider.dart';
 import 'package:echo_loop/providers/media_playback/media_playback_provider.dart';
+import 'package:echo_loop/providers/settings_provider.dart';
 import 'package:echo_loop/services/app_logger.dart';
 import 'package:echo_loop/services/media_session_router.dart';
 import 'package:echo_loop/services/storage_service.dart';
@@ -1025,6 +1026,50 @@ void main() {
     await waitUntil(() => backend.playCalls == 2);
     expect(backend.seekCalls.last, pausedAt);
     expect(container.read(mediaPlaybackProvider).sentenceRepeatsDone, 0);
+    await controller.pause();
+  });
+
+  test('开启暂停后从句首继续时，单句播放从当前句句首重新播放', () async {
+    await container
+        .read(appSettingsProvider.notifier)
+        .setResumeFromSentenceStartEnabled(true);
+    final controller = await loadController();
+    await controller.updateSettings(
+      container
+          .read(mediaPlaybackProvider)
+          .settings
+          .copyWith(loopSentence: true, sentenceLoopCount: 2),
+    );
+
+    unawaited(controller.play());
+    await waitUntil(() => backend.playCalls == 1);
+    const pausedAt = Duration(seconds: 46);
+    backend.emitPosition(pausedAt);
+    await waitUntil(() => backend.position == pausedAt);
+    await controller.pause();
+
+    unawaited(controller.play());
+    await waitUntil(() => backend.playCalls == 2);
+    expect(backend.seekCalls.last, sentences.first.startTime);
+    await controller.pause();
+  });
+
+  test('开启暂停后从句首继续时，整篇播放从暂停所在句的句首继续', () async {
+    await container
+        .read(appSettingsProvider.notifier)
+        .setResumeFromSentenceStartEnabled(true);
+    final controller = await loadController();
+
+    unawaited(controller.play());
+    await waitUntil(() => backend.playCalls == 1);
+    const pausedAt = Duration(seconds: 46);
+    backend.emitPosition(pausedAt);
+    await waitUntil(() => backend.position == pausedAt);
+    await controller.pause();
+
+    unawaited(controller.play());
+    await waitUntil(() => backend.playCalls == 2);
+    expect(backend.seekCalls.last, sentences.first.startTime);
     await controller.pause();
   });
 

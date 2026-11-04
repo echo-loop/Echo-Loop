@@ -44,6 +44,7 @@ import '../media_engine/media_sense_group_range_playback.dart';
 import '../repeat_flow/repeat_flow_engine.dart';
 import '../repeat_flow/repeat_flow_phase.dart';
 import '../repeat_flow/repeat_flow_state.dart';
+import '../settings_provider.dart';
 import '../speech/speech_recording_controller.dart';
 import '../listening_practice/bookmark_manager.dart';
 import '../favorite_sentence_lifecycle_provider.dart';
@@ -470,7 +471,12 @@ class ListenAndRepeatController extends _$ListenAndRepeatController {
         sentence != null &&
         position >= sentence.startTime &&
         position < sentence.endTime) {
-      _pausedPromptPosition = position;
+      final resumeFromSentenceStart = ref
+          .read(appSettingsProvider)
+          .resumeFromSentenceStartEnabled;
+      _pausedPromptPosition = resumeFromSentenceStart
+          ? sentence.startTime
+          : position;
     }
     _engine.enterWaitingForUser();
   }

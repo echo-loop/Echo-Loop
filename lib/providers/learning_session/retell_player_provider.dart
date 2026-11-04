@@ -665,7 +665,15 @@ class RetellPlayer extends _$RetellPlayer {
         sentences.isNotEmpty &&
         snapshotPosition >= sentences.first.startTime &&
         snapshotPosition < sentences.last.endTime) {
-      _resumePosition = snapshotPosition;
+      final resumeFromSentenceStart = ref
+          .read(appSettingsProvider)
+          .resumeFromSentenceStartEnabled;
+      final pausedSentenceIndex = sentences.lastIndexWhere(
+        (sentence) => sentence.startTime <= snapshotPosition,
+      );
+      _resumePosition = resumeFromSentenceStart
+          ? sentences[pausedSentenceIndex].startTime
+          : snapshotPosition;
     }
     state = state.copyWith(
       isPlaying: false,

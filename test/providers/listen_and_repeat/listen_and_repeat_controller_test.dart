@@ -19,6 +19,7 @@ import 'package:echo_loop/models/sentence_playback_result.dart';
 import 'package:echo_loop/models/study_stage.dart';
 import 'package:echo_loop/providers/audio_engine/audio_engine_provider.dart';
 import 'package:echo_loop/providers/audio_engine/foreground_audio_engine_provider.dart';
+import 'package:echo_loop/providers/settings_provider.dart';
 import 'package:echo_loop/providers/speech/speech_recording_controller.dart';
 import 'package:echo_loop/providers/listen_and_repeat/listen_and_repeat_controller.dart';
 import 'package:echo_loop/providers/listen_and_repeat/listen_and_repeat_phase.dart';
@@ -1140,6 +1141,43 @@ void main() {
     await controller.resumeOrReplayCurrentSentence();
 
     expect(audioEngine.resumeStarts, [const Duration(seconds: 2)]);
+    expect(audioEngine.sentenceStarts, [Duration.zero]);
+    expect(readState().repeatIndex, 0);
+  });
+
+  test('开启暂停后从句首继续时，跟读句子从当前句句首重新播放', () async {
+    final audioEngine = _PauseResumeAudioEngine();
+    final sentences = createTestSentences(count: 2);
+    container.dispose();
+    container = ProviderContainer(
+      overrides: dedupeOverrides([
+        appDatabaseProvider.overrideWithValue(database),
+        foregroundAudioEngineProvider.overrideWith(() => audioEngine),
+        audioEngineProvider.overrideWith(TestAudioEngine.new),
+        studyTimeServiceProvider.overrideWithValue(studyTimeService),
+        speechRecordingControllerProvider.overrideWith(
+          TestSpeechRecordingController.new,
+        ),
+        appSettingsProvider.overrideWith(
+          () => TestAppSettings(
+            const AppSettingsState(resumeFromSentenceStartEnabled: true),
+          ),
+        ),
+      ]),
+    );
+    listenToController(container);
+    controller = container.read(listenAndRepeatControllerProvider.notifier);
+    await controller.prepareSession(sentences: sentences, config: _testConfig());
+
+    final playing = controller.startPlaying();
+    await Future<void>.delayed(Duration.zero);
+    audioEngine.position = const Duration(seconds: 2);
+    controller.pausePlayback();
+    await playing;
+
+    await controller.resumeOrReplayCurrentSentence();
+
+    expect(audioEngine.resumeStarts, [sentences.first.startTime]);
     expect(audioEngine.sentenceStarts, [Duration.zero]);
     expect(readState().repeatIndex, 0);
   });

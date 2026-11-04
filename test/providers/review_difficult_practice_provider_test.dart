@@ -19,6 +19,7 @@ import 'package:echo_loop/providers/learning_session/learning_session_provider.d
 import 'package:echo_loop/providers/learning_session/intensive_listen_playback_driver.dart';
 import 'package:echo_loop/providers/learning_session/review_difficult_practice_provider.dart';
 import 'package:echo_loop/providers/repeat_flow/repeat_flow_phase.dart';
+import 'package:echo_loop/providers/settings_provider.dart';
 
 import '../helpers/mock_providers.dart';
 
@@ -404,6 +405,65 @@ void main() {
     await initialPlayback;
 
     expect(playback.playedStartPositions, [sentence.startTime, pausedAt]);
+  });
+
+  test('开启暂停后从句首继续时，难句补练从当前句句首继续', () async {
+    final playback = _RecordingPlaybackDriver(
+      playbackDelay: const Duration(milliseconds: 100),
+    );
+    final container = ProviderContainer(
+      overrides: dedupeOverrides([
+        appSettingsProvider.overrideWith(
+          () => TestAppSettings(
+            const AppSettingsState(resumeFromSentenceStartEnabled: true),
+          ),
+        ),
+        learningProgressProvider.overrideWith(
+          () =>
+              _RecordingLearningProgressNotifier(const LearningProgressState()),
+        ),
+        learningSessionProvider.overrideWith(
+          () => _PassiveLearningSession(
+            const LearningSessionState(
+              learningMode: LearningMode.reviewDifficultPractice,
+              audioItemId: 'audio-1',
+              playbackChain: LearningPlaybackChain.mediaEngine,
+            ),
+          ),
+        ),
+        analyticsOverride(),
+        ...learningSettingsOverrides(),
+        ...studyTimeOverrides(),
+      ]),
+    );
+    addTearDown(container.dispose);
+    final notifier = container.read(reviewDifficultPracticeProvider.notifier);
+    _listenToReviewDifficultPractice(container);
+    final sentence = Sentence(
+      index: 0,
+      text: 'Resume this sentence.',
+      startTime: const Duration(seconds: 1),
+      endTime: const Duration(seconds: 4),
+    );
+    await notifier.initialize(
+      [sentence],
+      settings: const DifficultPracticeSettings(
+        controlMode: ShadowingControlMode.manual,
+      ),
+      playbackDriver: playback,
+    );
+
+    final initialPlayback = notifier.startPlaying();
+    await playback.firstPlayStarted.future;
+    playback.position = const Duration(milliseconds: 2350);
+    notifier.pause();
+    await notifier.resume();
+    await initialPlayback;
+
+    expect(playback.playedStartPositions, [
+      sentence.startTime,
+      sentence.startTime,
+    ]);
   });
 
   test('暂停后导航到另一句时不复用旧句的暂停位置', () async {

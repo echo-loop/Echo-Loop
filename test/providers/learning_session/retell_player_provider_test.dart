@@ -1116,6 +1116,45 @@ void main() {
       expect(driver.ranges.last.end, sentence.endTime);
     });
 
+    test('开启暂停后从句首继续时，resume 从暂停所在句的句首开播', () async {
+      final sentenceContainer = ProviderContainer(
+        overrides: dedupeOverrides([
+          foregroundAudioEngineProvider.overrideWith(() => engine),
+          learningSessionProvider.overrideWith(TestLearningSession.new),
+          analyticsOverride(),
+          appSettingsProvider.overrideWith(
+            () => TestAppSettings(
+              const AppSettingsState(resumeFromSentenceStartEnabled: true),
+            ),
+          ),
+          ...learningSettingsOverrides(),
+          ...studyTimeOverrides(),
+        ]),
+      );
+      addTearDown(sentenceContainer.dispose);
+      final sentenceNotifier = sentenceContainer.read(
+        retellPlayerProvider.notifier,
+      );
+      final driver = _RecordingParagraphPlaybackDriver();
+      final sentence = Sentence(
+        index: 0,
+        text: 'Resume this sentence.',
+        startTime: const Duration(seconds: 1),
+        endTime: const Duration(seconds: 4),
+      );
+      await sentenceNotifier.initialize([
+        [sentence],
+      ], playbackDriver: driver);
+      await sentenceNotifier.startPlaying();
+
+      driver.position = const Duration(milliseconds: 2350);
+      await sentenceNotifier.pause();
+      await sentenceNotifier.resume();
+
+      expect(driver.ranges.last.start, sentence.startTime);
+      expect(driver.ranges.last.end, sentence.endTime);
+    });
+
     test('goToNextParagraph 等待 stopPlayback 完成后才开始下一段播放', () async {
       final sentences = [
         Sentence(

@@ -4,6 +4,7 @@
 /// - 自动跳过静音开关（默认开启）
 /// - 静音阈值选择（开关开启时才显示，默认 2 秒）
 /// - 播放原音时逐词高亮开关（默认开启）
+/// - 暂停后从句首继续开关（默认关闭，关闭时从暂停的精确位置继续）
 ///
 /// 后续若有更多播放相关参数（速率、间隔等），都加在这里。
 library;
@@ -49,6 +50,23 @@ class PlaybackSettingsScreen extends ConsumerWidget {
                   ),
                   value: settings.wordHighlightEnabled,
                   onChanged: controller.setWordHighlightEnabled,
+                ),
+                const Divider(height: 1, indent: 56),
+                SwitchListTile(
+                  secondary: _emojiIcon('⏮️'),
+                  title: Text(l10n.resumeFromSentenceStartTitle),
+                  subtitle: Text(
+                    settings.resumeFromSentenceStartEnabled
+                        ? l10n.resumeFromSentenceStartEnabledDescription
+                        : l10n.resumeFromSentenceStartDisabledDescription,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: colorScheme.onSurfaceVariant.withValues(
+                        alpha: 0.6,
+                      ),
+                    ),
+                  ),
+                  value: settings.resumeFromSentenceStartEnabled,
+                  onChanged: controller.setResumeFromSentenceStartEnabled,
                 ),
                 const Divider(height: 1, indent: 56),
                 SwitchListTile(

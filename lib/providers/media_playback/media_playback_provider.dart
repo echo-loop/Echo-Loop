@@ -26,6 +26,7 @@ import '../listening_practice/playback_state_storage.dart';
 import '../listening_practice/sentence_tracker.dart';
 import '../media_engine/media_engine_provider.dart';
 import '../media_engine/media_sense_group_range_playback.dart';
+import '../settings_provider.dart';
 
 final mediaPlaybackProvider =
     NotifierProvider<MediaPlayback, MediaPlaybackState>(MediaPlayback.new);
@@ -675,6 +676,7 @@ class MediaPlayback extends Notifier<MediaPlaybackState> {
       return;
     }
     if (_awaitingReplayFromStart || _isAtEnd()) {
+      _sentenceResumePosition = null;
       await _restartFromPlayableBeginning();
       return;
     }
@@ -689,8 +691,12 @@ class MediaPlayback extends Notifier<MediaPlaybackState> {
       );
       return;
     }
+    final wholeResumePosition = _sentenceResumePosition;
     _sentenceResumePosition = null;
-    await _startWholeDriven(resetWholeLoops: resetWholeLoops);
+    await _startWholeDriven(
+      resetWholeLoops: resetWholeLoops,
+      resumePosition: wholeResumePosition,
+    );
   }
 
   Future<void> pause() async {
@@ -701,19 +707,32 @@ class MediaPlayback extends Notifier<MediaPlaybackState> {
     );
     _recordGaplessStatsThrough(_engine.currentPosition);
     _sentenceResumePosition = null;
+    final resumeFromSentenceStart = ref
+        .read(appSettingsProvider)
+        .resumeFromSentenceStartEnabled;
+    final position = _engine.currentPosition;
     if (_activeSentenceDrivenPlayback) {
       final playable = _playable;
       final pos = _currentPos;
       final sentence = pos != null && pos >= 0 && pos < playable.length
           ? playable[pos]
           : null;
-      final position = _engine.currentPosition;
       _sentenceResumePosition =
           sentence != null &&
               position >= sentence.startTime &&
               position < sentence.endTime
-          ? position
+          ? (resumeFromSentenceStart ? sentence.startTime : position)
           : null;
+    } else if (resumeFromSentenceStart) {
+      // 整篇播放没有“当前句”概念，按暂停位置所在的字幕句吸附到句首；
+      // 落在句间空隙时保持精确续播。
+      final containingSentences = state.sentences.where(
+        (sentence) =>
+            position >= sentence.startTime && position < sentence.endTime,
+      );
+      _sentenceResumePosition = containingSentences.isEmpty
+          ? null
+          : containingSentences.first.startTime;
     }
     _playbackGen++;
     _clearPlaybackInterval();

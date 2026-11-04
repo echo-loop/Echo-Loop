@@ -22,6 +22,7 @@ const _silenceThresholdSecondsKey = 'silence_threshold_seconds';
 const _aiTranscriptionAutoMergeEnabledKey =
     'ai_transcription_auto_merge_enabled';
 const _wordHighlightEnabledKey = 'word_highlight_enabled';
+const _resumeFromSentenceStartEnabledKey = 'resume_from_sentence_start_enabled';
 
 /// 静音阈值合法范围（秒）
 const silenceThresholdMinSeconds = 1;
@@ -143,6 +144,11 @@ class AppSettingsState {
   /// 播放原音时高亮当前字幕词语（默认开启）。
   final bool wordHighlightEnabled;
 
+  /// 暂停后从句首继续（默认关闭）。
+  ///
+  /// 关闭时各播放入口从暂停的精确位置继续；开启时从暂停所在句的句首重新播放。
+  final bool resumeFromSentenceStartEnabled;
+
   const AppSettingsState({
     this.themeMode = ThemeMode.system,
     this.locale,
@@ -154,6 +160,7 @@ class AppSettingsState {
     this.silenceThresholdSeconds = silenceThresholdDefaultSeconds,
     this.aiTranscriptionAutoMergeEnabled = true,
     this.wordHighlightEnabled = true,
+    this.resumeFromSentenceStartEnabled = false,
   });
 
   AppSettingsState copyWith({
@@ -169,6 +176,7 @@ class AppSettingsState {
     int? silenceThresholdSeconds,
     bool? aiTranscriptionAutoMergeEnabled,
     bool? wordHighlightEnabled,
+    bool? resumeFromSentenceStartEnabled,
   }) {
     return AppSettingsState(
       themeMode: themeMode ?? this.themeMode,
@@ -186,6 +194,8 @@ class AppSettingsState {
           aiTranscriptionAutoMergeEnabled ??
           this.aiTranscriptionAutoMergeEnabled,
       wordHighlightEnabled: wordHighlightEnabled ?? this.wordHighlightEnabled,
+      resumeFromSentenceStartEnabled:
+          resumeFromSentenceStartEnabled ?? this.resumeFromSentenceStartEnabled,
     );
   }
 }
@@ -230,7 +240,7 @@ bool readInitialAiTranscriptionAutoMergeEnabledSync(SharedPreferences prefs) {
 
 @Riverpod(keepAlive: true)
 class AppSettings extends _$AppSettings {
-  bool _wordHighlightChangedByUser = false;
+  /// 代次：每次加载或写入开始/结束时递增，用于丢弃可能读到旧值的进行中加载。
   int _settingsLoadGeneration = 0;
 
   @override
@@ -285,6 +295,8 @@ class AppSettings extends _$AppSettings {
         prefs.getBool(_aiTranscriptionAutoMergeEnabledKey) ?? true;
     final wordHighlightEnabled =
         prefs.getBool(_wordHighlightEnabledKey) ?? true;
+    final resumeFromSentenceStartEnabled =
+        prefs.getBool(_resumeFromSentenceStartEnabledKey) ?? false;
 
     // 异步间隙后 notifier 可能已销毁或被新一轮加载取代，过期则丢弃。
     if (!ref.mounted || generation != _settingsLoadGeneration) return;
@@ -298,11 +310,27 @@ class AppSettings extends _$AppSettings {
       skipSilenceEnabled: skipSilenceEnabled,
       silenceThresholdSeconds: silenceThresholdSeconds,
       aiTranscriptionAutoMergeEnabled: aiTranscriptionAutoMergeEnabled,
-      // 用户在异步设置加载期间操作开关时，保留其即时选择。
-      wordHighlightEnabled: _wordHighlightChangedByUser
-          ? null
-          : wordHighlightEnabled,
+      wordHighlightEnabled: wordHighlightEnabled,
+      resumeFromSentenceStartEnabled: resumeFromSentenceStartEnabled,
     );
+  }
+
+  /// 把一项设置写入 SharedPreferences，并用代次隔离与加载的竞态。
+  ///
+  /// 写入开始时递增代次：此前开始的加载结束时会被丢弃，避免把写入前读到的旧值
+  /// 覆盖到内存状态。写入完成后再递增一次：写入期间开始的加载同样被丢弃；写入完成后
+  /// 开始的加载读到的是新值。这样不需要按字段记录“用户已修改”标记，也不会留下会永久
+  /// 屏蔽云端拉取的残留状态。
+  Future<void> _writePreference(
+    Future<void> Function(SharedPreferences prefs) write,
+  ) async {
+    _settingsLoadGeneration++;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await write(prefs);
+    } finally {
+      _settingsLoadGeneration++;
+    }
   }
 
   /// 云端写回 SharedPreferences 后重新加载设置。较早启动的异步加载会因
@@ -354,16 +382,16 @@ class AppSettings extends _$AppSettings {
   }
 
   Future<void> setThemeMode(ThemeMode mode) async {
-    _settingsLoadGeneration++;
     state = state.copyWith(themeMode: mode);
 
-    final prefs = await SharedPreferences.getInstance();
     final modeString = switch (mode) {
       ThemeMode.light => 'light',
       ThemeMode.dark => 'dark',
       ThemeMode.system => 'system',
     };
-    await prefs.setString(_themeModeKey, modeString);
+    await _writePreference(
+      (prefs) => prefs.setString(_themeModeKey, modeString),
+    );
     userPreferencesSyncEvents.notifyLocalChange();
   }
 
@@ -371,28 +399,26 @@ class AppSettings extends _$AppSettings {
   ///
   /// 传入 null 时跟随系统语言。
   Future<void> setLocale(Locale? locale) async {
-    _settingsLoadGeneration++;
     state = locale == null
         ? state.copyWith(clearLocale: true)
         : state.copyWith(locale: locale);
 
-    final prefs = await SharedPreferences.getInstance();
     final tag = locale == null
         ? 'system'
         : locale.countryCode != null
         ? '${locale.languageCode}-${locale.countryCode}'
         : locale.languageCode;
-    await prefs.setString(_localeKey, tag);
+    await _writePreference((prefs) => prefs.setString(_localeKey, tag));
     userPreferencesSyncEvents.notifyLocalChange();
   }
 
   /// 设置母语（BCP 47 代码）。
   Future<void> setNativeLanguage(String lang) async {
-    _settingsLoadGeneration++;
     state = state.copyWith(nativeLanguage: lang);
 
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_nativeLanguageKey, lang);
+    await _writePreference(
+      (prefs) => prefs.setString(_nativeLanguageKey, lang),
+    );
     userPreferencesSyncEvents.notifyLocalChange();
   }
 
@@ -400,7 +426,6 @@ class AppSettings extends _$AppSettings {
   ///
   /// 传入 null 时恢复系统真实时间。
   Future<void> setTimeMachineDateTime(DateTime? value) async {
-    _settingsLoadGeneration++;
     final normalizedValue = value == null
         ? null
         : normalizedFutureTimeMachineDateTime(value, DateTime.now());
@@ -409,16 +434,17 @@ class AppSettings extends _$AppSettings {
       clearTimeMachineDateTime: normalizedValue == null,
     );
 
-    final prefs = await SharedPreferences.getInstance();
-    if (normalizedValue == null) {
-      await prefs.remove(_timeMachineDateTimeKey);
-    } else {
-      await prefs.setInt(
-        _timeMachineDateTimeKey,
-        normalizedValue.millisecondsSinceEpoch,
-      );
-    }
-    await prefs.remove(_legacyUnlockAllReviewsKey);
+    await _writePreference((prefs) async {
+      if (normalizedValue == null) {
+        await prefs.remove(_timeMachineDateTimeKey);
+      } else {
+        await prefs.setInt(
+          _timeMachineDateTimeKey,
+          normalizedValue.millisecondsSinceEpoch,
+        );
+      }
+      await prefs.remove(_legacyUnlockAllReviewsKey);
+    });
   }
 
   /// 设置演示模式加载状态（供 UI 显示 loading 指示器）。
@@ -431,55 +457,62 @@ class AppSettings extends _$AppSettings {
   /// 数据库切换由调用方（settings_screen）负责，
   /// 此方法只更新 UI 状态和 SharedPreferences。
   Future<void> setDemoMode(bool enabled) async {
-    _settingsLoadGeneration++;
     state = state.copyWith(isDemoMode: enabled, isDemoModeLoading: false);
 
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(_demoModeKey, enabled);
+    await _writePreference((prefs) => prefs.setBool(_demoModeKey, enabled));
   }
 
   /// 设置静音跳过开关（默认开启）。
   Future<void> setSkipSilenceEnabled(bool enabled) async {
-    _settingsLoadGeneration++;
     state = state.copyWith(skipSilenceEnabled: enabled);
 
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(_skipSilenceEnabledKey, enabled);
+    await _writePreference(
+      (prefs) => prefs.setBool(_skipSilenceEnabledKey, enabled),
+    );
+    userPreferencesSyncEvents.notifyLocalChange();
+  }
+
+  /// 设置暂停后是否从句首继续（默认关闭，关闭时从暂停的精确位置继续）。
+  Future<void> setResumeFromSentenceStartEnabled(bool enabled) async {
+    state = state.copyWith(resumeFromSentenceStartEnabled: enabled);
+
+    await _writePreference(
+      (prefs) => prefs.setBool(_resumeFromSentenceStartEnabledKey, enabled),
+    );
     userPreferencesSyncEvents.notifyLocalChange();
   }
 
   /// 设置播放原音时的字幕逐词高亮（默认开启）。
   Future<void> setWordHighlightEnabled(bool enabled) async {
-    _settingsLoadGeneration++;
-    _wordHighlightChangedByUser = true;
     state = state.copyWith(wordHighlightEnabled: enabled);
 
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(_wordHighlightEnabledKey, enabled);
+    await _writePreference(
+      (prefs) => prefs.setBool(_wordHighlightEnabledKey, enabled),
+    );
     userPreferencesSyncEvents.notifyLocalChange();
   }
 
   /// 设置静音阈值（秒）。范围 [silenceThresholdMinSeconds, silenceThresholdMaxSeconds]。
   Future<void> setSilenceThresholdSeconds(int seconds) async {
-    _settingsLoadGeneration++;
     final clamped = seconds.clamp(
       silenceThresholdMinSeconds,
       silenceThresholdMaxSeconds,
     );
     state = state.copyWith(silenceThresholdSeconds: clamped);
 
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt(_silenceThresholdSecondsKey, clamped);
+    await _writePreference(
+      (prefs) => prefs.setInt(_silenceThresholdSecondsKey, clamped),
+    );
     userPreferencesSyncEvents.notifyLocalChange();
   }
 
   /// 设置 AI 转录「自动合并短句」开关（记住用户上次选择，默认开启）。
   Future<void> setAiTranscriptionAutoMergeEnabled(bool enabled) async {
-    _settingsLoadGeneration++;
     state = state.copyWith(aiTranscriptionAutoMergeEnabled: enabled);
 
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(_aiTranscriptionAutoMergeEnabledKey, enabled);
+    await _writePreference(
+      (prefs) => prefs.setBool(_aiTranscriptionAutoMergeEnabledKey, enabled),
+    );
     userPreferencesSyncEvents.notifyLocalChange();
   }
 }

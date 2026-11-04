@@ -259,11 +259,19 @@ ProviderContainer _buildContainer({
   bool isFreePlay = false,
   StudyTimeService? studyTimeService,
   StudyActivityGate? activityGate,
+  bool resumeFromSentenceStart = false,
 }) {
   // 兜底注入一个 noop progressNotifier，避免触发真实 appDatabaseProvider 的 LateInitializationError
   final notifier = progressNotifier ?? TestLearningProgressNotifier();
   return ProviderContainer(
     overrides: dedupeOverrides([
+      appSettingsProvider.overrideWith(
+        () => TestAppSettings(
+          AppSettingsState(
+            resumeFromSentenceStartEnabled: resumeFromSentenceStart,
+          ),
+        ),
+      ),
       learningSessionProvider.overrideWith(
         () => TestLearningSession(
           LearningSessionState(
@@ -773,6 +781,37 @@ void main() {
       await notifier.resume();
 
       expect(engine.lastPlayStart, pausedAt);
+    });
+
+    test('开启暂停后从句首继续时，resume 从暂停所在句的句首开播', () async {
+      final progressNotifier = TestLearningProgressNotifier();
+      final engine = _FastParagraphPlaybackDriver();
+      final container = _buildContainer(
+        engine: engine,
+        progressNotifier: progressNotifier,
+        resumeFromSentenceStart: true,
+      );
+      addTearDown(container.dispose);
+      final notifier = container.read(blindListenPlayerProvider.notifier);
+
+      final paragraphs = _buildParagraphs(
+        paragraphCount: 1,
+        sentencesPerParagraph: 5,
+      );
+      await notifier.initializeParagraphs(
+        paragraphs,
+        const BlindListenSettings(),
+        playbackDriver: engine,
+      );
+
+      await notifier.seekToSentence(3);
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+      engine.position =
+          paragraphs[0][3].startTime + const Duration(milliseconds: 500);
+      await notifier.pause();
+      await notifier.resume();
+
+      expect(engine.lastPlayStart, paragraphs[0][3].startTime);
     });
 
     test('pause → goToNextParagraph 下一段从段首开播（不污染）', () async {

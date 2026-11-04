@@ -4319,6 +4319,15 @@ class AppLocalizationsZh extends AppLocalizations {
   String get wordHighlightDescription => '播放原音时高亮当前读到的单词';
 
   @override
+  String get resumeFromSentenceStartTitle => '重播时从句首开始';
+
+  @override
+  String get resumeFromSentenceStartEnabledDescription => '重播当前句子时将从句首开始播放';
+
+  @override
+  String get resumeFromSentenceStartDisabledDescription => '重播当前句子时将从暂停位置继续播放。';
+
+  @override
   String get silenceThreshold => '静音阈值';
 
   @override
