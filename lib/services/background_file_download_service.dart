@@ -8,6 +8,7 @@ import 'package:uuid/uuid.dart';
 
 import 'app_logger.dart';
 import 'background_file_download_exception.dart';
+import 'download_completion_notifier.dart';
 import 'resource_download_registry.dart';
 import 'system_proxy.dart';
 import '../utils/app_data_dir.dart';
@@ -262,12 +263,14 @@ class BackgroundFileDownloadService {
     Future<Directory> Function()? resolveDataDir,
     BackgroundFileDownloadNotificationLabelResolver? resolveNotificationLabels,
     DownloadProxyResolver? resolveDownloadProxy,
+    DownloadCompletionNotifier? completionNotifier,
   }) : _runner =
            runner ??
            _defaultRunner(
              resolveDataDir,
              resolveNotificationLabels,
              resolveDownloadProxy,
+             completionNotifier,
            ),
        _registry = registry ?? sharedResourceDownloadRegistry;
 
@@ -277,11 +280,13 @@ class BackgroundFileDownloadService {
     Future<Directory> Function()? resolveDataDir,
     BackgroundFileDownloadNotificationLabelResolver? resolveNotificationLabels,
     DownloadProxyResolver? resolveDownloadProxy,
+    DownloadCompletionNotifier? completionNotifier,
   ) {
     return PluginBackgroundDownloadRunner(
       resolveDataDir: resolveDataDir ?? getAppDataDirectory,
       resolveNotificationLabels: resolveNotificationLabels,
       resolveDownloadProxy: resolveDownloadProxy,
+      completionNotifier: completionNotifier,
     );
   }
 
@@ -642,13 +647,15 @@ class PluginBackgroundDownloadRunner
     Uuid? uuid,
     BackgroundFileDownloadNotificationLabelResolver? resolveNotificationLabels,
     DownloadProxyResolver? resolveDownloadProxy,
+    DownloadCompletionNotifier? completionNotifier,
   }) : _resolveDataDir = resolveDataDir,
        _downloader = downloader ?? FileDownloader(),
        _uuid = uuid ?? const Uuid(),
        _resolveNotificationLabels = _guardNotificationLabels(
          resolveNotificationLabels ?? _englishNotificationLabels,
        ),
-       _resolveDownloadProxy = resolveDownloadProxy ?? _noDownloadProxy;
+       _resolveDownloadProxy = resolveDownloadProxy ?? _noDownloadProxy,
+       _completionNotifier = completionNotifier;
 
   final Future<Directory> Function() _resolveDataDir;
   final FileDownloader _downloader;
@@ -656,6 +663,9 @@ class PluginBackgroundDownloadRunner
   final BackgroundFileDownloadNotificationLabelResolver
   _resolveNotificationLabels;
   final DownloadProxyResolver _resolveDownloadProxy;
+
+  /// 非 null 时，终态（完成 / 失败）由应用补发通知；用于插件不在该平台发通知的情况。
+  final DownloadCompletionNotifier? _completionNotifier;
   final Map<String, _PendingDownload> _pending = {};
   Future<void>? _initialization;
 
@@ -723,6 +733,7 @@ class PluginBackgroundDownloadRunner
       host: uri.host,
       safeUrl: _safeDownloadUrl(uri),
       fileName: p.basename(relativePath),
+      labels: labels,
     );
     final task = DownloadTask(
       taskId: taskId,
@@ -986,6 +997,29 @@ class PluginBackgroundDownloadRunner
       _ => null,
     };
     if (result != null) pending.completer.complete(result);
+    _notifyFinishedIfPluginSilent(update, pending);
+  }
+
+  /// 插件在桌面端不发终态通知，这里按终态补发；取消是用户主动操作，不提示。
+  void _notifyFinishedIfPluginSilent(
+    TaskStatusUpdate update,
+    _PendingDownload pending,
+  ) {
+    final notifier = _completionNotifier;
+    if (notifier == null) return;
+    final title = switch (update.status) {
+      TaskStatus.complete => pending.labels.complete,
+      TaskStatus.failed || TaskStatus.notFound => pending.labels.failed,
+      _ => null,
+    };
+    if (title == null) return;
+    unawaited(
+      notifier.notify(
+        taskId: update.task.taskId,
+        title: title,
+        body: update.task.displayName,
+      ),
+    );
   }
 
   /// 插件在部分平台会用文件系统异常包装网络错误，因此只识别明确的空间不足描述。
@@ -1065,6 +1099,7 @@ class _PendingDownload {
     required this.host,
     required this.safeUrl,
     required this.fileName,
+    required this.labels,
   }) : stopwatch = Stopwatch()..start();
 
   final Completer<BackgroundDownloadResult> completer;
@@ -1073,6 +1108,7 @@ class _PendingDownload {
   final String host;
   final String safeUrl;
   final String fileName;
+  final BackgroundFileDownloadNotificationLabels labels;
   final Stopwatch stopwatch;
   int? receivedBytes;
   int? expectedBytes;

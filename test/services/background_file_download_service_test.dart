@@ -5,6 +5,7 @@ import 'package:dio/dio.dart';
 import 'package:echo_loop/services/app_logger.dart';
 import 'package:flutter/foundation.dart' show FlutterError;
 import 'package:echo_loop/services/background_file_download_service.dart';
+import 'package:echo_loop/services/download_completion_notifier.dart';
 import 'package:echo_loop/services/resource_download_registry.dart';
 import 'package:echo_loop/services/system_proxy.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -172,6 +173,20 @@ class _FakeFileDownloader extends Mock implements FileDownloader {
       throw StateError('expected a DownloadTask');
     }
     return true;
+  }
+}
+
+/// 记录应用补发的终态通知。
+class _RecordingCompletionNotifier implements DownloadCompletionNotifier {
+  final notices = <(String taskId, String title, String body)>[];
+
+  @override
+  Future<void> notify({
+    required String taskId,
+    required String title,
+    required String body,
+  }) async {
+    notices.add((taskId, title, body));
   }
 }
 
@@ -857,6 +872,100 @@ void main() {
     );
 
     expect(progress.last, (100, 100));
+  });
+
+  group('桌面端终态通知（插件不发通知时由应用补发）', () {
+    const labels = BackgroundFileDownloadNotificationLabels(
+      running: '正在下载',
+      complete: '下载完成',
+      failed: '下载失败',
+    );
+
+    test('下载完成后补发完成通知，正文为任务显示名', () async {
+      final downloader = _FakeFileDownloader(TaskFileSystemException('unused'));
+      final notifier = _RecordingCompletionNotifier();
+      downloader.onEnqueue = (task) {
+        File('${dataDir.path}/audio.mp3').writeAsBytesSync(const <int>[1, 2]);
+        downloader.statusCallback!(TaskStatusUpdate(task, TaskStatus.complete));
+      };
+      final service = BackgroundFileDownloadService(
+        runner: PluginBackgroundDownloadRunner(
+          resolveDataDir: () async => dataDir,
+          downloader: downloader,
+          resolveNotificationLabels: () async => labels,
+          completionNotifier: notifier,
+        ),
+      );
+
+      await service.download(
+        uri: Uri.parse('https://example.com/audio.mp3'),
+        savePath: '${dataDir.path}/audio.mp3',
+        displayName: '听力素材',
+      );
+
+      expect(notifier.notices.single.$2, '下载完成');
+      expect(notifier.notices.single.$3, '听力素材');
+    });
+
+    test('下载失败补发失败通知；用户取消不提示', () async {
+      final failedDownloader = _FakeFileDownloader(
+        TaskFileSystemException('unused'),
+      );
+      final failedNotifier = _RecordingCompletionNotifier();
+      failedDownloader.onEnqueue = (task) {
+        failedDownloader.statusCallback!(
+          TaskStatusUpdate(
+            task,
+            TaskStatus.failed,
+            TaskFileSystemException('simulated failure'),
+          ),
+        );
+      };
+      final failedService = BackgroundFileDownloadService(
+        runner: PluginBackgroundDownloadRunner(
+          resolveDataDir: () async => dataDir,
+          downloader: failedDownloader,
+          resolveNotificationLabels: () async => labels,
+          completionNotifier: failedNotifier,
+        ),
+      );
+
+      await expectLater(
+        failedService.download(
+          uri: Uri.parse('https://example.com/audio.mp3'),
+          savePath: '${dataDir.path}/audio.mp3',
+        ),
+        throwsA(isA<BackgroundFileDownloadException>()),
+      );
+      expect(failedNotifier.notices.single.$2, '下载失败');
+
+      final canceledDownloader = _FakeFileDownloader(
+        TaskFileSystemException('unused'),
+      );
+      final canceledNotifier = _RecordingCompletionNotifier();
+      canceledDownloader.onEnqueue = (task) {
+        canceledDownloader.statusCallback!(
+          TaskStatusUpdate(task, TaskStatus.canceled),
+        );
+      };
+      final canceledService = BackgroundFileDownloadService(
+        runner: PluginBackgroundDownloadRunner(
+          resolveDataDir: () async => dataDir,
+          downloader: canceledDownloader,
+          resolveNotificationLabels: () async => labels,
+          completionNotifier: canceledNotifier,
+        ),
+      );
+
+      await expectLater(
+        canceledService.download(
+          uri: Uri.parse('https://example.com/audio.mp3'),
+          savePath: '${dataDir.path}/audio.mp3',
+        ),
+        throwsA(isA<BackgroundFileDownloadException>()),
+      );
+      expect(canceledNotifier.notices, isEmpty);
+    });
   });
 
   group('系统代理', () {
