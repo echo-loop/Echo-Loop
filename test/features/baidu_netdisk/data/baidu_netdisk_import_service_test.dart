@@ -64,6 +64,7 @@ class _FakeBaiduNetdiskApi implements BaiduNetdiskApi {
     required String accessToken,
   }) async => const BaiduAccountProfile(uk: 1);
 
+  /// 每调用一次 [fetchDownloadLinks] 计为一次链接请求（批量请求只计一次）。
   int fetchDownloadLinkCalls = 0;
   int downloadCalls = 0;
   int downloadBatchCalls = 0;
@@ -168,17 +169,20 @@ class _FakeBaiduNetdiskApi implements BaiduNetdiskApi {
   }
 
   @override
-  Future<BaiduDownloadLink> fetchDownloadLink({
+  Future<Map<int, BaiduDownloadLink>> fetchDownloadLinks({
     required String accessToken,
-    required int fsId,
+    required List<int> fsIds,
   }) async {
     fetchDownloadLinkCalls += 1;
     lastAccessToken = accessToken;
-    return BaiduDownloadLink(
-      fsId: fsId,
-      dlink: 'https://d.pcs.baidu.com/file/$fsId?v=$fetchDownloadLinkCalls',
-      size: 4,
-    );
+    return {
+      for (final fsId in fsIds)
+        fsId: BaiduDownloadLink(
+          fsId: fsId,
+          dlink: 'https://d.pcs.baidu.com/file/$fsId?v=$fetchDownloadLinkCalls',
+          size: 4,
+        ),
+    };
   }
 
   @override
@@ -258,6 +262,13 @@ void main() {
       }
     });
 
+    /// 模拟入队时的批量预取（与 provider 调用同一个服务方法）。
+    Future<Map<int, BaiduDownloadLink>> prefetchLinks(
+      List<CloudDriveEntry> entries,
+    ) {
+      return service.fetchDownloadLinks(entries: entries);
+    }
+
     test('远端大小元数据不准确时仍完成下载并按 cloudDrive 来源入库', () async {
       final container = ProviderContainer(
         overrides: [audioLibraryProvider.overrideWith(_FakeAudioLibrary.new)],
@@ -268,10 +279,12 @@ void main() {
       final item = await service.importAudio(
         entry: entry,
         audioLibrary: container.read(audioLibraryProvider.notifier),
-        audioLibraryState: container.read(audioLibraryProvider),
+        readAudioLibraryState: () => container.read(audioLibraryProvider),
+        downloadLinks: await prefetchLinks([entry]),
         onProgress: (_, received, _) => progresses.add(received),
       );
 
+      // 只有入队时的预取请求一次链接，导入过程中不再取链接。
       expect(api.fetchDownloadLinkCalls, 1);
       expect(api.downloadCalls, 1);
       expect(api.lastAccessToken, 'access-token');
@@ -294,7 +307,8 @@ void main() {
       final item = await service.importAudio(
         entry: videoEntry,
         audioLibrary: container.read(audioLibraryProvider.notifier),
-        audioLibraryState: container.read(audioLibraryProvider),
+        readAudioLibraryState: () => container.read(audioLibraryProvider),
+        downloadLinks: await prefetchLinks([videoEntry]),
       );
 
       expect(api.fetchDownloadLinkCalls, 1);
@@ -320,9 +334,11 @@ void main() {
       final item = await service.importAudio(
         entry: entry,
         audioLibrary: container.read(audioLibraryProvider.notifier),
-        audioLibraryState: container.read(audioLibraryProvider),
+        readAudioLibraryState: () => container.read(audioLibraryProvider),
+        downloadLinks: await prefetchLinks([entry]),
       );
 
+      // 第 1 次为入队预取，第 2 次为下载失败后的刷新。
       expect(api.fetchDownloadLinkCalls, 2);
       expect(api.downloadCalls, 2);
       expect(api.downloadedDlinks, [
@@ -330,6 +346,30 @@ void main() {
         'https://d.pcs.baidu.com/file/42?v=2',
       ]);
       expect(item.name, 'Lesson 1');
+    });
+
+    test('预取结果中缺少该文件的链接时直接失败，不发起下载', () async {
+      final container = ProviderContainer(
+        overrides: [audioLibraryProvider.overrideWith(_FakeAudioLibrary.new)],
+      );
+      addTearDown(container.dispose);
+
+      await expectLater(
+        service.importAudio(
+          entry: entry,
+          audioLibrary: container.read(audioLibraryProvider.notifier),
+          readAudioLibraryState: () => container.read(audioLibraryProvider),
+          downloadLinks: const {},
+        ),
+        throwsA(
+          isA<BaiduNetdiskFileException>().having(
+            (error) => error.kind,
+            'kind',
+            BaiduNetdiskFileErrorKind.notFound,
+          ),
+        ),
+      );
+      expect(api.downloadCalls, 0);
     });
 
     test('未授权时要求重新授权且不下载', () async {
@@ -343,7 +383,8 @@ void main() {
         service.importAudio(
           entry: entry,
           audioLibrary: container.read(audioLibraryProvider.notifier),
-          audioLibraryState: container.read(audioLibraryProvider),
+          readAudioLibraryState: () => container.read(audioLibraryProvider),
+          downloadLinks: const {},
         ),
         throwsA(isA<BaiduReauthorizationRequiredException>()),
       );
@@ -367,7 +408,8 @@ void main() {
             size: 0,
           ),
           audioLibrary: container.read(audioLibraryProvider.notifier),
-          audioLibraryState: container.read(audioLibraryProvider),
+          readAudioLibraryState: () => container.read(audioLibraryProvider),
+          downloadLinks: const {},
         ),
         throwsA(
           isA<AudioImportException>().having(
@@ -388,7 +430,8 @@ void main() {
             size: 5,
           ),
           audioLibrary: container.read(audioLibraryProvider.notifier),
-          audioLibraryState: container.read(audioLibraryProvider),
+          readAudioLibraryState: () => container.read(audioLibraryProvider),
+          downloadLinks: const {},
         ),
         throwsA(
           isA<AudioImportException>().having(
@@ -431,7 +474,8 @@ void main() {
         entry: entry,
         subtitleEntry: subtitleEntry,
         audioLibrary: container.read(audioLibraryProvider.notifier),
-        audioLibraryState: container.read(audioLibraryProvider),
+        readAudioLibraryState: () => container.read(audioLibraryProvider),
+        downloadLinks: await prefetchLinks([entry, subtitleEntry]),
       );
 
       expect(item.name, 'Lesson 1');
@@ -479,7 +523,8 @@ void main() {
         entry: entry,
         subtitleEntry: subtitleEntry,
         audioLibrary: container.read(audioLibraryProvider.notifier),
-        audioLibraryState: container.read(audioLibraryProvider),
+        readAudioLibraryState: () => container.read(audioLibraryProvider),
+        downloadLinks: await prefetchLinks([entry, subtitleEntry]),
       );
 
       expect(item.id, 'existing');
@@ -519,7 +564,8 @@ void main() {
         entry: entry,
         subtitleEntry: subtitleEntry,
         audioLibrary: container.read(audioLibraryProvider.notifier),
-        audioLibraryState: container.read(audioLibraryProvider),
+        readAudioLibraryState: () => container.read(audioLibraryProvider),
+        downloadLinks: await prefetchLinks([entry, subtitleEntry]),
       );
 
       expect(item.name, 'Lesson 1');

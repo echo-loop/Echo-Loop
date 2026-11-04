@@ -156,9 +156,9 @@ class _PendingBaiduNetdiskApi implements BaiduNetdiskApi {
   }) => throw UnimplementedError();
 
   @override
-  Future<BaiduDownloadLink> fetchDownloadLink({
+  Future<Map<int, BaiduDownloadLink>> fetchDownloadLinks({
     required String accessToken,
-    required int fsId,
+    required List<int> fsIds,
   }) {
     throw UnimplementedError();
   }
@@ -246,9 +246,9 @@ class _StaticBaiduNetdiskApi implements BaiduNetdiskApi {
   }) => throw UnimplementedError();
 
   @override
-  Future<BaiduDownloadLink> fetchDownloadLink({
+  Future<Map<int, BaiduDownloadLink>> fetchDownloadLinks({
     required String accessToken,
-    required int fsId,
+    required List<int> fsIds,
   }) {
     throw UnimplementedError();
   }
@@ -283,6 +283,7 @@ class _PendingItemRunner {
     required CloudDriveEntry entry,
     CloudDriveEntry? subtitleEntry,
     String? collectionId,
+    required Map<int, BaiduDownloadLink> downloadLinks,
     required CancelToken cancelToken,
     required BaiduNetdiskImportProgressCallback onProgress,
   }) {
@@ -343,6 +344,15 @@ Future<void> _pumpBaiduDirectory(
         ),
         baiduNetdiskApiProvider.overrideWithValue(api),
         baiduImportItemRunnerProvider.overrideWithValue(runner.call),
+        baiduImportLinkFetcherProvider.overrideWithValue(
+          (entries) async => {
+            for (final entry in entries)
+              entry.fsId: BaiduDownloadLink(
+                fsId: entry.fsId,
+                dlink: 'https://d.pcs.baidu.com/file/${entry.fsId}',
+              ),
+          },
+        ),
         if (clock != null)
           downloadClockProvider.overrideWithValue(() => clock.now),
         if (libraryItems.isNotEmpty)

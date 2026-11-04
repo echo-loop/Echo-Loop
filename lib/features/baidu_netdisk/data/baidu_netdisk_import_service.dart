@@ -36,18 +36,30 @@ typedef BaiduNetdiskSubtitleImporter = Future<void> Function(
 
 /// 百度网盘音频导入服务抽象。
 abstract interface class BaiduNetdiskImportService {
+  /// 一次性获取一批文件的下载 dlink。dlink 有效期约 8 小时，入队时取好即可，
+  /// 不必等到真正下载时再取，这样 App 进入后台后原生队列仍能自行推进。
+  ///
+  /// 返回的 map 不含百度未给出链接的文件；由 [importAudio] 处理缺失。
+  Future<Map<int, BaiduDownloadLink>> fetchDownloadLinks({
+    required List<CloudDriveEntry> entries,
+  });
+
   /// 导入单个百度网盘音频文件；提供 [subtitleEntry] 时同批下载并挂载字幕。
   ///
-  /// 重复、失败、取消均以异常表达（[AudioImportException]）。字幕失败只记日志，
-  /// 不影响已入库的音频。
+  /// [downloadLinks] 由 [fetchDownloadLinks] 预先取得。重复、失败、取消均以异常表达
+  /// （[AudioImportException]）。字幕失败只记日志，不影响已入库的音频。
+  ///
+  /// 库状态通过 reader 在注册时读取，而不是在任务开始时快照：同批任务并发下载，
+  /// 快照会漏掉先完成的兄弟任务，导致重复检测失效。
   Future<AudioItem> importAudio({
     required CloudDriveEntry entry,
     CloudDriveEntry? subtitleEntry,
     required AudioLibrary audioLibrary,
-    required AudioLibraryState audioLibraryState,
+    required AudioLibraryState Function() readAudioLibraryState,
     CollectionList? collectionList,
-    CollectionState? collectionState,
+    CollectionState? Function()? readCollectionState,
     String? collectionId,
+    required Map<int, BaiduDownloadLink> downloadLinks,
     CancelToken? cancelToken,
     BaiduNetdiskImportProgressCallback? onProgress,
   });
@@ -78,14 +90,26 @@ class DefaultBaiduNetdiskImportService implements BaiduNetdiskImportService {
   final BaiduNetdiskSubtitleImporter? _subtitleImporter;
 
   @override
+  Future<Map<int, BaiduDownloadLink>> fetchDownloadLinks({
+    required List<CloudDriveEntry> entries,
+  }) async {
+    final accessToken = await _requireAccessToken();
+    return _api.fetchDownloadLinks(
+      accessToken: accessToken,
+      fsIds: [for (final entry in entries) entry.fsId],
+    );
+  }
+
+  @override
   Future<AudioItem> importAudio({
     required CloudDriveEntry entry,
     CloudDriveEntry? subtitleEntry,
     required AudioLibrary audioLibrary,
-    required AudioLibraryState audioLibraryState,
+    required AudioLibraryState Function() readAudioLibraryState,
     CollectionList? collectionList,
-    CollectionState? collectionState,
+    CollectionState? Function()? readCollectionState,
     String? collectionId,
+    required Map<int, BaiduDownloadLink> downloadLinks,
     CancelToken? cancelToken,
     BaiduNetdiskImportProgressCallback? onProgress,
   }) async {
@@ -93,7 +117,7 @@ class DefaultBaiduNetdiskImportService implements BaiduNetdiskImportService {
 
     // 同一百度文件已在资源库中：不重复下载音频，只做合集关联与字幕挂载。
     final existingItem = findBaiduLibraryItem(
-      audioLibraryState.audioItems,
+      readAudioLibraryState().audioItems,
       entry.fsId,
     );
     if (existingItem != null) {
@@ -102,22 +126,21 @@ class DefaultBaiduNetdiskImportService implements BaiduNetdiskImportService {
         subtitleEntry: subtitleEntry,
         audioLibrary: audioLibrary,
         collectionList: collectionList,
-        collectionState: collectionState,
+        readCollectionState: readCollectionState,
         collectionId: collectionId,
+        downloadLinks: downloadLinks,
         cancelToken: cancelToken,
       );
     }
 
-    final accessToken = await _credentialRepository.getValidAccessToken();
-    if (accessToken == null) {
-      throw const BaiduReauthorizationRequiredException();
-    }
+    final accessToken = await _requireAccessToken();
 
     final dataDir = await _resolveDataDir();
     final tempRelativePath = await _downloadToTemp(
       accessToken: accessToken,
       entry: entry,
       dataDir: dataDir,
+      downloadLinks: downloadLinks,
       cancelToken: cancelToken,
       onProgress: onProgress,
     );
@@ -126,9 +149,9 @@ class DefaultBaiduNetdiskImportService implements BaiduNetdiskImportService {
       dataDir: dataDir,
       tempRelativePath: tempRelativePath,
       audioLibrary: audioLibrary,
-      audioLibraryState: audioLibraryState,
+      readAudioLibraryState: readAudioLibraryState,
       collectionList: collectionList,
-      collectionState: collectionState,
+      readCollectionState: readCollectionState,
       collectionId: collectionId,
       cancelToken: cancelToken,
     );
@@ -139,8 +162,17 @@ class DefaultBaiduNetdiskImportService implements BaiduNetdiskImportService {
       subtitleEntry: subtitleEntry,
       dataDir: dataDir,
       accessToken: accessToken,
+      downloadLinks: downloadLinks,
       cancelToken: cancelToken,
     );
+  }
+
+  Future<String> _requireAccessToken() async {
+    final accessToken = await _credentialRepository.getValidAccessToken();
+    if (accessToken == null) {
+      throw const BaiduReauthorizationRequiredException();
+    }
+    return accessToken;
   }
 
   /// 已导入的素材再次导入：加入目标合集（若尚未在其中），并在没有字幕时补挂字幕。
@@ -149,8 +181,9 @@ class DefaultBaiduNetdiskImportService implements BaiduNetdiskImportService {
     required CloudDriveEntry? subtitleEntry,
     required AudioLibrary audioLibrary,
     required CollectionList? collectionList,
-    required CollectionState? collectionState,
+    required CollectionState? Function()? readCollectionState,
     required String? collectionId,
+    required Map<int, BaiduDownloadLink> downloadLinks,
     required CancelToken? cancelToken,
   }) async {
     AppLogger.log(
@@ -159,7 +192,8 @@ class DefaultBaiduNetdiskImportService implements BaiduNetdiskImportService {
     );
     if (collectionId != null) {
       final audioIds =
-          collectionState?.getAudioIds(collectionId) ?? const <String>[];
+          readCollectionState?.call()?.getAudioIds(collectionId) ??
+          const <String>[];
       if (!audioIds.contains(existingItem.id)) {
         await collectionList?.addAudioToCollection(
           collectionId,
@@ -173,15 +207,12 @@ class DefaultBaiduNetdiskImportService implements BaiduNetdiskImportService {
         existingItem.hasTranscript) {
       return existingItem;
     }
-    final accessToken = await _credentialRepository.getValidAccessToken();
-    if (accessToken == null) {
-      throw const BaiduReauthorizationRequiredException();
-    }
     return _attachSubtitleEntry(
       item: existingItem,
       subtitleEntry: subtitleEntry,
       dataDir: await _resolveDataDir(),
-      accessToken: accessToken,
+      accessToken: await _requireAccessToken(),
+      downloadLinks: downloadLinks,
       cancelToken: cancelToken,
     );
   }
@@ -192,15 +223,17 @@ class DefaultBaiduNetdiskImportService implements BaiduNetdiskImportService {
     required CloudDriveEntry subtitleEntry,
     required Directory dataDir,
     required String accessToken,
+    required Map<int, BaiduDownloadLink> downloadLinks,
     required CancelToken? cancelToken,
   }) async {
     final savePath = _temporaryPath(dataDir, subtitleEntry);
     try {
       // 已导入素材不会经过音频下载，临时目录需要在这里确保存在。
       await File(savePath).parent.create(recursive: true);
-      await _downloadWithFreshLink(
+      await _downloadWithLink(
         accessToken: accessToken,
         entry: subtitleEntry,
+        link: _linkFor(downloadLinks, subtitleEntry),
         savePath: savePath,
         cancelToken: cancelToken,
         onProgress: null,
@@ -230,9 +263,9 @@ class DefaultBaiduNetdiskImportService implements BaiduNetdiskImportService {
     required Directory dataDir,
     required String tempRelativePath,
     required AudioLibrary audioLibrary,
-    required AudioLibraryState audioLibraryState,
+    required AudioLibraryState Function() readAudioLibraryState,
     required CollectionList? collectionList,
-    required CollectionState? collectionState,
+    required CollectionState? Function()? readCollectionState,
     required String? collectionId,
     required CancelToken? cancelToken,
   }) async {
@@ -259,9 +292,9 @@ class DefaultBaiduNetdiskImportService implements BaiduNetdiskImportService {
           originalAudioSha256: finalizedAudio.originalSha256,
         ),
         audioLibrary: audioLibrary,
-        audioLibraryState: audioLibraryState,
+        audioLibraryState: readAudioLibraryState(),
         collectionList: collectionList,
-        collectionState: collectionState,
+        collectionState: readCollectionState?.call(),
         collectionId: collectionId,
         cancelToken: cancelToken,
       );
@@ -372,6 +405,7 @@ class DefaultBaiduNetdiskImportService implements BaiduNetdiskImportService {
     required String accessToken,
     required CloudDriveEntry entry,
     required Directory dataDir,
+    required Map<int, BaiduDownloadLink> downloadLinks,
     required CancelToken? cancelToken,
     required BaiduNetdiskImportProgressCallback? onProgress,
   }) async {
@@ -381,9 +415,10 @@ class DefaultBaiduNetdiskImportService implements BaiduNetdiskImportService {
       p.join(tmpDir.path, '${entry.fsId}.${entry.extension}'),
     );
     try {
-      await _downloadWithFreshLink(
+      await _downloadWithLink(
         accessToken: accessToken,
         entry: entry,
+        link: _linkFor(downloadLinks, entry),
         savePath: tempFile.path,
         cancelToken: cancelToken,
         onProgress: onProgress,
@@ -395,17 +430,30 @@ class DefaultBaiduNetdiskImportService implements BaiduNetdiskImportService {
     }
   }
 
-  Future<void> _downloadWithFreshLink({
+  /// 取出入队时批量获取的下载链接；缺失说明百度已无该文件的下载地址。
+  BaiduDownloadLink _linkFor(
+    Map<int, BaiduDownloadLink> downloadLinks,
+    CloudDriveEntry entry,
+  ) {
+    final link = downloadLinks[entry.fsId];
+    if (link == null) {
+      throw const BaiduNetdiskFileException(
+        kind: BaiduNetdiskFileErrorKind.notFound,
+        message: 'Baidu download link is unavailable.',
+      );
+    }
+    return link;
+  }
+
+  /// 使用已取得的 dlink 下载；若因链接失效等原因失败，重新获取一次 dlink 再试。
+  Future<void> _downloadWithLink({
     required String accessToken,
     required CloudDriveEntry entry,
+    required BaiduDownloadLink link,
     required String savePath,
     required CancelToken? cancelToken,
     required BaiduNetdiskImportProgressCallback? onProgress,
   }) async {
-    final link = await _api.fetchDownloadLink(
-      accessToken: accessToken,
-      fsId: entry.fsId,
-    );
     try {
       await _api.downloadToFile(
         accessToken: accessToken,
@@ -423,7 +471,7 @@ class DefaultBaiduNetdiskImportService implements BaiduNetdiskImportService {
         'BaiduNetdiskImport',
         'download "${entry.name}" failed with ${error.kind.name}; refreshing dlink once',
       );
-      final refreshed = await _api.fetchDownloadLink(
+      final refreshed = await _fetchFreshLink(
         accessToken: accessToken,
         fsId: entry.fsId,
       );
@@ -438,6 +486,21 @@ class DefaultBaiduNetdiskImportService implements BaiduNetdiskImportService {
             onProgress?.call(entry, received, total),
       );
     }
+  }
+
+  Future<BaiduDownloadLink> _fetchFreshLink({
+    required String accessToken,
+    required int fsId,
+  }) async {
+    final links = await _api.fetchDownloadLinks(
+      accessToken: accessToken,
+      fsIds: [fsId],
+    );
+    return links[fsId] ??
+        (throw const BaiduNetdiskFileException(
+          kind: BaiduNetdiskFileErrorKind.notFound,
+          message: 'Baidu download link is unavailable.',
+        ));
   }
 
   bool _shouldRefreshDlink(BaiduNetdiskFileException error) {

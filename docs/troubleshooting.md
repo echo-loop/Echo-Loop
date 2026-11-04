@@ -48,6 +48,7 @@
 - 7.33 共享合集 / 播客未下载材料进入学习计划页：入口判断分散 → 进入逐句精听报 `file unavailable`
 - 7.37 同一资源多入口下载：查找再登记导致重复任务，取消需绑定具体任务
 - 7.38 Riverpod 3 暂停无监听 StreamProvider：启动会话永久挂起，登录后仍提示未登录
+- 7.41 百度网盘批量导入：下载时才取 dlink，切后台后队列无法接力下一个文件
 
 ---
 
@@ -620,4 +621,17 @@
 - 规则：分页组件的「已同步」状态只能在有效数据下建立；空列表时的页面位置不是业务索引的对齐结果。改动此类同步逻辑时，要同时覆盖「空列表到位后索引不变」与「到位后相邻切句」两种情况。
 - 测试约定：`practice_sentence_pager_test.dart` 中三条用例分别覆盖首次到位直接对齐、已对齐后的相邻切句仍有动画、空列表到位（索引不变）后相邻切句仍有动画。
 - 相关代码：`lib/widgets/practice/practice_sentence_pager.dart`（`didUpdateWidget`、`_syncPageIfReady`）。
+- 修复时间：2026-11-04。
+
+### 7.41 百度网盘批量导入：下载时才取 dlink，切后台后队列无法接力下一个文件
+
+- 现象：批量导入时切到后台，当前文件下完后队列停住，回到前台才开始下一个。
+- 根因：每个文件轮到下载时才调用 `filemetas` 取 dlink，并在 Dart 侧用并发 2 排队。App 挂起后没有人取下一个 dlink，也没有人提交下一个任务。
+- 解法：入队时整批取一次 dlink（有效期约 8 小时，单次请求按 100 个分块），整批提交原生下载队列，同时下载数由原生 `holdingQueue`（`maxConcurrentDownloads = 2`）限制。取链接失败时整批标记失败，每个文件可单独重试。
+- 规则：
+  - 需要后台持续推进的请求，必须在前台一次性完成并交给原生队列，不能依赖 Dart 在每个任务开始时临时请求。
+  - 批量接口中某个文件缺少 dlink 只跳过该文件，不抛异常拖垮整批。
+  - 同批并发的任务不能在开始时快照资源库，库状态在注册时读取，否则先完成的兄弟任务不会被重复检测。
+- 测试约定：`baidu_netdisk_import_tasks_provider_test.dart` 用可控的假取链接函数覆盖「取链接期间取消」「取链接失败整批失败并可重试」「整批只取一次链接」。
+- 相关代码：`lib/features/baidu_netdisk/providers/baidu_netdisk_import_tasks_provider.dart`（`_submitBatch`）、`lib/features/baidu_netdisk/data/baidu_netdisk_api.dart`（`fetchDownloadLinks`）、`lib/features/baidu_netdisk/data/baidu_netdisk_import_service.dart`（`_linkFor`、`_fetchFreshLink`）。
 - 修复时间：2026-11-04。

@@ -78,9 +78,9 @@ class _FakeBaiduNetdiskApi implements BaiduNetdiskApi {
   String? lastDir;
 
   @override
-  Future<BaiduDownloadLink> fetchDownloadLink({
+  Future<Map<int, BaiduDownloadLink>> fetchDownloadLinks({
     required String accessToken,
-    required int fsId,
+    required List<int> fsIds,
   }) {
     throw UnimplementedError();
   }

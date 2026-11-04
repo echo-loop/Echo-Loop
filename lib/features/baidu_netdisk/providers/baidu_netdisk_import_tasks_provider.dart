@@ -14,9 +14,11 @@ import '../../../models/audio_item.dart';
 import '../../../providers/audio_library_provider.dart';
 import '../../../providers/collection_provider.dart';
 import '../../../providers/download_clock_provider.dart';
+import '../../../providers/download_provider.dart';
 import '../../../services/app_logger.dart';
 import '../../../services/background_download_task_inspector.dart';
 import '../../../services/download_speed_meter.dart';
+import '../../../services/resource_download_registry.dart';
 import '../../audio_import/audio_import_models.dart';
 import '../../audio_import/subtitle_pairing.dart';
 import '../data/baidu_credential_repository.dart';
@@ -25,15 +27,16 @@ import '../data/baidu_netdisk_import_service.dart';
 import '../models/cloud_drive_models.dart';
 import 'baidu_netdisk_providers.dart';
 
-/// 同时下载的文件数，与原生下载队列的 `holdingQueue` 并发保持一致。
-const int baiduImportMaxConcurrentTasks = 2;
-
 /// 单个文件导入任务的状态。
+///
+/// 同时下载的数量由原生下载队列（`maxConcurrentDownloads`）限制，Dart 侧不再排队：
+/// 任务一旦取得下载链接就整批提交原生队列，App 进入后台后仍能自行推进。
 enum BaiduImportTaskStatus {
-  /// 等待下载槽位。
+  /// 正在批量获取下载链接，尚未提交原生队列。
   queued,
 
-  /// 正在下载（含同名字幕）与入库。
+  /// 已提交原生队列（含同名字幕），等待或正在下载与入库。
+  /// 是否仍在原生队列中排队由资源登记表区分（见 import_audio_sheet）。
   downloading,
 
   /// 库中已存在同名或同 SHA 的音频，未重复入库。
@@ -96,7 +99,7 @@ class BaiduImportTask {
     return (receivedBytes / total).clamp(0.0, 1.0);
   }
 
-  /// 是否占用下载槽位或等待槽位。
+  /// 是否仍在进行中（取链接、排队或下载）。
   bool get isActive =>
       status == BaiduImportTaskStatus.queued ||
       status == BaiduImportTaskStatus.downloading;
@@ -144,8 +147,20 @@ typedef BaiduImportItemRunner = Future<AudioItem> Function({
   required CloudDriveEntry entry,
   CloudDriveEntry? subtitleEntry,
   String? collectionId,
+  required Map<int, BaiduDownloadLink> downloadLinks,
   required CancelToken cancelToken,
   required BaiduNetdiskImportProgressCallback onProgress,
+});
+
+/// 批量获取下载链接的执行函数。生产环境绑定到 [BaiduNetdiskImportService.fetchDownloadLinks]。
+typedef BaiduImportLinkFetcher = Future<Map<int, BaiduDownloadLink>> Function(
+  List<CloudDriveEntry> entries,
+);
+
+/// 批量获取下载链接 provider；测试中可替换为假实现。
+final baiduImportLinkFetcherProvider = Provider<BaiduImportLinkFetcher>((ref) {
+  final service = ref.watch(baiduNetdiskImportServiceProvider);
+  return (entries) => service.fetchDownloadLinks(entries: entries);
 });
 
 /// 单文件导入执行函数 provider；测试中可替换为假实现。
@@ -155,29 +170,34 @@ final baiduImportItemRunnerProvider = Provider<BaiduImportItemRunner>((ref) {
     required CloudDriveEntry entry,
     CloudDriveEntry? subtitleEntry,
     String? collectionId,
+    required Map<int, BaiduDownloadLink> downloadLinks,
     required CancelToken cancelToken,
     required BaiduNetdiskImportProgressCallback onProgress,
   }) {
+    // 库状态在注册时才读取，避免同批任务并发时使用过期快照。
     final hasCollection = collectionId != null;
     return service.importAudio(
       entry: entry,
       subtitleEntry: subtitleEntry,
       audioLibrary: ref.read(audioLibraryProvider.notifier),
-      audioLibraryState: ref.read(audioLibraryProvider),
+      readAudioLibraryState: () => ref.read(audioLibraryProvider),
       collectionList: hasCollection
           ? ref.read(collectionListProvider.notifier)
           : null,
-      collectionState: hasCollection ? ref.read(collectionListProvider) : null,
+      readCollectionState: hasCollection
+          ? () => ref.read(collectionListProvider)
+          : null,
       collectionId: collectionId,
+      downloadLinks: downloadLinks,
       cancelToken: cancelToken,
       onProgress: onProgress,
     );
   };
 });
 
-/// 等待下载槽位的百度导入任务，映射为调试页可展示的任务信息。
+/// 正在获取下载链接（尚未提交原生队列）的百度导入任务，映射为调试页可展示的任务信息。
 ///
-/// 这些任务尚未提交给原生下载器，没有持久化记录，因此不可删除。
+/// 这些任务没有持久化记录，因此不可删除。
 final baiduWaitingDownloadInfosProvider = Provider<List<DownloadTaskInfo>>((
   ref,
 ) {
@@ -237,6 +257,20 @@ final baiduImportedFsIdsProvider = Provider<Set<int>>((ref) {
     for (final item in items)
       if (item.importSourceType == AudioImportSourceType.cloudDrive)
         ?baiduFsIdFromImportSourceUrl(item.importSourceUrl),
+  };
+});
+
+/// 已提交原生下载队列、但尚未轮到开始下载的百度导入音频 fs_id 集合。
+///
+/// 任务状态为 downloading 只表示已提交；是否真正排队由资源登记表决定（同一时刻只下 2 个）。
+final baiduNativelyQueuedFsIdsProvider = Provider<Set<int>>((ref) {
+  final tasks = ref.watch(baiduNetdiskImportTasksProvider);
+  final resources = ref.watch(resourceDownloadsProvider);
+  return {
+    for (final task in tasks.values)
+      if (task.status == BaiduImportTaskStatus.downloading &&
+          resources[baiduResourceKey(task.audioEntry.fsId)] is ResourceQueued)
+        task.audioEntry.fsId,
   };
 });
 
@@ -335,7 +369,7 @@ final baiduNetdiskImportTasksProvider =
 /// 每个运行中的任务持有独立 [CancelToken]，并以它识别是否仍为当前任务：
 /// 取消或重试后，旧任务的回调不会覆盖新状态（见 docs/troubleshooting.md §7.37）。
 class BaiduNetdiskImportTasks extends Notifier<Map<int, BaiduImportTask>> {
-  /// 正在执行中的任务及其取消令牌，按音频 fs_id 索引。
+  /// 进行中（取链接或下载）任务的取消令牌，按音频 fs_id 索引。
   final Map<int, CancelToken> _runningTokens = <int, CancelToken>{};
 
   /// 运行中任务的速度计算器，每次开始下载时重建。
@@ -365,25 +399,26 @@ class BaiduNetdiskImportTasks extends Notifier<Map<int, BaiduImportTask>> {
       subtitleEntries: subtitleEntries,
     );
     final next = Map<int, BaiduImportTask>.of(state);
-    var enqueuedCount = 0;
+    final batch = <BaiduImportTask>[];
     for (final audio in audioEntries) {
       // 已导入的素材也允许入队：服务层会跳过音频下载，只关联合集或补挂字幕。
       if (_blocksEnqueue(next[audio.fsId])) continue;
       next.remove(audio.fsId);
-      next[audio.fsId] = BaiduImportTask(
+      final task = BaiduImportTask(
         audioEntry: audio,
         subtitleEntry: subtitleByAudio[audio.fsId],
         collectionId: collectionId,
       );
-      enqueuedCount++;
+      next[audio.fsId] = task;
+      batch.add(task);
     }
-    if (enqueuedCount == 0) return;
-    AppLogger.log('BaiduNetdiskImport', '加入下载队列 $enqueuedCount 个文件');
+    if (batch.isEmpty) return;
+    AppLogger.log('BaiduNetdiskImport', '加入下载队列 ${batch.length} 个文件');
     state = next;
-    _pump();
+    unawaited(_submitBatch(batch));
   }
 
-  /// 取消单个任务。运行中的任务会立即取消下载，并释放槽位给排队任务。
+  /// 取消单个任务。取链接中或下载中的任务会立即取消，取链接结束后会被识别为过期而丢弃。
   void cancel(int audioFsId) {
     final token = _runningTokens.remove(audioFsId);
     _speedMeters.remove(audioFsId);
@@ -391,7 +426,6 @@ class BaiduNetdiskImportTasks extends Notifier<Map<int, BaiduImportTask>> {
     state = Map<int, BaiduImportTask>.of(state)..remove(audioFsId);
     token?.cancel('user-cancelled');
     AppLogger.log('BaiduNetdiskImport', '用户取消导入任务 fs_id=$audioFsId');
-    _pump();
   }
 
   /// 重新导入失败的任务，沿用原字幕配对与合集。
@@ -439,22 +473,58 @@ class BaiduNetdiskImportTasks extends Notifier<Map<int, BaiduImportTask>> {
     };
   }
 
-  /// 在并发上限内启动排队中的任务，按入队顺序。
-  void _pump() {
-    final queued = state.values
-        .where((task) => task.status == BaiduImportTaskStatus.queued)
-        .toList(growable: false);
-    for (final task in queued) {
-      if (_runningTokens.length >= baiduImportMaxConcurrentTasks) return;
-      _start(task.audioEntry.fsId);
+  /// 整批获取下载链接后，逐个提交给原生下载队列。同时下载数由原生队列限制，
+  /// 因此 App 进入后台后，原生队列完成一个文件即可自动接上下一个。
+  ///
+  /// 取链接失败时整批标记为失败，每个文件可单独重试。
+  Future<void> _submitBatch(List<BaiduImportTask> batch) async {
+    final tokens = <int, CancelToken>{
+      for (final task in batch) task.audioEntry.fsId: CancelToken(),
+    };
+    _runningTokens.addAll(tokens);
+    final fetchLinks = ref.read(baiduImportLinkFetcherProvider);
+    final Map<int, BaiduDownloadLink> downloadLinks;
+    try {
+      downloadLinks = await fetchLinks([
+        for (final task in batch) ...[task.audioEntry, ?task.subtitleEntry],
+      ]);
+    } on Object catch (error, stackTrace) {
+      AppLogger.log(
+        'BaiduNetdiskImport',
+        '获取下载链接失败 count=${batch.length}: $error\n$stackTrace',
+      );
+      for (final task in batch) {
+        final fsId = task.audioEntry.fsId;
+        final token = tokens[fsId]!;
+        if (!_isCurrent(fsId, token)) continue;
+        // 必须先结算再释放 token：结算依赖 token 判断是否仍为当前任务。
+        _settle(fsId, token, _TaskOutcome.failed, _messageForError(error));
+        _releaseToken(fsId, token);
+      }
+      return;
+    }
+    for (final task in batch) {
+      final fsId = task.audioEntry.fsId;
+      final token = tokens[fsId]!;
+      // 取链接期间若已取消或重试，旧批次的结果直接丢弃。
+      if (!_isCurrent(fsId, token)) continue;
+      unawaited(_run(fsId, token, downloadLinks));
     }
   }
 
-  void _start(int audioFsId) {
+  void _releaseToken(int audioFsId, CancelToken token) {
+    if (!identical(_runningTokens[audioFsId], token)) return;
+    _runningTokens.remove(audioFsId);
+    _speedMeters.remove(audioFsId);
+  }
+
+  Future<void> _run(
+    int audioFsId,
+    CancelToken token,
+    Map<int, BaiduDownloadLink> downloadLinks,
+  ) async {
     final task = state[audioFsId];
     if (task == null) return;
-    final token = CancelToken();
-    _runningTokens[audioFsId] = token;
     _speedMeters[audioFsId] = DownloadSpeedMeter(
       now: ref.read(downloadClockProvider),
     );
@@ -462,12 +532,6 @@ class BaiduNetdiskImportTasks extends Notifier<Map<int, BaiduImportTask>> {
       audioFsId,
       task.copyWith(status: BaiduImportTaskStatus.downloading),
     );
-    unawaited(_run(audioFsId, token));
-  }
-
-  Future<void> _run(int audioFsId, CancelToken token) async {
-    final task = state[audioFsId];
-    if (task == null) return;
     final runner = ref.read(baiduImportItemRunnerProvider);
     var outcome = _TaskOutcome.completed;
     String? failureMessage;
@@ -476,6 +540,7 @@ class BaiduNetdiskImportTasks extends Notifier<Map<int, BaiduImportTask>> {
         entry: task.audioEntry,
         subtitleEntry: task.subtitleEntry,
         collectionId: task.collectionId,
+        downloadLinks: downloadLinks,
         cancelToken: token,
         onProgress: (entry, received, total) =>
             _onProgress(audioFsId, token, received, total),
@@ -501,11 +566,7 @@ class BaiduNetdiskImportTasks extends Notifier<Map<int, BaiduImportTask>> {
     } finally {
       // 必须先结算再释放 token：结算依赖 token 判断是否仍为当前任务。
       _settle(audioFsId, token, outcome, failureMessage);
-      if (identical(_runningTokens[audioFsId], token)) {
-        _runningTokens.remove(audioFsId);
-        _speedMeters.remove(audioFsId);
-      }
-      _pump();
+      _releaseToken(audioFsId, token);
     }
   }
 

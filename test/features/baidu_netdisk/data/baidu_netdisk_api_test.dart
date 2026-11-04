@@ -211,7 +211,7 @@ void main() {
       expect(query['limit'], 2);
     });
 
-    test('fetchDownloadLink 调用 filemetas 并解析 dlink', () async {
+    test('fetchDownloadLinks 调用 filemetas 并解析 dlink', () async {
       when(
         () => metadataDio.get<Object?>(
           '/rest/2.0/xpan/multimedia',
@@ -232,11 +232,12 @@ void main() {
         }),
       );
 
-      final link = await api.fetchDownloadLink(
+      final links = await api.fetchDownloadLinks(
         accessToken: 'access-token',
-        fsId: 42,
+        fsIds: const [42],
       );
 
+      final link = links[42]!;
       expect(link.fsId, 42);
       expect(link.dlink, 'https://d.pcs.baidu.com/file/lesson');
       expect(link.size, 456);
@@ -252,6 +253,58 @@ void main() {
               as Map<String, Object?>;
       expect(query['fsids'], '[42]');
       expect(query['dlink'], 1);
+    });
+
+    test('fetchDownloadLinks 缺失或无 dlink 的文件不进入结果', () async {
+      when(
+        () => metadataDio.get<Object?>(
+          '/rest/2.0/xpan/multimedia',
+          queryParameters: any(named: 'queryParameters'),
+          options: any(named: 'options'),
+        ),
+      ).thenAnswer(
+        (_) async => jsonResponse({
+          'errno': 0,
+          'list': [
+            {'fs_id': 1, 'dlink': 'https://d.pcs.baidu.com/file/1'},
+            {'fs_id': 2, 'dlink': ''},
+          ],
+        }),
+      );
+
+      final links = await api.fetchDownloadLinks(
+        accessToken: 'access-token',
+        fsIds: const [1, 2, 3],
+      );
+
+      expect(links.keys, [1]);
+    });
+
+    test('fetchDownloadLinks 超过单次上限时分块请求', () async {
+      when(
+        () => metadataDio.get<Object?>(
+          '/rest/2.0/xpan/multimedia',
+          queryParameters: any(named: 'queryParameters'),
+          options: any(named: 'options'),
+        ),
+      ).thenAnswer((_) async => jsonResponse({'errno': 0, 'list': []}));
+
+      await api.fetchDownloadLinks(
+        accessToken: 'access-token',
+        fsIds: [for (var index = 1; index <= 101; index++) index],
+      );
+
+      final captured = verify(
+        () => metadataDio.get<Object?>(
+          '/rest/2.0/xpan/multimedia',
+          queryParameters: captureAny(named: 'queryParameters'),
+          options: any(named: 'options'),
+        ),
+      ).captured.cast<Map<String, Object?>>();
+      expect(captured, hasLength(2));
+      expect(captured[0]['fsids'], startsWith('[1,2,3,'));
+      expect(captured[0]['fsids'], endsWith(',100]'));
+      expect(captured[1]['fsids'], '[101]');
     });
 
     test('百度 errno -6 映射为 unauthorized', () async {

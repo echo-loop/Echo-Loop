@@ -24,6 +24,46 @@ class _FakeClock {
   }
 }
 
+/// 可控的批量取链接执行函数。
+///
+/// 默认立即返回；[holdFetches] 为 true 时挂起，由测试调用 [releaseFetch] 决定结果。
+class _FakeLinkFetcher {
+  bool holdFetches = false;
+  Object? failWith;
+  final List<List<int>> requestedFsIds = <List<int>>[];
+  final List<Completer<Map<int, BaiduDownloadLink>>> _held =
+      <Completer<Map<int, BaiduDownloadLink>>>[];
+
+  Future<Map<int, BaiduDownloadLink>> call(List<CloudDriveEntry> entries) {
+    requestedFsIds.add([for (final entry in entries) entry.fsId]);
+    final failure = failWith;
+    if (failure != null) return Future.error(failure);
+    final links = {
+      for (final entry in entries)
+        entry.fsId: BaiduDownloadLink(
+          fsId: entry.fsId,
+          dlink: 'https://d.pcs.baidu.com/file/${entry.fsId}',
+        ),
+    };
+    if (!holdFetches) return Future.value(links);
+    final completer = Completer<Map<int, BaiduDownloadLink>>();
+    _held.add(completer);
+    return completer.future;
+  }
+
+  /// 让最近一次挂起的取链接返回结果。
+  void releaseFetch() {
+    final links = {
+      for (final fsId in requestedFsIds.last)
+        fsId: BaiduDownloadLink(
+          fsId: fsId,
+          dlink: 'https://d.pcs.baidu.com/file/$fsId',
+        ),
+    };
+    _held.removeLast().complete(links);
+  }
+}
+
 /// 可控的单文件导入执行函数：每次调用挂起，由测试决定成功或失败。
 class _FakeItemRunner {
   final List<int> startedFsIds = <int>[];
@@ -40,6 +80,7 @@ class _FakeItemRunner {
     required CloudDriveEntry entry,
     CloudDriveEntry? subtitleEntry,
     String? collectionId,
+    required Map<int, BaiduDownloadLink> downloadLinks,
     required CancelToken cancelToken,
     required BaiduNetdiskImportProgressCallback onProgress,
   }) {
@@ -117,6 +158,7 @@ Future<void> _flush() => Future<void>.delayed(Duration.zero);
 void main() {
   group('BaiduNetdiskImportTasks', () {
     late _FakeItemRunner runner;
+    late _FakeLinkFetcher linkFetcher;
     late _FakeClock clock;
     late ProviderContainer container;
 
@@ -126,6 +168,7 @@ void main() {
       return ProviderContainer(
         overrides: [
           baiduImportItemRunnerProvider.overrideWithValue(runner.call),
+          baiduImportLinkFetcherProvider.overrideWithValue(linkFetcher.call),
           baiduImportedFsIdsProvider.overrideWithValue(imported),
           downloadClockProvider.overrideWithValue(() => clock.now),
           analyticsServiceProvider.overrideWithValue(analytics),
@@ -141,6 +184,7 @@ void main() {
 
     setUp(() {
       runner = _FakeItemRunner();
+      linkFetcher = _FakeLinkFetcher();
       clock = _FakeClock();
       container = createContainer();
     });
@@ -149,28 +193,108 @@ void main() {
       container.dispose();
     });
 
-    test('同时下载的文件不超过 2 个，其余排队并在槽位释放后启动', () async {
+    test('整批入队只取一次下载链接，并整批提交（同时下载数由原生队列限制）', () async {
       notifier().enqueue(
         audioEntries: [_audio(1), _audio(2), _audio(3)],
         subtitleEntries: const [],
       );
-
-      expect(runner.startedFsIds, [1, 2]);
-      expect(tasks()[1]!.status, BaiduImportTaskStatus.downloading);
-      expect(tasks()[3]!.status, BaiduImportTaskStatus.queued);
-
-      runner.succeed(1);
       await _flush();
 
+      expect(linkFetcher.requestedFsIds, [
+        [1, 2, 3],
+      ]);
       expect(runner.startedFsIds, [1, 2, 3]);
-      expect(tasks()[1]!.status, BaiduImportTaskStatus.added);
       expect(tasks()[3]!.status, BaiduImportTaskStatus.downloading);
     });
 
-    test('同一文件重复入队只下载一次', () async {
-      notifier().enqueue(audioEntries: [_audio(1)], subtitleEntries: const []);
-      notifier().enqueue(audioEntries: [_audio(1)], subtitleEntries: const []);
+    test('同名字幕的链接与音频在同一次请求中获取', () async {
+      final subtitle = _subtitle(9, name: 'lesson-1.srt');
 
+      notifier().enqueue(audioEntries: const [], subtitleEntries: [subtitle]);
+      await _flush();
+      expect(linkFetcher.requestedFsIds, isEmpty);
+      expect(runner.startedFsIds, isEmpty);
+
+      notifier().enqueue(
+        audioEntries: [_audio(1, name: 'lesson-1.mp3')],
+        subtitleEntries: [subtitle],
+      );
+      await _flush();
+
+      expect(linkFetcher.requestedFsIds.last, [1, 9]);
+      expect(runner.subtitleOf(1), subtitle);
+      expect(tasks()[1]!.subtitleEntry, subtitle);
+    });
+
+    test('取链接期间保持排队状态，链接就绪后才提交原生队列', () async {
+      linkFetcher.holdFetches = true;
+
+      notifier().enqueue(audioEntries: [_audio(1)], subtitleEntries: const []);
+      await _flush();
+
+      expect(tasks()[1]!.status, BaiduImportTaskStatus.queued);
+      expect(runner.startedFsIds, isEmpty);
+
+      linkFetcher.releaseFetch();
+      await _flush();
+
+      expect(tasks()[1]!.status, BaiduImportTaskStatus.downloading);
+      expect(runner.startedFsIds, [1]);
+    });
+
+    test('取链接期间取消的文件不会提交，其余文件正常提交', () async {
+      linkFetcher.holdFetches = true;
+      notifier().enqueue(
+        audioEntries: [_audio(1), _audio(2)],
+        subtitleEntries: const [],
+      );
+      await _flush();
+
+      notifier().cancel(1);
+      linkFetcher.releaseFetch();
+      await _flush();
+
+      expect(runner.startedFsIds, [2]);
+      expect(tasks().containsKey(1), isFalse);
+      expect(tasks()[2]!.status, BaiduImportTaskStatus.downloading);
+    });
+
+    test('取链接失败时整批标记为失败并保留原因，重试会重新取链接', () async {
+      linkFetcher.failWith = const BaiduNetdiskFileException(
+        kind: BaiduNetdiskFileErrorKind.network,
+        message: 'links down',
+      );
+      notifier().enqueue(
+        audioEntries: [_audio(1), _audio(2)],
+        subtitleEntries: const [],
+      );
+      await _flush();
+
+      expect(tasks()[1]!.status, BaiduImportTaskStatus.failed);
+      expect(tasks()[1]!.failureMessage, 'links down');
+      expect(tasks()[2]!.status, BaiduImportTaskStatus.failed);
+      expect(runner.startedFsIds, isEmpty);
+
+      linkFetcher.failWith = null;
+      notifier().retry(1);
+      await _flush();
+
+      expect(linkFetcher.requestedFsIds, [
+        [1, 2],
+        [1],
+      ]);
+      expect(runner.startedFsIds, [1]);
+      expect(tasks()[1]!.status, BaiduImportTaskStatus.downloading);
+    });
+
+    test('同一文件重复入队只取链接并下载一次', () async {
+      notifier().enqueue(audioEntries: [_audio(1)], subtitleEntries: const []);
+      notifier().enqueue(audioEntries: [_audio(1)], subtitleEntries: const []);
+      await _flush();
+
+      expect(linkFetcher.requestedFsIds, [
+        [1],
+      ]);
       expect(runner.startedFsIds, [1]);
       expect(tasks(), hasLength(1));
     });
@@ -180,31 +304,18 @@ void main() {
       container = createContainer(imported: {7});
 
       notifier().enqueue(audioEntries: [_audio(7)], subtitleEntries: const []);
+      await _flush();
 
       expect(runner.startedFsIds, [7]);
       expect(tasks()[7]!.status, BaiduImportTaskStatus.downloading);
     });
 
-    test('同名字幕随音频一起交给导入流程，仅选中字幕时不入队', () async {
-      final subtitle = _subtitle(9, name: 'lesson-1.srt');
-
-      notifier().enqueue(audioEntries: const [], subtitleEntries: [subtitle]);
-      expect(runner.startedFsIds, isEmpty);
-
+    test('取消运行中的任务只取消该文件', () async {
       notifier().enqueue(
-        audioEntries: [_audio(1, name: 'lesson-1.mp3')],
-        subtitleEntries: [subtitle],
-      );
-
-      expect(runner.subtitleOf(1), subtitle);
-      expect(tasks()[1]!.subtitleEntry, subtitle);
-    });
-
-    test('取消运行中的任务只取消该文件，并释放槽位给排队任务', () async {
-      notifier().enqueue(
-        audioEntries: [_audio(1), _audio(2), _audio(3)],
+        audioEntries: [_audio(1), _audio(2)],
         subtitleEntries: const [],
       );
+      await _flush();
       final cancelledToken = runner.tokenOf(1);
 
       notifier().cancel(1);
@@ -212,14 +323,15 @@ void main() {
       expect(cancelledToken.isCancelled, isTrue);
       expect(runner.tokenOf(2).isCancelled, isFalse);
       expect(tasks().containsKey(1), isFalse);
-      expect(runner.startedFsIds, [1, 2, 3]);
       expect(tasks()[2]!.status, BaiduImportTaskStatus.downloading);
     });
 
     test('取消后重新入队，旧任务的失败结果不会覆盖新任务', () async {
       notifier().enqueue(audioEntries: [_audio(1)], subtitleEntries: const []);
+      await _flush();
       notifier().cancel(1);
       notifier().enqueue(audioEntries: [_audio(1)], subtitleEntries: const []);
+      await _flush();
 
       runner.failCall(
         0,
@@ -237,6 +349,7 @@ void main() {
 
     test('下载进度更新当前任务的已下载字节数', () async {
       notifier().enqueue(audioEntries: [_audio(1)], subtitleEntries: const []);
+      await _flush();
 
       runner.reportProgress(1, 40, 100);
 
@@ -246,6 +359,7 @@ void main() {
 
     test('下载速度按最近采样计算，采样不足时不显示', () async {
       notifier().enqueue(audioEntries: [_audio(1)], subtitleEntries: const []);
+      await _flush();
 
       runner.reportProgress(1, 0, 10000);
       expect(tasks()[1]!.speedBytesPerSecond, isNull);
@@ -257,6 +371,7 @@ void main() {
 
     test('入库成功后保留为本次会话已导入，清除会话标记后移除', () async {
       notifier().enqueue(audioEntries: [_audio(1)], subtitleEntries: const []);
+      await _flush();
 
       runner.succeed(1);
       await _flush();
@@ -270,16 +385,19 @@ void main() {
 
     test('已导入的任务不阻止再次入队（用于补挂字幕或加入其他合集）', () async {
       notifier().enqueue(audioEntries: [_audio(1)], subtitleEntries: const []);
+      await _flush();
       runner.succeed(1);
       await _flush();
 
       notifier().enqueue(audioEntries: [_audio(1)], subtitleEntries: const []);
+      await _flush();
 
       expect(runner.startedFsIds, [1, 1]);
     });
 
-    test('导入失败保留失败原因，重试后重新排队下载', () async {
+    test('导入失败保留失败原因，重试后重新获取链接并下载', () async {
       notifier().enqueue(audioEntries: [_audio(1)], subtitleEntries: const []);
+      await _flush();
 
       runner.fail(
         1,
@@ -294,6 +412,7 @@ void main() {
       expect(tasks()[1]!.failureMessage, 'network down');
 
       notifier().retry(1);
+      await _flush();
 
       expect(runner.startedFsIds, [1, 1]);
       expect(tasks()[1]!.status, BaiduImportTaskStatus.downloading);
@@ -301,6 +420,7 @@ void main() {
 
     test('库中已存在同名文件时标记为重复，之后不再重复下载', () async {
       notifier().enqueue(audioEntries: [_audio(1)], subtitleEntries: const []);
+      await _flush();
 
       runner.fail(
         1,
@@ -314,6 +434,7 @@ void main() {
       expect(tasks()[1]!.status, BaiduImportTaskStatus.duplicate);
 
       notifier().enqueue(audioEntries: [_audio(1)], subtitleEntries: const []);
+      await _flush();
 
       expect(runner.startedFsIds, [1]);
     });
@@ -323,6 +444,7 @@ void main() {
         audioEntries: [_audio(1), _audio(2), _audio(3)],
         subtitleEntries: const [],
       );
+      await _flush();
       final first = runner.tokenOf(1);
       final second = runner.tokenOf(2);
 

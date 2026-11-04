@@ -781,6 +781,7 @@ class _BaiduNetdiskPanelState extends ConsumerState<_BaiduNetdiskPanel> {
     final tasks = ref.watch(baiduNetdiskImportTasksProvider);
     final tasksController = ref.read(baiduNetdiskImportTasksProvider.notifier);
     final importedFsIds = ref.watch(baiduImportedFsIdsProvider);
+    final nativelyQueuedFsIds = ref.watch(baiduNativelyQueuedFsIdsProvider);
     final importedCollectionNames = ref.watch(
       baiduImportedCollectionNamesProvider,
     );
@@ -830,6 +831,7 @@ class _BaiduNetdiskPanelState extends ConsumerState<_BaiduNetdiskPanel> {
                   importedCollectionNames: importedCollectionNames,
                   tasks: tasks,
                   importedFsIds: importedFsIds,
+                  nativelyQueuedFsIds: nativelyQueuedFsIds,
                   onOpenDirectory: controller.loadDirectory,
                   onToggle: controller.toggleEntry,
                   onImport: () {
@@ -931,6 +933,7 @@ class _BaiduFileBrowser extends StatefulWidget {
     required this.importedCollectionNames,
     required this.tasks,
     required this.importedFsIds,
+    required this.nativelyQueuedFsIds,
     required this.onOpenDirectory,
     required this.onToggle,
     required this.onImport,
@@ -943,6 +946,9 @@ class _BaiduFileBrowser extends StatefulWidget {
   final Map<int, List<String>> importedCollectionNames;
   final Map<int, BaiduImportTask> tasks;
   final Set<int> importedFsIds;
+
+  /// 已提交原生队列但尚未开始下载的音频 fs_id，目录行据此显示"排队中"。
+  final Set<int> nativelyQueuedFsIds;
   final ValueChanged<String> onOpenDirectory;
   final ValueChanged<CloudDriveEntry> onToggle;
   final VoidCallback onImport;
@@ -995,6 +1001,9 @@ class _BaiduFileBrowserState extends State<_BaiduFileBrowser> {
                 final status = _rowStatusFor(
                   task,
                   isImported: widget.importedFsIds.contains(entry.fsId),
+                  isNativelyQueued:
+                      task != null &&
+                      widget.nativelyQueuedFsIds.contains(task.audioEntry.fsId),
                 );
                 // 已勾选却没有匹配到同名音频（本次选中或已导入）的字幕，需要提示用户。
                 final isUnmatchedSubtitle = plan.unmatchedSubtitleFsIds
@@ -1058,10 +1067,13 @@ enum _BaiduRowStatus {
 _BaiduRowStatus _rowStatusFor(
   BaiduImportTask? task, {
   required bool isImported,
+  required bool isNativelyQueued,
 }) {
   if (task != null) {
     return switch (task.status) {
       BaiduImportTaskStatus.queued => _BaiduRowStatus.queued,
+      BaiduImportTaskStatus.downloading when isNativelyQueued =>
+        _BaiduRowStatus.queued,
       BaiduImportTaskStatus.downloading => _BaiduRowStatus.downloading,
       BaiduImportTaskStatus.added => _BaiduRowStatus.addedThisSession,
       BaiduImportTaskStatus.duplicate => _BaiduRowStatus.duplicate,
@@ -1246,10 +1258,13 @@ class _BaiduFileTile extends StatelessWidget {
       _BaiduRowStatus.pending ||
       _BaiduRowStatus.added => _selectionCheckbox(colorScheme),
       // 本次导入会话中已成功导入的文件不可再选，只显示对勾。
-      _BaiduRowStatus.addedThisSession => Icon(
-        Icons.check_circle,
-        size: 18,
-        color: colorScheme.primary,
+      // 与 Checkbox 使用相同的 48 点击区域并居中，保证同一列图标水平对齐。
+      _BaiduRowStatus.addedThisSession => SizedBox(
+        width: 48,
+        height: 48,
+        child: Center(
+          child: Icon(Icons.check_circle, size: 18, color: colorScheme.primary),
+        ),
       ),
       _BaiduRowStatus.queued => Row(
         mainAxisSize: MainAxisSize.min,
