@@ -239,16 +239,22 @@ class TtsController extends Notifier<TtsControllerState> {
   ///
   /// 协调器当前返回 bool；控制器结合自身 speaking token 将被新请求抢占的
   /// 旧结果区分为 [AudioPlaybackResult.cancelled]，避免上层把失败误记为完成。
+  ///
+  /// [promptIfModelMissing] 为 false 时，本地模型未就绪直接返回 failed，不弹下载框。
   Future<AudioPlaybackResult> speakWithResult(
     String text, {
     String? key,
+    bool promptIfModelMissing = true,
   }) async {
     // 必须在模型检查前登记代际：模型加载/弹窗等待期间关闭词典时，stop()
     // 递增代际，旧请求回来后不得再继续设置播放状态或启动协调器。
     final token = ++_speakingToken;
     final k = key ?? text;
     try {
-      if (!await ensureTtsModelReadyForPlayback(ref)) {
+      if (!await ensureTtsModelReadyForPlayback(
+        ref,
+        promptIfModelMissing: promptIfModelMissing,
+      )) {
         return _resultForToken(token, success: false);
       }
       if (token != _speakingToken) return AudioPlaybackResult.cancelled;
@@ -273,8 +279,16 @@ class TtsController extends Notifier<TtsControllerState> {
   }
 
   /// 保留普通发音调用方的 fire-and-forget 入口，实际播放逻辑只有结果型实现一套。
-  Future<void> speak(String text, {String? key}) async {
-    await speakWithResult(text, key: key);
+  Future<void> speak(
+    String text, {
+    String? key,
+    bool promptIfModelMissing = true,
+  }) async {
+    await speakWithResult(
+      text,
+      key: key,
+      promptIfModelMissing: promptIfModelMissing,
+    );
   }
 
   AudioPlaybackResult _resultForToken(int token, {required bool success}) {

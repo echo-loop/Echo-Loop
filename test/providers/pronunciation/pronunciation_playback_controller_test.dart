@@ -7,6 +7,7 @@ import 'package:echo_loop/providers/tts/tts_controller_provider.dart';
 import 'package:echo_loop/services/pronunciation/local_audio_clip_player.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+
 import '../../helpers/mock_providers.dart';
 
 class _FakeBackend implements AudioClipPlayerBackend {
@@ -54,6 +55,7 @@ class _FakeBackend implements AudioClipPlayerBackend {
 
 class _FakeTtsController extends TtsController {
   final spoken = <String>[];
+  final promptFlags = <bool>[];
   AudioPlaybackResult result = AudioPlaybackResult.completed;
 
   @override
@@ -63,8 +65,10 @@ class _FakeTtsController extends TtsController {
   Future<AudioPlaybackResult> speakWithResult(
     String text, {
     String? key,
+    bool promptIfModelMissing = true,
   }) async {
     spoken.add(text);
+    promptFlags.add(promptIfModelMissing);
     return result;
   }
 
@@ -155,6 +159,52 @@ void main() {
 
     expect(backend.openedPaths, _clips.map((clip) => clip.absolutePath));
     expect(tts.spoken, ['read']);
+  });
+
+  test('自动发音无本地音频时把 promptIfModelMissing=false 透传给 TTS 回退', () async {
+    final tts = _FakeTtsController();
+    final container = _container(
+      backend: _FakeBackend(),
+      tts: tts,
+      clips: const [],
+    );
+    addTearDown(container.dispose);
+
+    await container
+        .read(textPlaybackProvider.notifier)
+        .speak('hello', key: 'hello', promptIfModelMissing: false);
+
+    expect(tts.spoken, ['hello']);
+    expect(tts.promptFlags, [false]);
+  });
+
+  test('本地音频播放失败回退 TTS 时同样透传 promptIfModelMissing=false', () async {
+    final backend = _FakeBackend(failOnOpen: true);
+    final tts = _FakeTtsController();
+    final container = _container(backend: backend, tts: tts);
+    addTearDown(container.dispose);
+
+    await container
+        .read(textPlaybackProvider.notifier)
+        .speak('read', key: 'read', promptIfModelMissing: false);
+
+    expect(backend.openedPaths, [_clips.first.absolutePath]);
+    expect(tts.spoken, ['read']);
+    expect(tts.promptFlags, [false]);
+  });
+
+  test('未指定时 TTS 回退默认允许弹出模型下载提示', () async {
+    final tts = _FakeTtsController();
+    final container = _container(
+      backend: _FakeBackend(),
+      tts: tts,
+      clips: const [],
+    );
+    addTearDown(container.dispose);
+
+    await container.read(textPlaybackProvider.notifier).speak('hello');
+
+    expect(tts.promptFlags, [true]);
   });
 
   test('stopping a sequence prevents later clips from playing', () async {

@@ -64,9 +64,8 @@ final ttsPlaybackModelStateProvider = Provider<TtsPlaybackModelState>((ref) {
         status: state.downloadStatus,
         progress: state.downloadProgress,
         failure: state.downloadError,
-        estimatedDownloadBytes: kokoroSpecOf(
-          settings.kokoroVariant,
-        ).estimatedDownloadBytes,
+        estimatedDownloadBytes: kokoroSpecOf(settings.kokoroVariant)
+            .estimatedDownloadBytes,
       );
     case TtsEngineKind.piper:
       final state = ref.watch(piperModelProvider).of(settings.activePiperVoice);
@@ -84,13 +83,27 @@ final ttsPlaybackModelStateProvider = Provider<TtsPlaybackModelState>((ref) {
 
 /// 发音前检查当前本地 TTS 模型。
 ///
-/// 返回 true 才允许本次发音；下载中、未下载或失败均只展示全局状态弹窗，返回 false。
-Future<bool> ensureTtsModelReadyForPlayback(Ref ref) async {
+/// 返回 true 才允许本次发音；下载中、未下载或失败均返回 false。
+///
+/// [promptIfModelMissing] 为 false 时（查词自动发音等非用户主动的发音）不弹窗，
+/// 只记录日志并返回 false，避免用户仅因查词就被要求下载模型。
+Future<bool> ensureTtsModelReadyForPlayback(
+  Ref ref, {
+  bool promptIfModelMissing = true,
+}) async {
   await ref
       .read(ttsModelInstallationGateProvider)
       .ensureInstallationStatesLoaded();
   final state = ref.read(ttsPlaybackModelStateProvider);
   if (state.isReady) return true;
+
+  if (!promptIfModelMissing) {
+    AppLogger.log(
+      'TtsModelGate',
+      '非主动发音跳过：模型未就绪，不弹出下载提示 engine=${state.engine.diagnosticName}',
+    );
+    return false;
+  }
 
   final context = rootNavigatorKey.currentContext;
   if (context == null || !context.mounted) return false;
@@ -326,9 +339,8 @@ class TtsModelDownloadDialog extends ConsumerWidget {
       status: state.downloadStatus,
       progress: state.downloadProgress,
       failure: state.downloadError,
-      estimatedDownloadBytes: kokoroSpecOf(
-        settings.kokoroVariant,
-      ).estimatedDownloadBytes,
+      estimatedDownloadBytes: kokoroSpecOf(settings.kokoroVariant)
+          .estimatedDownloadBytes,
     );
   }
 

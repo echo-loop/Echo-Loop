@@ -31,6 +31,7 @@ late SharedPreferences _prefs;
 /// 供断言「打开弹窗即以单词本身预热」。
 final List<List<String>> _prewarmCalls = [];
 final List<String> _autoSpeakCalls = [];
+final List<bool> _autoSpeakPromptFlags = [];
 String? _initialSpeakingKey;
 int _ttsStopCalls = 0;
 int _textPlaybackStopCalls = 0;
@@ -45,7 +46,11 @@ class _StubTtsController extends TtsController {
   TtsControllerState build() =>
       TtsControllerState(speakingKey: _initialSpeakingKey);
   @override
-  Future<void> speak(String text, {String? key}) async {
+  Future<void> speak(
+    String text, {
+    String? key,
+    bool promptIfModelMissing = true,
+  }) async {
     state = TtsControllerState(speakingKey: key ?? text);
   }
 
@@ -73,11 +78,18 @@ class _StubTextPlaybackController extends TextPlaybackController {
   TextPlaybackState build() => const TextPlaybackState();
 
   @override
-  Future<void> speak(String text, {String? key}) async {
+  Future<void> speak(
+    String text, {
+    String? key,
+    bool promptIfModelMissing = true,
+  }) async {
     _autoSpeakCalls.add(text);
+    _autoSpeakPromptFlags.add(promptIfModelMissing);
     state = TextPlaybackState(playingKey: key ?? text);
     if (_forwardTextPlaybackToTts) {
-      await ref.read(ttsControllerProvider.notifier).speak(text, key: key);
+      await ref
+          .read(ttsControllerProvider.notifier)
+          .speak(text, key: key, promptIfModelMissing: promptIfModelMissing);
     }
   }
 
@@ -186,6 +198,7 @@ void main() {
     _prefs = await SharedPreferences.getInstance();
     _prewarmCalls.clear();
     _autoSpeakCalls.clear();
+    _autoSpeakPromptFlags.clear();
     _initialSpeakingKey = null;
     _ttsStopCalls = 0;
     _textPlaybackStopCalls = 0;
@@ -358,6 +371,8 @@ void main() {
       await _openSheet(tester, 'running');
 
       expect(_autoSpeakCalls, ['running']);
+      // 自动发音不是用户主动点击，模型缺失时不得弹出下载提示。
+      expect(_autoSpeakPromptFlags, [false]);
       await tester.pump();
       expect(_autoSpeakCalls, ['running']);
     });

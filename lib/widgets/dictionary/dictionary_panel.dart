@@ -185,6 +185,8 @@ class _DictionaryPanelState extends ConsumerState<DictionaryPanel> {
   }
 
   /// 播放自动发音并保留请求所有权，关闭面板时可直接取消尚未同步 UI 状态的 TTS。
+  ///
+  /// 自动发音不是用户主动操作，本地模型未就绪时静默跳过，不弹下载提示。
   Future<void> _playAutoSpeak(String word, int epoch) async {
     if (!mounted || epoch != _autoSpeakEpoch) return;
     if (!ref.read(dictionarySettingsProvider).autoSpeakOnLookup) {
@@ -192,7 +194,9 @@ class _DictionaryPanelState extends ConsumerState<DictionaryPanel> {
     }
     _autoSpeakInFlight = true;
     try {
-      await ref.read(textPlaybackProvider.notifier).speak(word, key: word);
+      await ref
+          .read(textPlaybackProvider.notifier)
+          .speak(word, key: word, promptIfModelMissing: false);
     } finally {
       if (epoch == _autoSpeakEpoch) _autoSpeakInFlight = false;
     }
@@ -679,9 +683,7 @@ class _DictionaryPanelState extends ConsumerState<DictionaryPanel> {
     // 任一表命中即显示已收藏，避免多词在来源句查词时漏显收藏状态。
     final textPrefs = ref.watch(readingTextPrefsProvider);
     final savedWords = ref.watch(savedWordTextsProvider).value;
-    final savedSenseGroups = ref
-        .watch(savedSenseGroupTextsProvider)
-        .value;
+    final savedSenseGroups = ref.watch(savedSenseGroupTextsProvider).value;
     final isSaved =
         (savedWords ?? const <String>{}).contains(savedWord) ||
         (savedSenseGroups ?? const <String>{}).contains(savedWord);

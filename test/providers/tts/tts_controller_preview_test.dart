@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 // ignore: depend_on_referenced_packages
@@ -12,15 +13,21 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:echo_loop/database/app_database.dart' show TtsCacheData;
 import 'package:echo_loop/database/daos/tts_cache_dao.dart';
 import 'package:echo_loop/database/providers.dart';
+import 'package:echo_loop/l10n/app_localizations.dart';
+import 'package:echo_loop/router/app_router.dart' show rootNavigatorKey;
 import 'package:echo_loop/providers/tts/kokoro_model_provider.dart';
 import 'package:echo_loop/providers/tts/piper_model_provider.dart';
 import 'package:echo_loop/providers/tts/tts_controller_provider.dart';
 import 'package:echo_loop/providers/tts/tts_settings_provider.dart';
+import 'package:echo_loop/services/pronunciation/local_audio_clip_player.dart'
+    show AudioPlaybackResult;
 import 'package:echo_loop/services/tts/kokoro_model_manager.dart'
     show AsrModelDownloadStatus;
 import 'package:echo_loop/services/tts/kokoro_voices.dart';
 import 'package:echo_loop/services/tts/piper_model_catalog.dart';
 import 'package:echo_loop/services/tts/tts_engine.dart';
+import 'package:echo_loop/widgets/tts/tts_model_download_prompt_dialog.dart';
+
 import '../../helpers/mock_providers.dart';
 
 /// 受控 Kokoro notifier：注入初值，下载相关方法仅占位（不做真实下载）。
@@ -115,9 +122,8 @@ class _GateEngine implements TtsEngine {
 /// 等待 fake 引擎收到指定数量的合成请求，避免测试依赖固定 event queue 次数。
 Future<void> _waitForGateCount(_GateEngine engine, int count) async {
   await expectLater(
-    Stream<void>.periodic(
-      const Duration(milliseconds: 1),
-    ).map((_) => engine.gates.length),
+    Stream<void>.periodic(const Duration(milliseconds: 1))
+        .map((_) => engine.gates.length),
     emitsThrough(count),
   );
 }
@@ -345,9 +351,8 @@ void main() {
 
       kokoroNotifier.updateState(_ready());
       await expectLater(
-        Stream<void>.periodic(
-          const Duration(milliseconds: 1),
-        ).map((_) => factory.calls),
+        Stream<void>.periodic(const Duration(milliseconds: 1))
+            .map((_) => factory.calls),
         emitsThrough(greaterThanOrEqualTo(1)),
       );
     });
@@ -524,6 +529,77 @@ void main() {
       expect(fp32.voiceName, int8.voiceName);
       // 语速默认一致（cacheKey 的 speed 段）。
       expect(fp32.rate, int8.rate);
+    });
+  });
+
+  group('speakWithResult 模型缺失门控', () {
+    ProviderContainer makeUnreadyContainer(_RecordingFactory factory) {
+      return ProviderContainer(
+        overrides: dedupeOverrides([
+          initialTtsSettingsProvider.overrideWithValue(
+            const TtsSettings(engine: TtsEngineKind.kokoro),
+          ),
+          kokoroModelProvider.overrideWith(
+            () => _FixedKokoroNotifier(KokoroModelsState.initial()),
+          ),
+          piperModelProvider.overrideWith(
+            () => _FixedPiperNotifier(PiperModelsState.initial()),
+          ),
+          ttsEngineFactoryProvider.overrideWithValue(factory.make),
+          ttsCacheDaoProvider.overrideWithValue(dao),
+        ]),
+      );
+    }
+
+    Widget appWithDialogHost(ProviderContainer container) {
+      return UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp(
+          navigatorKey: rootNavigatorKey,
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          locale: const Locale('en'),
+          home: const Scaffold(body: SizedBox.shrink()),
+        ),
+      );
+    }
+
+    testWidgets('自动发音（promptIfModelMissing=false）模型未就绪时不弹下载框', (tester) async {
+      SharedPreferences.setMockInitialValues({});
+      final factory = _RecordingFactory();
+      final c = makeUnreadyContainer(factory);
+      addTearDown(c.dispose);
+      await tester.pumpWidget(appWithDialogHost(c));
+
+      final result = await tester.runAsync(
+        () => c
+            .read(ttsControllerProvider.notifier)
+            .speakWithResult('running', promptIfModelMissing: false),
+      );
+      await tester.pumpAndSettle();
+
+      expect(result, AudioPlaybackResult.failed);
+      expect(find.byType(TtsModelDownloadDialog), findsNothing);
+      expect(factory.calls, 0);
+    });
+
+    testWidgets('用户主动发音（默认）模型未就绪时仍弹出下载框', (tester) async {
+      SharedPreferences.setMockInitialValues({});
+      final factory = _RecordingFactory();
+      final c = makeUnreadyContainer(factory);
+      addTearDown(c.dispose);
+      await tester.pumpWidget(appWithDialogHost(c));
+
+      final pending = c
+          .read(ttsControllerProvider.notifier)
+          .speakWithResult('running');
+      await tester.pumpAndSettle();
+
+      expect(find.byType(TtsModelDownloadDialog), findsOneWidget);
+      Navigator.of(tester.element(find.byType(TtsModelDownloadDialog))).pop();
+      await tester.pumpAndSettle();
+      expect(await pending, AudioPlaybackResult.failed);
+      expect(factory.calls, 0);
     });
   });
 }

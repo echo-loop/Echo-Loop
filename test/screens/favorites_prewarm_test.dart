@@ -112,7 +112,11 @@ class _RecordingTtsController extends TtsController {
   }
 
   @override
-  Future<void> speak(String text, {String? key}) async {
+  Future<void> speak(
+    String text, {
+    String? key,
+    bool promptIfModelMissing = true,
+  }) async {
     spokenTexts.add(text);
   }
 
@@ -120,6 +124,7 @@ class _RecordingTtsController extends TtsController {
   Future<AudioPlaybackResult> speakWithResult(
     String text, {
     String? key,
+    bool promptIfModelMissing = true,
   }) async {
     spokenTexts.add(text);
     return AudioPlaybackResult.completed;
@@ -143,6 +148,7 @@ class _RecordingPronunciationPlayback extends TextPlaybackController {
   Future<AudioPlaybackResult> speakWithResult(
     String text, {
     String? key,
+    bool promptIfModelMissing = true,
   }) async {
     final clips = ref.read(pronunciationClipsProvider(text));
     if (clips.isNotEmpty) {

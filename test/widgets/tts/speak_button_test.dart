@@ -6,6 +6,7 @@ import 'package:echo_loop/widgets/tts/speak_button.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+
 import '../../helpers/mock_providers.dart';
 
 /// 记录 speak 调用、可注入初始 speakingKey 的假控制器。
@@ -20,7 +21,11 @@ class FakeTtsController extends TtsController {
       TtsControllerState(speakingKey: initialSpeakingKey);
 
   @override
-  Future<void> speak(String text, {String? key}) async {
+  Future<void> speak(
+    String text, {
+    String? key,
+    bool promptIfModelMissing = true,
+  }) async {
     calls.add((text: text, key: key ?? text));
   }
 
@@ -28,6 +33,7 @@ class FakeTtsController extends TtsController {
   Future<AudioPlaybackResult> speakWithResult(
     String text, {
     String? key,
+    bool promptIfModelMissing = true,
   }) async {
     calls.add((text: text, key: key ?? text));
     return AudioPlaybackResult.completed;
@@ -48,6 +54,7 @@ class FakePronunciationPlayback extends TextPlaybackController {
   Future<AudioPlaybackResult> speakWithResult(
     String text, {
     String? key,
+    bool promptIfModelMissing = true,
   }) async {
     final clips = ref.read(pronunciationClipsProvider(text));
     if (clips.isNotEmpty) {

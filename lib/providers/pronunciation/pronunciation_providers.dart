@@ -203,9 +203,12 @@ class TextPlaybackController extends Notifier<TextPlaybackState> {
   ///
   /// 通用播放入口均调用本方法，避免页面分别判断离线发音状态而造成预热与点击
   /// 播放走不同链路。会话被新请求或显式停止抢占时返回 [cancelled]。
+  /// [promptIfModelMissing] 只影响 TTS 回退时本地模型缺失的行为，见
+  /// [TtsController.speakWithResult]。
   Future<AudioPlaybackResult> speakWithResult(
     String text, {
     String? key,
+    bool promptIfModelMissing = true,
   }) async {
     final sessionId = ++_sessionId;
     final playbackKey = key ?? text;
@@ -216,6 +219,7 @@ class TextPlaybackController extends Notifier<TextPlaybackState> {
         fallbackText: text,
         fallbackKey: playbackKey,
         sessionId: sessionId,
+        promptIfModelMissing: promptIfModelMissing,
       );
     }
     if (sessionId != _sessionId) return AudioPlaybackResult.cancelled;
@@ -223,7 +227,11 @@ class TextPlaybackController extends Notifier<TextPlaybackState> {
     try {
       final result = await ref
           .read(ttsControllerProvider.notifier)
-          .speakWithResult(text, key: playbackKey);
+          .speakWithResult(
+            text,
+            key: playbackKey,
+            promptIfModelMissing: promptIfModelMissing,
+          );
       return sessionId == _sessionId ? result : AudioPlaybackResult.cancelled;
     } finally {
       if (sessionId == _sessionId) state = const TextPlaybackState();
@@ -231,8 +239,16 @@ class TextPlaybackController extends Notifier<TextPlaybackState> {
   }
 
   /// 保留现有普通文本播放入口，实际播放逻辑由 [speakWithResult] 统一实现。
-  Future<void> speak(String text, {String? key}) async {
-    await speakWithResult(text, key: key);
+  Future<void> speak(
+    String text, {
+    String? key,
+    bool promptIfModelMissing = true,
+  }) async {
+    await speakWithResult(
+      text,
+      key: key,
+      promptIfModelMissing: promptIfModelMissing,
+    );
   }
 
   /// 顺序播放单个单词命中的全部离线发音。
@@ -301,6 +317,7 @@ class TextPlaybackController extends Notifier<TextPlaybackState> {
       fallbackText: fallbackText,
       fallbackKey: fallbackKey,
       sessionId: sessionId,
+      promptIfModelMissing: true,
     );
   }
 
@@ -309,6 +326,7 @@ class TextPlaybackController extends Notifier<TextPlaybackState> {
     required String fallbackText,
     required String? fallbackKey,
     required int sessionId,
+    required bool promptIfModelMissing,
   }) async {
     state = TextPlaybackState(playingKey: clip.playbackKey);
     await ref.read(ttsControllerProvider.notifier).stop();
@@ -340,7 +358,11 @@ class TextPlaybackController extends Notifier<TextPlaybackState> {
       if (sessionId != _sessionId) return AudioPlaybackResult.cancelled;
       final fallbackResult = await ref
           .read(ttsControllerProvider.notifier)
-          .speakWithResult(fallbackText, key: fallbackKey ?? clip.playbackKey);
+          .speakWithResult(
+            fallbackText,
+            key: fallbackKey ?? clip.playbackKey,
+            promptIfModelMissing: promptIfModelMissing,
+          );
       return sessionId == _sessionId
           ? fallbackResult
           : AudioPlaybackResult.cancelled;
