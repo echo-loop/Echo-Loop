@@ -100,7 +100,7 @@ dependencies:
   showcaseview: ^5.0.1
   # 认证：复用 fluency-frontend 的 Supabase 项目（auth.users 共享），
   # mobile 端走 native ID Token 流（Apple/Google）+ 邮箱密码。详见 docs / plan。
-  supabase_flutter: ^2.12.0
+  supabase_flutter: ^2.18.0
   sign_in_with_apple: ^7.0.1
   google_sign_in: ^7.2.0
   just_waveform: ^0.0.7

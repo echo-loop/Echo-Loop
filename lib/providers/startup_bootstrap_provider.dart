@@ -288,7 +288,7 @@ class DefaultStartupBootstrapper implements StartupBootstrapper {
         await _trace('supabase_initialize', () {
           return Supabase.initialize(
             url: selectedSupabaseUrl,
-            anonKey: auth_config.supabasePublishableKey,
+            publishableKey: auth_config.supabasePublishableKey,
           );
         });
         supabaseReady = true;
