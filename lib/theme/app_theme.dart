@@ -124,6 +124,16 @@ class AppTheme {
   static Color premiumGold(Brightness b) =>
       b == Brightness.dark ? _premiumGoldDark : _premiumGoldLight;
 
+  /// 「升级」高亮徽章底色（订阅入口与会员角标共用，保证金色系一致）。
+  static Color premiumUpgradeBadgeBackground(Brightness b) =>
+      b == Brightness.dark ? const Color(0xFFD8B11E) : const Color(0xFFFCE76B);
+
+  /// 金色徽章上的文字色。
+  static const Color onPremiumUpgradeBadge = Color(0xFF111111);
+
+  /// 会员角标（「我的」导航 VIP）的文字色：比 [onPremiumUpgradeBadge] 柔和，小号下不发黑。
+  static const Color memberBadgeText = Color(0xFF3D2E00);
+
   /// 会员态 hero 卡金色渐变（上→下），配白字。
   static List<Color> premiumHeroGradient(Brightness b) => b == Brightness.dark
       ? const [_premiumHeroTopDark, _premiumHeroBottomDark]

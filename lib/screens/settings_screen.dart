@@ -235,10 +235,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final theme = Theme.of(context);
     final gold = AppTheme.premiumGold(theme.brightness);
     final isPremium = ref.watch(subscriptionControllerProvider).isActive;
-    final upgradeBadgeBackground = theme.brightness == Brightness.dark
-        ? const Color(0xFFD8B11E)
-        : const Color(0xFFFCE76B);
-    const upgradeBadgeTextColor = Color(0xFF111111);
+    final upgradeBadgeBackground = AppTheme.premiumUpgradeBadgeBackground(
+      theme.brightness,
+    );
+    const upgradeBadgeTextColor = AppTheme.onPremiumUpgradeBadge;
 
     return ListTile(
       leading: _settingsSvgIcon('assets/icon/diamond.svg'),

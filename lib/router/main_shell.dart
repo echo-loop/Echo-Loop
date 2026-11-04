@@ -46,6 +46,7 @@ import '../services/review_reminder_service.dart';
 import '../services/review_reminder_time_calculator.dart';
 import '../screens/log_viewer_screen.dart';
 import '../providers/new_user_guide_provider.dart';
+import '../features/subscription/widgets/member_tab_badge.dart';
 import '../theme/app_theme.dart';
 import '../widgets/app_update_dialog.dart';
 import '../widgets/notification_permission_dialog.dart';
@@ -824,10 +825,14 @@ class _MainShellState extends ConsumerState<MainShell>
                       label: l10n.favorites,
                     ),
                     NavigationDestination(
-                      icon: const Icon(Icons.person_outline),
-                      selectedIcon: const Icon(
-                        Icons.person,
-                        color: AppTheme.navActiveColor,
+                      icon: const MemberTabBadge(
+                        child: Icon(Icons.person_outline),
+                      ),
+                      selectedIcon: const MemberTabBadge(
+                        child: Icon(
+                          Icons.person,
+                          color: AppTheme.navActiveColor,
+                        ),
                       ),
                       label: l10n.profile,
                     ),

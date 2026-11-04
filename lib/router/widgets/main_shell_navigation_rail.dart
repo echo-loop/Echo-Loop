@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../features/subscription/widgets/member_tab_badge.dart';
 import '../../l10n/app_localizations.dart';
 import '../../providers/desktop_sidebar_provider.dart';
 import '../../theme/app_theme.dart';
@@ -69,10 +70,9 @@ class MainShellNavigationRail extends ConsumerWidget {
           label: Text(l10n.favorites),
         ),
         NavigationRailDestination(
-          icon: const Icon(Icons.person_outline),
-          selectedIcon: const Icon(
-            Icons.person,
-            color: AppTheme.navActiveColor,
+          icon: const MemberTabBadge(child: Icon(Icons.person_outline)),
+          selectedIcon: const MemberTabBadge(
+            child: Icon(Icons.person, color: AppTheme.navActiveColor),
           ),
           label: Text(l10n.profile),
         ),
