@@ -611,3 +611,13 @@
 - 测试约定：`repeat_flow_engine_test.dart` 中「录音中从暂停位置恢复播放会取消录音」。进入等待态时 `enterWaitingForUser` 本身也会触发一次 `cancelRecording`，断言前需先重置计数，只统计 resume 这一步。
 - 相关代码：`lib/providers/repeat_flow/repeat_flow_engine.dart`（`resumeCurrentSentence`、`_stopActiveResources`）。
 - 修复时间：2026-11-04。
+
+### 7.40 难句跟读 / 难句补练进入时出现切屏动画：空列表下的首次对齐被当成相邻切句
+
+- 现象：从学习计划进入难句跟读或难句补练，页面先横滑一段再停到断点句，而不是直接显示断点句。
+- 根因：`PracticeSentencePager` 在句子列表为空（`itemCount=0`、`currentIndex=0`）时完成了一次同步，`_synced` 被置为 true。随后会话到位（`itemCount` 0→4，`currentIndex` 0→1），`_syncPageIfReady` 把它当成相邻切句，走 320ms `animateToPage`。加载遮罩只淡出 180ms，两者重叠就看到切屏。断点句与第 0 句相差大于 1 的任务（如逐句精听断点在第 4 句）走 `jumpToPage`，瞬间完成，所以看不出来。
+- 解法：`didUpdateWidget` 检测到 `itemCount` 从 0 变为非 0 时，重置 `_synced` 并排一次对齐，使首次到位直接跳转。之后的相邻切句动画不变。
+- 规则：分页组件的「已同步」状态只能在有效数据下建立；空列表时的页面位置不是业务索引的对齐结果。改动此类同步逻辑时，要同时覆盖「空列表到位后索引不变」与「到位后相邻切句」两种情况。
+- 测试约定：`practice_sentence_pager_test.dart` 中三条用例分别覆盖首次到位直接对齐、已对齐后的相邻切句仍有动画、空列表到位（索引不变）后相邻切句仍有动画。
+- 相关代码：`lib/widgets/practice/practice_sentence_pager.dart`（`didUpdateWidget`、`_syncPageIfReady`）。
+- 修复时间：2026-11-04。

@@ -250,4 +250,69 @@ void main() {
     await tester.pump();
     await tester.pumpAndSettle();
   });
+
+  testWidgets('句子列表首次到位时直接对齐到当前句而不做滑动', (tester) async {
+    await tester.pumpWidget(_pagerHost(itemCount: 0, currentIndex: 0));
+    await tester.pump();
+
+    await tester.pumpWidget(_pagerHost(itemCount: 4, currentIndex: 1));
+    await tester.pump();
+
+    expect(_pageOf(tester), 1.0);
+  });
+
+  testWidgets('已对齐后的相邻句切换仍使用滑动动画', (tester) async {
+    await tester.pumpWidget(_pagerHost(itemCount: 4, currentIndex: 0));
+    await tester.pump();
+
+    await tester.pumpWidget(_pagerHost(itemCount: 4, currentIndex: 1));
+    await tester.pump();
+    expect(_pageOf(tester), 0.0);
+
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(_pageOf(tester), allOf(greaterThan(0.0), lessThan(1.0)));
+
+    await tester.pumpAndSettle();
+    expect(_pageOf(tester), 1.0);
+  });
+
+  testWidgets('空列表到位时停在第一句后，之后的相邻切句仍使用滑动动画', (tester) async {
+    await tester.pumpWidget(_pagerHost(itemCount: 0, currentIndex: 0));
+    await tester.pump();
+
+    // 索引未变化，到位时只依赖首次对齐来标记页面已同步。
+    await tester.pumpWidget(_pagerHost(itemCount: 4, currentIndex: 0));
+    await tester.pump();
+
+    await tester.pumpWidget(_pagerHost(itemCount: 4, currentIndex: 1));
+    await tester.pump();
+    expect(_pageOf(tester), 0.0);
+
+    await tester.pumpAndSettle();
+    expect(_pageOf(tester), 1.0);
+  });
+}
+
+Widget _pagerHost({required int itemCount, required int currentIndex}) {
+  return MaterialApp(
+    home: SizedBox(
+      width: 320,
+      height: 240,
+      child: PracticeSentencePager(
+        pageViewKey: const ValueKey('pager'),
+        controller: PracticeSentencePagerController(),
+        currentIndex: currentIndex,
+        itemCount: itemCount,
+        onSentenceSettled: (_) async {},
+        itemBuilder: (context, index) => Text('Sentence $index'),
+      ),
+    ),
+  );
+}
+
+double? _pageOf(WidgetTester tester) {
+  return tester
+      .widget<PageView>(find.byKey(const ValueKey('pager')))
+      .controller
+      ?.page;
 }

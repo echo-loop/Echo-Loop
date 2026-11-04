@@ -110,6 +110,12 @@ class _PracticeSentencePagerState extends State<PracticeSentencePager> {
       oldWidget.controller._detach(this);
       widget.controller._attach(this);
     }
+    if (oldWidget.itemCount == 0 && widget.itemCount > 0) {
+      // 空列表期间页面停留在第 0 页，并不代表已与业务索引对齐。句子首次到位时
+      // 必须直接跳到当前句，否则会把 0 → 断点句当成相邻切句做滑动动画。
+      _synced = false;
+      _schedulePageSync();
+    }
     if (oldWidget.currentIndex != widget.currentIndex) {
       _clearPendingGesture();
       DictionaryPanelHost.maybeOf(context)?.closeIfOpen();
