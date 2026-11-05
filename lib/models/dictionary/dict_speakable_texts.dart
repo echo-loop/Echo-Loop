@@ -60,17 +60,13 @@ List<String> dictionarySpeakableTexts(DictionaryLookupResult result) {
   return out;
 }
 
-/// 返回词典结果中需要交给 TTS 后台预热的文本。
+/// 返回词典结果中需要交给 TTS 后台预热的例句文本（不含标题）。
 ///
-/// 标题已有离线发音时不进入 TTS 队列；AI 结果中的例句等文本始终保留。
-/// 具体的预热调度仍由页面通过 `TtsController` 完成，避免本模型层依赖状态管理。
-List<String> dictionaryPrewarmTexts(
-  DictionaryLookupResult result, {
-  required bool hasLocalClip,
-}) {
-  final texts = dictionarySpeakableTexts(result);
-  if (hasLocalClip && texts.isNotEmpty) {
-    return texts.skip(1).toList();
-  }
-  return texts;
+/// 标题由 `TextPlaybackController.prewarmWord` 单独处理：CDN 已有预录音频时不占用
+/// TTS 合成额度，仅 CDN 缺失时才进入 TTS 预热。具体调度仍由页面完成，本模型层
+/// 不依赖状态管理。
+List<String> dictionaryPrewarmTexts(DictionaryLookupResult result) {
+  return dictionarySpeakableTexts(
+    result,
+  ).where((text) => text != result.headword).toList();
 }

@@ -5448,36 +5448,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get pronunciationPlay => '播放发音';
 
   @override
-  String get pronunciationStandard => '标准发音';
-
-  @override
-  String get pronunciationAdjective => '形容词';
-
-  @override
-  String get pronunciationNoun => '名词';
-
-  @override
-  String get pronunciationNounAdjective => '名词 / 形容词';
-
-  @override
-  String get pronunciationVerb => '动词';
-
-  @override
-  String get pronunciationPastTense => '过去式';
-
-  @override
-  String get pronunciationPresentTense => '一般现在时';
-
-  @override
-  String get pronunciationInterjection => '感叹词';
-
-  @override
-  String get pronunciationLibrary => '离线单词发音';
-
-  @override
-  String get pronunciationLibraryDescription => '词典查词时优先播放预录的单词发音';
-
-  @override
   String get redownload => '重新下载';
 
   @override

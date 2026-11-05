@@ -1,19 +1,25 @@
 import 'dart:async';
+import 'dart:io';
 
-import 'package:echo_loop/models/pronunciation/pronunciation_clip.dart';
+import 'package:dio/dio.dart';
+import 'package:echo_loop/config/regional_service_endpoints.dart';
 import 'package:echo_loop/providers/pronunciation/pronunciation_providers.dart';
 import 'package:echo_loop/providers/short_audio_player_provider.dart';
 import 'package:echo_loop/providers/tts/tts_controller_provider.dart';
 import 'package:echo_loop/services/pronunciation/local_audio_clip_player.dart';
+import 'package:echo_loop/services/pronunciation/word_audio_identity.dart';
+import 'package:echo_loop/services/pronunciation/word_audio_repository.dart';
+import 'package:echo_loop/services/reliable_http_downloader.dart';
+import 'package:echo_loop/services/runtime_endpoint_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:path/path.dart' as p;
 
 import '../../helpers/mock_providers.dart';
 
 class _FakeBackend implements AudioClipPlayerBackend {
-  _FakeBackend({this.completeOnOpen = true, this.failOnOpen = false});
+  _FakeBackend({this.failOnOpen = false});
 
-  final bool completeOnOpen;
   final bool failOnOpen;
   final openedPaths = <String>[];
   final _completed = StreamController<void>.broadcast();
@@ -37,7 +43,7 @@ class _FakeBackend implements AudioClipPlayerBackend {
     openedPaths.add(filePath);
     if (failOnOpen) {
       _errors.add('decode failed');
-    } else if (completeOnOpen) {
+    } else {
       _completed.add(null);
     }
   }
@@ -53,9 +59,48 @@ class _FakeBackend implements AudioClipPlayerBackend {
   }
 }
 
+/// 按调用方设定的结果响应 CDN 请求，并记录请求数量。
+class _FakeCdnDownloader implements ReliableHttpDownloader {
+  Object? failure;
+  Completer<void>? gate;
+  int requestCount = 0;
+
+  @override
+  Future<ReliableDownloadResult> download({
+    required Uri uri,
+    required String savePath,
+    Map<String, String> headers = const <String, String>{},
+    int? expectedSize,
+    String? identityKey,
+    bool allowResume = true,
+    CancelToken? cancelToken,
+    void Function(int receivedBytes, int? totalBytes)? onProgress,
+  }) async {
+    requestCount++;
+    await gate?.future;
+    final error = failure;
+    if (error != null) throw error;
+    File(savePath)
+      ..createSync(recursive: true)
+      ..writeAsBytesSync([1, 2, 3]);
+    return ReliableDownloadResult(
+      savePath: savePath,
+      bytesWritten: 3,
+      resumed: false,
+    );
+  }
+}
+
+const _notFound = ReliableDownloadException(
+  'not found',
+  kind: ReliableDownloadFailure.httpStatus,
+  statusCode: 404,
+);
+
 class _FakeTtsController extends TtsController {
   final spoken = <String>[];
   final promptFlags = <bool>[];
+  final prewarmed = <String>[];
   AudioPlaybackResult result = AudioPlaybackResult.completed;
 
   @override
@@ -73,153 +118,179 @@ class _FakeTtsController extends TtsController {
   }
 
   @override
+  Future<void> prewarmTextsIncremental(List<String> texts) async {
+    prewarmed.addAll(texts);
+  }
+
+  @override
   Future<void> stop() async {}
 }
 
-const _clips = [
-  PronunciationClip(
-    word: 'read',
-    locale: 'us',
-    audioFilename: 'read_us_v_past.opus',
-    absolutePath: '/audio/read_us_v_past.opus',
-    reason: PronunciationReason.pastTense,
-  ),
-  PronunciationClip(
-    word: 'read',
-    locale: 'us',
-    audioFilename: 'read_us_v_present.opus',
-    absolutePath: '/audio/read_us_v_present.opus',
-    reason: PronunciationReason.presentTense,
-  ),
-];
-
-ProviderContainer _container({
-  required _FakeBackend backend,
-  required _FakeTtsController tts,
-  List<PronunciationClip> clips = _clips,
-}) {
-  final player = LocalAudioClipPlayer(backend: backend);
-  return ProviderContainer(
-    overrides: dedupeOverrides([
-      pronunciationClipsProvider.overrideWith(
-        (ref, word) => RegExp(r'\s').hasMatch(word) ? const [] : clips,
-      ),
-      shortAudioPlayerProvider.overrideWithValue(player),
-      ttsControllerProvider.overrideWith(() => tts),
-    ]),
-  );
-}
-
 void main() {
-  test(
-    'plays all local word pronunciations in order with a 200ms pause',
-    () async {
-      final backend = _FakeBackend();
-      final tts = _FakeTtsController();
-      final container = _container(backend: backend, tts: tts);
-      addTearDown(container.dispose);
+  late Directory tempDir;
+  late _FakeCdnDownloader cdn;
+  late _FakeBackend backend;
+  late _FakeTtsController tts;
 
-      final stopwatch = Stopwatch()..start();
-      await container
-          .read(textPlaybackProvider.notifier)
-          .speakAllSingleWordPronunciations('read');
+  setUp(() {
+    tempDir = Directory.systemTemp.createTempSync('playback_controller_');
+    cdn = _FakeCdnDownloader();
+    backend = _FakeBackend();
+    tts = _FakeTtsController();
+  });
 
-      expect(backend.openedPaths, _clips.map((clip) => clip.absolutePath));
-      expect(
-        stopwatch.elapsed,
-        greaterThanOrEqualTo(const Duration(milliseconds: 200)),
-      );
-      expect(tts.spoken, isEmpty);
-    },
+  tearDown(() {
+    if (tempDir.existsSync()) tempDir.deleteSync(recursive: true);
+  });
+
+  ProviderContainer container() {
+    final router = RuntimeEndpointRouter(
+      endpoints: const RegionalServiceEndpoints(
+        globalApiBaseUrl: '',
+        chinaApiBaseUrl: '',
+        globalModelCdnBaseUrl: 'https://cdn.example.test',
+        chinaModelCdnBaseUrl: '',
+      ),
+    )..updateFromUserRegion(isChinaUser: false);
+    final repository = WordAudioRepository(
+      downloader: cdn,
+      resolveCacheDir: () async => tempDir,
+      endpointRouter: router,
+    );
+    final result = ProviderContainer(
+      overrides: dedupeOverrides([
+        wordAudioRepositoryProvider.overrideWithValue(repository),
+        shortAudioPlayerProvider.overrideWithValue(
+          LocalAudioClipPlayer(backend: backend),
+        ),
+        ttsControllerProvider.overrideWith(() => tts),
+      ]),
+    );
+    addTearDown(result.dispose);
+    return result;
+  }
+
+  String cachedPathFor(String word) => p.join(
+    tempDir.path,
+    'word_audio',
+    'en-US',
+    wordAudioFileName(word)!,
   );
 
-  test('does not use the sequence for multi-word text', () async {
-    final backend = _FakeBackend();
-    final tts = _FakeTtsController();
-    final container = _container(backend: backend, tts: tts);
-    addTearDown(container.dispose);
+  group('speakWithResult', () {
+    test('CDN 有音频时下载缓存并播放，不调用 TTS', () async {
+      final playback = container().read(textPlaybackProvider.notifier);
 
-    await container
-        .read(textPlaybackProvider.notifier)
-        .speakAllSingleWordPronunciations('hello world');
+      final result = await playback.speakWithResult('hello');
 
-    expect(backend.openedPaths, isEmpty);
-    expect(tts.spoken, ['hello world']);
+      expect(result, AudioPlaybackResult.completed);
+      expect(backend.openedPaths, [cachedPathFor('hello')]);
+      expect(tts.spoken, isEmpty);
+    });
+
+    test('已缓存的单词再次播放不发起 CDN 请求', () async {
+      final playback = container().read(textPlaybackProvider.notifier);
+
+      await playback.speakWithResult('hello');
+      await playback.speakWithResult('hello');
+
+      expect(cdn.requestCount, 1);
+      expect(backend.openedPaths, hasLength(2));
+    });
+
+    test('CDN 404 时回退 TTS', () async {
+      cdn.failure = _notFound;
+      final playback = container().read(textPlaybackProvider.notifier);
+
+      await playback.speakWithResult('hello');
+
+      expect(backend.openedPaths, isEmpty);
+      expect(tts.spoken, ['hello']);
+    });
+
+    test('多词文本不访问 CDN，直接使用 TTS', () async {
+      final playback = container().read(textPlaybackProvider.notifier);
+
+      await playback.speakWithResult('hello world');
+
+      expect(cdn.requestCount, 0);
+      expect(tts.spoken, ['hello world']);
+    });
+
+    test('缓存文件播放失败时回退 TTS 一次', () async {
+      backend = _FakeBackend(failOnOpen: true);
+      final playback = container().read(textPlaybackProvider.notifier);
+
+      await playback.speakWithResult('hello');
+
+      expect(backend.openedPaths, [cachedPathFor('hello')]);
+      expect(tts.spoken, ['hello']);
+    });
+
+    test('自动发音回退 TTS 时透传 promptIfModelMissing=false', () async {
+      cdn.failure = _notFound;
+      final playback = container().read(textPlaybackProvider.notifier);
+
+      await playback.speak(
+        'hello',
+        key: 'hello',
+        promptIfModelMissing: false,
+      );
+
+      expect(tts.spoken, ['hello']);
+      expect(tts.promptFlags, [false]);
+    });
+
+    test('未指定时 TTS 回退默认允许弹出模型下载提示', () async {
+      cdn.failure = _notFound;
+      final playback = container().read(textPlaybackProvider.notifier);
+
+      await playback.speak('hello');
+
+      expect(tts.promptFlags, [true]);
+    });
+
+    test('CDN 下载期间被新请求抢占时不再播放旧单词', () async {
+      cdn.gate = Completer<void>();
+      final playback = container().read(textPlaybackProvider.notifier);
+
+      final pending = playback.speakWithResult('hello');
+      final preempting = playback.speakWithResult('two words');
+      cdn.gate!.complete();
+
+      expect(await pending, AudioPlaybackResult.cancelled);
+      expect(await preempting, AudioPlaybackResult.completed);
+      expect(backend.openedPaths, isEmpty);
+      expect(tts.spoken, ['two words']);
+    });
   });
 
-  test('falls back to TTS once when every local clip fails', () async {
-    final backend = _FakeBackend(failOnOpen: true);
-    final tts = _FakeTtsController();
-    final container = _container(backend: backend, tts: tts);
-    addTearDown(container.dispose);
+  group('prewarmWord', () {
+    test('CDN 命中时只下载到缓存，不预热 TTS', () async {
+      final playback = container().read(textPlaybackProvider.notifier);
 
-    await container
-        .read(textPlaybackProvider.notifier)
-        .speakAllSingleWordPronunciations('read');
+      await playback.prewarmWord('hello');
 
-    expect(backend.openedPaths, _clips.map((clip) => clip.absolutePath));
-    expect(tts.spoken, ['read']);
-  });
+      expect(cdn.requestCount, 1);
+      expect(tts.prewarmed, isEmpty);
+    });
 
-  test('自动发音无本地音频时把 promptIfModelMissing=false 透传给 TTS 回退', () async {
-    final tts = _FakeTtsController();
-    final container = _container(
-      backend: _FakeBackend(),
-      tts: tts,
-      clips: const [],
-    );
-    addTearDown(container.dispose);
+    test('CDN 不存在时交给 TTS 预热', () async {
+      cdn.failure = _notFound;
+      final playback = container().read(textPlaybackProvider.notifier);
 
-    await container
-        .read(textPlaybackProvider.notifier)
-        .speak('hello', key: 'hello', promptIfModelMissing: false);
+      await playback.prewarmWord('hello');
 
-    expect(tts.spoken, ['hello']);
-    expect(tts.promptFlags, [false]);
-  });
+      expect(tts.prewarmed, ['hello']);
+    });
 
-  test('本地音频播放失败回退 TTS 时同样透传 promptIfModelMissing=false', () async {
-    final backend = _FakeBackend(failOnOpen: true);
-    final tts = _FakeTtsController();
-    final container = _container(backend: backend, tts: tts);
-    addTearDown(container.dispose);
+    test('不合规的单词直接交给 TTS 预热，不访问 CDN', () async {
+      final playback = container().read(textPlaybackProvider.notifier);
 
-    await container
-        .read(textPlaybackProvider.notifier)
-        .speak('read', key: 'read', promptIfModelMissing: false);
+      await playback.prewarmWord('two words');
 
-    expect(backend.openedPaths, [_clips.first.absolutePath]);
-    expect(tts.spoken, ['read']);
-    expect(tts.promptFlags, [false]);
-  });
-
-  test('未指定时 TTS 回退默认允许弹出模型下载提示', () async {
-    final tts = _FakeTtsController();
-    final container = _container(
-      backend: _FakeBackend(),
-      tts: tts,
-      clips: const [],
-    );
-    addTearDown(container.dispose);
-
-    await container.read(textPlaybackProvider.notifier).speak('hello');
-
-    expect(tts.promptFlags, [true]);
-  });
-
-  test('stopping a sequence prevents later clips from playing', () async {
-    final backend = _FakeBackend(completeOnOpen: false);
-    final tts = _FakeTtsController();
-    final container = _container(backend: backend, tts: tts);
-    addTearDown(container.dispose);
-    final playback = container.read(textPlaybackProvider.notifier);
-
-    final sequence = playback.speakAllSingleWordPronunciations('read');
-    await Future<void>.delayed(Duration.zero);
-    await playback.stop();
-    await sequence;
-
-    expect(backend.openedPaths, [_clips.first.absolutePath]);
-    expect(tts.spoken, isEmpty);
+      expect(cdn.requestCount, 0);
+      expect(tts.prewarmed, ['two words']);
+    });
   });
 }

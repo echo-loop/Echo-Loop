@@ -1,6 +1,5 @@
-import 'package:echo_loop/providers/tts/tts_controller_provider.dart';
-import 'package:echo_loop/models/pronunciation/pronunciation_clip.dart';
 import 'package:echo_loop/providers/pronunciation/pronunciation_providers.dart';
+import 'package:echo_loop/providers/tts/tts_controller_provider.dart';
 import 'package:echo_loop/services/pronunciation/local_audio_clip_player.dart';
 import 'package:echo_loop/widgets/tts/speak_button.dart';
 import 'package:flutter/material.dart';
@@ -43,12 +42,15 @@ class FakeTtsController extends TtsController {
   Future<void> stop() async {}
 }
 
-/// 记录统一入口是否优先把单词交给离线发音控制器。
-class FakePronunciationPlayback extends TextPlaybackController {
-  final List<PronunciationClip> calls = [];
+/// 记录统一入口收到的朗读请求，并可注入正在播放的 key。
+class FakeTextPlayback extends TextPlaybackController {
+  FakeTextPlayback({this.initialPlayingKey});
+
+  final String? initialPlayingKey;
+  final List<({String text, String key})> calls = [];
 
   @override
-  TextPlaybackState build() => const TextPlaybackState();
+  TextPlaybackState build() => TextPlaybackState(playingKey: initialPlayingKey);
 
   @override
   Future<AudioPlaybackResult> speakWithResult(
@@ -56,80 +58,51 @@ class FakePronunciationPlayback extends TextPlaybackController {
     String? key,
     bool promptIfModelMissing = true,
   }) async {
-    final clips = ref.read(pronunciationClipsProvider(text));
-    if (clips.isNotEmpty) {
-      calls.add(clips.first);
-      return AudioPlaybackResult.completed;
-    }
-    return AudioPlaybackResult.failed;
+    calls.add((text: text, key: key ?? text));
+    return AudioPlaybackResult.completed;
   }
 }
 
 Widget _wrap(
   FakeTtsController fake,
   Widget child, {
-  Set<String> locallyPronouncedWords = const {},
-  FakePronunciationPlayback? pronunciationPlayback,
+  FakeTextPlayback? textPlayback,
 }) {
   return ProviderScope(
     overrides: dedupeOverrides([
       ttsControllerProvider.overrideWith(() => fake),
-      pronunciationClipsProvider.overrideWith(
-        (ref, word) => locallyPronouncedWords.contains(word)
-            ? [
-                PronunciationClip(
-                  word: word,
-                  locale: 'us',
-                  audioFilename: '${word}_us.opus',
-                  absolutePath: '/audio/${word}_us.opus',
-                  reason: null,
-                ),
-              ]
-            : const [],
-      ),
-      if (pronunciationPlayback != null)
-        textPlaybackProvider.overrideWith(() => pronunciationPlayback),
+      if (textPlayback != null)
+        textPlaybackProvider.overrideWith(() => textPlayback),
     ]),
     child: MaterialApp(home: Scaffold(body: child)),
   );
 }
 
 void main() {
-  testWidgets('点击 → speak(text, key)', (tester) async {
+  testWidgets('点击 → 经统一朗读入口发音（传入 key）', (tester) async {
     final fake = FakeTtsController();
+    final textPlayback = FakeTextPlayback();
     await tester.pumpWidget(
-      _wrap(fake, const SpeakButton(text: 'hello', speakKey: 'k')),
+      _wrap(
+        fake,
+        const SpeakButton(text: 'hello', speakKey: 'k'),
+        textPlayback: textPlayback,
+      ),
     );
     await tester.tap(find.byType(IconButton));
     await tester.pump();
-    expect(fake.calls, [(text: 'hello', key: 'k')]);
+    expect(textPlayback.calls, [(text: 'hello', key: 'k')]);
   });
 
   testWidgets('未传 key → 默认用文本作 key', (tester) async {
     final fake = FakeTtsController();
-    await tester.pumpWidget(_wrap(fake, const SpeakButton(text: 'world')));
-    await tester.tap(find.byType(IconButton));
-    await tester.pump();
-    expect(fake.calls.single.key, 'world');
-  });
-
-  testWidgets('离线单词优先走本地发音，不调用 TTS', (tester) async {
-    final tts = FakeTtsController();
-    final pronunciation = FakePronunciationPlayback();
+    final textPlayback = FakeTextPlayback();
     await tester.pumpWidget(
-      _wrap(
-        tts,
-        const SpeakButton(text: 'hello'),
-        locallyPronouncedWords: {'hello'},
-        pronunciationPlayback: pronunciation,
-      ),
+      _wrap(fake, const SpeakButton(text: 'world'), textPlayback: textPlayback),
     );
-
     await tester.tap(find.byType(IconButton));
     await tester.pump();
-
-    expect(pronunciation.calls.single.absolutePath, '/audio/hello_us.opus');
-    expect(tts.calls, isEmpty);
+    expect(textPlayback.calls.single.key, 'world');
   });
 
   testWidgets('空文本 → 按钮禁用，不发音', (tester) async {
@@ -142,6 +115,24 @@ void main() {
   testWidgets('正在朗读该项 → 图标显主色（激活态）', (tester) async {
     final fake = FakeTtsController(initialSpeakingKey: 'hello');
     await tester.pumpWidget(_wrap(fake, const SpeakButton(text: 'hello')));
+    await tester.pump();
+
+    final context = tester.element(find.byType(SpeakButton));
+    final primary = Theme.of(context).colorScheme.primary;
+    final icon = tester.widget<Icon>(find.byType(Icon));
+    expect(icon.color, primary);
+  });
+
+  testWidgets('统一入口正在播放该项（如 CDN 音频）→ 图标显主色', (tester) async {
+    final fake = FakeTtsController();
+    final textPlayback = FakeTextPlayback(initialPlayingKey: 'hello');
+    await tester.pumpWidget(
+      _wrap(
+        fake,
+        const SpeakButton(text: 'hello'),
+        textPlayback: textPlayback,
+      ),
+    );
     await tester.pump();
 
     final context = tester.element(find.byType(SpeakButton));

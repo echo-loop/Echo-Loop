@@ -5,7 +5,7 @@
 ///
 /// 所有发音调用点（闪卡 / 收藏 / 词典单词 / 词典例句）统一
 /// 通用文本朗读应经 `textPlaybackProvider` 分流；本控制器仅承接
-/// 离线发音未命中或本地播放失败后的 TTS 缓存/生成。
+/// CDN 单词音频未命中或本地播放失败后的 TTS 缓存/生成。
 /// [TtsControllerState.speakingKey] 暴露当前正在朗读项，供发音按钮显激活态。
 library;
 

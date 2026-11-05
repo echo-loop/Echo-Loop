@@ -16,7 +16,6 @@ import 'config/client_distribution.dart';
 import 'providers/package_info_provider.dart';
 import 'providers/dictionary_provider.dart';
 import 'providers/download_provider.dart';
-import 'providers/pronunciation/pronunciation_providers.dart';
 import 'providers/settings_provider.dart';
 import 'providers/startup_bootstrap_provider.dart';
 import 'router/app_router.dart';
@@ -324,7 +323,6 @@ class _EchoLoopAppState extends ConsumerState<EchoLoopApp>
     unawaited(startRegisteredDownloads(ref));
     _scheduleMediaKitPrewarm();
     ref.read(dictionaryProvider);
-    ref.read(pronunciationLibraryProvider);
 
     final bridge = ref.read(notificationTapRouterBridgeProvider);
     _intentSubscription = bridge.intents.listen(_handleNotificationIntent);

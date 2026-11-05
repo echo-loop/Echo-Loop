@@ -1720,7 +1720,7 @@ class _SavedWordTileState extends ConsumerState<_SavedWordTile> {
     }
   }
 
-  /// Tile 被列表创建后才预热；离线 Opus 命中时无需再生成同词的 TTS 缓存。
+  /// Tile 被列表创建后才预热；CDN 单词音频命中时无需再生成同词的 TTS 缓存。
   void _schedulePrewarm() {
     final configurationVersion = ref.read(
       ttsControllerProvider.select((state) => state.configurationVersion),
@@ -1738,11 +1738,10 @@ class _SavedWordTileState extends ConsumerState<_SavedWordTile> {
       if (!mounted ||
           !widget.isActive ||
           widget.isScrolling ||
-          !_isInScrollableViewport(context) ||
-          ref.read(pronunciationClipsProvider(word)).isNotEmpty) {
+          !_isInScrollableViewport(context)) {
         return;
       }
-      ref.read(ttsControllerProvider.notifier).prewarmTextsIncremental([word]);
+      ref.read(textPlaybackProvider.notifier).prewarmWord(word);
     });
   }
 

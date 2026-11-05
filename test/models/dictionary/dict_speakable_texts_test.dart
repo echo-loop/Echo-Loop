@@ -161,7 +161,7 @@ void main() {
       ]);
     });
 
-    test('有离线发音时只跳过标题，仍预热 AI 例句', () {
+    test('预热列表不含标题（标题由单词发音单独预热）', () {
       final result = AiDictResult(
         _entry(
           headword: 'run',
@@ -171,25 +171,7 @@ void main() {
         ),
       );
 
-      expect(dictionaryPrewarmTexts(result, hasLocalClip: true), [
-        'I run every day.',
-      ]);
-    });
-
-    test('无离线发音时预热标题和 AI 例句', () {
-      final result = AiDictResult(
-        _entry(
-          headword: 'run',
-          meanings: [
-            _meaning([_ex('I run every day.')]),
-          ],
-        ),
-      );
-
-      expect(dictionaryPrewarmTexts(result, hasLocalClip: false), [
-        'run',
-        'I run every day.',
-      ]);
+      expect(dictionaryPrewarmTexts(result), ['I run every day.']);
     });
   });
 }

@@ -28,7 +28,6 @@ import '../models/flashcard_item.dart';
 import '../router/app_router.dart';
 import '../widgets/dictionary/ai_dict_result_view.dart';
 import '../widgets/dictionary/local_dict_result_view.dart';
-import '../widgets/dictionary/pronunciation_controls.dart';
 import '../widgets/dictionary/reading_text_scale.dart';
 import '../widgets/dictionary/dictionary_panel_host.dart';
 import '../widgets/practice/selectable_sentence_text.dart';
@@ -562,15 +561,16 @@ class _VocabularyBackState extends ConsumerState<_VocabularyBack> {
     };
     if (result == null) return;
 
-    final hasLocalClip =
-        _isSingleWord &&
-        ref
-            .read(pronunciationClipsProvider(widget.card.displayText))
-            .isNotEmpty;
-    final texts = dictionaryPrewarmTexts(result, hasLocalClip: hasLocalClip);
-    if (texts.isEmpty) return;
+    final texts = dictionaryPrewarmTexts(result);
+    // 重播按卡片原文朗读，标题与原形分别预热，保证点击时 CDN 缓存命中同一文本。
+    final cardWord = widget.card.displayText;
+    final headword = result.headword;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
+      final playback = ref.read(textPlaybackProvider.notifier);
+      playback.prewarmWord(cardWord);
+      if (headword != cardWord) playback.prewarmWord(headword);
+      if (texts.isEmpty) return;
       ref.read(ttsControllerProvider.notifier).prewarmTextsIncremental(texts);
     });
   }
@@ -587,9 +587,6 @@ class _VocabularyBackState extends ConsumerState<_VocabularyBack> {
     final theme = Theme.of(context);
     final l10n = AppLocalizations.of(context)!;
     final card = widget.card;
-    final pronunciationClips = _isSingleWord
-        ? ref.watch(pronunciationClipsProvider(card.displayText))
-        : const [];
     final sourcePlaybackState = ref.watch(
       favoriteVocabularyReviewProvider.select(
         (state) => state.sourcePlaybackState,
@@ -663,7 +660,6 @@ class _VocabularyBackState extends ConsumerState<_VocabularyBack> {
                         alignment: Alignment.centerLeft,
                         child: _VocabularyPlaybackAction(
                           vocabulary: card.displayText,
-                          showPlaybackIcon: pronunciationClips.length <= 1,
                           isPlaying: isWordPlaying,
                           onReplay: () => unawaited(
                             ref
@@ -945,45 +941,40 @@ class _AiLookupToggle extends StatelessWidget {
 class _VocabularyPlaybackAction extends StatelessWidget {
   const _VocabularyPlaybackAction({
     required this.vocabulary,
-    required this.showPlaybackIcon,
     required this.isPlaying,
     required this.onReplay,
   });
 
   final String vocabulary;
-  final bool showPlaybackIcon;
   final bool isPlaying;
   final VoidCallback onReplay;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    // 多发音 badge 已提供逐条播放，标题行不再重复提供总播放入口。
     final word = Text.rich(
       TextSpan(
         children: [
           TextSpan(text: vocabulary),
-          if (showPlaybackIcon)
-            WidgetSpan(
-              alignment: PlaceholderAlignment.middle,
-              child: Padding(
-                padding: const EdgeInsets.only(left: AppSpacing.s),
-                child: Icon(
-                  key: const Key('favorite-vocabulary-review-word-speak'),
-                  Icons.volume_up_outlined,
-                  color: isPlaying
-                      ? theme.colorScheme.primary
-                      : theme.colorScheme.onSurfaceVariant,
-                ),
+          WidgetSpan(
+            alignment: PlaceholderAlignment.middle,
+            child: Padding(
+              padding: const EdgeInsets.only(left: AppSpacing.s),
+              child: Icon(
+                key: const Key('favorite-vocabulary-review-word-speak'),
+                Icons.volume_up_outlined,
+                color: isPlaying
+                    ? theme.colorScheme.primary
+                    : theme.colorScheme.onSurfaceVariant,
               ),
             ),
+          ),
         ],
       ),
       key: const Key('favorite-vocabulary-review-back-word'),
       style: theme.textTheme.headlineMedium?.copyWith(fontSize: 24),
       softWrap: true,
     );
-    if (!showPlaybackIcon) return word;
 
     return Semantics(
       key: const Key('favorite-vocabulary-review-word-playback'),
@@ -1091,7 +1082,6 @@ class _LocalDictionarySectionState
 
   @override
   Widget build(BuildContext context) {
-    final clips = ref.watch(pronunciationClipsProvider(widget.word));
     return FutureBuilder<DictionaryLookupResult?>(
       future: _lookup,
       builder: (context, snapshot) {
@@ -1099,13 +1089,6 @@ class _LocalDictionarySectionState
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              if (clips.length > 1) ...[
-                PronunciationBadgeGroup(
-                  clips: clips,
-                  fallbackText: widget.word,
-                ),
-                const SizedBox(height: AppSpacing.s),
-              ],
               ReadingTextScale(
                 child: LocalDictResultView(
                   state: LookupLoaded(result),

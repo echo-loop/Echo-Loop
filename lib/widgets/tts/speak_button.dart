@@ -1,7 +1,7 @@
 /// 统一发音按钮
 ///
-/// 点击走统一发音链路：单词优先离线发音库，未命中、多词或本地播放失败时走
-/// [ttsControllerProvider] 缓存/生成。朗读期间显激活态（图标变主色），结束自动复位。
+/// 点击走统一发音链路：单词优先 CDN 预录音频（本地缓存优先），缺失、多词或播放失败时
+/// 走 [ttsControllerProvider] 缓存/生成。朗读期间显激活态（图标变主色），结束自动复位。
 ///
 /// 单词、词典例句等所有发音入口统一使用本组件，保证交互一致。
 library;
@@ -64,13 +64,7 @@ class SpeakButton extends ConsumerWidget {
     final localPlayingKey = ref.watch(
       textPlaybackProvider.select((s) => s.playingKey),
     );
-    final localClips = ref.watch(pronunciationClipsProvider(text));
-    final localPlaybackKey = localClips.isEmpty
-        ? null
-        : localClips.first.playbackKey;
-    final isSpeaking =
-        speakingKey == key ||
-        (localPlaybackKey != null && localPlayingKey == localPlaybackKey);
+    final isSpeaking = speakingKey == key || localPlayingKey == key;
     final theme = Theme.of(context);
     final iconColor = isSpeaking
         ? theme.colorScheme.primary

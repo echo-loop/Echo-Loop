@@ -21,7 +21,6 @@ import 'package:echo_loop/database/providers.dart';
 import 'package:echo_loop/l10n/app_localizations.dart';
 import 'package:echo_loop/providers/audio_engine/audio_engine_provider.dart';
 import 'package:echo_loop/providers/short_audio_player_provider.dart';
-import 'package:echo_loop/models/pronunciation/pronunciation_clip.dart';
 import 'package:echo_loop/providers/pronunciation/pronunciation_providers.dart';
 import 'package:echo_loop/providers/sentence_ai_provider.dart';
 import 'package:echo_loop/providers/tts/tts_controller_provider.dart';
@@ -137,9 +136,10 @@ class _RecordingTtsController extends TtsController {
   void cancelTextsPrewarm() => cancelCount++;
 }
 
-/// 记录收藏卡片是否把命中的单词交给离线发音控制器，而非直接调用 TTS。
+/// 记录统一朗读入口的分流：`cdnWords` 中的单词视为 CDN 已有音频，不经 TTS。
 class _RecordingPronunciationPlayback extends TextPlaybackController {
-  final List<PronunciationClip> playedClips = [];
+  final Set<String> cdnWords = {};
+  final List<String> playedCdnWords = [];
 
   @override
   TextPlaybackState build() => const TextPlaybackState();
@@ -150,14 +150,21 @@ class _RecordingPronunciationPlayback extends TextPlaybackController {
     String? key,
     bool promptIfModelMissing = true,
   }) async {
-    final clips = ref.read(pronunciationClipsProvider(text));
-    if (clips.isNotEmpty) {
-      playedClips.add(clips.first);
+    if (cdnWords.contains(text)) {
+      playedCdnWords.add(text);
       return AudioPlaybackResult.completed;
     }
     return ref
         .read(ttsControllerProvider.notifier)
         .speakWithResult(text, key: key);
+  }
+
+  @override
+  Future<void> prewarmWord(String word) async {
+    if (cdnWords.contains(word)) return;
+    await ref.read(ttsControllerProvider.notifier).prewarmTextsIncremental([
+      word,
+    ]);
   }
 }
 
@@ -337,7 +344,10 @@ void main() {
     activeMainTab.dispose();
   });
 
-  Widget createWidget({Set<String> locallyPronouncedWords = const {}}) {
+  Widget createWidget({Set<String> cdnWords = const {}}) {
+    pronunciationPlayback.cdnWords
+      ..clear()
+      ..addAll(cdnWords);
     final router = GoRouter(
       initialLocation: '/favorites',
       routes: [
@@ -367,19 +377,6 @@ void main() {
       overrides: dedupeOverrides([
         analyticsOverride(),
         ...studyTimeOverrides(),
-        pronunciationClipsProvider.overrideWith(
-          (ref, word) => locallyPronouncedWords.contains(word)
-              ? [
-                  PronunciationClip(
-                    word: word,
-                    locale: 'us',
-                    audioFilename: '${word}_us.opus',
-                    absolutePath: '/audio/${word}_us.opus',
-                    reason: null,
-                  ),
-                ]
-              : const [],
-        ),
         bookmarkDaoProvider.overrideWithValue(_TestBookmarkDao(bookmarkC)),
         savedWordDaoProvider.overrideWithValue(_TestSavedWordDao(wordC)),
         savedSenseGroupDaoProvider.overrideWithValue(
@@ -458,8 +455,8 @@ void main() {
     );
   });
 
-  testWidgets('已有离线发音的收藏单词跳过 TTS 预热，意群保留', (tester) async {
-    await tester.pumpWidget(createWidget(locallyPronouncedWords: {'tomorrow'}));
+  testWidgets('CDN 已有音频的收藏单词跳过 TTS 预热，意群保留', (tester) async {
+    await tester.pumpWidget(createWidget(cdnWords: {'tomorrow'}));
     bookmarkC.add([]);
     wordC.add([_word(1, 'tomorrow'), _word(2, 'finished')]);
     phraseC.add([_phrase(1, 'can I book a table')]);
@@ -490,8 +487,8 @@ void main() {
     expect(rec.spokenTexts, ['said they were shy.']);
   });
 
-  testWidgets('点击命中离线发音的收藏单词走本地播放器', (tester) async {
-    await tester.pumpWidget(createWidget(locallyPronouncedWords: {'tomorrow'}));
+  testWidgets('点击 CDN 已有音频的收藏单词走统一入口而不调用 TTS', (tester) async {
+    await tester.pumpWidget(createWidget(cdnWords: {'tomorrow'}));
     bookmarkC.add([]);
     wordC.add([_word(1, 'tomorrow')]);
     phraseC.add([]);
@@ -503,11 +500,8 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('favorite_speak')));
 
-    expect(pronunciationPlayback.playedClips, hasLength(1));
-    expect(
-      pronunciationPlayback.playedClips.single.absolutePath,
-      '/audio/tomorrow_us.opus',
-    );
+    expect(pronunciationPlayback.playedCdnWords, ['tomorrow']);
+    expect(rec.spokenTexts, isEmpty);
   });
 
   testWidgets('无音标的收藏单词仍显示播放按钮', (tester) async {

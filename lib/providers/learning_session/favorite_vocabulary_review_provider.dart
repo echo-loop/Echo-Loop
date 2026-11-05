@@ -4,7 +4,7 @@
 /// （`lib/features/scheduled_flashcard/`），机制与 `BookmarkReview`
 /// （收藏句复习）完全一致；区别只在于：
 /// - 正面重播调用的是词汇收藏列表同款的 `textPlaybackProvider`
-///   （离线发音库优先，回退 TTS），不是收藏句用的前台音频引擎；
+///   （CDN 单词音频优先，回退 TTS），不是收藏句用的前台音频引擎；
 /// - 背面复用调度器的评分预览，并支持来源句原音区间与 TTS 兜底播放。
 /// 所有播放操作都用 generation 隔离，切卡、翻面和退出后，旧异步回调不能恢复
 /// 播放或污染状态。
@@ -263,7 +263,7 @@ class FavoriteVocabularyReview extends _$FavoriteVocabularyReview {
     }
   }
 
-  /// 立即废弃旧播放，重新朗读当前词汇（离线发音库优先，回退 TTS）。
+  /// 立即废弃旧播放，重新朗读当前词汇（CDN 单词音频优先，回退 TTS）。
   Future<void> replayCurrent() async {
     final card = state.currentCard;
     if (card == null) return;

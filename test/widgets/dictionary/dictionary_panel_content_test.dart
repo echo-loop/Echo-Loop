@@ -10,7 +10,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:echo_loop/features/onboarding_survey/providers/onboarding_survey_provider.dart';
 import 'package:echo_loop/l10n/app_localizations.dart';
-import 'package:echo_loop/models/pronunciation/pronunciation_clip.dart';
 import 'package:echo_loop/providers/pronunciation/pronunciation_providers.dart';
 import 'package:echo_loop/providers/tts/tts_controller_provider.dart';
 import 'package:echo_loop/providers/saved_word_provider.dart';
@@ -30,6 +29,9 @@ late SharedPreferences _prefs;
 /// 记录桩控制器每次 TTS 文本预热的入参（在 setUp 清空），
 /// 供断言「打开弹窗即以单词本身预热」。
 final List<List<String>> _prewarmCalls = [];
+
+/// 记录面板交给统一朗读入口预热的标题单词（在 setUp 清空）。
+final List<String> _headwordPrewarmCalls = [];
 final List<String> _autoSpeakCalls = [];
 final List<bool> _autoSpeakPromptFlags = [];
 String? _initialSpeakingKey;
@@ -94,6 +96,11 @@ class _StubTextPlaybackController extends TextPlaybackController {
   }
 
   @override
+  Future<void> prewarmWord(String word) async {
+    _headwordPrewarmCalls.add(word);
+  }
+
+  @override
   Future<void> stop() async {
     _textPlaybackStopCalls++;
   }
@@ -125,26 +132,12 @@ Database _createTestDb() {
 Widget _buildTestPage(
   String word, {
   String? sentenceText,
-  bool hasLocalPronunciation = false,
   GlobalKey<DictionaryPanelHostState>? hostKey,
 }) {
   return ProviderScope(
     overrides: dedupeOverrides([
       analyticsOverride(),
       dictionaryOverride(),
-      pronunciationClipsProvider.overrideWith(
-        (ref, lookupWord) => hasLocalPronunciation
-            ? [
-                PronunciationClip(
-                  word: lookupWord,
-                  locale: 'us',
-                  audioFilename: '${lookupWord}_us.opus',
-                  absolutePath: '/audio/${lookupWord}_us.opus',
-                  reason: null,
-                ),
-              ]
-            : const [],
-      ),
       sharedPreferencesProvider.overrideWithValue(_prefs),
       ttsControllerProvider.overrideWith(_StubTtsController.new),
       textPlaybackProvider.overrideWith(_StubTextPlaybackController.new),
@@ -197,6 +190,7 @@ void main() {
     SharedPreferences.setMockInitialValues({});
     _prefs = await SharedPreferences.getInstance();
     _prewarmCalls.clear();
+    _headwordPrewarmCalls.clear();
     _autoSpeakCalls.clear();
     _autoSpeakPromptFlags.clear();
     _initialSpeakingKey = null;
@@ -359,12 +353,12 @@ void main() {
       await tester.pump();
 
       // 首次预热应为单词本身（归一化词形），先于查词完成的完整批次。
-      expect(_prewarmCalls, isNotEmpty);
-      expect(_prewarmCalls.first, ['running']);
+      expect(_headwordPrewarmCalls, isNotEmpty);
+      expect(_headwordPrewarmCalls.first, 'running');
 
       // 未收录的变形词不产生原形结果，初始预热不被后续查询改写。
       await tester.pumpAndSettle();
-      expect(_prewarmCalls.first, ['running']);
+      expect(_headwordPrewarmCalls.first, 'running');
     });
 
     testWidgets('默认开启时打开查词面板自动发音且不因重建重复播放', (tester) async {
@@ -399,14 +393,18 @@ void main() {
       expect(_autoSpeakCalls, isEmpty);
     });
 
-    testWidgets('已有离线发音时跳过标题单词的 TTS 预热', (tester) async {
-      await tester.pumpWidget(
-        _buildTestPage('running', hasLocalPronunciation: true),
-      );
-      await tester.tap(find.text('Open'));
-      await tester.pumpAndSettle();
+    testWidgets('打开弹窗时标题单词交给统一入口预热（CDN 优先，TTS 兜底）', (tester) async {
+      await _openSheet(tester, 'running');
 
-      expect(_prewarmCalls, isEmpty);
+      expect(_headwordPrewarmCalls, isNotEmpty);
+      expect(_headwordPrewarmCalls, everyElement('running'));
+    });
+
+    testWidgets('标题预热保留查词大小写，与标题点击朗读的文本一致', (tester) async {
+      await _openSheet(tester, 'US');
+
+      expect(_headwordPrewarmCalls, isNotEmpty);
+      expect(_headwordPrewarmCalls, everyElement('US'));
     });
 
     testWidgets('弹窗内容可滚动', (tester) async {

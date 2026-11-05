@@ -167,26 +167,23 @@ void main() {
     expect(manifest?.resourceId, 'dict-en_zh-TW-v1');
   });
 
-  test('迁移旧 pronunciation/v2 到固定目录并统一安装清单', () async {
-    final legacy = Directory(
-      p.join(fakeAppSupportDir.path, 'pronunciation', 'v2'),
-    )..createSync(recursive: true);
-    File(p.join(legacy.path, 'pronunciation.sqlite')).writeAsBytesSync([1, 2]);
-    Directory(p.join(legacy.path, 'audio')).createSync();
-    File(
-      p.join(legacy.path, 'install.json'),
-    ).writeAsStringSync('{"version":"v2","sha256":"old"}');
+  test('删除旧版离线单词发音库目录', () async {
+    final root = Directory(p.join(fakeAppSupportDir.path, 'pronunciation'))
+      ..createSync(recursive: true);
+    File(p.join(root.path, 'pronunciation.sqlite')).writeAsBytesSync([1, 2]);
+    Directory(p.join(root.path, 'audio')).createSync();
 
-    await migrateLegacyPronunciationInstallLayout();
+    await removeOfflinePronunciationLibrary();
 
-    final root = Directory(p.join(fakeAppSupportDir.path, 'pronunciation'));
-    expect(legacy.existsSync(), isFalse);
+    expect(root.existsSync(), isFalse);
+  });
+
+  test('旧发音库不存在时删除为空操作', () async {
+    await removeOfflinePronunciationLibrary();
+
     expect(
-      File(p.join(root.path, 'pronunciation.sqlite')).existsSync(),
-      isTrue,
+      Directory(p.join(fakeAppSupportDir.path, 'pronunciation')).existsSync(),
+      isFalse,
     );
-    final manifest = await readResourceInstallManifest(root);
-    expect(manifest?.resourceId, 'pronunciation-v2');
-    expect(manifest?.resourceSize, greaterThan(2));
   });
 }
