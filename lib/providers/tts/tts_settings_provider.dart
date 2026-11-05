@@ -63,51 +63,18 @@ Future<void> migrateAndroidPlatformTtsPreference(
   await prefs.setString(TtsSettingsKeys.engine, TtsEngineKind.kokoro.name);
 }
 
-/// 已安装的本地 TTS 模型探测结果（迁移时用）。
-class InstalledLocalTtsModels {
-  const InstalledLocalTtsModels({required this.kokoro, required this.piper});
-
-  /// 任一 Kokoro 变体已完整安装。
-  final bool kokoro;
-
-  /// 任一 Piper 音色已完整安装。
-  final bool piper;
-}
-
-/// 将默认引擎切换为 Edge 在线 TTS，同时保留已下载本地模型的老用户。
+/// 升级后将所有用户的默认引擎统一切换为 Edge 在线 TTS（含已下载本地模型的老用户）。
 ///
-/// - 已选 Kokoro/Piper 且对应模型已安装：保持不变（用户已投入下载）；
-/// - 从未选过引擎（跟随旧默认 Kokoro）：已装 Kokoro → Kokoro，已装 Piper → Piper；
-/// - 其余（选了本地引擎但模型未下载、Android 历史系统 TTS、全新安装）：改为 Edge；
-/// - iOS/macOS 显式选择的平台 TTS 保持不变（Android 平台 TTS 已不在设置页提供）。
-Future<void> migrateDefaultTtsEngineToEdge(
-  SharedPreferences prefs, {
-  required bool isAndroid,
-  required Future<InstalledLocalTtsModels> Function() detectInstalledModels,
-}) async {
+/// 产品决策：Edge 效果明显更好，故不再区分老用户的本地模型或平台 TTS 偏好。
+/// 迁移只随版本链执行一次，之后用户仍可在设置页自由改选其它引擎。
+Future<void> migrateDefaultTtsEngineToEdge(SharedPreferences prefs) async {
   final stored = prefs.getString(TtsSettingsKeys.engine);
   if (stored == TtsEngineKind.edge.name) return;
-  if (stored == TtsEngineKind.platform.name && !isAndroid) return;
-
-  final installed = await detectInstalledModels();
-  final TtsEngineKind target;
-  if (stored == TtsEngineKind.kokoro.name) {
-    target = installed.kokoro ? TtsEngineKind.kokoro : TtsEngineKind.edge;
-  } else if (stored == TtsEngineKind.piper.name) {
-    target = installed.piper ? TtsEngineKind.piper : TtsEngineKind.edge;
-  } else if (stored == null && installed.kokoro) {
-    target = TtsEngineKind.kokoro;
-  } else if (stored == null && installed.piper) {
-    target = TtsEngineKind.piper;
-  } else {
-    target = TtsEngineKind.edge;
-  }
   AppLogger.log(
     'TtsSettings',
-    '默认引擎迁移：原偏好=${stored ?? '未设置'} 已装Kokoro=${installed.kokoro} '
-        '已装Piper=${installed.piper} → ${target.diagnosticName}',
+    '默认引擎迁移：原偏好=${stored ?? '未设置'} → ${TtsEngineKind.edge.diagnosticName}',
   );
-  await prefs.setString(TtsSettingsKeys.engine, target.name);
+  await prefs.setString(TtsSettingsKeys.engine, TtsEngineKind.edge.name);
 }
 
 /// TTS 设置不可变值对象。

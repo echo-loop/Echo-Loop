@@ -9,10 +9,6 @@ import 'app_logger.dart';
 import 'asr/asr_model_manager.dart';
 import 'resource_install_manifest.dart';
 import 'storage_migration_service.dart';
-import 'tts/kokoro_model_catalog.dart';
-import 'tts/kokoro_model_manager.dart';
-import 'tts/piper_model_catalog.dart';
-import 'tts/piper_model_manager.dart';
 
 /// SharedPreferences 中记录应用升级迁移链进度的 key。
 const appUpdateMigrationVersionKey = 'app_update_migration_version';
@@ -30,35 +26,6 @@ Future<void> removeLegacyTtsModelDownloadFlags(SharedPreferences prefs) async {
   for (final key in legacyKeys) {
     await prefs.remove(key);
   }
-}
-
-/// 扫描磁盘上已完整安装的本地 TTS 模型（安装清单 + 关键文件均存在才算）。
-///
-/// 迁移在 ProviderScope 建立前执行，故直接构造模型管理器而非经 Riverpod。
-Future<InstalledLocalTtsModels> detectInstalledLocalTtsModels() async {
-  var kokoro = false;
-  for (final variant in KokoroModelVariant.values) {
-    final manager = KokoroModelManager(spec: kokoroSpecOf(variant));
-    try {
-      kokoro =
-          await manager.hasInstallMarker() && await manager.isModelDownloaded();
-    } finally {
-      manager.dispose();
-    }
-    if (kokoro) break;
-  }
-  var piper = false;
-  for (final voice in piperVoices) {
-    final manager = PiperModelManager(voice: voice);
-    try {
-      piper =
-          await manager.hasInstallMarker() && await manager.isModelDownloaded();
-    } finally {
-      manager.dispose();
-    }
-    if (piper) break;
-  }
-  return InstalledLocalTtsModels(kokoro: kokoro, piper: piper);
 }
 
 /// 将旧版逐文件 ASR 缓存升级为 install.json；无效缓存不会被误标记为可用。
@@ -269,11 +236,7 @@ List<AppUpdateMigration> buildAppUpdateMigrations(
     AppUpdateMigration(
       version: 10,
       name: 'edge_tts_default_engine_migration',
-      action: () => migrateDefaultTtsEngineToEdge(
-        prefs,
-        isAndroid: isAndroid,
-        detectInstalledModels: detectInstalledLocalTtsModels,
-      ),
+      action: () => migrateDefaultTtsEngineToEdge(prefs),
     ),
   ];
 }

@@ -368,50 +368,30 @@ void main() {
   });
 
   group('migrateDefaultTtsEngineToEdge', () {
-    Future<String?> migrate(
-      String? stored, {
-      bool isAndroid = false,
-      bool kokoro = false,
-      bool piper = false,
-    }) async {
+    Future<String?> migrate(String? stored) async {
       SharedPreferences.setMockInitialValues({
         if (stored != null) TtsSettingsKeys.engine: stored,
       });
       final prefs = await SharedPreferences.getInstance();
-      await migrateDefaultTtsEngineToEdge(
-        prefs,
-        isAndroid: isAndroid,
-        detectInstalledModels: () async =>
-            InstalledLocalTtsModels(kokoro: kokoro, piper: piper),
-      );
+      await migrateDefaultTtsEngineToEdge(prefs);
       return prefs.getString(TtsSettingsKeys.engine);
     }
 
-    test('未设置偏好且无本地模型 → edge', () async {
+    test('未设置偏好 → edge', () async {
       expect(await migrate(null), 'edge');
     });
 
-    test('未设置偏好（跟随旧默认）且已装 Kokoro → 保留 kokoro', () async {
-      expect(await migrate(null, kokoro: true, piper: true), 'kokoro');
+    test('老用户选的本地引擎（无论模型是否已装）→ 统一切到 edge', () async {
+      expect(await migrate('kokoro'), 'edge');
+      expect(await migrate('piper'), 'edge');
     });
 
-    test('未设置偏好且仅装 Piper → piper', () async {
-      expect(await migrate(null, piper: true), 'piper');
+    test('iOS/macOS 显式选的平台 TTS → edge', () async {
+      expect(await migrate('platform'), 'edge');
     });
 
-    test('选了本地引擎且模型已装 → 保持不变', () async {
-      expect(await migrate('kokoro', kokoro: true), 'kokoro');
-      expect(await migrate('piper', piper: true), 'piper');
-    });
-
-    test('选了本地引擎但模型未下载 → edge', () async {
-      expect(await migrate('kokoro', piper: true), 'edge');
-      expect(await migrate('piper', kokoro: true), 'edge');
-    });
-
-    test('iOS/macOS 显式选平台 TTS → 保持；Android 平台 TTS → edge', () async {
-      expect(await migrate('platform'), 'platform');
-      expect(await migrate('platform', isAndroid: true), 'edge');
+    test('已是 edge → 保持不变（幂等）', () async {
+      expect(await migrate('edge'), 'edge');
     });
   });
 
