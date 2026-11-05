@@ -58,17 +58,21 @@ class WordAudioRepository {
   Future<String?> _fetch(String fileName) async {
     final file = File(p.join(await _localDirectory(), fileName));
     if (await file.exists()) {
-      if (await file.length() > 0) return file.path;
+      if (await file.length() > 0) {
+        AppLogger.log(_logTag, '本地缓存命中：$fileName');
+        return file.path;
+      }
       // 空文件通常来自中断或磁盘异常，留着只会永久命中一个无法播放的文件。
       await file.delete();
     }
     final uri = _endpointRouter.modelCdnUri('/$_cdnDirectory/$fileName');
     try {
-      await _downloader.download(
+      final result = await _downloader.download(
         uri: uri,
         savePath: file.path,
         allowResume: false,
       );
+      AppLogger.log(_logTag, 'CDN 下载完成：$fileName bytes=${result.bytesWritten}');
       return file.path;
     } on ReliableDownloadException catch (error) {
       if (error.kind == ReliableDownloadFailure.httpStatus &&
