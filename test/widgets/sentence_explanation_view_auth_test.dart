@@ -218,6 +218,24 @@ class _NoopSenseGroupRangePlayback implements SenseGroupRangePlayback {
   Future<void> play(String audioItemId, Duration start, Duration end) async {}
 }
 
+/// 记录取消次数；[play] 返回的 Future 由测试决定何时完成，用于模拟意群试听进行中。
+class _RecordingSenseGroupRangePlayback implements SenseGroupRangePlayback {
+  int cancelCount = 0;
+  int playCount = 0;
+  final Completer<void> _playCompleter = Completer<void>();
+
+  @override
+  Future<void> cancel() async {
+    cancelCount++;
+  }
+
+  @override
+  Future<void> play(String audioItemId, Duration start, Duration end) {
+    playCount++;
+    return _playCompleter.future;
+  }
+}
+
 /// 讲解页测试不验证真实音频播放，避免触碰未初始化的后台音频 handler。
 class _NoopAudioEngine extends TestAudioEngine {
   @override
@@ -814,6 +832,78 @@ void main() {
       findsNothing,
     );
     expect(find.byKey(const Key('dict_panel_surface')), findsOneWidget);
+  });
+
+  testWidgets('意群生成后不打断正在播放的整句', (tester) async {
+    final cacheDao = _MockCacheDao();
+    final savedSenseGroupDao = _MockSavedSenseGroupDao();
+    final rangePlayback = _RecordingSenseGroupRangePlayback();
+    when(() => cacheDao.getByHash(any(), any())).thenAnswer((_) async => null);
+    when(
+      savedSenseGroupDao.watchSavedPhraseTexts,
+    ).thenAnswer((_) => Stream<Set<String>>.value(const {}));
+
+    await pumpAuthTestApp(
+      tester,
+      cacheDao: cacheDao,
+      savedSenseGroupDao: savedSenseGroupDao,
+      signedIn: true,
+      autoShowAiExplanation: false,
+      aiNotifier: _RecordingSentenceAiNotifier(
+        cacheDao: cacheDao,
+        apiClient: _NoopSentenceAiApiClient(),
+      ),
+      senseGroupRangePlayback: rangePlayback,
+    );
+
+    await tester.tap(find.byKey(const ValueKey('senseGroup')));
+    await tester.pumpAndSettle();
+
+    expect(rangePlayback.cancelCount, 0);
+  });
+
+  testWidgets('意群试听中切换意群模式时才停止意群试听', (tester) async {
+    final cacheDao = _MockCacheDao();
+    final savedSenseGroupDao = _MockSavedSenseGroupDao();
+    final audioItemDao = _MockAudioItemDao();
+    final rangePlayback = _RecordingSenseGroupRangePlayback();
+    when(() => cacheDao.getByHash(any(), any())).thenAnswer((_) async => null);
+    when(() => audioItemDao.getById('audio-1')).thenAnswer((_) async => null);
+    when(
+      () => audioItemDao.getTranscriptSrt('audio-1'),
+    ).thenAnswer((_) async => null);
+    when(
+      savedSenseGroupDao.watchSavedPhraseTexts,
+    ).thenAnswer((_) => Stream<Set<String>>.value(const {}));
+
+    await pumpAuthTestApp(
+      tester,
+      cacheDao: cacheDao,
+      savedSenseGroupDao: savedSenseGroupDao,
+      signedIn: true,
+      autoShowAiExplanation: false,
+      aiNotifier: _RecordingSentenceAiNotifier(
+        cacheDao: cacheDao,
+        apiClient: _NoopSentenceAiApiClient(),
+      ),
+      senseGroupRangePlayback: rangePlayback,
+      audioItemId: 'audio-1',
+      extraOverrides: [
+        audioItemDaoProvider.overrideWithValue(audioItemDao),
+      ],
+    );
+
+    await tester.tap(find.byKey(const ValueKey('senseGroup')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Hello world'));
+    await tester.pumpAndSettle();
+    expect(rangePlayback.playCount, 1);
+    expect(rangePlayback.cancelCount, 0);
+
+    await tester.tap(find.byKey(const ValueKey('senseGroup')));
+    await tester.pumpAndSettle();
+
+    expect(rangePlayback.cancelCount, 1);
   });
 
   testWidgets('收藏意群后操作栏保持显示并随收藏真值切换为取消收藏', (tester) async {

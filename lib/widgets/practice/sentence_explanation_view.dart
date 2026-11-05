@@ -587,8 +587,11 @@ class _SentenceExplanationViewState
 
   /// 意群粒度切换回调
   void _handleModeChanged(List<String> chunks) {
-    // 停止当前意群播放
-    _stopSenseGroupPlayback();
+    // 仅在确有意群试听时停止它。整句与意群共用同一区间播放对象，无条件 cancel
+    // 会把正在播放的整句也停掉；意群生成/切换粒度不应打断句子自然播完。
+    if (_playingSenseGroupIndex != null) {
+      _stopSenseGroupPlayback();
+    }
 
     if (chunks.isEmpty) {
       setState(() {
