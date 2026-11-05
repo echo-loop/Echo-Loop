@@ -1,7 +1,6 @@
 /// TtsController × Edge 不可用提示
 ///
-/// 覆盖：主动发音失败提示一次（节流）、非主动发音不提示、提示文案类型、
-/// 重新合成成功后复位、试听不显示「去设置」。
+/// 覆盖：主动发音每次失败都提示、非主动发音不提示、提示文案类型、设置页试听同样提示。
 library;
 
 import 'dart:async';
@@ -110,7 +109,7 @@ class _FakePathProvider extends PathProviderPlatform
   Future<String?> getApplicationSupportPath() async => rootPath;
 }
 
-typedef _Prompt = ({EdgeTtsFailureKind failure, bool showSettingsAction});
+typedef _Prompt = EdgeTtsFailureKind;
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -140,12 +139,7 @@ void main() {
         ttsEngineFactoryProvider.overrideWithValue((_, __) => engine),
         ttsCacheDaoProvider.overrideWithValue(_MissTtsCacheDao()),
         edgeTtsFailureRecorderProvider.overrideWithValue(recorder),
-        edgeTtsUnavailablePromptProvider.overrideWithValue(
-          (failure, {required showSettingsAction}) => prompts.add((
-            failure: failure,
-            showSettingsAction: showSettingsAction,
-          )),
-        ),
+        edgeTtsUnavailablePromptProvider.overrideWithValue(prompts.add),
         shortAudioPlayerProvider.overrideWithValue(
           LocalAudioClipPlayer(backend: _InstantCompleteBackend()),
         ),
@@ -161,16 +155,14 @@ void main() {
     return notifier;
   }
 
-  test('主动发音失败 → 提示一次（含去设置），连续失败不重复弹', () async {
+  test('主动发音每次失败都提示', () async {
     final notifier = await readyController(makeContainer());
 
     expect(await notifier.speakWithResult('first'), AudioPlaybackResult.failed);
     await notifier.speakWithResult('second');
 
     expect(engine.synthCount, 2);
-    expect(prompts, hasLength(1));
-    expect(prompts.single.failure, EdgeTtsFailureKind.service);
-    expect(prompts.single.showSettingsAction, isTrue);
+    expect(prompts, [EdgeTtsFailureKind.service, EdgeTtsFailureKind.service]);
   });
 
   test('网络失败 → 提示类型为 network', () async {
@@ -179,7 +171,7 @@ void main() {
 
     await notifier.speakWithResult('word');
 
-    expect(prompts.single.failure, EdgeTtsFailureKind.network);
+    expect(prompts.single, EdgeTtsFailureKind.network);
   });
 
   test('非主动发音（查词自动发音）失败 → 不提示', () async {
@@ -190,23 +182,11 @@ void main() {
     expect(prompts, isEmpty);
   });
 
-  test('重新合成成功后复位：之后再失败会再提示一次', () async {
-    final notifier = await readyController(makeContainer());
-
-    await notifier.speakWithResult('a');
-    engine.failWith = null;
-    expect(await notifier.speakWithResult('b'), AudioPlaybackResult.completed);
-    engine.failWith = EdgeTtsFailureKind.service;
-    await notifier.speakWithResult('c');
-
-    expect(prompts, hasLength(2));
-  });
-
-  test('设置页试听失败 → 提示但不显示去设置', () async {
+  test('设置页试听失败 → 同样提示', () async {
     final notifier = await readyController(makeContainer());
 
     await notifier.previewEdgeVoice(edgeDefaultVoice(TtsAccent.uk));
 
-    expect(prompts.single.showSettingsAction, isFalse);
+    expect(prompts, [EdgeTtsFailureKind.service]);
   });
 }

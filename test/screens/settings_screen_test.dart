@@ -780,7 +780,7 @@ void main() {
         await tester.pumpAndSettle();
 
         expect(find.text('Text-to-Speech'), findsOneWidget);
-        expect(find.text('Edge Online Voice'), findsOneWidget);
+        expect(find.text('Edge TTS'), findsOneWidget);
         expect(find.text('American'), findsNothing);
       });
 

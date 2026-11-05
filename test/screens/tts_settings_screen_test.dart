@@ -108,7 +108,7 @@ void main() {
     await tester.pumpAndSettle();
 
     // 引擎列表 + 归属标题各一处。
-    expect(find.text('Edge Online Voice'), findsNWidgets(2));
+    expect(find.text('Edge TTS'), findsNWidgets(2));
     expect(find.text('Recommended'), findsOneWidget);
     // 平台引擎显示名随宿主而变（Apple → Apple AI，其余 → System Speech）。
     expect(find.text(_platformEngineLabel), findsOneWidget);

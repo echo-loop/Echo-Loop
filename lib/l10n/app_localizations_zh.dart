@@ -5004,11 +5004,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get ttsEnginePiperDescription => '音质自然流畅，需下载模型，推荐中等配置设备使用。';
 
   @override
-  String get ttsEngineEdge => 'Edge 在线语音';
+  String get ttsEngineEdge => 'Edge TTS';
 
   @override
-  String get ttsEngineEdgeDescription =>
-      '微软 Neural 音色，音质自然，无需下载；需联网，听过的内容可离线重播。';
+  String get ttsEngineEdgeDescription => '采用微软 Neural 音色，语音自然，需联网使用。';
 
   @override
   String get edgeTtsUnavailableTitle => 'Edge 在线语音暂时不可用';
@@ -5023,9 +5022,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get edgeTtsUnavailableDismiss => '知道了';
-
-  @override
-  String get edgeTtsUnavailableOpenSettings => '去设置';
 
   @override
   String get ttsModel => '模型';

@@ -9209,13 +9209,13 @@ abstract class AppLocalizations {
   /// No description provided for @ttsEngineEdge.
   ///
   /// In en, this message translates to:
-  /// **'Edge Online Voice'**
+  /// **'Edge TTS'**
   String get ttsEngineEdge;
 
   /// No description provided for @ttsEngineEdgeDescription.
   ///
   /// In en, this message translates to:
-  /// **'Microsoft neural voices. Natural sound, no download. Needs internet; anything you\'ve heard replays offline.'**
+  /// **'Uses Microsoft Neural voices for natural speech. Requires an internet connection.'**
   String get ttsEngineEdgeDescription;
 
   /// No description provided for @edgeTtsUnavailableTitle.
@@ -9241,12 +9241,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'OK'**
   String get edgeTtsUnavailableDismiss;
-
-  /// No description provided for @edgeTtsUnavailableOpenSettings.
-  ///
-  /// In en, this message translates to:
-  /// **'Open Settings'**
-  String get edgeTtsUnavailableOpenSettings;
 
   /// No description provided for @ttsModel.
   ///

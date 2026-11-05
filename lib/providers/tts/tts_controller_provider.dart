@@ -40,10 +40,7 @@ final edgeTtsFailureRecorderProvider = Provider<EdgeTtsFailureRecorder>(
 );
 
 /// 弹出 Edge 不可用提示的入口；测试可替换为记录调用的 fake。
-typedef EdgeTtsUnavailablePrompt = void Function(
-  EdgeTtsFailureKind failure, {
-  required bool showSettingsAction,
-});
+typedef EdgeTtsUnavailablePrompt = void Function(EdgeTtsFailureKind failure);
 
 final edgeTtsUnavailablePromptProvider = Provider<EdgeTtsUnavailablePrompt>(
   (ref) => showEdgeTtsUnavailableDialog,
@@ -192,13 +189,6 @@ class TtsController extends Notifier<TtsControllerState> {
   /// 每次协调器拿到有效配置递增；不能从 [state] 反推，发音状态会在期间变化。
   int _configurationVersion = 0;
 
-  /// 最近一次配置给协调器的引擎，用于识别「切换了引擎」。
-  TtsEngineKind? _configuredEngine;
-
-  /// 本次运行是否已提示过 Edge 不可用：连续点发音时只提醒一次，避免反复弹窗。
-  /// Edge 重新合成成功或用户切换引擎后复位。
-  bool _hasPromptedEdgeUnavailable = false;
-
   TtsControllerState _stateWithSpeaking(String? speakingKey) =>
       TtsControllerState(
         speakingKey: speakingKey,
@@ -258,9 +248,6 @@ class TtsController extends Notifier<TtsControllerState> {
           ? settings.kokoroVariant.name
           : null,
     );
-    // 换了引擎就重新允许 Edge 不可用提示（切回 Edge 后再失败应再提醒一次）。
-    if (_configuredEngine != effective) _hasPromptedEdgeUnavailable = false;
-    _configuredEngine = effective;
     _readyCoordinator.configure(effective, config);
     // configure 在第一个 await 前同步记录目标参数；此版本变更通知已创建的可见 tile
     // 再次提交预热，避免首次 post-frame 早于异步初始配置时遗漏。
@@ -425,7 +412,6 @@ class TtsController extends Notifier<TtsControllerState> {
   /// 试听某 Edge 音色：用该音色朗读示范句。
   ///
   /// 在线引擎无模型门控；未命中缓存需联网合成（约 3~5s）。失败时提示 Edge 不可用，
-  /// 但不显示「去设置」（用户已在设置页内）。
   Future<void> previewEdgeVoice(EdgeVoice voice) async {
     final key = ttsVoicePreviewKey(voice.id);
     final token = ++_speakingToken;
@@ -439,7 +425,6 @@ class TtsController extends Notifier<TtsControllerState> {
       _onEdgePlaybackResult(
         _resultForToken(token, success: ok),
         isUserInitiated: true,
-        showSettingsAction: false,
       );
     } catch (e, st) {
       AppLogger.log('TtsController', '✗ previewEdgeVoice 异常: $e\n$st');
@@ -449,33 +434,21 @@ class TtsController extends Notifier<TtsControllerState> {
     }
   }
 
-  /// Edge 发音结束后的提示节流：用户主动发音失败时提示一次；重新合成成功后复位。
+  /// Edge 发音结束后的失败提示：用户每次主动发音失败都提示。
   ///
-  /// 被抢占（cancelled）不算失败；非主动发音（如查词自动发音）失败只记日志。
+  /// 被抢占（cancelled）不算失败；非主动发音（如查词自动发音）失败只记日志，避免后台触发时打扰用户。
   void _onEdgePlaybackResult(
     AudioPlaybackResult result, {
     required bool isUserInitiated,
-    bool showSettingsAction = true,
   }) {
-    final failure = ref.read(edgeTtsFailureRecorderProvider).lastFailure;
-    if (result == AudioPlaybackResult.completed) {
-      // 缓存命中不经引擎、不更新记录，故仅当最近一次真实合成成功时才复位。
-      if (failure == null) _hasPromptedEdgeUnavailable = false;
-      return;
-    }
     if (result != AudioPlaybackResult.failed) return;
-    if (!isUserInitiated || _hasPromptedEdgeUnavailable) {
-      AppLogger.log(
-        'TtsController',
-        'Edge 发音失败，不再提示：主动发音=$isUserInitiated '
-            '已提示=$_hasPromptedEdgeUnavailable 类型=${failure?.name}',
-      );
+    final failure = ref.read(edgeTtsFailureRecorderProvider).lastFailure;
+    if (!isUserInitiated) {
+      AppLogger.log('TtsController', 'Edge 非主动发音失败，不提示：类型=${failure?.name}');
       return;
     }
-    _hasPromptedEdgeUnavailable = true;
     ref.read(edgeTtsUnavailablePromptProvider)(
       failure ?? EdgeTtsFailureKind.service,
-      showSettingsAction: showSettingsAction,
     );
   }
 
