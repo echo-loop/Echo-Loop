@@ -3892,13 +3892,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get goToSettings => 'Go to Settings';
 
   @override
-  String get dictionaryDownloading => 'Downloading dictionary...';
-
-  @override
-  String get dictionaryDownloadFailed => 'Dictionary download failed';
-
-  @override
-  String get dictionaryNotDownloaded => 'Dictionary not yet downloaded';
+  String get dictionaryLookupFailed =>
+      'Lookup failed. Check your network and try again';
 
   @override
   String dictionaryBaseFormHint(String lemma) {
@@ -5415,7 +5410,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get dictionaryAdFilterTitle => 'Block ads in web dictionaries';
 
   @override
-  String get dictSourceLocal => 'Local Dictionary';
+  String get dictSourceLocal => 'Online Dictionary';
 
   @override
   String get dictSourceAi => 'AI Dictionary';

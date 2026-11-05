@@ -3720,13 +3720,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get goToSettings => '前往设置';
 
   @override
-  String get dictionaryDownloading => '词典下载中...';
-
-  @override
-  String get dictionaryDownloadFailed => '词典下载失败';
-
-  @override
-  String get dictionaryNotDownloaded => '词典尚未下载';
+  String get dictionaryLookupFailed => '查词失败，请检查网络后重试';
 
   @override
   String dictionaryBaseFormHint(String lemma) {
@@ -5153,7 +5147,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get dictionaryAdFilterTitle => '屏蔽网页词典广告';
 
   @override
-  String get dictSourceLocal => '本地词典';
+  String get dictSourceLocal => '在线词典';
 
   @override
   String get dictSourceAi => 'AI 词典';

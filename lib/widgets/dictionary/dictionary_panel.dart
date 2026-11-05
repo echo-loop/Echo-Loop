@@ -21,7 +21,6 @@ import '../../models/dictionary/dict_speakable_texts.dart';
 import '../../providers/dictionary/dictionary_registry.dart';
 import '../../providers/dictionary/dictionary_settings_provider.dart';
 import '../../providers/dictionary/lookup_controller.dart';
-import '../../providers/dictionary_provider.dart';
 import '../../providers/reading_text_prefs_provider.dart';
 import '../../providers/pronunciation/pronunciation_providers.dart';
 import '../../providers/saved_word_provider.dart';
@@ -305,7 +304,7 @@ class _DictionaryPanelState extends ConsumerState<DictionaryPanel> {
 
   /// 归一化后的表面词形（单词或词组），用于展示、TTS 与收藏。
   ///
-  /// 这里一律小写，保持既有正文下划线、收藏 key、本地词典匹配语义不变。
+  /// 这里一律小写，保持既有正文下划线、收藏 key、在线词典匹配语义不变。
   String get _normalizedWord => normalizeWord(widget.query.word);
 
   /// 保留大小写的查词 query，用作 controller family key 与 AI 请求输入。
@@ -415,14 +414,6 @@ class _DictionaryPanelState extends ConsumerState<DictionaryPanel> {
     );
     _sessionSource = ref.read(dictionarySessionSourceProvider.notifier);
     _scheduleHeadwordPrewarm(ttsConfigurationVersion);
-
-    // 本地词典下载完成后，若当前选中本地源，自动重新查询
-    ref.listen(dictionaryProvider, (prev, next) {
-      if (next.status == DictionaryStatus.downloaded &&
-          state.selectedSourceId == 'local') {
-        notifier.retry();
-      }
-    });
 
     // 例句边流边预热：流式帧与完成态都取当前部分结果，增量预热「单词 + 已到达例句」，
     // 用户点击发音时命中缓存秒播。每帧传完整可发音列表，增量入口靠 seen-set 只对

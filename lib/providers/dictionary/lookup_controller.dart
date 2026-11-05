@@ -213,7 +213,7 @@ class DictionaryLookupController extends _$DictionaryLookupController {
   /// 初始选中源，优先级：
   /// 1. 调用方显式指定的初始源（如意群快捷 lookup 强制 AI），且该源仍可见；
   /// 2. 会话粘滞源（本次面板会话内用户手动选过且仍可见）——切词不回退默认源；
-  /// 3. 词组（含空格的多词查询）优先 AI 源——本地词典对多词短语覆盖有限；
+  /// 3. 词组（含空格的多词查询）优先 AI 源——在线词典对多词短语覆盖有限；
   /// 4. 全局默认源。
   String _resolveInitialSourceId(String? preferredSourceId) {
     if (preferredSourceId != null && preferredSourceId.isNotEmpty) {

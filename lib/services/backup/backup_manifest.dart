@@ -35,7 +35,7 @@ class BackupManifest {
   /// 备份总大小（字节）
   final int totalSizeBytes;
 
-  /// 已备份的离线资源文件数量（ASR、TTS 模型与本地词典）。
+  /// 已备份的离线资源文件数量（ASR、TTS 模型与在线词典）。
   final int offlineResourceFileCount;
 
   /// 已备份的离线资源原始大小。

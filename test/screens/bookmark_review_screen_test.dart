@@ -254,7 +254,7 @@ Widget _app({
       ),
       ...learningSettingsOverrides(),
       analyticsOverride(),
-      dictionaryOverride(),
+      dictionaryServiceOverride(),
       sharedPreferencesProvider.overrideWithValue(_sharedPreferences),
       userRegionBootstrapProvider.overrideWith(
         (ref) async => const UserRegionBootstrapResult(

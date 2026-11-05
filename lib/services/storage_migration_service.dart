@@ -4,7 +4,6 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
 import 'resource_install_manifest.dart';
-import 'dictionary/dictionary_catalog.dart';
 import 'app_logger.dart';
 
 /// Documents → Application Support 一次性数据迁移。
@@ -57,59 +56,19 @@ Future<void> migrateTtsModelInstallLayout() async {
   }
 }
 
-/// 将旧版按需下载的词典文件迁移到统一资源安装布局。
+/// 删除旧版离线词典（约 12MB，`en_<母语>/dict.sqlite`）及更早版本遗留的 `dict.db`。
 ///
-/// 迁移只处理本地文件，不联网；重命名和写入清单分别可安全重试。
-Future<void> migrateLegacyDictionaryInstallLayout() async {
+/// 查词已改为在线 API + 本地缓存表，旧词典文件无人读取。删除失败只记日志，不阻塞启动。
+Future<void> removeOfflineDictionaryLibrary() async {
   final support = await getApplicationSupportDirectory();
+  final legacyDatabase = File(p.join(support.path, 'dict.db'));
   final root = Directory(p.join(support.path, 'dictionary'));
-  for (final spec in dictionarySpecs.values) {
-    final directory = Directory(p.join(root.path, 'en_${spec.nativeLanguage}'));
-    if (!await directory.exists()) continue;
-
-    final legacy = File(p.join(directory.path, 'dict.db'));
-    final database = File(p.join(directory.path, 'dict.sqlite'));
-    if (await legacy.exists() && !await database.exists()) {
-      await legacy.rename(database.path);
-      AppLogger.log(
-        'DictMigration',
-        'renamed legacy dictionary lang=${spec.nativeLanguage} '
-            'from=dict.db to=dict.sqlite',
-      );
-    }
-    if (!await database.exists()) {
-      AppLogger.log(
-        'DictMigration',
-        'no dictionary to migrate lang=${spec.nativeLanguage}',
-      );
-      continue;
-    }
-
-    ResourceInstallManifest? manifest;
-    try {
-      manifest = await readResourceInstallManifest(directory);
-    } on FormatException {
-      manifest = null;
-    }
-    if (manifest == null || manifest.resourceId != spec.resourceId) {
-      final stat = await database.stat();
-      await writeResourceInstallManifest(
-        directory,
-        resourceId: spec.resourceId,
-        installAt: stat.changed,
-      );
-      AppLogger.log(
-        'DictMigration',
-        'install manifest migrated lang=${spec.nativeLanguage} '
-            'resource=${spec.resourceId}',
-      );
-    } else {
-      AppLogger.log(
-        'DictMigration',
-        'dictionary install already current lang=${spec.nativeLanguage} '
-            'resource=${spec.resourceId}',
-      );
-    }
+  try {
+    if (await legacyDatabase.exists()) await legacyDatabase.delete();
+    if (await root.exists()) await root.delete(recursive: true);
+    AppLogger.log('DictMigration', '已删除旧版离线词典');
+  } on FileSystemException catch (error) {
+    AppLogger.log('DictMigration', '删除旧版离线词典失败：$error');
   }
 }
 

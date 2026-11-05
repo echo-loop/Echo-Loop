@@ -1,85 +1,117 @@
-/// DictEntry 模型测试
+/// DictEntry 词典 API 解析测试
 library;
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:echo_loop/models/dict_entry.dart';
 
 void main() {
-  group('DictEntry', () {
-    test('fromRow 解析完整数据', () {
-      final entry = DictEntry.fromRow(
-        word: 'abandon',
-        phonetic: "ə'bændən",
-        translation: 'vt. 放弃, 抛弃',
-        collins: 3,
-        tag: 'gk cet4 cet6 ky toefl gre',
-      );
+  group('DictEntry.fromApiJson', () {
+    test('按义项拼成释义行，词性缩写保留，缺词性时无前缀', () {
+      final entry = DictEntry.fromApiJson({
+        'headword': 'run',
+        'phonetic': 'rʌn',
+        'definitions': [
+          {
+            'pos': 'vi',
+            'translations': ['跑', '奔'],
+            'examples': [],
+          },
+          {
+            'pos': null,
+            'translations': ['运行'],
+            'examples': [],
+          },
+        ],
+        'collins': 5,
+        'tags': ['cet4'],
+      });
 
-      expect(entry.word, 'abandon');
-      expect(entry.phonetic, "ə'bændən");
-      expect(entry.translation, 'vt. 放弃, 抛弃');
-      expect(entry.collins, 3);
-      expect(entry.examTags, ['CET4', 'CET6', 'TOEFL', 'GRE']);
+      expect(entry.word, 'run');
+      expect(entry.phonetic, 'rʌn');
+      expect(entry.translation, 'vi. 跑, 奔\n运行');
+      expect(entry.collins, 5);
+      expect(entry.examTags, ['CET4']);
     });
 
-    test('fromRow 过滤非显示标签（zk/gk/ky）', () {
-      final entry = DictEntry.fromRow(
-        word: 'a',
-        phonetic: 'ei',
-        tag: 'zk gk ky',
-      );
+    test('只保留可展示的考试标签，忽略其它来源标签', () {
+      final entry = DictEntry.fromApiJson({
+        'headword': 'a',
+        'definitions': [
+          {
+            'pos': 'art',
+            'translations': ['一个'],
+          },
+        ],
+        'tags': ['zk', 'gk', 'ky', 'gre', 'toefl'],
+      });
 
-      expect(entry.examTags, isEmpty);
+      expect(entry.examTags, ['GRE', 'TOEFL']);
     });
 
-    test('fromRow 保留 ielts 标签', () {
-      final entry = DictEntry.fromRow(
-        word: 'ability',
-        phonetic: "ə'biləti",
-        tag: 'zk gk cet4 ky toefl ielts',
-      );
+    test('忽略未知字段与未知词性，后端新增结构不影响解析', () {
+      final entry = DictEntry.fromApiJson({
+        'headword': 'x',
+        'version': 2,
+        'brandNewField': {'anything': true},
+        'definitions': [
+          {
+            'pos': 'future-pos',
+            'translations': ['新释义'],
+            'examples': [
+              {'sentence': 'x', 'translation': null, 'extra': 1},
+            ],
+            'newDefinitionField': 3,
+          },
+        ],
+      });
 
-      expect(entry.examTags, contains('IELTS'));
-      expect(entry.examTags, contains('CET4'));
-      expect(entry.examTags, contains('TOEFL'));
+      expect(entry.translation, 'future-pos. 新释义');
     });
 
-    test('fromRow 空标签', () {
-      final entry = DictEntry.fromRow(word: 'test', phonetic: 'test', tag: '');
+    test('字段类型不符时取默认值而不抛错', () {
+      final entry = DictEntry.fromApiJson({
+        'headword': 'word',
+        'phonetic': 42,
+        'collins': 'five',
+        'tags': 'cet4',
+        'definitions': [
+          {
+            'pos': 7,
+            'translations': ['词'],
+          },
+        ],
+      });
 
-      expect(entry.examTags, isEmpty);
-    });
-
-    test('fromRow null 标签', () {
-      final entry = DictEntry.fromRow(word: 'test', phonetic: 'test');
-
-      expect(entry.examTags, isEmpty);
-    });
-
-    test('fromRow 无星级默认为 0', () {
-      final entry = DictEntry.fromRow(word: 'test', phonetic: 'test');
-
+      expect(entry.phonetic, '');
       expect(entry.collins, 0);
+      expect(entry.examTags, isEmpty);
+      expect(entry.translation, '词');
     });
 
-    test('fromRow null 翻译', () {
-      final entry = DictEntry.fromRow(
-        word: 'test',
-        phonetic: 'test',
-        translation: null,
+    test('没有可用释义时抛出 FormatException，不返回空词条', () {
+      expect(
+        () => DictEntry.fromApiJson({
+          'headword': 'empty',
+          'definitions': [
+            {'pos': 'n', 'translations': <String>[]},
+          ],
+        }),
+        throwsFormatException,
       );
-
-      expect(entry.translation, isNull);
     });
 
-    test('标签顺序与原始顺序一致', () {
-      final entry = DictEntry.fromRow(
-        word: 'test',
-        phonetic: 'test',
-        tag: 'gre ielts toefl cet6 cet4',
+    test('缺少 headword 时抛出 FormatException', () {
+      expect(
+        () => DictEntry.fromApiJson({
+          'definitions': [
+            {
+              'pos': 'n',
+              'translations': ['x'],
+            },
+          ],
+        }),
+        throwsFormatException,
       );
-
-      expect(entry.examTags, ['GRE', 'IELTS', 'TOEFL', 'CET6', 'CET4']);
     });
   });
 }

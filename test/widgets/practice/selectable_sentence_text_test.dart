@@ -28,7 +28,6 @@ import 'package:echo_loop/providers/saved_sense_group_provider.dart';
 import 'package:echo_loop/providers/saved_word_provider.dart';
 import 'package:echo_loop/providers/favorite_vocabulary_lifecycle_provider.dart';
 import 'package:echo_loop/services/dictionary/dictionary_source.dart';
-import 'package:echo_loop/services/dictionary_service.dart';
 import 'package:echo_loop/theme/app_theme.dart';
 import 'package:echo_loop/widgets/dictionary/dictionary_panel_host.dart';
 import 'package:echo_loop/widgets/practice/selectable_sentence_text.dart';
@@ -42,13 +41,10 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mocktail/mocktail.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_riverpod/misc.dart';
 
 import '../../helpers/mock_providers.dart';
-
-class _MockDictionaryService extends Mock implements DictionaryService {}
 
 /// 单测只验证收藏 DAO 与 UI 状态，不启动真实记忆调度器。
 class _TestFavoriteVocabularyLifecycle extends FavoriteVocabularyLifecycle {
@@ -296,7 +292,6 @@ class _EchoAiSource implements DictionarySource {
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  late DictionaryService oldInstance;
   late SharedPreferences prefs;
   late _EchoLocalSource source;
   String? clipboardText;
@@ -305,9 +300,6 @@ void main() {
   setUp(() async {
     SharedPreferences.setMockInitialValues({});
     prefs = await SharedPreferences.getInstance();
-    final mock = _MockDictionaryService();
-    when(() => mock.isAvailable).thenReturn(true);
-    oldInstance = DictionaryService.replaceInstance(mock);
     source = _EchoLocalSource();
     clipboardText = null;
     hapticCalls.clear();
@@ -328,7 +320,6 @@ void main() {
   });
 
   tearDown(() {
-    DictionaryService.replaceInstance(oldInstance);
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(SystemChannels.platform, null);
   });
@@ -355,7 +346,7 @@ void main() {
       favoriteVocabularyLifecycleProvider.overrideWith(
         _TestFavoriteVocabularyLifecycle.new,
       ),
-      dictionaryOverride(),
+      dictionaryServiceOverride(),
       sharedPreferencesProvider.overrideWithValue(prefs),
       dictionarySourcesProvider.overrideWithValue([source]),
       dictionarySourcesByIdProvider.overrideWithValue({'local': source}),

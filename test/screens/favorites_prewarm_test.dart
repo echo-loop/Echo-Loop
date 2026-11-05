@@ -18,6 +18,7 @@ import 'package:echo_loop/database/daos/saved_sense_group_dao.dart';
 import 'package:echo_loop/database/daos/saved_word_dao.dart';
 import 'package:echo_loop/database/daos/sentence_ai_cache_dao.dart';
 import 'package:echo_loop/database/providers.dart';
+import 'package:echo_loop/models/dict_entry.dart';
 import 'package:echo_loop/l10n/app_localizations.dart';
 import 'package:echo_loop/providers/audio_engine/audio_engine_provider.dart';
 import 'package:echo_loop/providers/short_audio_player_provider.dart';
@@ -25,13 +26,11 @@ import 'package:echo_loop/providers/pronunciation/pronunciation_providers.dart';
 import 'package:echo_loop/providers/sentence_ai_provider.dart';
 import 'package:echo_loop/providers/tts/tts_controller_provider.dart';
 import 'package:echo_loop/screens/favorites_screen.dart';
-import 'package:echo_loop/services/dictionary_service.dart';
 import 'package:echo_loop/services/sentence_ai_api_client.dart';
 import 'package:echo_loop/services/pronunciation/local_audio_clip_player.dart';
 import 'package:echo_loop/theme/app_theme.dart';
 import 'package:echo_loop/utils/app_data_dir.dart';
 import 'package:echo_loop/widgets/common/prewarm_visibility.dart';
-import 'package:sqlite3/sqlite3.dart';
 
 import '../helpers/mock_providers.dart';
 
@@ -212,26 +211,28 @@ class _NoopShortAudioBackend implements AudioClipPlayerBackend {
   Future<void> dispose() async {}
 }
 
-Database _createDictionaryDatabase() {
-  final database = sqlite3.openInMemory();
-  database.execute('''
-    CREATE TABLE words (
-      word TEXT PRIMARY KEY,
-      phonetic TEXT NOT NULL,
-      translation TEXT,
-      collins INTEGER DEFAULT 0,
-      tag TEXT
-    )
-  ''');
-  database.execute(
-    "INSERT INTO words (word, phonetic, translation) "
-    "VALUES ('tomorrow', 'təmɒrəʊ', 'adv. 明天')",
-  );
-  database.execute(
-    "INSERT INTO words (word, phonetic, translation) "
-    "VALUES ('instructions', '', 'n. 指令')",
-  );
-  return database;
+MockDictionaryService _createDictionaryService() {
+  final entries = {
+    'tomorrow': const DictEntry(
+      word: 'tomorrow',
+      phonetic: 'təmɒrəʊ',
+      translation: 'adv. 明天',
+    ),
+    'instructions': const DictEntry(
+      word: 'instructions',
+      phonetic: '',
+      translation: 'n. 指令',
+    ),
+  };
+  final service = MockDictionaryService();
+  when(() => service.lookupAll(any())).thenAnswer((invocation) async {
+    final words = invocation.positionalArguments.first as List<String>;
+    return {
+      for (final word in words)
+        if (entries[word] case final entry?) word: entry,
+    };
+  });
+  return service;
 }
 
 SavedWord _word(
@@ -309,8 +310,7 @@ void main() {
   late StreamController<List<SavedSenseGroup>> phraseC;
   late _RecordingTtsController rec;
   late _RecordingPronunciationPlayback pronunciationPlayback;
-  late Database dictionaryDatabase;
-  late DictionaryService oldDictionaryService;
+  late MockDictionaryService dictionaryService;
   late Directory appDataDir;
   late _RecordingShortAudioPlayer shortAudioPlayer;
   late _MockAudioItemDao audioItemDao;
@@ -322,10 +322,7 @@ void main() {
     phraseC = StreamController<List<SavedSenseGroup>>.broadcast();
     rec = _RecordingTtsController();
     pronunciationPlayback = _RecordingPronunciationPlayback();
-    dictionaryDatabase = _createDictionaryDatabase();
-    oldDictionaryService = DictionaryService.replaceInstance(
-      DictionaryService.withDatabase(dictionaryDatabase),
-    );
+    dictionaryService = _createDictionaryService();
     appDataDir = Directory.systemTemp.createTempSync('favorites_audio_test_');
     appDataDirectoryOverride = appDataDir;
     shortAudioPlayer = _RecordingShortAudioPlayer();
@@ -337,8 +334,6 @@ void main() {
     bookmarkC.close();
     wordC.close();
     phraseC.close();
-    DictionaryService.replaceInstance(oldDictionaryService);
-    dictionaryDatabase.close();
     appDataDirectoryOverride = null;
     if (appDataDir.existsSync()) appDataDir.deleteSync(recursive: true);
     activeMainTab.dispose();
@@ -377,6 +372,7 @@ void main() {
       overrides: dedupeOverrides([
         analyticsOverride(),
         ...studyTimeOverrides(),
+        dictionaryServiceOverride(dictionaryService),
         bookmarkDaoProvider.overrideWithValue(_TestBookmarkDao(bookmarkC)),
         savedWordDaoProvider.overrideWithValue(_TestSavedWordDao(wordC)),
         savedSenseGroupDaoProvider.overrideWithValue(

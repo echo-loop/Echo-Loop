@@ -49,7 +49,7 @@ class DictionaryResultView extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     switch (sourceId) {
       case 'local':
-        return LocalDictResultView(state: state, word: word);
+        return LocalDictResultView(state: state, word: word, onRetry: onRetry);
       case 'ai':
         return AiDictResultView(
           state: state,
@@ -77,7 +77,11 @@ class DictionaryResultView extends ConsumerWidget {
     DictionaryLookupResult result,
     bool adFilteringEnabled,
   ) => switch (result) {
-    LocalDictResult() => LocalDictResultView(state: state, word: word),
+    LocalDictResult() => LocalDictResultView(
+      state: state,
+      word: word,
+      onRetry: onRetry,
+    ),
     AiDictResult() => AiDictResultView(
       state: state,
       onRetry: onRetry,

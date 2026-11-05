@@ -2087,9 +2087,7 @@
   },
   "removeFile": "Remove",
   "goToSettings": "Go to Settings",
-  "dictionaryDownloading": "Downloading dictionary...",
-  "dictionaryDownloadFailed": "Dictionary download failed",
-  "dictionaryNotDownloaded": "Dictionary not yet downloaded",
+  "dictionaryLookupFailed": "Lookup failed. Check your network and try again",
   "dictionaryBaseFormHint": "Showing results for base form “{lemma}”",
   "@dictionaryBaseFormHint": {
     "placeholders": {
@@ -2651,7 +2649,7 @@
   "dictionarySourcesDescription": "Disabled dictionaries won't appear in the lookup switcher",
   "dictionaryAutoSpeakOnLookup": "Auto-play Pronunciation",
   "dictionaryAdFilterTitle": "Block ads in web dictionaries",
-  "dictSourceLocal": "Local Dictionary",
+  "dictSourceLocal": "Online Dictionary",
   "dictSourceAi": "AI Dictionary",
   "dictSourceCambridge": "Cambridge",
   "dictSourceAlwaysOn": "Always on",

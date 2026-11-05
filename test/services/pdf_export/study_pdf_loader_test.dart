@@ -73,7 +73,7 @@ void main() {
       savedWordDao: db.savedWordDao,
       savedSenseGroupDao: db.savedSenseGroupDao,
       aiCacheDao: db.sentenceAiCacheDao,
-      localDictLookup: (words) => {
+      localDictLookup: (words) async => {
         for (final w in words)
           if (single(w) case final e?) w: e,
       },

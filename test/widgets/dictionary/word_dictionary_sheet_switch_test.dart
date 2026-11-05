@@ -11,7 +11,6 @@ import 'package:echo_loop/providers/dictionary/dictionary_registry.dart';
 import 'package:echo_loop/providers/dictionary/lookup_controller.dart';
 import 'package:echo_loop/providers/dictionary/visible_sources_provider.dart';
 import 'package:echo_loop/services/dictionary/dictionary_source.dart';
-import 'package:echo_loop/services/dictionary_service.dart';
 import 'package:echo_loop/theme/app_theme.dart';
 import 'package:echo_loop/widgets/dictionary/dictionary_panel.dart';
 import 'package:echo_loop/widgets/dictionary/dictionary_panel_host.dart';
@@ -19,12 +18,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mocktail/mocktail.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../helpers/mock_providers.dart';
-
-class MockDictionaryService extends Mock implements DictionaryService {}
 
 /// 返回固定结果的 fake 源，记录调用次数
 class _FixedSource implements DictionarySource {
@@ -73,7 +69,6 @@ DictionaryEntry _aiEntry({String headword = 'run'}) => DictionaryEntry(
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  late DictionaryService oldInstance;
   late _FixedSource local;
   late _FixedSource ai;
   late SharedPreferences prefs;
@@ -81,9 +76,6 @@ void main() {
   setUp(() async {
     SharedPreferences.setMockInitialValues({});
     prefs = await SharedPreferences.getInstance();
-    final mock = MockDictionaryService();
-    when(() => mock.isAvailable).thenReturn(true);
-    oldInstance = DictionaryService.replaceInstance(mock);
     local = _FixedSource(
       'local',
       const LocalDictResult(
@@ -93,14 +85,13 @@ void main() {
     ai = _FixedSource('ai', AiDictResult(_aiEntry()));
   });
 
-  tearDown(() => DictionaryService.replaceInstance(oldInstance));
 
   Widget wrap({_FixedSource? aiSource, String word = 'run'}) {
     final aiSrc = aiSource ?? ai;
     return ProviderScope(
       overrides: dedupeOverrides([
         analyticsOverride(),
-        dictionaryOverride(),
+        dictionaryServiceOverride(),
         sharedPreferencesProvider.overrideWithValue(prefs),
         dictionarySourcesProvider.overrideWithValue([local, aiSrc]),
         dictionarySourcesByIdProvider.overrideWithValue({
@@ -139,9 +130,9 @@ void main() {
     await tester.pumpWidget(wrap());
     await tester.pumpAndSettle();
 
-    // 默认本地：显示释义「跑」，切换器为 Local Dictionary
+    // 默认本地：显示释义「跑」，切换器为 Online Dictionary
     expect(find.text('跑'), findsOneWidget);
-    expect(find.text('Local Dictionary'), findsOneWidget);
+    expect(find.text('Online Dictionary'), findsOneWidget);
 
     // 切到 AI（独立的 AI 快捷按钮）
     await tester.tap(find.text('AI'));
@@ -149,10 +140,10 @@ void main() {
     expect(find.text('奔跑'), findsOneWidget);
     expect(ai.calls, 1);
 
-    // 切回本地：点切换器 chip 打开菜单，选 Local Dictionary，复用缓存不重复查询
-    await tester.tap(find.text('Local Dictionary')); // 切换器 chip
+    // 切回本地：点切换器 chip 打开菜单，选 Online Dictionary，复用缓存不重复查询
+    await tester.tap(find.text('Online Dictionary')); // 切换器 chip
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Local Dictionary').last); // 菜单项
+    await tester.tap(find.text('Online Dictionary').last); // 菜单项
     await tester.pumpAndSettle();
     expect(find.text('跑'), findsOneWidget);
     expect(local.calls, 1); // 仍只查过一次

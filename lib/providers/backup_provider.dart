@@ -12,7 +12,6 @@ import '../services/backup/backup_service.dart';
 import '../services/app_logger.dart';
 import 'audio_library_provider.dart';
 import 'collection_provider.dart';
-import 'dictionary_provider.dart';
 import 'learning_progress_provider.dart';
 import 'package_info_provider.dart';
 import 'settings_provider.dart';
@@ -83,12 +82,9 @@ Future<BackupManifest> performImport(
     AppLogger.log('Backup', 'candidate_database_opened');
     switchAppDatabase(candidateDatabase, (p) => ref.invalidate(p));
     await _reloadDatabaseProviders(ref);
-    // 可重新下载的资源不进入备份。恢复后重建词典状态，本地
-    // 缺失时由现有 Provider 自动下载，失败时沿用其重试提示。
+    // 可重新下载的资源不进入备份。恢复后重建母语相关状态。
     ref.invalidate(appSettingsProvider);
     ref.read(appSettingsProvider);
-    ref.invalidate(dictionaryProvider);
-    ref.read(dictionaryProvider);
     AppLogger.log('Backup', 'database_providers_reloaded');
     await applied.commit();
     AppLogger.log('Backup', 'restore_committed');

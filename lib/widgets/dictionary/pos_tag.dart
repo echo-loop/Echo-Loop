@@ -1,6 +1,6 @@
 /// 词性蓝标签
 ///
-/// 本地词典与 AI 词典共用，统一词性（n./v./adj.…）的视觉样式。
+/// 在线词典与 AI 词典共用，统一词性（n./v./adj.…）的视觉样式。
 library;
 
 import 'package:flutter/material.dart';

@@ -16,9 +16,9 @@ sealed class DictionaryLookupResult {
   String get headword;
 }
 
-/// 本地 SQLite 词典结果（包装现有 [DictEntry]）
+/// 在线词典结果（包装 [DictEntry]）
 final class LocalDictResult extends DictionaryLookupResult {
-  /// 本地词典条目
+  /// 在线词典条目
   final DictEntry entry;
 
   const LocalDictResult(this.entry);

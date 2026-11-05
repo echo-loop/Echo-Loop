@@ -12868,6 +12868,360 @@ class TtsCacheCompanion extends UpdateCompanion<TtsCacheData> {
   }
 }
 
+class $DictionaryCacheTable extends DictionaryCache
+    with TableInfo<$DictionaryCacheTable, DictionaryCacheData> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $DictionaryCacheTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _dictMeta = const VerificationMeta('dict');
+  @override
+  late final GeneratedColumn<String> dict = GeneratedColumn<String>(
+    'dict',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _wordMeta = const VerificationMeta('word');
+  @override
+  late final GeneratedColumn<String> word = GeneratedColumn<String>(
+    'word',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _dataMeta = const VerificationMeta('data');
+  @override
+  late final GeneratedColumn<String> data = GeneratedColumn<String>(
+    'data',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [id, dict, word, data, createdAt];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'dictionary_cache';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<DictionaryCacheData> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('dict')) {
+      context.handle(
+        _dictMeta,
+        dict.isAcceptableOrUnknown(data['dict']!, _dictMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_dictMeta);
+    }
+    if (data.containsKey('word')) {
+      context.handle(
+        _wordMeta,
+        word.isAcceptableOrUnknown(data['word']!, _wordMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_wordMeta);
+    }
+    if (data.containsKey('data')) {
+      context.handle(
+        _dataMeta,
+        this.data.isAcceptableOrUnknown(data['data']!, _dataMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_dataMeta);
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  List<Set<GeneratedColumn>> get uniqueKeys => [
+    {dict, word},
+  ];
+  @override
+  DictionaryCacheData map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return DictionaryCacheData(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      dict: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}dict'],
+      )!,
+      word: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}word'],
+      )!,
+      data: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}data'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+    );
+  }
+
+  @override
+  $DictionaryCacheTable createAlias(String alias) {
+    return $DictionaryCacheTable(attachedDatabase, alias);
+  }
+}
+
+class DictionaryCacheData extends DataClass
+    implements Insertable<DictionaryCacheData> {
+  /// 自增主键
+  final int id;
+
+  /// 词典 ID（如 `en_zh-CN`），与母语一一对应
+  final String dict;
+
+  /// 归一化后的查询键，与后端查询参数口径一致
+  final String word;
+
+  /// 词条 JSON 原文
+  final String data;
+
+  /// 创建时间
+  final DateTime createdAt;
+  const DictionaryCacheData({
+    required this.id,
+    required this.dict,
+    required this.word,
+    required this.data,
+    required this.createdAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['dict'] = Variable<String>(dict);
+    map['word'] = Variable<String>(word);
+    map['data'] = Variable<String>(data);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    return map;
+  }
+
+  DictionaryCacheCompanion toCompanion(bool nullToAbsent) {
+    return DictionaryCacheCompanion(
+      id: Value(id),
+      dict: Value(dict),
+      word: Value(word),
+      data: Value(data),
+      createdAt: Value(createdAt),
+    );
+  }
+
+  factory DictionaryCacheData.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return DictionaryCacheData(
+      id: serializer.fromJson<int>(json['id']),
+      dict: serializer.fromJson<String>(json['dict']),
+      word: serializer.fromJson<String>(json['word']),
+      data: serializer.fromJson<String>(json['data']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'dict': serializer.toJson<String>(dict),
+      'word': serializer.toJson<String>(word),
+      'data': serializer.toJson<String>(data),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+    };
+  }
+
+  DictionaryCacheData copyWith({
+    int? id,
+    String? dict,
+    String? word,
+    String? data,
+    DateTime? createdAt,
+  }) => DictionaryCacheData(
+    id: id ?? this.id,
+    dict: dict ?? this.dict,
+    word: word ?? this.word,
+    data: data ?? this.data,
+    createdAt: createdAt ?? this.createdAt,
+  );
+  DictionaryCacheData copyWithCompanion(DictionaryCacheCompanion data) {
+    return DictionaryCacheData(
+      id: data.id.present ? data.id.value : this.id,
+      dict: data.dict.present ? data.dict.value : this.dict,
+      word: data.word.present ? data.word.value : this.word,
+      data: data.data.present ? data.data.value : this.data,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('DictionaryCacheData(')
+          ..write('id: $id, ')
+          ..write('dict: $dict, ')
+          ..write('word: $word, ')
+          ..write('data: $data, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(id, dict, word, data, createdAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is DictionaryCacheData &&
+          other.id == this.id &&
+          other.dict == this.dict &&
+          other.word == this.word &&
+          other.data == this.data &&
+          other.createdAt == this.createdAt);
+}
+
+class DictionaryCacheCompanion extends UpdateCompanion<DictionaryCacheData> {
+  final Value<int> id;
+  final Value<String> dict;
+  final Value<String> word;
+  final Value<String> data;
+  final Value<DateTime> createdAt;
+  const DictionaryCacheCompanion({
+    this.id = const Value.absent(),
+    this.dict = const Value.absent(),
+    this.word = const Value.absent(),
+    this.data = const Value.absent(),
+    this.createdAt = const Value.absent(),
+  });
+  DictionaryCacheCompanion.insert({
+    this.id = const Value.absent(),
+    required String dict,
+    required String word,
+    required String data,
+    required DateTime createdAt,
+  }) : dict = Value(dict),
+       word = Value(word),
+       data = Value(data),
+       createdAt = Value(createdAt);
+  static Insertable<DictionaryCacheData> custom({
+    Expression<int>? id,
+    Expression<String>? dict,
+    Expression<String>? word,
+    Expression<String>? data,
+    Expression<DateTime>? createdAt,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (dict != null) 'dict': dict,
+      if (word != null) 'word': word,
+      if (data != null) 'data': data,
+      if (createdAt != null) 'created_at': createdAt,
+    });
+  }
+
+  DictionaryCacheCompanion copyWith({
+    Value<int>? id,
+    Value<String>? dict,
+    Value<String>? word,
+    Value<String>? data,
+    Value<DateTime>? createdAt,
+  }) {
+    return DictionaryCacheCompanion(
+      id: id ?? this.id,
+      dict: dict ?? this.dict,
+      word: word ?? this.word,
+      data: data ?? this.data,
+      createdAt: createdAt ?? this.createdAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (dict.present) {
+      map['dict'] = Variable<String>(dict.value);
+    }
+    if (word.present) {
+      map['word'] = Variable<String>(word.value);
+    }
+    if (data.present) {
+      map['data'] = Variable<String>(data.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('DictionaryCacheCompanion(')
+          ..write('id: $id, ')
+          ..write('dict: $dict, ')
+          ..write('word: $word, ')
+          ..write('data: $data, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
 class $MemorySchedulesTable extends MemorySchedules
     with TableInfo<$MemorySchedulesTable, MemorySchedule> {
   @override
@@ -15221,6 +15575,9 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $DailyStageStudyRecordsTable dailyStageStudyRecords =
       $DailyStageStudyRecordsTable(this);
   late final $TtsCacheTable ttsCache = $TtsCacheTable(this);
+  late final $DictionaryCacheTable dictionaryCache = $DictionaryCacheTable(
+    this,
+  );
   late final $MemorySchedulesTable memorySchedules = $MemorySchedulesTable(
     this,
   );
@@ -15260,6 +15617,9 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     this as AppDatabase,
   );
   late final TtsCacheDao ttsCacheDao = TtsCacheDao(this as AppDatabase);
+  late final DictionaryCacheDao dictionaryCacheDao = DictionaryCacheDao(
+    this as AppDatabase,
+  );
   late final MemoryScheduleDao memoryScheduleDao = MemoryScheduleDao(
     this as AppDatabase,
   );
@@ -15287,6 +15647,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     dailyStudyRecords,
     dailyStageStudyRecords,
     ttsCache,
+    dictionaryCache,
     memorySchedules,
     memoryReviewEvents,
     memoryReviewQueueEntries,
@@ -23214,6 +23575,221 @@ typedef $$TtsCacheTableProcessedTableManager =
       TtsCacheData,
       PrefetchHooks Function()
     >;
+typedef $$DictionaryCacheTableCreateCompanionBuilder =
+    DictionaryCacheCompanion Function({
+      Value<int> id,
+      required String dict,
+      required String word,
+      required String data,
+      required DateTime createdAt,
+    });
+typedef $$DictionaryCacheTableUpdateCompanionBuilder =
+    DictionaryCacheCompanion Function({
+      Value<int> id,
+      Value<String> dict,
+      Value<String> word,
+      Value<String> data,
+      Value<DateTime> createdAt,
+    });
+
+class $$DictionaryCacheTableFilterComposer
+    extends Composer<_$AppDatabase, $DictionaryCacheTable> {
+  $$DictionaryCacheTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get dict => $composableBuilder(
+    column: $table.dict,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get word => $composableBuilder(
+    column: $table.word,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get data => $composableBuilder(
+    column: $table.data,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$DictionaryCacheTableOrderingComposer
+    extends Composer<_$AppDatabase, $DictionaryCacheTable> {
+  $$DictionaryCacheTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get dict => $composableBuilder(
+    column: $table.dict,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get word => $composableBuilder(
+    column: $table.word,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get data => $composableBuilder(
+    column: $table.data,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$DictionaryCacheTableAnnotationComposer
+    extends Composer<_$AppDatabase, $DictionaryCacheTable> {
+  $$DictionaryCacheTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get dict =>
+      $composableBuilder(column: $table.dict, builder: (column) => column);
+
+  GeneratedColumn<String> get word =>
+      $composableBuilder(column: $table.word, builder: (column) => column);
+
+  GeneratedColumn<String> get data =>
+      $composableBuilder(column: $table.data, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+}
+
+class $$DictionaryCacheTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $DictionaryCacheTable,
+          DictionaryCacheData,
+          $$DictionaryCacheTableFilterComposer,
+          $$DictionaryCacheTableOrderingComposer,
+          $$DictionaryCacheTableAnnotationComposer,
+          $$DictionaryCacheTableCreateCompanionBuilder,
+          $$DictionaryCacheTableUpdateCompanionBuilder,
+          (
+            DictionaryCacheData,
+            BaseReferences<
+              _$AppDatabase,
+              $DictionaryCacheTable,
+              DictionaryCacheData
+            >,
+          ),
+          DictionaryCacheData,
+          PrefetchHooks Function()
+        > {
+  $$DictionaryCacheTableTableManager(
+    _$AppDatabase db,
+    $DictionaryCacheTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$DictionaryCacheTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$DictionaryCacheTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$DictionaryCacheTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<String> dict = const Value.absent(),
+                Value<String> word = const Value.absent(),
+                Value<String> data = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+              }) => DictionaryCacheCompanion(
+                id: id,
+                dict: dict,
+                word: word,
+                data: data,
+                createdAt: createdAt,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required String dict,
+                required String word,
+                required String data,
+                required DateTime createdAt,
+              }) => DictionaryCacheCompanion.insert(
+                id: id,
+                dict: dict,
+                word: word,
+                data: data,
+                createdAt: createdAt,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$DictionaryCacheTable, DictionaryCacheData>(
+                    table,
+                  ),
+                  BaseReferences<
+                    _$AppDatabase,
+                    $DictionaryCacheTable,
+                    DictionaryCacheData
+                  >(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$DictionaryCacheTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $DictionaryCacheTable,
+      DictionaryCacheData,
+      $$DictionaryCacheTableFilterComposer,
+      $$DictionaryCacheTableOrderingComposer,
+      $$DictionaryCacheTableAnnotationComposer,
+      $$DictionaryCacheTableCreateCompanionBuilder,
+      $$DictionaryCacheTableUpdateCompanionBuilder,
+      (
+        DictionaryCacheData,
+        BaseReferences<
+          _$AppDatabase,
+          $DictionaryCacheTable,
+          DictionaryCacheData
+        >,
+      ),
+      DictionaryCacheData,
+      PrefetchHooks Function()
+    >;
 typedef $$MemorySchedulesTableCreateCompanionBuilder =
     MemorySchedulesCompanion Function({
       required String id,
@@ -24608,6 +25184,8 @@ class $AppDatabaseManager {
       );
   $$TtsCacheTableTableManager get ttsCache =>
       $$TtsCacheTableTableManager(_db, _db.ttsCache);
+  $$DictionaryCacheTableTableManager get dictionaryCache =>
+      $$DictionaryCacheTableTableManager(_db, _db.dictionaryCache);
   $$MemorySchedulesTableTableManager get memorySchedules =>
       $$MemorySchedulesTableTableManager(_db, _db.memorySchedules);
   $$MemoryReviewEventsTableTableManager get memoryReviewEvents =>

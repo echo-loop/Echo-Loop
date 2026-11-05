@@ -14,7 +14,6 @@ import 'package:echo_loop/providers/dictionary/lookup_controller.dart';
 import 'package:echo_loop/providers/dictionary/visible_sources_provider.dart';
 import 'package:echo_loop/services/dictionary/dictionary_source.dart';
 import 'package:echo_loop/services/dictionary/web_dictionary_source.dart';
-import 'package:echo_loop/services/dictionary_service.dart';
 import 'package:echo_loop/theme/app_theme.dart';
 import 'package:echo_loop/widgets/dictionary/dictionary_panel.dart';
 import 'package:echo_loop/widgets/dictionary/dictionary_panel_host.dart';
@@ -23,13 +22,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mocktail/mocktail.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_riverpod/misc.dart';
 
 import '../../helpers/mock_providers.dart';
-
-class _MockDictionaryService extends Mock implements DictionaryService {}
 
 /// 返回固定 AI 结果的 fake 源
 class _FixedAiSource implements DictionarySource {
@@ -72,7 +68,6 @@ class _FixedAiSource implements DictionarySource {
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  late DictionaryService oldInstance;
   late WebDictionarySource web;
   late _FixedAiSource ai;
   late SharedPreferences prefs;
@@ -80,9 +75,6 @@ void main() {
   setUp(() async {
     SharedPreferences.setMockInitialValues({});
     prefs = await SharedPreferences.getInstance();
-    final mock = _MockDictionaryService();
-    when(() => mock.isAvailable).thenReturn(true);
-    oldInstance = DictionaryService.replaceInstance(mock);
     web = WebDictionarySource(
       WebDictConfig(
         id: 'cambridge',
@@ -95,7 +87,6 @@ void main() {
     ai = _FixedAiSource();
   });
 
-  tearDown(() => DictionaryService.replaceInstance(oldInstance));
 
   // linux 下 WebDictionaryView 走「在浏览器打开」降级，不渲染平台视图。
   // 必须在测试体内复位（invariant 校验早于 tearDown）。
@@ -110,7 +101,7 @@ void main() {
 
   List<Override> buildOverrides(String defaultId) => [
     analyticsOverride(),
-    dictionaryOverride(),
+    dictionaryServiceOverride(),
     sharedPreferencesProvider.overrideWithValue(prefs),
     dictionarySourcesProvider.overrideWithValue([web, ai]),
     dictionarySourcesByIdProvider.overrideWithValue({

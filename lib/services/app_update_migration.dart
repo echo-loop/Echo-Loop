@@ -218,10 +218,11 @@ List<AppUpdateMigration> buildAppUpdateMigrations(
         await removeLegacyTtsModelDownloadFlags(prefs);
       },
     ),
+    // 旧离线词典布局迁移已由 v12 的整体删除取代；保留版本位以维持迁移链连续。
     AppUpdateMigration(
       version: 7,
       name: 'dictionary_install_layout_migration',
-      action: migrateLegacyDictionaryInstallLayout,
+      action: () async {},
     ),
     // 旧发音包布局迁移已由 v11 的整体删除取代；保留版本位以维持迁移链连续。
     AppUpdateMigration(
@@ -243,6 +244,11 @@ List<AppUpdateMigration> buildAppUpdateMigrations(
       version: 11,
       name: 'remove_offline_pronunciation_library',
       action: removeOfflinePronunciationLibrary,
+    ),
+    AppUpdateMigration(
+      version: 12,
+      name: 'remove_offline_dictionary_library',
+      action: removeOfflineDictionaryLibrary,
     ),
   ];
 }

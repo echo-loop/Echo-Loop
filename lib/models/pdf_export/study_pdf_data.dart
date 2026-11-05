@@ -144,13 +144,13 @@ class StudyPdfVocabNote {
   /// 词条展示文本（单词原形 / 意群原始大小写文本）
   final String term;
 
-  /// 音标（AI 词典 us 优先，其次本地词典；无则空串不渲染）
+  /// 音标（AI 词典 us 优先，其次在线词典；无则空串不渲染）
   final String phonetic;
 
   /// 释义列表，每条一个 bullet
   ///
   /// AI 词典命中时为各义项「词性 + 目标语翻译」；
-  /// 否则为本地词典 translation 按行拆分（行首词性剥入 [StudyPdfGloss.pos]）。
+  /// 否则为在线词典 translation 按行拆分（行首词性剥入 [StudyPdfGloss.pos]）。
   /// loader 保证非空——无任何词典结果的收藏词不产出笔记。
   final List<StudyPdfGloss> glosses;
 

@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -44,12 +45,12 @@ import '../router/app_router.dart';
 import '../features/onboarding_survey/providers/onboarding_survey_provider.dart';
 import '../services/app_network_image_cache.dart';
 import '../services/tts/tts_cache_store.dart';
-import '../services/dictionary_download_manager.dart';
 import '../services/orphan_file_cleanup_service.dart';
 import '../services/temp_cleanup_service.dart';
 import '../utils/file_size.dart';
 import '../services/demo_data_seeder.dart';
 import '../models/dict_entry.dart';
+import '../services/app_logger.dart';
 import '../services/dictionary_service.dart';
 import '../theme/app_theme.dart';
 import '../providers/dictionary/dictionary_registry.dart';
@@ -530,13 +531,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     // 3.5 清网络图片磁盘缓存（走 flutter_cache_manager API，自动清文件+索引）
     final imageFreed = await _clearNetworkImageCache();
 
-    // 4. 清理非当前语言的词典文件 + 旧版遗留 dict.db
-    final settings = ref.read(appSettingsProvider);
-    final dictManager = DictionaryDownloadManager();
-    final dictFreed = await dictManager.deleteUnusedDictionaries(
-      settings.nativeLanguage,
-    );
-    dictManager.dispose();
+    // 4. 清空在线词典查词缓存（可按需重建，不含词典文件）
+    await ref.read(dictionaryCacheDaoProvider).deleteAll();
 
     // 5. 清扫孤儿音频/字幕文件（磁盘有、DB 无引用）+ 全量清波形缓存
     final referencedRelPaths = await ref
@@ -553,7 +549,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final totalFreed =
         result.freedBytes +
         imageFreed +
-        dictFreed +
         orphanResult.freedBytes +
         waveformResult.freedBytes +
         ttsFreed;
@@ -974,7 +969,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   void _showDictionaryLookupDialog(BuildContext context) {
     showDialog<void>(
       context: context,
-      builder: (context) => const _DictionaryLookupDialog(),
+      builder: (context) => _DictionaryLookupDialog(
+        service: ref.read(dictionaryServiceProvider),
+      ),
     );
   }
 
@@ -1671,9 +1668,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 /// 词典查询对话框
 ///
 /// 输入单词后调用 [DictionaryService.lookup] 查询，
-/// 显示音标、释义、柯林斯星级和考试标签，未收录时提示。
+/// 显示音标、释义、柯林斯星级和考试标签，未收录或查询失败时提示。
 class _DictionaryLookupDialog extends StatefulWidget {
-  const _DictionaryLookupDialog();
+  const _DictionaryLookupDialog({required this.service});
+
+  final DictionaryService service;
 
   @override
   State<_DictionaryLookupDialog> createState() =>
@@ -1685,6 +1684,7 @@ class _DictionaryLookupDialogState extends State<_DictionaryLookupDialog> {
   DictEntry? _result;
   bool _searched = false;
   bool _loading = false;
+  bool _failed = false;
 
   @override
   void dispose() {
@@ -1692,16 +1692,32 @@ class _DictionaryLookupDialogState extends State<_DictionaryLookupDialog> {
     super.dispose();
   }
 
-  void _lookup() {
+  Future<void> _lookup() async {
     final word = _controller.text.trim();
     if (word.isEmpty) return;
 
-    final entry = DictionaryService.instance.lookup(word);
     setState(() {
-      _result = entry;
-      _searched = true;
-      _loading = false;
+      _loading = true;
+      _failed = false;
     });
+    try {
+      final entry = await widget.service.lookup(word);
+      if (!mounted) return;
+      setState(() {
+        _result = entry;
+        _searched = true;
+        _loading = false;
+      });
+    } on DioException catch (error) {
+      AppLogger.log('Dict', '开发者查词失败 type=${error.type}');
+      if (!mounted) return;
+      setState(() {
+        _result = null;
+        _searched = true;
+        _loading = false;
+        _failed = true;
+      });
+    }
   }
 
   @override
@@ -1744,6 +1760,12 @@ class _DictionaryLookupDialogState extends State<_DictionaryLookupDialog> {
 
   /// 构建查询结果展示
   Widget _buildResult() {
+    if (_failed) {
+      return const Padding(
+        padding: EdgeInsets.all(16),
+        child: Text('查询失败', style: TextStyle(color: Colors.red, fontSize: 16)),
+      );
+    }
     if (_result == null) {
       return const Padding(
         padding: EdgeInsets.all(16),

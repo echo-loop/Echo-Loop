@@ -810,7 +810,7 @@ void main() {
       ),
       wrapDictionaryPanelHost: true,
       senseGroupRangePlayback: _NoopSenseGroupRangePlayback(),
-      extraOverrides: [dictionaryOverride()],
+      extraOverrides: [dictionaryServiceOverride()],
     );
 
     await tester.tap(find.byKey(const ValueKey('senseGroup')));
@@ -968,7 +968,7 @@ void main() {
       extraOverrides: [
         appDatabaseProvider.overrideWithValue(database),
         audioItemDaoProvider.overrideWithValue(audioItemDao),
-        dictionaryOverride(),
+        dictionaryServiceOverride(),
         remoteFeatureEnabledProvider(
           RemoteFeature.aiChatAssistant,
         ).overrideWithValue(false),

@@ -5,7 +5,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:echo_loop/services/resource_install_manifest.dart';
 import 'package:echo_loop/services/storage_migration_service.dart';
 
 void main() {
@@ -135,36 +134,32 @@ void main() {
     });
   });
 
-  test('迁移旧 dict.db 为 dict.sqlite 并写入统一安装清单', () async {
+  test('删除旧版离线词典目录与遗留 dict.db', () async {
     final directory = Directory(
       p.join(fakeAppSupportDir.path, 'dictionary', 'en_zh-CN'),
     )..createSync(recursive: true);
-    final legacy = File(p.join(directory.path, 'dict.db'))
-      ..writeAsBytesSync(List<int>.filled(8, 1));
+    File(p.join(directory.path, 'dict.sqlite')).writeAsBytesSync([1, 2]);
+    File(p.join(fakeAppSupportDir.path, 'dict.db')).writeAsBytesSync([3]);
 
-    await migrateLegacyDictionaryInstallLayout();
+    await removeOfflineDictionaryLibrary();
 
-    expect(legacy.existsSync(), isFalse);
-    final database = File(p.join(directory.path, 'dict.sqlite'));
-    expect(database.existsSync(), isTrue);
-    final manifest = await readResourceInstallManifest(directory);
-    expect(manifest?.resourceId, 'dict-en_zh-CN-v1');
-    expect(manifest?.resourceSize, 8);
+    expect(
+      Directory(p.join(fakeAppSupportDir.path, 'dictionary')).existsSync(),
+      isFalse,
+    );
+    expect(
+      File(p.join(fakeAppSupportDir.path, 'dict.db')).existsSync(),
+      isFalse,
+    );
   });
 
-  test('词典迁移可重复执行且不会覆盖已有 dict.sqlite', () async {
-    final directory = Directory(
-      p.join(fakeAppSupportDir.path, 'dictionary', 'en_zh-TW'),
-    )..createSync(recursive: true);
-    final database = File(p.join(directory.path, 'dict.sqlite'))
-      ..writeAsBytesSync(List<int>.filled(4, 2));
+  test('旧离线词典不存在时删除为空操作', () async {
+    await removeOfflineDictionaryLibrary();
 
-    await migrateLegacyDictionaryInstallLayout();
-    await migrateLegacyDictionaryInstallLayout();
-
-    expect(database.readAsBytesSync(), List<int>.filled(4, 2));
-    final manifest = await readResourceInstallManifest(directory);
-    expect(manifest?.resourceId, 'dict-en_zh-TW-v1');
+    expect(
+      Directory(p.join(fakeAppSupportDir.path, 'dictionary')).existsSync(),
+      isFalse,
+    );
   });
 
   test('删除旧版离线单词发音库目录', () async {

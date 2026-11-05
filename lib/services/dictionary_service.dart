@@ -1,199 +1,217 @@
-/// 本地词典查询服务
+/// 在线词典查询服务
 ///
-/// 基于 SQLite 的离线词典，由 [DictionaryProvider] 负责下载和打开 `dict.sqlite`，
-/// 本服务仅提供查询能力。数据库未就绪时，查询方法返回 null / 空 map。
+/// 查词顺序：本地缓存（`dictionary_cache` 表）→ 后端 `/api/v1/dictionary/{dict}`（免登录）。
+/// - 200：写入缓存并返回词条；
+/// - 404：未收录，返回 null 且**不缓存**，词典补录后下次查询即可命中；
+/// - 其它失败（网络、超时、5xx）：抛出异常，由调用方转为错误态，不伪装成未收录。
 library;
 
-import 'package:flutter/foundation.dart';
-import 'package:sqlite3/sqlite3.dart';
+import 'dart:convert';
 
+import 'package:dio/dio.dart';
+
+import '../database/daos/dictionary_cache_dao.dart';
 import '../models/dict_entry.dart';
 import '../utils/text_normalize.dart';
 import 'app_logger.dart';
 
-/// 词典服务单例
+/// 词典查询键：与后端 `normalizeWord` 同规则（缩写保留大写，其余小写）。
+///
+/// 缓存键必须与后端口径一致，否则 `US`（缩写）与 `us`（代词）会互相覆盖。
+/// 长度超限或为空时返回 null，调用方不发请求。
+String? dictionaryQueryKey(String word) {
+  final cleaned = normalizeDictionaryQueryForPrompt(word);
+  if (cleaned.isEmpty || cleaned.length > _maxWordLength) return null;
+  return _acronymPattern.hasMatch(cleaned) ? cleaned : cleaned.toLowerCase();
+}
+
+/// 与后端 `DICTIONARY_WORD_MAX_LENGTH` 一致
+const _maxWordLength = 200;
+
+/// 两个及以上纯大写字母视为缩写
+final _acronymPattern = RegExp(r'^[A-Z]{2,}$');
+
+/// 批量查词时同时发出的请求数上限，避免大量收藏词一次打满连接
+const _maxConcurrentRequests = 3;
+
+/// 在线词典只收录单个词（导入时只保留纯字母词条）。多词短语与整句必然 404，
+/// 且未收录不缓存，每次都会重复请求，因此查询前直接排除。
+bool _isDictionaryHeadwordKey(String key) => !key.contains(' ');
+
+/// 在线词典服务
 class DictionaryService {
-  DictionaryService._();
+  DictionaryService({
+    required DictionaryCacheDao cacheDao,
+    required Dio dio,
+    required String dictId,
+  }) : _cacheDao = cacheDao,
+       _dio = dio,
+       _dictId = dictId;
 
-  /// 测试用构造器，允许注入已打开的数据库
-  @visibleForTesting
-  DictionaryService.withDatabase(Database db) : _db = db;
+  final DictionaryCacheDao _cacheDao;
+  final Dio _dio;
 
-  static DictionaryService _instance = DictionaryService._();
+  /// 词典 ID，如 `en_zh-CN`，由母语决定
+  final String _dictId;
 
-  /// 全局单例
-  static DictionaryService get instance => _instance;
+  /// 同一查询键的在途请求。面板查询、收藏页与 PDF 导出并发查同一个词时只发一次请求。
+  final Map<String, Future<DictEntry?>> _inFlight = {};
 
-  /// 测试用：替换全局单例，返回旧实例以便恢复
-  @visibleForTesting
-  static DictionaryService replaceInstance(DictionaryService service) {
-    final old = _instance;
-    _instance = service;
-    return old;
+  /// 查询单个词。返回 null 表示未收录或词无效；网络等失败抛出异常。
+  Future<DictEntry?> lookup(String word) async {
+    final key = dictionaryQueryKey(word);
+    if (key == null || !_isDictionaryHeadwordKey(key)) return null;
+
+    final cached = await _readCache(key);
+    if (cached != null) return cached;
+    return _requestShared(key);
   }
 
-  Database? _db;
-
-  /// 词典数据库是否已就绪
-  bool get isAvailable => _db != null;
-
-  /// 打开指定路径的词典数据库
+  /// 批量查询，返回 `原始输入词 → 词条` 映射；未收录或失败的词不在结果中。
   ///
-  /// 由 [DictionaryProvider] 在词典下载完成后调用。
-  /// 如果之前已打开其他数据库，会先关闭。
-  ///
-  /// 首次打开时补建 `word` 列的 **NOCASE 索引**：查询用
-  /// `WHERE word = ? COLLATE NOCASE` / `word COLLATE NOCASE IN (...)`，
-  /// 若无 NOCASE 索引则每次都全表扫描（770k 行 ~百 ms/次），补索引后变索引查找。
-  /// `CREATE INDEX IF NOT EXISTS` 幂等：仅首次构建耗时，之后启动即时。
-  /// 为能建索引改用读写模式打开；失败（只读介质等）退化为全表扫描，不致命。
-  void openDatabase(String dbPath) {
-    _db?.close();
-    final db = sqlite3.open(dbPath);
-    try {
-      db.execute(
-        'CREATE INDEX IF NOT EXISTS idx_words_word_nocase '
-        'ON words(word COLLATE NOCASE)',
-      );
-    } catch (_) {
-      // 建索引失败不致命，仍可查询（退化为全表扫描）
-    }
-    _db = db;
-  }
-
-  /// 预热词典数据库页缓存
-  ///
-  /// [openDatabase] 只 `open` + 建索引，不读 `words` 行数据；首次批量查词
-  /// （如 PDF 导出）要冷加载 B-tree 索引页/数据页（770k 行，~百 ms）。
-  /// 启动空闲期跑一条走 NOCASE 索引的批量查询，把索引页与部分数据页带进
-  /// SQLite page cache，使首次真实查词命中热缓存。幂等、可安全多次调用。
-  void warmUpDatabase() {
-    if (_db == null) {
-      AppLogger.log('DictWarmUp', '数据库预热跳过：DB 未就绪');
-      return;
-    }
-    final sw = Stopwatch()..start();
-    try {
-      // 用一组常见词走 `word COLLATE NOCASE IN (...)`，与真实批量查词同路径。
-      const probeWords = ['the', 'be', 'have', 'do', 'say', 'word'];
-      final found = _queryWords(probeWords);
-      AppLogger.log(
-        'DictWarmUp',
-        '数据库页预热 ${sw.elapsedMilliseconds}ms '
-            '(探测 ${probeWords.length} 词，命中 ${found.length})',
-      );
-    } catch (e) {
-      // 预热失败不致命，首次真实查询时再冷加载
-      AppLogger.log('DictWarmUp', '数据库预热失败 ${sw.elapsedMilliseconds}ms: $e');
-    }
-  }
-
-  /// 关闭当前数据库连接
-  ///
-  /// 切换母语词典时需要先关闭再打开新词典。
-  void close() {
-    _db?.close();
-    _db = null;
-  }
-
-  /// 查询单词，返回词典条目；未找到或数据库未就绪时返回 null
-  ///
-  /// 仅按清洗后的表面词形精确匹配，避免原形条目的音标、释义与发音
-  /// 错配到用户实际查询或收藏的变形词。
-  DictEntry? lookup(String word) {
-    if (_db == null) return null;
-
-    final lower = _normalizeLookupWord(word);
-    if (lower.isEmpty) return null;
-
-    return _queryWord(lower);
-  }
-
-  String _normalizeLookupWord(String word) => normalizeWord(word);
-
-  /// 直接查询数据库
-  DictEntry? _queryWord(String word) {
-    final result = _db!.select(
-      'SELECT word, phonetic, translation, collins, tag FROM words WHERE word = ? COLLATE NOCASE',
-      [word],
-    );
-
-    if (result.isEmpty) return null;
-
-    final row = result.first;
-    return DictEntry.fromRow(
-      word: row['word'] as String,
-      phonetic: row['phonetic'] as String,
-      translation: row['translation'] as String?,
-      collins: (row['collins'] as int?) ?? 0,
-      tag: row['tag'] as String?,
-    );
-  }
-
-  /// 批量查询多个单词的词典条目
-  ///
-  /// 返回 word → DictEntry 的映射，未找到的单词不包含在结果中。
-  /// 数据库未就绪时返回空 map。
-  Map<String, DictEntry> lookupAll(List<String> words) {
-    if (_db == null) return {};
-    final result = <String, DictEntry>{};
-
-    // 1. 归一化，建立 normalizedWord → [原始 word] 的映射
-    final normalizedToOriginals = <String, List<String>>{};
+  /// 先一次性读取缓存，只对缺失的词发请求（最多 [_maxConcurrentRequests] 路并发）。
+  /// 单个词请求失败只记日志并跳过，不影响其它词的结果。
+  Future<Map<String, DictEntry>> lookupAll(List<String> words) async {
+    final keyToWords = <String, List<String>>{};
     for (final word in words) {
-      final lower = _normalizeLookupWord(word);
-      if (lower.isEmpty) continue;
-      (normalizedToOriginals[lower] ??= []).add(word);
+      final key = dictionaryQueryKey(word);
+      if (key == null || !_isDictionaryHeadwordKey(key)) continue;
+      (keyToWords[key] ??= []).add(word);
     }
-    if (normalizedToOriginals.isEmpty) return result;
+    if (keyToWords.isEmpty) return {};
 
-    // 2. 批量精确匹配（单次 SQL IN 查询）
-    final allNormalized = normalizedToOriginals.keys.toList();
-    final found = _queryWords(allNormalized);
-    for (final MapEntry(key: lower, value: entry) in found.entries) {
-      for (final original in normalizedToOriginals[lower]!) {
-        result[original] = entry;
+    final keys = keyToWords.keys.toList();
+    final cachedRaw = await _cacheDao.getMany(_dictId, keys);
+    final entryByKey = <String, DictEntry>{};
+    final missingKeys = <String>[];
+    for (final key in keys) {
+      final raw = cachedRaw[key];
+      final entry = raw == null ? null : _decodeCached(key, raw);
+      if (entry != null) {
+        entryByKey[key] = entry;
+      } else {
+        missingKeys.add(key);
       }
     }
 
-    return result;
-  }
+    await _forEachWithConcurrency(missingKeys, (key) async {
+      final entry = await _requestSharedSafely(key);
+      if (entry != null) entryByKey[key] = entry;
+    });
 
-  /// 批量查询多个单词（单次 SQL），返回 normalizedWord → DictEntry
-  Map<String, DictEntry> _queryWords(List<String> words) {
-    if (words.isEmpty) return {};
     final result = <String, DictEntry>{};
-
-    // SQLite 变量上限通常 999，分批查询
-    const batchSize = 500;
-    for (var i = 0; i < words.length; i += batchSize) {
-      final batch = words.sublist(
-        i,
-        i + batchSize > words.length ? words.length : i + batchSize,
-      );
-      final placeholders = List.filled(batch.length, '?').join(',');
-      final rows = _db!.select(
-        'SELECT word, phonetic, translation, collins, tag '
-        'FROM words WHERE word COLLATE NOCASE IN ($placeholders)',
-        batch,
-      );
-      for (final row in rows) {
-        final word = (row['word'] as String).toLowerCase();
-        result[word] = DictEntry.fromRow(
-          word: row['word'] as String,
-          phonetic: row['phonetic'] as String,
-          translation: row['translation'] as String?,
-          collins: (row['collins'] as int?) ?? 0,
-          tag: row['tag'] as String?,
-        );
+    for (final MapEntry(key: key, value: entry) in entryByKey.entries) {
+      for (final word in keyToWords[key]!) {
+        result[word] = entry;
       }
     }
     return result;
   }
 
-  /// 释放资源
-  void dispose() {
-    _db?.close();
-    _db = null;
+  /// 滑动窗口并发：最多 [_maxConcurrentRequests] 个 worker 从队列取词，
+  /// 任一请求完成即补位，慢请求不会阻塞后面的词。
+  Future<void> _forEachWithConcurrency(
+    List<String> keys,
+    Future<void> Function(String key) task,
+  ) async {
+    var nextIndex = 0;
+    Future<void> worker() async {
+      // Dart 单线程事件循环，取下标与自增之间没有await，无需加锁
+      while (nextIndex < keys.length) {
+        final key = keys[nextIndex++];
+        await task(key);
+      }
+    }
+
+    final workerCount = keys.length < _maxConcurrentRequests
+        ? keys.length
+        : _maxConcurrentRequests;
+    await Future.wait([for (var i = 0; i < workerCount; i++) worker()]);
+  }
+
+  /// 读取缓存并解析；缓存行损坏时删除该行，返回 null 以回源重取。
+  Future<DictEntry?> _readCache(String key) async {
+    final raw = await _cacheDao.get(_dictId, key);
+    if (raw == null) return null;
+    final entry = _decodeCached(key, raw);
+    if (entry == null) {
+      await _cacheDao.deleteOne(_dictId, key);
+    }
+    return entry;
+  }
+
+  DictEntry? _decodeCached(String key, String raw) {
+    try {
+      return _parseEntry(raw);
+    } on FormatException catch (error) {
+      AppLogger.log('Dict', '缓存词条损坏，已丢弃 word=$key error=$error');
+      return null;
+    }
+  }
+
+  /// 共享同一查询键的在途请求
+  Future<DictEntry?> _requestShared(String key) {
+    return _inFlight.putIfAbsent(
+      key,
+      () => _fetchAndCache(key).whenComplete(() {
+        // 必须用语句体：表达式形式会返回被移除的 Future 本身，whenComplete 将等待自己而死锁
+        _inFlight.remove(key);
+      }),
+    );
+  }
+
+  /// 批量场景使用：单词失败只记日志，返回 null
+  Future<DictEntry?> _requestSharedSafely(String key) async {
+    try {
+      return await _requestShared(key);
+    } on DioException catch (error) {
+      AppLogger.log('Dict', '批量查词失败 word=$key type=${error.type}');
+      return null;
+    } on FormatException catch (error) {
+      AppLogger.log('Dict', '批量查词返回无效词条 word=$key error=$error');
+      return null;
+    }
+  }
+
+  Future<DictEntry?> _fetchAndCache(String key) async {
+    final stopwatch = Stopwatch()..start();
+    final response = await _dio.get<String>(
+      '/api/v1/dictionary/$_dictId',
+      queryParameters: {'word': key},
+      options: Options(
+        responseType: ResponseType.plain,
+        // 404 是「未收录」的正常结果，不走异常分支
+        validateStatus: (status) => status == 200 || status == 404,
+      ),
+    );
+
+    if (response.statusCode == 404) {
+      AppLogger.log(
+        'Dict',
+        '未收录 word=$key elapsedMs=${stopwatch.elapsedMilliseconds}',
+      );
+      return null;
+    }
+
+    final raw = response.data;
+    if (raw == null) {
+      throw const FormatException('dictionary response body is empty');
+    }
+    // 先解析再写缓存：无效词条不入库，避免之后每次都命中坏数据
+    final entry = _parseEntry(raw);
+    await _cacheDao.upsert(_dictId, key, raw);
+    AppLogger.log(
+      'Dict',
+      '请求并缓存 word=$key elapsedMs=${stopwatch.elapsedMilliseconds}',
+    );
+    return entry;
+  }
+
+  DictEntry _parseEntry(String raw) {
+    final decoded = jsonDecode(raw);
+    if (decoded is! Map<String, Object?>) {
+      throw const FormatException('dictionary entry is not a JSON object');
+    }
+    return DictEntry.fromApiJson(decoded);
   }
 }

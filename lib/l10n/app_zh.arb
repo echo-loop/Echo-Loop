@@ -1613,9 +1613,7 @@
   },
   "removeFile": "移除",
   "goToSettings": "前往设置",
-  "dictionaryDownloading": "词典下载中...",
-  "dictionaryDownloadFailed": "词典下载失败",
-  "dictionaryNotDownloaded": "词典尚未下载",
+  "dictionaryLookupFailed": "查词失败，请检查网络后重试",
   "dictionaryBaseFormHint": "以下为原形「{lemma}」的查词结果",
   "@dictionaryBaseFormHint": {
     "placeholders": {
@@ -2167,7 +2165,7 @@
   "dictionarySourcesDescription": "关闭的词典不会出现在查词切换器中",
   "dictionaryAutoSpeakOnLookup": "查词时自动播放发音",
   "dictionaryAdFilterTitle": "屏蔽网页词典广告",
-  "dictSourceLocal": "本地词典",
+  "dictSourceLocal": "在线词典",
   "dictSourceAi": "AI 词典",
   "dictSourceCambridge": "Cambridge",
   "dictSourceAlwaysOn": "始终启用",

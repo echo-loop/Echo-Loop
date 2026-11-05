@@ -36,7 +36,7 @@ import '../providers/favorite_sentence_lifecycle_provider.dart';
 import '../providers/new_user_guide_provider.dart';
 import '../providers/saved_sense_group_provider.dart';
 import '../providers/saved_word_provider.dart';
-import '../services/dictionary_service.dart';
+import '../providers/dictionary/dictionary_registry.dart';
 import '../services/app_logger.dart';
 import '../services/pronunciation/local_audio_clip_player.dart';
 import '../services/pronunciation/local_audio_range_player.dart';
@@ -1232,14 +1232,17 @@ class _WordsViewState extends ConsumerState<_WordsView> {
   }
 
   /// 当单词列表变化时，批量查询字典释义
-  void _loadDictEntries(List<SavedWord> words) {
+  Future<void> _loadDictEntries(List<SavedWord> words) async {
     final wordStrings = words.map((w) => w.word).toList();
     // 单词列表未变化时跳过
     if (_listEquals(wordStrings, _lastWordKeys)) return;
     _lastWordKeys = wordStrings;
 
-    final entries = DictionaryService.instance.lookupAll(wordStrings);
-    if (!mounted) return;
+    final entries = await ref
+        .read(dictionaryServiceProvider)
+        .lookupAll(wordStrings);
+    // 查询期间列表已变化时丢弃过期结果，避免旧释义覆盖新列表
+    if (!mounted || !_listEquals(wordStrings, _lastWordKeys)) return;
     setState(() => _dictMap = entries);
   }
 
@@ -1876,14 +1879,14 @@ class _SavedWordTileState extends ConsumerState<_SavedWordTile> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // 播放入口不依赖本地词典命中，固定跟随音标左侧排列。
+                    // 播放入口不依赖在线词典命中，固定跟随音标左侧排列。
                     _FavoritePronunciationRow(
                       rowKey: const Key('favorite-word-pronunciation-row'),
                       buttonKey: const Key('favorite_speak'),
                       text: word.word,
                       phonetic: widget.dictEntry?.phonetic,
                     ),
-                    // 完整释义仅在本地词典精确命中时展示。
+                    // 完整释义仅在在线词典精确命中时展示。
                     if (widget.dictEntry != null) ...[
                       if (widget.dictEntry!.translation != null) ...[
                         const SizedBox(height: AppSpacing.xs),

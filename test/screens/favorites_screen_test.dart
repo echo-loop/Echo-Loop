@@ -42,7 +42,6 @@ class _MockCacheDao extends Mock implements SentenceAiCacheDao {}
 
 class _MockApiClient extends Mock implements SentenceAiApiClient {}
 
-class _MockDictionaryService extends Mock implements DictionaryService {}
 
 class _MockAudioItemDao extends Mock implements AudioItemDao {
   _MockAudioItemDao({AudioItem? audioItem, String? transcriptSrt}) {
@@ -232,6 +231,7 @@ void main() {
     int? vocabularyDueCount,
     Future<int>? vocabularyDueFuture,
     SharedPreferences? guidePrefs,
+    DictionaryService? dictionaryService,
   }) {
     final router = GoRouter(
       initialLocation: '/favorites',
@@ -269,6 +269,7 @@ void main() {
       overrides: dedupeOverrides([
         analyticsOverride(),
         ...studyTimeOverrides(),
+        dictionaryServiceOverride(dictionaryService),
         bookmarkDaoProvider.overrideWithValue(
           _TestBookmarkDao(bookmarkController),
         ),
@@ -1076,22 +1077,18 @@ void main() {
     testWidgets('iOS 单词展开后的播放行上下间距保持紧凑', (tester) async {
       debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
       try {
-        final dictionary = _MockDictionaryService();
-        when(() => dictionary.lookupAll(any())).thenReturn({
-          'foxes': const DictEntry(
-            word: 'foxes',
-            phonetic: 'fɒksɪz',
-            translation: 'n. 狐',
-          ),
-        });
-        final previousDictionary = DictionaryService.replaceInstance(
-          dictionary,
-        );
-        addTearDown(
-          () => DictionaryService.replaceInstance(previousDictionary),
+        final dictionary = MockDictionaryService();
+        when(() => dictionary.lookupAll(any())).thenAnswer(
+          (_) async => {
+            'foxes': const DictEntry(
+              word: 'foxes',
+              phonetic: 'fɒksɪz',
+              translation: 'n. 狐',
+            ),
+          },
         );
 
-        await tester.pumpWidget(createTestWidget());
+        await tester.pumpWidget(createTestWidget(dictionaryService: dictionary));
         await tester.pump();
         await tester.tap(find.text('Vocabulary'));
         await tester.pump();

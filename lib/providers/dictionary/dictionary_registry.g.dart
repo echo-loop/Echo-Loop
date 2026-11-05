@@ -8,12 +8,64 @@ part of 'dictionary_registry.dart';
 
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // ignore_for_file: type=lint, type=warning
-/// 本地词典源
+/// 在线词典服务：随母语切换重建（词典 ID 由母语决定）
+
+@ProviderFor(dictionaryService)
+final dictionaryServiceProvider = DictionaryServiceProvider._();
+
+/// 在线词典服务：随母语切换重建（词典 ID 由母语决定）
+
+final class DictionaryServiceProvider
+    extends
+        $FunctionalProvider<
+          DictionaryService,
+          DictionaryService,
+          DictionaryService
+        >
+    with $Provider<DictionaryService> {
+  /// 在线词典服务：随母语切换重建（词典 ID 由母语决定）
+  DictionaryServiceProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'dictionaryServiceProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$dictionaryServiceHash();
+
+  @$internal
+  @override
+  $ProviderElement<DictionaryService> $createElement(
+    $ProviderPointer pointer,
+  ) => $ProviderElement(pointer);
+
+  @override
+  DictionaryService create(Ref ref) {
+    return dictionaryService(ref);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(DictionaryService value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<DictionaryService>(value),
+    );
+  }
+}
+
+String _$dictionaryServiceHash() => r'2de16940502508a3e7d0a205ff703b79cd7f5d7a';
+
+/// 本地（在线）词典源
 
 @ProviderFor(localDictionarySource)
 final localDictionarySourceProvider = LocalDictionarySourceProvider._();
 
-/// 本地词典源
+/// 本地（在线）词典源
 
 final class LocalDictionarySourceProvider
     extends
@@ -23,7 +75,7 @@ final class LocalDictionarySourceProvider
           LocalDictionarySource
         >
     with $Provider<LocalDictionarySource> {
-  /// 本地词典源
+  /// 本地（在线）词典源
   LocalDictionarySourceProvider._()
     : super(
         from: null,
@@ -59,7 +111,7 @@ final class LocalDictionarySourceProvider
 }
 
 String _$localDictionarySourceHash() =>
-    r'7f19433abfbaec7bb6923e1b2c0be267a480c811';
+    r'd4e0f2a0ebf95a7cf774246adc7bf9d401ecf5de';
 
 /// AI 词典源
 ///

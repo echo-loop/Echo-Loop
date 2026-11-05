@@ -25,7 +25,6 @@ import 'package:echo_loop/widgets/review/review_completion_summary.dart';
 import 'package:echo_loop/widgets/practice/selectable_sentence_text.dart';
 import 'package:echo_loop/services/dictionary/dictionary_source.dart';
 import 'package:echo_loop/services/dictionary/local_dictionary_source.dart';
-import 'package:echo_loop/services/dictionary_service.dart';
 import 'package:echo_loop/theme/app_theme.dart';
 import 'package:echo_loop/utils/time_format.dart';
 import 'package:dio/dio.dart';
@@ -183,7 +182,7 @@ class _TestFavoriteVocabularyReview extends FavoriteVocabularyReview {
 }
 
 class _TestLocalDictionarySource extends LocalDictionarySource {
-  _TestLocalDictionarySource() : super(DictionaryService.instance);
+  _TestLocalDictionarySource() : super(MockDictionaryService());
 
   @override
   Future<DictionaryLookupResult?> lookup(

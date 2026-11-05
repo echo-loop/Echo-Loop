@@ -6788,23 +6788,11 @@ abstract class AppLocalizations {
   /// **'Go to Settings'**
   String get goToSettings;
 
-  /// No description provided for @dictionaryDownloading.
+  /// No description provided for @dictionaryLookupFailed.
   ///
   /// In en, this message translates to:
-  /// **'Downloading dictionary...'**
-  String get dictionaryDownloading;
-
-  /// No description provided for @dictionaryDownloadFailed.
-  ///
-  /// In en, this message translates to:
-  /// **'Dictionary download failed'**
-  String get dictionaryDownloadFailed;
-
-  /// No description provided for @dictionaryNotDownloaded.
-  ///
-  /// In en, this message translates to:
-  /// **'Dictionary not yet downloaded'**
-  String get dictionaryNotDownloaded;
+  /// **'Lookup failed. Check your network and try again'**
+  String get dictionaryLookupFailed;
 
   /// No description provided for @dictionaryBaseFormHint.
   ///
@@ -9479,7 +9467,7 @@ abstract class AppLocalizations {
   /// No description provided for @dictSourceLocal.
   ///
   /// In en, this message translates to:
-  /// **'Local Dictionary'**
+  /// **'Online Dictionary'**
   String get dictSourceLocal;
 
   /// No description provided for @dictSourceAi.

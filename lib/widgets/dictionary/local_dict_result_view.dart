@@ -1,53 +1,49 @@
-/// 本地词典结果视图
+/// 本地（在线）词典结果视图
 ///
-/// 渲染本地 SQLite 词典内容（音标/柯林斯星级/考试标签/释义）。
-/// 词典「未下载/下载中/失败」由本视图监听 dictionaryProvider 显示下载入口，
-/// 与查词结果态解耦。单词标题/TTS/收藏在弹窗标题行，不在此渲染。
+/// 渲染词典词条（音标/柯林斯星级/考试标签/释义）。加载、未收录、失败三种状态
+/// 与 AI 词典视图保持一致；单词标题/TTS/收藏在弹窗标题行，不在此渲染。
 library;
 
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../l10n/app_localizations.dart';
 import '../../models/dict_entry.dart';
 import '../../models/dictionary/dictionary_lookup_result.dart';
 import '../../providers/dictionary/lookup_controller.dart';
-import '../../providers/dictionary_provider.dart';
-import '../../services/dictionary_service.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/text_normalize.dart';
 import 'pos_tag.dart';
 
-/// 本地词典结果视图
-class LocalDictResultView extends ConsumerWidget {
+/// 本地（在线）词典结果视图
+class LocalDictResultView extends StatelessWidget {
   /// 当前源的查询态
   final SourceLookupState? state;
 
-  /// 归一化后的查询词（表面词形），用于本地词典的精确结果展示。
+  /// 归一化后的查询词（表面词形），用于在线词典的精确结果展示。
   final String word;
+
+  /// 失败后的重试回调；为空时不显示重试按钮（如收藏复习页只展示已加载结果）
+  final VoidCallback? onRetry;
 
   const LocalDictResultView({
     super.key,
     required this.state,
     required this.word,
+    this.onRetry,
   });
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final theme = Theme.of(context);
-
-    // 词典未就绪：显示下载/下载中/失败入口（仅此分支才订阅下载状态）
-    if (!DictionaryService.instance.isAvailable) {
-      final dictState = ref.watch(dictionaryProvider);
-      return _buildDictUnavailable(context, ref, theme, dictState);
-    }
-
     final s = state;
     if (s case LookupLoaded(result: final LocalDictResult r)) {
       return _buildContent(context, theme, r.entry);
     }
     if (s is LookupNotFound) {
       return _buildNotFound(context, theme);
+    }
+    if (s is LookupError) {
+      return _buildError(context, theme);
     }
     // Loading / Idle / 其它
     return const Padding(
@@ -56,47 +52,27 @@ class LocalDictResultView extends ConsumerWidget {
     );
   }
 
-  /// 词典不可用提示（下载中 / 失败 / 未下载）
-  Widget _buildDictUnavailable(
-    BuildContext context,
-    WidgetRef ref,
-    ThemeData theme,
-    DictionaryState dictState,
-  ) {
-    final l10n = AppLocalizations.of(context)!;
+  /// 查询失败提示 + 重试
+  Widget _buildError(BuildContext context, ThemeData theme) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: AppSpacing.l),
-      child: Column(
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.s),
+      child: Row(
         children: [
-          if (dictState.status == DictionaryStatus.downloading) ...[
-            Text(
-              l10n.dictionaryDownloading,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
+          Icon(Icons.error_outline, size: 16, color: theme.colorScheme.error),
+          const SizedBox(width: AppSpacing.xs),
+          Expanded(
+            child: Text(
+              AppLocalizations.of(context)!.dictionaryLookupFailed,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.error,
               ),
             ),
-            const SizedBox(height: AppSpacing.m),
-            LinearProgressIndicator(value: dictState.progress),
-          ] else ...[
-            Text(
-              dictState.status == DictionaryStatus.failed
-                  ? l10n.dictionaryDownloadFailed
-                  : l10n.dictionaryNotDownloaded,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
+          ),
+          if (onRetry case final retry?)
+            TextButton(
+              onPressed: retry,
+              child: Text(AppLocalizations.of(context)!.retry),
             ),
-            const SizedBox(height: AppSpacing.m),
-            FilledButton.tonal(
-              onPressed: () =>
-                  ref.read(dictionaryProvider.notifier).retryDownload(),
-              child: Text(
-                dictState.status == DictionaryStatus.failed
-                    ? l10n.retry
-                    : l10n.download,
-              ),
-            ),
-          ],
         ],
       ),
     );

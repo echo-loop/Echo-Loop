@@ -2,15 +2,11 @@ import 'package:echo_loop/l10n/app_localizations.dart';
 import 'package:echo_loop/models/dict_entry.dart';
 import 'package:echo_loop/models/dictionary/dictionary_lookup_result.dart';
 import 'package:echo_loop/providers/dictionary/lookup_controller.dart';
-import 'package:echo_loop/services/dictionary_service.dart';
 import 'package:echo_loop/widgets/dictionary/local_dict_result_view.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mocktail/mocktail.dart';
-
-class MockDictionaryService extends Mock implements DictionaryService {}
 
 Widget _wrap(Widget child) => ProviderScope(
   child: MaterialApp(
@@ -27,17 +23,6 @@ Widget _wrap(Widget child) => ProviderScope(
 );
 
 void main() {
-  late DictionaryService old;
-  late MockDictionaryService mock;
-
-  setUp(() {
-    mock = MockDictionaryService();
-    when(() => mock.isAvailable).thenReturn(true);
-    old = DictionaryService.replaceInstance(mock);
-  });
-
-  tearDown(() => DictionaryService.replaceInstance(old));
-
   testWidgets('已收录：渲染音标与释义', (tester) async {
     await tester.pumpWidget(
       _wrap(
@@ -90,5 +75,37 @@ void main() {
       _wrap(const LocalDictResultView(word: 'xyz', state: LookupNotFound())),
     );
     expect(find.text('Word not found in dictionary'), findsOneWidget);
+  });
+
+  testWidgets('查询失败：显示错误提示并可重试', (tester) async {
+    var retried = false;
+    await tester.pumpWidget(
+      _wrap(
+        LocalDictResultView(
+          word: 'run',
+          state: const LookupError('network'),
+          onRetry: () => retried = true,
+        ),
+      ),
+    );
+    expect(
+      find.text('Lookup failed. Check your network and try again'),
+      findsOneWidget,
+    );
+
+    await tester.tap(find.text('Retry'));
+    expect(retried, isTrue);
+  });
+
+  testWidgets('查询失败且未提供重试回调：不显示重试按钮', (tester) async {
+    await tester.pumpWidget(
+      _wrap(
+        const LocalDictResultView(
+          word: 'run',
+          state: LookupError('network'),
+        ),
+      ),
+    );
+    expect(find.text('Retry'), findsNothing);
   });
 }

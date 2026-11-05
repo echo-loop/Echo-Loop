@@ -190,4 +190,4 @@ final class SavedWordDictEntriesProvider
 }
 
 String _$savedWordDictEntriesHash() =>
-    r'37a715606f189fdf670a311420c7c1dfa99c8015';
+    r'957ac836e9afd801f18b99ab9316b4c86d63026e';

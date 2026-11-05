@@ -1,10 +1,10 @@
 /// 学习材料导出 PDF 的数据聚合器
 ///
 /// 从数据库聚合一篇音频的全部导出内容：字幕句子、段落分组、收藏句标记、
-/// 收藏词/意群及其释义（AI 词典缓存优先、本地词典兜底）、句子翻译与
+/// 收藏词/意群及其释义（AI 词典缓存优先、在线词典兜底）、句子翻译与
 /// AI 解析（只读已有缓存，不发起任何网络请求）。
 ///
-/// 依赖经构造函数注入（DAO + 本地词典查询函数），纯 Dart 可用
+/// 依赖经构造函数注入（DAO + 在线词典查询函数），纯 Dart 可用
 /// drift 内存库直接测试。
 library;
 
@@ -30,12 +30,12 @@ import '../../utils/text_normalize.dart';
 import '../../widgets/practice/sentence_word_selection.dart'
     show WordToken, savedCharRanges, tokenizeSentence;
 
-/// 本地词典**批量**查询函数签名（注入 `DictionaryService.instance.lookupAll`）
+/// 在线词典**批量**查询函数签名（注入 `DictionaryService.lookupAll`）
 ///
-/// 单词逐个查会对 dict.sqlite 反复全表扫描（`WHERE word=? COLLATE NOCASE`，
-/// 索引常因 NOCASE 用不上），几十词即秒级。改为一次性批量查（单条 IN 查询），
-/// 把 N 次全表扫描收敛为 1 次。返回 `原始输入词 → 词条` 映射，未命中不含。
-typedef LocalDictLookup = Map<String, DictEntry> Function(List<String> words);
+/// 一次性批量查：先读本地缓存，缺失的词并发请求后端。返回 `原始输入词 → 词条`
+/// 映射，未收录或失败的词不含。
+typedef LocalDictLookup =
+    Future<Map<String, DictEntry>> Function(List<String> words);
 
 /// 词条笔记中间记录：笔记 + 查询键（全局标记计算 / 标号分配用）
 ///
@@ -67,7 +67,7 @@ class _NumberedTerm {
 /// 词条候选：词典批量查之前先算好的展示信息 + 句中命中区间
 ///
 /// 查询键就是收藏词/意群本身（[lookupKey]，用户在字幕中收藏的表面词形），
-/// 所有候选的 AI 缓存与本地词典各**合并成单次批量查**，拼装期不再触库。
+/// 所有候选的 AI 缓存与在线词典各**合并成单次批量查**，拼装期不再触库。
 class _VocabCandidate {
   final int idx;
   final String term;
@@ -89,7 +89,7 @@ const _paragraphTargetDuration = Duration(seconds: 30);
 
 /// 逐句组装的 compute 入参（只含可跨 isolate 的类型）
 ///
-/// 主 isolate 负责 DB 读取与词条编号（本地词典仅主 isolate 可用），把
+/// 主 isolate 负责 DB 读取与词条编号（在线词典仅主 isolate 可用），把
 /// O(句数×收藏词数) 的分词/命中区间计算连同段落分组、词数统计打包到本
 /// 请求里，交由 [_assembleStudyPdfDocument] 在 isolate 中执行，避免占用
 /// 主 isolate（字幕解析已单独走 [_parseStudyPdfSrt]）。
@@ -385,7 +385,7 @@ class StudyPdfLoader {
 
     // ② 词典缓存两路**各一次性批量查**（只查收藏词本身，不查整句）：
     //    - AI 词典缓存（键 = hashText('词|语言')，与 ai_dictionary_source 契约一致）
-    //    - 本地词典（仅按收藏词的表面词形精确匹配）
+    //    - 在线词典（仅按收藏词的表面词形精确匹配）
     final aiHashes = {
       for (final c in candidates) hashText('${c.lookupKey}|$targetLanguage'),
     };
@@ -393,7 +393,7 @@ class StudyPdfLoader {
       aiHashes,
       'ai_dictionary',
     );
-    final localDict = _localDictLookup([
+    final localDict = await _localDictLookup([
       for (final c in candidates) c.lookupKey,
     ]);
     AppLogger.log(
@@ -407,7 +407,7 @@ class StudyPdfLoader {
       ..reset()
       ..start();
 
-    // ⑤ 构建笔记（AI 优先，本地词典兜底）——纯本地，不再触 DB。
+    // ⑤ 构建笔记（AI 优先，在线词典兜底）——纯本地，不再触 DB。
     //    按 (isPhrase, lookupKey) 去重：同一词条多次收藏（或收藏词与正文
     //    变形指向同一查询键）只保留首个，避免右栏重复条目、正文重复标号。
     final seeds = <_VocabNoteSeed>[];
@@ -607,10 +607,10 @@ class StudyPdfLoader {
     );
   }
 
-  /// 从批量读到的缓存构建词条笔记（AI 词典优先，本地词典兜底）
+  /// 从批量读到的缓存构建词条笔记（AI 词典优先，在线词典兜底）
   ///
   /// 查询键即收藏词本身：AI 词典有义项则只用 AI（义项为空则不显示该词条），
-  /// 否则用按收藏词表面词形精确匹配的本地词典。
+  /// 否则用按收藏词表面词形精确匹配的在线词典。
   StudyPdfVocabNote? _buildVocabNoteFromCache(
     _VocabCandidate c,
     Map<String, String> aiDictRaw,
@@ -622,7 +622,7 @@ class StudyPdfLoader {
       aiDictRaw[hashText('${c.lookupKey}|$targetLanguage')],
     );
     if (entry != null) {
-      // 有 AI 查词结果时只用 AI，不再混入本地词典
+      // 有 AI 查词结果时只用 AI，不再混入在线词典
       final glosses = <StudyPdfGloss>[];
       for (final m in entry.meanings) {
         final text = m.translation
@@ -646,7 +646,7 @@ class StudyPdfLoader {
       return null;
     }
 
-    // 本地词典兜底（未就绪/未收录时返回 null → 不显示该词条）
+    // 在线词典兜底（未就绪/未收录时返回 null → 不显示该词条）
     final local = localDict[c.lookupKey];
     if (local != null) {
       final glosses = (local.translation ?? '')
@@ -682,7 +682,7 @@ class StudyPdfLoader {
     return null;
   }
 
-  /// 本地词典行首词性剥离：`n. 生日` → pos `n.` + text `生日`
+  /// 在线词典行首词性剥离：`n. 生日` → pos `n.` + text `生日`
   ///
   /// 支持连写词性（如 `vt.vi.`）；无法识别时整行作为释义文本。
   StudyPdfGloss _splitLocalGloss(String line) {

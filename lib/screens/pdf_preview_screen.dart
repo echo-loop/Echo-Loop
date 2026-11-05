@@ -26,11 +26,11 @@ import '../l10n/app_localizations.dart';
 import '../models/audio_item.dart';
 import '../models/pdf_export/study_pdf_data.dart';
 import '../models/pdf_export/study_pdf_options.dart';
+import '../providers/dictionary/dictionary_registry.dart';
 import '../providers/learning_settings_provider.dart';
 import '../providers/settings_provider.dart';
 import '../services/app_logger.dart';
 import '../services/audio_export_service.dart';
-import '../services/dictionary_service.dart';
 import '../services/pdf_export/study_pdf_export_service.dart';
 import '../services/pdf_export/study_pdf_loader.dart';
 import '../widgets/common/anchored_bubble.dart';
@@ -105,7 +105,7 @@ class _PdfPreviewScreenState extends ConsumerState<PdfPreviewScreen> {
           savedWordDao: ref.read(savedWordDaoProvider),
           savedSenseGroupDao: ref.read(savedSenseGroupDaoProvider),
           aiCacheDao: ref.read(sentenceAiCacheDaoProvider),
-          localDictLookup: DictionaryService.instance.lookupAll,
+          localDictLookup: ref.read(dictionaryServiceProvider).lookupAll,
         );
     _exportService = widget.exportService ?? StudyPdfExportService();
     // 推迟到进场转场动画结束再启动加载：加载会连续 spawn 若干 isolate 并

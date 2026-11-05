@@ -11,7 +11,7 @@ import '../features/usage/usage_providers.dart';
 import '../database/app_database.dart' as db;
 import '../database/providers.dart';
 import '../models/dict_entry.dart';
-import '../services/dictionary_service.dart';
+import 'dictionary/dictionary_registry.dart';
 import '../utils/saved_text_index.dart';
 import 'notification_permission_provider.dart';
 import 'favorite_vocabulary_lifecycle_provider.dart';
@@ -37,7 +37,7 @@ class SavedWordList extends StreamNotifier<List<db.SavedWord>> {
   ///
   /// [word] 为归一化后的**表面词形**（用户实际选中/查询的词），非词干/原形——
   /// 正文收藏下划线按表面词形匹配（见 [SavedTextIndex]），保存原形会导致
-  /// 正文无法标记。本地词典也仅按该词形精确匹配，避免释义和发音错位。
+  /// 正文无法标记。在线词典也仅按该词形精确匹配，避免释义和发音错位。
   /// 可选提供来源音频和句子信息。
   Future<void> saveWord({
     required String word,
@@ -130,5 +130,5 @@ Future<Map<String, DictEntry>> savedWordDictEntries(Ref ref) async {
   final wordsAsync = await ref.watch(savedWordListProvider.future);
   if (wordsAsync.isEmpty) return {};
   final wordStrings = wordsAsync.map((w) => w.word).toList();
-  return DictionaryService.instance.lookupAll(wordStrings);
+  return ref.watch(dictionaryServiceProvider).lookupAll(wordStrings);
 }

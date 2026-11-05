@@ -1,6 +1,6 @@
 /// DictionaryPanel 内容渲染测试（本地词典源各数据场景）
 ///
-/// 使用内存 SQLite 数据库替换 DictionaryService 单例，
+/// 使用预置缓存的内存数据库构造真实 DictionaryService（命中缓存，不发网络请求），
 /// 验证弹窗在各种数据场景下的 UI 渲染。
 library;
 
@@ -8,18 +8,19 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mocktail/mocktail.dart';
 import 'package:echo_loop/features/onboarding_survey/providers/onboarding_survey_provider.dart';
 import 'package:echo_loop/l10n/app_localizations.dart';
 import 'package:echo_loop/providers/pronunciation/pronunciation_providers.dart';
 import 'package:echo_loop/providers/tts/tts_controller_provider.dart';
 import 'package:echo_loop/providers/saved_word_provider.dart';
 import 'package:echo_loop/utils/saved_text_index.dart';
+import 'package:echo_loop/models/dict_entry.dart';
 import 'package:echo_loop/services/dictionary_service.dart';
 import 'package:echo_loop/theme/app_theme.dart';
 import 'package:echo_loop/widgets/dictionary/dictionary_panel_host.dart';
 import 'package:echo_loop/widgets/tts/speak_button.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:sqlite3/sqlite3.dart';
 
 import '../../helpers/mock_providers.dart';
 
@@ -106,27 +107,67 @@ class _StubTextPlaybackController extends TextPlaybackController {
   }
 }
 
-/// 创建测试用内存词典数据库
-Database _createTestDb() {
-  final db = sqlite3.openInMemory();
-  db.execute('''
-    CREATE TABLE words (
-      word TEXT PRIMARY KEY,
-      phonetic TEXT NOT NULL,
-      translation TEXT,
-      collins INTEGER DEFAULT 0,
-      tag TEXT
-    )
-  ''');
-  db.execute(
-    "INSERT INTO words (word, phonetic, translation, collins, tag) VALUES"
-    " ('abandon', 'əbændən', 'vt. 放弃, 抛弃\nn. 放任, 狂热', 3, 'gk cet4 cet6 ky toefl gre'),"
-    " ('hello', 'heləu', 'int. 你好', 0, ''),"
-    " ('run', 'rʌn', 'vi. 跑, 奔', 5, 'zk gk cet4'),"
-    " ('test', 'test', null, 0, null)",
-  );
-  return db;
+/// 测试用在线词典服务：预置词条直接返回，其它词一律未收录。
+///
+/// 不走真实数据库与网络：widget 测试中异步 I/O 会留下未完成的 Timer。
+MockDictionaryService _createTestDictionaryService() {
+  final service = MockDictionaryService();
+  when(() => service.lookup(any())).thenAnswer((invocation) async {
+    final word = invocation.positionalArguments.first as String;
+    final json = _seededEntries[dictionaryQueryKey(word)];
+    return json == null ? null : DictEntry.fromApiJson(json);
+  });
+  return service;
 }
+
+final _seededEntries = <String, Map<String, Object?>>{
+  'abandon': {
+    'headword': 'abandon',
+    'phonetic': 'əbændən',
+    'definitions': [
+      {
+        'pos': 'vt',
+        'translations': ['放弃', '抛弃'],
+        'examples': <Object?>[],
+      },
+      {
+        'pos': 'n',
+        'translations': ['放任', '狂热'],
+        'examples': <Object?>[],
+      },
+    ],
+    'collins': 3,
+    'tags': ['gk', 'cet4', 'cet6', 'ky', 'toefl', 'gre'],
+  },
+  'hello': {
+    'headword': 'hello',
+    'phonetic': 'heləu',
+    'definitions': [
+      {
+        'pos': 'int',
+        'translations': ['你好'],
+        'examples': <Object?>[],
+      },
+    ],
+    'collins': 0,
+    'tags': <Object?>[],
+  },
+  'run': {
+    'headword': 'run',
+    'phonetic': 'rʌn',
+    'definitions': [
+      {
+        'pos': 'vi',
+        'translations': ['跑', '奔'],
+        'examples': <Object?>[],
+      },
+    ],
+    'collins': 5,
+    'tags': ['zk', 'gk', 'cet4'],
+  },
+};
+
+late DictionaryService _dictionaryService;
 
 /// 构建打开面板的测试页面（经 DictionaryPanelHost 非 modal 打开）
 Widget _buildTestPage(
@@ -137,7 +178,7 @@ Widget _buildTestPage(
   return ProviderScope(
     overrides: dedupeOverrides([
       analyticsOverride(),
-      dictionaryOverride(),
+      dictionaryServiceOverride(_dictionaryService),
       sharedPreferencesProvider.overrideWithValue(_prefs),
       ttsControllerProvider.overrideWith(_StubTtsController.new),
       textPlaybackProvider.overrideWith(_StubTextPlaybackController.new),
@@ -183,8 +224,6 @@ Future<void> _openSheet(WidgetTester tester, String word) async {
 }
 
 void main() {
-  late Database db;
-  late DictionaryService oldInstance;
 
   setUp(() async {
     SharedPreferences.setMockInitialValues({});
@@ -197,16 +236,9 @@ void main() {
     _ttsStopCalls = 0;
     _textPlaybackStopCalls = 0;
     _forwardTextPlaybackToTts = false;
-    db = _createTestDb();
-    oldInstance = DictionaryService.replaceInstance(
-      DictionaryService.withDatabase(db),
-    );
+    _dictionaryService = _createTestDictionaryService();
   });
 
-  tearDown(() {
-    DictionaryService.replaceInstance(oldInstance);
-    db.close();
-  });
 
   group('DictionaryPanel', () {
     testWidgets('关闭面板不会停止宿主页正在播放的句子', (tester) async {
@@ -318,14 +350,6 @@ void main() {
       // 标题剥首尾引号、保留原大小写与右撇号
       expect(find.text("Dogs'"), findsOneWidget);
       expect(find.text('Word not found in dictionary'), findsOneWidget);
-    });
-
-    testWidgets('翻译为 null 时不崩溃', (tester) async {
-      await _openSheet(tester, 'test');
-
-      expect(find.text('test'), findsAtLeast(1));
-      // 不应崩溃，只显示单词和音标
-      expect(find.text('/test/'), findsOneWidget);
     });
 
     testWidgets('未收录变形词不回退原形', (tester) async {

@@ -14,7 +14,6 @@ import 'database/app_database.dart';
 import 'database/providers.dart';
 import 'config/client_distribution.dart';
 import 'providers/package_info_provider.dart';
-import 'providers/dictionary_provider.dart';
 import 'providers/download_provider.dart';
 import 'providers/settings_provider.dart';
 import 'providers/startup_bootstrap_provider.dart';
@@ -319,10 +318,9 @@ class _EchoLoopAppState extends ConsumerState<EchoLoopApp>
     _didStartLocalEffects = true;
     activeStartupTrace?.mark('main_navigation_released');
 
-    // 下载注册表和词典预热都可能访问文件系统，统一放到首帧后。
+    // 下载注册表和媒体预热都可能访问文件系统，统一放到首帧后。
     unawaited(startRegisteredDownloads(ref));
     _scheduleMediaKitPrewarm();
-    ref.read(dictionaryProvider);
 
     final bridge = ref.read(notificationTapRouterBridgeProvider);
     _intentSubscription = bridge.intents.listen(_handleNotificationIntent);

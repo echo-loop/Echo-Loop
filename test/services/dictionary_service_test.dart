@@ -1,221 +1,276 @@
-/// DictionaryService 精确查询测试
+/// DictionaryService 在线查词与本地缓存测试
 ///
-/// 使用内存 SQLite 数据库验证清洗后、大小写不敏感的精确匹配逻辑。
+/// 用内存数据库承载真实缓存 DAO，用假 HTTP 适配器模拟后端 `/api/v1/dictionary`。
 library;
 
-import 'dart:io';
+import 'dart:convert';
+import 'dart:typed_data';
 
-import 'package:flutter_test/flutter_test.dart';
+import 'package:dio/dio.dart';
+import 'package:drift/native.dart';
+import 'package:echo_loop/database/app_database.dart';
+import 'package:echo_loop/models/dict_entry.dart';
 import 'package:echo_loop/services/dictionary_service.dart';
-import 'package:path/path.dart' as p;
-import 'package:sqlite3/sqlite3.dart';
+import 'package:flutter_test/flutter_test.dart';
 
-/// 创建内存数据库并插入测试数据
-Database _createTestDb() {
-  final db = sqlite3.openInMemory();
-  db.execute('''
-    CREATE TABLE words (
-      word TEXT PRIMARY KEY,
-      phonetic TEXT NOT NULL,
-      translation TEXT,
-      collins INTEGER DEFAULT 0,
-      tag TEXT
-    )
-  ''');
-  final insertSql =
-      "INSERT INTO words (word, phonetic, translation, collins, tag) VALUES"
-      " ('professor', 'prəfesər', 'n. 教授', 4, 'gk cet4 cet6 ky toefl ielts'),"
-      " ('run', 'rʌn', 'vi. 跑, 奔', 5, 'zk gk cet4'),"
-      " ('go', 'gəu', 'vi. 去, 走', 5, 'zk gk cet4'),"
-      " ('good', 'gud', 'a. 好的', 5, 'zk gk cet4'),"
-      " ('happy', 'hæpi', 'a. 快乐的', 4, 'zk gk cet4'),"
-      " ('study', 'stʌdi', 'n. 学习, 研究', 4, 'zk gk cet4'),"
-      " ('child', 'tʃaild', 'n. 孩子', 5, 'zk gk cet4'),"
-      " ('mouse', 'maus', 'n. 鼠, 鼠标', 3, 'zk gk cet4')";
-  db.execute(insertSql);
-  return db;
+const _dictId = 'en_zh-CN';
+
+/// 按查询词返回后端响应，并记录实际请求过的词
+class _FakeDictionaryApi implements HttpClientAdapter {
+  _FakeDictionaryApi(this.respond);
+
+  final Future<ResponseBody> Function(String word) respond;
+  final requestedWords = <String>[];
+
+  @override
+  Future<ResponseBody> fetch(
+    RequestOptions options,
+    Stream<Uint8List>? requestStream,
+    Future<void>? cancelFuture,
+  ) {
+    final word = options.queryParameters['word'] as String;
+    requestedWords.add(word);
+    return respond(word);
+  }
+
+  @override
+  void close({bool force = false}) {}
 }
 
+ResponseBody _entryResponse(String headword) => ResponseBody.fromString(
+  jsonEncode({
+    'headword': headword,
+    'phonetic': 'rʌn',
+    'definitions': [
+      {
+        'pos': 'vi',
+        'translations': ['跑'],
+        'examples': [],
+      },
+    ],
+    'collins': 0,
+    'tags': <String>[],
+  }),
+  200,
+  headers: {
+    Headers.contentTypeHeader: [Headers.jsonContentType],
+  },
+);
+
+ResponseBody _notFoundResponse() => ResponseBody.fromString(
+  jsonEncode({'error': 'Entry not found', 'code': 'entry_not_found'}),
+  404,
+  headers: {
+    Headers.contentTypeHeader: [Headers.jsonContentType],
+  },
+);
+
+ResponseBody _serverErrorResponse() => ResponseBody.fromString('internal', 500);
+
 void main() {
-  late DictionaryService service;
-  late Database db;
+  late AppDatabase db;
 
   setUp(() {
-    db = _createTestDb();
-    service = DictionaryService.withDatabase(db);
+    db = AppDatabase(NativeDatabase.memory());
   });
 
-  tearDown(() {
-    service.close();
+  tearDown(() async {
+    await db.close();
   });
 
-  group('isAvailable', () {
-    test('withDatabase 构造后为 true', () {
-      expect(service.isAvailable, isTrue);
+  DictionaryService buildService(_FakeDictionaryApi api) {
+    final dio = Dio(BaseOptions(baseUrl: 'https://dict.test'))
+      ..httpClientAdapter = api;
+    return DictionaryService(
+      cacheDao: db.dictionaryCacheDao,
+      dio: dio,
+      dictId: _dictId,
+    );
+  }
+
+  group('dictionaryQueryKey', () {
+    test('与后端口径一致：缩写保留大写，其余小写，去除首尾空白', () {
+      expect(dictionaryQueryKey('  Run '), 'run');
+      expect(dictionaryQueryKey('US'), 'US');
+      expect(dictionaryQueryKey('Us'), 'us');
+      expect(dictionaryQueryKey('NASA'), 'NASA');
     });
 
-    test('未打开数据库时为 false', () {
-      final emptyService = DictionaryService.withDatabase(_createTestDb());
-      emptyService.close();
-      expect(emptyService.isAvailable, isFalse);
+    test('空串与超长词返回 null', () {
+      expect(dictionaryQueryKey('   '), isNull);
+      expect(dictionaryQueryKey('a' * 201), isNull);
     });
   });
 
-  group('openDatabase 补建 NOCASE 索引 + 预热', () {
-    test('打开文件库时补建 idx_words_word_nocase，大小写不敏感查询命中', () async {
-      final dir = await Directory.systemTemp.createTemp('dict_test');
-      final path = p.join(dir.path, 'dict.sqlite');
-      // 预置一个无索引的 words 表文件库（headword 含大写）
-      final seed = sqlite3.open(path);
-      seed.execute(
-        'CREATE TABLE words (word TEXT, phonetic TEXT NOT NULL, '
-        'translation TEXT, collins INTEGER DEFAULT 0, tag TEXT)',
-      );
-      seed.execute(
-        "INSERT INTO words (word, phonetic, translation) "
-        "VALUES ('Message', 'ˈmesɪdʒ', 'n. 消息')",
-      );
-      seed.close();
+  group('lookup', () {
+    test('缓存未命中时请求后端，命中后写入缓存且之后不再请求', () async {
+      final api = _FakeDictionaryApi((word) async => _entryResponse('run'));
+      final service = buildService(api);
 
-      final svc = DictionaryService.instance;
-      svc.openDatabase(path);
-      addTearDown(() async {
-        svc.close();
-        if (await dir.exists()) {
-          await dir.delete(recursive: true);
-        }
+      final first = await service.lookup('Run');
+      final second = await service.lookup('run');
+
+      expect(first, isA<DictEntry>());
+      expect(first!.word, 'run');
+      expect(second!.translation, 'vi. 跑');
+      expect(api.requestedWords, ['run']);
+      expect(await db.dictionaryCacheDao.get(_dictId, 'run'), isNotNull);
+    });
+
+    test('404 视为未收录：返回 null 且不写缓存，下次仍会请求', () async {
+      final api = _FakeDictionaryApi((word) async => _notFoundResponse());
+      final service = buildService(api);
+
+      expect(await service.lookup('missing'), isNull);
+      expect(await service.lookup('missing'), isNull);
+
+      expect(api.requestedWords, ['missing', 'missing']);
+      expect(await db.dictionaryCacheDao.get(_dictId, 'missing'), isNull);
+    });
+
+    test('服务端错误抛出异常，不伪装成未收录，也不写缓存', () async {
+      final api = _FakeDictionaryApi((word) async => _serverErrorResponse());
+      final service = buildService(api);
+
+      await expectLater(service.lookup('run'), throwsA(isA<DioException>()));
+      expect(await db.dictionaryCacheDao.get(_dictId, 'run'), isNull);
+    });
+
+    test('缓存行损坏时删除并回源重取', () async {
+      await db.dictionaryCacheDao.upsert(_dictId, 'run', '{not json');
+      final api = _FakeDictionaryApi((word) async => _entryResponse('run'));
+      final service = buildService(api);
+
+      final entry = await service.lookup('run');
+
+      expect(entry!.word, 'run');
+      expect(api.requestedWords, ['run']);
+      final repaired = await db.dictionaryCacheDao.get(_dictId, 'run');
+      expect(repaired, contains('"headword":"run"'));
+    });
+
+    test('同一查询键的并发请求只发出一次网络请求', () async {
+      final api = _FakeDictionaryApi((word) async {
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+        return _entryResponse('run');
       });
+      final service = buildService(api);
 
-      // 索引已补建
-      final checker = sqlite3.open(path, mode: OpenMode.readOnly);
-      final idx = checker.select(
-        "SELECT name FROM sqlite_master WHERE type='index' "
-        "AND name='idx_words_word_nocase'",
+      final results = await Future.wait([
+        service.lookup('run'),
+        service.lookup('Run'),
+        service.lookup('run'),
+      ]);
+
+      expect(results.map((e) => e?.word), everyElement('run'));
+      expect(api.requestedWords, ['run']);
+    });
+  });
+
+  group('lookup', () {
+    test('多词短语不发请求，直接返回未收录', () async {
+      final api = _FakeDictionaryApi((word) async => _entryResponse(word));
+      final service = buildService(api);
+
+      expect(await service.lookup('forty percent'), isNull);
+      expect(api.requestedWords, isEmpty);
+    });
+  });
+
+  group('lookupAll', () {
+    test('慢请求不阻塞后续请求：前面的请求完成后立即补位', () async {
+      final events = <String>[];
+      final api = _FakeDictionaryApi((word) async {
+        events.add('start:$word');
+        await Future<void>.delayed(
+          Duration(milliseconds: word == 'w1' ? 100 : 1),
+        );
+        events.add('end:$word');
+        return _entryResponse(word);
+      });
+      final service = buildService(api);
+
+      await service.lookupAll([for (var i = 1; i <= 7; i++) 'w$i']);
+
+      // w7 不必等 w1（慢请求）结束，只需等一个空位
+      expect(events.indexOf('start:w7'), lessThan(events.indexOf('end:w1')));
+    });
+
+    test('同时在途的请求数不超过并发上限', () async {
+      var inFlight = 0;
+      var maxInFlight = 0;
+      final api = _FakeDictionaryApi((word) async {
+        inFlight++;
+        if (inFlight > maxInFlight) maxInFlight = inFlight;
+        await Future<void>.delayed(const Duration(milliseconds: 5));
+        inFlight--;
+        return _entryResponse(word);
+      });
+      final service = buildService(api);
+
+      await service.lookupAll([for (var i = 1; i <= 20; i++) 'w$i']);
+
+      expect(maxInFlight, 3);
+    });
+
+    test('多词短语与整句不发请求，也不进入结果', () async {
+      final api = _FakeDictionaryApi((word) async => _entryResponse(word));
+      final service = buildService(api);
+      const sentence = 'they are doomed to be shy forever';
+
+      final result = await service.lookupAll([
+        sentence,
+        'forty percent',
+        'run',
+      ]);
+
+      expect(result.keys, ['run']);
+      expect(api.requestedWords, ['run']);
+    });
+
+    test('优先使用缓存，只请求缺失的词；单词失败只跳过该词', () async {
+      await db.dictionaryCacheDao.upsert(
+        _dictId,
+        'NASA',
+        jsonEncode({
+          'headword': 'NASA',
+          'definitions': [
+            {
+              'pos': 'abbr',
+              'translations': ['美国国家航空航天局'],
+            },
+          ],
+        }),
       );
-      checker.close();
-      expect(idx, isNotEmpty);
+      final api = _FakeDictionaryApi((word) async {
+        return switch (word) {
+          'run' => _entryResponse('run'),
+          'missing' => _notFoundResponse(),
+          _ => _serverErrorResponse(),
+        };
+      });
+      final service = buildService(api);
 
-      // NOCASE 查询命中（输入小写，headword 大写）
-      expect(svc.lookup('message')?.word, 'Message');
+      final result = await service.lookupAll([
+        'Run',
+        'run',
+        'NASA',
+        'missing',
+        'boom',
+      ]);
 
-      // 预热数据库页缓存不抛异常，且不影响后续查询
-      svc.warmUpDatabase();
-      expect(svc.lookup('message')?.word, 'Message');
-
-      svc.close();
-      await dir.delete(recursive: true);
+      expect(result.keys, unorderedEquals(['Run', 'run', 'NASA']));
+      expect(result['NASA']!.translation, 'abbr. 美国国家航空航天局');
+      expect(result['Run']!.word, 'run');
+      expect(api.requestedWords, unorderedEquals(['run', 'missing', 'boom']));
     });
 
-    test('warmUpDatabase 在数据库未就绪时安全 no-op', () {
-      final closedService = DictionaryService.withDatabase(_createTestDb());
-      closedService.close();
-      expect(closedService.warmUpDatabase, returnsNormally);
-    });
-  });
+    test('没有有效查询词时直接返回空结果，不发请求', () async {
+      final api = _FakeDictionaryApi((word) async => _entryResponse(word));
+      final service = buildService(api);
 
-  group('数据库未就绪', () {
-    test('lookup 返回 null', () {
-      final closedService = DictionaryService.withDatabase(_createTestDb());
-      closedService.close();
-      expect(closedService.lookup('professor'), isNull);
-    });
-
-    test('lookupAll 返回空 map', () {
-      final closedService = DictionaryService.withDatabase(_createTestDb());
-      closedService.close();
-      expect(closedService.lookupAll(['professor']), isEmpty);
-    });
-  });
-
-  group('精确匹配', () {
-    test('查到已有单词', () {
-      final entry = service.lookup('professor');
-      expect(entry, isNotNull);
-      expect(entry!.word, 'professor');
-      expect(entry.phonetic, contains('fes'));
-    });
-
-    test('大小写不敏感', () {
-      final entry = service.lookup('Professor');
-      expect(entry, isNotNull);
-      expect(entry!.word, 'professor');
-    });
-
-    test('查不到且无法还原的词返回 null', () {
-      final entry = service.lookup('xyznotaword');
-      expect(entry, isNull);
-    });
-
-    test('会去掉单词两侧多余符号', () {
-      final entry = service.lookup(' "Professor!" ');
-      expect(entry, isNotNull);
-      expect(entry!.word, 'professor');
-    });
-
-    test('只有符号时返回 null', () {
-      final entry = service.lookup('..."\'!?');
-      expect(entry, isNull);
-    });
-  });
-
-  group('未精确收录的词形', () {
-    test('不会回退到原形', () {
-      for (final word in [
-        'professors',
-        'running',
-        'goes',
-        'happier',
-        'studied',
-        'children',
-        'mice',
-        'went',
-        'happiest',
-        'studies',
-      ]) {
-        expect(service.lookup(word), isNull, reason: '$word 必须精确匹配');
-      }
-    });
-  });
-
-  group('批量查询 lookupAll', () {
-    test('大小写不敏感', () {
-      final results = service.lookupAll(['Professor', 'RUN']);
-      expect(results['Professor'], isNotNull);
-      expect(results['Professor']!.word, 'professor');
-      expect(results['RUN'], isNotNull);
-      expect(results['RUN']!.word, 'run');
-    });
-
-    test('未收录的词不出现在结果中', () {
-      final results = service.lookupAll(['professor', 'xyznotaword']);
-      expect(results.containsKey('professor'), isTrue);
-      expect(results.containsKey('xyznotaword'), isFalse);
-    });
-
-    test('未精确收录的词形不出现在结果中', () {
-      final results = service.lookupAll(['professors', 'running']);
-      expect(results, isEmpty);
-    });
-
-    test('未收录词组不命中', () {
-      final results = service.lookupAll(['going to']);
-      expect(results.containsKey('going to'), isFalse);
-    });
-  });
-
-  group('词组精确匹配', () {
-    test('未收录词组直接返回 null', () {
-      expect(service.lookup('going to'), isNull);
-    });
-
-    test('lookup 词组精确命中仍正常返回', () {
-      // 若本地库恰好收录该词组，精确匹配照常命中
-      db.execute(
-        "INSERT INTO words (word, phonetic, translation) "
-        "VALUES ('give up', 'ɡɪv ʌp', 'v. 放弃')",
-      );
-      final entry = service.lookup('give up');
-      expect(entry?.word, 'give up');
+      expect(await service.lookupAll(['  ', '']), isEmpty);
+      expect(api.requestedWords, isEmpty);
     });
   });
 }
