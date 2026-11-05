@@ -103,18 +103,39 @@ void main() {
     localSizeBytes: 1024,
   );
 
-  testWidgets('默认渲染 Advanced 高质量模型配置', (tester) async {
+  testWidgets('默认渲染 Edge 在线引擎（推荐）与其音色列表', (tester) async {
     await tester.pumpWidget(_wrap(const TtsSettings()));
     await tester.pumpAndSettle();
 
+    // 引擎列表 + 归属标题各一处。
+    expect(find.text('Edge Online Voice'), findsNWidgets(2));
+    expect(find.text('Recommended'), findsOneWidget);
     // 平台引擎显示名随宿主而变（Apple → Apple AI，其余 → System Speech）。
     expect(find.text(_platformEngineLabel), findsOneWidget);
-    // Echo Loop 现拆为两档可选：Balanced(Piper) / Advanced(Kokoro)。
     expect(find.text('Echo Loop AI (Balanced)'), findsOneWidget);
-    expect(find.text('Echo Loop AI (Advanced)'), findsNWidgets(2));
-    expect(find.textContaining('Best sound quality'), findsOneWidget);
-    expect(find.text('High quality'), findsOneWidget);
-    expect(find.text('Recommended'), findsOneWidget);
+    expect(find.text('Echo Loop AI (Advanced)'), findsOneWidget);
+    // Edge 音色按口音分组，且不显示 Kokoro 模型卡。
+    expect(find.text('Ava'), findsOneWidget);
+    expect(find.text('Sonia'), findsOneWidget);
+    expect(find.text('High quality'), findsNothing);
+  });
+
+  testWidgets('点 Edge 音色 → 写入该口音音色并对齐全局口音', (tester) async {
+    // 加高视口使英音分组完整可见，点击不依赖滚动；结束后恢复全局测试尺寸
+    //（view.reset 会退回框架默认值，影响同文件后续用例）。
+    final originalSize = tester.view.physicalSize;
+    tester.view.physicalSize = Size(originalSize.width, 2000);
+    addTearDown(() => tester.view.physicalSize = originalSize);
+    await tester.pumpWidget(_wrap(const TtsSettings()));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Ryan'));
+    await tester.pump();
+
+    final settings = _containerOf(tester).read(ttsSettingsProvider);
+    expect(settings.accent, TtsAccent.uk);
+    expect(settings.edgeVoiceUk, 'en-GB-RyanNeural');
+    expect(settings.activeEdgeVoice, 'en-GB-RyanNeural');
   });
 
   test('Android 不显示系统语音入口，其他平台保留', () {
@@ -130,7 +151,8 @@ void main() {
 
     expect(find.text('High quality'), findsOneWidget);
     expect(find.text('Lightweight'), findsOneWidget);
-    expect(find.text('Recommended'), findsOneWidget);
+    // 高质量变体 + 引擎列表中的 Edge 各带一个推荐徽标。
+    expect(find.text('Recommended'), findsNWidgets(2));
     // 两个变体的单选控件。
     expect(find.byType(Radio<KokoroModelVariant>), findsNWidgets(2));
   });
@@ -360,8 +382,10 @@ void main() {
     expect(find.byTooltip('Delete model'), findsNothing);
   });
 
-  testWidgets('平台引擎不显示口音行，保留默认口音设置', (tester) async {
-    await tester.pumpWidget(_wrap(const TtsSettings())); // 默认美音
+  testWidgets('Echo Loop 引擎不显示口音行，保留默认口音设置', (tester) async {
+    await tester.pumpWidget(
+      _wrap(const TtsSettings(engine: TtsEngineKind.kokoro)),
+    ); // 默认美音
     await tester.pumpAndSettle();
 
     expect(_containerOf(tester).read(ttsSettingsProvider).accent, TtsAccent.us);
