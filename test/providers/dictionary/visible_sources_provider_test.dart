@@ -50,9 +50,13 @@ void main() {
     return c;
   }
 
+  // 真实注册表会构造在线词典服务（依赖数据库缓存 DAO），这里用桩替代，避免测试触达未初始化的数据库
   ProviderContainer makeRegistryContainer() {
     final c = ProviderContainer(
-      overrides: [sharedPreferencesProvider.overrideWithValue(prefs)],
+      overrides: [
+        sharedPreferencesProvider.overrideWithValue(prefs),
+        dictionaryServiceOverride(),
+      ],
     );
     addTearDown(c.dispose);
     return c;
