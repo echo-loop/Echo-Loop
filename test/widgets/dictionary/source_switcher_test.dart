@@ -75,9 +75,9 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Online Dictionary'), findsOneWidget);
+    expect(find.text('Basic Dictionary'), findsOneWidget);
 
-    await tester.tap(find.text('Online Dictionary'));
+    await tester.tap(find.text('Basic Dictionary'));
     await tester.pumpAndSettle();
 
     // AI 已提到下拉菜单外，不再出现在切换器里
@@ -97,9 +97,9 @@ void main() {
     await tester.pumpAndSettle();
 
     // 选中 AI 时 chip 退回默认源（local）
-    expect(find.text('Online Dictionary'), findsOneWidget);
+    expect(find.text('Basic Dictionary'), findsOneWidget);
 
-    await tester.tap(find.text('Online Dictionary'));
+    await tester.tap(find.text('Basic Dictionary'));
     await tester.pumpAndSettle();
 
     // 单击直接回调该源，不展开菜单（菜单里才会出现的 Cambridge 不应出现）
@@ -139,7 +139,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Online Dictionary'));
+    await tester.tap(find.text('Basic Dictionary'));
     await tester.pumpAndSettle();
 
     expect(find.text('Cambridge'), findsNothing);
