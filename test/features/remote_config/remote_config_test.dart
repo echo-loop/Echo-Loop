@@ -517,8 +517,8 @@ void main() {
           endpoints: const RegionalServiceEndpoints(
             globalApiBaseUrl: 'https://global-api.example',
             chinaApiBaseUrl: 'https://china-api.example',
-            globalModelCdnBaseUrl: 'https://global-cdn.example',
-            chinaModelCdnBaseUrl: 'https://china-cdn.example',
+            globalStaticCdnBaseUrl: 'https://global-cdn.example',
+            chinaStaticCdnBaseUrl: 'https://china-cdn.example',
           ),
         )..updateFromUserRegion(isChinaUser: true);
         final adapter = _QueueAdapter([
@@ -550,8 +550,8 @@ void main() {
         endpoints: const RegionalServiceEndpoints(
           globalApiBaseUrl: 'https://global-api.example',
           chinaApiBaseUrl: 'https://china-api.example',
-          globalModelCdnBaseUrl: 'https://global-cdn.example',
-          chinaModelCdnBaseUrl: 'https://china-cdn.example',
+          globalStaticCdnBaseUrl: 'https://global-cdn.example',
+          chinaStaticCdnBaseUrl: 'https://china-cdn.example',
         ),
       )..updateFromUserRegion(isChinaUser: true);
       final adapter = _QueueAdapter([
@@ -581,8 +581,8 @@ void main() {
         endpoints: const RegionalServiceEndpoints(
           globalApiBaseUrl: 'https://global-api.example',
           chinaApiBaseUrl: 'https://china-api.example',
-          globalModelCdnBaseUrl: 'https://global-cdn.example',
-          chinaModelCdnBaseUrl: 'https://china-cdn.example',
+          globalStaticCdnBaseUrl: 'https://global-cdn.example',
+          chinaStaticCdnBaseUrl: 'https://china-cdn.example',
         ),
       )..updateFromUserRegion(isChinaUser: true);
       final adapter = _QueueAdapter([
@@ -615,8 +615,8 @@ void main() {
           endpoints: const RegionalServiceEndpoints(
             globalApiBaseUrl: 'https://global-api.example',
             chinaApiBaseUrl: 'https://china-api.example',
-            globalModelCdnBaseUrl: 'https://global-cdn.example',
-            chinaModelCdnBaseUrl: 'https://china-cdn.example',
+            globalStaticCdnBaseUrl: 'https://global-cdn.example',
+            chinaStaticCdnBaseUrl: 'https://china-cdn.example',
           ),
         )..updateFromUserRegion(isChinaUser: true);
         final adapter = _QueueAdapter([
@@ -849,8 +849,8 @@ void main() {
         endpoints: const RegionalServiceEndpoints(
           globalApiBaseUrl: 'https://global-api.example',
           chinaApiBaseUrl: 'https://china-api.example',
-          globalModelCdnBaseUrl: 'https://global-cdn.example',
-          chinaModelCdnBaseUrl: 'https://china-cdn.example',
+          globalStaticCdnBaseUrl: 'https://global-cdn.example',
+          chinaStaticCdnBaseUrl: 'https://china-cdn.example',
         ),
       )..updateFromUserRegion(isChinaUser: false);
       final adapter = _QueueAdapter([
@@ -879,7 +879,7 @@ void main() {
 
       expect(container.read(isChinaUserProvider), isFalse);
       expect(router.apiRegion, ServiceEndpointRegion.global);
-      expect(router.modelCdnRegion, ServiceEndpointRegion.global);
+      expect(router.staticCdnRegion, ServiceEndpointRegion.global);
 
       await container
           .read(remoteConfigProvider.notifier)
@@ -891,7 +891,7 @@ void main() {
         'global-api.example',
       ]);
       expect(router.apiRegion, ServiceEndpointRegion.global);
-      expect(router.modelCdnRegion, ServiceEndpointRegion.global);
+      expect(router.staticCdnRegion, ServiceEndpointRegion.global);
     });
 
     test('transcription limits provider 暴露远程限制值', () {

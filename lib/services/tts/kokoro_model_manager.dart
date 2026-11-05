@@ -179,7 +179,7 @@ class KokoroModelManager {
   }) async {
     final root = await _modelsRoot;
     final uri = baseUrlOverride == null
-        ? _endpointRouter.modelCdnUri('/model/${spec.archivePath}')
+        ? _endpointRouter.staticCdnUri('/model/${spec.archivePath}')
         : Uri.parse('$baseUrlOverride/model/${spec.archivePath}');
     final target = Directory(await modelDir());
     AppLogger.log('KokoroModel', '┌ downloadModel dir=${target.path} url=$uri');

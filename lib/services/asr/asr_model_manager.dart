@@ -239,7 +239,7 @@ class AsrModelManager {
       target: target,
       resourceId: modelId,
       uri: baseUrlOverride == null
-          ? _endpointRouter.modelCdnUri('/model/${spec.archivePath}')
+          ? _endpointRouter.staticCdnUri('/model/${spec.archivePath}')
           : Uri.parse('$baseUrlOverride/model/${spec.archivePath}'),
       expectedSha256: spec.sha256,
       cancelToken: cancelToken,

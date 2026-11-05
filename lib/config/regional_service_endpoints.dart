@@ -1,28 +1,28 @@
 import 'api_config.dart';
 
-/// 全球模型与离线资源 CDN 地址。
-const globalModelCdnBaseUrl = 'https://cdn.echo-loop.top';
+/// 全球静态资源 CDN 地址（模型、单词发音、词典资源等）。
+const globalStaticCdnBaseUrl = 'https://cdn.echo-loop.top';
 
-/// 中国 API 与模型 CDN 地址；与全球地址一起编入同一个发布包。
+/// 中国 API 与静态资源 CDN 地址；与全球地址一起编入同一个发布包。
 /// 中国 API 可通过 `API_CHINA_BASE_URL` 编译期变量覆盖。
 const chinaApiBaseUrl = String.fromEnvironment(
   'API_CHINA_BASE_URL',
   defaultValue: 'https://www.echo-loop.cn',
 );
-const chinaModelCdnBaseUrl = 'https://static-cdn.echo-loop.cn/';
+const chinaStaticCdnBaseUrl = 'https://static-cdn.echo-loop.cn';
 
 class RegionalServiceEndpoints {
   const RegionalServiceEndpoints({
     required this.globalApiBaseUrl,
     required this.chinaApiBaseUrl,
-    required this.globalModelCdnBaseUrl,
-    required this.chinaModelCdnBaseUrl,
+    required this.globalStaticCdnBaseUrl,
+    required this.chinaStaticCdnBaseUrl,
   });
 
   final String globalApiBaseUrl;
   final String chinaApiBaseUrl;
-  final String globalModelCdnBaseUrl;
-  final String chinaModelCdnBaseUrl;
+  final String globalStaticCdnBaseUrl;
+  final String chinaStaticCdnBaseUrl;
 
   String? apiBaseUrlFor(ServiceEndpointRegion region) =>
       _configuredUrl(switch (region) {
@@ -30,10 +30,10 @@ class RegionalServiceEndpoints {
         ServiceEndpointRegion.china => chinaApiBaseUrl,
       });
 
-  String? modelCdnBaseUrlFor(ServiceEndpointRegion region) =>
+  String? staticCdnBaseUrlFor(ServiceEndpointRegion region) =>
       _configuredUrl(switch (region) {
-        ServiceEndpointRegion.global => globalModelCdnBaseUrl,
-        ServiceEndpointRegion.china => chinaModelCdnBaseUrl,
+        ServiceEndpointRegion.global => globalStaticCdnBaseUrl,
+        ServiceEndpointRegion.china => chinaStaticCdnBaseUrl,
       });
 
   static String? _configuredUrl(String value) {
@@ -53,6 +53,6 @@ enum ServiceEndpointRegion { global, china }
 const regionalServiceEndpoints = RegionalServiceEndpoints(
   globalApiBaseUrl: apiBaseUrl,
   chinaApiBaseUrl: chinaApiBaseUrl,
-  globalModelCdnBaseUrl: globalModelCdnBaseUrl,
-  chinaModelCdnBaseUrl: chinaModelCdnBaseUrl,
+  globalStaticCdnBaseUrl: globalStaticCdnBaseUrl,
+  chinaStaticCdnBaseUrl: chinaStaticCdnBaseUrl,
 );

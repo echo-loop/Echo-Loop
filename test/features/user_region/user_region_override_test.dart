@@ -17,8 +17,8 @@ void main() {
   const endpoints = RegionalServiceEndpoints(
     globalApiBaseUrl: 'https://global.example',
     chinaApiBaseUrl: 'https://china.example',
-    globalModelCdnBaseUrl: 'https://global-cdn.example',
-    chinaModelCdnBaseUrl: 'https://china-cdn.example',
+    globalStaticCdnBaseUrl: 'https://global-cdn.example',
+    chinaStaticCdnBaseUrl: 'https://china-cdn.example',
   );
 
   test('覆盖值可保存读取，选回自动时清除', () async {

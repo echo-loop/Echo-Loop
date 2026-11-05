@@ -14,7 +14,7 @@ class RuntimeEndpointRouter {
 
   /// 当前 API 与 CDN 共用的区域选择。
   ServiceEndpointRegion get apiRegion => _selectedRegion;
-  ServiceEndpointRegion get modelCdnRegion => _selectedRegion;
+  ServiceEndpointRegion get staticCdnRegion => _selectedRegion;
 
   ServiceEndpointRegion get _selectedRegion =>
       _isChinaUser ? ServiceEndpointRegion.china : ServiceEndpointRegion.global;
@@ -25,10 +25,10 @@ class RuntimeEndpointRouter {
     service: 'API',
   );
 
-  /// 当前所选区域的模型 CDN 地址；未配置时明确报错，不访问另一区域。
-  String get modelCdnBaseUrl => _requiredEndpoint(
-    endpoints.modelCdnBaseUrlFor(_selectedRegion),
-    service: 'model CDN',
+  /// 当前所选区域的静态资源 CDN 地址；未配置时明确报错，不访问另一区域。
+  String get staticCdnBaseUrl => _requiredEndpoint(
+    endpoints.staticCdnBaseUrlFor(_selectedRegion),
+    service: 'static CDN',
   );
 
   Uri apiUri(String path) => _resolvePath(apiBaseUrl, path);
@@ -41,13 +41,13 @@ class RuntimeEndpointRouter {
       'EndpointRouter',
       'userRegion china=$isChinaUser selected=${region.name} '
           'api=${_endpointLabel(endpoints.apiBaseUrlFor(region))} '
-          'cdn=${_endpointLabel(endpoints.modelCdnBaseUrlFor(region))}',
+          'cdn=${_endpointLabel(endpoints.staticCdnBaseUrlFor(region))}',
     );
   }
 
   /// 将 CDN 资源相对路径解析到当前选中的 CDN 域名。
-  Uri modelCdnUri(String resourcePath) {
-    return _resolvePath(modelCdnBaseUrl, resourcePath);
+  Uri staticCdnUri(String resourcePath) {
+    return _resolvePath(staticCdnBaseUrl, resourcePath);
   }
 
   String _requiredEndpoint(String? endpoint, {required String service}) {

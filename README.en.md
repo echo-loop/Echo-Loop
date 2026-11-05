@@ -357,7 +357,7 @@ flutter run -d <ios|android|macos> --dart-define-from-file=.dev.env
 > Supabase, Google, and other compile-time settings live in `.dev.env` (debug) / `.prod.env`
 > (release) and are injected via `--dart-define-from-file`. Both files are gitignored.
 > The global API defaults to `https://www.echo-loop.top` and can be overridden at compile time
-> with `API_BASE_URL`. The model CDN addresses are configured in
+> with `API_BASE_URL`. The static CDN addresses are configured in
 > `lib/config/regional_service_endpoints.dart`.
 > The China API defaults to `https://www.echo-loop.cn` and can be overridden with
 > `API_CHINA_BASE_URL`. Local builds can override them in `.prod.env`; GitHub Actions CI/Release

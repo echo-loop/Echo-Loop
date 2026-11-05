@@ -176,7 +176,7 @@ class PiperModelManager {
   }) async {
     final root = await _modelsRoot;
     final uri = baseUrlOverride == null
-        ? _endpointRouter.modelCdnUri('/model/${voice.archivePath}')
+        ? _endpointRouter.staticCdnUri('/model/${voice.archivePath}')
         : Uri.parse('$baseUrlOverride/model/${voice.archivePath}');
     final target = Directory(await modelDir());
     AppLogger.log('PiperModel', '┌ downloadModel dir=${target.path} url=$uri');

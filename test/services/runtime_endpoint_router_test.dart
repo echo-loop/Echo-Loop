@@ -16,8 +16,8 @@ const _expectedGlobalApiBaseUrl = String.fromEnvironment(
 const _testEndpoints = RegionalServiceEndpoints(
   globalApiBaseUrl: 'https://global-api.example',
   chinaApiBaseUrl: 'https://china-api.example',
-  globalModelCdnBaseUrl: 'https://global-cdn.example',
-  chinaModelCdnBaseUrl: 'https://china-cdn.example',
+  globalStaticCdnBaseUrl: 'https://global-cdn.example',
+  chinaStaticCdnBaseUrl: 'https://china-cdn.example',
 );
 
 void main() {
@@ -33,11 +33,11 @@ void main() {
       _expectedChinaApiBaseUrl,
     );
     expect(
-      regionalServiceEndpoints.modelCdnBaseUrlFor(ServiceEndpointRegion.global),
+      regionalServiceEndpoints.staticCdnBaseUrlFor(ServiceEndpointRegion.global),
       'https://cdn.echo-loop.top',
     );
     expect(
-      regionalServiceEndpoints.modelCdnBaseUrlFor(ServiceEndpointRegion.china),
+      regionalServiceEndpoints.staticCdnBaseUrlFor(ServiceEndpointRegion.china),
       'https://static-cdn.echo-loop.cn',
     );
   });
@@ -51,7 +51,7 @@ void main() {
       _expectedChinaApiBaseUrl,
     );
     expect(
-      runtimeEndpointRouter.endpoints.modelCdnBaseUrlFor(
+      runtimeEndpointRouter.endpoints.staticCdnBaseUrlFor(
         ServiceEndpointRegion.china,
       ),
       'https://static-cdn.echo-loop.cn',
@@ -64,12 +64,12 @@ void main() {
 
     expect(router.isChinaUser, isTrue);
     expect(router.apiRegion, ServiceEndpointRegion.china);
-    expect(router.modelCdnRegion, ServiceEndpointRegion.china);
+    expect(router.staticCdnRegion, ServiceEndpointRegion.china);
     expect(router.apiBaseUrl, 'https://china-api.example');
     expect(router.apiUri('/api/v1/client/config').host, 'china-api.example');
-    expect(router.modelCdnBaseUrl, 'https://china-cdn.example');
+    expect(router.staticCdnBaseUrl, 'https://china-cdn.example');
     expect(
-      router.modelCdnUri('model/asr/silero-vad-v1.zip').host,
+      router.staticCdnUri('model/asr/silero-vad-v1.zip').host,
       'china-cdn.example',
     );
   });
@@ -80,10 +80,10 @@ void main() {
 
     expect(router.isChinaUser, isFalse);
     expect(router.apiRegion, ServiceEndpointRegion.global);
-    expect(router.modelCdnRegion, ServiceEndpointRegion.global);
+    expect(router.staticCdnRegion, ServiceEndpointRegion.global);
     expect(router.apiUri('/health').host, 'global-api.example');
     expect(
-      router.modelCdnUri('/dictionary/resource.zip').host,
+      router.staticCdnUri('/dictionary/resource.zip').host,
       'global-cdn.example',
     );
   });
@@ -97,24 +97,24 @@ void main() {
 
     expect(router.isChinaUser, isFalse);
     expect(router.apiRegion, ServiceEndpointRegion.global);
-    expect(router.modelCdnRegion, ServiceEndpointRegion.global);
+    expect(router.staticCdnRegion, ServiceEndpointRegion.global);
     expect(router.apiBaseUrl, 'https://global-api.example');
-    expect(router.modelCdnBaseUrl, 'https://global-cdn.example');
+    expect(router.staticCdnBaseUrl, 'https://global-cdn.example');
   });
 
   test('missing selected China endpoints report configuration errors', () {
     const endpointsWithoutChina = RegionalServiceEndpoints(
       globalApiBaseUrl: 'https://global-api.example',
       chinaApiBaseUrl: '',
-      globalModelCdnBaseUrl: 'https://global-cdn.example',
-      chinaModelCdnBaseUrl: '',
+      globalStaticCdnBaseUrl: 'https://global-cdn.example',
+      chinaStaticCdnBaseUrl: '',
     );
     final router = RuntimeEndpointRouter(endpoints: endpointsWithoutChina)
       ..updateFromUserRegion(isChinaUser: true);
 
     expect(() => router.apiBaseUrl, throwsA(isA<StateError>()));
     expect(() => router.apiUri('/health'), throwsA(isA<StateError>()));
-    expect(() => router.modelCdnBaseUrl, throwsA(isA<StateError>()));
-    expect(() => router.modelCdnUri('/model.zip'), throwsA(isA<StateError>()));
+    expect(() => router.staticCdnBaseUrl, throwsA(isA<StateError>()));
+    expect(() => router.staticCdnUri('/model.zip'), throwsA(isA<StateError>()));
   });
 }

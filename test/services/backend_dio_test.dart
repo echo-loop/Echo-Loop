@@ -82,8 +82,8 @@ void main() {
         endpoints: const RegionalServiceEndpoints(
           globalApiBaseUrl: 'https://global-api.example',
           chinaApiBaseUrl: 'https://china-api.example',
-          globalModelCdnBaseUrl: 'https://global-cdn.example',
-          chinaModelCdnBaseUrl: 'https://china-cdn.example',
+          globalStaticCdnBaseUrl: 'https://global-cdn.example',
+          chinaStaticCdnBaseUrl: 'https://china-cdn.example',
         ),
       );
       final adapter = _RecordingAdapter([200, 200, 200]);
@@ -109,8 +109,8 @@ void main() {
         endpoints: const RegionalServiceEndpoints(
           globalApiBaseUrl: 'https://global-api.example',
           chinaApiBaseUrl: '',
-          globalModelCdnBaseUrl: 'https://global-cdn.example',
-          chinaModelCdnBaseUrl: '',
+          globalStaticCdnBaseUrl: 'https://global-cdn.example',
+          chinaStaticCdnBaseUrl: '',
         ),
       )..updateFromUserRegion(isChinaUser: true);
       final adapter = _RecordingAdapter([]);

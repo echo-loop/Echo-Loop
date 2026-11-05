@@ -7,8 +7,8 @@ void main() {
   const endpoints = RegionalServiceEndpoints(
     globalApiBaseUrl: 'https://global.example',
     chinaApiBaseUrl: 'https://china.example',
-    globalModelCdnBaseUrl: 'https://global-cdn.example',
-    chinaModelCdnBaseUrl: 'https://china-cdn.example',
+    globalStaticCdnBaseUrl: 'https://global-cdn.example',
+    chinaStaticCdnBaseUrl: 'https://china-cdn.example',
   );
 
   test('系统为中国区时先访问中国地址，Config 可将用户判为全球区', () async {

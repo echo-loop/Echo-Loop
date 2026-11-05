@@ -65,7 +65,7 @@ class WordAudioRepository {
       // 空文件通常来自中断或磁盘异常，留着只会永久命中一个无法播放的文件。
       await file.delete();
     }
-    final uri = _endpointRouter.modelCdnUri('/$_cdnDirectory/$fileName');
+    final uri = _endpointRouter.staticCdnUri('/$_cdnDirectory/$fileName');
     try {
       final result = await _downloader.download(
         uri: uri,

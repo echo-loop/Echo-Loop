@@ -148,8 +148,8 @@ void main() {
       endpoints: const RegionalServiceEndpoints(
         globalApiBaseUrl: '',
         chinaApiBaseUrl: '',
-        globalModelCdnBaseUrl: 'https://cdn.example.test',
-        chinaModelCdnBaseUrl: '',
+        globalStaticCdnBaseUrl: 'https://cdn.example.test',
+        chinaStaticCdnBaseUrl: '',
       ),
     )..updateFromUserRegion(isChinaUser: false);
     final repository = WordAudioRepository(
