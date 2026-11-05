@@ -2649,7 +2649,7 @@
   "dictionarySourcesDescription": "Disabled dictionaries won't appear in the lookup switcher",
   "dictionaryAutoSpeakOnLookup": "Auto-play Pronunciation",
   "dictionaryAdFilterTitle": "Block ads in web dictionaries",
-  "dictSourceLocal": "Online Dictionary",
+  "dictSourceLocal": "Basic Dictionary",
   "dictSourceAi": "AI Dictionary",
   "dictSourceCambridge": "Cambridge",
   "dictSourceAlwaysOn": "Always on",

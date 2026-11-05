@@ -9467,7 +9467,7 @@ abstract class AppLocalizations {
   /// No description provided for @dictSourceLocal.
   ///
   /// In en, this message translates to:
-  /// **'Online Dictionary'**
+  /// **'Basic Dictionary'**
   String get dictSourceLocal;
 
   /// No description provided for @dictSourceAi.

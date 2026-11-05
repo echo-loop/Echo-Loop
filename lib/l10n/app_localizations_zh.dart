@@ -5147,7 +5147,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get dictionaryAdFilterTitle => '屏蔽网页词典广告';
 
   @override
-  String get dictSourceLocal => '在线词典';
+  String get dictSourceLocal => '基础词典';
 
   @override
   String get dictSourceAi => 'AI 词典';

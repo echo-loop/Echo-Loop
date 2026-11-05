@@ -5410,7 +5410,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get dictionaryAdFilterTitle => 'Block ads in web dictionaries';
 
   @override
-  String get dictSourceLocal => 'Online Dictionary';
+  String get dictSourceLocal => 'Basic Dictionary';
 
   @override
   String get dictSourceAi => 'AI Dictionary';
