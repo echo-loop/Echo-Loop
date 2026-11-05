@@ -124,6 +124,10 @@ dependencies:
   # 持久化文件日志：使用成熟的大小轮转输出，避免手写截断逻辑。
   logger: ^2.7.0
   window_manager: ^0.5.2
+  # 默认 TTS 引擎（Edge 在线 Neural 音色，免下载模型）。依赖非公开的 Edge「大声朗读」
+  # 端点，协议变更可能需随包升级；包很新，锁定精确版本，仅在 edge_tts_engine.dart 引用。
+  # 注意：其 lib/src/utils/edge_tts_utils.dart 为 LGPL-3.0-or-later（其余 MIT）。
+  flutter_edge_tts: 0.0.3
 
 dev_dependencies:
   flutter_test:
