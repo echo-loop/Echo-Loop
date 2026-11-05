@@ -9,7 +9,7 @@ const chinaApiBaseUrl = String.fromEnvironment(
   'API_CHINA_BASE_URL',
   defaultValue: 'https://www.echo-loop.cn',
 );
-const chinaModelCdnBaseUrl = 'https://cdn.echo-loop.cn/';
+const chinaModelCdnBaseUrl = 'https://static-cdn.echo-loop.cn/';
 
 class RegionalServiceEndpoints {
   const RegionalServiceEndpoints({

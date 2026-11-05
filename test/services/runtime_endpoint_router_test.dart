@@ -38,7 +38,7 @@ void main() {
     );
     expect(
       regionalServiceEndpoints.modelCdnBaseUrlFor(ServiceEndpointRegion.china),
-      'https://cdn.echo-loop.cn',
+      'https://static-cdn.echo-loop.cn',
     );
   });
 
@@ -54,7 +54,7 @@ void main() {
       runtimeEndpointRouter.endpoints.modelCdnBaseUrlFor(
         ServiceEndpointRegion.china,
       ),
-      'https://cdn.echo-loop.cn',
+      'https://static-cdn.echo-loop.cn',
     );
   });
 
