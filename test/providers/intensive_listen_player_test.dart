@@ -1454,6 +1454,87 @@ void main() {
       expect(paused.isPauseBetweenSentences, isFalse);
       await replay;
     });
+
+    test('主播放重听时点击工具栏，句子播完后才停止播放态', () async {
+      final audioEngine = _OverlappingReplayAudioEngine();
+      final interactionContainer = ProviderContainer(
+        overrides: dedupeOverrides([
+          initialLearningSettingsProvider.overrideWithValue(
+            const LearningSettings(),
+          ),
+          audioEngineProvider.overrideWith(() => audioEngine),
+          learningSessionProvider.overrideWith(() => TestLearningSession()),
+          analyticsOverride(),
+          ...studyTimeOverrides(),
+        ]),
+      );
+      addTearDown(interactionContainer.dispose);
+      final interactionNotifier = interactionContainer.read(
+        intensiveListenPlayerProvider.notifier,
+      );
+      await _initializeWithTestAudio(
+        interactionContainer,
+        interactionNotifier,
+        sentences,
+      );
+      interactionNotifier.enterAnnotationMode();
+
+      final replay = interactionNotifier.replayInAnnotationMode();
+      await Future<void>.delayed(Duration.zero);
+      interactionNotifier.onAnnotationUserInteraction();
+
+      final stillPlaying = interactionContainer.read(
+        intensiveListenPlayerProvider,
+      );
+      expect(stillPlaying.isPlaying, isTrue);
+      expect(stillPlaying.annotationState?.phase, isA<InspectingAnnotation>());
+
+      audioEngine.completePlayback(1);
+      await replay;
+
+      final waiting = interactionContainer.read(intensiveListenPlayerProvider);
+      expect(waiting.isPlaying, isFalse);
+      expect(waiting.isPauseBetweenSentences, isFalse);
+      expect(waiting.annotationState?.phase, isA<WaitingAnnotationUser>());
+    });
+
+    test('主播放重听时点击意群 badge，立即停止句子并等待用户', () async {
+      final audioEngine = _OverlappingReplayAudioEngine();
+      final badgeContainer = ProviderContainer(
+        overrides: dedupeOverrides([
+          initialLearningSettingsProvider.overrideWithValue(
+            const LearningSettings(),
+          ),
+          audioEngineProvider.overrideWith(() => audioEngine),
+          learningSessionProvider.overrideWith(() => TestLearningSession()),
+          analyticsOverride(),
+          ...studyTimeOverrides(),
+        ]),
+      );
+      addTearDown(badgeContainer.dispose);
+      final badgeNotifier = badgeContainer.read(
+        intensiveListenPlayerProvider.notifier,
+      );
+      await _initializeWithTestAudio(badgeContainer, badgeNotifier, sentences);
+      badgeNotifier.enterAnnotationMode();
+
+      final replay = badgeNotifier.replayInAnnotationMode();
+      await Future<void>.delayed(Duration.zero);
+      badgeNotifier.interruptAnnotationForSenseGroup();
+
+      final interrupted = badgeContainer.read(intensiveListenPlayerProvider);
+      expect(interrupted.isPlaying, isFalse);
+      expect(interrupted.annotationState?.phase, isA<WaitingAnnotationUser>());
+
+      // 句子被意群抢占后即使回调晚到，也不能把等待态改成倒计时或再次播放。
+      audioEngine.completePlayback(1);
+      await replay;
+
+      final waiting = badgeContainer.read(intensiveListenPlayerProvider);
+      expect(waiting.isPlaying, isFalse);
+      expect(waiting.isPauseBetweenSentences, isFalse);
+      expect(waiting.annotationState?.phase, isA<WaitingAnnotationUser>());
+    });
   });
 
   group('开始播放一句时异步保存断点', () {

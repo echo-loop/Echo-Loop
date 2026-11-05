@@ -844,7 +844,7 @@ class _IntensiveListenPlayerScreenState
                                                   .inMilliseconds,
                                               onStopMainPlayer: () {
                                                 player
-                                                    .onAnnotationUserInteraction();
+                                                    .interruptAnnotationForSenseGroup();
                                               },
                                               onToolbarButtonTapped: () {
                                                 player

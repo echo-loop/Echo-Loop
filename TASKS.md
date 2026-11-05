@@ -69,6 +69,7 @@
 - [ ] Android 离线 ASR 结束录音闪退：获取真机 `logcat` 与 `/data/tombstones`，定位并修复 Silero VAD native 崩溃。
 - [ ] 段落复述页面复用统一录音识别模块。
 - [x] 句子讲解页意群生成/切换粒度时不再打断正在播放的整句：`_handleModeChanged` 仅在确有意群试听时才 `cancel`（整句与意群共用区间播放对象，原先无条件取消会停掉整句）；点击意群 badge 仍立即停止其它音频并播放该意群。新增回归测试（意群生成不打断整句 / 意群试听中切换模式仍停止试听）；相关测试 74 项通过，改动文件 `flutter analyze` 无问题。**完成时间**: 2026-11-05
+- [x] 精听讲解页主播放重听时点击工具栏按钮，句子继续播放但主播放按钮提前变成播放图标：`onAnnotationUserInteraction` 只对「继续」流程登记播完后等待，重听（`InspectingAnnotation`）落到默认分支立即置 `WaitingAnnotationUser`（`isPlaying=false`）而底层句子仍在播。改为讲解会话正在播放句子时只登记「播完后等待」。同时精听讲解页点击意群 badge 改走新入口 `interruptAnnotationForSenseGroup`，立即停止句子，避免等待标志残留。新增回归测试（修复前 `isPlaying` 为 true 的断言失败；badge 立即停止用例）；精听相关测试 117 项通过，改动文件 `flutter analyze` 无问题。**完成时间**: 2026-11-05
 - [ ] 意群操作栏切换收藏时其他按钮闪烁，继续定位根因。
 - [ ] 在发布包手动验证数据采集：核对 onboarding、页面访问、权限快照、生命周期事件及应用版本信息。
 

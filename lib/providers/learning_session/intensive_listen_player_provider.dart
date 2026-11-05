@@ -546,8 +546,14 @@ class IntensiveListenPlayer extends _$IntensiveListenPlayer {
       return;
     }
 
+    // 讲解会话正在播放句子（含主播放重听）时，只登记「播完后等待」，不改播放态；
+    // 否则 isPlaying 会先被置 false，而底层句子仍在播放，按钮图标与声音不一致。
     final phase = state.annotationState!.phase;
-    if (phase is ReplayingWithSubtitle) {
+    final isAnnotationSentencePlaying =
+        state.isPlaying &&
+        _annotationSentencePlaybackSessionId != null &&
+        _annotationSentencePlaybackSessionId == _annotationSessionId;
+    if (phase is ReplayingWithSubtitle || isAnnotationSentencePlaying) {
       _annotationWaitAfterCurrentPlayback = true;
       AppLogger.log('IntensiveAnnotation', '-> WaitingForUser (after replay)');
       return;
@@ -557,6 +563,21 @@ class IntensiveListenPlayer extends _$IntensiveListenPlayer {
       _setAnnotationPhase(const WaitingAnnotationUser());
       return;
     }
+    _setAnnotationPhase(const WaitingAnnotationUser());
+  }
+
+  /// 点击意群 badge 时调用：立即停止句子播放，让位给意群试听。
+  ///
+  /// 与 [onAnnotationUserInteraction] 不同，这里不能「播完后再等待」：意群区间会
+  /// 抢占同一音频引擎，句子根本播不完，等待标志会残留到下一次播放。
+  void interruptAnnotationForSenseGroup() {
+    if (state.annotationState == null) return;
+    if (state.annotationState?.phase is WaitingAnnotationPageTransition) {
+      return;
+    }
+
+    stopSenseGroupPlayback();
+    _cleanupAnnotationSession();
     _setAnnotationPhase(const WaitingAnnotationUser());
   }
 
