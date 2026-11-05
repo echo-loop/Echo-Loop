@@ -9206,6 +9206,48 @@ abstract class AppLocalizations {
   /// **'Natural, smooth sound. Needs a model download; recommended for mid-range devices.'**
   String get ttsEnginePiperDescription;
 
+  /// No description provided for @ttsEngineEdge.
+  ///
+  /// In en, this message translates to:
+  /// **'Edge Online Voice'**
+  String get ttsEngineEdge;
+
+  /// No description provided for @ttsEngineEdgeDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Microsoft neural voices. Natural sound, no download. Needs internet; anything you\'ve heard replays offline.'**
+  String get ttsEngineEdgeDescription;
+
+  /// No description provided for @edgeTtsUnavailableTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Edge Online Voice unavailable'**
+  String get edgeTtsUnavailableTitle;
+
+  /// No description provided for @edgeTtsUnavailableNetworkMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'You\'re offline. Edge Online Voice needs an internet connection. Check your network and try again, or choose another speech engine in Settings.'**
+  String get edgeTtsUnavailableNetworkMessage;
+
+  /// No description provided for @edgeTtsUnavailableServiceMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Edge Online Voice is temporarily unavailable. You can choose another speech engine in Settings.'**
+  String get edgeTtsUnavailableServiceMessage;
+
+  /// No description provided for @edgeTtsUnavailableDismiss.
+  ///
+  /// In en, this message translates to:
+  /// **'OK'**
+  String get edgeTtsUnavailableDismiss;
+
+  /// No description provided for @edgeTtsUnavailableOpenSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'Open Settings'**
+  String get edgeTtsUnavailableOpenSettings;
+
   /// No description provided for @ttsModel.
   ///
   /// In en, this message translates to:

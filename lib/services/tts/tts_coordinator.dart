@@ -18,14 +18,16 @@ import 'tts_engine.dart';
 import '../pronunciation/local_audio_clip_player.dart';
 
 /// 单次合成的超时上界，**按引擎 + 文本长度成比例**——仅作「native 永不返回」的安全
-/// 上界，不做精确计时，宁可偏松也不误杀长句。计时只覆盖单次合成本身（调度器已串行化，
-/// 排队等待不计入，见 [_synthAndStore]）。下限统一 12s（短词快速兜底）。
+/// 上界，不做精确计时，宁可偏松也不误杀长句。计时只覆盖单次合成本身（排队等待不计入，
+/// 见 [_synthAndStore]）。下限统一 12s（短词快速兜底）。
 ///
 /// 各引擎速度差异大，系数分别取（含冷启动与慢机余量）：
 /// - **Kokoro**：CPU 推理 RTF≈3，最慢——基础 10s + 300ms/字符，上限 90s
 ///   （A06 上一句长例句合成可达 20–30s，固定小值会误判为挂起）。
 /// - **piper**：RTF≈0.1~0.3，快，含冷启数秒——基础 10s + 60ms/字符，上限 40s。
 /// - **platform（系统 TTS）**：合成近实时、快，主要防其挂起——基础 8s + 80ms/字符，上限 30s。
+/// - **edge（在线）**：单次请求通常 3~5s（含建连），网络被其他下载占用时实测可达 13s，
+///   且引擎内对服务端偶发失败重试一次——基础 20s + 40ms/字符，上限 40s。
 Duration _synthTimeoutFor(TtsEngineKind kind, String text) {
   final int baseMs;
   final int perCharMs;
@@ -43,16 +45,30 @@ Duration _synthTimeoutFor(TtsEngineKind kind, String text) {
       baseMs = 8000;
       perCharMs = 80;
       maxMs = 30000;
+    case TtsEngineKind.edge:
+      baseMs = 20000;
+      perCharMs = 40;
+      maxMs = 40000;
   }
   final ms = baseMs + text.length * perCharMs;
   return Duration(milliseconds: ms.clamp(12000, maxMs));
 }
 
+/// 同一引擎可同时进行的合成数。
+///
+/// 本地引擎（Kokoro worker isolate / Piper / 平台 synthesizeToFile）受本机 CPU 或
+/// native 接口限制，只能串行；Edge 在服务端合成、客户端只等网络，并行可显著缩短
+/// 词典多例句预热时间。3 路与社区 edge-tts 常见并发相当，避免触发服务端限流。
+int _maxConcurrentSynthFor(TtsEngineKind kind) => switch (kind) {
+  TtsEngineKind.edge => 3,
+  TtsEngineKind.kokoro || TtsEngineKind.piper || TtsEngineKind.platform => 1,
+};
+
 /// 合成任务优先级。
 ///
-/// 底层引擎（Kokoro worker isolate / 平台 synthesizeToFile）一次只能串行跑一条
-/// 合成，且进行中的 native 推理不可中断。故在主 isolate 侧用 [_SynthScheduler]
-/// 调度「何时把下一条合成交给引擎」：用户明确发起的发音排在后台预热之前。
+/// 本地引擎一次只能串行跑一条合成，且进行中的 native 推理不可中断。故在主 isolate
+/// 侧用 [_SynthScheduler] 调度「何时把下一条合成交给引擎」：用户明确发起的发音排在
+/// 后台预热之前。
 enum TtsSynthPriority {
   /// 用户明确发起（发音 / 试听）——最高优先级。
   user,
@@ -63,21 +79,27 @@ enum TtsSynthPriority {
 
 /// 合成优先级调度器（主 isolate 侧，单线程事件循环，无锁）。
 ///
-/// 维护两条 FIFO 队列：用户队列恒优先于后台队列。worker 同一时刻只跑一条
-/// （正在跑的不可抢占），完成后从队列取下一条——先取用户队首，无则取后台队首。
-/// 这样「用户任务整体优先 + 同优先级内按提交顺序」两条语义同时满足。
+/// 维护两条 FIFO 队列：用户队列恒优先于后台队列。正在跑的任务不可抢占；有空位时
+/// 从队列取下一条——先取用户队首，无则取后台队首。这样「用户任务整体优先 + 同优先级
+/// 内按提交顺序」两条语义同时满足。
+///
+/// 每条任务自带并发上限（见 [_maxConcurrentSynthFor]）：队首任务仅在「正在合成数 <
+/// 其上限」时启动，故本地引擎仍严格串行，Edge 最多并行 3 路。
 class _SynthScheduler {
   final Queue<_QueuedSynth> _userQueue = Queue<_QueuedSynth>();
   final Queue<_QueuedSynth> _backgroundQueue = Queue<_QueuedSynth>();
-  bool _running = false;
+  int _runningCount = 0;
 
-  /// 提交一条合成任务，返回其结果 Future（含排队等待时间）。
+  /// 提交一条合成任务，返回其结果 Future（含排队等待时间）。[cacheKey] 用于
+  /// [promoteToUser] 定位排队中的任务。
   Future<String?> submit(
     TtsSynthPriority priority,
-    Future<String?> Function() run,
-  ) {
+    String cacheKey,
+    Future<String?> Function() run, {
+    required int maxConcurrent,
+  }) {
     final completer = Completer<String?>();
-    final task = _QueuedSynth(run, completer);
+    final task = _QueuedSynth(cacheKey, run, completer, maxConcurrent);
     (priority == TtsSynthPriority.user ? _userQueue : _backgroundQueue).add(
       task,
     );
@@ -85,10 +107,33 @@ class _SynthScheduler {
       'TtsScheduler',
       '已排队${priority == TtsSynthPriority.user ? '用户发音' : '文本预热'}：'
           '用户任务=${_userQueue.length} 文本预热任务=${_backgroundQueue.length} '
-          '正在合成=$_running',
+          '正在合成=$_runningCount 并发上限=$maxConcurrent',
     );
     _pump();
     return completer.future;
+  }
+
+  /// 用户点击的文本若仍在后台队列排队，移到用户队列末尾，不再让位于其他预热。
+  ///
+  /// 返回是否找到并提升；已在运行或尚未提交时返回 false。
+  bool promoteToUser(String cacheKey) {
+    _QueuedSynth? found;
+    for (final task in _backgroundQueue) {
+      if (task.cacheKey == cacheKey) {
+        found = task;
+        break;
+      }
+    }
+    if (found == null) return false;
+    _backgroundQueue.remove(found);
+    _userQueue.add(found);
+    AppLogger.log(
+      'TtsScheduler',
+      '用户点击排队中的预热，提升为用户发音：缓存键=$cacheKey '
+          '用户任务=${_userQueue.length} 文本预热任务=${_backgroundQueue.length}',
+    );
+    _pump();
+    return true;
   }
 
   /// 丢弃尚未执行的后台任务；正在运行的 native 推理不可可靠中断，必须自然完成。
@@ -100,41 +145,44 @@ class _SynthScheduler {
     AppLogger.log(
       'TtsScheduler',
       '已取消未开始的文本预热：取消=$cancelled '
-          '保留用户任务=${_userQueue.length} 正在合成=$_running',
+          '保留用户任务=${_userQueue.length} 正在合成=$_runningCount',
     );
   }
 
-  /// 若空闲则取下一条（用户队列优先）执行；完成后递归驱动下一条。
+  /// 在并发上限内依次启动队首任务（用户队列优先）；每条完成后再驱动下一轮。
   void _pump() {
-    if (_running) return;
-    final task = _userQueue.isNotEmpty
-        ? _userQueue.removeFirst()
-        : (_backgroundQueue.isNotEmpty ? _backgroundQueue.removeFirst() : null);
-    if (task == null) return;
-    _running = true;
-    AppLogger.log(
-      'TtsScheduler',
-      '开始执行合成：剩余用户任务=${_userQueue.length} '
-          '剩余文本预热任务=${_backgroundQueue.length}',
-    );
-    task
-        .run()
-        .then(task.completer.complete)
-        .catchError((Object e, StackTrace st) {
-          task.completer.completeError(e, st);
-        })
-        .whenComplete(() {
-          _running = false;
-          _pump();
-        });
+    while (true) {
+      final queue = _userQueue.isNotEmpty ? _userQueue : _backgroundQueue;
+      if (queue.isEmpty) return;
+      if (_runningCount >= queue.first.maxConcurrent) return;
+      final task = queue.removeFirst();
+      _runningCount++;
+      AppLogger.log(
+        'TtsScheduler',
+        '开始执行合成：正在合成=$_runningCount 剩余用户任务=${_userQueue.length} '
+            '剩余文本预热任务=${_backgroundQueue.length}',
+      );
+      task
+          .run()
+          .then(task.completer.complete)
+          .catchError((Object e, StackTrace st) {
+            task.completer.completeError(e, st);
+          })
+          .whenComplete(() {
+            _runningCount--;
+            _pump();
+          });
+    }
   }
 }
 
-/// 排队中的合成任务：执行闭包 + 结果回投 Completer。
+/// 排队中的合成任务：缓存键 + 执行闭包 + 结果回投 Completer + 所属引擎的并发上限。
 class _QueuedSynth {
-  _QueuedSynth(this.run, this.completer);
+  _QueuedSynth(this.cacheKey, this.run, this.completer, this.maxConcurrent);
+  final String cacheKey;
   final Future<String?> Function() run;
   final Completer<String?> completer;
+  final int maxConcurrent;
 }
 
 class _EngineKey {
@@ -204,6 +252,10 @@ class TtsCoordinator {
   /// 合成优先级调度器：用户发音优先于后台预热（见 [TtsSynthPriority]）。
   final _SynthScheduler _scheduler = _SynthScheduler();
 
+  /// 已被用户请求复用、但当时尚未进入调度队列的在途预热 cacheKey。
+  /// 入队时据此按用户优先级提交；随在途渲染结束移除。
+  final Set<String> _userRequestedKeys = {};
+
   /// 后台文本预热代际。取消时仅淘汰尚未执行的合成；初始化或 native 推理保持自然结束。
   int _backgroundGeneration = 0;
 
@@ -264,7 +316,8 @@ class TtsCoordinator {
     final modelId = switch (kind) {
       TtsEngineKind.kokoro => config.modelTag,
       TtsEngineKind.piper => config.voiceName,
-      TtsEngineKind.platform => null,
+      // Edge 音色随每次合成的 config 传入，换音色无需重建引擎。
+      TtsEngineKind.platform || TtsEngineKind.edge => null,
     };
     return _EngineKey(kind, modelId);
   }
@@ -555,9 +608,15 @@ class TtsCoordinator {
     if (inFlight != null) {
       AppLogger.log(
         'TtsCoordinator',
-        '复用进行中的${priority == TtsSynthPriority.background ? '文本预热' : '用户发音'}合成：'
+        '${priority == TtsSynthPriority.background ? '文本预热' : '用户发音'}复用进行中的合成：'
             '音色=${config.voiceId} 缓存键=$cacheKey',
       );
+      // 用户点了正在排队的预热文本：提升其优先级。尚未入队（仍在确认引擎）时先登记，
+      // 入队时按用户优先级提交，且不再被「取消预热」丢弃。
+      if (priority == TtsSynthPriority.user &&
+          !_scheduler.promoteToUser(cacheKey)) {
+        _userRequestedKeys.add(cacheKey);
+      }
       return inFlight;
     }
     // 3. 在初始化前登记在途：并发 cache miss 会共享模型加载和后续合成，不能让
@@ -567,7 +626,7 @@ class TtsCoordinator {
       kind,
       config,
       cacheKey,
-      priority: priority,
+      initialPriority: priority,
       backgroundGeneration: backgroundGeneration,
       lookupElapsed: swLookup.elapsed,
     );
@@ -576,6 +635,7 @@ class TtsCoordinator {
       return await future;
     } finally {
       _inFlightRender.remove(cacheKey);
+      _userRequestedKeys.remove(cacheKey);
     }
   }
 
@@ -584,13 +644,19 @@ class TtsCoordinator {
     TtsEngineKind kind,
     TtsSpeechConfig config,
     String cacheKey, {
-    required TtsSynthPriority priority,
+    required TtsSynthPriority initialPriority,
     required int? backgroundGeneration,
     required Duration lookupElapsed,
   }) async {
+    var priority = initialPriority;
     final swEnsure = Stopwatch()..start();
     final engine = await _ensureEngine(kind, config);
     swEnsure.stop();
+    // 确认引擎期间若有用户请求复用了本次预热，按用户发音处理。
+    if (priority == TtsSynthPriority.background &&
+        _userRequestedKeys.contains(cacheKey)) {
+      priority = TtsSynthPriority.user;
+    }
     if (engine == null ||
         (priority == TtsSynthPriority.background &&
             backgroundGeneration != _backgroundGeneration)) {
@@ -605,13 +671,13 @@ class TtsCoordinator {
           '缓存键=$cacheKey',
     );
     _acquireEngine(engine);
-    return _scheduler.submit(priority, () async {
+    return _scheduler.submit(priority, cacheKey, () async {
       try {
         return await _synthAndStore(engine, text, kind, config, cacheKey);
       } finally {
         _releaseEngine(engine);
       }
-    });
+    }, maxConcurrent: _maxConcurrentSynthFor(kind));
   }
 
   /// 合成产文件并入库，返回文件路径（失败返回 null）。被 [_render] 经在途表去重调用。

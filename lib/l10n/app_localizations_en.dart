@@ -5255,6 +5255,30 @@ class AppLocalizationsEn extends AppLocalizations {
       'Natural, smooth sound. Needs a model download; recommended for mid-range devices.';
 
   @override
+  String get ttsEngineEdge => 'Edge Online Voice';
+
+  @override
+  String get ttsEngineEdgeDescription =>
+      'Microsoft neural voices. Natural sound, no download. Needs internet; anything you\'ve heard replays offline.';
+
+  @override
+  String get edgeTtsUnavailableTitle => 'Edge Online Voice unavailable';
+
+  @override
+  String get edgeTtsUnavailableNetworkMessage =>
+      'You\'re offline. Edge Online Voice needs an internet connection. Check your network and try again, or choose another speech engine in Settings.';
+
+  @override
+  String get edgeTtsUnavailableServiceMessage =>
+      'Edge Online Voice is temporarily unavailable. You can choose another speech engine in Settings.';
+
+  @override
+  String get edgeTtsUnavailableDismiss => 'OK';
+
+  @override
+  String get edgeTtsUnavailableOpenSettings => 'Open Settings';
+
+  @override
   String get ttsModel => 'Model';
 
   @override

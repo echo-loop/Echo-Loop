@@ -12,7 +12,7 @@ library;
 
 /// TTS 引擎种类。
 enum TtsEngineKind {
-  /// 平台 TTS（flutter_tts，封装系统 TTS）。本期唯一可用。
+  /// 平台 TTS（flutter_tts，封装系统 TTS）。
   platform,
 
   /// Kokoro TTS（Echo Loop AI Advanced，本地 Kokoro 82M）。质量最佳，CPU 推理偏慢。
@@ -21,6 +21,10 @@ enum TtsEngineKind {
   /// Piper VITS（本地，均衡档）。质量优于系统 TTS、速度远快于 Kokoro；
   /// 每个音色为一个独立单说话人模型，按音色单独下载（见 `piper_model_catalog.dart`）。
   piper,
+
+  /// 微软 Edge 在线 TTS（Neural 音色）。默认引擎：无需下载模型，需联网；
+  /// 合成产物入本地缓存，同一文本二次播放可离线。
+  edge,
 }
 
 /// 供诊断日志显示的实际 TTS 后端名。
@@ -32,6 +36,15 @@ extension TtsEngineKindDiagnostics on TtsEngineKind {
     TtsEngineKind.platform => 'platform',
     TtsEngineKind.kokoro => 'kokoro',
     TtsEngineKind.piper => 'piper',
+    TtsEngineKind.edge => 'edge',
+  };
+}
+
+/// 引擎是否依赖本地下载的模型（决定发音前是否走模型下载门控）。
+extension TtsEngineKindModelRequirement on TtsEngineKind {
+  bool get requiresLocalModel => switch (this) {
+    TtsEngineKind.kokoro || TtsEngineKind.piper => true,
+    TtsEngineKind.platform || TtsEngineKind.edge => false,
   };
 }
 

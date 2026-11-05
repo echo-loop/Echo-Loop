@@ -1,6 +1,6 @@
 /// 语音合成（TTS）设置页。
 ///
-/// 合成引擎（平台 TTS / Echo Loop）+ 口音（美音 / 英音）；选中 Echo Loop 时在
+/// 合成引擎（Edge 在线 / 平台 TTS / Echo Loop）+ 口音（美音 / 英音）；选中 Echo Loop 时在
 /// 「Echo Loop TTS」归属标题下用一张卡集中显示其专属子设置（模型下载状态 + 音色）。
 /// 音色按业界惯例收成单行（当前值 + 展开），点开用底部弹层选择，避免多音色平铺撑长
 /// 页面。切换立即生效（写 SP → 协调器热重配）。
@@ -20,6 +20,7 @@ import '../providers/tts/tts_model_installation_provider.dart';
 import '../providers/tts/tts_settings_provider.dart';
 import '../services/tts/kokoro_model_manager.dart'
     show AsrModelDownloadStatus, KokoroModelVariant;
+import '../services/tts/edge_voices.dart';
 import '../services/tts/kokoro_voices.dart';
 import '../services/tts/piper_model_catalog.dart';
 import '../services/tts/tts_engine.dart';
@@ -117,9 +118,10 @@ class _TtsSettingsScreenState extends ConsumerState<TtsSettingsScreen> {
       unawaited(controller.prewarmVoicePreviews());
     } else if (settings.engine == TtsEngineKind.piper) {
       unawaited(controller.prewarmActivePiperVoice());
-    } else {
+    } else if (settings.engine == TtsEngineKind.platform) {
       unawaited(controller.prewarmAccentPreviews());
     }
+    // Edge 不预热试听：每个音色一次网络请求，进页批量请求得不偿失，点击时按需合成。
   }
 
   @override
@@ -142,6 +144,7 @@ class _TtsSettingsScreenState extends ConsumerState<TtsSettingsScreen> {
     final settings = ref.watch(ttsSettingsProvider);
     final isEchoLoop = settings.engine == TtsEngineKind.kokoro;
     final isPiper = settings.engine == TtsEngineKind.piper;
+    final isEdge = settings.engine == TtsEngineKind.edge;
     final showPlatformEngine = showPlatformTtsEngine(Platform.isAndroid);
     // 任一已下载模型（Advanced/Kokoro 变体 或 Balanced/Piper 音色）即提供管理入口
     //（删除回收空间），不限当前引擎。
@@ -187,6 +190,29 @@ class _TtsSettingsScreenState extends ConsumerState<TtsSettingsScreen> {
                 onChanged: _onEngineChanged,
                 child: Column(
                   children: [
+                    RadioListTile<TtsEngineKind>(
+                      title: Row(
+                        children: [
+                          Flexible(child: Text(l10n.ttsEngineEdge)),
+                          const SizedBox(width: 8),
+                          _RecommendedBadge(
+                            text: l10n.ttsModelRecommended,
+                            theme: theme,
+                          ),
+                        ],
+                      ),
+                      subtitle: Text(
+                        l10n.ttsEngineEdgeDescription,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant.withValues(
+                            alpha: 0.6,
+                          ),
+                        ),
+                      ),
+                      value: TtsEngineKind.edge,
+                      selected: isEdge,
+                    ),
+                    const Divider(height: 1, indent: 16, endIndent: 16),
                     if (showPlatformEngine) ...[
                       RadioListTile<TtsEngineKind>(
                         title: Text(platformSpeechEngineName(l10n)),
@@ -251,6 +277,18 @@ class _TtsSettingsScreenState extends ConsumerState<TtsSettingsScreen> {
                   ],
                 ),
               ),
+            ] else if (isEdge) ...[
+              // Edge 在线：音色列表（无下载），点击即选中并试听；残留本地模型仍可清理。
+              const SizedBox(height: AppSpacing.m),
+              _SectionLabel(text: l10n.ttsEngineEdge),
+              Card(
+                clipBehavior: Clip.antiAlias,
+                child: _EdgeVoiceList(l10n: l10n),
+              ),
+              if (anyDownloaded) ...[
+                const SizedBox(height: AppSpacing.m),
+                _ModelStorageRow(l10n: l10n),
+              ],
             ] else if (isPiper) ...[
               // Piper（平衡）专属：归属标题 + 音色列表（每音色一个独立模型，
               // 行内显示各自下载状态，点击就绪音色即试听、点未下载音色即下载）。
@@ -309,7 +347,7 @@ class _TtsSettingsScreenState extends ConsumerState<TtsSettingsScreen> {
       final voiceId = ref.read(ttsSettingsProvider).activePiperVoice;
       ref.read(piperModelProvider.notifier).ensureDownloaded(voiceId);
       ref.read(ttsControllerProvider.notifier).prewarmActivePiperVoice();
-    } else {
+    } else if (value == TtsEngineKind.platform) {
       // 切回平台 TTS：后台预热两个口音试听片段（模型仍在本地则由下方常驻
       //「删除模型」入口回收，不再弹窗）。
       ref.read(ttsControllerProvider.notifier).prewarmAccentPreviews();
@@ -863,6 +901,113 @@ class _AccentPreviewRow extends ConsumerWidget {
   void _onTap(WidgetRef ref) {
     ref.read(ttsSettingsProvider.notifier).setAccent(accent);
     ref.read(ttsControllerProvider.notifier).previewAccent(accent);
+  }
+}
+
+/// Edge 音色列表：按「美音 / 英音」分组列出精选音色，行内直接选择 + 试听。
+///
+/// 在线音色无需下载，故不收进底部弹层，也无下载状态列。
+class _EdgeVoiceList extends ConsumerWidget {
+  const _EdgeVoiceList({required this.l10n});
+
+  final AppLocalizations l10n;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    Widget groupLabel(String label) => Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.m,
+        AppSpacing.m,
+        AppSpacing.m,
+        AppSpacing.xs,
+      ),
+      child: Text(
+        label,
+        style: theme.textTheme.labelMedium?.copyWith(
+          color: theme.colorScheme.primary,
+          fontWeight: FontWeight.w600,
+          letterSpacing: 0.6,
+        ),
+      ),
+    );
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        groupLabel(l10n.ttsAccentUs),
+        for (final v in edgeVoicesForAccent(TtsAccent.us))
+          _EdgeVoiceRow(voice: v, l10n: l10n),
+        groupLabel(l10n.ttsAccentUk),
+        for (final v in edgeVoicesForAccent(TtsAccent.uk))
+          _EdgeVoiceRow(voice: v, l10n: l10n),
+      ],
+    );
+  }
+}
+
+/// Edge 单个音色行：单选指示 + 名称 + 性别，点击即选中（口音 + 音色）并试听。
+///
+/// 选中项再次点击也会重播（同 [_VoicePreviewRow]）。
+class _EdgeVoiceRow extends ConsumerWidget {
+  const _EdgeVoiceRow({required this.voice, required this.l10n});
+
+  final EdgeVoice voice;
+  final AppLocalizations l10n;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final selectedId = ref.watch(
+      ttsSettingsProvider.select((s) => s.activeEdgeVoice),
+    );
+    final isPlaying =
+        ref.watch(ttsControllerProvider.select((s) => s.speakingKey)) ==
+        ttsVoicePreviewKey(voice.id);
+
+    return ListTile(
+      dense: true,
+      visualDensity: VisualDensity.compact,
+      contentPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.m),
+      leading: Radio<String>(
+        value: voice.id,
+        // ignore: deprecated_member_use
+        groupValue: selectedId,
+        // ignore: deprecated_member_use
+        onChanged: (_) => _onTap(ref),
+      ),
+      title: Text(
+        voice.displayName,
+        style: theme.textTheme.titleSmall,
+        overflow: TextOverflow.ellipsis,
+      ),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (isPlaying) ...[
+            Icon(Icons.volume_up, size: 18, color: theme.colorScheme.primary),
+            const SizedBox(width: 8),
+          ],
+          Text(
+            voice.isFemale ? l10n.ttsVoiceFemale : l10n.ttsVoiceMale,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: voice.isFemale
+                  ? AppTheme.femaleVoiceColor
+                  : AppTheme.maleVoiceColor,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+      onTap: () => _onTap(ref),
+    );
+  }
+
+  void _onTap(WidgetRef ref) {
+    final notifier = ref.read(ttsSettingsProvider.notifier);
+    notifier.setAccent(voice.accent);
+    notifier.setEdgeVoice(voice.accent, voice.id);
+    ref.read(ttsControllerProvider.notifier).previewEdgeVoice(voice);
   }
 }
 
