@@ -39,6 +39,11 @@ class StudyStatsHeader extends ConsumerWidget {
     final goalMinutes = ref.watch(
       learningSettingsProvider.select((settings) => settings.dailyGoalMinutes),
     );
+    final showWeeklyChart = ref.watch(
+      learningSettingsProvider.select(
+        (settings) => settings.showWeeklyStudyChart,
+      ),
+    );
 
     return statsAsync.when(
       loading: () => const SizedBox.shrink(),
@@ -53,9 +58,12 @@ class StudyStatsHeader extends ConsumerWidget {
                 .read(analyticsServiceProvider)
                 .track(Events.studyTimeViewed),
           ),
-          if (stats.dailySeconds.any((s) => s > 0)) ...[
+          if (showWeeklyChart && stats.dailySeconds.any((s) => s > 0)) ...[
             const SizedBox(height: AppSpacing.s),
             _WeeklyBarChart(
+              onHide: () => ref
+                  .read(learningSettingsProvider.notifier)
+                  .setShowWeeklyStudyChart(false),
               weekTotalSeconds: stats.weekTotalSeconds,
               dailyInputSeconds: stats.dailyInputSeconds,
               dailyOutputSeconds: stats.dailyOutputSeconds,
@@ -528,11 +536,15 @@ class _WeeklyBarChart extends StatefulWidget {
   final List<int> dailyTotalSeconds;
   final void Function(DateTime date)? onBarTap;
 
+  /// 用户确认关闭后的回调，负责持久化「不再显示」设置。
+  final Future<void> Function() onHide;
+
   const _WeeklyBarChart({
     required this.weekTotalSeconds,
     required this.dailyInputSeconds,
     required this.dailyOutputSeconds,
     required this.dailyTotalSeconds,
+    required this.onHide,
     this.onBarTap,
   });
 
@@ -563,6 +575,30 @@ class _WeeklyBarChartState extends State<_WeeklyBarChart> {
     });
 
     widget.onBarTap!(date);
+  }
+
+  /// 弹出确认框，确认后隐藏周学习时长图（可在设置 › 显示设置中重新开启）。
+  Future<void> _confirmHide() async {
+    final l10n = AppLocalizations.of(context)!;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(l10n.hideWeeklyChartTitle),
+        content: Text(l10n.hideWeeklyChartMessage),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: Text(l10n.cancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: Text(l10n.confirm),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    await widget.onHide();
   }
 
   @override
@@ -601,6 +637,25 @@ class _WeeklyBarChartState extends State<_WeeklyBarChart> {
                     color: theme.colorScheme.onSurfaceVariant,
                     fontWeight: FontWeight.w500,
                   ),
+                ),
+                const Spacer(),
+                // 固定 24×24 方形约束，保证高亮区域为圆形且不撑高标题行；
+                // 不用 VisualDensity.compact，它会把高亮形状变成圆角矩形
+                IconButton(
+                  icon: Icon(
+                    Icons.close_rounded,
+                    size: 16,
+                    color: theme.colorScheme.onSurfaceVariant.withValues(
+                      alpha: 0.4,
+                    ),
+                  ),
+                  tooltip: l10n.hideWeeklyChartTooltip,
+                  padding: const EdgeInsets.all(4),
+                  constraints: const BoxConstraints.tightFor(
+                    width: 24,
+                    height: 24,
+                  ),
+                  onPressed: _confirmHide,
                 ),
               ],
             ),

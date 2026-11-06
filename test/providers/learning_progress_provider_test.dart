@@ -73,6 +73,12 @@ class _TestLearningSettingsNotifier extends Notifier<LearningSettings>
   }
 
   @override
+  Future<void> setShowWeeklyStudyChart(bool enabled) async {
+    if (state.showWeeklyStudyChart == enabled) return;
+    state = state.copyWith(showWeeklyStudyChart: enabled);
+  }
+
+  @override
   Future<void> setAutoSaveOnUnclear(bool enabled) async {
     if (state.autoSaveOnUnclear == enabled) return;
     state = state.copyWith(autoSaveOnUnclear: enabled);

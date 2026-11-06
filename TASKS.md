@@ -4,6 +4,7 @@
 
 ## 本次完成
 
+- [x] 学习页「本周学习时长」图支持关闭（2026-11-06）：标题行右侧加关闭按钮（与「为你推荐」卡片一致），点击弹确认框，确认后隐藏（偏好 `learning_show_weekly_study_chart`，默认开启，走 `LearningSettings` 与云同步白名单）；今日卡片不受影响。设置页「显示设置」新增「显示周学习时长」开关可重新开启。测试：`study_stats_header_test` 新增取消 / 确认 / 设置已关闭三条用例，`display_settings_screen_test` 新增开关用例，provider 与同步 store 各补一例；相关 5 个测试文件 183 项、`study_screen_test` 26 项全部通过，改动文件 `flutter analyze` 无问题。**待 macOS 实机确认**：关闭按钮在标题行的位置与触控大小、关闭后卡片高度变化。**完成时间**: 2026-11-06
 - [x] 学习页今日卡片打卡后改为「✓ 今日已打卡」浅绿胶囊（2026-11-06）：已打卡时右侧不再显示目标时长与百分比，只显示同色 12% 浅底胶囊 + 完成色对勾圆 +「今日已打卡」。未打卡保持「目标 N 分钟」+ 百分比徽章。测试：`study_stats_header_test` 更新已打卡断言。**待 macOS 实机确认**：窄屏下「今日 N 分钟」与胶囊同行是否挤压。**完成时间**: 2026-11-06
 - [x] 学习日历「今日目标」卡片改用学习进度配色（2026-11-06）：配色函数 `learningProgressPalette(Brightness)` 从学习页私有实现提取到 `lib/theme/learning_progress_colors.dart`，学习页与日历卡片共用；进度条、底轨、已打卡文字与旗帜图标统一取色。测试：`daily_goal_progress_card_test`、`activity_calendar_screen_test` 通过。**待 macOS 实机确认**：日历卡片日夜间观感。**完成时间**: 2026-11-06
 - [x] 学习页今日目标右侧改为「目标 X 分钟」+ 完成百分比徽章（2026-11-06）：徽章为同色 12% 浅底圆角胶囊 + 同色粗体文字，未打卡用进行中色、已打卡用已完成色并带对勾，百分比封顶 100%。移除过长的 `dailyGoalCompletionLabel`（zh/en）。测试：`study_stats_header_test` 更新。**待 macOS 实机确认**：徽章配色与日夜间观感。**完成时间**: 2026-11-06

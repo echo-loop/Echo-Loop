@@ -4480,7 +4480,24 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get hideRecommendationMessage =>
-      'The Study page will stop showing recommendations. To bring it back, turn it on again in Settings › Learning › Display Settings.';
+      'The Study page will stop showing recommendations. To bring it back, turn it on again in Profile › Display Settings.';
+
+  @override
+  String get showWeeklyChartToggle => 'Show weekly study chart';
+
+  @override
+  String get showWeeklyChartSubtitle =>
+      'Show the weekly study time chart on the Study page';
+
+  @override
+  String get hideWeeklyChartTooltip => 'Hide weekly chart';
+
+  @override
+  String get hideWeeklyChartTitle => 'Hide weekly study chart?';
+
+  @override
+  String get hideWeeklyChartMessage =>
+      'The Study page will stop showing the weekly study chart. To bring it back, turn it on again in Profile › Display Settings.';
 
   @override
   String get speakingPracticeSection => 'Speaking practice';

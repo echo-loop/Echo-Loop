@@ -52,6 +52,7 @@ abstract final class LearningSettingsKeys {
       'learning_retell_auto_playback_prompt_shown';
   static const pdfExportReminderShown = 'learning_pdf_export_reminder_shown';
   static const showStudyRecommendation = 'learning_show_study_recommendation';
+  static const showWeeklyStudyChart = 'learning_show_weekly_study_chart';
   static const autoSaveOnUnclear = 'learning_auto_favorite_on_cant_understand';
   static const unclearAutoSaveReminderShown =
       'learning_unclear_auto_save_reminder_shown';
@@ -118,6 +119,9 @@ class LearningSettings {
   /// 是否在学习页展示「为你推荐」卡片（默认 true）。
   final bool showStudyRecommendation;
 
+  /// 是否在学习页展示本周学习时长柱状图（默认 true）。
+  final bool showWeeklyStudyChart;
+
   /// 精听点击「听不太懂」时是否自动收藏当前句（默认 true）。
   final bool autoSaveOnUnclear;
 
@@ -141,6 +145,7 @@ class LearningSettings {
     this.retellAutoPlaybackPromptShown = false,
     this.pdfExportReminderShown = false,
     this.showStudyRecommendation = true,
+    this.showWeeklyStudyChart = true,
     this.autoSaveOnUnclear = true,
     this.unclearAutoSaveReminderShown = false,
     this.podcastTranscriptReminderShown = false,
@@ -180,6 +185,8 @@ class LearningSettings {
           prefs.getBool(LearningSettingsKeys.pdfExportReminderShown) ?? false,
       showStudyRecommendation:
           prefs.getBool(LearningSettingsKeys.showStudyRecommendation) ?? true,
+      showWeeklyStudyChart:
+          prefs.getBool(LearningSettingsKeys.showWeeklyStudyChart) ?? true,
       autoSaveOnUnclear:
           prefs.getBool(LearningSettingsKeys.autoSaveOnUnclear) ?? true,
       unclearAutoSaveReminderShown:
@@ -228,6 +235,7 @@ class LearningSettings {
     bool? retellAutoPlaybackPromptShown,
     bool? pdfExportReminderShown,
     bool? showStudyRecommendation,
+    bool? showWeeklyStudyChart,
     bool? autoSaveOnUnclear,
     bool? unclearAutoSaveReminderShown,
     bool? podcastTranscriptReminderShown,
@@ -256,6 +264,7 @@ class LearningSettings {
           pdfExportReminderShown ?? this.pdfExportReminderShown,
       showStudyRecommendation:
           showStudyRecommendation ?? this.showStudyRecommendation,
+      showWeeklyStudyChart: showWeeklyStudyChart ?? this.showWeeklyStudyChart,
       autoSaveOnUnclear: autoSaveOnUnclear ?? this.autoSaveOnUnclear,
       unclearAutoSaveReminderShown:
           unclearAutoSaveReminderShown ?? this.unclearAutoSaveReminderShown,
@@ -284,6 +293,7 @@ class LearningSettings {
               other.retellAutoPlaybackPromptShown &&
           pdfExportReminderShown == other.pdfExportReminderShown &&
           showStudyRecommendation == other.showStudyRecommendation &&
+          showWeeklyStudyChart == other.showWeeklyStudyChart &&
           autoSaveOnUnclear == other.autoSaveOnUnclear &&
           unclearAutoSaveReminderShown == other.unclearAutoSaveReminderShown &&
           podcastTranscriptReminderShown ==
@@ -304,6 +314,7 @@ class LearningSettings {
     retellAutoPlaybackPromptShown,
     pdfExportReminderShown,
     showStudyRecommendation,
+    showWeeklyStudyChart,
     autoSaveOnUnclear,
     unclearAutoSaveReminderShown,
     podcastTranscriptReminderShown,
@@ -547,11 +558,7 @@ class LearningSettingsNotifier extends Notifier<LearningSettings> {
   /// 此时必须真正写入 SP，才能把引导页答案固化为学习设置自身的值。
   Future<void> setDailyGoalMinutes(int minutes) async {
     if (!LearningSettings.dailyGoalMinutesOptions.contains(minutes)) {
-      throw ArgumentError.value(
-        minutes,
-        'minutes',
-        '必须是设置页提供的每日目标档位',
-      );
+      throw ArgumentError.value(minutes, 'minutes', '必须是设置页提供的每日目标档位');
     }
     state = state.copyWith(dailyGoalMinutes: minutes);
     try {
@@ -559,10 +566,7 @@ class LearningSettingsNotifier extends Notifier<LearningSettings> {
       await prefs.setInt(LearningSettingsKeys.dailyGoalMinutes, minutes);
       userPreferencesSyncEvents.notifyLocalChange();
     } catch (e) {
-      AppLogger.log(
-        'LearningSettings',
-        'setDailyGoalMinutes 写 SP 失败: $e',
-      );
+      AppLogger.log('LearningSettings', 'setDailyGoalMinutes 写 SP 失败: $e');
     }
   }
 
@@ -582,6 +586,19 @@ class LearningSettingsNotifier extends Notifier<LearningSettings> {
         'LearningSettings',
         'setShowStudyRecommendation 写 SP 失败: $e',
       );
+    }
+  }
+
+  /// 切换学习页「本周学习时长」柱状图显示，写 SP + 更新 state。
+  Future<void> setShowWeeklyStudyChart(bool enabled) async {
+    if (state.showWeeklyStudyChart == enabled) return;
+    state = state.copyWith(showWeeklyStudyChart: enabled);
+    try {
+      final prefs = ref.read(sharedPreferencesProvider);
+      await prefs.setBool(LearningSettingsKeys.showWeeklyStudyChart, enabled);
+      userPreferencesSyncEvents.notifyLocalChange();
+    } catch (e) {
+      AppLogger.log('LearningSettings', 'setShowWeeklyStudyChart 写 SP 失败: $e');
     }
   }
 

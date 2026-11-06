@@ -390,6 +390,40 @@ void main() {
       );
     });
 
+    test('setShowWeeklyStudyChart(false) 写 SP + 翻转 state', () async {
+      SharedPreferences.setMockInitialValues({});
+      final prefs = await SharedPreferences.getInstance();
+      final container = makeContainer(prefs);
+      addTearDown(container.dispose);
+
+      final notifier = container.read(learningSettingsProvider.notifier);
+      await notifier.setShowWeeklyStudyChart(false);
+
+      expect(
+        container.read(learningSettingsProvider).showWeeklyStudyChart,
+        isFalse,
+      );
+      expect(prefs.getBool(LearningSettingsKeys.showWeeklyStudyChart), isFalse);
+    });
+
+    test('SP 缺失时周学习时长图默认显示，已关闭时启动读取为 false', () async {
+      SharedPreferences.setMockInitialValues({});
+      final prefs = await SharedPreferences.getInstance();
+      expect(
+        LearningSettings.fromPrefsSync(prefs).showWeeklyStudyChart,
+        isTrue,
+      );
+
+      SharedPreferences.setMockInitialValues({
+        LearningSettingsKeys.showWeeklyStudyChart: false,
+      });
+      final closedPrefs = await SharedPreferences.getInstance();
+      expect(
+        LearningSettings.fromPrefsSync(closedPrefs).showWeeklyStudyChart,
+        isFalse,
+      );
+    });
+
     test('setListenAndRepeatRatingEnabled 写 SP + 翻转 state', () async {
       SharedPreferences.setMockInitialValues({});
       final prefs = await SharedPreferences.getInstance();

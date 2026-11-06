@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:drift/native.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:echo_loop/l10n/app_localizations.dart';
 import 'package:echo_loop/database/app_database.dart';
 import 'package:echo_loop/database/providers.dart';
@@ -13,6 +14,7 @@ import 'package:echo_loop/widgets/study/study_stats_header.dart';
 import 'package:echo_loop/providers/learning_settings_provider.dart';
 import 'package:echo_loop/providers/study_stats_provider.dart';
 import 'package:echo_loop/theme/app_theme.dart';
+
 import '../helpers/mock_providers.dart';
 
 // ========== 测试用 Mock ==========
@@ -30,11 +32,14 @@ class _TestStudyStatsNotifier extends StudyStatsNotifier {
 void main() {
   /// 每个测试共享的内存数据库，tearDown 时关闭
   late AppDatabase testDb;
+  late SharedPreferences prefs;
 
-  setUp(() {
+  setUp(() async {
     testDb = AppDatabase(
       NativeDatabase.memory(setup: configureAppDatabaseConnection),
     );
+    SharedPreferences.setMockInitialValues({});
+    prefs = await SharedPreferences.getInstance();
   });
 
   tearDown(() => testDb.close());
@@ -49,9 +54,8 @@ void main() {
     return ProviderScope(
       overrides: dedupeOverrides([
         appDatabaseProvider.overrideWithValue(effectiveDb),
-        studyStatsProvider.overrideWith(
-          () => _TestStudyStatsNotifier(stats),
-        ),
+        sharedPreferencesProvider.overrideWithValue(prefs),
+        studyStatsProvider.overrideWith(() => _TestStudyStatsNotifier(stats)),
         initialLearningSettingsProvider.overrideWithValue(learningSettings),
       ]),
       child: MaterialApp(
@@ -258,6 +262,64 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('30m'), findsOneWidget);
+    });
+
+    testWidgets('取消确认框后保留柱状图且不写入设置', (tester) async {
+      await tester.pumpWidget(
+        createTestWidget(
+          stats: const StudyStats(
+            weekTotalSeconds: 7200,
+            dailySeconds: [0, 0, 0, 0, 0, 0, 600],
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byTooltip('Hide weekly chart'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(TextButton, 'Cancel'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('This Week: 2h 0m'), findsOneWidget);
+      expect(prefs.getBool(LearningSettingsKeys.showWeeklyStudyChart), isNull);
+    });
+
+    testWidgets('确认后隐藏柱状图、今日卡片保留并写入关闭状态', (tester) async {
+      await tester.pumpWidget(
+        createTestWidget(
+          stats: const StudyStats(
+            weekTotalSeconds: 7200,
+            todaySeconds: 600,
+            dailySeconds: [0, 0, 0, 0, 0, 0, 600],
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byTooltip('Hide weekly chart'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(FilledButton, 'Confirm'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('This Week: 2h 0m'), findsNothing);
+      expect(find.byType(Card), findsOneWidget);
+      expect(prefs.getBool(LearningSettingsKeys.showWeeklyStudyChart), isFalse);
+    });
+
+    testWidgets('设置中已关闭时不显示柱状图', (tester) async {
+      // 设置从 SP 构建，需直接写入 SP 而非仅覆盖 initialLearningSettingsProvider
+      await prefs.setBool(LearningSettingsKeys.showWeeklyStudyChart, false);
+      await tester.pumpWidget(
+        createTestWidget(
+          stats: const StudyStats(
+            weekTotalSeconds: 7200,
+            dailySeconds: [0, 0, 0, 0, 0, 0, 600],
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('This Week: 2h 0m'), findsNothing);
     });
   });
 

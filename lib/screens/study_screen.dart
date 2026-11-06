@@ -495,11 +495,13 @@ class _RecommendedMaterialCard extends ConsumerWidget {
                 Icons.close_rounded,
                 size: 18,
                 color: theme.colorScheme.onSurfaceVariant.withValues(
-                  alpha: 0.6,
+                  alpha: 0.4,
                 ),
               ),
               tooltip: l10n.hideRecommendationTooltip,
-              visualDensity: VisualDensity.compact,
+              // 固定 32×32 方形约束，高亮区域保持圆形；不用 VisualDensity.compact
+              padding: const EdgeInsets.all(4),
+              constraints: const BoxConstraints.tightFor(width: 32, height: 32),
               onPressed: () => _confirmHide(context, ref),
             ),
           ],

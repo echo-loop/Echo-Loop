@@ -4271,7 +4271,23 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get hideRecommendationMessage =>
-      '隐藏后学习页将不再显示推荐。如需恢复，可在「设置 › 学习 › 显示设置」中重新开启。';
+      '隐藏后学习页将不再显示推荐。如需恢复，可在「我的 › 显示设置」中重新开启。';
+
+  @override
+  String get showWeeklyChartToggle => '显示周学习时长';
+
+  @override
+  String get showWeeklyChartSubtitle => '在学习页显示本周学习时长图';
+
+  @override
+  String get hideWeeklyChartTooltip => '关闭周学习时长';
+
+  @override
+  String get hideWeeklyChartTitle => '隐藏周学习时长图？';
+
+  @override
+  String get hideWeeklyChartMessage =>
+      '隐藏后学习页将不再显示周学习时长图。如需恢复，可在「我的 › 显示设置」中重新开启。';
 
   @override
   String get speakingPracticeSection => '口语练习';

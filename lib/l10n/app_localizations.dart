@@ -7823,8 +7823,38 @@ abstract class AppLocalizations {
   /// No description provided for @hideRecommendationMessage.
   ///
   /// In en, this message translates to:
-  /// **'The Study page will stop showing recommendations. To bring it back, turn it on again in Settings › Learning › Display Settings.'**
+  /// **'The Study page will stop showing recommendations. To bring it back, turn it on again in Profile › Display Settings.'**
   String get hideRecommendationMessage;
+
+  /// No description provided for @showWeeklyChartToggle.
+  ///
+  /// In en, this message translates to:
+  /// **'Show weekly study chart'**
+  String get showWeeklyChartToggle;
+
+  /// No description provided for @showWeeklyChartSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Show the weekly study time chart on the Study page'**
+  String get showWeeklyChartSubtitle;
+
+  /// No description provided for @hideWeeklyChartTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Hide weekly chart'**
+  String get hideWeeklyChartTooltip;
+
+  /// No description provided for @hideWeeklyChartTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Hide weekly study chart?'**
+  String get hideWeeklyChartTitle;
+
+  /// No description provided for @hideWeeklyChartMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'The Study page will stop showing the weekly study chart. To bring it back, turn it on again in Profile › Display Settings.'**
+  String get hideWeeklyChartMessage;
 
   /// No description provided for @speakingPracticeSection.
   ///

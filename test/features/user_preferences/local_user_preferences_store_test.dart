@@ -163,6 +163,27 @@ void main() {
     expect(prefs.getBool('learning_show_study_recommendation'), isTrue);
   });
 
+  test('syncs the weekly study chart visibility preference', () async {
+    SharedPreferences.setMockInitialValues({
+      'learning_show_weekly_study_chart': false,
+    });
+    final prefs = await SharedPreferences.getInstance();
+    final store = LocalUserPreferencesStore(prefs);
+
+    final captured = store.capture();
+    expect(
+      (captured.preferences['learning'] as Map)['showWeeklyStudyChart'],
+      isFalse,
+    );
+
+    await store.apply(
+      UserPreferencesDocument({
+        'learning': {'showWeeklyStudyChart': true},
+      }),
+    );
+    expect(prefs.getBool('learning_show_weekly_study_chart'), isTrue);
+  });
+
   test('applies cloud settings without touching developer state', () async {
     SharedPreferences.setMockInitialValues({
       'demo_mode': true,
@@ -227,9 +248,7 @@ void main() {
   });
 
   test('每日学习目标随 learning 分组双向同步', () async {
-    SharedPreferences.setMockInitialValues({
-      'learning_daily_goal_minutes': 30,
-    });
+    SharedPreferences.setMockInitialValues({'learning_daily_goal_minutes': 30});
     final prefs = await SharedPreferences.getInstance();
     final store = LocalUserPreferencesStore(prefs);
 
@@ -247,9 +266,7 @@ void main() {
   });
 
   test('云端缺失每日学习目标时保留本地解析值，不覆盖引导页答案', () async {
-    SharedPreferences.setMockInitialValues({
-      'onboarding_daily_minutes': '20',
-    });
+    SharedPreferences.setMockInitialValues({'onboarding_daily_minutes': '20'});
     final prefs = await SharedPreferences.getInstance();
     final store = LocalUserPreferencesStore(prefs);
 

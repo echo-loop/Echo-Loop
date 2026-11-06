@@ -6,6 +6,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
 import '../helpers/mock_providers.dart';
 
 void main() {
@@ -42,8 +43,17 @@ void main() {
     return prefs;
   }
 
+  /// 页面有两个开关：第一个是推荐卡片，第二个是周学习时长图。
   bool recommendationSwitchValue(WidgetTester tester) {
-    return tester.widget<SwitchListTile>(find.byType(SwitchListTile)).value;
+    return tester
+        .widget<SwitchListTile>(find.byType(SwitchListTile).first)
+        .value;
+  }
+
+  bool weeklyChartSwitchValue(WidgetTester tester) {
+    return tester
+        .widget<SwitchListTile>(find.byType(SwitchListTile).last)
+        .value;
   }
 
   testWidgets('默认开启显示推荐卡片', (tester) async {
@@ -56,7 +66,7 @@ void main() {
   testWidgets('关闭推荐卡片开关后写入 SP', (tester) async {
     final prefs = await pumpScreen(tester);
 
-    await tester.tap(find.byType(Switch));
+    await tester.tap(find.byType(Switch).first);
     await tester.pumpAndSettle();
 
     expect(recommendationSwitchValue(tester), isFalse);
@@ -73,10 +83,27 @@ void main() {
     );
     expect(recommendationSwitchValue(tester), isFalse);
 
-    await tester.tap(find.byType(Switch));
+    await tester.tap(find.byType(Switch).first);
     await tester.pumpAndSettle();
 
     expect(recommendationSwitchValue(tester), isTrue);
     expect(prefs.getBool(LearningSettingsKeys.showStudyRecommendation), isTrue);
+  });
+
+  testWidgets('默认开启显示周学习时长图', (tester) async {
+    await pumpScreen(tester);
+
+    expect(weeklyChartSwitchValue(tester), isTrue);
+  });
+
+  testWidgets('关闭周学习时长图开关后写入 SP，且不影响推荐卡开关', (tester) async {
+    final prefs = await pumpScreen(tester);
+
+    await tester.tap(find.byType(Switch).last);
+    await tester.pumpAndSettle();
+
+    expect(weeklyChartSwitchValue(tester), isFalse);
+    expect(recommendationSwitchValue(tester), isTrue);
+    expect(prefs.getBool(LearningSettingsKeys.showWeeklyStudyChart), isFalse);
   });
 }
