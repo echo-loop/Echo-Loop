@@ -8,8 +8,10 @@ import '../../analytics/models/event_names.dart';
 import '../../database/providers.dart';
 import '../../l10n/app_localizations.dart';
 import '../../services/study_time_service.dart';
+import '../../providers/learning_settings_provider.dart';
 import '../../providers/study_stats_provider.dart';
 import '../../theme/app_theme.dart';
+import '../../theme/learning_progress_colors.dart';
 import 'day_stage_breakdown_sheet.dart';
 import 'learned_word_forms_sheet.dart';
 
@@ -34,6 +36,9 @@ class StudyStatsHeader extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final statsAsync = ref.watch(studyStatsProvider);
+    final goalMinutes = ref.watch(
+      learningSettingsProvider.select((settings) => settings.dailyGoalMinutes),
+    );
 
     return statsAsync.when(
       loading: () => const SizedBox.shrink(),
@@ -42,6 +47,7 @@ class StudyStatsHeader extends ConsumerWidget {
         children: [
           _TodayCard(
             stats: stats,
+            goalMinutes: goalMinutes,
             studyTimeService: ref.read(studyTimeServiceProvider),
             onStudyTimeTap: () => ref
                 .read(analyticsServiceProvider)
@@ -84,11 +90,13 @@ class StudyStatsHeader extends ConsumerWidget {
 /// 点击今日时长行弹出阶段总览，点击听/说弹出对应维度阶段明细。
 class _TodayCard extends StatelessWidget {
   final StudyStats stats;
+  final int goalMinutes;
   final StudyTimeService studyTimeService;
   final VoidCallback? onStudyTimeTap;
 
   const _TodayCard({
     required this.stats,
+    required this.goalMinutes,
     required this.studyTimeService,
     this.onStudyTimeTap,
   });
@@ -140,11 +148,24 @@ class _TodayCard extends StatelessWidget {
                       color: theme.colorScheme.onSurface,
                     ),
                   ),
+                  const Spacer(),
+                  _DailyGoalSummary(
+                    studiedSeconds: stats.todaySeconds,
+                    goalMinutes: goalMinutes,
+                    isCheckedIn: stats.isTodayCheckedIn,
+                  ),
                 ],
               ),
             ),
+            const SizedBox(height: 8),
+            // 第二行：每日目标进度条
+            _DailyGoalBar(
+              studiedSeconds: stats.todaySeconds,
+              goalMinutes: goalMinutes,
+              isCheckedIn: stats.isTodayCheckedIn,
+            ),
             const SizedBox(height: 10),
-            // 第二行：听 / 说 / 词汇 三列（clamp 防御脏数据）
+            // 第三行：听 / 说 / 词汇 三列（clamp 防御脏数据）
             Builder(
               builder: (context) {
                 final clampedInput = math.min(
@@ -170,6 +191,7 @@ class _TodayCard extends StatelessWidget {
                       child: _ListenSpeakItem(
                         icon: Icons.headphones_outlined,
                         iconColor: kInputColor,
+                        label: l10n.stageBreakdownListenShort,
                         timeText: _formatTimeShort(
                           clampedInput,
                           isZh: l10n.localeName == 'zh',
@@ -196,6 +218,7 @@ class _TodayCard extends StatelessWidget {
                       child: _ListenSpeakItem(
                         icon: Icons.mic_outlined,
                         iconColor: kOutputColor,
+                        label: l10n.stageBreakdownSpeakShort,
                         timeText: _formatTimeShort(
                           clampedOutput,
                           isZh: l10n.localeName == 'zh',
@@ -219,6 +242,7 @@ class _TodayCard extends StatelessWidget {
                       flex: 2,
                       child: _VocabItem(
                         todayNew: stats.todayNewWordForms,
+                        label: l10n.todayNewWordsShort,
                         onTap: () =>
                             showLearnedWordFormsSheet(context: context),
                       ),
@@ -234,12 +258,136 @@ class _TodayCard extends StatelessWidget {
   }
 }
 
+/// 今日卡片第一行右侧的每日目标状态
+///
+/// 未打卡：「目标 N 分钟」+ 完成百分比徽章（进行中色浅底）。
+/// 已打卡：只显示浅绿底「✓ 今日已打卡」胶囊，不再显示目标时长。
+/// 与时长同一行，避免占用额外高度。以打卡标记为准，之后调高目标仍保持已完成。
+class _DailyGoalSummary extends StatelessWidget {
+  final int studiedSeconds;
+  final int goalMinutes;
+  final bool isCheckedIn;
+
+  const _DailyGoalSummary({
+    required this.studiedSeconds,
+    required this.goalMinutes,
+    required this.isCheckedIn,
+  });
+
+  /// 完成百分比，封顶 100，与进度条口径一致
+  int get _completionPercent {
+    final goalSeconds = goalMinutes * 60;
+    if (goalSeconds <= 0) return 100;
+    return (studiedSeconds * 100 / goalSeconds).round().clamp(0, 100);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final l10n = AppLocalizations.of(context)!;
+    final palette = learningProgressPalette(theme.brightness);
+
+    if (isCheckedIn) {
+      return _buildPill(
+        theme: theme,
+        color: palette.completed,
+        leading: Icon(Icons.check_circle, size: 14, color: palette.completed),
+        label: l10n.dailyGoalTodayCheckedIn,
+      );
+    }
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          l10n.dailyGoalTargetLabel(goalMinutes),
+          style: theme.textTheme.labelMedium?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        const SizedBox(width: 8),
+        _buildPill(
+          theme: theme,
+          color: palette.active,
+          label: '$_completionPercent%',
+        ),
+      ],
+    );
+  }
+
+  /// 同色 12% 浅底的圆角胶囊，文字与可选前导图标同色
+  Widget _buildPill({
+    required ThemeData theme,
+    required Color color,
+    required String label,
+    Widget? leading,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (leading != null) ...[leading, const SizedBox(width: 4)],
+          Text(
+            label,
+            style: theme.textTheme.labelSmall?.copyWith(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              color: color,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// 今日卡片第二行的每日目标进度条，与日历「今日目标」卡片同一视觉语言
+///
+/// 未打卡用进行中色，已打卡满格并变为已完成色。
+class _DailyGoalBar extends StatelessWidget {
+  final int studiedSeconds;
+  final int goalMinutes;
+  final bool isCheckedIn;
+
+  const _DailyGoalBar({
+    required this.studiedSeconds,
+    required this.goalMinutes,
+    required this.isCheckedIn,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final goalSeconds = goalMinutes * 60;
+    final progress = goalSeconds <= 0
+        ? 1.0
+        : (studiedSeconds / goalSeconds).clamp(0.0, 1.0);
+    final palette = learningProgressPalette(theme.brightness);
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(4),
+      child: LinearProgressIndicator(
+        value: isCheckedIn ? 1 : progress,
+        minHeight: 6,
+        color: isCheckedIn ? palette.completed : palette.active,
+        backgroundColor: palette.track,
+      ),
+    );
+  }
+}
+
 /// 听/说单项指标
 ///
 /// 图标 + 时间 · 词数，水平居中排列。
 class _ListenSpeakItem extends StatelessWidget {
   final IconData icon;
   final Color iconColor;
+  final String label;
   final String timeText;
   final String? wordText;
   final VoidCallback? onTap;
@@ -247,6 +395,7 @@ class _ListenSpeakItem extends StatelessWidget {
   const _ListenSpeakItem({
     required this.icon,
     required this.iconColor,
+    required this.label,
     required this.timeText,
     this.wordText,
     this.onTap,
@@ -266,6 +415,8 @@ class _ListenSpeakItem extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             Icon(icon, size: 14, color: iconColor),
+            const SizedBox(width: 4),
+            _MetricLabel(label: label, baseStyle: baseStyle),
             const SizedBox(width: 4),
             Text(
               timeText,
@@ -301,19 +452,43 @@ class _ListenSpeakItem extends StatelessWidget {
   }
 }
 
-/// 词汇今日新增项（嵌入今日卡片第二行）
+/// 指标维度名（听 / 说 / 新词），放在图标与数值之间，让数字的含义一目了然
+class _MetricLabel extends StatelessWidget {
+  final String label;
+  final TextStyle baseStyle;
+
+  const _MetricLabel({required this.label, required this.baseStyle});
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      label,
+      style: baseStyle.copyWith(
+        fontSize: 11,
+        fontWeight: FontWeight.w500,
+        color: Theme.of(context).colorScheme.onSurfaceVariant,
+      ),
+    );
+  }
+}
+
+/// 词汇今日新增项（嵌入今日卡片第三行）
 ///
 /// 只显示今日新增词数，点击可打开词汇列表弹窗查看全局数据。
 class _VocabItem extends StatelessWidget {
   final int todayNew;
+  final String label;
   final VoidCallback onTap;
 
-  const _VocabItem({required this.todayNew, required this.onTap});
+  const _VocabItem({
+    required this.todayNew,
+    required this.label,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final l10n = AppLocalizations.of(context)!;
     final baseStyle = theme.textTheme.labelSmall!.copyWith(fontSize: 12);
     return GestureDetector(
       onTap: onTap,
@@ -325,17 +500,13 @@ class _VocabItem extends StatelessWidget {
           children: [
             Icon(Icons.spellcheck_rounded, size: 14, color: Colors.indigo),
             const SizedBox(width: 4),
+            _MetricLabel(label: label, baseStyle: baseStyle),
+            const SizedBox(width: 4),
             Text(
-              '+${_formatWordCount(todayNew)}',
+              _formatWordCount(todayNew),
               style: baseStyle.copyWith(
                 fontWeight: FontWeight.w600,
                 color: theme.colorScheme.onSurface,
-              ),
-            ),
-            Text(
-              l10n.localeName == 'zh' ? '词' : 'w',
-              style: baseStyle.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
               ),
             ),
           ],

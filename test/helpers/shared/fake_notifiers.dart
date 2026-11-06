@@ -2342,6 +2342,9 @@ class FakeStudyTimeService implements StudyTimeService {
     required DateTime date,
   }) async => false;
 
+  @override
+  Future<bool> isDailyGoalCheckedIn(DateTime date) async => false;
+
   /// 阶段明细查询在无操作 fake 中返回空结果，避免测试夹具引入数据库副作用。
   @override
   Future<List<DailyStageStudyRecordData>> getStageBreakdownInRange(

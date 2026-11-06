@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 
 import '../../l10n/app_localizations.dart';
 import '../../theme/app_theme.dart';
+import '../../theme/learning_progress_colors.dart';
 
 class DailyGoalProgressCard extends StatelessWidget {
   /// 今日已学习时长（秒）
@@ -34,9 +35,8 @@ class DailyGoalProgressCard extends StatelessWidget {
     final progress = goalSeconds <= 0
         ? 1.0
         : (studiedSeconds / goalSeconds).clamp(0.0, 1.0);
-    final color = isCheckedIn
-        ? AppTheme.successColor
-        : theme.colorScheme.primary;
+    final palette = learningProgressPalette(theme.brightness);
+    final color = isCheckedIn ? palette.completed : palette.active;
 
     final studiedMinutes = studiedSeconds ~/ 60;
 
@@ -65,7 +65,7 @@ class DailyGoalProgressCard extends StatelessWidget {
                   Text(
                     l10n.dailyGoalTodayCheckedIn,
                     style: theme.textTheme.labelMedium?.copyWith(
-                      color: AppTheme.successColor,
+                      color: palette.completed,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -78,7 +78,7 @@ class DailyGoalProgressCard extends StatelessWidget {
                 value: isCheckedIn ? 1 : progress,
                 minHeight: 6,
                 color: color,
-                backgroundColor: theme.colorScheme.surfaceContainerHighest,
+                backgroundColor: palette.track,
               ),
             ),
             const SizedBox(height: AppSpacing.xs),

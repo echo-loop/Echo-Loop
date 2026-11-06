@@ -13,6 +13,7 @@ import 'package:echo_loop/database/providers.dart';
 import 'package:echo_loop/features/daily_goal_check_in/providers/daily_goal_check_in_provider.dart';
 import 'package:echo_loop/features/onboarding_survey/providers/onboarding_survey_provider.dart';
 import 'package:echo_loop/models/study_stage.dart';
+import 'package:echo_loop/providers/study_stats_provider.dart';
 import 'package:echo_loop/services/study_time_service.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -44,6 +45,7 @@ void main() {
     final container = ProviderContainer(
       overrides: [
         sharedPreferencesProvider.overrideWithValue(prefs),
+        appDatabaseProvider.overrideWithValue(db),
         studyTimeServiceProvider.overrideWithValue(studyService),
       ],
     );
@@ -92,6 +94,26 @@ void main() {
     await _settle();
 
     expect(identical(container.read(dailyGoalCheckInProvider), first), isTrue);
+  });
+
+  test('打卡成功后刷新学习统计，今日打卡状态无需等待下次进入页面', () async {
+    final now = DateTime.now();
+    final container = makeContainer(service);
+    // 保持学习统计存活，与学习页的监听方式一致
+    container.listen(studyStatsProvider, (_, __) {});
+    await container.read(studyStatsProvider.future);
+    expect(container.read(studyStatsProvider).value?.isTodayCheckedIn, isFalse);
+
+    await service.recordSessionDurations(
+      studyDuration: const Duration(minutes: 5),
+      stage: StudyStage.intensiveListen,
+      date: now,
+    );
+    await _waitFor(
+      () => container.read(studyStatsProvider).value?.isTodayCheckedIn == true,
+    );
+
+    expect(container.read(studyStatsProvider).value?.isTodayCheckedIn, isTrue);
   });
 
   test('重建 Provider（模拟重启）后同日不重复打卡', () async {

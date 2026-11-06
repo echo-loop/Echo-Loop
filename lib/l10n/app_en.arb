@@ -1739,6 +1739,7 @@
   "stageBreakdownLessThanOneMin": "<1m",
   "stageBreakdownListenShort": "Listen",
   "stageBreakdownSpeakShort": "Speak",
+  "todayNewWordsShort": "New words",
   "stageBreakdownNoStageData": "Detailed breakdown data starts recording from this version",
   "stageBreakdownNoRecord": "No study record for this day",
   "chartLegendListening": "Listening",

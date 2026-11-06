@@ -254,5 +254,20 @@ void main() {
       expect(checkedIn, isTrue);
       await write;
     });
+
+    test('isDailyGoalCheckedIn：无记录、未打卡、已打卡三种情况', () async {
+      final date = DateTime(2026, 11, 6);
+      expect(await service.isDailyGoalCheckedIn(date), isFalse);
+
+      await study(60, date: date);
+      expect(await service.isDailyGoalCheckedIn(date), isFalse);
+
+      await service.tryCheckInDailyGoal(goalMinutes: 1, date: date);
+      expect(await service.isDailyGoalCheckedIn(date), isTrue);
+      expect(
+        await service.isDailyGoalCheckedIn(date.add(const Duration(days: 1))),
+        isFalse,
+      );
+    });
   });
 }

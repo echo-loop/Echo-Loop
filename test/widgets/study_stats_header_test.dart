@@ -10,6 +10,7 @@ import 'package:echo_loop/l10n/app_localizations.dart';
 import 'package:echo_loop/database/app_database.dart';
 import 'package:echo_loop/database/providers.dart';
 import 'package:echo_loop/widgets/study/study_stats_header.dart';
+import 'package:echo_loop/providers/learning_settings_provider.dart';
 import 'package:echo_loop/providers/study_stats_provider.dart';
 import 'package:echo_loop/theme/app_theme.dart';
 import '../helpers/mock_providers.dart';
@@ -42,6 +43,7 @@ void main() {
     required StudyStats stats,
     Locale locale = const Locale('en'),
     AppDatabase? db,
+    LearningSettings learningSettings = const LearningSettings(),
   }) {
     final effectiveDb = db ?? testDb;
     return ProviderScope(
@@ -50,6 +52,7 @@ void main() {
         studyStatsProvider.overrideWith(
           () => _TestStudyStatsNotifier(stats),
         ),
+        initialLearningSettingsProvider.overrideWithValue(learningSettings),
       ]),
       child: MaterialApp(
         locale: locale,
@@ -120,7 +123,73 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('+42'), findsOneWidget);
+      expect(find.text('42'), findsOneWidget);
+    });
+
+    testWidgets('听、说、新词三项都有维度标签，避免只看到数字', (tester) async {
+      await tester.pumpWidget(
+        createTestWidget(stats: const StudyStats(todaySeconds: 60)),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Listen'), findsOneWidget);
+      expect(find.text('Speak'), findsOneWidget);
+      expect(find.text('New words'), findsOneWidget);
+    });
+
+    testWidgets('未打卡时右侧显示目标时长与完成百分比徽章，进度条按已学比例填充', (tester) async {
+      await tester.pumpWidget(
+        createTestWidget(
+          stats: const StudyStats(todaySeconds: 300), // 5 min
+          learningSettings: const LearningSettings(dailyGoalMinutes: 10),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Goal 10 min'), findsOneWidget);
+      expect(find.text('50%'), findsOneWidget);
+      expect(find.text('Checked in today'), findsNothing);
+      expect(find.byIcon(Icons.check), findsNothing);
+      final bar = tester.widget<LinearProgressIndicator>(
+        find.byType(LinearProgressIndicator),
+      );
+      expect(bar.value, closeTo(0.5, 1e-9));
+    });
+
+    testWidgets('未打卡且已学超过目标时进度条与百分比徽章都封顶为 100%', (tester) async {
+      await tester.pumpWidget(
+        createTestWidget(
+          stats: const StudyStats(todaySeconds: 1800), // 30 min
+          learningSettings: const LearningSettings(dailyGoalMinutes: 10),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Goal 10 min'), findsOneWidget);
+      expect(find.text('100%'), findsOneWidget);
+      final bar = tester.widget<LinearProgressIndicator>(
+        find.byType(LinearProgressIndicator),
+      );
+      expect(bar.value, 1.0);
+    });
+
+    testWidgets('已打卡时右侧只显示「今日已打卡」胶囊，不再显示目标与百分比', (tester) async {
+      await tester.pumpWidget(
+        createTestWidget(
+          stats: const StudyStats(todaySeconds: 900, isTodayCheckedIn: true),
+          learningSettings: const LearningSettings(dailyGoalMinutes: 10),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Checked in today'), findsOneWidget);
+      expect(find.text('Goal 10 min'), findsNothing);
+      expect(find.text('100%'), findsNothing);
+      expect(find.byIcon(Icons.check_circle), findsOneWidget);
+      final bar = tester.widget<LinearProgressIndicator>(
+        find.byType(LinearProgressIndicator),
+      );
+      expect(bar.value, 1.0);
     });
   });
 
@@ -203,7 +272,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('+1'));
+      await tester.tap(find.text('1'));
       await tester.pumpAndSettle();
 
       expect(find.text('Vocab'), findsWidgets);
@@ -435,7 +504,7 @@ void main() {
       // 本周柱状图标题
       expect(find.text('本周: 1小时0分钟'), findsOneWidget);
       // 词汇今日新增（嵌入今日卡片）
-      expect(find.text('+12'), findsOneWidget);
+      expect(find.text('12'), findsOneWidget);
     });
   });
 }

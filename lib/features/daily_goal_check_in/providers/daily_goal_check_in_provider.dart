@@ -14,6 +14,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../database/providers.dart';
 import '../../../providers/learning_settings_provider.dart';
+import '../../../providers/study_stats_provider.dart';
 import '../../../services/app_logger.dart';
 import '../../../services/study_time_service.dart';
 
@@ -63,6 +64,8 @@ class DailyGoalCheckInNotifier extends Notifier<DailyGoalCheckIn?> {
         'event=checked_in goalMinutes=$goalMinutes',
       );
       state = DailyGoalCheckIn(date: eventDate, goalMinutes: goalMinutes);
+      // 时长写入时学习页统计已刷新过，打卡标记晚于那次刷新落库，需要再刷新一次。
+      await ref.read(studyStatsProvider.notifier).refresh();
     } catch (error, stackTrace) {
       // 打卡是附加提示，失败不能影响学习流程，因此只记日志。
       AppLogger.log(

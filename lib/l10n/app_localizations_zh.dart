@@ -3124,6 +3124,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get stageBreakdownSpeakShort => '说';
 
   @override
+  String get todayNewWordsShort => '新词';
+
+  @override
   String get stageBreakdownNoStageData => '详细分布数据从此版本开始记录';
 
   @override

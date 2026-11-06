@@ -4,6 +4,14 @@
 
 ## 本次完成
 
+- [x] 学习页今日卡片打卡后改为「✓ 今日已打卡」浅绿胶囊（2026-11-06）：已打卡时右侧不再显示目标时长与百分比，只显示同色 12% 浅底胶囊 + 完成色对勾圆 +「今日已打卡」。未打卡保持「目标 N 分钟」+ 百分比徽章。测试：`study_stats_header_test` 更新已打卡断言。**待 macOS 实机确认**：窄屏下「今日 N 分钟」与胶囊同行是否挤压。**完成时间**: 2026-11-06
+- [x] 学习日历「今日目标」卡片改用学习进度配色（2026-11-06）：配色函数 `learningProgressPalette(Brightness)` 从学习页私有实现提取到 `lib/theme/learning_progress_colors.dart`，学习页与日历卡片共用；进度条、底轨、已打卡文字与旗帜图标统一取色。测试：`daily_goal_progress_card_test`、`activity_calendar_screen_test` 通过。**待 macOS 实机确认**：日历卡片日夜间观感。**完成时间**: 2026-11-06
+- [x] 学习页今日目标右侧改为「目标 X 分钟」+ 完成百分比徽章（2026-11-06）：徽章为同色 12% 浅底圆角胶囊 + 同色粗体文字，未打卡用进行中色、已打卡用已完成色并带对勾，百分比封顶 100%。移除过长的 `dailyGoalCompletionLabel`（zh/en）。测试：`study_stats_header_test` 更新。**待 macOS 实机确认**：徽章配色与日夜间观感。**完成时间**: 2026-11-06
+- [x] 学习页今日目标文案改为「目标 X 分钟，已完成 N%」（2026-11-06）：完成百分比为已学秒数 / 目标秒数四舍五入，封顶 100%，与进度条口径一致。`dailyGoalProgressLabel`（「已学 N / X」）替换为 `dailyGoalCompletionLabel`（zh/en）。测试：`study_stats_header_test` 更新右侧文案断言。**完成时间**: 2026-11-06
+- [x] 学习页今日目标配色改用 `LearningProgressColors`（2026-11-06）：新增 `lib/theme/learning_progress_colors.dart`（日/夜各一组 active / completed / track），进行中用 active、已打卡用 completed、底轨用 track，按 `Theme.brightness` 取色。测试：`study_stats_header_test` 通过。**待 macOS 实机确认**：日夜间配色观感。**完成时间**: 2026-11-06
+- [x] 学习页今日卡片目标进度移到时长行右侧（2026-11-06）：「今日 N 分钟」同行右侧显示「已学 N / X 分钟」（新增 `dailyGoalProgressLabel`，zh/en；移除不再使用的 `dailyGoalRemainingLabel`），已打卡变绿并带对勾；进度条保留为第二行，删除原「目标 / 还差」文字行以降低高度。已学分钟与时长文字同为向上取整。测试：`study_stats_header_test` 更新右侧文案与进度条断言。**待 macOS 实机确认**：右侧文案在窄屏与 FittedBox 缩放下是否仍清晰。**完成时间**: 2026-11-06
+- [x] 学习页今日卡片三项指标加维度标签（2026-11-06）：听 / 说 / 新词分别显示在图标与数值之间（复用 `stageBreakdownListenShort` / `stageBreakdownSpeakShort`，新增 `todayNewWordsShort`：zh「新词」/ en「New words」），标签 11px 次要色，数值样式不变；新词数值去掉「+」与「词」，只显示数字。测试：`study_stats_header_test` 新增标签断言。**待 macOS 实机确认**：三列在窄屏下 FittedBox 缩放后标签是否仍可读。**完成时间**: 2026-11-06
+- [x] 学习页今日卡片展示每日目标进度（2026-11-06）：第二行为进度条（6px，与日历「今日目标」卡片同一视觉语言），左侧「目标 N 分钟」、右侧「还差 N 分钟」（剩余向上取整，剩余为 0 时不显示），已打卡后进度条满格、变绿、右侧「今日已打卡」（以打卡标记为准）。未打卡用主题色，已打卡用成功色。新增 `dailyGoalRemainingLabel`（zh/en）。`StudyStats` 新增 `isTodayCheckedIn`，由 `StudyTimeService.isDailyGoalCheckedIn` 提供；打卡成功后刷新学习统计，避免学习页显示陈旧的未打卡状态。测试：`study_stats_header_test`（未打卡进度与剩余、封顶、已打卡）、`study_time_service_test`（打卡标记读取）、`daily_goal_check_in_provider_test`（打卡后统计刷新）；`FakeStudyTimeService` 补充新方法。**待 macOS 实机确认**：进度条配色与位置在亮暗模式下的观感。**完成时间**: 2026-11-06
 - [x] 复习统计指标块改为浅色底 + 强调色大数字 + 标签（2026-11-06）：去掉图标与阴影，底色为强调色 8% 透明度，圆角 20；与学习统计的指标样式保持一致的视觉语言，学习统计（月度统计）不变。`review_statistics_screen` 相关测试通过。**待 macOS 实机确认**：亮暗模式下底色与数字对比度。**完成时间**: 2026-11-06
 - [x] 复习统计卡片标签移到图标右侧（2026-11-06）：图标与标签同行，数值独占下一行，减少卡片高度。`review_statistics_screen` 相关测试通过。**完成时间**: 2026-11-06
 - [x] 复习统计「今日概览」改为大数字 + 小字单位（2026-11-06）：新增共享组件 `lib/widgets/stat_value_text.dart`（`StatValue` + `StatValueText`），月度统计与复习统计共用；复习卡片数值为「N 项」「N 分钟」「N 秒」，单位小字。新增 `unitItem` / `unitSecond`。测试：`stat_value_text_test`，复习统计与日历相关测试通过。**完成时间**: 2026-11-06

@@ -1380,6 +1380,7 @@
   "stageBreakdownLessThanOneMin": "<1分",
   "stageBreakdownListenShort": "听",
   "stageBreakdownSpeakShort": "说",
+  "todayNewWordsShort": "新词",
   "stageBreakdownNoStageData": "详细分布数据从此版本开始记录",
   "stageBreakdownNoRecord": "当天没有学习记录",
   "chartLegendListening": "听",

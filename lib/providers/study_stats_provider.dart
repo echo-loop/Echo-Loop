@@ -43,6 +43,9 @@ class StudyStats {
   /// 过去 7 天每天输出时间（秒），索引 0 = 6 天前，索引 6 = 今天
   final List<int> dailyOutputSeconds;
 
+  /// 今日是否已完成每日学习目标打卡
+  final bool isTodayCheckedIn;
+
   const StudyStats({
     this.streak = 0,
     this.todaySeconds = 0,
@@ -56,6 +59,7 @@ class StudyStats {
     this.todayOutputSeconds = 0,
     this.dailyInputSeconds = const [0, 0, 0, 0, 0, 0, 0],
     this.dailyOutputSeconds = const [0, 0, 0, 0, 0, 0, 0],
+    this.isTodayCheckedIn = false,
   });
 
   @override
@@ -73,7 +77,8 @@ class StudyStats {
           todayOutputSeconds == other.todayOutputSeconds &&
           listEquals(dailySeconds, other.dailySeconds) &&
           listEquals(dailyInputSeconds, other.dailyInputSeconds) &&
-          listEquals(dailyOutputSeconds, other.dailyOutputSeconds);
+          listEquals(dailyOutputSeconds, other.dailyOutputSeconds) &&
+          isTodayCheckedIn == other.isTodayCheckedIn;
 
   @override
   int get hashCode => Object.hash(
@@ -89,6 +94,7 @@ class StudyStats {
     Object.hashAll(dailySeconds),
     Object.hashAll(dailyInputSeconds),
     Object.hashAll(dailyOutputSeconds),
+    isTodayCheckedIn,
   );
 }
 
@@ -121,6 +127,7 @@ class StudyStatsNotifier extends _$StudyStatsNotifier {
       service.getTodayOutputTime(),
       service.getWeeklyInputTimes(),
       service.getWeeklyOutputTimes(),
+      service.isDailyGoalCheckedIn(now),
     ]);
     return StudyStats(
       streak: results[0] as int,
@@ -135,6 +142,7 @@ class StudyStatsNotifier extends _$StudyStatsNotifier {
       todayOutputSeconds: results[9] as int,
       dailyInputSeconds: results[10] as List<int>,
       dailyOutputSeconds: results[11] as List<int>,
+      isTodayCheckedIn: results[12] as bool,
     );
   }
 

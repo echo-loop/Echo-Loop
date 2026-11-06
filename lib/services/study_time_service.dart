@@ -309,6 +309,12 @@ class StudyTimeService {
   /// 获取今日学习时长（秒）
   Future<int> getTodayStudyTime() => getStudyTime(DateTime.now());
 
+  /// 指定日期是否已完成每日学习目标打卡
+  Future<bool> isDailyGoalCheckedIn(DateTime date) async {
+    final record = await _afterWrites(() => _dao.getByDate(date));
+    return record?.checkedInGoalMinutes != null;
+  }
+
   /// 获取连续学习天数（streak）
   ///
   /// 从昨天往回数连续有学习记录的天数，今天有学习则 +1。

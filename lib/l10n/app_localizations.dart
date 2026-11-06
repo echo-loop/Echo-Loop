@@ -5720,6 +5720,12 @@ abstract class AppLocalizations {
   /// **'Speak'**
   String get stageBreakdownSpeakShort;
 
+  /// No description provided for @todayNewWordsShort.
+  ///
+  /// In en, this message translates to:
+  /// **'New words'**
+  String get todayNewWordsShort;
+
   /// No description provided for @stageBreakdownNoStageData.
   ///
   /// In en, this message translates to:

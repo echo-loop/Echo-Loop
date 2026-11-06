@@ -3260,6 +3260,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get stageBreakdownSpeakShort => 'Speak';
 
   @override
+  String get todayNewWordsShort => 'New words';
+
+  @override
   String get stageBreakdownNoStageData =>
       'Detailed breakdown data starts recording from this version';
 
