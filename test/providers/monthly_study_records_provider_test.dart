@@ -125,4 +125,32 @@ void main() {
     );
     expect(record.hasActivity, isFalse);
   });
+
+  test('已打卡日携带打卡目标，未打卡日不标记', () async {
+    final checkedDay = DateTime(2026, 3, 5);
+    final studiedDay = DateTime(2026, 3, 6);
+    await service.recordActiveDuration(
+      const Duration(minutes: 6),
+      stage: StudyStage.intensiveListen,
+      date: checkedDay,
+    );
+    await service.recordActiveDuration(
+      const Duration(minutes: 2),
+      stage: StudyStage.intensiveListen,
+      date: studiedDay,
+    );
+    await db.studyStatisticsDao.markDailyGoalCheckIn(
+      date: checkedDay,
+      goalMinutes: 5,
+    );
+
+    final records = await container.read(
+      monthlyStudyRecordsProvider(2026, 3).future,
+    );
+
+    expect(records[5]?.isCheckedIn, isTrue);
+    expect(records[5]?.checkedInGoalMinutes, 5);
+    expect(records[6]?.isCheckedIn, isFalse);
+    expect(records[6]?.checkedInGoalMinutes, isNull);
+  });
 }

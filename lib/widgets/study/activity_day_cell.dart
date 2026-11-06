@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../l10n/app_localizations.dart';
 import '../../providers/monthly_study_records_provider.dart';
+import '../../theme/app_theme.dart';
 
 /// 活动日历的自定义日期单元格
 ///
@@ -127,28 +128,44 @@ class ActivityDayCell extends StatelessWidget {
         ? Colors.white
         : theme.colorScheme.onSurface;
 
+    final isCheckedIn = record?.isCheckedIn ?? false;
+
     return Semantics(
       label: semanticLabel,
       child: Center(
-        child: Container(
+        child: SizedBox(
           width: 36,
           height: 36,
-          decoration: BoxDecoration(
-            color: bgColor,
-            shape: BoxShape.circle,
-            border: isToday
-                ? Border.all(color: Colors.red, width: 1.5)
-                : isSelected
-                ? Border.all(color: Colors.orange, width: 1.5)
-                : null,
-          ),
-          alignment: Alignment.center,
-          child: Text(
-            '${day.day}',
-            style: theme.textTheme.bodySmall?.copyWith(
-              fontSize: 14,
-              color: textColor,
-            ),
+          // 角标允许超出圆形边界，因此不能裁剪。
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              Container(
+                decoration: BoxDecoration(
+                  color: bgColor,
+                  shape: BoxShape.circle,
+                  border: isToday
+                      ? Border.all(color: Colors.red, width: 1.5)
+                      : isSelected
+                      ? Border.all(color: Colors.orange, width: 1.5)
+                      : null,
+                ),
+                alignment: Alignment.center,
+                child: Text(
+                  '${day.day}',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    fontSize: 14,
+                    color: textColor,
+                  ),
+                ),
+              ),
+              if (isCheckedIn)
+                const Positioned(
+                  right: -2,
+                  bottom: -2,
+                  child: DailyGoalCheckInBadge(),
+                ),
+            ],
           ),
         ),
       ),
@@ -165,7 +182,11 @@ class ActivityDayCell extends StatelessWidget {
       return '$dateStr, ${isZh ? "无学习记录" : "no activity"}';
     }
     final minutes = (record!.studyTimeSeconds / 60).ceil();
-    return '$dateStr, ${isZh ? "学习$minutes分钟" : "studied $minutes minutes"}';
+    final activityLabel = isZh ? "学习$minutes分钟" : "studied $minutes minutes";
+    final checkInLabel = record!.isCheckedIn
+        ? l10n.activityDayCheckedInSemantics
+        : '';
+    return '$dateStr, $activityLabel$checkInLabel';
   }
 
   String _monthShort(int m) => const [
@@ -182,4 +203,27 @@ class ActivityDayCell extends StatelessWidget {
     'Nov',
     'Dec',
   ][m - 1];
+}
+
+/// 已完成每日学习目标的角标：绿色小对勾。
+///
+/// 外圈用页面底色描边，叠在深绿格子或绿色图例上都能看清。
+/// 日历格子与图例共用，保证视觉一致。
+class DailyGoalCheckInBadge extends StatelessWidget {
+  const DailyGoalCheckInBadge({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      width: 14,
+      height: 14,
+      decoration: BoxDecoration(
+        color: AppTheme.successColor,
+        shape: BoxShape.circle,
+        border: Border.all(color: theme.colorScheme.surface, width: 1.5),
+      ),
+      child: const Icon(Icons.check, size: 9, color: Colors.white),
+    );
+  }
 }

@@ -4,10 +4,12 @@ import 'package:table_calendar/table_calendar.dart';
 
 import '../database/providers.dart';
 import '../l10n/app_localizations.dart';
+import '../providers/learning_settings_provider.dart';
 import '../providers/monthly_study_records_provider.dart';
 import '../providers/study_stats_provider.dart';
 import '../theme/app_theme.dart';
 import '../widgets/study/activity_day_cell.dart';
+import '../widgets/study/daily_goal_progress_card.dart';
 import '../widgets/study/day_stage_breakdown_sheet.dart';
 import '../widgets/study/monthly_summary_card.dart';
 import '../widgets/study/study_duration_chart.dart';
@@ -48,6 +50,16 @@ class _ActivityCalendarScreenState
     final recordsAsync = ref.watch(monthlyStudyRecordsProvider(year, month));
     final statsAsync = ref.watch(studyStatsProvider);
     final service = ref.read(studyTimeServiceProvider);
+    final goalMinutes = ref.watch(
+      learningSettingsProvider.select((settings) => settings.dailyGoalMinutes),
+    );
+    // 「今日」始终基于当前自然月的记录，翻到其他月份时今日进度不丢失。
+    final now = DateTime.now();
+    final currentMonthRecordsAsync = ref.watch(
+      monthlyStudyRecordsProvider(now.year, now.month),
+    );
+    final todayStats = statsAsync.value;
+    final currentMonthRecords = currentMonthRecordsAsync.value;
 
     return Scaffold(
       appBar: AppBar(
@@ -71,6 +83,16 @@ class _ActivityCalendarScreenState
                 vertical: AppSpacing.s,
               ),
               children: [
+                // 今日目标进度；数据未就绪时不显示，避免先闪「未打卡」。
+                if (todayStats != null && currentMonthRecords != null) ...[
+                  DailyGoalProgressCard(
+                    studiedSeconds: todayStats.todaySeconds,
+                    goalMinutes: goalMinutes,
+                    isCheckedIn:
+                        currentMonthRecords[now.day]?.isCheckedIn ?? false,
+                  ),
+                  const SizedBox(height: AppSpacing.s),
+                ],
                 // 月度摘要卡片（在日历上方）
                 recordsAsync.when(
                   data: (records) => MonthlySummaryCard(
@@ -226,33 +248,55 @@ class _ActivityCalendarScreenState
 
   /// 颜色深浅图例（日历下方）
   Widget _buildLegend(ThemeData theme, bool isZh) {
+    final l10n = AppLocalizations.of(context)!;
     return Padding(
       padding: const EdgeInsets.only(top: 12, bottom: AppSpacing.s),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Text(
-            isZh ? '学习时间短' : 'Less study time',
-            style: theme.textTheme.labelSmall?.copyWith(
-              fontSize: 10,
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                isZh ? '学习时间短' : 'Less study time',
+                style: theme.textTheme.labelSmall?.copyWith(
+                  fontSize: 10,
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(width: 6),
+              // 示意 5 级颜色，从浅到深
+              for (final mins in [3, 30, 80, 150, 300]) ...[
+                _legendBlock(
+                  ActivityDayCell.intensityColor(mins * 60, theme.brightness),
+                ),
+                const SizedBox(width: 2),
+              ],
+              const SizedBox(width: 6),
+              Text(
+                isZh ? '学习时间长' : 'More study time',
+                style: theme.textTheme.labelSmall?.copyWith(
+                  fontSize: 10,
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
           ),
-          const SizedBox(width: 6),
-          // 示意 5 级颜色，从浅到深
-          for (final mins in [3, 30, 80, 150, 300]) ...[
-            _legendBlock(
-              ActivityDayCell.intensityColor(mins * 60, theme.brightness),
-            ),
-            const SizedBox(width: 2),
-          ],
-          const SizedBox(width: 6),
-          Text(
-            isZh ? '学习时间长' : 'More study time',
-            style: theme.textTheme.labelSmall?.copyWith(
-              fontSize: 10,
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
+          const SizedBox(height: 6),
+          // 角标说明：与日历格子右下角的对勾保持一致
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const DailyGoalCheckInBadge(),
+              const SizedBox(width: 6),
+              Text(
+                l10n.activityLegendCheckedIn,
+                style: theme.textTheme.labelSmall?.copyWith(
+                  fontSize: 10,
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
           ),
         ],
       ),

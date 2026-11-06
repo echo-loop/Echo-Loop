@@ -3603,6 +3603,26 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get unitMinute => 'min';
+
+  @override
+  String get unitHour => 'h';
+
+  @override
+  String get unitDay => 'd';
+
+  @override
+  String hourMinuteUnit(int minutes) {
+    return 'h ${minutes}m';
+  }
+
+  @override
+  String get unitSecond => 's';
+
+  @override
+  String get unitItem => 'items';
+
+  @override
   String get monthlyTotal => 'Total';
 
   @override
@@ -3613,16 +3633,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get monthlyBestStreak => 'Best streak';
-
-  @override
-  String daysSuffix(int days) {
-    return '${days}d';
-  }
-
-  @override
-  String activeDaysFraction(int active, int total) {
-    return '$active/$total days';
-  }
 
   @override
   String get senseGroupSplit => 'Split into Sense Groups';
@@ -4421,6 +4431,31 @@ class AppLocalizationsEn extends AppLocalizations {
   String dailyGoalMinutesValue(int minutes) {
     return '$minutes min';
   }
+
+  @override
+  String get activityDayCheckedInSemantics => ', daily goal completed';
+
+  @override
+  String get dailyGoalTodayTitle => 'Today\'s goal';
+
+  @override
+  String dailyGoalStudiedLabel(int minutes) {
+    return '$minutes min studied';
+  }
+
+  @override
+  String dailyGoalTargetLabel(int minutes) {
+    return 'Goal $minutes min';
+  }
+
+  @override
+  String get dailyGoalTodayCheckedIn => 'Checked in today';
+
+  @override
+  String get monthlyCheckInDays => 'Check-in days';
+
+  @override
+  String get activityLegendCheckedIn => 'Daily goal completed';
 
   @override
   String dailyGoalCompletedToast(int minutes) {

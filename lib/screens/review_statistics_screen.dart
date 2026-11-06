@@ -7,6 +7,7 @@ import '../features/review_statistics/review_statistics_provider.dart';
 import '../features/review_statistics/review_statistics_repository.dart';
 import '../l10n/app_localizations.dart';
 import '../widgets/common/app_segmented_button.dart';
+import '../widgets/stat_value_text.dart';
 
 /// 收藏复习统计页，将当天行动、近期表现与历史记录按时间口径分层展示。
 class ReviewStatisticsScreen extends ConsumerWidget {
@@ -230,15 +231,13 @@ class _TodayOverview extends StatelessWidget {
     builder: (context, constraints) {
       final metrics = [
         _MetricCard(
-          value: _formatItemCount(stats.todayReviewedCards, l10n),
+          value: _itemCountValue(stats.todayReviewedCards, l10n),
           label: l10n.reviewStatisticsTodayCompleted,
-          icon: Icons.task_alt_rounded,
           accent: Theme.of(context).colorScheme.primary,
         ),
         _MetricCard(
-          value: _formatDuration(stats.todaySeconds, l10n),
+          value: _durationValue(stats.todaySeconds, l10n),
           label: l10n.reviewStatisticsDuration,
-          icon: Icons.timer_outlined,
           accent: const Color(0xFF4D9271),
         ),
       ];
@@ -258,49 +257,47 @@ class _TodayOverview extends StatelessWidget {
   );
 }
 
+/// 指标块：浅色底 + 强调色大数字 + 标签，无图标与阴影。
+///
+/// 与学习统计的指标样式保持一致，颜色由 [accent] 派生。
 class _MetricCard extends StatelessWidget {
-  final String value;
+  final StatValue value;
   final String label;
-  final IconData icon;
   final Color accent;
 
   const _MetricCard({
     required this.value,
     required this.label,
-    required this.icon,
     required this.accent,
   });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return _Surface(
-      padding: const EdgeInsets.all(16),
+    return Container(
+      padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
+      decoration: BoxDecoration(
+        color: accent.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(20),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: 34,
-            height: 34,
-            decoration: BoxDecoration(
-              color: accent.withValues(alpha: 0.13),
-              borderRadius: BorderRadius.circular(11),
-            ),
-            child: Icon(icon, size: 19, color: accent),
-          ),
-          const SizedBox(height: 14),
-          Text(
-            value,
-            style: theme.textTheme.headlineSmall?.copyWith(
+          StatValueText(
+            value: value,
+            numberStyle: theme.textTheme.headlineMedium?.copyWith(
+              color: accent,
               fontWeight: FontWeight.w800,
               letterSpacing: -0.8,
             ),
           ),
-          const SizedBox(height: 3),
+          const SizedBox(height: 4),
           Text(
             label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             style: theme.textTheme.labelMedium?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
+              color: theme.colorScheme.onSurface.withValues(alpha: 0.75),
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -1017,10 +1014,13 @@ class _ChartEmptyState extends StatelessWidget {
 String _formatItemCount(int count, AppLocalizations l10n) =>
     l10n.reviewStatisticsItemCount(count);
 
-String _formatDuration(int seconds, AppLocalizations l10n) {
+/// 今日条目数：大数字 + 小字「项」。
+StatValue _itemCountValue(int count, AppLocalizations l10n) =>
+    StatValue('$count', l10n.unitItem);
+
+/// 复习时长：不足一分钟用秒，否则用分钟；大数字 + 小字单位。
+StatValue _durationValue(int seconds, AppLocalizations l10n) {
   final minutes = seconds ~/ 60;
-  if (l10n.localeName == 'zh') {
-    return minutes == 0 ? '$seconds 秒' : '$minutes 分钟';
-  }
-  return minutes == 0 ? '${seconds}s' : '$minutes min';
+  if (minutes == 0) return StatValue('$seconds', l10n.unitSecond);
+  return StatValue('$minutes', l10n.unitMinute);
 }

@@ -1501,12 +1501,21 @@
       "month": { "type": "String" }
     }
   },
+  "unitMinute": "分钟",
+  "unitHour": "小时",
+  "unitDay": "天",
+  "hourMinuteUnit": "小时{minutes}分",
+  "@hourMinuteUnit": {
+    "placeholders": {
+      "minutes": {"type": "int"}
+    }
+  },
+  "unitSecond": "秒",
+  "unitItem": "项",
   "monthlyTotal": "总计",
   "monthlyActiveDays": "学习天数",
   "monthlyAvgPerDay": "日均",
   "monthlyBestStreak": "最长连续",
-  "daysSuffix": "{days}天",
-  "activeDaysFraction": "{active}/{total}天",
   "senseGroupSplit": "拆分意群",
   "senseGroupLoading": "拆分中...",
   "senseGroupSingleGroup": "此句为单个意群",
@@ -1808,6 +1817,23 @@
   "dailyGoalSetting": "每日学习目标",
   "dailyGoalSettingSubtitle": "每天计划学习的时长",
   "dailyGoalMinutesValue": "{minutes} 分钟",
+  "activityDayCheckedInSemantics": "，已完成每日目标",
+  "dailyGoalTodayTitle": "今日目标",
+  "dailyGoalStudiedLabel": "已学 {minutes} 分钟",
+  "@dailyGoalStudiedLabel": {
+    "placeholders": {
+      "minutes": {"type": "int"}
+    }
+  },
+  "dailyGoalTargetLabel": "目标 {minutes} 分钟",
+  "@dailyGoalTargetLabel": {
+    "placeholders": {
+      "minutes": {"type": "int"}
+    }
+  },
+  "dailyGoalTodayCheckedIn": "今日已打卡",
+  "monthlyCheckInDays": "打卡天数",
+  "activityLegendCheckedIn": "已完成每日目标",
   "dailyGoalCompletedToast": "今日 {minutes} 分钟学习目标已完成！",
   "@dailyGoalCompletedToast": {
     "placeholders": {

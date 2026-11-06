@@ -4,6 +4,14 @@
 
 ## 本次完成
 
+- [x] 复习统计指标块改为浅色底 + 强调色大数字 + 标签（2026-11-06）：去掉图标与阴影，底色为强调色 8% 透明度，圆角 20；与学习统计的指标样式保持一致的视觉语言，学习统计（月度统计）不变。`review_statistics_screen` 相关测试通过。**待 macOS 实机确认**：亮暗模式下底色与数字对比度。**完成时间**: 2026-11-06
+- [x] 复习统计卡片标签移到图标右侧（2026-11-06）：图标与标签同行，数值独占下一行，减少卡片高度。`review_statistics_screen` 相关测试通过。**完成时间**: 2026-11-06
+- [x] 复习统计「今日概览」改为大数字 + 小字单位（2026-11-06）：新增共享组件 `lib/widgets/stat_value_text.dart`（`StatValue` + `StatValueText`），月度统计与复习统计共用；复习卡片数值为「N 项」「N 分钟」「N 秒」，单位小字。新增 `unitItem` / `unitSecond`。测试：`stat_value_text_test`，复习统计与日历相关测试通过。**完成时间**: 2026-11-06
+- [x] 日历「今日目标」卡片进度条下方显示已学与目标时长（2026-11-06）：进度条下方左侧「已学 N 分钟」、右侧「目标 M 分钟」，已打卡后同样显示实际已学时长；顶部右侧仅在已打卡时显示「今日已打卡」。新增 `dailyGoalStudiedLabel` / `dailyGoalTargetLabel`，移除 `dailyGoalTodayProgress`。测试：`daily_goal_progress_card_test`、`activity_calendar_screen_test` 已更新。**完成时间**: 2026-11-06
+- [x] 月度统计数值改为大数字 + 小字单位（2026-11-06）：`_StatValue` 分离数字与单位，单位用 labelMedium 小字并与大数字基线对齐；时长 ≥1 小时时单位为「小时」或「小时N分」（en「h Nm」）；天数单位为「天」。新增 `unitMinute` / `unitHour` / `unitDay` / `hourMinuteUnit`，移除不再使用的 `daysSuffix`。测试：`monthly_summary_card_test` 改用拼接纯文本查找，新增时长格式用例。**待确认**：学习页今日卡等其它统计是否也要同样处理。**完成时间**: 2026-11-06
+- [x] 月度统计单元对齐与数字放大（2026-11-06）：图标改为 36 圆底（同色系 12% 透明度）并与文字块垂直居中；标签用 labelMedium，数值用 titleLarge（w600）；格子高度 64。测试沿用 `monthly_summary_card_test`、`activity_calendar_screen_test`。**完成时间**: 2026-11-06
+- [x] 月度统计布局调整（2026-11-06）：顺序改为总计 → 日均 → 学习天数 → 打卡天数 → 最长连续；改用 `GridView` + `SliverGridDelegateWithMaxCrossAxisExtent`，列数随宽度自适应（窄屏两列，宽屏自动增列）；学习天数只显示天数，去掉「/ 已过天数」，移除不再使用的 `activeDaysFraction` 文案与 `totalDays` 字段；格子文字加省略号防止溢出。测试：`monthly_summary_card_test`（打卡天数计数、指标顺序、窄/宽屏列数）。**完成时间**: 2026-11-06
+- [x] 学习日历展示每日打卡状态（2026-11-06）：日历格子右下角对勾角标标记已打卡日（`DailyGoalCheckInBadge`，与原绿色强度圆、今天红圈、选中橙圈并存）；页面顶部新增「今日目标」进度卡（未打卡显示已学/目标分钟与进度条，已打卡显示「今日已打卡」并满格）；月度统计新增「打卡天数」；图例新增「已完成每日目标」；无障碍标签追加打卡信息。历史日期只标记真实打卡，不回填。今日状态基于当前自然月记录，翻月不丢失。新增文件 `lib/widgets/study/daily_goal_progress_card.dart`。测试：`monthly_study_records_provider_test`（打卡映射）、`activity_day_cell_test`、`daily_goal_progress_card_test`、`monthly_summary_card_test`、`activity_calendar_screen_test`（今日卡状态、图例）。**未做**：学习页今日目标进度（另起任务）；日历停留时的打卡不实时刷新。**待 macOS 实机确认**：角标在深绿格子上的清晰度、亮暗观感。**完成时间**: 2026-11-06
 - [x] 打卡 toast 亮色模式与白底区分（2026-11-06）：亮色背景由 `#E8F5EE` 加深为 `#D3EEDF`，并加轻阴影（`0x1F000000`，blur 12，offset y 4）。暗色不变。**待 macOS 实机确认亮色观感**。**完成时间**: 2026-11-06
 - [x] 打卡 toast 与屏幕边缘保持距离（2026-11-06）：最大宽度改为 min(400, 屏幕宽 - 48)，窄窗口或小屏手机上左右各留 24。测试：`daily_goal_toast_test` 新增 360 宽屏幕的边距断言。**完成时间**: 2026-11-06
 - [x] 打卡 toast 英文换行样式修正（2026-11-06）：英文长文案换行后胶囊变成大圆角团块、图标与文字相距很远。改为字号 14、水平内边距 16，圆角固定 24（单行接近胶囊，换行后仍是圆角矩形），文字左对齐、图标与首行居中对齐。**待 macOS 实机确认英文单行是否落在 400 宽内**。**完成时间**: 2026-11-06

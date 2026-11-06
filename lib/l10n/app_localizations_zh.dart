@@ -3441,6 +3441,26 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String get unitMinute => '分钟';
+
+  @override
+  String get unitHour => '小时';
+
+  @override
+  String get unitDay => '天';
+
+  @override
+  String hourMinuteUnit(int minutes) {
+    return '小时$minutes分';
+  }
+
+  @override
+  String get unitSecond => '秒';
+
+  @override
+  String get unitItem => '项';
+
+  @override
   String get monthlyTotal => '总计';
 
   @override
@@ -3451,16 +3471,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get monthlyBestStreak => '最长连续';
-
-  @override
-  String daysSuffix(int days) {
-    return '$days天';
-  }
-
-  @override
-  String activeDaysFraction(int active, int total) {
-    return '$active/$total天';
-  }
 
   @override
   String get senseGroupSplit => '拆分意群';
@@ -4213,6 +4223,31 @@ class AppLocalizationsZh extends AppLocalizations {
   String dailyGoalMinutesValue(int minutes) {
     return '$minutes 分钟';
   }
+
+  @override
+  String get activityDayCheckedInSemantics => '，已完成每日目标';
+
+  @override
+  String get dailyGoalTodayTitle => '今日目标';
+
+  @override
+  String dailyGoalStudiedLabel(int minutes) {
+    return '已学 $minutes 分钟';
+  }
+
+  @override
+  String dailyGoalTargetLabel(int minutes) {
+    return '目标 $minutes 分钟';
+  }
+
+  @override
+  String get dailyGoalTodayCheckedIn => '今日已打卡';
+
+  @override
+  String get monthlyCheckInDays => '打卡天数';
+
+  @override
+  String get activityLegendCheckedIn => '已完成每日目标';
 
   @override
   String dailyGoalCompletedToast(int minutes) {

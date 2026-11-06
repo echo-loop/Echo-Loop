@@ -1917,29 +1917,21 @@
       "month": { "type": "String" }
     }
   },
+  "unitMinute": "min",
+  "unitHour": "h",
+  "unitDay": "d",
+  "hourMinuteUnit": "h {minutes}m",
+  "@hourMinuteUnit": {
+    "placeholders": {
+      "minutes": {"type": "int"}
+    }
+  },
+  "unitSecond": "s",
+  "unitItem": "items",
   "monthlyTotal": "Total",
   "monthlyActiveDays": "Active days",
   "monthlyAvgPerDay": "Avg/day",
   "monthlyBestStreak": "Best streak",
-  "daysSuffix": "{days}d",
-  "@daysSuffix": {
-    "placeholders": {
-      "days": {
-        "type": "int"
-      }
-    }
-  },
-  "activeDaysFraction": "{active}/{total} days",
-  "@activeDaysFraction": {
-    "placeholders": {
-      "active": {
-        "type": "int"
-      },
-      "total": {
-        "type": "int"
-      }
-    }
-  },
   "senseGroupSplit": "Split into Sense Groups",
   "senseGroupLoading": "Splitting...",
   "senseGroupSingleGroup": "This sentence is a single sense group",
@@ -2282,6 +2274,23 @@
   "dailyGoalSetting": "Daily study goal",
   "dailyGoalSettingSubtitle": "How long you plan to study each day",
   "dailyGoalMinutesValue": "{minutes} min",
+  "activityDayCheckedInSemantics": ", daily goal completed",
+  "dailyGoalTodayTitle": "Today's goal",
+  "dailyGoalStudiedLabel": "{minutes} min studied",
+  "@dailyGoalStudiedLabel": {
+    "placeholders": {
+      "minutes": {"type": "int"}
+    }
+  },
+  "dailyGoalTargetLabel": "Goal {minutes} min",
+  "@dailyGoalTargetLabel": {
+    "placeholders": {
+      "minutes": {"type": "int"}
+    }
+  },
+  "dailyGoalTodayCheckedIn": "Checked in today",
+  "monthlyCheckInDays": "Check-in days",
+  "activityLegendCheckedIn": "Daily goal completed",
   "dailyGoalCompletedToast": "Today's {minutes}-minute study goal is complete!",
   "@dailyGoalCompletedToast": {
     "placeholders": {

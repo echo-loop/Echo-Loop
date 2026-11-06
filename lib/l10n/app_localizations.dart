@@ -6308,6 +6308,42 @@ abstract class AppLocalizations {
   /// **'{month} Statistics'**
   String monthlySummaryTitle(String month);
 
+  /// No description provided for @unitMinute.
+  ///
+  /// In en, this message translates to:
+  /// **'min'**
+  String get unitMinute;
+
+  /// No description provided for @unitHour.
+  ///
+  /// In en, this message translates to:
+  /// **'h'**
+  String get unitHour;
+
+  /// No description provided for @unitDay.
+  ///
+  /// In en, this message translates to:
+  /// **'d'**
+  String get unitDay;
+
+  /// No description provided for @hourMinuteUnit.
+  ///
+  /// In en, this message translates to:
+  /// **'h {minutes}m'**
+  String hourMinuteUnit(int minutes);
+
+  /// No description provided for @unitSecond.
+  ///
+  /// In en, this message translates to:
+  /// **'s'**
+  String get unitSecond;
+
+  /// No description provided for @unitItem.
+  ///
+  /// In en, this message translates to:
+  /// **'items'**
+  String get unitItem;
+
   /// No description provided for @monthlyTotal.
   ///
   /// In en, this message translates to:
@@ -6331,18 +6367,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Best streak'**
   String get monthlyBestStreak;
-
-  /// No description provided for @daysSuffix.
-  ///
-  /// In en, this message translates to:
-  /// **'{days}d'**
-  String daysSuffix(int days);
-
-  /// No description provided for @activeDaysFraction.
-  ///
-  /// In en, this message translates to:
-  /// **'{active}/{total} days'**
-  String activeDaysFraction(int active, int total);
 
   /// No description provided for @senseGroupSplit.
   ///
@@ -7717,6 +7741,48 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{minutes} min'**
   String dailyGoalMinutesValue(int minutes);
+
+  /// No description provided for @activityDayCheckedInSemantics.
+  ///
+  /// In en, this message translates to:
+  /// **', daily goal completed'**
+  String get activityDayCheckedInSemantics;
+
+  /// No description provided for @dailyGoalTodayTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Today\'s goal'**
+  String get dailyGoalTodayTitle;
+
+  /// No description provided for @dailyGoalStudiedLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'{minutes} min studied'**
+  String dailyGoalStudiedLabel(int minutes);
+
+  /// No description provided for @dailyGoalTargetLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Goal {minutes} min'**
+  String dailyGoalTargetLabel(int minutes);
+
+  /// No description provided for @dailyGoalTodayCheckedIn.
+  ///
+  /// In en, this message translates to:
+  /// **'Checked in today'**
+  String get dailyGoalTodayCheckedIn;
+
+  /// No description provided for @monthlyCheckInDays.
+  ///
+  /// In en, this message translates to:
+  /// **'Check-in days'**
+  String get monthlyCheckInDays;
+
+  /// No description provided for @activityLegendCheckedIn.
+  ///
+  /// In en, this message translates to:
+  /// **'Daily goal completed'**
+  String get activityLegendCheckedIn;
 
   /// No description provided for @dailyGoalCompletedToast.
   ///

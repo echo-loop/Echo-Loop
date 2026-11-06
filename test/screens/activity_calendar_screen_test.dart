@@ -9,10 +9,12 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:echo_loop/database/app_database.dart';
 import 'package:echo_loop/database/providers.dart';
 import 'package:echo_loop/l10n/app_localizations.dart';
+import 'package:echo_loop/providers/learning_settings_provider.dart';
 import 'package:echo_loop/providers/monthly_study_records_provider.dart';
 import 'package:echo_loop/providers/study_stats_provider.dart';
 import 'package:echo_loop/screens/activity_calendar_screen.dart';
 import 'package:echo_loop/theme/app_theme.dart';
+import 'package:echo_loop/widgets/study/activity_day_cell.dart';
 import 'package:flutter_riverpod/misc.dart';
 
 AppDatabase _createTestDb() {
@@ -32,6 +34,10 @@ Widget _createTestApp({
     appDatabaseProvider.overrideWithValue(db),
     studyStatsProvider.overrideWith(
       () => _TestStudyStatsNotifier(stats),
+    ),
+    // 无 SharedPreferences 时学习设置回退到该初值（每日目标 10 分钟）
+    initialLearningSettingsProvider.overrideWithValue(
+      const LearningSettings(),
     ),
   ];
 
@@ -221,5 +227,43 @@ void main() {
       findsNothing,
     );
     expect(find.text('No study records', skipOffstage: false), findsOneWidget);
+  });
+
+  testWidgets('今日已打卡时顶部显示已打卡状态，并在图例中说明角标含义', (tester) async {
+    final now = DateTime.now();
+    await tester.pumpWidget(
+      _createTestApp(
+        db: db,
+        records: {
+          now.day: const MonthDayRecord(
+            studyTimeSeconds: 600,
+            inputTimeSeconds: 0,
+            outputTimeSeconds: 0,
+            checkedInGoalMinutes: 10,
+          ),
+        },
+        stats: const StudyStats(todaySeconds: 600),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Checked in today'), findsOneWidget);
+    expect(find.text('Daily goal completed'), findsOneWidget);
+    expect(find.byType(DailyGoalCheckInBadge), findsWidgets);
+  });
+
+  testWidgets('今日未打卡时顶部显示目标进度', (tester) async {
+    await tester.pumpWidget(
+      _createTestApp(
+        db: db,
+        records: const {},
+        stats: const StudyStats(todaySeconds: 180),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('3 min studied'), findsOneWidget);
+    expect(find.text('Goal 10 min'), findsOneWidget);
+    expect(find.text('Checked in today'), findsNothing);
   });
 }
