@@ -45,7 +45,8 @@ void main() {
     final check = sqlite.sqlite3.open(file.path);
     try {
       final version = check.select('PRAGMA user_version').first.values.first;
-      expect(version, 65);
+      // 迁移链继续前进，只要不低于本迁移目标版本即可
+      expect(version, greaterThanOrEqualTo(65));
     } finally {
       check.close();
     }

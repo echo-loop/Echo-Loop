@@ -215,4 +215,44 @@ void main() {
     await expectLater(service.flush(), throwsA(isA<Exception>()));
     await service.flush();
   });
+
+  group('学习时长写入信号与打卡判定', () {
+    test('有时长写入成功后发出该事件的日期，零时长不发出', () async {
+      final date = DateTime(2026, 11, 6);
+      final emitted = <DateTime>[];
+      final subscription = service.studySessionRecorded.listen(emitted.add);
+      addTearDown(subscription.cancel);
+
+      await service.recordSessionDurations(
+        studyDuration: Duration.zero,
+        stage: StudyStage.freePlayer,
+        date: date,
+      );
+      // broadcast 流异步投递，等待一轮事件循环后再断言
+      await Future<void>.delayed(Duration.zero);
+      expect(emitted, isEmpty);
+
+      await service.recordSessionDurations(
+        studyDuration: const Duration(seconds: 3),
+        stage: StudyStage.freePlayer,
+        date: date,
+      );
+      await Future<void>.delayed(Duration.zero);
+      expect(emitted, [date]);
+    });
+
+    test('打卡判定等待已入队的时长写入，读到最新累计值', () async {
+      final date = DateTime(2026, 11, 6);
+      // 不等待写入完成，直接判定：必须排在该写入之后执行
+      final write = study(300, date: date);
+
+      final checkedIn = await service.tryCheckInDailyGoal(
+        goalMinutes: 5,
+        date: date,
+      );
+
+      expect(checkedIn, isTrue);
+      await write;
+    });
+  });
 }

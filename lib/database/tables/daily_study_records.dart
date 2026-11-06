@@ -37,4 +37,10 @@ class DailyStudyRecords extends Table {
   /// 当日累计输出时间（毫秒）。
   IntColumn get outputTimeMilliseconds =>
       integer().withDefault(const Constant(0))();
+
+  /// 当日打卡时的每日学习目标（分钟）。
+  ///
+  /// 非空表示当天已打卡成功，值为打卡时的目标；为空表示当天尚未打卡。
+  /// 与时长同一行存储，保证「是否打卡」与「学习时长」同日一致。
+  IntColumn get checkedInGoalMinutes => integer().nullable()();
 }

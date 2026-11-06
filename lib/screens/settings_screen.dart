@@ -59,6 +59,7 @@ import '../widgets/dictionary/dict_source_presentation.dart';
 import 'asr_settings_screen.dart';
 import 'dictionary_settings_screen.dart';
 import 'display_settings_screen.dart';
+import 'toast_debug_screen.dart';
 import 'tts_settings_screen.dart';
 import 'learning_settings_screen.dart';
 import 'log_viewer_screen.dart';
@@ -911,6 +912,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             MaterialPageRoute<void>(
               builder: (_) => const DownloadTasksScreen(),
             ),
+          ),
+        ),
+        ListTile(
+          leading: _emojiIcon('🍞'),
+          title: const Text('Toast 样式'),
+          trailing: const Icon(Icons.chevron_right),
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute<void>(builder: (_) => const ToastDebugScreen()),
           ),
         ),
         // 仅 macOS：插件桌面端客户端不读取系统代理，开启后把系统代理写入下载插件。

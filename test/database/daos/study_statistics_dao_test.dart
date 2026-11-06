@@ -147,4 +147,75 @@ void main() {
     );
     expect(await db.dailyStudyRecordDao.getAll(), isEmpty);
   });
+
+  group('markDailyGoalCheckIn', () {
+    Future<void> studyMinutes(DateTime date, int minutes) => dao.applyDelta(
+      StudyStatisticsDelta(
+        date: date,
+        stage: StudyStage.intensiveListen,
+        studyTimeMilliseconds: minutes * 60 * 1000,
+      ),
+    );
+
+    test('未达标返回 false 且不写入打卡标记', () async {
+      final date = DateTime(2026, 11, 6);
+      await studyMinutes(date, 1);
+
+      final checkedIn = await dao.markDailyGoalCheckIn(
+        date: date,
+        goalMinutes: 5,
+      );
+
+      expect(checkedIn, isFalse);
+      final row = await db.dailyStudyRecordDao.getByDate(date);
+      expect(row?.checkedInGoalMinutes, isNull);
+    });
+
+    test('达标时返回 true 并记录目标，同日再次调用不覆盖首次结果', () async {
+      final date = DateTime(2026, 11, 6);
+      await studyMinutes(date, 6);
+
+      expect(
+        await dao.markDailyGoalCheckIn(date: date, goalMinutes: 5),
+        isTrue,
+      );
+      // 目标被调低后再次判定，也不能重复打卡或覆盖首次目标
+      expect(
+        await dao.markDailyGoalCheckIn(date: date, goalMinutes: 1),
+        isFalse,
+      );
+
+      final row = await db.dailyStudyRecordDao.getByDate(date);
+      expect(row?.checkedInGoalMinutes, 5);
+    });
+
+    test('没有当天统计行时返回 false', () async {
+      final checkedIn = await dao.markDailyGoalCheckIn(
+        date: DateTime(2026, 11, 6),
+        goalMinutes: 5,
+      );
+
+      expect(checkedIn, isFalse);
+      expect(await db.dailyStudyRecordDao.getAll(), isEmpty);
+    });
+
+    test('次日的打卡标记相互独立，且不影响前一天', () async {
+      final day1 = DateTime(2026, 11, 6);
+      final day2 = DateTime(2026, 11, 7);
+      await studyMinutes(day1, 5);
+      expect(await dao.markDailyGoalCheckIn(date: day1, goalMinutes: 5), isTrue);
+
+      await studyMinutes(day2, 5);
+      expect(await dao.markDailyGoalCheckIn(date: day2, goalMinutes: 5), isTrue);
+
+      expect(
+        (await db.dailyStudyRecordDao.getByDate(day1))?.checkedInGoalMinutes,
+        5,
+      );
+      expect(
+        (await db.dailyStudyRecordDao.getByDate(day2))?.checkedInGoalMinutes,
+        5,
+      );
+    });
+  });
 }

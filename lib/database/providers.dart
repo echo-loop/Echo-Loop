@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart';
 
@@ -233,11 +235,14 @@ final favoriteReviewDaoProvider = Provider<FavoriteReviewDao>((ref) {
 
 /// StudyTimeService Provider
 final studyTimeServiceProvider = Provider<StudyTimeService>((ref) {
-  return StudyTimeService(
+  final service = StudyTimeService(
     ref.watch(dailyStudyRecordDaoProvider),
     ref.watch(dailyStageStudyRecordDaoProvider),
     statisticsDao: ref.watch(studyStatisticsDaoProvider),
   );
+  // 关闭事件流，避免切库或销毁后订阅方仍持有旧 service。
+  ref.onDispose(() => unawaited(service.dispose()));
+  return service;
 });
 
 /// 学习统计唯一写入 DAO Provider。

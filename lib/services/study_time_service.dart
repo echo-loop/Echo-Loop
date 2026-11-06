@@ -22,6 +22,8 @@ class StudyTimeService {
   Future<void>? _flushInFlight;
   int _nextEventId = 0;
   final List<_StudyWriteFailure> _failures = <_StudyWriteFailure>[];
+  final StreamController<DateTime> _sessionRecordedController =
+      StreamController<DateTime>.broadcast();
 
   StudyTimeService(
     this._dao,
@@ -30,6 +32,15 @@ class StudyTimeService {
   }) {
     _statisticsDao = statisticsDao ?? StudyStatisticsDao(_dao.attachedDatabase);
   }
+
+  /// 有学习时长写入成功后发出该事件日期，供打卡判定订阅。
+  ///
+  /// 只在时长真正落库后发出，因此订阅方查询到的今日时长已包含本次写入。
+  Stream<DateTime> get studySessionRecorded =>
+      _sessionRecordedController.stream;
+
+  /// 释放事件流；随 Provider 销毁或数据库切换时调用。
+  Future<void> dispose() => _sessionRecordedController.close();
 
   /// 记录一次学习会话的总学习时长和输入时长。
   ///
@@ -56,7 +67,26 @@ class StudyTimeService {
             'studyDurationMs=${studyDuration.inMilliseconds} '
             'inputDurationMs=${inputDuration.inMilliseconds}',
       );
+      if (studyDuration > Duration.zero &&
+          !_sessionRecordedController.isClosed) {
+        _sessionRecordedController.add(eventDate);
+      }
     });
+  }
+
+  /// 尝试为 [date] 当天记录每日学习目标打卡，返回本次是否刚刚打卡成功。
+  ///
+  /// 先等待已入队的写入，确保判定读到最新时长；日期由调用方传入，
+  /// 与触发它的时长写入保持同一天。
+  Future<bool> tryCheckInDailyGoal({
+    required int goalMinutes,
+    required DateTime date,
+  }) async {
+    await _queueTail;
+    return _statisticsDao.markDailyGoalCheckIn(
+      date: date,
+      goalMinutes: goalMinutes,
+    );
   }
 
   /// 记录有效学习时长；是否允许后台计时由具体学习任务和计时器决定。

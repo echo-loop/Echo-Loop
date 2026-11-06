@@ -4215,6 +4215,11 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String dailyGoalCompletedToast(int minutes) {
+    return '今日 $minutes 分钟学习目标已完成！';
+  }
+
+  @override
   String get showRecommendationToggle => '显示推荐卡片';
 
   @override

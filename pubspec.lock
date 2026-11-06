@@ -1419,6 +1419,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.3.0"
+  pausable_timer:
+    dependency: transitive
+    description:
+      name: pausable_timer
+      sha256: "6ef1a95441ec3439de6fb63f39a011b67e693198e7dae14e20675c3c00e86074"
+      url: "https://pub.dev"
+    source: hosted
+    version: "3.1.0+3"
   pdf:
     dependency: "direct main"
     description:
@@ -2144,6 +2152,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "0.10.1"
+  toastification:
+    dependency: "direct main"
+    description:
+      name: toastification
+      sha256: e06b82a66dffb866af2923cc04012f52ae96ec50ab9215efa07be8d6ec6486fb
+      url: "https://pub.dev"
+    source: hosted
+    version: "3.2.2"
   tuple:
     dependency: transitive
     description:

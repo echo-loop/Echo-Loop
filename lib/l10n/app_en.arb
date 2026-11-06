@@ -2282,6 +2282,12 @@
   "dailyGoalSetting": "Daily study goal",
   "dailyGoalSettingSubtitle": "How long you plan to study each day",
   "dailyGoalMinutesValue": "{minutes} min",
+  "dailyGoalCompletedToast": "Today's {minutes}-minute study goal is complete!",
+  "@dailyGoalCompletedToast": {
+    "placeholders": {
+      "minutes": {"type": "int"}
+    }
+  },
   "@dailyGoalMinutesValue": {
     "placeholders": {
       "minutes": {"type": "int"}

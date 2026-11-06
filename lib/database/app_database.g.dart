@@ -10844,6 +10844,16 @@ class $DailyStudyRecordsTable extends DailyStudyRecords
     requiredDuringInsert: false,
     defaultValue: const Constant(0),
   );
+  static const VerificationMeta _checkedInGoalMinutesMeta =
+      const VerificationMeta('checkedInGoalMinutes');
+  @override
+  late final GeneratedColumn<int> checkedInGoalMinutes = GeneratedColumn<int>(
+    'checked_in_goal_minutes',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -10856,6 +10866,7 @@ class $DailyStudyRecordsTable extends DailyStudyRecords
     inputTimeMilliseconds,
     outputTimeSeconds,
     outputTimeMilliseconds,
+    checkedInGoalMinutes,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -10949,6 +10960,15 @@ class $DailyStudyRecordsTable extends DailyStudyRecords
         ),
       );
     }
+    if (data.containsKey('checked_in_goal_minutes')) {
+      context.handle(
+        _checkedInGoalMinutesMeta,
+        checkedInGoalMinutes.isAcceptableOrUnknown(
+          data['checked_in_goal_minutes']!,
+          _checkedInGoalMinutesMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -10998,6 +11018,10 @@ class $DailyStudyRecordsTable extends DailyStudyRecords
         DriftSqlType.int,
         data['${effectivePrefix}output_time_milliseconds'],
       )!,
+      checkedInGoalMinutes: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}checked_in_goal_minutes'],
+      ),
     );
   }
 
@@ -11038,6 +11062,12 @@ class DailyStudyRecord extends DataClass
 
   /// 当日累计输出时间（毫秒）。
   final int outputTimeMilliseconds;
+
+  /// 当日打卡时的每日学习目标（分钟）。
+  ///
+  /// 非空表示当天已打卡成功，值为打卡时的目标；为空表示当天尚未打卡。
+  /// 与时长同一行存储，保证「是否打卡」与「学习时长」同日一致。
+  final int? checkedInGoalMinutes;
   const DailyStudyRecord({
     required this.id,
     required this.date,
@@ -11049,6 +11079,7 @@ class DailyStudyRecord extends DataClass
     required this.inputTimeMilliseconds,
     required this.outputTimeSeconds,
     required this.outputTimeMilliseconds,
+    this.checkedInGoalMinutes,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -11063,6 +11094,9 @@ class DailyStudyRecord extends DataClass
     map['input_time_milliseconds'] = Variable<int>(inputTimeMilliseconds);
     map['output_time_seconds'] = Variable<int>(outputTimeSeconds);
     map['output_time_milliseconds'] = Variable<int>(outputTimeMilliseconds);
+    if (!nullToAbsent || checkedInGoalMinutes != null) {
+      map['checked_in_goal_minutes'] = Variable<int>(checkedInGoalMinutes);
+    }
     return map;
   }
 
@@ -11078,6 +11112,9 @@ class DailyStudyRecord extends DataClass
       inputTimeMilliseconds: Value(inputTimeMilliseconds),
       outputTimeSeconds: Value(outputTimeSeconds),
       outputTimeMilliseconds: Value(outputTimeMilliseconds),
+      checkedInGoalMinutes: checkedInGoalMinutes == null && nullToAbsent
+          ? const Value.absent()
+          : Value(checkedInGoalMinutes),
     );
   }
 
@@ -11103,6 +11140,9 @@ class DailyStudyRecord extends DataClass
       outputTimeMilliseconds: serializer.fromJson<int>(
         json['outputTimeMilliseconds'],
       ),
+      checkedInGoalMinutes: serializer.fromJson<int?>(
+        json['checkedInGoalMinutes'],
+      ),
     );
   }
   @override
@@ -11119,6 +11159,7 @@ class DailyStudyRecord extends DataClass
       'inputTimeMilliseconds': serializer.toJson<int>(inputTimeMilliseconds),
       'outputTimeSeconds': serializer.toJson<int>(outputTimeSeconds),
       'outputTimeMilliseconds': serializer.toJson<int>(outputTimeMilliseconds),
+      'checkedInGoalMinutes': serializer.toJson<int?>(checkedInGoalMinutes),
     };
   }
 
@@ -11133,6 +11174,7 @@ class DailyStudyRecord extends DataClass
     int? inputTimeMilliseconds,
     int? outputTimeSeconds,
     int? outputTimeMilliseconds,
+    Value<int?> checkedInGoalMinutes = const Value.absent(),
   }) => DailyStudyRecord(
     id: id ?? this.id,
     date: date ?? this.date,
@@ -11145,6 +11187,9 @@ class DailyStudyRecord extends DataClass
     outputTimeSeconds: outputTimeSeconds ?? this.outputTimeSeconds,
     outputTimeMilliseconds:
         outputTimeMilliseconds ?? this.outputTimeMilliseconds,
+    checkedInGoalMinutes: checkedInGoalMinutes.present
+        ? checkedInGoalMinutes.value
+        : this.checkedInGoalMinutes,
   );
   DailyStudyRecord copyWithCompanion(DailyStudyRecordsCompanion data) {
     return DailyStudyRecord(
@@ -11174,6 +11219,9 @@ class DailyStudyRecord extends DataClass
       outputTimeMilliseconds: data.outputTimeMilliseconds.present
           ? data.outputTimeMilliseconds.value
           : this.outputTimeMilliseconds,
+      checkedInGoalMinutes: data.checkedInGoalMinutes.present
+          ? data.checkedInGoalMinutes.value
+          : this.checkedInGoalMinutes,
     );
   }
 
@@ -11189,7 +11237,8 @@ class DailyStudyRecord extends DataClass
           ..write('inputTimeSeconds: $inputTimeSeconds, ')
           ..write('inputTimeMilliseconds: $inputTimeMilliseconds, ')
           ..write('outputTimeSeconds: $outputTimeSeconds, ')
-          ..write('outputTimeMilliseconds: $outputTimeMilliseconds')
+          ..write('outputTimeMilliseconds: $outputTimeMilliseconds, ')
+          ..write('checkedInGoalMinutes: $checkedInGoalMinutes')
           ..write(')'))
         .toString();
   }
@@ -11206,6 +11255,7 @@ class DailyStudyRecord extends DataClass
     inputTimeMilliseconds,
     outputTimeSeconds,
     outputTimeMilliseconds,
+    checkedInGoalMinutes,
   );
   @override
   bool operator ==(Object other) =>
@@ -11220,7 +11270,8 @@ class DailyStudyRecord extends DataClass
           other.inputTimeSeconds == this.inputTimeSeconds &&
           other.inputTimeMilliseconds == this.inputTimeMilliseconds &&
           other.outputTimeSeconds == this.outputTimeSeconds &&
-          other.outputTimeMilliseconds == this.outputTimeMilliseconds);
+          other.outputTimeMilliseconds == this.outputTimeMilliseconds &&
+          other.checkedInGoalMinutes == this.checkedInGoalMinutes);
 }
 
 class DailyStudyRecordsCompanion extends UpdateCompanion<DailyStudyRecord> {
@@ -11234,6 +11285,7 @@ class DailyStudyRecordsCompanion extends UpdateCompanion<DailyStudyRecord> {
   final Value<int> inputTimeMilliseconds;
   final Value<int> outputTimeSeconds;
   final Value<int> outputTimeMilliseconds;
+  final Value<int?> checkedInGoalMinutes;
   const DailyStudyRecordsCompanion({
     this.id = const Value.absent(),
     this.date = const Value.absent(),
@@ -11245,6 +11297,7 @@ class DailyStudyRecordsCompanion extends UpdateCompanion<DailyStudyRecord> {
     this.inputTimeMilliseconds = const Value.absent(),
     this.outputTimeSeconds = const Value.absent(),
     this.outputTimeMilliseconds = const Value.absent(),
+    this.checkedInGoalMinutes = const Value.absent(),
   });
   DailyStudyRecordsCompanion.insert({
     this.id = const Value.absent(),
@@ -11257,6 +11310,7 @@ class DailyStudyRecordsCompanion extends UpdateCompanion<DailyStudyRecord> {
     this.inputTimeMilliseconds = const Value.absent(),
     this.outputTimeSeconds = const Value.absent(),
     this.outputTimeMilliseconds = const Value.absent(),
+    this.checkedInGoalMinutes = const Value.absent(),
   }) : date = Value(date);
   static Insertable<DailyStudyRecord> custom({
     Expression<int>? id,
@@ -11269,6 +11323,7 @@ class DailyStudyRecordsCompanion extends UpdateCompanion<DailyStudyRecord> {
     Expression<int>? inputTimeMilliseconds,
     Expression<int>? outputTimeSeconds,
     Expression<int>? outputTimeMilliseconds,
+    Expression<int>? checkedInGoalMinutes,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -11284,6 +11339,8 @@ class DailyStudyRecordsCompanion extends UpdateCompanion<DailyStudyRecord> {
       if (outputTimeSeconds != null) 'output_time_seconds': outputTimeSeconds,
       if (outputTimeMilliseconds != null)
         'output_time_milliseconds': outputTimeMilliseconds,
+      if (checkedInGoalMinutes != null)
+        'checked_in_goal_minutes': checkedInGoalMinutes,
     });
   }
 
@@ -11298,6 +11355,7 @@ class DailyStudyRecordsCompanion extends UpdateCompanion<DailyStudyRecord> {
     Value<int>? inputTimeMilliseconds,
     Value<int>? outputTimeSeconds,
     Value<int>? outputTimeMilliseconds,
+    Value<int?>? checkedInGoalMinutes,
   }) {
     return DailyStudyRecordsCompanion(
       id: id ?? this.id,
@@ -11313,6 +11371,7 @@ class DailyStudyRecordsCompanion extends UpdateCompanion<DailyStudyRecord> {
       outputTimeSeconds: outputTimeSeconds ?? this.outputTimeSeconds,
       outputTimeMilliseconds:
           outputTimeMilliseconds ?? this.outputTimeMilliseconds,
+      checkedInGoalMinutes: checkedInGoalMinutes ?? this.checkedInGoalMinutes,
     );
   }
 
@@ -11355,6 +11414,11 @@ class DailyStudyRecordsCompanion extends UpdateCompanion<DailyStudyRecord> {
         outputTimeMilliseconds.value,
       );
     }
+    if (checkedInGoalMinutes.present) {
+      map['checked_in_goal_minutes'] = Variable<int>(
+        checkedInGoalMinutes.value,
+      );
+    }
     return map;
   }
 
@@ -11370,7 +11434,8 @@ class DailyStudyRecordsCompanion extends UpdateCompanion<DailyStudyRecord> {
           ..write('inputTimeSeconds: $inputTimeSeconds, ')
           ..write('inputTimeMilliseconds: $inputTimeMilliseconds, ')
           ..write('outputTimeSeconds: $outputTimeSeconds, ')
-          ..write('outputTimeMilliseconds: $outputTimeMilliseconds')
+          ..write('outputTimeMilliseconds: $outputTimeMilliseconds, ')
+          ..write('checkedInGoalMinutes: $checkedInGoalMinutes')
           ..write(')'))
         .toString();
   }
@@ -22549,6 +22614,7 @@ typedef $$DailyStudyRecordsTableCreateCompanionBuilder =
       Value<int> inputTimeMilliseconds,
       Value<int> outputTimeSeconds,
       Value<int> outputTimeMilliseconds,
+      Value<int?> checkedInGoalMinutes,
     });
 typedef $$DailyStudyRecordsTableUpdateCompanionBuilder =
     DailyStudyRecordsCompanion Function({
@@ -22562,6 +22628,7 @@ typedef $$DailyStudyRecordsTableUpdateCompanionBuilder =
       Value<int> inputTimeMilliseconds,
       Value<int> outputTimeSeconds,
       Value<int> outputTimeMilliseconds,
+      Value<int?> checkedInGoalMinutes,
     });
 
 class $$DailyStudyRecordsTableFilterComposer
@@ -22620,6 +22687,11 @@ class $$DailyStudyRecordsTableFilterComposer
 
   ColumnFilters<int> get outputTimeMilliseconds => $composableBuilder(
     column: $table.outputTimeMilliseconds,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get checkedInGoalMinutes => $composableBuilder(
+    column: $table.checkedInGoalMinutes,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -22682,6 +22754,11 @@ class $$DailyStudyRecordsTableOrderingComposer
     column: $table.outputTimeMilliseconds,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<int> get checkedInGoalMinutes => $composableBuilder(
+    column: $table.checkedInGoalMinutes,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$DailyStudyRecordsTableAnnotationComposer
@@ -22738,6 +22815,11 @@ class $$DailyStudyRecordsTableAnnotationComposer
     column: $table.outputTimeMilliseconds,
     builder: (column) => column,
   );
+
+  GeneratedColumn<int> get checkedInGoalMinutes => $composableBuilder(
+    column: $table.checkedInGoalMinutes,
+    builder: (column) => column,
+  );
 }
 
 class $$DailyStudyRecordsTableTableManager
@@ -22790,6 +22872,7 @@ class $$DailyStudyRecordsTableTableManager
                 Value<int> inputTimeMilliseconds = const Value.absent(),
                 Value<int> outputTimeSeconds = const Value.absent(),
                 Value<int> outputTimeMilliseconds = const Value.absent(),
+                Value<int?> checkedInGoalMinutes = const Value.absent(),
               }) => DailyStudyRecordsCompanion(
                 id: id,
                 date: date,
@@ -22801,6 +22884,7 @@ class $$DailyStudyRecordsTableTableManager
                 inputTimeMilliseconds: inputTimeMilliseconds,
                 outputTimeSeconds: outputTimeSeconds,
                 outputTimeMilliseconds: outputTimeMilliseconds,
+                checkedInGoalMinutes: checkedInGoalMinutes,
               ),
           createCompanionCallback:
               ({
@@ -22814,6 +22898,7 @@ class $$DailyStudyRecordsTableTableManager
                 Value<int> inputTimeMilliseconds = const Value.absent(),
                 Value<int> outputTimeSeconds = const Value.absent(),
                 Value<int> outputTimeMilliseconds = const Value.absent(),
+                Value<int?> checkedInGoalMinutes = const Value.absent(),
               }) => DailyStudyRecordsCompanion.insert(
                 id: id,
                 date: date,
@@ -22825,6 +22910,7 @@ class $$DailyStudyRecordsTableTableManager
                 inputTimeMilliseconds: inputTimeMilliseconds,
                 outputTimeSeconds: outputTimeSeconds,
                 outputTimeMilliseconds: outputTimeMilliseconds,
+                checkedInGoalMinutes: checkedInGoalMinutes,
               ),
           withReferenceMapper: (p0) => p0
               .map(

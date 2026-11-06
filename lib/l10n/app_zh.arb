@@ -1808,6 +1808,12 @@
   "dailyGoalSetting": "每日学习目标",
   "dailyGoalSettingSubtitle": "每天计划学习的时长",
   "dailyGoalMinutesValue": "{minutes} 分钟",
+  "dailyGoalCompletedToast": "今日 {minutes} 分钟学习目标已完成！",
+  "@dailyGoalCompletedToast": {
+    "placeholders": {
+      "minutes": {"type": "int"}
+    }
+  },
   "@dailyGoalMinutesValue": {
     "placeholders": {
       "minutes": {"type": "int"}

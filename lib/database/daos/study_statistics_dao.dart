@@ -66,6 +66,34 @@ final class StudyStatisticsDao extends DatabaseAccessor<AppDatabase>
     });
   }
 
+  /// 当日学习时长首次达到目标时记录打卡，返回本次调用是否完成打卡。
+  ///
+  /// 判定、去重与落库放在同一条条件 UPDATE 里：只有当天行存在、尚未打卡、
+  /// 且时长已达标时才写入，因此并发或重复调用只会有一次返回 true。
+  /// 时长与打卡标记同一行，保证两者日期口径一致。
+  Future<bool> markDailyGoalCheckIn({
+    required DateTime date,
+    required int goalMinutes,
+  }) async {
+    final dateOnly = DateTime(date.year, date.month, date.day);
+    final updatedRows = await customUpdate(
+      '''
+      UPDATE daily_study_records
+      SET checked_in_goal_minutes = ?
+      WHERE date = ?
+        AND checked_in_goal_minutes IS NULL
+        AND study_time_milliseconds >= ?
+      ''',
+      variables: [
+        Variable<int>(goalMinutes),
+        Variable<int>(dateOnly.millisecondsSinceEpoch ~/ 1000),
+        Variable<int>(goalMinutes * Duration.millisecondsPerMinute),
+      ],
+      updates: {dailyStudyRecords},
+    );
+    return updatedRows > 0;
+  }
+
   Future<void> _upsertDailyRecord(
     DateTime date,
     StudyStatisticsDelta delta,

@@ -7718,6 +7718,12 @@ abstract class AppLocalizations {
   /// **'{minutes} min'**
   String dailyGoalMinutesValue(int minutes);
 
+  /// No description provided for @dailyGoalCompletedToast.
+  ///
+  /// In en, this message translates to:
+  /// **'Today\'s {minutes}-minute study goal is complete!'**
+  String dailyGoalCompletedToast(int minutes);
+
   /// No description provided for @showRecommendationToggle.
   ///
   /// In en, this message translates to:

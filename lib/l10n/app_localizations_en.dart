@@ -4423,6 +4423,11 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String dailyGoalCompletedToast(int minutes) {
+    return 'Today\'s $minutes-minute study goal is complete!';
+  }
+
+  @override
   String get showRecommendationToggle => 'Show recommendation card';
 
   @override

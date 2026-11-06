@@ -110,7 +110,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase(super.e);
 
   /// 当前 schema 版本（静态访问，用于导入前版本检查）
-  static const currentSchemaVersion = 65;
+  static const currentSchemaVersion = 66;
 
   @override
   int get schemaVersion => currentSchemaVersion;
@@ -921,6 +921,14 @@ class AppDatabase extends _$AppDatabase {
         // v64→v65：新增在线词典查词缓存表（旧离线词典文件由应用升级迁移删除）。
         if (from < 65) {
           await m.createTable(dictionaryCache);
+        }
+        // v65→v66：每日学习统计行记录当天打卡的目标分钟数（NULL = 未打卡）。
+        if (from < 66) {
+          await _addColumnIfNotExists(
+            'daily_study_records',
+            'checked_in_goal_minutes',
+            'INTEGER',
+          );
         }
       },
     );
