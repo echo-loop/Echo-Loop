@@ -225,4 +225,54 @@ void main() {
       isFalse,
     );
   });
+
+  test('每日学习目标随 learning 分组双向同步', () async {
+    SharedPreferences.setMockInitialValues({
+      'learning_daily_goal_minutes': 30,
+    });
+    final prefs = await SharedPreferences.getInstance();
+    final store = LocalUserPreferencesStore(prefs);
+
+    expect(
+      (store.capture().preferences['learning'] as Map)['dailyGoalMinutes'],
+      30,
+    );
+
+    await store.apply(
+      UserPreferencesDocument({
+        'learning': {'dailyGoalMinutes': 60},
+      }),
+    );
+    expect(prefs.getInt('learning_daily_goal_minutes'), 60);
+  });
+
+  test('云端缺失每日学习目标时保留本地解析值，不覆盖引导页答案', () async {
+    SharedPreferences.setMockInitialValues({
+      'onboarding_daily_minutes': '20',
+    });
+    final prefs = await SharedPreferences.getInstance();
+    final store = LocalUserPreferencesStore(prefs);
+
+    await store.apply(
+      UserPreferencesDocument({
+        'learning': {'autoSkipRetell': true},
+      }),
+    );
+
+    expect(prefs.getInt('learning_daily_goal_minutes'), 20);
+  });
+
+  test('云端每日学习目标越界时钳制到合法范围', () async {
+    SharedPreferences.setMockInitialValues({});
+    final prefs = await SharedPreferences.getInstance();
+    final store = LocalUserPreferencesStore(prefs);
+
+    await store.apply(
+      UserPreferencesDocument({
+        'learning': {'dailyGoalMinutes': 100000},
+      }),
+    );
+
+    expect(prefs.getInt('learning_daily_goal_minutes'), 720);
+  });
 }

@@ -4342,9 +4342,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get onboardingQ2Option30 => '30+ minutes';
 
   @override
-  String get onboardingQ2OptionFlexible => 'It varies';
-
-  @override
   String get onboardingQ3Prompt => 'How did you hear about us?';
 
   @override
@@ -4413,6 +4410,17 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get learningSettings => 'Learning Settings';
+
+  @override
+  String get dailyGoalSetting => 'Daily study goal';
+
+  @override
+  String get dailyGoalSettingSubtitle => 'How long you plan to study each day';
+
+  @override
+  String dailyGoalMinutesValue(int minutes) {
+    return '$minutes min';
+  }
 
   @override
   String get showRecommendationToggle => 'Show recommendation card';

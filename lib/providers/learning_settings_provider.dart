@@ -15,6 +15,8 @@ import '../utils/provider_override_error.dart';
 
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../features/onboarding_survey/data/onboarding_survey_storage.dart'
+    show OnboardingSurveyKeys;
 import '../features/onboarding_survey/providers/onboarding_survey_provider.dart'
     show sharedPreferencesProvider;
 import '../services/app_logger.dart';
@@ -55,6 +57,7 @@ abstract final class LearningSettingsKeys {
       'learning_unclear_auto_save_reminder_shown';
   static const podcastTranscriptReminderShown =
       'learning_podcast_transcript_reminder_shown';
+  static const dailyGoalMinutes = 'learning_daily_goal_minutes';
 
   /// 历史 SP key，启动期会被清理。
   static const legacyOfflineAsrEnabled = 'offline_asr_enabled';
@@ -63,9 +66,22 @@ abstract final class LearningSettingsKeys {
 }
 
 /// 学习设置不可变值对象。
-///
-/// 学习设置不可变值对象。
 class LearningSettings {
+  /// 每日学习目标的默认分钟数。老用户未答过引导页 Q2 时使用，
+  /// 也是打卡首次成功时用户感知到该功能的初始值。
+  static const defaultDailyGoalMinutes = 10;
+
+  /// 设置页可选的每日目标档位（分钟）。
+  static const dailyGoalMinutesOptions = [5, 10, 15, 20, 30, 45, 60, 90, 120];
+
+  /// 云端或本地读到的目标分钟数允许范围。比设置页档位更宽，
+  /// 以便未来新增档位时旧客户端不会把新值误判为非法而回退默认值。
+  static const dailyGoalMinutesMin = 1;
+  static const dailyGoalMinutesMax = 720;
+
+  /// 每日学习目标分钟数（参与跨设备同步）。
+  final int dailyGoalMinutes;
+
   /// 是否自动跳过复述（默认 false）。
   final bool autoSkipRetell;
 
@@ -112,6 +128,7 @@ class LearningSettings {
   final bool podcastTranscriptReminderShown;
 
   const LearningSettings({
+    this.dailyGoalMinutes = defaultDailyGoalMinutes,
     this.autoSkipRetell = false,
     this.autoExpandCachedAnnotation = true,
     this.autoShowAiExplanation = true,
@@ -132,6 +149,7 @@ class LearningSettings {
   /// 同步从 [SharedPreferences] 派生当前状态，用于启动期 override 注入。
   factory LearningSettings.fromPrefsSync(SharedPreferences prefs) {
     return LearningSettings(
+      dailyGoalMinutes: resolveDailyGoalMinutes(prefs),
       autoSkipRetell:
           prefs.getBool(LearningSettingsKeys.autoSkipRetell) ?? false,
       autoExpandCachedAnnotation:
@@ -173,7 +191,31 @@ class LearningSettings {
     );
   }
 
+  /// 读取每日目标分钟数。
+  ///
+  /// 优先取本功能自己的 key；没有时继承引导页 Q2 答案（`5/10/20/30`，
+  /// 「不固定」等非数字答案忽略），让已答过问卷的用户保持其选择。
+  /// 两者都没有时返回 [defaultDailyGoalMinutes]。
+  static int resolveDailyGoalMinutes(SharedPreferences prefs) {
+    final stored = prefs.getInt(LearningSettingsKeys.dailyGoalMinutes);
+    if (_isValidDailyGoalMinutes(stored)) return stored!;
+
+    final onboardingRaw = prefs.getString(OnboardingSurveyKeys.dailyMinutes);
+    final onboardingMinutes = onboardingRaw == null
+        ? null
+        : int.tryParse(onboardingRaw);
+    if (_isValidDailyGoalMinutes(onboardingMinutes)) return onboardingMinutes!;
+
+    return defaultDailyGoalMinutes;
+  }
+
+  static bool _isValidDailyGoalMinutes(int? minutes) =>
+      minutes != null &&
+      minutes >= dailyGoalMinutesMin &&
+      minutes <= dailyGoalMinutesMax;
+
   LearningSettings copyWith({
+    int? dailyGoalMinutes,
     bool? autoSkipRetell,
     bool? autoExpandCachedAnnotation,
     bool? autoShowAiExplanation,
@@ -191,6 +233,7 @@ class LearningSettings {
     bool? podcastTranscriptReminderShown,
   }) {
     return LearningSettings(
+      dailyGoalMinutes: dailyGoalMinutes ?? this.dailyGoalMinutes,
       autoSkipRetell: autoSkipRetell ?? this.autoSkipRetell,
       autoExpandCachedAnnotation:
           autoExpandCachedAnnotation ?? this.autoExpandCachedAnnotation,
@@ -226,6 +269,7 @@ class LearningSettings {
       identical(this, other) ||
       other is LearningSettings &&
           runtimeType == other.runtimeType &&
+          dailyGoalMinutes == other.dailyGoalMinutes &&
           autoSkipRetell == other.autoSkipRetell &&
           autoExpandCachedAnnotation == other.autoExpandCachedAnnotation &&
           autoShowAiExplanation == other.autoShowAiExplanation &&
@@ -247,6 +291,7 @@ class LearningSettings {
 
   @override
   int get hashCode => Object.hash(
+    dailyGoalMinutes,
     autoSkipRetell,
     autoExpandCachedAnnotation,
     autoShowAiExplanation,
@@ -490,6 +535,33 @@ class LearningSettingsNotifier extends Notifier<LearningSettings> {
       AppLogger.log(
         'LearningSettings',
         'markPodcastTranscriptReminderShown 写 SP 失败: $e',
+      );
+    }
+  }
+
+  /// 设置每日学习目标分钟数，写 SP + 更新 state。
+  ///
+  /// 只接受设置页档位；档位外的值属于调用方错误，直接抛出而非静默忽略。
+  ///
+  /// 不做「同值不写入」短路：state 可能已由引导页答案回退得到同一数值，
+  /// 此时必须真正写入 SP，才能把引导页答案固化为学习设置自身的值。
+  Future<void> setDailyGoalMinutes(int minutes) async {
+    if (!LearningSettings.dailyGoalMinutesOptions.contains(minutes)) {
+      throw ArgumentError.value(
+        minutes,
+        'minutes',
+        '必须是设置页提供的每日目标档位',
+      );
+    }
+    state = state.copyWith(dailyGoalMinutes: minutes);
+    try {
+      final prefs = ref.read(sharedPreferencesProvider);
+      await prefs.setInt(LearningSettingsKeys.dailyGoalMinutes, minutes);
+      userPreferencesSyncEvents.notifyLocalChange();
+    } catch (e) {
+      AppLogger.log(
+        'LearningSettings',
+        'setDailyGoalMinutes 写 SP 失败: $e',
       );
     }
   }

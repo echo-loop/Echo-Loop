@@ -62,6 +62,11 @@ class _TestLearningSettingsNotifier extends Notifier<LearningSettings>
   }
 
   @override
+  Future<void> setDailyGoalMinutes(int minutes) async {
+    state = state.copyWith(dailyGoalMinutes: minutes);
+  }
+
+  @override
   Future<void> setShowStudyRecommendation(bool enabled) async {
     if (state.showStudyRecommendation == enabled) return;
     state = state.copyWith(showStudyRecommendation: enabled);

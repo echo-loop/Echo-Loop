@@ -38,6 +38,40 @@ class LearningSettingsScreen extends ConsumerWidget {
         ),
         children: [
           Card(
+            child: ListTile(
+              leading: Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: colorScheme.primary.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(
+                  Icons.flag_outlined,
+                  size: 20,
+                  color: colorScheme.primary,
+                ),
+              ),
+              title: Text(l10n.dailyGoalSetting),
+              subtitle: Text(
+                l10n.dailyGoalSettingSubtitle,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
+                ),
+              ),
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(l10n.dailyGoalMinutesValue(settings.dailyGoalMinutes)),
+                  const SizedBox(width: AppSpacing.xs),
+                  const Icon(Icons.chevron_right),
+                ],
+              ),
+              onTap: () => _showDailyGoalDialog(context, ref, settings),
+            ),
+          ),
+          const SizedBox(height: AppSpacing.m),
+          Card(
             child: Column(
               children: [
                 SwitchListTile(
@@ -308,6 +342,66 @@ class LearningSettingsScreen extends ConsumerWidget {
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(SnackBar(content: Text(l10n.resetNewUserGuideDone)));
+  }
+
+  /// 每日学习目标选择框：点选即保存并关闭，与播放设置的静音阈值选择保持一致。
+  Future<void> _showDailyGoalDialog(
+    BuildContext context,
+    WidgetRef ref,
+    LearningSettings settings,
+  ) async {
+    final l10n = AppLocalizations.of(context)!;
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(l10n.dailyGoalSetting),
+        contentPadding: const EdgeInsets.symmetric(vertical: AppSpacing.s),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: ListView(
+            shrinkWrap: true,
+            children: [
+              for (final minutes
+                  in LearningSettings.dailyGoalMinutesOptions)
+                _buildDailyGoalOption(
+                  dialogContext,
+                  ref,
+                  l10n,
+                  settings.dailyGoalMinutes,
+                  minutes,
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDailyGoalOption(
+    BuildContext context,
+    WidgetRef ref,
+    AppLocalizations l10n,
+    int currentMinutes,
+    int minutes,
+  ) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final isSelected = currentMinutes == minutes;
+    return ListTile(
+      leading: Icon(
+        isSelected ? Icons.check_circle : Icons.circle_outlined,
+        color: isSelected ? colorScheme.primary : colorScheme.outline,
+      ),
+      title: Text(l10n.dailyGoalMinutesValue(minutes)),
+      selected: isSelected,
+      onTap: () {
+        if (!isSelected) {
+          ref
+              .read(learningSettingsProvider.notifier)
+              .setDailyGoalMinutes(minutes);
+        }
+        Navigator.pop(context);
+      },
+    );
   }
 }
 

@@ -41,7 +41,8 @@ abstract final class OnboardingExamType {
 
 /// 每日学习时长编码（Q2）
 ///
-/// 含 `flexible` 故用 String 而非 int。
+/// [flexible]（「不固定」）已下线，界面不再提供；保留在合法值集合中仅用于
+/// 读取历史答案，否则老用户的问卷会被判为未完成。新答案只会是 m5..m30。
 abstract final class OnboardingDailyMinutes {
   static const m5 = '5';
   static const m10 = '10';

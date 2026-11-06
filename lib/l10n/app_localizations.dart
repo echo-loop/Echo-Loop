@@ -7562,12 +7562,6 @@ abstract class AppLocalizations {
   /// **'30+ minutes'**
   String get onboardingQ2Option30;
 
-  /// No description provided for @onboardingQ2OptionFlexible.
-  ///
-  /// In en, this message translates to:
-  /// **'It varies'**
-  String get onboardingQ2OptionFlexible;
-
   /// No description provided for @onboardingQ3Prompt.
   ///
   /// In en, this message translates to:
@@ -7705,6 +7699,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Learning Settings'**
   String get learningSettings;
+
+  /// No description provided for @dailyGoalSetting.
+  ///
+  /// In en, this message translates to:
+  /// **'Daily study goal'**
+  String get dailyGoalSetting;
+
+  /// No description provided for @dailyGoalSettingSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'How long you plan to study each day'**
+  String get dailyGoalSettingSubtitle;
+
+  /// No description provided for @dailyGoalMinutesValue.
+  ///
+  /// In en, this message translates to:
+  /// **'{minutes} min'**
+  String dailyGoalMinutesValue(int minutes);
 
   /// No description provided for @showRecommendationToggle.
   ///

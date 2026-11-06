@@ -2255,7 +2255,6 @@
   "onboardingQ2Option10": "About 10 minutes",
   "onboardingQ2Option20": "About 20 minutes",
   "onboardingQ2Option30": "30+ minutes",
-  "onboardingQ2OptionFlexible": "It varies",
   "onboardingQ3Prompt": "How did you hear about us?",
   "onboardingQ3OptionAppStore": "App Store / Google Play",
   "onboardingQ3OptionYoutube": "YouTube",
@@ -2280,6 +2279,14 @@
   "playbackSettings": "Playback Settings",
   "learningSection": "Learning",
   "learningSettings": "Learning Settings",
+  "dailyGoalSetting": "Daily study goal",
+  "dailyGoalSettingSubtitle": "How long you plan to study each day",
+  "dailyGoalMinutesValue": "{minutes} min",
+  "@dailyGoalMinutesValue": {
+    "placeholders": {
+      "minutes": {"type": "int"}
+    }
+  },
   "displaySettings": "Display Settings",
   "showRecommendationToggle": "Show recommendation card",
   "showRecommendationSubtitle": "Show the \"Recommended for you\" card on the Study page",

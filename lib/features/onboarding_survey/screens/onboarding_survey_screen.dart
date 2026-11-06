@@ -18,6 +18,7 @@ import '../../../analytics/analytics_providers.dart';
 import '../../../analytics/models/event_names.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../router/app_router.dart';
+import '../../../providers/learning_settings_provider.dart';
 import '../../../services/app_logger.dart';
 import '../models/onboarding_answers.dart';
 import '../models/onboarding_question.dart';
@@ -51,7 +52,6 @@ const _dailyMinutesEmoji = <String, String>{
   OnboardingDailyMinutes.m10: '🌱',
   OnboardingDailyMinutes.m20: '🌿',
   OnboardingDailyMinutes.m30: '🌳',
-  OnboardingDailyMinutes.flexible: '🎈',
 };
 
 /// 单个渠道的品牌图标 + 品牌色。
@@ -291,6 +291,14 @@ class _OnboardingSurveyScreenState
     }
 
     unawaited(ref.read(onboardingSyncProvider).onLocalAnswersChanged());
+
+    // Q2 答案即每日学习目标的初始值；放在屏幕层写入，避免 onboarding 模块依赖学习设置模块。
+    final goalMinutes = int.tryParse(answers.dailyMinutes!);
+    if (goalMinutes != null) {
+      await ref
+          .read(learningSettingsProvider.notifier)
+          .setDailyGoalMinutes(goalMinutes);
+    }
 
     final analytics = ref.read(analyticsServiceProvider);
     final elapsed = DateTime.now().difference(_startedAt).inSeconds;
@@ -737,14 +745,6 @@ class _OnboardingSurveyScreenState
           ),
           selected: selected == OnboardingDailyMinutes.m30,
           onTap: () => _selectDailyMinutes(OnboardingDailyMinutes.m30),
-        ),
-        SurveyChoiceTile(
-          label: l10n.onboardingQ2OptionFlexible,
-          leading: _emojiLeading(
-            _dailyMinutesEmoji[OnboardingDailyMinutes.flexible],
-          ),
-          selected: selected == OnboardingDailyMinutes.flexible,
-          onTap: () => _selectDailyMinutes(OnboardingDailyMinutes.flexible),
         ),
       ],
     );

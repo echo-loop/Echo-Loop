@@ -4135,9 +4135,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get onboardingQ2Option30 => '30 分钟以上';
 
   @override
-  String get onboardingQ2OptionFlexible => '不固定';
-
-  @override
   String get onboardingQ3Prompt => '你是从哪里知道我们的？';
 
   @override
@@ -4205,6 +4202,17 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get learningSettings => '学习设置';
+
+  @override
+  String get dailyGoalSetting => '每日学习目标';
+
+  @override
+  String get dailyGoalSettingSubtitle => '每天计划学习的时长';
+
+  @override
+  String dailyGoalMinutesValue(int minutes) {
+    return '$minutes 分钟';
+  }
 
   @override
   String get showRecommendationToggle => '显示推荐卡片';

@@ -61,6 +61,9 @@ class LocalUserPreferencesStore {
       'nativeLanguage': _preferences.getString('native_language') ?? 'zh-CN',
     };
     final learning = <String, Object?>{
+      'dailyGoalMinutes': LearningSettings.resolveDailyGoalMinutes(
+        _preferences,
+      ),
       for (final entry in _learningDefaults.entries)
         _learningFieldName(entry.key):
             _preferences.getBool(entry.key) ?? entry.value,
@@ -134,6 +137,18 @@ class LocalUserPreferencesStore {
     );
 
     final learning = _group(groups, 'learning');
+    // 云端缺失或非法时回退到本地解析结果（含引导页答案），而不是写死默认值，
+    // 避免老版本文档同步时覆盖用户已在引导页选过的目标。
+    final dailyGoalMinutes = learning['dailyGoalMinutes'];
+    await _preferences.setInt(
+      LearningSettingsKeys.dailyGoalMinutes,
+      dailyGoalMinutes is int
+          ? dailyGoalMinutes.clamp(
+              LearningSettings.dailyGoalMinutesMin,
+              LearningSettings.dailyGoalMinutesMax,
+            )
+          : LearningSettings.resolveDailyGoalMinutes(_preferences),
+    );
     for (final entry in _learningDefaults.entries) {
       await _writeBool(
         entry.key,

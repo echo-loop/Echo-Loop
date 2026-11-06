@@ -16,6 +16,7 @@ import 'package:echo_loop/features/onboarding_survey/models/onboarding_question.
 import 'package:echo_loop/features/onboarding_survey/providers/onboarding_survey_provider.dart';
 import 'package:echo_loop/features/onboarding_survey/providers/user_onboarding_sync_provider.dart';
 import 'package:echo_loop/features/onboarding_survey/screens/onboarding_survey_screen.dart';
+import 'package:echo_loop/providers/learning_settings_provider.dart';
 import 'package:echo_loop/l10n/app_localizations.dart';
 import 'package:echo_loop/router/app_router.dart';
 import 'package:echo_loop/theme/app_theme.dart';
@@ -158,9 +159,11 @@ void main() {
     // 已切到时长页
     expect(find.text('你计划每天练习多久？'), findsOneWidget);
     expect(find.text('约 20 分钟'), findsOneWidget);
+    // 「不固定」已下线，时长页不再提供
+    expect(find.text('不固定'), findsNothing);
 
-    // 选"不固定" → 自动跳到渠道页
-    await tester.tap(find.text('不固定'));
+    // 选"约 20 分钟" → 自动跳到渠道页
+    await tester.tap(find.text('约 20 分钟'));
     await tester.pumpAndSettle(const Duration(milliseconds: 600));
 
     expect(find.text('你是从哪里知道我们的？'), findsOneWidget);
@@ -201,7 +204,9 @@ void main() {
     expect(storage.isCompleted, isTrue);
     final answers = storage.loadAnswers();
     expect(answers?.goal, equals(OnboardingGoal.work));
-    expect(answers?.dailyMinutes, equals(OnboardingDailyMinutes.flexible));
+    expect(answers?.dailyMinutes, equals(OnboardingDailyMinutes.m20));
+    // Q2 答案同时作为每日学习目标写入学习设置
+    expect(prefs.getInt(LearningSettingsKeys.dailyGoalMinutes), 20);
     expect(
       answers?.referralSource,
       equals(OnboardingReferralSource.xiaohongshu),
@@ -566,7 +571,7 @@ void main() {
 
     await tester.tap(find.text('工作沟通'));
     await tester.pumpAndSettle(const Duration(milliseconds: 400));
-    await tester.tap(find.text('不固定'));
+    await tester.tap(find.text('约 10 分钟'));
     await tester.pumpAndSettle(const Duration(milliseconds: 600));
 
     await tester.ensureVisible(find.text('其他'));
@@ -612,7 +617,7 @@ void main() {
 
     await tester.tap(find.text('工作沟通'));
     await tester.pumpAndSettle(const Duration(milliseconds: 400));
-    await tester.tap(find.text('不固定'));
+    await tester.tap(find.text('约 10 分钟'));
     await tester.pumpAndSettle(const Duration(milliseconds: 600));
 
     expect(find.text('你是从哪里知道我们的？'), findsOneWidget);

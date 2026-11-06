@@ -1781,7 +1781,6 @@
   "onboardingQ2Option10": "约 10 分钟",
   "onboardingQ2Option20": "约 20 分钟",
   "onboardingQ2Option30": "30 分钟以上",
-  "onboardingQ2OptionFlexible": "不固定",
   "onboardingQ3Prompt": "你是从哪里知道我们的？",
   "onboardingQ3OptionAppStore": "应用商店",
   "onboardingQ3OptionYoutube": "YouTube",
@@ -1806,6 +1805,14 @@
   "playbackSettings": "播放设置",
   "learningSection": "学习",
   "learningSettings": "学习设置",
+  "dailyGoalSetting": "每日学习目标",
+  "dailyGoalSettingSubtitle": "每天计划学习的时长",
+  "dailyGoalMinutesValue": "{minutes} 分钟",
+  "@dailyGoalMinutesValue": {
+    "placeholders": {
+      "minutes": {"type": "int"}
+    }
+  },
   "displaySettings": "显示设置",
   "showRecommendationToggle": "显示推荐卡片",
   "showRecommendationSubtitle": "在学习页显示「为你推荐」卡片",

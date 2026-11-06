@@ -8,6 +8,7 @@
 /// - copyWith / == / hashCode
 library;
 
+import 'package:echo_loop/features/onboarding_survey/data/onboarding_survey_storage.dart';
 import 'package:echo_loop/providers/learning_settings_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -71,6 +72,87 @@ void main() {
       expect(settings.retellRatingEnabled, isFalse);
       expect(settings.retellAutoPlaybackPromptShown, isTrue);
       expect(settings.pdfExportReminderShown, isTrue);
+    });
+  });
+
+  group('每日学习目标', () {
+    test('无任何来源时默认 10 分钟', () async {
+      SharedPreferences.setMockInitialValues({});
+      final prefs = await SharedPreferences.getInstance();
+      expect(LearningSettings.resolveDailyGoalMinutes(prefs), 10);
+    });
+
+    test('学习设置 key 缺失时继承引导页 Q2 答案', () async {
+      SharedPreferences.setMockInitialValues({
+        OnboardingSurveyKeys.dailyMinutes: '20',
+      });
+      final prefs = await SharedPreferences.getInstance();
+      expect(LearningSettings.resolveDailyGoalMinutes(prefs), 20);
+    });
+
+    test('学习设置 key 优先于引导页答案', () async {
+      SharedPreferences.setMockInitialValues({
+        LearningSettingsKeys.dailyGoalMinutes: 45,
+        OnboardingSurveyKeys.dailyMinutes: '20',
+      });
+      final prefs = await SharedPreferences.getInstance();
+      expect(LearningSettings.resolveDailyGoalMinutes(prefs), 45);
+    });
+
+    test('历史「不固定」答案与越界值回退默认 10 分钟', () async {
+      SharedPreferences.setMockInitialValues({
+        OnboardingSurveyKeys.dailyMinutes: 'flexible',
+      });
+      final prefs = await SharedPreferences.getInstance();
+      expect(LearningSettings.resolveDailyGoalMinutes(prefs), 10);
+
+      await prefs.setInt(LearningSettingsKeys.dailyGoalMinutes, 0);
+      expect(LearningSettings.resolveDailyGoalMinutes(prefs), 10);
+    });
+
+    test('setDailyGoalMinutes 写 SP 并更新 state', () async {
+      SharedPreferences.setMockInitialValues({});
+      final prefs = await SharedPreferences.getInstance();
+      final container = makeContainer(prefs);
+      addTearDown(container.dispose);
+
+      await container
+          .read(learningSettingsProvider.notifier)
+          .setDailyGoalMinutes(60);
+
+      expect(container.read(learningSettingsProvider).dailyGoalMinutes, 60);
+      expect(prefs.getInt(LearningSettingsKeys.dailyGoalMinutes), 60);
+    });
+
+    test('引导页答案回退生效时，相同值仍会固化写入 SP', () async {
+      SharedPreferences.setMockInitialValues({
+        OnboardingSurveyKeys.dailyMinutes: '20',
+      });
+      final prefs = await SharedPreferences.getInstance();
+      final container = makeContainer(prefs);
+      addTearDown(container.dispose);
+
+      expect(container.read(learningSettingsProvider).dailyGoalMinutes, 20);
+      await container
+          .read(learningSettingsProvider.notifier)
+          .setDailyGoalMinutes(20);
+
+      expect(prefs.getInt(LearningSettingsKeys.dailyGoalMinutes), 20);
+    });
+
+    test('setDailyGoalMinutes 拒绝设置页档位之外的值', () async {
+      SharedPreferences.setMockInitialValues({});
+      final prefs = await SharedPreferences.getInstance();
+      final container = makeContainer(prefs);
+      addTearDown(container.dispose);
+
+      await expectLater(
+        container
+            .read(learningSettingsProvider.notifier)
+            .setDailyGoalMinutes(7),
+        throwsArgumentError,
+      );
+      expect(prefs.containsKey(LearningSettingsKeys.dailyGoalMinutes), isFalse);
     });
   });
 
