@@ -2337,5 +2337,6 @@
   "profileRemoveAvatar": "移除头像",
   "profileCropTitle": "裁剪头像",
   "profileSaveFailed": "保存失败，请稍后重试",
-  "profileImageUnsupported": "无法使用这张图片，请换一张 JPEG、PNG 或 WebP 格式的照片"
+  "profileImageUnsupported": "无法使用这张图片，请换一张 JPEG、PNG 或 WebP 格式的照片",
+  "profileLoadFailed": "资料加载失败，点击重试"
 }

@@ -10285,6 +10285,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'This image can\'t be used. Try a JPEG, PNG or WebP photo.'**
   String get profileImageUnsupported;
+
+  /// No description provided for @profileLoadFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t load your profile. Tap to retry.'**
+  String get profileLoadFailed;
 }
 
 class _AppLocalizationsDelegate

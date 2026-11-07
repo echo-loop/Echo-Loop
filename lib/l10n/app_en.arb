@@ -2814,5 +2814,6 @@
   "profileRemoveAvatar": "Remove avatar",
   "profileCropTitle": "Crop avatar",
   "profileSaveFailed": "Couldn't save your profile. Please try again.",
-  "profileImageUnsupported": "This image can't be used. Try a JPEG, PNG or WebP photo."
+  "profileImageUnsupported": "This image can't be used. Try a JPEG, PNG or WebP photo.",
+  "profileLoadFailed": "Couldn't load your profile. Tap to retry."
 }

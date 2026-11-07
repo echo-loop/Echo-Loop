@@ -117,6 +117,10 @@ class _ProfileEditSectionState extends ConsumerState<ProfileEditSection> {
     }
   }
 
+  void _retryLoad() {
+    ref.invalidate(userProfileProvider);
+  }
+
   Future<void> _editNickname(UserProfile profile) async {
     // 保存成功即关闭对话框，资料已由 provider 更新，无需额外提示。
     await showDialog<bool>(
@@ -131,8 +135,13 @@ class _ProfileEditSectionState extends ConsumerState<ProfileEditSection> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    final profile = ref.watch(userProfileProvider).value;
+    final profileState = ref.watch(userProfileProvider);
+    final profile = profileState.value;
     final nicknameText = profile?.nickname;
+    // 资料加载失败（如后端接口未部署或网络异常）时，入口仍可点击以重新加载，
+    // 而不是静默失效。
+    final isLoadFailed = profile == null && profileState.hasError;
+    final VoidCallback? onRetry = isLoadFailed ? _retryLoad : null;
 
     return Column(
       children: [
@@ -141,9 +150,11 @@ class _ProfileEditSectionState extends ConsumerState<ProfileEditSection> {
           button: true,
           label: l10n.profileChangeAvatar,
           child: GestureDetector(
-            onTap: profile == null || _isSaving
+            onTap: _isSaving
                 ? null
-                : () => _showAvatarActions(profile),
+                : profile != null
+                ? () => _showAvatarActions(profile)
+                : onRetry,
             child: Stack(
               alignment: Alignment.center,
               children: [
@@ -193,9 +204,13 @@ class _ProfileEditSectionState extends ConsumerState<ProfileEditSection> {
           child: ListTile(
             leading: const Icon(Icons.badge_outlined),
             title: Text(l10n.profileNickname),
-            subtitle: nicknameText == null ? null : Text(nicknameText),
+            subtitle: isLoadFailed
+                ? Text(l10n.profileLoadFailed)
+                : nicknameText == null
+                ? null
+                : Text(nicknameText),
             trailing: const Icon(Icons.chevron_right),
-            onTap: profile == null ? null : () => _editNickname(profile),
+            onTap: profile != null ? () => _editNickname(profile) : onRetry,
           ),
         ),
       ],

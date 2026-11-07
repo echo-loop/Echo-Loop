@@ -5572,4 +5572,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get profileImageUnsupported => '无法使用这张图片，请换一张 JPEG、PNG 或 WebP 格式的照片';
+
+  @override
+  String get profileLoadFailed => '资料加载失败，点击重试';
 }

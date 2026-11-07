@@ -23,9 +23,13 @@ final userProfileApiProvider = Provider<UserProfileRemoteDataSource>((ref) {
 ///
 /// 后端 `profiles` 是唯一事实来源：登录、换号、登出时自动重建，
 /// 写操作以服务端响应整体替换 state，因此所有订阅处都会同步刷新。
+///
+/// 关闭 Riverpod 默认的自动重试：加载失败（如接口 404、网络异常）后由用户点击入口重新加载，
+/// 避免对失败接口进行退避式的反复请求。
 final userProfileProvider =
     AsyncNotifierProvider<UserProfileNotifier, UserProfile?>(
       UserProfileNotifier.new,
+      retry: (_, _) => null,
     );
 
 class UserProfileNotifier extends AsyncNotifier<UserProfile?> {

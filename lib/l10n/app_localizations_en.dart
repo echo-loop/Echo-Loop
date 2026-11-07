@@ -5845,4 +5845,7 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get profileImageUnsupported =>
       'This image can\'t be used. Try a JPEG, PNG or WebP photo.';
+
+  @override
+  String get profileLoadFailed => 'Couldn\'t load your profile. Tap to retry.';
 }
