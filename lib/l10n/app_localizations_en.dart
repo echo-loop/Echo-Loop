@@ -5803,4 +5803,46 @@ class AppLocalizationsEn extends AppLocalizations {
   String learningPlanFromCollection(String collections) {
     return 'From $collections';
   }
+
+  @override
+  String get profileNickname => 'Nickname';
+
+  @override
+  String get profileNicknameHint => '1–30 characters';
+
+  @override
+  String get profileNicknameEmpty => 'Nickname can\'t be empty';
+
+  @override
+  String get profileNicknameTooLong => 'Nickname can be up to 30 characters';
+
+  @override
+  String get profileNicknameInvalid =>
+      'Nickname can\'t contain line breaks or control characters';
+
+  @override
+  String get profileAvatar => 'Avatar';
+
+  @override
+  String get profileChangeAvatar => 'Change avatar';
+
+  @override
+  String get profileTakePhoto => 'Take photo';
+
+  @override
+  String get profileChoosePhoto => 'Choose photo';
+
+  @override
+  String get profileRemoveAvatar => 'Remove avatar';
+
+  @override
+  String get profileCropTitle => 'Crop avatar';
+
+  @override
+  String get profileSaveFailed =>
+      'Couldn\'t save your profile. Please try again.';
+
+  @override
+  String get profileImageUnsupported =>
+      'This image can\'t be used. Try a JPEG, PNG or WebP photo.';
 }

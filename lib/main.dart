@@ -47,6 +47,7 @@ import 'features/onboarding_survey/data/onboarding_survey_storage.dart';
 import 'features/onboarding_survey/providers/onboarding_survey_provider.dart';
 import 'features/onboarding_survey/providers/user_onboarding_sync_provider.dart';
 import 'features/auth/providers/auth_providers.dart';
+import 'features/profile/providers/user_profile_provider.dart';
 import 'features/remote_config/remote_config_providers.dart';
 import 'features/remote_config/remote_config_service.dart';
 import 'features/user_region/user_region_providers.dart';
@@ -457,6 +458,8 @@ class _EchoLoopAppState extends ConsumerState<EchoLoopApp>
           unawaited(
             ref.read(userPreferencesSyncServiceProvider).onAppResumed(),
           );
+          // Web 端可能修改了昵称或头像，回前台时静默拉取最新资料。
+          unawaited(ref.read(userProfileProvider.notifier).refresh());
         }
         // 回前台时条件重对账订阅权益（E8）。单一来源下每次刷新都是真实后端请求
         // （不再有 RC SDK 客户端缓存兜着），且退款/退订分歧主要靠 E6/E7 在后端

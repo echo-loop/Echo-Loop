@@ -1,0 +1,204 @@
+import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
+
+import '../../../l10n/app_localizations.dart';
+import '../../../theme/app_theme.dart';
+import '../data/avatar_image_processor.dart';
+import '../domain/user_profile.dart';
+import '../providers/user_profile_provider.dart';
+import '../screens/avatar_crop_screen.dart';
+import 'nickname_edit_dialog.dart';
+import 'user_avatar.dart';
+
+enum _AvatarAction { takePhoto, choosePhoto, removeAvatar }
+
+/// 账号页顶部的资料编辑区：头像（点击更换）与昵称（点击编辑）。
+class ProfileEditSection extends ConsumerStatefulWidget {
+  const ProfileEditSection({super.key});
+
+  @override
+  ConsumerState<ProfileEditSection> createState() => _ProfileEditSectionState();
+}
+
+class _ProfileEditSectionState extends ConsumerState<ProfileEditSection> {
+  static const double _avatarSize = 88;
+
+  bool _isSaving = false;
+
+  /// 相机仅在移动端提供；macOS 与桌面只能从文件选择图片。
+  bool get _supportsCamera =>
+      defaultTargetPlatform == TargetPlatform.iOS ||
+      defaultTargetPlatform == TargetPlatform.android;
+
+  Future<void> _showAvatarActions(UserProfile profile) async {
+    final l10n = AppLocalizations.of(context)!;
+    final action = await showModalBottomSheet<_AvatarAction>(
+      context: context,
+      builder: (sheetContext) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (_supportsCamera)
+              ListTile(
+                leading: const Icon(Icons.photo_camera_outlined),
+                title: Text(l10n.profileTakePhoto),
+                onTap: () =>
+                    Navigator.of(sheetContext).pop(_AvatarAction.takePhoto),
+              ),
+            ListTile(
+              leading: const Icon(Icons.photo_library_outlined),
+              title: Text(l10n.profileChoosePhoto),
+              onTap: () =>
+                  Navigator.of(sheetContext).pop(_AvatarAction.choosePhoto),
+            ),
+            if (profile.avatarUrl != null)
+              ListTile(
+                leading: const Icon(Icons.delete_outline),
+                title: Text(l10n.profileRemoveAvatar),
+                onTap: () =>
+                    Navigator.of(sheetContext).pop(_AvatarAction.removeAvatar),
+              ),
+          ],
+        ),
+      ),
+    );
+    if (!mounted) return;
+    switch (action) {
+      case null:
+        return;
+      case _AvatarAction.takePhoto:
+        await _runSave(() => _changeAvatar(ImageSource.camera));
+      case _AvatarAction.choosePhoto:
+        await _runSave(() => _changeAvatar(ImageSource.gallery));
+      case _AvatarAction.removeAvatar:
+        await _runSave(
+          () => ref.read(userProfileProvider.notifier).removeAvatar(),
+        );
+    }
+  }
+
+  /// 选图 → 预处理 → 裁剪 → 压缩 → 上传。用户在任一步取消都静默返回。
+  Future<void> _changeAvatar(ImageSource source) async {
+    final picked = await ImagePicker().pickImage(source: source);
+    if (picked == null) return;
+    final sourceBytes = await picked.readAsBytes();
+    final preparedBytes = await prepareAvatarSourceForCrop(sourceBytes);
+    if (!mounted) return;
+
+    final croppedBytes = await Navigator.of(context).push<Uint8List>(
+      MaterialPageRoute(
+        builder: (_) => AvatarCropScreen(imageBytes: preparedBytes),
+      ),
+    );
+    if (croppedBytes == null) return;
+
+    final uploadBytes = await encodeAvatarForUpload(croppedBytes);
+    await ref.read(userProfileProvider.notifier).uploadAvatar(uploadBytes);
+  }
+
+  /// 统一处理保存中状态与错误提示，避免在每个操作里重复 try/catch。
+  Future<void> _runSave(Future<void> Function() task) async {
+    if (_isSaving) return;
+    final l10n = AppLocalizations.of(context)!;
+    final messenger = ScaffoldMessenger.of(context);
+    setState(() => _isSaving = true);
+    try {
+      await task();
+    } on AvatarImageException {
+      messenger.showSnackBar(
+        SnackBar(content: Text(l10n.profileImageUnsupported)),
+      );
+    } on Exception {
+      messenger.showSnackBar(SnackBar(content: Text(l10n.profileSaveFailed)));
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
+    }
+  }
+
+  Future<void> _editNickname(UserProfile profile) async {
+    // 保存成功即关闭对话框，资料已由 provider 更新，无需额外提示。
+    await showDialog<bool>(
+      context: context,
+      builder: (_) => NicknameEditDialog(
+        initialNickname: profile.nickname,
+        onSave: ref.read(userProfileProvider.notifier).updateNickname,
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final profile = ref.watch(userProfileProvider).value;
+    final nicknameText = profile?.nickname;
+
+    return Column(
+      children: [
+        const SizedBox(height: AppSpacing.s),
+        Semantics(
+          button: true,
+          label: l10n.profileChangeAvatar,
+          child: GestureDetector(
+            onTap: profile == null || _isSaving
+                ? null
+                : () => _showAvatarActions(profile),
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                UserAvatar(
+                  size: _avatarSize,
+                  avatarUrl: profile?.avatarUrl,
+                  nickname: nicknameText,
+                ),
+                if (_isSaving)
+                  Container(
+                    width: _avatarSize,
+                    height: _avatarSize,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: Colors.black.withValues(alpha: 0.35),
+                    ),
+                    child: const Center(
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    ),
+                  )
+                else
+                  Positioned(
+                    right: 0,
+                    bottom: 0,
+                    child: Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
+                      child: Icon(
+                        Icons.edit,
+                        size: 14,
+                        color: Theme.of(context).colorScheme.onPrimary,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: AppSpacing.m),
+        Card(
+          child: ListTile(
+            leading: const Icon(Icons.badge_outlined),
+            title: Text(l10n.profileNickname),
+            subtitle: nicknameText == null ? null : Text(nicknameText),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: profile == null ? null : () => _editNickname(profile),
+          ),
+        ),
+      ],
+    );
+  }
+}

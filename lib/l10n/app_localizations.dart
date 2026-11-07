@@ -10207,6 +10207,84 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'From {collections}'**
   String learningPlanFromCollection(String collections);
+
+  /// No description provided for @profileNickname.
+  ///
+  /// In en, this message translates to:
+  /// **'Nickname'**
+  String get profileNickname;
+
+  /// No description provided for @profileNicknameHint.
+  ///
+  /// In en, this message translates to:
+  /// **'1–30 characters'**
+  String get profileNicknameHint;
+
+  /// No description provided for @profileNicknameEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'Nickname can\'t be empty'**
+  String get profileNicknameEmpty;
+
+  /// No description provided for @profileNicknameTooLong.
+  ///
+  /// In en, this message translates to:
+  /// **'Nickname can be up to 30 characters'**
+  String get profileNicknameTooLong;
+
+  /// No description provided for @profileNicknameInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Nickname can\'t contain line breaks or control characters'**
+  String get profileNicknameInvalid;
+
+  /// No description provided for @profileAvatar.
+  ///
+  /// In en, this message translates to:
+  /// **'Avatar'**
+  String get profileAvatar;
+
+  /// No description provided for @profileChangeAvatar.
+  ///
+  /// In en, this message translates to:
+  /// **'Change avatar'**
+  String get profileChangeAvatar;
+
+  /// No description provided for @profileTakePhoto.
+  ///
+  /// In en, this message translates to:
+  /// **'Take photo'**
+  String get profileTakePhoto;
+
+  /// No description provided for @profileChoosePhoto.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose photo'**
+  String get profileChoosePhoto;
+
+  /// No description provided for @profileRemoveAvatar.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove avatar'**
+  String get profileRemoveAvatar;
+
+  /// No description provided for @profileCropTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Crop avatar'**
+  String get profileCropTitle;
+
+  /// No description provided for @profileSaveFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t save your profile. Please try again.'**
+  String get profileSaveFailed;
+
+  /// No description provided for @profileImageUnsupported.
+  ///
+  /// In en, this message translates to:
+  /// **'This image can\'t be used. Try a JPEG, PNG or WebP photo.'**
+  String get profileImageUnsupported;
 }
 
 class _AppLocalizationsDelegate

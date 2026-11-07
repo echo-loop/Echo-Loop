@@ -35,6 +35,9 @@ import '../analytics/models/event_names.dart';
 import '../config/app_store_config.dart';
 import '../features/auth/providers/auth_providers.dart';
 import '../features/auth/screens/account_screen.dart';
+import '../features/profile/domain/user_profile.dart';
+import '../features/profile/providers/user_profile_provider.dart';
+import '../features/profile/widgets/user_avatar.dart';
 import '../features/user_region/user_region_override.dart';
 import '../features/user_region/user_region_providers.dart';
 import '../features/user_region/widgets/user_region_override_tile.dart';
@@ -141,16 +144,18 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final session = ref.watch(supabaseSessionProvider).value;
     final isChinaUser = ref.watch(isChinaUserProvider);
     final isSignedIn = session != null;
+    final profile = ref.watch(userProfileProvider).value;
     final accountSubtitle = session == null
         ? null
-        : switch (authDisplayProviderForSession(session)) {
-            AuthDisplayProvider.apple => l10n.authSignedInWithApple,
-            AuthDisplayProvider.google => l10n.authSignedInWithGoogle,
-            AuthDisplayProvider.email ||
-            AuthDisplayProvider.unknown => compactAccountListIdentifier(
-              session.user.email ?? session.user.id,
-            ),
-          };
+        : profile?.nickname ??
+              switch (authDisplayProviderForSession(session)) {
+                AuthDisplayProvider.apple => l10n.authSignedInWithApple,
+                AuthDisplayProvider.google => l10n.authSignedInWithGoogle,
+                AuthDisplayProvider.email ||
+                AuthDisplayProvider.unknown => compactAccountListIdentifier(
+                  session.user.email ?? session.user.id,
+                ),
+              };
 
     return _buildSection(
       context,
@@ -161,6 +166,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             context,
             l10n,
             isChinaUser: isChinaUser,
+            isSignedIn: isSignedIn,
+            profile: profile,
           ),
           title: Text(l10n.account),
           subtitle: accountSubtitle == null
@@ -194,15 +201,21 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   /// 中国区路由启用时，在账号入口图标右上角显示地区标记。
+  /// 已登录时账号入口展示用户头像，未登录保持原图标。
   Widget _buildAccountLeadingIcon(
     BuildContext context,
     AppLocalizations l10n, {
     required bool isChinaUser,
+    required bool isSignedIn,
+    required UserProfile? profile,
   }) {
-    final accountIcon = _settingsThemedSvgIcon(
-      context,
-      'assets/icon/account-1.svg',
-    );
+    final accountIcon = isSignedIn
+        ? UserAvatar(
+            size: _settingsSvgIconExtent,
+            avatarUrl: profile?.avatarUrl,
+            nickname: profile?.nickname,
+          )
+        : _settingsThemedSvgIcon(context, 'assets/icon/account-1.svg');
     if (!isChinaUser) return accountIcon;
 
     return Tooltip(

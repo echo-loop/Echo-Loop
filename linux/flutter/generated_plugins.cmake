@@ -4,6 +4,7 @@
 
 list(APPEND FLUTTER_PLUGIN_LIST
   charset_converter
+  file_selector_linux
   flutter_secure_storage_linux
   flutter_timezone
   gtk

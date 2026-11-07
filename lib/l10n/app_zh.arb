@@ -2324,5 +2324,18 @@
     "placeholders": {
       "collections": {"type": "String"}
     }
-  }
+  },
+  "profileNickname": "昵称",
+  "profileNicknameHint": "1–30 个字符",
+  "profileNicknameEmpty": "昵称不能为空",
+  "profileNicknameTooLong": "昵称最多 30 个字符",
+  "profileNicknameInvalid": "昵称不能包含换行或控制字符",
+  "profileAvatar": "头像",
+  "profileChangeAvatar": "更换头像",
+  "profileTakePhoto": "拍照",
+  "profileChoosePhoto": "选择图片",
+  "profileRemoveAvatar": "移除头像",
+  "profileCropTitle": "裁剪头像",
+  "profileSaveFailed": "保存失败，请稍后重试",
+  "profileImageUnsupported": "无法使用这张图片，请换一张 JPEG、PNG 或 WebP 格式的照片"
 }

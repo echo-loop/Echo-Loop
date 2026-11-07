@@ -1,5 +1,5 @@
 "CFBundleName" = "Echo Loop";
-"NSCameraUsageDescription" = "This app needs camera access only when you choose to capture a photo or video for your study materials.";
+"NSCameraUsageDescription" = "This app needs camera access only when you choose to take a photo for your profile avatar.";
 "NSMicrophoneUsageDescription" = "This app needs microphone access so you can record your spoken English practice.";
 "NSSpeechRecognitionUsageDescription" = "This app needs speech recognition access to compare your spoken English with the target sentence.";
 "NSLocationWhenInUseUsageDescription" = "This app does not use your location for any feature.";

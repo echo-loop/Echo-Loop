@@ -50,6 +50,12 @@ dependencies:
   audio_service: ^0.18.18
   subtitle: ^0.2.0
   file_picker: ^10.3.3
+  # 头像选图：iOS/Android 走系统 Photo Picker（免相册权限），macOS 回退为文件选择。
+  image_picker: ^1.2.4
+  # 头像裁剪：纯 Dart 实现，三端一致，支持 macOS（image_cropper 不支持 macOS）。
+  crop_your_image: ^2.0.1
+  # 头像图片解码、EXIF 旋转与缩放编码。
+  image: ^4.5.4
   audio_video_progress_bar: ^2.0.3
   path_provider: ^2.1.1
   shared_preferences: ^2.2.2

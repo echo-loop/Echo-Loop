@@ -8,6 +8,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../router/app_router.dart';
 import '../../../theme/app_theme.dart';
+import '../../profile/widgets/profile_edit_section.dart';
 import '../providers/auth_providers.dart';
 
 enum AuthDisplayProvider { apple, google, email, unknown }
@@ -169,6 +170,8 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
         child: ListView(
           padding: const EdgeInsets.all(AppSpacing.m),
           children: [
+            const ProfileEditSection(),
+            const SizedBox(height: AppSpacing.l),
             _SignedInAccountCard(
               email: email,
               provider: authDisplayProviderForSession(session),

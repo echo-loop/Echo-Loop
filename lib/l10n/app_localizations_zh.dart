@@ -5533,4 +5533,43 @@ class AppLocalizationsZh extends AppLocalizations {
   String learningPlanFromCollection(String collections) {
     return '来自：$collections';
   }
+
+  @override
+  String get profileNickname => '昵称';
+
+  @override
+  String get profileNicknameHint => '1–30 个字符';
+
+  @override
+  String get profileNicknameEmpty => '昵称不能为空';
+
+  @override
+  String get profileNicknameTooLong => '昵称最多 30 个字符';
+
+  @override
+  String get profileNicknameInvalid => '昵称不能包含换行或控制字符';
+
+  @override
+  String get profileAvatar => '头像';
+
+  @override
+  String get profileChangeAvatar => '更换头像';
+
+  @override
+  String get profileTakePhoto => '拍照';
+
+  @override
+  String get profileChoosePhoto => '选择图片';
+
+  @override
+  String get profileRemoveAvatar => '移除头像';
+
+  @override
+  String get profileCropTitle => '裁剪头像';
+
+  @override
+  String get profileSaveFailed => '保存失败，请稍后重试';
+
+  @override
+  String get profileImageUnsupported => '无法使用这张图片，请换一张 JPEG、PNG 或 WebP 格式的照片';
 }

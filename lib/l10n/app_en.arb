@@ -2801,5 +2801,18 @@
     "placeholders": {
       "collections": {"type": "String"}
     }
-  }
+  },
+  "profileNickname": "Nickname",
+  "profileNicknameHint": "1–30 characters",
+  "profileNicknameEmpty": "Nickname can't be empty",
+  "profileNicknameTooLong": "Nickname can be up to 30 characters",
+  "profileNicknameInvalid": "Nickname can't contain line breaks or control characters",
+  "profileAvatar": "Avatar",
+  "profileChangeAvatar": "Change avatar",
+  "profileTakePhoto": "Take photo",
+  "profileChoosePhoto": "Choose photo",
+  "profileRemoveAvatar": "Remove avatar",
+  "profileCropTitle": "Crop avatar",
+  "profileSaveFailed": "Couldn't save your profile. Please try again.",
+  "profileImageUnsupported": "This image can't be used. Try a JPEG, PNG or WebP photo."
 }

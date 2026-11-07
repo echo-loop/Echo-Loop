@@ -4,6 +4,7 @@
 
 ## 本次完成
 
+- [x] 用户自定义头像与昵称（2026-11-07）：账号页顶部可更换头像（拍照仅移动端，相册/文件选择三端通用，裁剪为圆形 512×512 JPEG）与修改昵称（1–30 码点，与后端一致）；设置页账号入口已登录时显示头像、副标题显示昵称。登录、换号、登出自动刷新；保存以服务端响应整体替换状态；回前台静默刷新以同步 Web 端修改。选型：`image_picker` + `crop_your_image`（`image_cropper` 不支持 macOS）。后端接口 `/api/v1/me/profile`（`../fluency-frontend/docs/api-me-profile.md`）。新增 `lib/features/profile/`；iOS 相机权限文案改为头像用途。测试：`test/features/profile` 35 项通过；`auth`、`screens/settings_screen_test`、`providers`、`user_preferences` 回归通过。**待 macOS 实机确认**：桌面选图与裁剪交互、移除头像后两处即时刷新、换号不串号、Web 改昵称后回前台同步；**待真机确认**：拍照入口与相机权限弹窗。**完成时间**: 2026-11-07
 - [x] 学习页「本周学习时长」图支持关闭（2026-11-06）：标题行右侧加关闭按钮（与「为你推荐」卡片一致），点击弹确认框，确认后隐藏（偏好 `learning_show_weekly_study_chart`，默认开启，走 `LearningSettings` 与云同步白名单）；今日卡片不受影响。设置页「显示设置」新增「显示周学习时长」开关可重新开启。测试：`study_stats_header_test` 新增取消 / 确认 / 设置已关闭三条用例，`display_settings_screen_test` 新增开关用例，provider 与同步 store 各补一例；相关 5 个测试文件 183 项、`study_screen_test` 26 项全部通过，改动文件 `flutter analyze` 无问题。**待 macOS 实机确认**：关闭按钮在标题行的位置与触控大小、关闭后卡片高度变化。**完成时间**: 2026-11-06
 - [x] 学习页今日卡片打卡后改为「✓ 今日已打卡」浅绿胶囊（2026-11-06）：已打卡时右侧不再显示目标时长与百分比，只显示同色 12% 浅底胶囊 + 完成色对勾圆 +「今日已打卡」。未打卡保持「目标 N 分钟」+ 百分比徽章。测试：`study_stats_header_test` 更新已打卡断言。**待 macOS 实机确认**：窄屏下「今日 N 分钟」与胶囊同行是否挤压。**完成时间**: 2026-11-06
 - [x] 学习日历「今日目标」卡片改用学习进度配色（2026-11-06）：配色函数 `learningProgressPalette(Brightness)` 从学习页私有实现提取到 `lib/theme/learning_progress_colors.dart`，学习页与日历卡片共用；进度条、底轨、已打卡文字与旗帜图标统一取色。测试：`daily_goal_progress_card_test`、`activity_calendar_screen_test` 通过。**待 macOS 实机确认**：日历卡片日夜间观感。**完成时间**: 2026-11-06

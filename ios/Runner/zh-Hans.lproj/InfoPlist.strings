@@ -1,5 +1,5 @@
 "CFBundleName" = "Echo Loop";
-"NSCameraUsageDescription" = "仅当你选择拍摄照片或视频作为学习材料时，才需要相机权限。";
+"NSCameraUsageDescription" = "仅当你选择拍摄照片作为头像时，才需要相机权限。";
 "NSMicrophoneUsageDescription" = "需要麦克风权限，以便录下你的英语跟读。";
 "NSSpeechRecognitionUsageDescription" = "需要语音识别权限，以便对比你的英语跟读和目标句子。";
 "NSLocationWhenInUseUsageDescription" = "本应用的功能不使用你的位置信息。";
