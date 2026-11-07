@@ -130,6 +130,6 @@
 
 ## 后端与发布
 
-- [ ] 后端合入并部署 `/api/v1/me/profile`（`fluency-frontend` 提交 c24554b5 仅在 `dev` 分支，线上 `echo-loop.cn` / `echo-loop.top` 2026-11-07 实测返回 404，导致 App 头像与昵称不可用，入口现提供「点击重试」）。
+- [ ] 后端合入并部署 `/api/v1/me/profile`（`fluency-frontend` 提交 c24554b5 仅在 `dev` 分支，线上 `www.echo-loop.cn`（中国区）/ `echo-loop.top` 2026-11-07 实测返回 404，`dev.echo-loop.top` 返回 401（路由已存在），导致 App 头像与昵称不可用，入口现提供「点击重试」）。
 - [ ] 后端账号登录会话能力。
 - [ ] 完成跨平台验证与发布准备。
