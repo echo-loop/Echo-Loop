@@ -5556,12 +5556,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get profileChangeAvatar => '更换头像';
 
   @override
-  String get profileTakePhoto => '拍照';
-
-  @override
-  String get profileChoosePhoto => '选择图片';
-
-  @override
   String get profileRemoveAvatar => '移除头像';
 
   @override

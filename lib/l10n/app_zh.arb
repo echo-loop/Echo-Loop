@@ -2332,8 +2332,6 @@
   "profileNicknameInvalid": "昵称不能包含换行或控制字符",
   "profileAvatar": "头像",
   "profileChangeAvatar": "更换头像",
-  "profileTakePhoto": "拍照",
-  "profileChoosePhoto": "选择图片",
   "profileRemoveAvatar": "移除头像",
   "profileCropTitle": "裁剪头像",
   "profileSaveFailed": "保存失败，请稍后重试",

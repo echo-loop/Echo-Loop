@@ -1,4 +1,5 @@
-import 'package:flutter/foundation.dart';
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
@@ -12,9 +13,7 @@ import '../screens/avatar_crop_screen.dart';
 import 'nickname_edit_dialog.dart';
 import 'user_avatar.dart';
 
-enum _AvatarAction { takePhoto, choosePhoto, removeAvatar }
-
-/// 账号页顶部的资料编辑区：头像（点击更换）与昵称（点击编辑）。
+/// 账号页顶部的资料编辑区：点击头像直接选图更换，昵称与移除头像以列表行操作。
 class ProfileEditSection extends ConsumerStatefulWidget {
   const ProfileEditSection({super.key});
 
@@ -27,61 +26,10 @@ class _ProfileEditSectionState extends ConsumerState<ProfileEditSection> {
 
   bool _isSaving = false;
 
-  /// 相机仅在移动端提供；macOS 与桌面只能从文件选择图片。
-  bool get _supportsCamera =>
-      defaultTargetPlatform == TargetPlatform.iOS ||
-      defaultTargetPlatform == TargetPlatform.android;
-
-  Future<void> _showAvatarActions(UserProfile profile) async {
-    final l10n = AppLocalizations.of(context)!;
-    final action = await showModalBottomSheet<_AvatarAction>(
-      context: context,
-      builder: (sheetContext) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (_supportsCamera)
-              ListTile(
-                leading: const Icon(Icons.photo_camera_outlined),
-                title: Text(l10n.profileTakePhoto),
-                onTap: () =>
-                    Navigator.of(sheetContext).pop(_AvatarAction.takePhoto),
-              ),
-            ListTile(
-              leading: const Icon(Icons.photo_library_outlined),
-              title: Text(l10n.profileChoosePhoto),
-              onTap: () =>
-                  Navigator.of(sheetContext).pop(_AvatarAction.choosePhoto),
-            ),
-            if (profile.avatarUrl != null)
-              ListTile(
-                leading: const Icon(Icons.delete_outline),
-                title: Text(l10n.profileRemoveAvatar),
-                onTap: () =>
-                    Navigator.of(sheetContext).pop(_AvatarAction.removeAvatar),
-              ),
-          ],
-        ),
-      ),
-    );
-    if (!mounted) return;
-    switch (action) {
-      case null:
-        return;
-      case _AvatarAction.takePhoto:
-        await _runSave(() => _changeAvatar(ImageSource.camera));
-      case _AvatarAction.choosePhoto:
-        await _runSave(() => _changeAvatar(ImageSource.gallery));
-      case _AvatarAction.removeAvatar:
-        await _runSave(
-          () => ref.read(userProfileProvider.notifier).removeAvatar(),
-        );
-    }
-  }
-
-  /// 选图 → 预处理 → 裁剪 → 压缩 → 上传。用户在任一步取消都静默返回。
-  Future<void> _changeAvatar(ImageSource source) async {
-    final picked = await ImagePicker().pickImage(source: source);
+  /// 直接打开系统相册/文件选择。iOS 与 Android 为相册，macOS 为文件选择框。
+  /// 选图 → 预处理 → 裁剪 → 压缩 → 上传；用户在任一步取消都静默返回。
+  Future<void> _changeAvatar() async {
+    final picked = await ImagePicker().pickImage(source: ImageSource.gallery);
     if (picked == null) return;
     final sourceBytes = await picked.readAsBytes();
     final preparedBytes = await prepareAvatarSourceForCrop(sourceBytes);
@@ -153,7 +101,7 @@ class _ProfileEditSectionState extends ConsumerState<ProfileEditSection> {
             onTap: _isSaving
                 ? null
                 : profile != null
-                ? () => _showAvatarActions(profile)
+                ? () => _runSave(_changeAvatar)
                 : onRetry,
             child: Stack(
               alignment: Alignment.center,
@@ -197,16 +145,31 @@ class _ProfileEditSectionState extends ConsumerState<ProfileEditSection> {
         ),
         const SizedBox(height: AppSpacing.m),
         Card(
-          child: ListTile(
-            leading: const Icon(Icons.badge_outlined),
-            title: Text(l10n.profileNickname),
-            subtitle: isLoadFailed
-                ? Text(l10n.profileLoadFailed)
-                : nicknameText == null
-                ? null
-                : Text(nicknameText),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: profile != null ? () => _editNickname(profile) : onRetry,
+          child: Column(
+            children: [
+              ListTile(
+                leading: const Icon(Icons.badge_outlined),
+                title: Text(l10n.profileNickname),
+                subtitle: isLoadFailed
+                    ? Text(l10n.profileLoadFailed)
+                    : nicknameText == null
+                    ? null
+                    : Text(nicknameText),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: profile != null ? () => _editNickname(profile) : onRetry,
+              ),
+              if (profile?.avatarUrl != null) ...[
+                const Divider(height: 1),
+                ListTile(
+                  leading: const Icon(Icons.delete_outline),
+                  title: Text(l10n.profileRemoveAvatar),
+                  enabled: !_isSaving,
+                  onTap: () => _runSave(
+                    () => ref.read(userProfileProvider.notifier).removeAvatar(),
+                  ),
+                ),
+              ],
+            ],
           ),
         ),
       ],

@@ -10250,18 +10250,6 @@ abstract class AppLocalizations {
   /// **'Change avatar'**
   String get profileChangeAvatar;
 
-  /// No description provided for @profileTakePhoto.
-  ///
-  /// In en, this message translates to:
-  /// **'Take photo'**
-  String get profileTakePhoto;
-
-  /// No description provided for @profileChoosePhoto.
-  ///
-  /// In en, this message translates to:
-  /// **'Choose photo'**
-  String get profileChoosePhoto;
-
   /// No description provided for @profileRemoveAvatar.
   ///
   /// In en, this message translates to:
