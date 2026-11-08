@@ -166,6 +166,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             context,
             l10n,
             isChinaUser: isChinaUser,
+            isSignedIn: isSignedIn,
             avatarUrl: profile?.avatarUrl,
           ),
           title: Text(l10n.account),
@@ -200,16 +201,17 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   /// 中国区路由启用时，在账号入口图标右上角显示地区标记。
-  /// 设置了头像时展示圆形头像，否则保持原有的账号图标。
+  /// 已登录时展示圆形头像（未设置头像时为默认圆形图标），未登录保持原有账号图标。
   Widget _buildAccountLeadingIcon(
     BuildContext context,
     AppLocalizations l10n, {
     required bool isChinaUser,
+    required bool isSignedIn,
     required String? avatarUrl,
   }) {
-    final accountIcon = avatarUrl == null
-        ? _settingsThemedSvgIcon(context, 'assets/icon/account-1.svg')
-        : UserAvatar(size: _settingsSvgIconExtent, avatarUrl: avatarUrl);
+    final accountIcon = isSignedIn
+        ? UserAvatar(size: _settingsSvgIconExtent, avatarUrl: avatarUrl)
+        : _settingsThemedSvgIcon(context, 'assets/icon/account-1.svg');
     if (!isChinaUser) return accountIcon;
 
     return Tooltip(
