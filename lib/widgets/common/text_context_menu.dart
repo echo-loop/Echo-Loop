@@ -18,11 +18,13 @@ class TextContextMenu {
   /// [context] 当前 BuildContext
   /// [position] 菜单弹出位置（全局坐标）
   /// [text] 要复制的文本内容
+  /// [onCopied] 复制成功后的自定义反馈；缺省时使用底部居中的默认提示
   static Future<void> show(
     BuildContext context,
     Offset position,
-    String text,
-  ) async {
+    String text, {
+    void Function()? onCopied,
+  }) async {
     final l10n = AppLocalizations.of(context)!;
     final overlay =
         Overlay.of(context).context.findRenderObject() as RenderBox?;
@@ -74,7 +76,11 @@ class TextContextMenu {
     if (result == 'copy' && context.mounted) {
       await Clipboard.setData(ClipboardData(text: text));
       if (context.mounted) {
-        showFeedback(context, l10n.copied);
+        if (onCopied != null) {
+          onCopied();
+        } else {
+          showFeedback(context, l10n.copied);
+        }
       }
     }
   }

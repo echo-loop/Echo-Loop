@@ -10,7 +10,9 @@ import 'package:echo_loop/features/auth/providers/auth_providers.dart';
 import 'package:echo_loop/l10n/app_localizations.dart';
 import 'package:echo_loop/router/app_router.dart';
 import 'package:echo_loop/theme/app_theme.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -859,6 +861,94 @@ void main() {
     expect(find.text('Apple account'), findsOneWidget);
     expect(find.text('mbfpw8sdy7@privaterelay.appleid.com'), findsOneWidget);
     expect(find.text('mbfpw8sd...@erelay.appleid.com'), findsNothing);
+  });
+
+  testWidgets('账号页长按或右键邮箱弹出复制菜单，复制完整邮箱并提示', (tester) async {
+    final copiedTexts = <String>[];
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+      SystemChannels.platform,
+      (call) async {
+        if (call.method == 'Clipboard.setData') {
+          final arguments = call.arguments as Map<Object?, Object?>;
+          copiedTexts.add(arguments['text']! as String);
+        }
+        return null;
+      },
+    );
+    addTearDown(
+      () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        null,
+      ),
+    );
+    final session = Session(
+      accessToken: 'token',
+      tokenType: 'bearer',
+      user: User(
+        id: 'user-1',
+        appMetadata: const {
+          'provider': 'apple',
+          'providers': ['apple'],
+        },
+        userMetadata: const {},
+        aud: 'authenticated',
+        email: 'mbfpw8sdy7@privaterelay.appleid.com',
+        createdAt: '2026-06-04T00:00:00.000Z',
+      ),
+      refreshToken: 'refresh',
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: dedupeOverrides([
+          supabaseSessionProvider.overrideWith((ref) => Stream.value(session)),
+        ]),
+        child: MaterialApp(
+          locale: const Locale('en'),
+          supportedLocales: const [Locale('en'), Locale('zh')],
+          localizationsDelegates: const [
+            AppLocalizations.delegate,
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+          ],
+          theme: AppTheme.light(),
+          home: const AccountScreen(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // 桌面右键弹出菜单
+    await tester.tap(
+      find.text('mbfpw8sdy7@privaterelay.appleid.com'),
+      buttons: kSecondaryButton,
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Copy'), findsOneWidget);
+    await tester.tap(find.text('Copy'));
+    await tester.pumpAndSettle();
+    expect(copiedTexts, ['mbfpw8sdy7@privaterelay.appleid.com']);
+    expect(find.text('Copied to clipboard'), findsOneWidget);
+    // 统一 toast 默认 3 秒后消失，等它关闭后再进行下一次复制
+    await tester.pump(const Duration(seconds: 4));
+    await tester.pumpAndSettle();
+
+    // 移动端长按弹出菜单
+    await tester.longPress(find.text('mbfpw8sdy7@privaterelay.appleid.com'));
+    await tester.pumpAndSettle();
+    expect(find.text('Copy'), findsOneWidget);
+    await tester.tap(find.text('Copy'));
+    await tester.pumpAndSettle();
+
+    expect(copiedTexts, hasLength(2));
+    expect(copiedTexts.last, 'mbfpw8sdy7@privaterelay.appleid.com');
+    expect(find.text('Copied to clipboard'), findsOneWidget);
+
+    // 提示自动消失；推进过去以清理其内部定时器
+    await tester.pump(const Duration(seconds: 4));
+    await tester.pumpAndSettle();
+    await tester.pump(const Duration(seconds: 1));
   });
 
   testWidgets('账号页 Apple 邮箱不可用时显示邮箱暂不可用，不暴露用户 ID', (tester) async {

@@ -8,6 +8,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../router/app_router.dart';
 import '../../../theme/app_theme.dart';
+import '../../../widgets/app_toast.dart';
+import '../../../widgets/common/text_context_menu.dart';
 import '../../profile/widgets/profile_edit_section.dart';
 import '../providers/auth_providers.dart';
 
@@ -224,11 +226,46 @@ class _SignInMethodCard extends StatelessWidget {
       AuthDisplayProvider.google => l10n.authGoogleAccount,
       AuthDisplayProvider.email || AuthDisplayProvider.unknown => l10n.account,
     };
+    // 没有真实邮箱时（占位文案）不提供复制菜单，避免把提示语写入剪贴板。
+    final accountEmail = email;
+    final hasCopyableEmail = accountEmail != null && accountEmail.isNotEmpty;
     return Card(
-      child: ListTile(
-        leading: const Icon(Icons.account_circle_outlined),
-        title: Text(title),
-        subtitle: Text(emailText),
+      child: GestureDetector(
+        // 桌面右键与移动端长按都在指针处弹出「复制」菜单，与其他文本的交互一致。
+        onSecondaryTapDown: hasCopyableEmail
+            ? (details) => _showCopyMenu(
+                context,
+                details.globalPosition,
+                accountEmail,
+              )
+            : null,
+        onLongPressStart: hasCopyableEmail
+            ? (details) => _showCopyMenu(
+                context,
+                details.globalPosition,
+                accountEmail,
+              )
+            : null,
+        child: ListTile(
+          leading: const Icon(Icons.account_circle_outlined),
+          title: Text(title),
+          subtitle: Text(emailText),
+        ),
+      ),
+    );
+  }
+
+  /// 在指针处弹出「复制」菜单；复制成功后用统一 toast 提示。
+  void _showCopyMenu(BuildContext context, Offset position, String value) {
+    final l10n = AppLocalizations.of(context)!;
+    TextContextMenu.show(
+      context,
+      position,
+      value,
+      onCopied: () => showAppToast(
+        overlayState: Overlay.of(context, rootOverlay: true),
+        message: l10n.copied,
+        icon: Icons.check,
       ),
     );
   }
