@@ -126,17 +126,17 @@ class _ProfileEditSectionState extends ConsumerState<ProfileEditSection> {
                   Positioned(
                     right: 0,
                     bottom: 0,
-                    child: Container(
-                      padding: const EdgeInsets.all(3),
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: Theme.of(context).colorScheme.primary,
-                      ),
-                      child: Icon(
-                        Icons.edit,
-                        size: 12,
-                        color: Theme.of(context).colorScheme.onPrimary,
-                      ),
+                    // 仅显示铅笔；描边阴影保证叠在照片上时仍可辨认。
+                    child: Icon(
+                      Icons.edit,
+                      size: 18,
+                      color: Theme.of(context).colorScheme.primary,
+                      shadows: [
+                        Shadow(
+                          color: Theme.of(context).colorScheme.surface,
+                          blurRadius: 3,
+                        ),
+                      ],
                     ),
                   ),
               ],
