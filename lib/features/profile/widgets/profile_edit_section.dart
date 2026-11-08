@@ -132,40 +132,38 @@ class _ProfileEditSectionState extends ConsumerState<ProfileEditSection> {
     return Column(
       children: [
         const SizedBox(height: AppSpacing.s),
-        GestureDetector(
-          onTap: _isSaving
-              ? null
-              : profile != null
-              ? () => _changeAvatar()
-              : onRetry,
-          child: Stack(
-            alignment: Alignment.center,
-            children: [
-              UserAvatar(size: _avatarSize, avatarUrl: profile?.avatarUrl),
-              if (_isSaving)
-                Container(
-                  width: _avatarSize,
-                  height: _avatarSize,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: Colors.black.withValues(alpha: 0.35),
-                  ),
-                  child: const Center(
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: Colors.white,
+        Semantics(
+          button: true,
+          label: l10n.profileChangeAvatar,
+          child: GestureDetector(
+            onTap: _isSaving
+                ? null
+                : profile != null
+                ? () => _changeAvatar()
+                : onRetry,
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                UserAvatar(size: _avatarSize, avatarUrl: profile?.avatarUrl),
+                if (_isSaving)
+                  Container(
+                    width: _avatarSize,
+                    height: _avatarSize,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: Colors.black.withValues(alpha: 0.35),
+                    ),
+                    child: const Center(
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
                     ),
                   ),
-                ),
-            ],
+              ],
+            ),
           ),
         ),
-        // 文字入口比角标更清楚，也不遮挡头像；加载完成后才可用。
-        if (profile != null)
-          TextButton(
-            onPressed: _isSaving ? null : () => _changeAvatar(),
-            child: Text(l10n.profileChangeAvatar),
-          ),
         const SizedBox(height: AppSpacing.l),
         Align(
           alignment: Alignment.centerLeft,
