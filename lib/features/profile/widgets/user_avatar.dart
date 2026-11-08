@@ -20,15 +20,26 @@ class UserAvatar extends StatelessWidget {
     final url = avatarUrl;
     if (url == null) return placeholder;
 
+    // 默认头像作为底层，网络图叠在上面。换头像时 gaplessPlayback 会保留上一张图，
+    // 直到新图加载完成，避免中间闪一下默认头像。
     return ClipOval(
       child: SizedBox.square(
         dimension: size,
-        child: CachedNetworkImage(
-          imageUrl: url,
-          cacheManager: AppNetworkImageCache.instance,
-          fit: BoxFit.cover,
-          placeholder: (context, _) => placeholder,
-          errorWidget: (context, _, _) => placeholder,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            placeholder,
+            Image(
+              image: CachedNetworkImageProvider(
+                url,
+                cacheManager: AppNetworkImageCache.instance,
+              ),
+              fit: BoxFit.cover,
+              gaplessPlayback: true,
+              // 加载失败时保留底层的默认头像。
+              errorBuilder: (context, _, _) => const SizedBox.shrink(),
+            ),
+          ],
         ),
       ),
     );
