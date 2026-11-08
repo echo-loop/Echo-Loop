@@ -94,55 +94,40 @@ class _ProfileEditSectionState extends ConsumerState<ProfileEditSection> {
     return Column(
       children: [
         const SizedBox(height: AppSpacing.s),
-        Semantics(
-          button: true,
-          label: l10n.profileChangeAvatar,
-          child: GestureDetector(
-            onTap: _isSaving
-                ? null
-                : profile != null
-                ? () => _runSave(_changeAvatar)
-                : onRetry,
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                UserAvatar(size: _avatarSize, avatarUrl: profile?.avatarUrl),
-                if (_isSaving)
-                  Container(
-                    width: _avatarSize,
-                    height: _avatarSize,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: Colors.black.withValues(alpha: 0.35),
-                    ),
-                    child: const Center(
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Colors.white,
-                      ),
-                    ),
-                  )
-                else
-                  Positioned(
-                    right: 0,
-                    bottom: 0,
-                    // 仅显示铅笔；描边阴影保证叠在照片上时仍可辨认。
-                    child: Icon(
-                      Icons.edit,
-                      size: 18,
-                      color: Theme.of(context).colorScheme.primary,
-                      shadows: [
-                        Shadow(
-                          color: Theme.of(context).colorScheme.surface,
-                          blurRadius: 3,
-                        ),
-                      ],
+        GestureDetector(
+          onTap: _isSaving
+              ? null
+              : profile != null
+              ? () => _runSave(_changeAvatar)
+              : onRetry,
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              UserAvatar(size: _avatarSize, avatarUrl: profile?.avatarUrl),
+              if (_isSaving)
+                Container(
+                  width: _avatarSize,
+                  height: _avatarSize,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Colors.black.withValues(alpha: 0.35),
+                  ),
+                  child: const Center(
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
                     ),
                   ),
-              ],
-            ),
+                ),
+            ],
           ),
         ),
+        // 文字入口比角标更清楚，也不遮挡头像；加载完成后才可用。
+        if (profile != null)
+          TextButton(
+            onPressed: _isSaving ? null : () => _runSave(_changeAvatar),
+            child: Text(l10n.profileChangeAvatar),
+          ),
         const SizedBox(height: AppSpacing.l),
         Align(
           alignment: Alignment.centerLeft,
