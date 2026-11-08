@@ -29,6 +29,9 @@ class _ProfileEditSectionState extends ConsumerState<ProfileEditSection> {
 
   bool _isSaving = false;
 
+  /// 鼠标是否悬停在头像上，用于显示可点击的反馈遮罩（桌面端）。
+  bool _isAvatarHovered = false;
+
   /// 点击更换头像：选图与裁剪期间不显示保存状态，只有真正上传时才显示遮罩。
   /// 用户在选图或裁剪阶段取消都静默返回。
   Future<void> _changeAvatar() async {
@@ -128,6 +131,12 @@ class _ProfileEditSectionState extends ConsumerState<ProfileEditSection> {
     // 而不是静默失效。
     final isLoadFailed = profile == null && profileState.hasError;
     final VoidCallback? onRetry = isLoadFailed ? _retryLoad : null;
+    // 上传中不可点击；资料未加载时点击头像等同于重试加载。
+    final VoidCallback? avatarTap = _isSaving
+        ? null
+        : profile != null
+        ? () => _changeAvatar()
+        : onRetry;
 
     return Column(
       children: [
@@ -135,32 +144,38 @@ class _ProfileEditSectionState extends ConsumerState<ProfileEditSection> {
         Semantics(
           button: true,
           label: l10n.profileChangeAvatar,
-          child: GestureDetector(
-            onTap: _isSaving
-                ? null
-                : profile != null
-                ? () => _changeAvatar()
-                : onRetry,
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                UserAvatar(size: _avatarSize, avatarUrl: profile?.avatarUrl),
-                if (_isSaving)
-                  Container(
-                    width: _avatarSize,
-                    height: _avatarSize,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: Colors.black.withValues(alpha: 0.35),
+          child: MouseRegion(
+            cursor: avatarTap == null
+                ? SystemMouseCursors.basic
+                : SystemMouseCursors.click,
+            onEnter: (_) => setState(() => _isAvatarHovered = true),
+            onExit: (_) => setState(() => _isAvatarHovered = false),
+            child: InkWell(
+              customBorder: const CircleBorder(),
+              onTap: avatarTap,
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  UserAvatar(size: _avatarSize, avatarUrl: profile?.avatarUrl),
+                  if (_isAvatarHovered && avatarTap != null && !_isSaving)
+                    _AvatarOverlay(
+                      size: _avatarSize,
+                      child: const Icon(
+                        Icons.photo_camera_outlined,
+                        color: Colors.white,
+                        size: 28,
+                      ),
                     ),
-                    child: const Center(
-                      child: CircularProgressIndicator(
+                  if (_isSaving)
+                    _AvatarOverlay(
+                      size: _avatarSize,
+                      child: const CircularProgressIndicator(
                         strokeWidth: 2,
                         color: Colors.white,
                       ),
                     ),
-                  ),
-              ],
+                ],
+              ),
             ),
           ),
         ),
@@ -211,6 +226,28 @@ class _ProfileEditSectionState extends ConsumerState<ProfileEditSection> {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// 头像上的圆形遮罩，用于悬停提示与上传中的加载状态。
+class _AvatarOverlay extends StatelessWidget {
+  const _AvatarOverlay({required this.size, required this.child});
+
+  final double size;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: Colors.black.withValues(alpha: 0.35),
+      ),
+      alignment: Alignment.center,
+      child: child,
     );
   }
 }
