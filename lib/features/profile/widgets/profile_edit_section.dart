@@ -127,14 +127,14 @@ class _ProfileEditSectionState extends ConsumerState<ProfileEditSection> {
                     right: 0,
                     bottom: 0,
                     child: Container(
-                      padding: const EdgeInsets.all(6),
+                      padding: const EdgeInsets.all(3),
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         color: Theme.of(context).colorScheme.primary,
                       ),
                       child: Icon(
                         Icons.edit,
-                        size: 14,
+                        size: 12,
                         color: Theme.of(context).colorScheme.onPrimary,
                       ),
                     ),
