@@ -164,12 +164,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         ListTile(
           leading: _buildAccountLeadingIcon(
             context,
-            l10n,
-            isChinaUser: isChinaUser,
             isSignedIn: isSignedIn,
             avatarUrl: profile?.avatarUrl,
           ),
-          title: Text(l10n.account),
+          title: _buildAccountTitle(context, l10n, isChinaUser: isChinaUser),
           subtitle: accountSubtitle == null
               ? null
               : Text(
@@ -200,39 +198,42 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
   }
 
-  /// 中国区路由启用时，在账号入口图标右上角显示地区标记。
   /// 已登录时展示圆形头像（未设置头像时为默认圆形图标），未登录保持原有账号图标。
   Widget _buildAccountLeadingIcon(
-    BuildContext context,
-    AppLocalizations l10n, {
-    required bool isChinaUser,
+    BuildContext context, {
     required bool isSignedIn,
     required String? avatarUrl,
   }) {
-    final accountIcon = isSignedIn
-        ? UserAvatar(size: _settingsSvgIconExtent, avatarUrl: avatarUrl)
-        : _settingsThemedSvgIcon(context, 'assets/icon/account-1.svg');
-    if (!isChinaUser) return accountIcon;
+    if (!isSignedIn) {
+      return _settingsThemedSvgIcon(context, 'assets/icon/account-1.svg');
+    }
+    return UserAvatar(size: _settingsSvgIconExtent, avatarUrl: avatarUrl);
+  }
 
-    return Tooltip(
-      message: l10n.chinaRoutingIndicatorTooltip,
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          accountIcon,
-          Positioned(
-            top: 0,
-            right: 0,
-            child: ExcludeSemantics(
-              child: SvgPicture.asset(
-                'assets/icon/china_flag.svg',
-                width: 12,
-                height: 8,
-              ),
+  /// 账号标题；中国区路由启用时，地区标记紧跟在标题文字后面，不遮挡头像。
+  Widget _buildAccountTitle(
+    BuildContext context,
+    AppLocalizations l10n, {
+    required bool isChinaUser,
+  }) {
+    if (!isChinaUser) return Text(l10n.account);
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(l10n.account),
+        const SizedBox(width: AppSpacing.xs),
+        Tooltip(
+          message: l10n.chinaRoutingIndicatorTooltip,
+          child: ExcludeSemantics(
+            child: SvgPicture.asset(
+              'assets/icon/china_flag.svg',
+              width: 16,
+              height: 11,
             ),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
