@@ -1,10 +1,13 @@
 import 'dart:typed_data';
 
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../../l10n/app_localizations.dart';
+import '../../../services/app_logger.dart';
+import '../../../services/app_network_image_cache.dart';
 import '../../../theme/app_theme.dart';
 import '../data/avatar_image_processor.dart';
 import '../domain/user_profile.dart';
@@ -35,6 +38,8 @@ class _ProfileEditSectionState extends ConsumerState<ProfileEditSection> {
       await _runSave(() async {
         final uploadBytes = await encodeAvatarForUpload(croppedBytes);
         await ref.read(userProfileProvider.notifier).uploadAvatar(uploadBytes);
+        // 遮罩在此结束，先把新头像放进图片缓存，避免露出旧图。
+        await _precacheCurrentAvatar();
       });
     });
   }
@@ -52,6 +57,24 @@ class _ProfileEditSectionState extends ConsumerState<ProfileEditSection> {
         builder: (_) => AvatarCropScreen(imageBytes: preparedBytes),
       ),
     );
+  }
+
+  /// 预加载当前头像，使遮罩结束时新图可以直接显示。
+  /// 预加载失败不影响保存结果，图片会在显示时按需加载。
+  Future<void> _precacheCurrentAvatar() async {
+    final url = ref.read(userProfileProvider).value?.avatarUrl;
+    if (url == null || !mounted) return;
+    try {
+      await precacheImage(
+        CachedNetworkImageProvider(
+          url,
+          cacheManager: AppNetworkImageCache.instance,
+        ),
+        context,
+      );
+    } on Exception catch (error) {
+      AppLogger.log('UserProfile', '头像预加载失败，将按需加载: $error');
+    }
   }
 
   /// 保存类操作（上传、移除）期间显示遮罩并禁止重复提交。
