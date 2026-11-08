@@ -5,7 +5,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import '../../../services/app_network_image_cache.dart';
 
 /// 用户头像。有头像时展示网络图（使用全应用共享的图片缓存），
-/// 否则展示与设置页账号入口一致的默认人像图标（同一 SVG，随主题着色）。
+/// 否则在圆形底色中展示账号图标（assets/icon/account-1.svg）。
 class UserAvatar extends StatelessWidget {
   const UserAvatar({super.key, required this.size, this.avatarUrl});
 
@@ -35,7 +35,6 @@ class UserAvatar extends StatelessWidget {
   }
 }
 
-/// 默认人像与设置页账号入口使用同一资源，保证两处视觉一致。
 class _DefaultAvatar extends StatelessWidget {
   const _DefaultAvatar({required this.size});
 
@@ -43,13 +42,20 @@ class _DefaultAvatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SvgPicture.asset(
-      'assets/icon/account-1.svg',
-      width: size,
-      height: size,
-      colorFilter: ColorFilter.mode(
-        Theme.of(context).colorScheme.onSurfaceVariant,
-        BlendMode.srcIn,
+    final colorScheme = Theme.of(context).colorScheme;
+    // SVG 自带留白，图标略小于圆形区域，视觉上与圆形边缘留出间距。
+    final iconSize = size * 0.6;
+    return CircleAvatar(
+      radius: size / 2,
+      backgroundColor: colorScheme.secondaryContainer,
+      child: SvgPicture.asset(
+        'assets/icon/account-1.svg',
+        width: iconSize,
+        height: iconSize,
+        colorFilter: ColorFilter.mode(
+          colorScheme.onSecondaryContainer,
+          BlendMode.srcIn,
+        ),
       ),
     );
   }

@@ -12,6 +12,7 @@ import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:path_provider/path_provider.dart'
     show getTemporaryDirectory, getApplicationCacheDirectory;
+
 import '../database/app_database.dart';
 import '../database/providers.dart';
 import '../l10n/app_localizations.dart';
@@ -35,7 +36,6 @@ import '../analytics/models/event_names.dart';
 import '../config/app_store_config.dart';
 import '../features/auth/providers/auth_providers.dart';
 import '../features/auth/screens/account_screen.dart';
-import '../features/profile/domain/user_profile.dart';
 import '../features/profile/providers/user_profile_provider.dart';
 import '../features/profile/widgets/user_avatar.dart';
 import '../features/user_region/user_region_override.dart';
@@ -166,8 +166,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             context,
             l10n,
             isChinaUser: isChinaUser,
-            isSignedIn: isSignedIn,
-            profile: profile,
+            avatarUrl: profile?.avatarUrl,
           ),
           title: Text(l10n.account),
           subtitle: accountSubtitle == null
@@ -201,20 +200,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   /// 中国区路由启用时，在账号入口图标右上角显示地区标记。
-  /// 已登录时账号入口展示用户头像，未登录保持原图标。
+  /// 设置了头像时展示圆形头像，否则保持原有的账号图标。
   Widget _buildAccountLeadingIcon(
     BuildContext context,
     AppLocalizations l10n, {
     required bool isChinaUser,
-    required bool isSignedIn,
-    required UserProfile? profile,
+    required String? avatarUrl,
   }) {
-    final accountIcon = isSignedIn
-        ? UserAvatar(
-            size: _settingsSvgIconExtent,
-            avatarUrl: profile?.avatarUrl,
-          )
-        : _settingsThemedSvgIcon(context, 'assets/icon/account-1.svg');
+    final accountIcon = avatarUrl == null
+        ? _settingsThemedSvgIcon(context, 'assets/icon/account-1.svg')
+        : UserAvatar(size: _settingsSvgIconExtent, avatarUrl: avatarUrl);
     if (!isChinaUser) return accountIcon;
 
     return Tooltip(
@@ -578,9 +573,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     } else {
       message = l10n.clearCacheSuccess;
     }
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
   }
 
   /// 清网络图片磁盘缓存，返回释放字节数（best-effort）。
@@ -958,9 +952,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     await ref.read(guideControllerProvider.notifier).resetAll();
 
     if (!context.mounted) return;
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(l10n.resetNewUserGuideDone)));
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(l10n.resetNewUserGuideDone)));
   }
 
   /// 重置 Onboarding 问卷状态：清空问卷答案 SP key，便于开发调试。
@@ -981,18 +974,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     await storage.clear();
 
     if (!context.mounted) return;
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(l10n.resetOnboardingDone)));
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(l10n.resetOnboardingDone)));
   }
 
   /// 显示词典查询对话框
   void _showDictionaryLookupDialog(BuildContext context) {
     showDialog<void>(
       context: context,
-      builder: (context) => _DictionaryLookupDialog(
-        service: ref.read(dictionaryServiceProvider),
-      ),
+      builder: (context) =>
+          _DictionaryLookupDialog(service: ref.read(dictionaryServiceProvider)),
     );
   }
 
@@ -1050,9 +1041,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
       controller.setDemoModeLoading(false);
       if (!context.mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Demo mode error: $e')));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('Demo mode error: $e')));
     }
   }
 
@@ -1475,12 +1465,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       selected: isSelected,
       onTap: () {
         if (!isSelected) {
-          ref
-              .read(analyticsServiceProvider)
-              .track(Events.nativeLanguageChanged, {
-                EventParams.previousLanguage: settings.nativeLanguage,
-                EventParams.newLanguage: code,
-              });
+          ref.read(analyticsServiceProvider).track(
+            Events.nativeLanguageChanged,
+            {
+              EventParams.previousLanguage: settings.nativeLanguage,
+              EventParams.newLanguage: code,
+            },
+          );
         }
         controller.setNativeLanguage(code);
         Navigator.pop(context);
