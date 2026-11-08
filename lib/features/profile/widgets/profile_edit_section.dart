@@ -26,32 +26,49 @@ class _ProfileEditSectionState extends ConsumerState<ProfileEditSection> {
 
   bool _isSaving = false;
 
-  /// 直接打开系统相册/文件选择。iOS 与 Android 为相册，macOS 为文件选择框。
-  /// 选图 → 预处理 → 裁剪 → 压缩 → 上传；用户在任一步取消都静默返回。
+  /// 点击更换头像：选图与裁剪期间不显示保存状态，只有真正上传时才显示遮罩。
+  /// 用户在选图或裁剪阶段取消都静默返回。
   Future<void> _changeAvatar() async {
+    await _reportingErrors(() async {
+      final croppedBytes = await _pickAndCropAvatar();
+      if (croppedBytes == null) return;
+      await _runSave(() async {
+        final uploadBytes = await encodeAvatarForUpload(croppedBytes);
+        await ref.read(userProfileProvider.notifier).uploadAvatar(uploadBytes);
+      });
+    });
+  }
+
+  /// 直接打开系统相册/文件选择，经预处理后进入裁剪页；取消时返回 null。
+  Future<Uint8List?> _pickAndCropAvatar() async {
     final picked = await ImagePicker().pickImage(source: ImageSource.gallery);
-    if (picked == null) return;
+    if (picked == null) return null;
     final sourceBytes = await picked.readAsBytes();
     final preparedBytes = await prepareAvatarSourceForCrop(sourceBytes);
-    if (!mounted) return;
+    if (!mounted) return null;
 
-    final croppedBytes = await Navigator.of(context).push<Uint8List>(
+    return Navigator.of(context).push<Uint8List>(
       MaterialPageRoute(
         builder: (_) => AvatarCropScreen(imageBytes: preparedBytes),
       ),
     );
-    if (croppedBytes == null) return;
-
-    final uploadBytes = await encodeAvatarForUpload(croppedBytes);
-    await ref.read(userProfileProvider.notifier).uploadAvatar(uploadBytes);
   }
 
-  /// 统一处理保存中状态与错误提示，避免在每个操作里重复 try/catch。
+  /// 保存类操作（上传、移除）期间显示遮罩并禁止重复提交。
   Future<void> _runSave(Future<void> Function() task) async {
     if (_isSaving) return;
+    setState(() => _isSaving = true);
+    try {
+      await _reportingErrors(task);
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
+    }
+  }
+
+  /// 统一把失败转为 SnackBar 提示，避免在每个操作里重复 try/catch。
+  Future<void> _reportingErrors(Future<void> Function() task) async {
     final l10n = AppLocalizations.of(context)!;
     final messenger = ScaffoldMessenger.of(context);
-    setState(() => _isSaving = true);
     try {
       await task();
     } on AvatarImageException {
@@ -60,8 +77,6 @@ class _ProfileEditSectionState extends ConsumerState<ProfileEditSection> {
       );
     } on Exception {
       messenger.showSnackBar(SnackBar(content: Text(l10n.profileSaveFailed)));
-    } finally {
-      if (mounted) setState(() => _isSaving = false);
     }
   }
 
@@ -98,7 +113,7 @@ class _ProfileEditSectionState extends ConsumerState<ProfileEditSection> {
           onTap: _isSaving
               ? null
               : profile != null
-              ? () => _runSave(_changeAvatar)
+              ? () => _changeAvatar()
               : onRetry,
           child: Stack(
             alignment: Alignment.center,
@@ -125,7 +140,7 @@ class _ProfileEditSectionState extends ConsumerState<ProfileEditSection> {
         // 文字入口比角标更清楚，也不遮挡头像；加载完成后才可用。
         if (profile != null)
           TextButton(
-            onPressed: _isSaving ? null : () => _runSave(_changeAvatar),
+            onPressed: _isSaving ? null : () => _changeAvatar(),
             child: Text(l10n.profileChangeAvatar),
           ),
         const SizedBox(height: AppSpacing.l),
