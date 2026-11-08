@@ -4,25 +4,18 @@ import 'package:flutter/material.dart';
 import '../../../services/app_network_image_cache.dart';
 
 /// 用户头像。有头像时展示网络图（使用全应用共享的图片缓存），
-/// 否则回退为昵称首字；没有昵称时显示默认人像。
+/// 否则展示默认人像；昵称仅以文字形式展示，不作为头像占位。
 class UserAvatar extends StatelessWidget {
-  const UserAvatar({
-    super.key,
-    required this.size,
-    this.avatarUrl,
-    this.nickname,
-  });
+  const UserAvatar({super.key, required this.size, this.avatarUrl});
 
   final double size;
 
   /// 为 null 表示未设置头像。服务端每次换头像都会生成新 URL，因此无需手动失效缓存。
   final String? avatarUrl;
 
-  final String? nickname;
-
   @override
   Widget build(BuildContext context) {
-    final placeholder = _AvatarPlaceholder(size: size, nickname: nickname);
+    final placeholder = _DefaultAvatar(size: size);
     final url = avatarUrl;
     if (url == null) return placeholder;
 
@@ -41,38 +34,19 @@ class UserAvatar extends StatelessWidget {
   }
 }
 
-/// 取昵称第一个码点并大写，作为无头像时的占位字。昵称为空时返回 null。
-///
-/// 按码点取值，避免 emoji 等代理对字符被截断成乱码。
-String? avatarInitialFor(String? nickname) {
-  final trimmed = nickname?.trim() ?? '';
-  if (trimmed.isEmpty) return null;
-  return String.fromCharCodes([trimmed.runes.first]).toUpperCase();
-}
-
-class _AvatarPlaceholder extends StatelessWidget {
-  const _AvatarPlaceholder({required this.size, required this.nickname});
+class _DefaultAvatar extends StatelessWidget {
+  const _DefaultAvatar({required this.size});
 
   final double size;
-  final String? nickname;
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final initial = avatarInitialFor(nickname);
     return CircleAvatar(
       radius: size / 2,
       backgroundColor: colorScheme.secondaryContainer,
       foregroundColor: colorScheme.onSecondaryContainer,
-      child: initial == null
-          ? Icon(Icons.person_outline, size: size * 0.55)
-          : Text(
-              initial,
-              style: TextStyle(
-                fontSize: size * 0.42,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
+      child: Icon(Icons.person_outline, size: size * 0.55),
     );
   }
 }

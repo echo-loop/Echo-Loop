@@ -213,7 +213,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         ? UserAvatar(
             size: _settingsSvgIconExtent,
             avatarUrl: profile?.avatarUrl,
-            nickname: profile?.nickname,
           )
         : _settingsThemedSvgIcon(context, 'assets/icon/account-1.svg');
     if (!isChinaUser) return accountIcon;

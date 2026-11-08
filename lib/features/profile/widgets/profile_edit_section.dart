@@ -158,11 +158,7 @@ class _ProfileEditSectionState extends ConsumerState<ProfileEditSection> {
             child: Stack(
               alignment: Alignment.center,
               children: [
-                UserAvatar(
-                  size: _avatarSize,
-                  avatarUrl: profile?.avatarUrl,
-                  nickname: nicknameText,
-                ),
+                UserAvatar(size: _avatarSize, avatarUrl: profile?.avatarUrl),
                 if (_isSaving)
                   Container(
                     width: _avatarSize,
