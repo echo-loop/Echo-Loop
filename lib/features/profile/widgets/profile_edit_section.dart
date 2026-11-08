@@ -143,7 +143,24 @@ class _ProfileEditSectionState extends ConsumerState<ProfileEditSection> {
             ),
           ),
         ),
-        const SizedBox(height: AppSpacing.m),
+        const SizedBox(height: AppSpacing.l),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.s,
+              0,
+              0,
+              AppSpacing.s,
+            ),
+            child: Text(
+              l10n.profileSection,
+              style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ),
+        ),
         Card(
           child: Column(
             children: [

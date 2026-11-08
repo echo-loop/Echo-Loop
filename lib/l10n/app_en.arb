@@ -2807,6 +2807,8 @@
   "profileNicknameEmpty": "Nickname can't be empty",
   "profileNicknameTooLong": "Nickname can be up to 30 characters",
   "profileNicknameInvalid": "Nickname can't contain line breaks or control characters",
+  "profileSection": "Profile",
+  "signInSection": "Sign-in",
   "profileAvatar": "Avatar",
   "profileChangeAvatar": "Change avatar",
   "profileRemoveAvatar": "Remove avatar",

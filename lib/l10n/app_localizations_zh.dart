@@ -5550,6 +5550,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get profileNicknameInvalid => '昵称不能包含换行或控制字符';
 
   @override
+  String get profileSection => '个人资料';
+
+  @override
+  String get signInSection => '登录方式';
+
+  @override
   String get profileAvatar => '头像';
 
   @override

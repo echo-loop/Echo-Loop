@@ -5821,6 +5821,12 @@ class AppLocalizationsEn extends AppLocalizations {
       'Nickname can\'t contain line breaks or control characters';
 
   @override
+  String get profileSection => 'Profile';
+
+  @override
+  String get signInSection => 'Sign-in';
+
+  @override
   String get profileAvatar => 'Avatar';
 
   @override

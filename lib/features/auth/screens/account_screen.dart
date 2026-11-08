@@ -172,12 +172,14 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
           children: [
             const ProfileEditSection(),
             const SizedBox(height: AppSpacing.l),
-            _SignedInAccountCard(
+            _SectionHeader(title: l10n.signInSection),
+            _SignInMethodCard(
               email: email,
               provider: authDisplayProviderForSession(session),
-              isSigningOut: _isSigningOut,
-              onSignOut: _signOut,
             ),
+            // 退出登录与账号信息分开放置，避免误触。
+            const SizedBox(height: AppSpacing.xl),
+            _SignOutCard(isSigningOut: _isSigningOut, onSignOut: _signOut),
           ],
         ),
       ),
@@ -185,18 +187,31 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
   }
 }
 
-class _SignedInAccountCard extends StatelessWidget {
-  const _SignedInAccountCard({
-    required this.email,
-    required this.provider,
-    required this.isSigningOut,
-    required this.onSignOut,
-  });
+class _SectionHeader extends StatelessWidget {
+  const _SectionHeader({required this.title});
+
+  final String title;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(AppSpacing.s, 0, 0, AppSpacing.s),
+      child: Text(
+        title,
+        style: Theme.of(context).textTheme.labelLarge
+            ?.copyWith(color: scheme.onSurfaceVariant),
+      ),
+    );
+  }
+}
+
+/// 只读的登录方式信息：不可点击，因此不显示箭头与水波纹。
+class _SignInMethodCard extends StatelessWidget {
+  const _SignInMethodCard({required this.email, required this.provider});
 
   final String? email;
   final AuthDisplayProvider provider;
-  final bool isSigningOut;
-  final Future<void> Function() onSignOut;
 
   @override
   Widget build(BuildContext context) {
@@ -210,27 +225,38 @@ class _SignedInAccountCard extends StatelessWidget {
       AuthDisplayProvider.email || AuthDisplayProvider.unknown => l10n.account,
     };
     return Card(
-      child: Column(
-        children: [
-          ListTile(
-            leading: const Icon(Icons.account_circle_outlined),
-            title: Text(title),
-            subtitle: Text(emailText),
-          ),
-          const Divider(height: 1),
-          ListTile(
-            leading: isSigningOut
-                ? const SizedBox(
-                    width: 24,
-                    height: 24,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Icon(Icons.logout),
-            title: Text(l10n.authSignOut),
-            enabled: !isSigningOut,
-            onTap: isSigningOut ? null : onSignOut,
-          ),
-        ],
+      child: ListTile(
+        leading: const Icon(Icons.account_circle_outlined),
+        title: Text(title),
+        subtitle: Text(emailText),
+      ),
+    );
+  }
+}
+
+/// 退出登录是唯一的危险操作，使用错误色并独立成卡片。
+class _SignOutCard extends StatelessWidget {
+  const _SignOutCard({required this.isSigningOut, required this.onSignOut});
+
+  final bool isSigningOut;
+  final Future<void> Function() onSignOut;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final errorColor = Theme.of(context).colorScheme.error;
+    return Card(
+      child: ListTile(
+        leading: isSigningOut
+            ? const SizedBox(
+                width: 24,
+                height: 24,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+            : Icon(Icons.logout, color: errorColor),
+        title: Text(l10n.authSignOut, style: TextStyle(color: errorColor)),
+        enabled: !isSigningOut,
+        onTap: isSigningOut ? null : onSignOut,
       ),
     );
   }

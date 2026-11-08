@@ -2330,6 +2330,8 @@
   "profileNicknameEmpty": "昵称不能为空",
   "profileNicknameTooLong": "昵称最多 30 个字符",
   "profileNicknameInvalid": "昵称不能包含换行或控制字符",
+  "profileSection": "个人资料",
+  "signInSection": "登录方式",
   "profileAvatar": "头像",
   "profileChangeAvatar": "更换头像",
   "profileRemoveAvatar": "移除头像",

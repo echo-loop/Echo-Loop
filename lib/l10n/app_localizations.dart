@@ -10238,6 +10238,18 @@ abstract class AppLocalizations {
   /// **'Nickname can\'t contain line breaks or control characters'**
   String get profileNicknameInvalid;
 
+  /// No description provided for @profileSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Profile'**
+  String get profileSection;
+
+  /// No description provided for @signInSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign-in'**
+  String get signInSection;
+
   /// No description provided for @profileAvatar.
   ///
   /// In en, this message translates to:
