@@ -19,10 +19,10 @@ void main() {
       expect(ReadingTextPrefs.fromStored(scale: 1.3).fontScale, 1.3);
     });
 
-    test('档位为 85%~175%，每档 5%，且包含默认 100%', () {
+    test('档位为 85%~150%，每档 5%，且包含默认 100%', () {
       final percents = readingFontScaleSteps.map((s) => (s * 100).round());
       expect(percents.first, 85);
-      expect(percents.last, 175);
+      expect(percents.last, 150);
       expect(percents.toSet().length, readingFontScaleSteps.length);
       final list = percents.toList();
       for (var i = 1; i < list.length; i++) {

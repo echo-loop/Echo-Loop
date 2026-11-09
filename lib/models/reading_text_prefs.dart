@@ -13,10 +13,10 @@ import 'package:flutter/material.dart';
 
 /// 可选字号倍率档位（相对主题基础字号）。
 ///
-/// 85% ~ 175%，每档 5%。离散档位比连续滑块更好测、更好同步，
+/// 85% ~ 150%，每档 5%。离散档位比连续滑块更好测、更好同步，
 /// 也避免出现 1.07 这类无意义的值。按整数百分比生成，避免浮点累加误差。
 final readingFontScaleSteps = List<double>.unmodifiable(
-  List.generate(19, (i) => (85 + 5 * i) / 100),
+  List.generate(14, (i) => (85 + 5 * i) / 100),
 );
 
 /// 默认字号倍率。
