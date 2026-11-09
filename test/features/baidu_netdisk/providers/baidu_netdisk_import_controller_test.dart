@@ -76,6 +76,13 @@ class _FakeBaiduNetdiskApi implements BaiduNetdiskApi {
 
   List<CloudDriveEntry> entries = const <CloudDriveEntry>[];
   String? lastDir;
+  final List<int> requestedStarts = <int>[];
+
+  /// 模拟服务端单页最多返回的条数，可能小于请求的 limit。
+  int serverMaxPageSize = 1000;
+
+  /// 请求该 start 时抛出失败，用于模拟中途某一页出错。
+  int? failingStart;
 
   @override
   Future<Map<int, BaiduDownloadLink>> fetchDownloadLinks({
@@ -112,13 +119,24 @@ class _FakeBaiduNetdiskApi implements BaiduNetdiskApi {
     required String accessToken,
     String dir = '/',
     int start = 0,
-    int limit = 100,
+    int limit = 1000,
   }) async {
     lastDir = dir;
+    requestedStarts.add(start);
+    if (start == failingStart) {
+      throw const BaiduNetdiskFileException(
+        kind: BaiduNetdiskFileErrorKind.unknown,
+        message: 'page failed',
+      );
+    }
+    final pageSize = limit < serverMaxPageSize ? limit : serverMaxPageSize;
+    final pageEntries = entries
+        .skip(start)
+        .take(pageSize)
+        .toList(growable: false);
     return CloudDriveListPage(
-      entries: entries,
-      nextStart: entries.length,
-      hasMore: false,
+      entries: pageEntries,
+      nextStart: start + pageEntries.length,
     );
   }
 }
@@ -240,6 +258,68 @@ void main() {
       expect(controller.state.phase, BaiduNetdiskImportPhase.ready);
       expect(controller.state.entries, [folder, audio, text]);
       expect(api.lastDir, '/');
+    });
+
+    test('目录超过单页数量时按分页取全所有文件', () async {
+      api.entries = [
+        for (var index = 0; index < 2500; index++)
+          CloudDriveEntry(
+            fsId: index + 1,
+            name: 'lesson-$index.mp3',
+            path: '/lesson-$index.mp3',
+            isDirectory: false,
+            size: 1,
+          ),
+      ];
+
+      await controller.loadInitial();
+
+      expect(controller.state.phase, BaiduNetdiskImportPhase.ready);
+      expect(controller.state.entries, hasLength(2500));
+      expect(controller.state.entries.last.name, 'lesson-2499.mp3');
+      expect(api.requestedStarts, [0, 1000, 2000, 2500]);
+    });
+
+    test('服务端单页条数小于请求的 limit 时仍取全所有文件', () async {
+      api
+        ..serverMaxPageSize = 100
+        ..entries = [
+          for (var index = 0; index < 250; index++)
+            CloudDriveEntry(
+              fsId: index + 1,
+              name: 'lesson-$index.mp3',
+              path: '/lesson-$index.mp3',
+              isDirectory: false,
+              size: 1,
+            ),
+        ];
+
+      await controller.loadInitial();
+
+      expect(controller.state.phase, BaiduNetdiskImportPhase.ready);
+      expect(controller.state.entries, hasLength(250));
+      expect(api.requestedStarts, [0, 100, 200, 250]);
+    });
+
+    test('中途某一页失败时进入失败态，不保留部分结果', () async {
+      api
+        ..entries = [
+          for (var index = 0; index < 2500; index++)
+            CloudDriveEntry(
+              fsId: index + 1,
+              name: 'lesson-$index.mp3',
+              path: '/lesson-$index.mp3',
+              isDirectory: false,
+              size: 1,
+            ),
+        ]
+        ..failingStart = 1000;
+
+      await controller.loadInitial();
+
+      expect(controller.state.phase, BaiduNetdiskImportPhase.failed);
+      expect(controller.state.errorMessage, 'page failed');
+      expect(controller.state.entries, isEmpty);
     });
 
     test('已有凭据进入导入时后台刷新账户资料', () async {

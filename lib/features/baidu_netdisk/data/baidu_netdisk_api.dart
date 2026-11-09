@@ -18,12 +18,12 @@ abstract interface class BaiduNetdiskApi {
     required String accessToken,
   });
 
-  /// 列出目录。
+  /// 列出目录一页。服务端单页条数可能小于 limit，需以返回的空页判断目录末尾。
   Future<CloudDriveListPage> listDirectory({
     required String accessToken,
     String dir = '/',
     int start = 0,
-    int limit = 100,
+    int limit = 1000,
   });
 
   /// 批量获取文件下载 dlink。返回的 map 只包含百度给出有效链接的文件，缺失的 fs_id 不在其中。
@@ -141,9 +141,9 @@ class DefaultBaiduNetdiskApi implements BaiduNetdiskApi {
     required String accessToken,
     String dir = '/',
     int start = 0,
-    int limit = 100,
+    int limit = 1000,
   }) async {
-    final normalizedLimit = limit.clamp(1, 1000);
+    final normalizedStart = start < 0 ? 0 : start;
     final data = await _getJson(
       _metadataDio,
       '/rest/2.0/xpan/file',
@@ -152,8 +152,8 @@ class DefaultBaiduNetdiskApi implements BaiduNetdiskApi {
         'access_token': accessToken,
         'dir': dir.isEmpty ? '/' : dir,
         'order': 'name',
-        'start': start < 0 ? 0 : start,
-        'limit': normalizedLimit,
+        'start': normalizedStart,
+        'limit': limit.clamp(1, 1000),
         'web': 1,
         'folder': 0,
         'desc': 0,
@@ -172,8 +172,7 @@ class DefaultBaiduNetdiskApi implements BaiduNetdiskApi {
         .toList(growable: false);
     return CloudDriveListPage(
       entries: entries,
-      nextStart: (start < 0 ? 0 : start) + entries.length,
-      hasMore: entries.length >= normalizedLimit,
+      nextStart: normalizedStart + entries.length,
     );
   }
 

@@ -258,14 +258,17 @@ class _StaticBaiduNetdiskApi implements BaiduNetdiskApi {
     required String accessToken,
     String dir = '/',
     int start = 0,
-    int limit = 100,
+    int limit = 1000,
   }) async {
-    requestedDirs.add(dir);
-    final entries = pages[dir] ?? const <CloudDriveEntry>[];
+    // 每次进入目录只记录一次（第一页），翻页时的空页请求不计入。
+    if (start == 0) requestedDirs.add(dir);
+    // 模拟服务端：只有第一页有数据，之后返回空页表示目录末尾。
+    final entries = start == 0
+        ? pages[dir] ?? const <CloudDriveEntry>[]
+        : const <CloudDriveEntry>[];
     return CloudDriveListPage(
       entries: entries,
-      nextStart: entries.length,
-      hasMore: false,
+      nextStart: start + entries.length,
     );
   }
 }

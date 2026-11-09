@@ -4,6 +4,10 @@
 
 ## 本次完成
 
+- [x] 百度网盘目录分页改为「取到空页为止」（2026-11-10）：百度列表接口不返回总数或 `has_more`，单页条数也可能小于请求的 `limit`，原先用 `条数 >= limit` 推断 `hasMore`，服务端上限低于 1000 时会在第一页停止。`CloudDriveListPage` 删除 `hasMore`，控制器 `_listAllDirectoryEntries` 循环到空页为止；`listDirectory` 默认 `limit` 统一为 1000；翻页结束后写入 state 前检查 `mounted`。新增测试：服务端单页上限 100 时取全 250 条；第 2 页失败进入失败态且无部分结果。修复 widget 测试替身不处理 `start` 导致的死循环风险。验证：`test/features/baidu_netdisk`、`test/widgets/import_audio_sheet_test.dart` 共 `+127` 全部通过；改动文件 `dart format` 无变更，analyze 无新增问题。**待真机验证**：真实百度账号下超过 1000 个文件的目录。**完成时间**: 2026-11-10
+
+- [x] 修复百度网盘目录只显示前 100 个文件：`BaiduNetdiskImportController` 只调用一次 `listDirectory`（默认 `limit=100`），忽略了 `hasMore`，超过第一页的文件全部丢失。改为新增 `_listAllDirectoryEntries` 按 `nextStart` 分页取全（单页 1000），任一页失败整体报错，不返回部分结果。验证：`test/features/baidu_netdisk`、`test/widgets/import_audio_sheet_test.dart` 共 `+125` 全部通过（新增「目录超过单页数量时按分页取全」用例，先红后绿）。未覆盖：未对真实百度接口验证单页上限为 1000。**待真机验证**：目录文件数超过 100 时列表完整。**完成时间**: 2026-11-09
+
 - [x] 按钮与图标行文字居中（撤销墨迹补偿方案）：回退 `OpticalText` 批量替换，删除 `optical_text.dart`，图标与文字保持布局级居中（`Row` + 按钮默认居中）。中文字形墨迹相对行框偏低约 0.14em，属于字体度量特性，不做平台相关的补偿；如需墨迹级对齐，需统一打包度量对称的字体后再评估。剩余：「听不太懂」整组水平偏右约 3 px（图标字形左侧留白），未处理。**完成时间**: 2026-11-09
 
 - [x] 修复设置行值区域被截断：`SettingLabeledRow` 默认值区固定 80dp，大字号下「句间停顿」的「自动」被截成「自」。改为默认按内容自适应，`PauseChoiceDropdown` 与 `AppDropdown`（停顿/速度/比例等 7 处）取消强制展满宽度，并修正组标题色带在非展开下拉中的无限约束；值区域改为贴右（`Align(widthFactor: 1)`），下拉选中值用 `AlignmentDirectional.centerEnd` 贴近箭头。相关 747 项测试通过；安卓真机（系统字体 1.0 / 1.5）验证「自动」完整且贴右显示。**完成时间**: 2026-11-09

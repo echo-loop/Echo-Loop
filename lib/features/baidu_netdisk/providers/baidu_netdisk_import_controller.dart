@@ -163,6 +163,9 @@ final baiduNetdiskImportControllerProvider =
 /// 百度网盘浏览 Controller。
 class BaiduNetdiskImportController
     extends StateNotifier<BaiduNetdiskImportState> {
+  /// 目录分页请求的条数上限（百度文档建议不超过 1000）。目录可能超过单页数量，需翻页取全。
+  static const int _directoryPageLimit = 1000;
+
   /// 构造 Controller。
   BaiduNetdiskImportController({
     required BaiduCredentialRepository credentialRepository,
@@ -370,13 +373,15 @@ class BaiduNetdiskImportController
       selectedFsIds: const <int>{},
     );
     try {
-      final page = await _api.listDirectory(
+      final entries = await _listAllDirectoryEntries(
+        path: path,
         accessToken: accessToken,
-        dir: path,
       );
+      // 翻页耗时较长，期间 Provider 可能已被销毁，写入 state 前需确认仍然有效。
+      if (!mounted) return;
       state = state.copyWith(
         phase: BaiduNetdiskImportPhase.ready,
-        entries: page.entries.toList(growable: false),
+        entries: entries,
       );
     } on BaiduNetdiskFileException catch (error) {
       if (error.kind == BaiduNetdiskFileErrorKind.unauthorized) {
@@ -396,6 +401,29 @@ class BaiduNetdiskImportController
         phase: BaiduNetdiskImportPhase.failed,
         errorMessage: _messageForError(error),
       );
+    }
+  }
+
+  /// 按分页取全目录条目，直到返回空页为止。
+  ///
+  /// 百度不返回总数或「是否还有下一页」，服务端单页条数也可能小于请求的 limit，
+  /// 因此不能用条数判断末尾。任一页失败都向上抛出，不返回部分结果，避免列表静默缺文件。
+  Future<List<CloudDriveEntry>> _listAllDirectoryEntries({
+    required String path,
+    required String accessToken,
+  }) async {
+    final entries = <CloudDriveEntry>[];
+    var start = 0;
+    while (true) {
+      final page = await _api.listDirectory(
+        accessToken: accessToken,
+        dir: path,
+        start: start,
+        limit: _directoryPageLimit,
+      );
+      if (page.entries.isEmpty) return entries;
+      entries.addAll(page.entries);
+      start = page.nextStart;
     }
   }
 

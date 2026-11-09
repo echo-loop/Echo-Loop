@@ -55,22 +55,17 @@ class CloudDriveEntry {
 }
 
 /// 云盘分页结果。
+///
+/// 百度列表接口不返回总数或「是否还有下一页」，调用方需以空页判断目录末尾。
 class CloudDriveListPage {
   /// 构造分页结果。
-  const CloudDriveListPage({
-    required this.entries,
-    required this.nextStart,
-    required this.hasMore,
-  });
+  const CloudDriveListPage({required this.entries, required this.nextStart});
 
   /// 当前页条目。
   final List<CloudDriveEntry> entries;
 
   /// 下一页 start 参数。
   final int nextStart;
-
-  /// 是否可能还有下一页。
-  final bool hasMore;
 }
 
 /// 百度 dlink 元信息。

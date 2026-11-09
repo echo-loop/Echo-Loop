@@ -193,7 +193,6 @@ void main() {
       expect(page.entries[1].name, 'lesson.mp3');
       expect(page.entries[1].extension, 'mp3');
       expect(page.nextStart, 7);
-      expect(page.hasMore, isTrue);
 
       final query =
           verify(
