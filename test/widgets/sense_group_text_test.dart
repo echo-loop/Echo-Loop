@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:echo_loop/models/speech_practice_models.dart';
 import 'package:echo_loop/providers/saved_word_provider.dart';
@@ -186,6 +187,42 @@ void main() {
       // 纯文本渲染：能找到原始文本，且无绿色高亮
       expect(find.text('Hello world'), findsOneWidget);
       expect(matchedWords(tester), isEmpty);
+    });
+
+    testWidgets('播放高亮时系统文字缩放与未播放时一致', (tester) async {
+      // 系统「更大字体」下，播放期间 badge 必须仍跟随 MediaQuery 缩放；
+      // RichText 默认 noScaling，会在播放起止时把字号缩回 100%。
+      const systemScale = TextScaler.linear(1.5);
+
+      Future<Set<double>> pumpScales({required int? activeWordIndex}) async {
+        await tester.pumpWidget(
+          createTestApp(
+            Builder(
+              builder: (context) => MediaQuery(
+                data: MediaQuery.of(context).copyWith(textScaler: systemScale),
+                child: SenseGroupText(
+                  chunks: const ['Hello world'],
+                  timings: const [],
+                  onTapGroup: (_) {},
+                  activeWordIndex: activeWordIndex,
+                ),
+              ),
+            ),
+          ),
+        );
+        return {
+          for (final paragraph in tester.renderObjectList<RenderParagraph>(
+            find.byType(RichText),
+          ))
+            paragraph.textScaler.scale(10),
+        };
+      }
+
+      final idleScales = await pumpScales(activeWordIndex: null);
+      final playingScales = await pumpScales(activeWordIndex: 0);
+
+      expect(idleScales, {15.0});
+      expect(playingScales, idleScales);
     });
   });
 

@@ -153,7 +153,7 @@ void main() {
     expect(findBlackCanvas(), findsNothing);
   });
 
-  testWidgets('极大系统字号下加载提示保持在视频画布内', (tester) async {
+  testWidgets('极大系统字号下加载提示跟随缩放且保持在视频画布内', (tester) async {
     final completer = Completer<MediaLoadResult>();
     await tester.pumpWidget(
       createTestApp(
@@ -177,9 +177,10 @@ void main() {
     final canvasSize = tester.getSize(
       find.byKey(const ValueKey('managed-media-overlay-canvas')),
     );
+    // 文字应按 4 倍放大，且仍落在画布内、不溢出
+    expect(textSize.height, greaterThan(30));
     expect(textSize.width, lessThanOrEqualTo(canvasSize.width));
     expect(textSize.height, lessThan(canvasSize.height));
-    expect(textSize.height, lessThan(30));
   });
 
   testWidgets('失败后原地重试并可成功', (tester) async {

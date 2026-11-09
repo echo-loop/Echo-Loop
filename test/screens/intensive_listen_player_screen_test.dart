@@ -553,21 +553,25 @@ void main() {
       );
       expect(continueButtonFinder, findsOneWidget);
       expect(find.text('Next'), findsOneWidget);
+      // 文字居中，宽度随文字自适应（高度固定 48），不再固定宽度导致裁切
       final continueLabel = tester.widget<Text>(find.text('Next'));
-      expect(continueLabel.maxLines, 1);
-      expect(continueLabel.softWrap, isFalse);
-      final continueIcon = tester.widget<Icon>(
-        find.byIcon(Icons.arrow_forward_rounded),
+      expect(continueLabel.textAlign, TextAlign.center);
+      expect(
+        tester.getCenter(find.text('Next')).dx,
+        closeTo(tester.getCenter(continueButtonFinder).dx, 0.5),
       );
-      expect(continueIcon.size, 20);
 
       final continueButton = tester.widget<FilledButton>(continueButtonFinder);
       expect(continueButton.style?.shape?.resolve({}), isA<StadiumBorder>());
-      expect(continueButton.style?.fixedSize?.resolve({}), const Size(128, 48));
+      expect(
+        continueButton.style?.minimumSize?.resolve({}),
+        const Size(0, 48),
+      );
       expect(
         continueButton.style?.padding?.resolve({}),
         const EdgeInsets.symmetric(horizontal: 16),
       );
+      expect(continueButton.style?.fixedSize?.resolve({}), isNull);
     });
 
     testWidgets('手动模式讲解页使用下一句导航，不显示继续按钮', (tester) async {

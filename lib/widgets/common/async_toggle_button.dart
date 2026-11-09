@@ -15,7 +15,7 @@ const _activeFillDark = Color(0xFF1A3A5C);
 
 /// 异步 toggle 按钮
 ///
-/// 按钮高度 32dp，圆角 8dp，图标 16dp + labelMedium 文字。
+/// 按钮最小高度 32dp，宽度随文字自适应，圆角 8dp，图标 16dp + labelMedium 文字。
 /// [onPressed] 返回 Future，按钮在 Future 完成前自动显示 loading。
 class AsyncToggleButton extends StatefulWidget {
   /// 按钮文字
@@ -117,10 +117,12 @@ class _AsyncToggleButtonState extends State<AsyncToggleButton> {
           : null;
     }
 
+    // 图标与文字作为一组水平居中，图标在前、与文字垂直居中对齐；
+    // 高度随文字最小 32dp，文字过长时换行而不是截断。
     return GestureDetector(
       onTap: _handleTap,
       child: Container(
-        height: 32,
+        constraints: const BoxConstraints(minHeight: 32),
         decoration: BoxDecoration(
           color: backgroundColor,
           borderRadius: BorderRadius.circular(8),
@@ -152,10 +154,12 @@ class _AsyncToggleButtonState extends State<AsyncToggleButton> {
               Flexible(
                 child: Text(
                   widget.label,
+                  textAlign: TextAlign.center,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                   style: theme.textTheme.labelMedium?.copyWith(
                     color: foregroundColor,
                   ),
-                  overflow: TextOverflow.ellipsis,
                 ),
               ),
             ],

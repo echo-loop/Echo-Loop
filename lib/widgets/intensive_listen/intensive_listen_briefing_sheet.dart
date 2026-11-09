@@ -5,6 +5,7 @@
 library;
 
 import 'package:flutter/material.dart';
+
 import '../common/app_dropdown.dart';
 import '../common/pause_choice_dropdown.dart';
 import '../common/setting_labeled_row.dart';
@@ -207,8 +208,8 @@ class _IntensiveListenBriefingSheetState
             ),
             trailing: AppDropdown<double>(
               value: _playbackSpeed,
-              isExpanded: true,
               isDense: true,
+              alignment: AlignmentDirectional.centerEnd,
               items: IntensiveListenSettings.briefingPlaybackSpeedOptions
                   .map(
                     (speed) => DropdownMenuItem(

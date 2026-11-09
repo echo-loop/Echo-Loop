@@ -193,29 +193,32 @@ class MediaKitPlayerBackend implements MediaPlayerBackend {
   @override
   Widget buildVideoView({required Size viewportSize}) {
     final subtitleStyle = MediaSubtitleStyle.forViewport(viewportSize);
-    return Video(
-      controller: _controller,
-      controls: NoVideoControls,
-      // 视频随心听的音轨需要在锁屏后继续播放；media_kit_video 默认会在后台暂停 Player。
-      pauseUponEnteringBackgroundMode: false,
-      fit: BoxFit.contain,
-      subtitleViewConfiguration: SubtitleViewConfiguration(
-        style: TextStyle(
-          height: 1.32,
-          fontSize: subtitleStyle.fontSize,
-          letterSpacing: 0,
-          wordSpacing: 0,
-          color: const Color(0xffffffff),
-          fontWeight: FontWeight.w600,
-          backgroundColor: const Color(0xaa000000),
-        ),
-        textAlign: TextAlign.center,
-        textScaler: const TextScaler.linear(1),
-        padding: EdgeInsets.fromLTRB(
-          subtitleStyle.horizontalPadding,
-          0,
-          subtitleStyle.horizontalPadding,
-          subtitleStyle.bottomPadding,
+    // 字幕跟随系统文字缩放：需要 BuildContext 读取 MediaQuery，故包一层 Builder。
+    return Builder(
+      builder: (context) => Video(
+        controller: _controller,
+        controls: NoVideoControls,
+        // 视频随心听的音轨需要在锁屏后继续播放；media_kit_video 默认会在后台暂停 Player。
+        pauseUponEnteringBackgroundMode: false,
+        fit: BoxFit.contain,
+        subtitleViewConfiguration: SubtitleViewConfiguration(
+          style: TextStyle(
+            height: 1.32,
+            fontSize: subtitleStyle.fontSize,
+            letterSpacing: 0,
+            wordSpacing: 0,
+            color: const Color(0xffffffff),
+            fontWeight: FontWeight.w600,
+            backgroundColor: const Color(0xaa000000),
+          ),
+          textAlign: TextAlign.center,
+          textScaler: MediaQuery.textScalerOf(context),
+          padding: EdgeInsets.fromLTRB(
+            subtitleStyle.horizontalPadding,
+            0,
+            subtitleStyle.horizontalPadding,
+            subtitleStyle.bottomPadding,
+          ),
         ),
       ),
     );

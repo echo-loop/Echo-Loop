@@ -400,6 +400,9 @@ class _SubtitleWaveformViewState extends State<SubtitleWaveformView> {
                                         SubtitleWaveformView.endBoundaryColor,
                                     axisColor:
                                         theme.colorScheme.onSurfaceVariant,
+                                    textScaler: MediaQuery.textScalerOf(
+                                      context,
+                                    ),
                                   ),
                                 ),
                               ),
@@ -888,6 +891,9 @@ class _WaveformLayerPainter extends CustomPainter {
   final Color endColor;
   final Color axisColor;
 
+  /// 句子文字与轴标签的系统文字缩放，与普通 Text 保持一致。
+  final TextScaler textScaler;
+
   const _WaveformLayerPainter({
     required this.waveform,
     required this.metrics,
@@ -900,6 +906,7 @@ class _WaveformLayerPainter extends CustomPainter {
     required this.startColor,
     required this.endColor,
     required this.axisColor,
+    required this.textScaler,
   });
 
   @override
@@ -1025,6 +1032,7 @@ class _WaveformLayerPainter extends CustomPainter {
       final painter = TextPainter(
         text: TextSpan(text: s.text.trim(), style: style),
         textDirection: TextDirection.ltr,
+        textScaler: textScaler,
         maxLines: 1,
         ellipsis: '…',
       )..layout(maxWidth: (ex - sx - leftPad).clamp(0.0, double.infinity));
@@ -1236,6 +1244,7 @@ class _WaveformLayerPainter extends CustomPainter {
     return TextPainter(
       text: TextSpan(text: text, style: style),
       textDirection: TextDirection.ltr,
+      textScaler: textScaler,
       maxLines: 1,
     )..layout();
   }
@@ -1267,7 +1276,8 @@ class _WaveformLayerPainter extends CustomPainter {
         activeColor != oldDelegate.activeColor ||
         startColor != oldDelegate.startColor ||
         endColor != oldDelegate.endColor ||
-        axisColor != oldDelegate.axisColor;
+        axisColor != oldDelegate.axisColor ||
+        textScaler != oldDelegate.textScaler;
   }
 
   /// 词边界按时间值 + 主次样式比较（词文本不影响绘制）。

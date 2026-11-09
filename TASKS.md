@@ -4,11 +4,19 @@
 
 ## 本次完成
 
+- [x] 按钮与图标行文字居中（撤销墨迹补偿方案）：回退 `OpticalText` 批量替换，删除 `optical_text.dart`，图标与文字保持布局级居中（`Row` + 按钮默认居中）。中文字形墨迹相对行框偏低约 0.14em，属于字体度量特性，不做平台相关的补偿；如需墨迹级对齐，需统一打包度量对称的字体后再评估。剩余：「听不太懂」整组水平偏右约 3 px（图标字形左侧留白），未处理。**完成时间**: 2026-11-09
+
+- [x] 修复设置行值区域被截断：`SettingLabeledRow` 默认值区固定 80dp，大字号下「句间停顿」的「自动」被截成「自」。改为默认按内容自适应，`PauseChoiceDropdown` 与 `AppDropdown`（停顿/速度/比例等 7 处）取消强制展满宽度，并修正组标题色带在非展开下拉中的无限约束；值区域改为贴右（`Align(widthFactor: 1)`），下拉选中值用 `AlignmentDirectional.centerEnd` 贴近箭头。相关 747 项测试通过；安卓真机（系统字体 1.0 / 1.5）验证「自动」完整且贴右显示。**完成时间**: 2026-11-09
+
 - [x] 每日目标达成 toast 增加诊断日志：`DailyGoalCheckInPresenter` 在交给根 overlay 前记录 `toast requested goalMinutes=…`，本地化不可用时记录 `toast skipped: l10n unavailable`。日志只表示已交给 overlay，不能证明屏幕实际渲染。验证：定向 `flutter analyze` 无问题，格式检查通过。**完成时间**: 2026-11-09
+
+- [x] 修复按钮宽度自适应与居中：讲解页「继续」按钮宽度随文字、文字居中，大字号下换行而非截断（已去掉箭头图标）；`AsyncToggleButton`（解析/翻译/意群）保持图标在前、图标与文字作为一组水平居中、垂直对齐，高度随文字最小 32dp，文字最多两行；导入面板 `_HeaderTextButton` 与 `SecondaryActionButton` 去掉固定宽度与截断。相关测试通过。安卓真机（系统字体 1.5）验证讲解页「继续」单行居中。待确认：其他带图标的 Material 按钮（如「开始练习」）是否需要调整，目前图标与文字作为一组已居中。**完成时间**: 2026-11-09
 
 - [x] 今日打卡分享弹窗移动端保存按钮文案由「保存到相册」改为「保存」（英文 `Save to Photos` → `Save`），避免长文案换行；已重新生成本地化文件。验证：分享弹窗 widget 测试 10 项通过，定向 `flutter analyze` 无问题。**完成时间**: 2026-11-09
 
 - [x] 今日打卡分享图改为方形导出：移除合成时的 28 圆角裁剪，导出 PNG 四角为不透明背景色（不再出现透明角，避免在查看器中显示为白角）；圆角仅由分享预览的父组件 `ClipRRect` 处理。验证：分享图片与弹窗 widget 测试 13 项通过，PNG 角点像素 RGBA 为不透明背景色，定向 `flutter analyze` 无问题，格式检查通过。**完成时间**: 2026-11-09
+
+- [x] 应用内文字统一跟随系统文字缩放（应用内阅读字号为叠加倍率，100% = 系统缩放后的基准）：修复意群播放高亮、句子正文选区组件（`RichText`）、句子标注按钮与回放折叠行数、播客简介、波形句子文字与轴标签（`TextPainter`）、视频字幕的缩放不一致问题，并取消视频加载提示的缩放豁免（`withNoTextScaling`）。新增 `sense_group_text_test.dart`、`app_selectable_text_scale_test.dart`、`media_kit_player_backend_test.dart` 用例，调整 `managed_media_visual_surface_test.dart` 的 4 倍字号用例为「跟随缩放且不溢出」；相关 486 项测试全绿，改动文件 `flutter analyze` 无问题。真机（iPhone/iPad 开启更大字体）布局回归待用户确认。踩坑记录见 `docs/troubleshooting.md` §7.42。**完成时间**: 2026-11-09
 
 - [x] 缓解 CI / Release 外部依赖下载瞬时失败：平台构建命令统一通过 `scripts/retry_transient_build.sh` 执行。仅识别 HTTP 5xx、网关超时、连接超时和下载哈希不匹配，最多重试 3 次并等待 10/20 秒；普通编译错误立即失败，避免重复消耗构建时间。`bash -n` 与 `git diff --check` 通过；推送后 GitHub CI 复验中。**完成时间**: 2026-11-09
 

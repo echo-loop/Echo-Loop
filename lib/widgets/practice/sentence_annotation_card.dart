@@ -9,6 +9,7 @@ import 'dart:async';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../l10n/app_localizations.dart';
 import '../../providers/reading_text_prefs_provider.dart';
 import '../../providers/sentence_ai_provider.dart';
@@ -938,9 +939,11 @@ class SentenceAnnotationCardState
   /// 根据图标、文字和水平内边距计算按钮的相对占宽，维持内容比例。
   int _toolbarButtonFlex(String label, BuildContext context) {
     final textStyle = Theme.of(context).textTheme.labelMedium;
+    // 测量宽度需与按钮文字的实际渲染缩放一致，否则系统大字下按钮会被裁切
     final textWidth = TextPainter(
       text: TextSpan(text: label, style: textStyle),
       textDirection: Directionality.of(context),
+      textScaler: MediaQuery.textScalerOf(context),
     )..layout();
     return (16 + 4 + 16 + textWidth.width).ceil();
   }
@@ -1066,9 +1069,7 @@ class SentenceAnnotationCardState
             _translationContent ?? '',
             style: translationStyle == null
                 ? null
-                : ref
-                      .watch(readingTextPrefsProvider)
-                      .applyTo(translationStyle),
+                : ref.watch(readingTextPrefsProvider).applyTo(translationStyle),
           ),
         );
       case ContentLoadState.error:

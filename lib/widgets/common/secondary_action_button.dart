@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+
 /// 底部操作区的低强调按钮。
 ///
 /// 用于和主按钮并排的“返回 / 跳过 / 取消下载”等次要操作。
@@ -24,7 +25,8 @@ class SecondaryActionButton extends StatelessWidget {
         foregroundColor: theme.colorScheme.onSurfaceVariant,
         side: BorderSide(color: theme.colorScheme.outlineVariant),
       ),
-      child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis),
+      // 宽度随文字自适应，文字过长时换行而不是截断
+      child: Text(label, textAlign: TextAlign.center),
     );
   }
 }

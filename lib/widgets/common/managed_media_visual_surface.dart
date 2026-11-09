@@ -181,31 +181,29 @@ class _MediaLoadingOverlay extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final theme = Theme.of(context);
-    // 视频加载画布是固定格式的临时状态，不应被系统字体缩放撑破。音频任务
-    // 使用主题色提示，避免在普通页面背景上显示视频样式的黑色画布。
-    return MediaQuery.withNoTextScaling(
-      child: _MediaOverlayFrame(
-        showVideoCanvas: showVideoLoading,
-        child: Semantics(
-          label: showVideoLoading ? l10n.videoLoading : null,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              CircularProgressIndicator(
-                color: showVideoLoading
-                    ? Colors.white
-                    : theme.colorScheme.primary,
+    // 音频任务使用主题色提示，避免在普通页面背景上显示视频样式的黑色画布。
+    // 文字跟随系统字体缩放，与失败态保持一致。
+    return _MediaOverlayFrame(
+      showVideoCanvas: showVideoLoading,
+      child: Semantics(
+        label: showVideoLoading ? l10n.videoLoading : null,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CircularProgressIndicator(
+              color: showVideoLoading
+                  ? Colors.white
+                  : theme.colorScheme.primary,
+            ),
+            const SizedBox(height: 12),
+            if (showVideoLoading)
+              Text(
+                l10n.videoLoading,
+                style: const TextStyle(color: Colors.white),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
-              const SizedBox(height: 12),
-              if (showVideoLoading)
-                Text(
-                  l10n.videoLoading,
-                  style: const TextStyle(color: Colors.white),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-            ],
-          ),
+          ],
         ),
       ),
     );

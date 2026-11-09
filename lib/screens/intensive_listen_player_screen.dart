@@ -11,6 +11,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+
 import '../router/app_router.dart';
 import '../database/enums.dart';
 import '../models/media_learning_startup.dart';
@@ -1037,45 +1038,32 @@ class _IntensiveListenPlayerScreenState
                                       onCenter: _handleCenter,
                                       nextControl:
                                           _showContinueButton(playerState)
-                                          ? SizedBox(
-                                              width: 128,
-                                              height: 48,
-                                              child: FilledButton.icon(
-                                                key: const ValueKey(
-                                                  'intensive-annotation-continue-button',
-                                                ),
-                                                onPressed: () =>
-                                                    player.exitAnnotationMode(),
-                                                icon: const Icon(
-                                                  Icons.arrow_forward_rounded,
-                                                  size: 20,
-                                                ),
-                                                iconAlignment:
-                                                    IconAlignment.end,
-                                                label: Text(
-                                                  l10n.intensiveListenContinue,
-                                                  maxLines: 1,
-                                                  softWrap: false,
-                                                  overflow: TextOverflow.clip,
-                                                ),
-                                                style: FilledButton.styleFrom(
-                                                  shape: const StadiumBorder(),
-                                                  fixedSize: const Size(
-                                                    128,
-                                                    48,
-                                                  ),
-                                                  padding:
-                                                      const EdgeInsets.symmetric(
-                                                        horizontal: 16,
-                                                      ),
-                                                  textStyle: theme
-                                                      .textTheme
-                                                      .titleMedium
-                                                      ?.copyWith(
-                                                        fontWeight:
-                                                            FontWeight.w600,
-                                                      ),
-                                                ),
+                                          ? FilledButton(
+                                              key: const ValueKey(
+                                                'intensive-annotation-continue-button',
+                                              ),
+                                              onPressed: () =>
+                                                  player.exitAnnotationMode(),
+                                              style: FilledButton.styleFrom(
+                                                shape: const StadiumBorder(),
+                                                // 只固定高度，宽度由文字加左右对称内边距决定
+                                                minimumSize: const Size(0, 48),
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                      horizontal: 16,
+                                                    ),
+                                                textStyle: theme
+                                                    .textTheme
+                                                    .titleMedium
+                                                    ?.copyWith(
+                                                      fontWeight:
+                                                          FontWeight.w600,
+                                                    ),
+                                              ),
+                                              // 宽度随文字自适应，文字居中；过长时换行而不是截断
+                                              child: Text(
+                                                l10n.intensiveListenContinue,
+                                                textAlign: TextAlign.center,
                                               ),
                                             )
                                           : null,

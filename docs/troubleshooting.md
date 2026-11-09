@@ -635,3 +635,19 @@
 - 测试约定：`baidu_netdisk_import_tasks_provider_test.dart` 用可控的假取链接函数覆盖「取链接期间取消」「取链接失败整批失败并可重试」「整批只取一次链接」。
 - 相关代码：`lib/features/baidu_netdisk/providers/baidu_netdisk_import_tasks_provider.dart`（`_submitBatch`）、`lib/features/baidu_netdisk/data/baidu_netdisk_api.dart`（`fetchDownloadLinks`）、`lib/features/baidu_netdisk/data/baidu_netdisk_import_service.dart`（`_linkFor`、`_fetchFreshLink`）。
 - 修复时间：2026-11-04。
+
+### 7.42 意群模式播放句子时字号缩回 100%：播放高亮切换到 `RichText`，缩放丢失
+
+- 现象：精听讲解页开启系统「更大字体」时，意群模式下播放句子，意群字号缩回默认大小；播放结束后恢复。
+- 根因：`SenseGroupText._buildGroupBadge` 按状态在三种组件间切换：无高亮用 `Text`、收藏下划线用 `Text.rich`、播放词高亮（`activeWordIndex != null`）用 `RichText`。`Text` 默认读取 `MediaQuery.textScalerOf`，而 `RichText.textScaler` 默认是 `TextScaler.noScaling`，播放期间系统缩放被丢弃。应用内「阅读字号」通过 `fontSize` 写入样式，不受影响，所以只有系统缩放会丢失。
+- 解法：所有在应用内显示的文字统一跟随系统文字缩放，应用内「阅读字号」为叠加在系统缩放之上的倍率（100% = 系统缩放后的基准）。具体处理：
+  - `RichText` 显式传入 `textScaler: MediaQuery.textScalerOf(context)`：意群播放高亮（`sense_group_text.dart`）、句子正文选区组件（`app_selectable_text.dart`，选区几何由 paragraph 自身的 `textScaler` 决定，不需额外改动）。
+  - 自行测量文字宽度/高度的 `TextPainter` 必须传入同一 `textScaler`，否则布局按未缩放尺寸计算：句子标注按钮宽度、回放折叠行数、播客简介截断、波形句子文字与轴标签。
+  - 视频字幕（`media_kit_player_backend.dart`）原为固定 `linear(1)`，改为跟随 `MediaQuery`。
+  - 视频加载态的提示文字（`managed_media_visual_surface.dart`）原先用 `MediaQuery.withNoTextScaling` 固定为 100%，已取消，与失败态一致跟随系统缩放；测试约束为「4 倍字号下仍在画布内、不溢出」。
+  - 不改动：PDF 导出（`pdf` 包自有排版）、每日打卡分享图（固定版式图片导出）。
+- 规则：应用内文字不得显式固定缩放。直接使用 `RichText` / `TextPainter` 时必须传入 `textScaler`，不要依赖默认值（默认为 `noScaling`，与 `Text` 不一致）。同区域内 `Text` 与 `RichText` 切换时缩放必须相同。
+- 测试约定：`app_selectable_text_scale_test.dart` 覆盖正文缩放；`media_kit_player_backend_test.dart` 覆盖字幕缩放（测试替身需挂起原生句柄，避免 VideoController 报错）。
+- 测试约定：`sense_group_text_test.dart` 中「播放高亮时系统文字缩放与未播放时一致」，在 `MediaQuery` 注入 1.5 倍缩放后比较两种状态下各 `RenderParagraph` 的 `textScaler`。
+- 相关代码：`lib/widgets/practice/sense_group_text.dart`（`_buildGroupBadge`）、`lib/widgets/selection/app_selectable_text.dart`（普通句子路径，未改动）。
+- 修复时间：2026-11-09。

@@ -57,6 +57,7 @@ class RetellReviewTranscriptCardState
       text: span,
       maxLines: _transcriptCollapsedLines,
       textDirection: Directionality.of(context),
+      textScaler: MediaQuery.textScalerOf(context),
     )..layout(maxWidth: maxWidth);
     return painter.didExceedMaxLines;
   }

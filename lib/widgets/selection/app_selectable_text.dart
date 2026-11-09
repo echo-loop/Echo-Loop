@@ -140,6 +140,8 @@ class AppSelectableTextState extends State<AppSelectableText> {
       child: RichText(
         key: _textKey,
         text: TextSpan(style: style, children: widget.spanBuilder(context)),
+        // RichText 默认不跟随系统文字缩放，需与 Text 保持一致
+        textScaler: MediaQuery.textScalerOf(context),
       ),
     );
   }

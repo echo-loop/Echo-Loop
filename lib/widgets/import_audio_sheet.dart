@@ -662,14 +662,14 @@ class _HeaderTextButton extends StatelessWidget {
     return TextButton(
       onPressed: onPressed,
       style: TextButton.styleFrom(
-        minimumSize: const Size(0, 40),
-        fixedSize: const Size(56, 40),
+        // 最小 56 宽，宽度随文字自适应；文字过长时换行而不是截断
+        minimumSize: const Size(56, 40),
         padding: const EdgeInsets.symmetric(horizontal: 8),
         tapTargetSize: MaterialTapTargetSize.shrinkWrap,
         visualDensity: VisualDensity.compact,
         textStyle: theme.textTheme.labelLarge,
       ),
-      child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis),
+      child: Text(label, textAlign: TextAlign.center),
     );
   }
 }

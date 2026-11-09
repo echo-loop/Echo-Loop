@@ -5,6 +5,7 @@
 library;
 
 import 'package:flutter/material.dart';
+
 import 'app_dropdown.dart';
 import 'pause_choice_dropdown.dart';
 import 'setting_labeled_row.dart';
@@ -361,8 +362,8 @@ class _ParagraphSelectionSheetState extends State<_ParagraphSelectionSheet> {
             ),
             trailing: AppDropdown<int>(
               value: _targetSeconds,
-              isExpanded: true,
               isDense: true,
+              alignment: AlignmentDirectional.centerEnd,
               items: paragraphDurationOptions.map((s) {
                 final label = switch (s) {
                   0 => l10n.retellBriefingSentenceLevel,
@@ -415,8 +416,8 @@ class _ParagraphSelectionSheetState extends State<_ParagraphSelectionSheet> {
               ),
               trailing: AppDropdown<double>(
                 value: _playbackSpeed,
-                isExpanded: true,
                 isDense: true,
+                alignment: AlignmentDirectional.centerEnd,
                 items:
                     (widget.playbackSpeedOptions ??
                             BlindListenSettings.briefingPlaybackSpeedOptions)
@@ -449,8 +450,8 @@ class _ParagraphSelectionSheetState extends State<_ParagraphSelectionSheet> {
               ),
               trailing: AppDropdown<KeywordRatio>(
                 value: _keywordRatio,
-                isExpanded: true,
                 isDense: true,
+                alignment: AlignmentDirectional.centerEnd,
                 items: KeywordRatio.values
                     .map(
                       (r) => DropdownMenuItem(

@@ -12,7 +12,7 @@ class SettingLabeledRow extends StatelessWidget {
     super.key,
     required this.label,
     required this.trailing,
-    this.trailingWidth = 80,
+    this.trailingWidth,
     this.spacing = 12,
   });
 
@@ -22,7 +22,8 @@ class SettingLabeledRow extends StatelessWidget {
   /// 右侧值控件。
   final Widget trailing;
 
-  /// 右侧值区固定宽度；为 null 时按值控件内容自适应。
+  /// 右侧值区固定宽度；为 null（默认）时按值控件内容自适应，
+  /// 大字号下值文字不会被固定宽度截断。
   final double? trailingWidth;
 
   /// 标签和值区之间的水平间距。
@@ -36,7 +37,12 @@ class SettingLabeledRow extends StatelessWidget {
         Expanded(child: label),
         SizedBox(width: spacing),
         if (trailingWidth == null)
-          Align(alignment: Alignment.centerRight, child: trailing)
+          // widthFactor: 1 让值区域只占内容宽度，贴右显示；否则 Align 会占满剩余宽度，值会居中
+          Align(
+            alignment: Alignment.centerRight,
+            widthFactor: 1,
+            child: trailing,
+          )
         else
           SizedBox(
             width: trailingWidth,

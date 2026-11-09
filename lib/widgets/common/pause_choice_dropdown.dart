@@ -58,21 +58,19 @@ class PauseChoiceDropdown extends StatelessWidget {
           value: null,
           child: LayoutBuilder(
             builder: (context, constraints) {
-              final bleed = constraints.maxWidth.isFinite
-                  ? constraints.maxWidth + 32
-                  : double.infinity;
-              return OverflowBox(
-                minWidth: bleed,
-                maxWidth: bleed,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 6,
-                  ),
-                  color: theme.colorScheme.surfaceContainerHighest,
-                  child: Text(text, style: headerStyle),
+              final band = Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 6,
                 ),
+                color: theme.colorScheme.surfaceContainerHighest,
+                child: Text(text, style: headerStyle),
               );
+              // 下拉按钮（非展开）测量菜单项时宽度无界，此时无需撑出色带，
+              // 否则 OverflowBox 会收到无限约束而断言失败。
+              if (!constraints.maxWidth.isFinite) return band;
+              final bleed = constraints.maxWidth + 32;
+              return OverflowBox(minWidth: bleed, maxWidth: bleed, child: band);
             },
           ),
         );
@@ -105,8 +103,9 @@ class PauseChoiceDropdown extends StatelessWidget {
     return DropdownButton<BriefingPauseChoice>(
       value: value,
       items: items,
-      isExpanded: true,
       isDense: true,
+      // 非展开时按最长选项定宽，选中值贴右（靠近箭头）显示
+      alignment: AlignmentDirectional.centerEnd,
       underline: const SizedBox.shrink(),
       borderRadius: BorderRadius.circular(12),
       dropdownColor: theme.colorScheme.surface,

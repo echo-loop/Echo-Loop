@@ -23,6 +23,30 @@ void main() {
       expect(find.byIcon(Icons.star), findsOneWidget);
     });
 
+    testWidgets('图标与文字作为一组水平居中，且垂直对齐', (tester) async {
+      await tester.pumpWidget(
+        createTestApp(
+          Center(
+            child: SizedBox(
+              width: 200,
+              child: AsyncToggleButton(
+                label: 'Centered',
+                icon: Icons.star,
+                onPressed: () async {},
+              ),
+            ),
+          ),
+        ),
+      );
+
+      final buttonCenter = tester.getCenter(find.byType(AsyncToggleButton));
+      final iconRect = tester.getRect(find.byIcon(Icons.star));
+      final labelRect = tester.getRect(find.text('Centered'));
+      final groupCenterX = (iconRect.left + labelRect.right) / 2;
+      expect(groupCenterX, closeTo(buttonCenter.dx, 0.5));
+      expect(iconRect.center.dy, closeTo(labelRect.center.dy, 1.0));
+    });
+
     testWidgets('使用紧凑的 32dp 按钮高度', (tester) async {
       await tester.pumpWidget(
         createTestApp(

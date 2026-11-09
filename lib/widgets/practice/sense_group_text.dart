@@ -13,6 +13,7 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../models/speech_practice_models.dart';
 import '../../providers/reading_text_prefs_provider.dart';
 import '../../providers/saved_word_provider.dart';
@@ -412,6 +413,9 @@ class _SenseGroupTextState extends ConsumerState<SenseGroupText> {
         child: highlightSpans != null
             ? RichText(
                 text: TextSpan(style: baseStyle, children: highlightSpans),
+                // RichText 默认不跟随系统文字缩放，需与 Text 保持一致，
+                // 否则播放高亮期间字号会缩回 100%。
+                textScaler: MediaQuery.textScalerOf(context),
               )
             : savedMask.isEmpty
             ? Text(chunk.trim(), style: baseStyle)
