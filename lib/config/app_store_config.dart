@@ -14,3 +14,13 @@ final appStoreReviewUri = Uri.parse(
 final appStoreProductUri = Uri.parse(
   'https://apps.apple.com/app/id$appStoreAppId',
 );
+
+/// Google Play 包名，与 Android `applicationId` 保持一致。
+const googlePlayPackageName = 'app.echoloop';
+
+/// Google Play 应用详情页链接，用于引导 Play 包用户写评价。
+///
+/// 使用 `market://` 让已安装的 Play 商店直接打开应用页。
+final googlePlayReviewUri = Uri.parse(
+  'market://details?id=$googlePlayPackageName',
+);

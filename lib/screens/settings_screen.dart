@@ -38,6 +38,7 @@ import '../providers/tag_provider.dart';
 import '../analytics/analytics_providers.dart';
 import '../analytics/models/event_names.dart';
 import '../config/app_store_config.dart';
+import '../config/client_distribution.dart';
 import '../features/auth/providers/auth_providers.dart';
 import '../features/auth/screens/account_screen.dart';
 import '../features/profile/providers/user_profile_provider.dart';
@@ -84,6 +85,22 @@ const double _settingsSvgIconExtent = 26;
 const double _settingsBrandIconExtent = 20;
 const double _settingsMaterialIconExtent = 26;
 const _faqUrl = 'https://my.feishu.cn/docx/OPZRdXkRvoAW5Bx78LocBUdqn80';
+
+/// 设置页“评价我们”入口是否展示。
+///
+/// iOS 保持原行为；Android 仅 Google Play 包展示，直装 APK 没有商店评价页。
+/// 渠道未注入（`null`）时同样隐藏，避免非商店构建误导用户去商店评价。
+@visibleForTesting
+bool showsRatingEntry(
+  TargetPlatform platform,
+  ClientDistribution? distribution,
+) {
+  return switch (platform) {
+    TargetPlatform.iOS => true,
+    TargetPlatform.android => distribution == ClientDistribution.play,
+    _ => false,
+  };
+}
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -664,13 +681,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           trailing: const Icon(Icons.chevron_right),
           onTap: () => launchUrl(Uri.parse('mailto:support@echo-loop.top')),
         ),
-        if (defaultTargetPlatform == TargetPlatform.iOS)
+        if (showsRatingEntry(defaultTargetPlatform, clientDistribution))
           ListTile(
             leading: _settingsMaterialIcon(Icons.star_rounded),
             title: Text(l10n.rateUs),
             trailing: const Icon(Icons.chevron_right),
             onTap: () => launchUrl(
-              appStoreReviewUri,
+              defaultTargetPlatform == TargetPlatform.iOS
+                  ? appStoreReviewUri
+                  : googlePlayReviewUri,
               mode: LaunchMode.externalApplication,
             ),
           ),
