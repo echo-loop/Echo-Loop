@@ -48,7 +48,11 @@ class ReadingTextSettingsScreen extends ConsumerWidget {
               child: Text(
                 _previewText,
                 style: prefs.applyTo(
-                  theme.textTheme.bodyLarge ?? const TextStyle(),
+                  theme.textTheme.bodyLarge?.copyWith(
+                        height: readingBodyLineHeight,
+                        letterSpacing: 0,
+                      ) ??
+                      const TextStyle(),
                 ),
               ),
             ),

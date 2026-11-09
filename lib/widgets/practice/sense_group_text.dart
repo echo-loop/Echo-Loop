@@ -123,8 +123,9 @@ class _SenseGroupTextState extends ConsumerState<SenseGroupText> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    final rawStyle = theme.textTheme.titleMedium?.copyWith(
-      height: 1.4,
+    final rawStyle = theme.textTheme.bodyLarge?.copyWith(
+      height: readingBodyLineHeight,
+      letterSpacing: 0,
       color: colorScheme.onSurface,
     );
     // 学习内容字号偏好：与句子正文同一缩放规则

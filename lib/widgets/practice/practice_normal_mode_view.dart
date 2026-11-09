@@ -11,6 +11,7 @@ library;
 import 'package:flutter/material.dart';
 
 import '../../l10n/app_localizations.dart';
+import '../../models/reading_text_prefs.dart';
 import '../../theme/app_theme.dart';
 import '../../models/word_highlight_binding.dart';
 import '../../utils/text_normalize.dart';
@@ -146,7 +147,10 @@ class PracticeNormalModeView extends StatelessWidget {
         child: origin != null
             ? SelectableSentenceText(
                 text: text,
-                style: theme.textTheme.bodyLarge?.copyWith(height: 1.6),
+                style: theme.textTheme.bodyLarge?.copyWith(
+                  height: readingBodyLineHeight,
+                  letterSpacing: 0,
+                ),
                 origin: origin,
                 onBeforeLookup: onBeforeLookup,
                 activeWordIndex: activeWordIndex,

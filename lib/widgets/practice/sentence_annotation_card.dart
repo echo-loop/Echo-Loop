@@ -988,8 +988,9 @@ class SentenceAnnotationCardState
             )
           : SelectableSentenceText(
               text: widget.text,
-              style: theme.textTheme.titleMedium?.copyWith(
-                height: 1.6,
+              style: theme.textTheme.bodyLarge?.copyWith(
+                height: readingBodyLineHeight,
+                letterSpacing: 0,
                 color: theme.colorScheme.onSurface,
               ),
               highlightedSegments: widget.highlightedSegments,

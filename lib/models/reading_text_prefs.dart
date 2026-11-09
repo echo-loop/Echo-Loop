@@ -4,9 +4,10 @@
 /// 叠加在主题基础样式之上：应用内 100% 即系统字体缩放后的基准，系统字体缩放
 /// （`MediaQuery.textScaler`）照常生效，所有学习正文文字都必须跟随。
 ///
-/// 100% 档的正文基准统一为 16pt：原文正文样式取 `bodyLarge`（16pt）或
-/// `titleMedium`（16pt），不要再用 `bodyMedium`（14pt）作正文，否则各页面
-/// 100% 时大小不一致。翻译、解析等次级文字不受此约束。
+/// 100% 档的正文基准统一为 16pt、w400、字间距 0、行高 [readingBodyLineHeight]：
+/// 原文正文样式一律基于 `bodyLarge`，不要再用 `bodyMedium`（14pt）或
+/// `titleMedium`（w500）作正文，否则各页面字重、字间距和行距不一致。
+/// 翻译、解析等次级文字不受此约束。
 library;
 
 import 'package:flutter/material.dart';
@@ -21,6 +22,9 @@ final readingFontScaleSteps = List<double>.unmodifiable(
 
 /// 默认字号倍率。
 const readingFontScaleDefault = 1.0;
+
+/// 学习正文统一行高。所有原文正文共用，避免各页面行距不一致。
+const readingBodyLineHeight = 1.4;
 
 /// 基础样式未声明字号时的兜底值（Material bodyMedium 默认字号）。
 const _fallbackBaseFontSize = 14.0;
