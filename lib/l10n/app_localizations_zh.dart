@@ -4172,9 +4172,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get onboardingQ3OptionBilibili => 'B 站';
 
   @override
-  String get onboardingQ3OptionGoogleSearch => 'Google 搜索';
-
-  @override
   String get onboardingQ3OptionGithub => 'GitHub';
 
   @override
@@ -4188,6 +4185,9 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get onboardingQ3OptionSearchEngine => '搜索引擎';
+
+  @override
+  String get onboardingQ3OptionAiAssistant => 'AI 助手';
 
   @override
   String get onboardingQ3OptionTeacherSchool => '老师 / 学校';

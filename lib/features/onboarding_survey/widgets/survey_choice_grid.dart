@@ -87,7 +87,7 @@ class SurveyChoiceGridTile extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 150),
-          constraints: const BoxConstraints(minHeight: 88),
+          constraints: const BoxConstraints(minHeight: 80),
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(16),

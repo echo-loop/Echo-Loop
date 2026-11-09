@@ -273,7 +273,7 @@ abstract class UserProperties {
 
   /// 来源渠道（xiaohongshu / wechat / douyin / kuaishou / bilibili /
   /// baidu_search / youtube / reddit / x_twitter / tiktok / instagram /
-  /// google_search / github / app_store / google_play / friend / other）
+  /// google_search / github / ai_assistant / app_store / google_play / friend / other）
   static const referralSource = 'referral_source';
 }
 

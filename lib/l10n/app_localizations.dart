@@ -7601,7 +7601,7 @@ abstract class AppLocalizations {
   /// No description provided for @onboardingQ3OptionAppStore.
   ///
   /// In en, this message translates to:
-  /// **'App Store / Google Play'**
+  /// **'App Store'**
   String get onboardingQ3OptionAppStore;
 
   /// No description provided for @onboardingQ3OptionYoutube.
@@ -7640,12 +7640,6 @@ abstract class AppLocalizations {
   /// **'Bilibili'**
   String get onboardingQ3OptionBilibili;
 
-  /// No description provided for @onboardingQ3OptionGoogleSearch.
-  ///
-  /// In en, this message translates to:
-  /// **'Search Engine'**
-  String get onboardingQ3OptionGoogleSearch;
-
   /// No description provided for @onboardingQ3OptionGithub.
   ///
   /// In en, this message translates to:
@@ -7675,6 +7669,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Search engine'**
   String get onboardingQ3OptionSearchEngine;
+
+  /// No description provided for @onboardingQ3OptionAiAssistant.
+  ///
+  /// In en, this message translates to:
+  /// **'AI Assistant'**
+  String get onboardingQ3OptionAiAssistant;
 
   /// No description provided for @onboardingQ3OptionTeacherSchool.
   ///

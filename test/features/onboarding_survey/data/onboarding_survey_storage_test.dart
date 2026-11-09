@@ -424,6 +424,7 @@ void main() {
         'tiktok': OnboardingReferralSource.shortVideo,
         'instagram': OnboardingReferralSource.shortVideo,
         'baidu_search': OnboardingReferralSource.searchEngine,
+        'google_search': OnboardingReferralSource.searchEngine,
         'google_play': OnboardingReferralSource.appStore,
       };
       for (final entry in legacyToCurrent.entries) {

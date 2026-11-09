@@ -59,7 +59,7 @@ abstract final class OnboardingDailyMinutes {
 /// `_buildReferralSourceStep`），但编码集合统一以便埋点分析。
 ///
 /// 改版（2026-10）后，抖音/快手、TikTok/Instagram 合并为 [shortVideo]，
-/// 百度搜索并入 [searchEngine]，Google Play 并入 [appStore]。旧编码保留在
+/// 百度搜索与 Google 搜索并入 [searchEngine]，Google Play 并入 [appStore]。旧编码保留在
 /// [_legacyAliases] 中，读取旧 SP 数据时通过 [normalize] 映射到新编码。
 abstract final class OnboardingReferralSource {
   // 中文用户主要渠道
@@ -73,9 +73,9 @@ abstract final class OnboardingReferralSource {
   static const youtube = 'youtube';
   static const reddit = 'reddit';
   static const xTwitter = 'x_twitter';
-  static const googleSearch = 'google_search';
   // 通用渠道
   static const github = 'github';
+  static const aiAssistant = 'ai_assistant';
   static const appStore = 'app_store';
   static const friend = 'friend';
   static const other = 'other';
@@ -91,8 +91,8 @@ abstract final class OnboardingReferralSource {
     youtube,
     reddit,
     xTwitter,
-    googleSearch,
     github,
+    aiAssistant,
     appStore,
     friend,
     other,
@@ -105,6 +105,7 @@ abstract final class OnboardingReferralSource {
     'tiktok': shortVideo,
     'instagram': shortVideo,
     'baidu_search': searchEngine,
+    'google_search': searchEngine,
     'google_play': appStore,
   };
 

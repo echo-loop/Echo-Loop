@@ -4358,7 +4358,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get onboardingQ3Prompt => 'How did you hear about us?';
 
   @override
-  String get onboardingQ3OptionAppStore => 'App Store / Google Play';
+  String get onboardingQ3OptionAppStore => 'App Store';
 
   @override
   String get onboardingQ3OptionYoutube => 'YouTube';
@@ -4379,9 +4379,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get onboardingQ3OptionBilibili => 'Bilibili';
 
   @override
-  String get onboardingQ3OptionGoogleSearch => 'Search Engine';
-
-  @override
   String get onboardingQ3OptionGithub => 'GitHub';
 
   @override
@@ -4395,6 +4392,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get onboardingQ3OptionSearchEngine => 'Search engine';
+
+  @override
+  String get onboardingQ3OptionAiAssistant => 'AI Assistant';
 
   @override
   String get onboardingQ3OptionTeacherSchool => 'Teacher or school';

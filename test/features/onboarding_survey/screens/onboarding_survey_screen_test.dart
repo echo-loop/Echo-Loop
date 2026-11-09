@@ -544,12 +544,13 @@ void main() {
     await tester.pumpAndSettle(const Duration(milliseconds: 600));
 
     expect(find.text('How did you hear about us?'), findsOneWidget);
-    expect(find.text('App Store / Google Play'), findsOneWidget);
+    expect(find.text('App Store'), findsOneWidget);
     expect(find.text('Reddit'), findsOneWidget);
     expect(find.text('YouTube'), findsOneWidget);
     expect(find.text('Short videos'), findsOneWidget);
     expect(find.text('Teacher or school'), findsOneWidget);
     expect(find.text('X / Twitter'), findsOneWidget);
+    expect(find.text('AI Assistant'), findsOneWidget);
     // 中文渠道不应展示
     expect(find.text('Xiaohongshu'), findsNothing);
     expect(find.text('WeChat'), findsNothing);
@@ -561,6 +562,29 @@ void main() {
 
     final answers = OnboardingSurveyStorage(prefs).loadAnswers();
     expect(answers?.referralSource, equals(OnboardingReferralSource.reddit));
+  });
+
+  testWidgets('AI 助手渠道：中文用户可选，并随答案保存为 ai_assistant', (tester) async {
+    final prefs = await SharedPreferences.getInstance();
+    await tester.pumpWidget(_wrap(prefs: prefs));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('工作沟通'));
+    await tester.pumpAndSettle(const Duration(milliseconds: 400));
+    await tester.tap(find.text('约 10 分钟'));
+    await tester.pumpAndSettle(const Duration(milliseconds: 600));
+
+    await tester.ensureVisible(find.text('AI 助手'));
+    await tester.tap(find.text('AI 助手'));
+    await tester.pumpAndSettle(const Duration(milliseconds: 600));
+    await tester.tap(find.text('开始学习'));
+    await tester.pumpAndSettle(const Duration(milliseconds: 400));
+
+    final answers = OnboardingSurveyStorage(prefs).loadAnswers();
+    expect(
+      answers?.referralSource,
+      equals(OnboardingReferralSource.aiAssistant),
+    );
   });
 
   testWidgets('其他渠道：不自动跳转，填写补充说明后继续，并随答案与埋点保存', (tester) async {
