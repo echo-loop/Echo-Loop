@@ -1296,16 +1296,15 @@ class _AnalysisContent extends StatelessWidget {
     final key = trimmedKey.isEmpty ? null : _cleanBulletKey(trimmedKey);
     final value = rawValue.trim();
 
+    // 圆点与正文使用同一字号和行高，首行基线才能对齐；字号不能与正文不同，
+    // 否则两者行框高度不一致，圆点会偏离首行文字的中线。
     final bullet = Padding(
-      padding: const EdgeInsets.only(top: 1, right: 6),
+      padding: const EdgeInsets.only(right: 6),
       child: Text(
         '•',
-        style: TextStyle(
-          // 与正文同比缩放：正文字号 +1（默认正文 14 → 15）
-          fontSize: (body?.fontSize ?? 14) + 1,
+        style: (body ?? const TextStyle()).copyWith(
           fontWeight: FontWeight.w700,
           color: cs.primary,
-          height: 1,
         ),
       ),
     );

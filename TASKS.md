@@ -4,6 +4,8 @@
 
 ## 本次完成
 
+- [x] 修复解析列表圆点与首行文字不水平对齐：圆点原为 15pt、行高 1 且上移 1px，与 14pt / 行高 1.5 的正文行框不一致。改为与正文同字号、同行高，仅加粗并着主题色（`sentence_annotation_card.dart`）。新增测试「解析圆点与正文同字号同行高，首行基线对齐」，校验字号与行高。验证：annotation card、explanation view、`test/widgets/practice` 共 `+170` 通过；改动文件 `flutter analyze` 无问题。**待真机验证**：100% 与 150% 档下圆点与首行中线对齐。**完成时间**: 2026-11-10
+
 - [x] 解析分类标题支持学习内容字号缩放：标题原先直接取主题 `titleMedium`，没有经过 `applyTo`，调整字号时不跟随。改为与解析正文同一套偏好（`sentence_annotation_card.dart`）。新增回归测试「解析分类标题跟随字号偏好缩放」（150% 时标题 24pt；修复前为 16pt，已确认先红后绿）。验证：annotation card、explanation view、`test/widgets/practice` 共 `+169` 通过；改动文件 `flutter analyze` 无问题。**完成时间**: 2026-11-10
 
 - [x] 解析列表符号由 ▸ 改为圆点 •（`sentence_annotation_card.dart`），字号、颜色、粗细不变。验证：annotation card、explanation view、`test/widgets/practice` 共 `+168` 通过；改动文件 `flutter analyze` 无问题。**完成时间**: 2026-11-10
