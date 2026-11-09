@@ -4,6 +4,8 @@
 
 ## 本次完成
 
+- [x] 修复 GitHub CI 静态分析失败：为 `learning_progress_provider_test.dart` 的测试替身补齐新增的 `setAutoShowDailyShare` 实现，并同步更新内存状态。验证：从上次成功 CI 提交至当前提交，46 个有改动的测试文件共 467 项测试全部通过；CI 同款 `flutter analyze --no-fatal-warnings --no-fatal-infos lib test` 通过（仅有既有 warning/info），格式与 diff 检查通过。**完成时间**: 2026-11-09
+
 - [x] 升级应用版本至 1.0.47：将 `pubspec.yaml` 中的版本从 1.0.46 提升至 1.0.47。纯版本元数据变更，无需运行测试。**完成时间**: 2026-11-09
 
 - [x] 学习首页与日历页共用连续学习天数 badge，学习首页保留点击进入日历，日历页仅展示。上下内边距各 8 dp、字号提升到 13 dp（整体约 33 dp），增加尺寸、字号和交互回归断言。验证：组件与两个页面定向测试 38 项通过，定向 `flutter analyze` 无问题，格式与 diff 检查通过。**完成时间**: 2026-11-09

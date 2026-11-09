@@ -67,6 +67,12 @@ class _TestLearningSettingsNotifier extends Notifier<LearningSettings>
   }
 
   @override
+  Future<void> setAutoShowDailyShare(bool enabled) async {
+    if (state.autoShowDailyShare == enabled) return;
+    state = state.copyWith(autoShowDailyShare: enabled);
+  }
+
+  @override
   Future<void> setShowStudyRecommendation(bool enabled) async {
     if (state.showStudyRecommendation == enabled) return;
     state = state.copyWith(showStudyRecommendation: enabled);
