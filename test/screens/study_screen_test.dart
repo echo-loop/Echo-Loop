@@ -97,6 +97,7 @@ void main() {
     return ProviderScope(
       overrides: dedupeOverrides([
         dailyShareUserIdProvider.overrideWithValue(null),
+        usageOverride(),
         ...learningSettingsOverrides(prefs: prefs),
         audioLibraryProvider.overrideWith(
           () => TestAudioLibrary(
@@ -178,7 +179,7 @@ void main() {
 
     expect(find.text('Recommended for you'), findsOneWidget);
     expect(find.text('Recommended Audio'), findsOneWidget);
-    await tester.tap(find.widgetWithText(FilledButton, 'Start'));
+    await tester.tap(find.text('Recommended Audio'));
     await tester.pumpAndSettle();
 
     expect(find.text('Learning Plan'), findsOneWidget);
@@ -318,51 +319,6 @@ void main() {
     expect(find.text('Existing Task Audio'), findsAtLeast(1));
   });
 
-  testWidgets('未到时间复习任务的开始按钮禁用', (tester) async {
-    final now = DateTime(2026, 2, 25, 12, 0);
-    final audioItems = [
-      AudioItem(
-        id: 'audio-1',
-        name: 'Upcoming Review Audio',
-        audioPath: 'audios/review.mp3',
-        addedDate: now,
-      ),
-    ];
-    final progressState = LearningProgressState(
-      progressMap: {
-        'audio-1': LearningProgress(
-          audioItemId: 'audio-1',
-          currentStage: LearningStage.review1,
-          currentSubStage: SubStageType.blindListen,
-          lastStageCompletedAt: now,
-          updatedAt: now,
-        ),
-      },
-      isLoading: false,
-    );
-
-    await tester.pumpWidget(
-      createTestWidget(
-        audioItems: audioItems,
-        progressState: progressState,
-        fixedNow: now,
-      ),
-    );
-    await tester.pumpAndSettle();
-
-    // upcoming reviews 默认折叠，先展开
-    final expansionTile = find.byType(ExpansionTile);
-    expect(expansionTile, findsWidgets);
-    await tester.tap(expansionTile.first);
-    await tester.pumpAndSettle();
-
-    // 找到 FilledButton（任务卡片中的按钮），应该是禁用的
-    final disabledButtons = find.byWidgetPredicate(
-      (w) => w is FilledButton && w.onPressed == null,
-    );
-    expect(disabledButtons, findsAtLeast(1));
-  });
-
   testWidgets('待解锁任务（v2 首步难句补练、无完成记录）显示倒计时而非"学习中"', (tester) async {
     final now = DateTime(2026, 2, 25, 12, 0);
     final audioItems = [
@@ -443,8 +399,8 @@ void main() {
     // 音频名称出现在任务卡片中
     expect(find.text('Review Audio'), findsAtLeast(1));
 
-    // 本轮无完成记录，按钮文案应为 Start
-    await tester.tap(find.text('Start').first);
+    // 点击任务卡片进入学习计划页
+    await tester.tap(find.text('Review Audio').first);
     await tester.pumpAndSettle();
 
     expect(find.text('Learning Plan'), findsOneWidget);
@@ -485,9 +441,6 @@ void main() {
 
     // 新格式："Review due · Due 3h ago"
     expect(find.textContaining('Due 3h ago'), findsOneWidget);
-    // 任务卡片本轮无完成记录 → 按钮显示 Start
-    final startButtons = find.widgetWithText(FilledButton, 'Start');
-    expect(startButtons, findsAtLeast(1));
   });
 
   testWidgets('首次学习材料由推荐卡展示，不再展示阶段任务卡', (tester) async {
