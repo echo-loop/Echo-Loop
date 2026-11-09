@@ -3,6 +3,10 @@
 /// 只作用于学习正文（字幕列表、句子讲解、意群等），不缩放整个界面。
 /// 叠加在主题基础样式之上：应用内 100% 即系统字体缩放后的基准，系统字体缩放
 /// （`MediaQuery.textScaler`）照常生效，所有学习正文文字都必须跟随。
+///
+/// 100% 档的正文基准统一为 16pt：原文正文样式取 `bodyLarge`（16pt）或
+/// `titleMedium`（16pt），不要再用 `bodyMedium`（14pt）作正文，否则各页面
+/// 100% 时大小不一致。翻译、解析等次级文字不受此约束。
 library;
 
 import 'package:flutter/material.dart';

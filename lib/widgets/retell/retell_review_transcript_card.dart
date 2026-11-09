@@ -65,7 +65,7 @@ class RetellReviewTranscriptCardState
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final rawBodyStyle = theme.textTheme.bodyMedium?.copyWith(height: 1.55);
+    final rawBodyStyle = theme.textTheme.bodyLarge?.copyWith(height: 1.55);
     // 学习内容字号偏好：超行预判与正文渲染共用同一缩放后的样式
     final bodyStyle = rawBodyStyle == null
         ? null

@@ -440,9 +440,9 @@ void main() {
 
       final base = Theme.of(
         tester.element(find.byType(MaskedSentenceTile)),
-      ).textTheme.bodyMedium;
+      ).textTheme.bodyLarge;
       final visible = styleOf(tester, 'love');
-      expect(visible?.fontSize, (base?.fontSize ?? 14) * 1.5);
+      expect(visible?.fontSize, (base?.fontSize ?? 16) * 1.5);
       // 遮盖词只改颜色，尺寸必须和可见词相同
       expect(styleOf(tester, 'you')?.fontSize, visible?.fontSize);
     });
@@ -452,8 +452,14 @@ void main() {
 
       final base = Theme.of(
         tester.element(find.byType(MaskedSentenceTile)),
-      ).textTheme.bodyMedium;
+      ).textTheme.bodyLarge;
       expect(styleOf(tester, 'love')?.fontSize, base?.fontSize);
+    });
+
+    testWidgets('100% 档正文字号统一为 16pt', (tester) async {
+      await pumpWithPrefs(tester, {});
+
+      expect(styleOf(tester, 'love')?.fontSize, 16);
     });
   });
 }
