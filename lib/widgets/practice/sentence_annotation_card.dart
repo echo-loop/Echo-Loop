@@ -1237,11 +1237,15 @@ class _AnalysisContent extends StatelessWidget {
             child: Icon(s.icon, size: 12, color: cs.primary),
           ),
           const SizedBox(width: 6),
+          // 标题与解析正文同一字号偏好，否则调整字号时标题不跟随
           Text(
             s.label,
-            style: theme.textTheme.titleMedium?.copyWith(
-              color: cs.onSurface,
-              fontWeight: FontWeight.w600,
+            style: textPrefs.applyTo(
+              theme.textTheme.titleMedium?.copyWith(
+                    color: cs.onSurface,
+                    fontWeight: FontWeight.w600,
+                  ) ??
+                  const TextStyle(),
             ),
           ),
         ],

@@ -4,6 +4,10 @@ import 'package:dio/dio.dart';
 import 'package:echo_loop/widgets/selection/app_selectable_text.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:echo_loop/features/onboarding_survey/providers/onboarding_survey_provider.dart'
+    show sharedPreferencesProvider;
+import 'package:echo_loop/l10n/app_localizations.dart';
 import 'package:echo_loop/models/sense_group_result.dart';
 import 'package:echo_loop/models/sentence_ai_result.dart';
 import 'package:echo_loop/providers/sentence_ai_provider.dart';
@@ -663,6 +667,32 @@ void main() {
       expect(rendered.contains('缓存语法'), isTrue);
       expect(rendered.contains('缓存词汇'), isTrue);
       expect(rendered.contains('缓存用法'), isTrue);
+    });
+  });
+
+  group('SentenceAnnotationCard — 学习内容字号', () {
+    cardTest('解析分类标题跟随字号偏好缩放', (tester) async {
+      SharedPreferences.setMockInitialValues({'reading_font_scale': 1.5});
+      final prefs = await SharedPreferences.getInstance();
+      final cached = _analysis(vocabulary: const [('词汇', '解释')]);
+      await tester.pumpWidget(
+        createTestApp(
+          SentenceAnnotationCard(
+            text: 'Test',
+            cachedAnalysis: cached,
+            onRequestAnalysis: (_, __) => _stream(cached),
+          ),
+          overrides: [sharedPreferencesProvider.overrideWithValue(prefs)],
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final l10n = AppLocalizations.of(
+        tester.element(find.byType(SentenceAnnotationCard)),
+      )!;
+      final title = tester.widget<Text>(find.text(l10n.aiVocabulary));
+      // 标题基准 16pt，与解析正文一样乘以 150% 倍率
+      expect(title.style?.fontSize, 16 * 1.5);
     });
   });
 

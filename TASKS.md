@@ -4,6 +4,8 @@
 
 ## 本次完成
 
+- [x] 解析分类标题支持学习内容字号缩放：标题原先直接取主题 `titleMedium`，没有经过 `applyTo`，调整字号时不跟随。改为与解析正文同一套偏好（`sentence_annotation_card.dart`）。新增回归测试「解析分类标题跟随字号偏好缩放」（150% 时标题 24pt；修复前为 16pt，已确认先红后绿）。验证：annotation card、explanation view、`test/widgets/practice` 共 `+169` 通过；改动文件 `flutter analyze` 无问题。**完成时间**: 2026-11-10
+
 - [x] 解析列表符号由 ▸ 改为圆点 •（`sentence_annotation_card.dart`），字号、颜色、粗细不变。验证：annotation card、explanation view、`test/widgets/practice` 共 `+168` 通过；改动文件 `flutter analyze` 无问题。**完成时间**: 2026-11-10
 
 - [x] 放大 AI 解析字号：解析正文由 `bodySmall`（12pt，字间距 0.4）改为 `bodyMedium`（14pt，字间距 0，行高 1.5），与译文一致；分类标题由 `labelLarge`（14pt）改为 `titleMedium`（16pt，w600）；音标去掉 −1，与正文同字号并跟随正文行高；▸ 符号仍为正文 +1（15pt）。改动仅在 `sentence_annotation_card.dart`。验证：annotation card、explanation view、sentence detail、练习/复习/精听/跟读相关测试与 `test/widgets/practice` 共 `+317` 通过（`~5` 为既有跳过）；改动文件 `flutter analyze` 无问题。**待真机验证**：100% 档下解析区与译文、原文的层级与长音标换行。**完成时间**: 2026-11-10
