@@ -2346,7 +2346,7 @@
   "shareCardPreparationFailed": "今日卡片准备失败，正在重试，请稍后再试",
   "shareCardNoCards": "暂时没有可用的分享卡片，请稍后再试",
   "shareCardNoAlternative": "暂无其它卡片",
-  "shareCardSave": "保存到相册",
+  "shareCardSave": "保存",
   "shareCardSaveDesktop": "保存图片",
   "shareCardShare": "分享",
   "shareCardChange": "换一个",

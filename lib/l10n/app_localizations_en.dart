@@ -5875,7 +5875,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get shareCardNoAlternative => 'No other cards are available.';
 
   @override
-  String get shareCardSave => 'Save to Photos';
+  String get shareCardSave => 'Save';
 
   @override
   String get shareCardSaveDesktop => 'Save image';

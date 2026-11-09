@@ -5598,7 +5598,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get shareCardNoAlternative => '暂无其它卡片';
 
   @override
-  String get shareCardSave => '保存到相册';
+  String get shareCardSave => '保存';
 
   @override
   String get shareCardSaveDesktop => '保存图片';

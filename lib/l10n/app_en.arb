@@ -2823,7 +2823,7 @@
   "shareCardPreparationFailed": "Could not prepare your card. Retrying; please try again shortly.",
   "shareCardNoCards": "No share cards are available right now. Please try again later.",
   "shareCardNoAlternative": "No other cards are available.",
-  "shareCardSave": "Save to Photos",
+  "shareCardSave": "Save",
   "shareCardSaveDesktop": "Save image",
   "shareCardShare": "Share",
   "shareCardChange": "Try another",

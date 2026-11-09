@@ -10337,7 +10337,7 @@ abstract class AppLocalizations {
   /// No description provided for @shareCardSave.
   ///
   /// In en, this message translates to:
-  /// **'Save to Photos'**
+  /// **'Save'**
   String get shareCardSave;
 
   /// No description provided for @shareCardSaveDesktop.

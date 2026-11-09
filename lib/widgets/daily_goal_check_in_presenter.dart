@@ -52,7 +52,15 @@ class _DailyGoalCheckInPresenterState
       return;
     }
     final l10n = AppLocalizations.of(overlayContext);
-    if (l10n == null) return;
+    if (l10n == null) {
+      AppLogger.log('DailyGoalCheckIn', 'toast skipped: l10n unavailable');
+      return;
+    }
+    // toast 本身无法确认是否真正渲染，这里记录的是已交给根 overlay 的时刻。
+    AppLogger.log(
+      'DailyGoalCheckIn',
+      'toast requested goalMinutes=${checkIn.goalMinutes}',
+    );
     showDailyGoalCompletedToast(
       overlayState: overlayState,
       message: l10n.dailyGoalCompletedToast(checkIn.goalMinutes),

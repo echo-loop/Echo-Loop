@@ -122,10 +122,8 @@ Future<GeneratedDailyCheckInShareImage> generateDailyCheckInShareImage({
     final paintWatch = Stopwatch()..start();
     final recorder = ui.PictureRecorder();
     final canvas = Canvas(recorder)..scale(1.08);
+    // 导出图保持方形、不裁圆角；圆角只在界面预览的父组件里处理。
     const bounds = Rect.fromLTWH(0, 0, 1000, 4000 / 3);
-    canvas.clipRRect(
-      RRect.fromRectAndRadius(bounds, const Radius.circular(28)),
-    );
     paintImage(
       canvas: canvas,
       rect: bounds,

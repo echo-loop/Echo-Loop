@@ -4,6 +4,12 @@
 
 ## 本次完成
 
+- [x] 每日目标达成 toast 增加诊断日志：`DailyGoalCheckInPresenter` 在交给根 overlay 前记录 `toast requested goalMinutes=…`，本地化不可用时记录 `toast skipped: l10n unavailable`。日志只表示已交给 overlay，不能证明屏幕实际渲染。验证：定向 `flutter analyze` 无问题，格式检查通过。**完成时间**: 2026-11-09
+
+- [x] 今日打卡分享弹窗移动端保存按钮文案由「保存到相册」改为「保存」（英文 `Save to Photos` → `Save`），避免长文案换行；已重新生成本地化文件。验证：分享弹窗 widget 测试 10 项通过，定向 `flutter analyze` 无问题。**完成时间**: 2026-11-09
+
+- [x] 今日打卡分享图改为方形导出：移除合成时的 28 圆角裁剪，导出 PNG 四角为不透明背景色（不再出现透明角，避免在查看器中显示为白角）；圆角仅由分享预览的父组件 `ClipRRect` 处理。验证：分享图片与弹窗 widget 测试 13 项通过，PNG 角点像素 RGBA 为不透明背景色，定向 `flutter analyze` 无问题，格式检查通过。**完成时间**: 2026-11-09
+
 - [x] 缓解 CI / Release 外部依赖下载瞬时失败：平台构建命令统一通过 `scripts/retry_transient_build.sh` 执行。仅识别 HTTP 5xx、网关超时、连接超时和下载哈希不匹配，最多重试 3 次并等待 10/20 秒；普通编译错误立即失败，避免重复消耗构建时间。`bash -n` 与 `git diff --check` 通过；推送后 GitHub CI 复验中。**完成时间**: 2026-11-09
 
 - [x] 修复 GitHub CI 静态分析失败：为 `learning_progress_provider_test.dart` 的测试替身补齐新增的 `setAutoShowDailyShare` 实现，并同步更新内存状态。验证：从上次成功 CI 提交至当前提交，46 个有改动的测试文件共 467 项测试全部通过；CI 同款 `flutter analyze --no-fatal-warnings --no-fatal-infos lib test` 通过（仅有既有 warning/info），格式与 diff 检查通过。**完成时间**: 2026-11-09
