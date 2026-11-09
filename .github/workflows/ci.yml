@@ -182,7 +182,7 @@ jobs:
       - name: Build iOS (no codesign)
         if: matrix.platform == 'ios'
         run: |
-          flutter build ios --release --no-codesign --flavor=prod \
+          bash scripts/retry_transient_build.sh flutter build ios --release --no-codesign --flavor=prod \
             --dart-define=API_BASE_URL=${{ vars.API_BASE_URL }} \
             --dart-define=API_CHINA_BASE_URL=${{ vars.API_CHINA_BASE_URL }} \
             --dart-define=POSTHOG_HOST=${{ vars.POSTHOG_HOST }} \
@@ -218,7 +218,7 @@ jobs:
         if: matrix.platform == 'android'
         run: |
           flutter clean
-          flutter build apk --release --flavor=prod \
+          bash scripts/retry_transient_build.sh flutter build apk --release --flavor=prod \
             --target-platform android-arm64 \
             --dart-define=API_BASE_URL=${{ vars.API_BASE_URL }} \
             --dart-define=API_CHINA_BASE_URL=${{ vars.API_CHINA_BASE_URL }} \

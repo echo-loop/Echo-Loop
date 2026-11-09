@@ -4,6 +4,8 @@
 
 ## 本次完成
 
+- [x] 缓解 CI / Release 外部依赖下载瞬时失败：平台构建命令统一通过 `scripts/retry_transient_build.sh` 执行。仅识别 HTTP 5xx、网关超时、连接超时和下载哈希不匹配，最多重试 3 次并等待 10/20 秒；普通编译错误立即失败，避免重复消耗构建时间。`bash -n` 与 `git diff --check` 通过；推送后 GitHub CI 复验中。**完成时间**: 2026-11-09
+
 - [x] 修复 GitHub CI 静态分析失败：为 `learning_progress_provider_test.dart` 的测试替身补齐新增的 `setAutoShowDailyShare` 实现，并同步更新内存状态。验证：从上次成功 CI 提交至当前提交，46 个有改动的测试文件共 467 项测试全部通过；CI 同款 `flutter analyze --no-fatal-warnings --no-fatal-infos lib test` 通过（仅有既有 warning/info），格式与 diff 检查通过。**完成时间**: 2026-11-09
 
 - [x] 升级应用版本至 1.0.47：将 `pubspec.yaml` 中的版本从 1.0.46 提升至 1.0.47。纯版本元数据变更，无需运行测试。**完成时间**: 2026-11-09

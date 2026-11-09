@@ -169,7 +169,7 @@ jobs:
           fi
           # 侧载 APK（GitHub / 官网直装）：声明 direct 渠道 → 走后端 Paddle Checkout。
           DART_DEFINES+=("--dart-define=DISTRIBUTION_CHANNEL=direct")
-          flutter build apk --release --flavor=prod \
+          bash scripts/retry_transient_build.sh flutter build apk --release --flavor=prod \
             --target-platform android-arm64 \
             --build-name="$BUILD_NAME" \
             --build-number="$BUILD_NUMBER" \
@@ -241,7 +241,7 @@ jobs:
           # Google Play 版：显式声明 play 渠道 → 不启用网页支付（构建里无外部支付入口，政策洁净）
           DART_DEFINES+=("--dart-define=DISTRIBUTION_CHANNEL=play")
           # abiFilters 已在 gradle 限定 arm64，AAB 同样只含 arm64
-          flutter build appbundle --release --flavor=prod \
+          bash scripts/retry_transient_build.sh flutter build appbundle --release --flavor=prod \
             --build-name="$BUILD_NAME" \
             --build-number="$BUILD_NUMBER" \
             "${DART_DEFINES[@]}"
@@ -377,7 +377,7 @@ jobs:
           DART_DEFINES+=("--dart-define=REVENUECAT_API_KEY_APPLE=${REVENUECAT_API_KEY_APPLE}")
           DART_DEFINES+=("--dart-define=DISTRIBUTION_CHANNEL=app_store")
           # 先用 flutter 编译 dart 代码，--no-codesign 跳过签名
-          flutter build ios --release --no-codesign --flavor=prod \
+          bash scripts/retry_transient_build.sh flutter build ios --release --no-codesign --flavor=prod \
             --build-name="$BUILD_NAME" \
             --build-number="$BUILD_NUMBER" \
             "${DART_DEFINES[@]}"
