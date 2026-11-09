@@ -1279,7 +1279,7 @@ class _AnalysisContent extends StatelessWidget {
     return key.replaceAll('`', '').replaceAll(RegExp(r'\s+'), ' ').trim();
   }
 
-  /// 统一 bullet 条目：▸ + 可选加粗标签 + "：" + 详解（详解含反引号高亮/IPA chip）。
+  /// 统一 bullet 条目：• + 可选加粗标签 + "：" + 详解（详解含反引号高亮/IPA chip）。
   /// 流式渐显时详解可能暂为空，此时只显示标签。
   Widget _buildBulletItem(
     ThemeData theme,
@@ -1295,7 +1295,7 @@ class _AnalysisContent extends StatelessWidget {
     final bullet = Padding(
       padding: const EdgeInsets.only(top: 1, right: 6),
       child: Text(
-        '▸',
+        '•',
         style: TextStyle(
           // 与正文同比缩放：正文字号 +1（默认正文 14 → 15）
           fontSize: (body?.fontSize ?? 14) + 1,
