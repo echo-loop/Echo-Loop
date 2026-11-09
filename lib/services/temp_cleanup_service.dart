@@ -53,7 +53,7 @@ Future<CleanupResult> cleanupStalePdfExportTemp({
 }) async {
   try {
     final cachesDir = await getTemporaryDirectory();
-    return _cleanupDirectory(
+    return await _cleanupDirectory(
       cachesDir,
       minAge: minAge,
       nameFilter: _isShareExportTemp,
@@ -75,7 +75,7 @@ Future<CleanupResult> cleanupStaleBaiduNetdiskTemp({
     final dataDir = await resolveDataDir();
     final dir = Directory('${dataDir.path}/tmp/baidu_netdisk');
     if (!await dir.exists()) return const CleanupResult(freedBytes: 0);
-    return _cleanupDirectory(dir, minAge: minAge);
+    return await _cleanupDirectory(dir, minAge: minAge);
   } catch (_) {
     return const CleanupResult(freedBytes: 0);
   }
@@ -99,12 +99,35 @@ const _ownCacheTempPrefixes = <String>[
 /// 分享面板使用的临时导出目录前缀。
 const _shareExportTempPrefixes = <String>['pdf_export_', 'log_export_'];
 
+/// 分享图片需给系统传输保留一天；主动清缓存也不能提前删除。
+const dailyShareExportTempPrefix = 'daily_check_in_share_export_';
+const dailyShareExportLeaseName = '.last_used';
+
+Future<CleanupResult> cleanupStaleDailyShareExportTemp({
+  Future<Directory> Function() resolveDirectory = getTemporaryDirectory,
+}) async {
+  try {
+    return await _cleanupDirectory(
+      await resolveDirectory(),
+      minAge: const Duration(days: 1),
+      nameFilter: (path) => path
+          .split(Platform.pathSeparator)
+          .last
+          .startsWith(dailyShareExportTempPrefix),
+    );
+  } on FileSystemException catch (error) {
+    AppLogger.log('DailyShare', '清理过期分享文件失败: $error');
+    return const CleanupResult(freedBytes: 0);
+  }
+}
+
 /// 设置页「清除缓存」：清理 tmp/（全量）+ Library/Caches（仅 app 自建临时目录）。
 ///
 /// tmp/ 为沙盒私有、语义上可随时丢弃，整目录清理；
 /// Library/Caches 为共享目录，只删 [_ownCacheTempPrefixes] 命中的导出/导入临时目录。
 Future<CleanupResult> cleanupAllTempFiles() async {
   var totalBytes = 0;
+  totalBytes += (await cleanupStaleDailyShareExportTemp()).freedBytes;
 
   // 1. 沙盒根 tmp/：全量清理
   final nsTmpDir = await _getNsTmpDir();
@@ -123,9 +146,8 @@ Future<CleanupResult> cleanupAllTempFiles() async {
 
   // 3. app 数据目录中的百度网盘下载临时文件：用户主动清缓存时全量清理
   try {
-    totalBytes += (await cleanupStaleBaiduNetdiskTemp(
-      minAge: Duration.zero,
-    )).freedBytes;
+    totalBytes += (await cleanupStaleBaiduNetdiskTemp(minAge: Duration.zero))
+        .freedBytes;
   } catch (_) {}
 
   return CleanupResult(freedBytes: totalBytes);
@@ -140,7 +162,8 @@ bool _isOwnCacheTemp(String path) {
 /// 判断 [path] 是否为分享面板使用的临时导出目录。
 bool _isShareExportTemp(String path) {
   final name = path.split(Platform.pathSeparator).last;
-  return _shareExportTempPrefixes.any(name.startsWith);
+  return name.startsWith(dailyShareExportTempPrefix) ||
+      _shareExportTempPrefixes.any(name.startsWith);
 }
 
 /// 获取沙盒根/tmp/ 目录（iOS/macOS），不存在时返回 null。
@@ -183,7 +206,16 @@ Future<CleanupResult> _cleanupDirectory(
 
         // 按年龄过滤：跳过修改时间不足 minAge 的文件
         if (minAge != null) {
-          final stat = await entity.stat();
+          var stat = await entity.stat();
+          if (entity is Directory &&
+              entity.path
+                  .split(Platform.pathSeparator)
+                  .last
+                  .startsWith(dailyShareExportTempPrefix)) {
+            final lease = File('${entity.path}/$dailyShareExportLeaseName');
+            // 目录的修改时间不会随文件复用更新，使用分享租约保护最近一次传输。
+            if (await lease.exists()) stat = await lease.stat();
+          }
           if (now.difference(stat.modified) < minAge) continue;
         }
 

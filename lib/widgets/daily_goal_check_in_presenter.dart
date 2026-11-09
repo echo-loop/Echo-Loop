@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../features/daily_goal_check_in/providers/daily_goal_check_in_provider.dart';
+import '../features/daily_goal_check_in/providers/daily_check_in_share_provider.dart';
 import '../l10n/app_localizations.dart';
 import '../router/app_router.dart';
 import '../services/app_logger.dart';
@@ -66,5 +67,9 @@ class _DailyGoalCheckInPresenterState
   }
 
   @override
-  Widget build(BuildContext context) => widget.child;
+  Widget build(BuildContext context) {
+    // 常驻持有准备状态，学习页面被覆盖时也能继续下载和渲染。
+    ref.watch(dailyCheckInShareProvider);
+    return widget.child;
+  }
 }

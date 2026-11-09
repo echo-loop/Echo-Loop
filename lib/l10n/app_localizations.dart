@@ -10291,6 +10291,84 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Couldn\'t load your profile. Tap to retry.'**
   String get profileLoadFailed;
+
+  /// No description provided for @shareCardTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Today’s check-in'**
+  String get shareCardTitle;
+
+  /// No description provided for @shareCardPreparing.
+  ///
+  /// In en, this message translates to:
+  /// **'Your card is being prepared. Please try again shortly.'**
+  String get shareCardPreparing;
+
+  /// No description provided for @shareCardPreparationFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not prepare your card. Retrying; please try again shortly.'**
+  String get shareCardPreparationFailed;
+
+  /// No description provided for @shareCardNoCards.
+  ///
+  /// In en, this message translates to:
+  /// **'No share cards are available right now. Please try again later.'**
+  String get shareCardNoCards;
+
+  /// No description provided for @shareCardNoAlternative.
+  ///
+  /// In en, this message translates to:
+  /// **'No other cards are available.'**
+  String get shareCardNoAlternative;
+
+  /// No description provided for @shareCardSave.
+  ///
+  /// In en, this message translates to:
+  /// **'Save to Photos'**
+  String get shareCardSave;
+
+  /// No description provided for @shareCardSaveDesktop.
+  ///
+  /// In en, this message translates to:
+  /// **'Save image'**
+  String get shareCardSaveDesktop;
+
+  /// No description provided for @shareCardShare.
+  ///
+  /// In en, this message translates to:
+  /// **'Share'**
+  String get shareCardShare;
+
+  /// No description provided for @shareCardChange.
+  ///
+  /// In en, this message translates to:
+  /// **'Try another'**
+  String get shareCardChange;
+
+  /// No description provided for @shareCardSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Image saved'**
+  String get shareCardSaved;
+
+  /// No description provided for @shareCardActionFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not complete the action. Please try again.'**
+  String get shareCardActionFailed;
+
+  /// No description provided for @shareCardPermissionDenied.
+  ///
+  /// In en, this message translates to:
+  /// **'Allow photo access in system settings to save your card.'**
+  String get shareCardPermissionDenied;
+
+  /// No description provided for @shareCardNotSignedIn.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign in to share your card.'**
+  String get shareCardNotSignedIn;
 }
 
 class _AppLocalizationsDelegate

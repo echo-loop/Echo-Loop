@@ -5848,4 +5848,48 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get profileLoadFailed => 'Couldn\'t load your profile. Tap to retry.';
+
+  @override
+  String get shareCardTitle => 'Today’s check-in';
+
+  @override
+  String get shareCardPreparing =>
+      'Your card is being prepared. Please try again shortly.';
+
+  @override
+  String get shareCardPreparationFailed =>
+      'Could not prepare your card. Retrying; please try again shortly.';
+
+  @override
+  String get shareCardNoCards =>
+      'No share cards are available right now. Please try again later.';
+
+  @override
+  String get shareCardNoAlternative => 'No other cards are available.';
+
+  @override
+  String get shareCardSave => 'Save to Photos';
+
+  @override
+  String get shareCardSaveDesktop => 'Save image';
+
+  @override
+  String get shareCardShare => 'Share';
+
+  @override
+  String get shareCardChange => 'Try another';
+
+  @override
+  String get shareCardSaved => 'Image saved';
+
+  @override
+  String get shareCardActionFailed =>
+      'Could not complete the action. Please try again.';
+
+  @override
+  String get shareCardPermissionDenied =>
+      'Allow photo access in system settings to save your card.';
+
+  @override
+  String get shareCardNotSignedIn => 'Sign in to share your card.';
 }

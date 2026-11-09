@@ -1,3 +1,5 @@
+import 'package:echo_loop/features/daily_goal_check_in/providers/daily_check_in_share_provider.dart';
+
 import 'dart:async';
 
 import 'package:drift/native.dart';
@@ -56,7 +58,9 @@ void main() {
   late _RecordingListeningPractice recordingListeningPractice;
 
   setUp(() {
-    database = AppDatabase(NativeDatabase.memory(setup: configureAppDatabaseConnection));
+    database = AppDatabase(
+      NativeDatabase.memory(setup: configureAppDatabaseConnection),
+    );
     recordingListeningPractice = _RecordingListeningPractice();
     router = GoRouter(
       navigatorKey: rootNavigatorKey,
@@ -140,6 +144,7 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: dedupeOverrides([
+          dailyShareUserIdProvider.overrideWithValue(null),
           appDatabaseProvider.overrideWithValue(database),
           localStartupProvider.overrideWith(_PendingStartupController.new),
         ]),
@@ -190,6 +195,7 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: dedupeOverrides([
+          dailyShareUserIdProvider.overrideWithValue(null),
           appDatabaseProvider.overrideWithValue(database),
           localStartupProvider.overrideWith(_PendingStartupController.new),
           listeningPracticeProvider.overrideWith(

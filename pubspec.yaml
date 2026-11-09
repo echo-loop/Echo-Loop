@@ -100,6 +100,8 @@ dependencies:
   posthog_flutter: ^5.23.1
   archive: ^4.0.4
   share_plus: ^10.1.4
+  # 打卡分享图保存到移动端系统相册。
+  gal: ^2.3.3
   table_calendar: ^3.2.0
   timeago: ^3.7.1
   sherpa_onnx: ^1.13.4
@@ -185,6 +187,8 @@ flutter:
     # ic_stat_logo 仅作 Android 通知图标源文件）不进包；订阅页透明底品牌图单独显式打包。
     - assets/icon/app-icon-1024.png
     - assets/icon/app-icon-1024-alpha.png
+    - assets/qr/www.echo-loop.cn.png
+    - assets/qr/www.echo-loop.top.png
     - assets/icon/app-icon.svg
     - assets/icon/apple-podcasts.svg
     - assets/icon/artist-palette.svg

@@ -12,6 +12,8 @@ import '../../providers/learning_settings_provider.dart';
 import '../../providers/study_stats_provider.dart';
 import '../../theme/app_theme.dart';
 import '../../theme/learning_progress_colors.dart';
+import '../../features/daily_goal_check_in/providers/daily_check_in_share_provider.dart';
+import '../../features/daily_goal_check_in/widgets/daily_check_in_share_dialog.dart';
 import 'day_stage_breakdown_sheet.dart';
 import 'learned_word_forms_sheet.dart';
 
@@ -54,6 +56,9 @@ class StudyStatsHeader extends ConsumerWidget {
             stats: stats,
             goalMinutes: goalMinutes,
             studyTimeService: ref.read(studyTimeServiceProvider),
+            onShareTap: ref.watch(dailyShareUserIdProvider) == null
+                ? null
+                : () => showDailyCheckInShareDialog(context, ref),
             onStudyTimeTap: () => ref
                 .read(analyticsServiceProvider)
                 .track(Events.studyTimeViewed),
@@ -101,12 +106,14 @@ class _TodayCard extends StatelessWidget {
   final int goalMinutes;
   final StudyTimeService studyTimeService;
   final VoidCallback? onStudyTimeTap;
+  final VoidCallback? onShareTap;
 
   const _TodayCard({
     required this.stats,
     required this.goalMinutes,
     required this.studyTimeService,
     this.onStudyTimeTap,
+    this.onShareTap,
   });
 
   @override
@@ -161,6 +168,7 @@ class _TodayCard extends StatelessWidget {
                     studiedSeconds: stats.todaySeconds,
                     goalMinutes: goalMinutes,
                     isCheckedIn: stats.isTodayCheckedIn,
+                    onShareTap: onShareTap,
                   ),
                 ],
               ),
@@ -275,11 +283,13 @@ class _DailyGoalSummary extends StatelessWidget {
   final int studiedSeconds;
   final int goalMinutes;
   final bool isCheckedIn;
+  final VoidCallback? onShareTap;
 
   const _DailyGoalSummary({
     required this.studiedSeconds,
     required this.goalMinutes,
     required this.isCheckedIn,
+    this.onShareTap,
   });
 
   /// 完成百分比，封顶 100，与进度条口径一致
@@ -296,11 +306,20 @@ class _DailyGoalSummary extends StatelessWidget {
     final palette = learningProgressPalette(theme.brightness);
 
     if (isCheckedIn) {
-      return _buildPill(
+      final pill = _buildPill(
         theme: theme,
         color: palette.completed,
         leading: Icon(Icons.check_circle, size: 14, color: palette.completed),
         label: l10n.dailyGoalTodayCheckedIn,
+      );
+      if (onShareTap == null) return pill;
+      return Tooltip(
+        message: l10n.shareCardShare,
+        child: InkWell(
+          onTap: onShareTap,
+          borderRadius: BorderRadius.circular(999),
+          child: pill,
+        ),
       );
     }
 

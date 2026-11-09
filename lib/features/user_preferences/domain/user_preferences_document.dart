@@ -46,9 +46,26 @@ class UserPreferencesDocument {
     required UserPreferencesDocument local,
     required UserPreferencesDocument remote,
   }) {
-    return UserPreferencesDocument(
-      _mergeObject(base.preferences, local.preferences, remote.preferences),
+    final merged = _mergeObject(
+      base.preferences,
+      local.preferences,
+      remote.preferences,
     );
+    const field = 'dailyCheckInShareShownDate';
+    final localLearning = local.preferences['learning'];
+    final remoteLearning = remote.preferences['learning'];
+    final dates = [
+      if (localLearning is Map) localLearning[field],
+      if (remoteLearning is Map) remoteLearning[field],
+    ].whereType<String>().where(isValidPreferenceDate).toList()..sort();
+    if (dates.isNotEmpty) {
+      final learning = merged['learning'];
+      merged['learning'] = <String, Object?>{
+        if (learning is Map) ..._cloneObject(learning),
+        field: dates.last,
+      };
+    }
+    return UserPreferencesDocument(merged);
   }
 
   static bool hasLocalChanges({
@@ -62,6 +79,13 @@ class UserPreferencesDocument {
     );
     return !const DeepCollectionEquality().equals(merged, base.preferences);
   }
+}
+
+/// 固定格式日期可按字典序比较，但必须拒绝日期归一化产生的非法输入。
+bool isValidPreferenceDate(String value) {
+  if (!RegExp(r'^\d{4}-\d{2}-\d{2}$').hasMatch(value)) return false;
+  final date = DateTime.tryParse(value);
+  return date != null && date.toIso8601String().startsWith(value);
 }
 
 UserPreferencesJson _cloneObject(Map source) {

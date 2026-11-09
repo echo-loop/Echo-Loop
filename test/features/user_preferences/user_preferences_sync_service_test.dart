@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:echo_loop/features/user_preferences/data/local_user_preferences_store.dart';
 import 'package:echo_loop/features/user_preferences/data/user_preferences_api.dart';
 import 'package:echo_loop/features/user_preferences/data/user_preferences_sync_service.dart';
@@ -23,12 +25,14 @@ class _FakeRemote implements UserPreferencesRemoteDataSource {
   final gets = <UserPreferencesApiResult>[];
   final getRevisions = <int?>[];
   int failedGets = 0;
+  Completer<void>? getGate;
   final puts = <({UserPreferencesDocument document, int expectedRevision})>[];
   final putResults = <Object>[];
 
   @override
   Future<UserPreferencesApiResult> getCurrent({int? knownRevision}) async {
     getRevisions.add(knownRevision);
+    if (getGate != null) await getGate!.future;
     if (failedGets > 0) {
       failedGets--;
       throw StateError('offline');
@@ -54,6 +58,72 @@ class _FakeRemote implements UserPreferencesRemoteDataSource {
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+
+  test('同账号并发绑定等待同一轮云同步，不提前读取展示标记', () async {
+    SharedPreferences.setMockInitialValues({});
+    final prefs = await SharedPreferences.getInstance();
+    final document = UserPreferencesDocument({
+      'learning': {'dailyCheckInShareShownDate': '2026-11-08'},
+    });
+    final local = _MemoryLocalStore(prefs, document);
+    final gate = Completer<void>();
+    final remote = _FakeRemote()
+      ..getGate = gate
+      ..gets.add(UserPreferencesApiResult(document: document, revision: 1));
+    final service = UserPreferencesSyncService(
+      remote: remote,
+      local: local,
+      preferences: prefs,
+      apply: local.apply,
+    );
+    addTearDown(service.dispose);
+    final first = service.onSessionChanged('user-1');
+    var completed = false;
+    final second = service.onSessionChanged('user-1').then((_) {
+      completed = true;
+    });
+    await Future<void>.delayed(Duration.zero);
+    expect(completed, isFalse);
+    gate.complete();
+    await Future.wait([first, second]);
+    expect(remote.getRevisions, hasLength(1));
+  });
+
+  test('并发 synchronize 调用等待在途同步和合并刷新完成', () async {
+    SharedPreferences.setMockInitialValues({});
+    final prefs = await SharedPreferences.getInstance();
+    final document = UserPreferencesDocument({
+      'appearance': {'themeMode': 'dark'},
+    });
+    final local = _MemoryLocalStore(prefs, document);
+    final remote = _FakeRemote()
+      ..gets.addAll(
+        List.filled(
+          3,
+          UserPreferencesApiResult(document: document, revision: 1),
+        ),
+      );
+    final service = UserPreferencesSyncService(
+      remote: remote,
+      local: local,
+      preferences: prefs,
+      apply: local.apply,
+    );
+    addTearDown(service.dispose);
+    await service.onSessionChanged('user-1');
+    final gate = Completer<void>();
+    remote.getGate = gate;
+    final first = service.synchronize();
+    var completed = false;
+    final second = service.synchronize().then((_) {
+      completed = true;
+    });
+    await Future<void>.delayed(Duration.zero);
+    expect(completed, isFalse);
+    gate.complete();
+    await Future.wait([first, second]);
+    expect(remote.getRevisions, hasLength(3));
+  });
 
   test('first sync seeds the server when it has no snapshot', () async {
     SharedPreferences.setMockInitialValues({});

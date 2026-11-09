@@ -2815,5 +2815,18 @@
   "profileCropTitle": "Crop avatar",
   "profileSaveFailed": "Couldn't save your profile. Please try again.",
   "profileImageUnsupported": "This image can't be used. Try a JPEG, PNG or WebP photo.",
-  "profileLoadFailed": "Couldn't load your profile. Tap to retry."
+  "profileLoadFailed": "Couldn't load your profile. Tap to retry.",
+  "shareCardTitle": "Today’s check-in",
+  "shareCardPreparing": "Your card is being prepared. Please try again shortly.",
+  "shareCardPreparationFailed": "Could not prepare your card. Retrying; please try again shortly.",
+  "shareCardNoCards": "No share cards are available right now. Please try again later.",
+  "shareCardNoAlternative": "No other cards are available.",
+  "shareCardSave": "Save to Photos",
+  "shareCardSaveDesktop": "Save image",
+  "shareCardShare": "Share",
+  "shareCardChange": "Try another",
+  "shareCardSaved": "Image saved",
+  "shareCardActionFailed": "Could not complete the action. Please try again.",
+  "shareCardPermissionDenied": "Allow photo access in system settings to save your card.",
+  "shareCardNotSignedIn": "Sign in to share your card."
 }

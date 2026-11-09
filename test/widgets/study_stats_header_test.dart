@@ -1,3 +1,4 @@
+import 'package:echo_loop/features/daily_goal_check_in/providers/daily_check_in_share_provider.dart';
 // 学习统计头部组件 Widget 测试
 //
 // 验证今日卡片、本周柱状图、词汇量 badge 的渲染和交互。
@@ -53,6 +54,7 @@ void main() {
     final effectiveDb = db ?? testDb;
     return ProviderScope(
       overrides: dedupeOverrides([
+        dailyShareUserIdProvider.overrideWithValue(null),
         appDatabaseProvider.overrideWithValue(effectiveDb),
         sharedPreferencesProvider.overrideWithValue(prefs),
         studyStatsProvider.overrideWith(() => _TestStudyStatsNotifier(stats)),

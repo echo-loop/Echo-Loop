@@ -38,14 +38,24 @@ final dailyGoalCheckInProvider =
     );
 
 class DailyGoalCheckInNotifier extends Notifier<DailyGoalCheckIn?> {
+  Future<void> _pendingCheckIns = Future<void>.value();
   @override
   DailyGoalCheckIn? build() {
     final service = ref.watch(studyTimeServiceProvider);
-    final subscription = service.studySessionRecorded.listen(
-      (eventDate) => unawaited(_checkInIfGoalReached(service, eventDate)),
-    );
+    final subscription = service.studySessionRecorded.listen((eventDate) {
+      _pendingCheckIns = _pendingCheckIns.then((_) async {
+        if (!ref.mounted) return;
+        await _checkInIfGoalReached(service, eventDate);
+      });
+    });
     ref.onDispose(subscription.cancel);
     return null;
+  }
+
+  /// 等待已提交时长对应的打卡判定，返回首页时避免读到尚未落库的标记。
+  Future<void> settlePendingCheckIns() async {
+    await Future<void>.value();
+    await _pendingCheckIns;
   }
 
   Future<void> _checkInIfGoalReached(
@@ -58,7 +68,11 @@ class DailyGoalCheckInNotifier extends Notifier<DailyGoalCheckIn?> {
         goalMinutes: goalMinutes,
         date: eventDate,
       );
-      if (!ref.mounted || !checkedIn) return;
+      if (!ref.mounted ||
+          !checkedIn ||
+          service != ref.read(studyTimeServiceProvider)) {
+        return;
+      }
       AppLogger.log(
         'DailyGoalCheckIn',
         'event=checked_in goalMinutes=$goalMinutes',

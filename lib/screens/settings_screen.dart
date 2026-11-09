@@ -4,9 +4,13 @@ import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../features/daily_goal_check_in/providers/daily_check_in_share_provider.dart';
+
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -509,6 +513,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     WidgetRef ref,
     AppLocalizations l10n,
   ) async {
+    final container = ProviderScope.containerOf(context, listen: false);
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -535,6 +540,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     // 2. 清空内存缓存（句子 AI + AI 词典的 L1，否则清缓存后重查仍命中旧结果）
     ref.read(sentenceAiNotifierProvider).clearMemoryCache();
     ref.read(aiDictionarySourceProvider).clearMemoryCache();
+    if (container.exists(dailyCheckInShareProvider)) {
+      container.read(dailyCheckInShareProvider.notifier).clear();
+    }
 
     // 3. 清理临时目录（录音 .caf 残留、Library/Caches 下 app 自建导出/导入临时目录）
     final result = await cleanupAllTempFiles();

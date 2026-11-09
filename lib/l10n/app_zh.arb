@@ -2338,5 +2338,18 @@
   "profileCropTitle": "裁剪头像",
   "profileSaveFailed": "保存失败，请稍后重试",
   "profileImageUnsupported": "无法使用这张图片，请换一张 JPEG、PNG 或 WebP 格式的照片",
-  "profileLoadFailed": "资料加载失败，点击重试"
+  "profileLoadFailed": "资料加载失败，点击重试",
+  "shareCardTitle": "今日打卡",
+  "shareCardPreparing": "今日卡片正在准备中，请稍后再试",
+  "shareCardPreparationFailed": "今日卡片准备失败，正在重试，请稍后再试",
+  "shareCardNoCards": "暂时没有可用的分享卡片，请稍后再试",
+  "shareCardNoAlternative": "暂无其它卡片",
+  "shareCardSave": "保存到相册",
+  "shareCardSaveDesktop": "保存图片",
+  "shareCardShare": "分享",
+  "shareCardChange": "换一个",
+  "shareCardSaved": "图片已保存",
+  "shareCardActionFailed": "操作失败，请稍后重试",
+  "shareCardPermissionDenied": "没有保存图片的权限，请在系统设置中允许访问相册",
+  "shareCardNotSignedIn": "请先登录后分享"
 }

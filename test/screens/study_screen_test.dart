@@ -1,3 +1,4 @@
+import 'package:echo_loop/features/daily_goal_check_in/providers/daily_check_in_share_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -92,6 +93,7 @@ void main() {
 
     return ProviderScope(
       overrides: dedupeOverrides([
+        dailyShareUserIdProvider.overrideWithValue(null),
         ...learningSettingsOverrides(prefs: prefs),
         audioLibraryProvider.overrideWith(
           () => TestAudioLibrary(

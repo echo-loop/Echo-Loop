@@ -9,8 +9,9 @@ import '../domain/user_preferences_document.dart';
 import 'local_user_preferences_store.dart';
 import 'user_preferences_api.dart';
 
-typedef ApplyUserPreferences =
-    Future<void> Function(UserPreferencesDocument document);
+typedef ApplyUserPreferences = Future<void> Function(
+  UserPreferencesDocument document,
+);
 
 class UserPreferencesSyncService {
   UserPreferencesSyncService({
@@ -36,15 +37,34 @@ class UserPreferencesSyncService {
   int _identityGeneration = 0;
   int _localChangeGeneration = 0;
   bool _running = false;
+  Completer<void>? _syncCompletion;
+  Future<void>? _sessionBinding;
+  String? _bindingUserId;
   bool _syncAgain = false;
   bool _disposed = false;
   Future<void> _pendingWrites = Future<void>.value();
   Future<void> _applyQueue = Future<void>.value();
 
   /// 绑定已确认的 Supabase 用户身份；切换账号时隔离两边的本地快照。
-  Future<void> onSessionChanged(String? userId) async {
-    if (_disposed || userId == _userId) {
-      if (userId != null && !_disposed) unawaited(synchronize());
+  Future<void> onSessionChanged(String? userId) {
+    final binding = _sessionBinding;
+    if (binding != null && _bindingUserId == userId) return binding;
+    final future = _bindSession(userId);
+    _bindingUserId = userId;
+    _sessionBinding = future;
+    return future.whenComplete(() {
+      if (identical(_sessionBinding, future)) _sessionBinding = null;
+    });
+  }
+
+  Future<void> _bindSession(String? userId) async {
+    if (_disposed) return;
+    if (userId == _userId) {
+      if (userId == null) {
+        await _local.bindShareAccount(null);
+      } else {
+        await synchronize();
+      }
       return;
     }
 
@@ -63,6 +83,8 @@ class UserPreferencesSyncService {
         previousRecord.copyWith(localSnapshot: _local.capture()),
       );
     }
+    if (!_isCurrent(userId, generation)) return;
+    await _local.bindShareAccount(userId);
     if (!_isCurrent(userId, generation) || userId == null) return;
 
     final lastUserId = _metadata.activeUserId;
@@ -108,15 +130,24 @@ class UserPreferencesSyncService {
   /// 应用回到前台时拉取其它设备的最新偏好，并尝试发送待同步修改。
   Future<void> onAppResumed() => synchronize();
 
-  Future<void> synchronize() async {
+  Future<void> synchronize() {
     final userId = _userId;
-    if (_disposed || userId == null) return;
+    if (_disposed || userId == null) return Future<void>.value();
     if (_running) {
       _syncAgain = true;
-      return;
+      return _syncCompletion!.future;
     }
-
     _running = true;
+    final completion = Completer<void>();
+    _syncCompletion = completion;
+    unawaited(_runSynchronization(userId, completion));
+    return completion.future;
+  }
+
+  Future<void> _runSynchronization(
+    String userId,
+    Completer<void> completion,
+  ) async {
     final generation = _identityGeneration;
     try {
       do {
@@ -130,10 +161,12 @@ class UserPreferencesSyncService {
       );
     } finally {
       _running = false;
+      _syncCompletion = null;
       if (_syncAgain && !_disposed) {
         _syncAgain = false;
-        unawaited(synchronize());
+        await synchronize();
       }
+      completion.complete();
     }
   }
 

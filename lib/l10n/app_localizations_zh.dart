@@ -5575,4 +5575,43 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get profileLoadFailed => '资料加载失败，点击重试';
+
+  @override
+  String get shareCardTitle => '今日打卡';
+
+  @override
+  String get shareCardPreparing => '今日卡片正在准备中，请稍后再试';
+
+  @override
+  String get shareCardPreparationFailed => '今日卡片准备失败，正在重试，请稍后再试';
+
+  @override
+  String get shareCardNoCards => '暂时没有可用的分享卡片，请稍后再试';
+
+  @override
+  String get shareCardNoAlternative => '暂无其它卡片';
+
+  @override
+  String get shareCardSave => '保存到相册';
+
+  @override
+  String get shareCardSaveDesktop => '保存图片';
+
+  @override
+  String get shareCardShare => '分享';
+
+  @override
+  String get shareCardChange => '换一个';
+
+  @override
+  String get shareCardSaved => '图片已保存';
+
+  @override
+  String get shareCardActionFailed => '操作失败，请稍后重试';
+
+  @override
+  String get shareCardPermissionDenied => '没有保存图片的权限，请在系统设置中允许访问相册';
+
+  @override
+  String get shareCardNotSignedIn => '请先登录后分享';
 }
