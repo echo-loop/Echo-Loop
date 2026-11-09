@@ -1,5 +1,7 @@
 import 'package:echo_loop/providers/study_duration_provider.dart';
+
 import 'dart:async';
+
 import 'package:echo_loop/widgets/common/app_segmented_button.dart';
 import 'package:echo_loop/widgets/study/study_duration_chart.dart';
 import 'package:flutter/material.dart';
@@ -14,12 +16,15 @@ import 'package:echo_loop/database/providers.dart';
 import 'package:echo_loop/models/study_stage.dart';
 import 'package:echo_loop/services/study_time_service.dart';
 import 'package:echo_loop/widgets/study/day_stage_breakdown_sheet.dart';
+
 import '../helpers/mock_providers.dart';
 
 void main() {
   late AppDatabase db;
   setUp(() {
-    db = AppDatabase(NativeDatabase.memory(setup: configureAppDatabaseConnection));
+    db = AppDatabase(
+      NativeDatabase.memory(setup: configureAppDatabaseConnection),
+    );
   });
   tearDown(() async {
     await db.close();
@@ -39,6 +44,7 @@ void main() {
     int totalSeconds = 3900,
     List<StudyDurationBucket>? buckets,
     Locale locale = const Locale('zh'),
+    TextScaler textScaler = TextScaler.noScaling,
   }) {
     return ProviderScope(
       overrides: dedupeOverrides([
@@ -82,6 +88,10 @@ void main() {
           GlobalWidgetsLocalizations.delegate,
           GlobalCupertinoLocalizations.delegate,
         ],
+        builder: (context, child) => MediaQuery(
+          data: MediaQuery.of(context).copyWith(textScaler: textScaler),
+          child: child!,
+        ),
         home: Scaffold(body: StudyDurationChart()),
       ),
     );
@@ -160,8 +170,86 @@ void main() {
         now: now,
         isZh: true,
       ),
-      '7/6-12',
+      '7/6',
     );
+    expect(
+      formatStudyDurationBucketLabel(
+        bucket: StudyDurationBucket(
+          periodStart: DateTime(2026, 1, 26),
+          periodEnd: DateTime(2026, 2, 1),
+          totalSeconds: 0,
+          inputSeconds: 0,
+          outputSeconds: 0,
+          otherSeconds: 0,
+          isCurrentPeriod: false,
+        ),
+        granularity: StudyDurationGranularity.week,
+        now: now,
+        isZh: true,
+      ),
+      '1/26',
+    );
+  });
+
+  test('月标签使用单行的月份名称', () {
+    final now = DateTime(2026, 9, 6);
+    final july = StudyDurationBucket(
+      periodStart: DateTime(2026, 7),
+      periodEnd: DateTime(2026, 7, 31),
+      totalSeconds: 0,
+      inputSeconds: 0,
+      outputSeconds: 0,
+      otherSeconds: 0,
+      isCurrentPeriod: false,
+    );
+    expect(
+      formatStudyDurationBucketLabel(
+        bucket: july,
+        granularity: StudyDurationGranularity.month,
+        now: now,
+        isZh: true,
+      ),
+      '7月',
+    );
+    expect(
+      formatStudyDurationBucketLabel(
+        bucket: july,
+        granularity: StudyDurationGranularity.month,
+        now: now,
+        isZh: false,
+      ),
+      'Jul',
+    );
+  });
+
+  testWidgets('2 倍字号下周标签单行且图表不溢出', (tester) async {
+    final buckets = [
+      StudyDurationBucket(
+        periodStart: DateTime(2026, 1, 26),
+        periodEnd: DateTime(2026, 2, 1),
+        totalSeconds: 3900,
+        inputSeconds: 1800,
+        outputSeconds: 1200,
+        otherSeconds: 900,
+        isCurrentPeriod: false,
+      ),
+      StudyDurationBucket(
+        periodStart: DateTime(2026, 2, 2),
+        periodEnd: DateTime(2026, 2, 8),
+        totalSeconds: 1800,
+        inputSeconds: 1800,
+        outputSeconds: 0,
+        otherSeconds: 0,
+        isCurrentPeriod: false,
+      ),
+    ];
+    await tester.pumpWidget(
+      buildChart(buckets: buckets, textScaler: const TextScaler.linear(2)),
+    );
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(find.text('1/26'), findsOneWidget);
   });
 
   testWidgets('周视图默认选中且柱体点击显示底部明细', (tester) async {

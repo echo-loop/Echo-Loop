@@ -651,3 +651,12 @@
 - 测试约定：`sense_group_text_test.dart` 中「播放高亮时系统文字缩放与未播放时一致」，在 `MediaQuery` 注入 1.5 倍缩放后比较两种状态下各 `RenderParagraph` 的 `textScaler`。
 - 相关代码：`lib/widgets/practice/sense_group_text.dart`（`_buildGroupBadge`）、`lib/widgets/selection/app_selectable_text.dart`（普通句子路径，未改动）。
 - 修复时间：2026-11-09。
+
+### 7.43 学习时长柱状图大字号溢出：图表高度、列宽、柱高写死，周标签随字号折行撑破列高
+
+- 现象：系统字号放大后，学习页「学习时长」周视图底部报 `BOTTOM OVERFLOWED BY 1.9 PIXELS`，周标签 `10/26-11/1` 被折成两行。
+- 根因：`_BucketList` 的图表高度 150、柱高上限 90、列宽 58 全部写死；列内「数值 + 柱体 + 日期」使用固定高度，标签随字号变高后总高超出 150。
+- 解法：柱体放进 `Expanded`，用 `LayoutBuilder` 按剩余高度取柱高并封顶 90（100% 字号下与原来一致）；周标签只保留起始日、月标签改为月份名，均 `maxLines: 1, softWrap: false`；图表子树的 `textScaler` 封顶 1.3。完整区间仍在点击后的明细标题中。
+- 规则：固定尺寸容器内的文字不能假设单行或固定宽度；需要撑满的图形用 `Expanded` / `LayoutBuilder` 承接剩余空间，不用写死的高度。
+- 测试约定：`study_duration_chart_test.dart` 「2 倍字号下周标签单行且图表不溢出」，先在未修复代码上复现 `RenderFlex OVERFLOWING`。
+- 修复时间：2026-11-10。
