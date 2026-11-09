@@ -1239,7 +1239,7 @@ class _AnalysisContent extends StatelessWidget {
           const SizedBox(width: 6),
           Text(
             s.label,
-            style: theme.textTheme.labelLarge?.copyWith(
+            style: theme.textTheme.titleMedium?.copyWith(
               color: cs.onSurface,
               fontWeight: FontWeight.w600,
             ),
@@ -1252,9 +1252,11 @@ class _AnalysisContent extends StatelessWidget {
   /// 段落正文：把结构化要点逐条渲染为 bullet（标签加粗 + 详解）。
   Widget _buildSectionBody(ThemeData theme, List<(String, String)> items) {
     final cs = theme.colorScheme;
-    final rawBody = theme.textTheme.bodySmall?.copyWith(
+    // 解析正文与译文同一套参数：14pt、字间距 0、行高 1.5
+    final rawBody = theme.textTheme.bodyMedium?.copyWith(
       color: cs.onSurfaceVariant,
-      height: 1.4,
+      height: 1.5,
+      letterSpacing: 0,
     );
     final body = rawBody == null ? null : textPrefs.applyTo(rawBody);
 
@@ -1295,8 +1297,8 @@ class _AnalysisContent extends StatelessWidget {
       child: Text(
         '▸',
         style: TextStyle(
-          // 与正文同比缩放：正文字号 +1（默认 bodySmall 12 → 13，与原值一致）
-          fontSize: (body?.fontSize ?? 12) + 1,
+          // 与正文同比缩放：正文字号 +1（默认正文 14 → 15）
+          fontSize: (body?.fontSize ?? 14) + 1,
           fontWeight: FontWeight.w700,
           color: cs.primary,
           height: 1,
@@ -1375,9 +1377,10 @@ class _AnalysisContent extends StatelessWidget {
                 style: TextStyle(
                   fontFamily: 'monospace',
                   fontFamilyFallback: const ['Menlo', 'Courier'],
-                  fontSize: (body?.fontSize ?? 13) - 1,
+                  // 音标与正文同字号，行高跟随正文，避免比正文挤
+                  fontSize: body?.fontSize ?? 14,
                   color: cs.onSurface,
-                  height: 1.2,
+                  height: body?.height,
                 ),
               ),
             ),

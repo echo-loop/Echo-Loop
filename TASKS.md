@@ -4,6 +4,8 @@
 
 ## 本次完成
 
+- [x] 放大 AI 解析字号：解析正文由 `bodySmall`（12pt，字间距 0.4）改为 `bodyMedium`（14pt，字间距 0，行高 1.5），与译文一致；分类标题由 `labelLarge`（14pt）改为 `titleMedium`（16pt，w600）；音标去掉 −1，与正文同字号并跟随正文行高；▸ 符号仍为正文 +1（15pt）。改动仅在 `sentence_annotation_card.dart`。验证：annotation card、explanation view、sentence detail、练习/复习/精听/跟读相关测试与 `test/widgets/practice` 共 `+317` 通过（`~5` 为既有跳过）；改动文件 `flutter analyze` 无问题。**待真机验证**：100% 档下解析区与译文、原文的层级与长音标换行。**完成时间**: 2026-11-10
+
 - [x] 统一学习原文正文样式：字幕列表（星芒图标那张）用 `bodyLarge`（w400，字间距 0.5，行高 1.5），单句模式 / 意群用 `titleMedium`（w500，字间距 0.15，行高 1.6），两处字号都是 16pt 但字重、字间距不同，看起来字号不一致。按确认的方案统一为 w400、字间距 0、行高 1.4：新增 `readingBodyLineHeight = 1.4`（`reading_text_prefs.dart`），练习页句子、单句 / 意群正文、字幕列表、复述回顾原文、设置页预览全部基于 `bodyLarge`。翻译、解析、聊天、词典不变。验证：`practice`、`retell`、`common`、`masked_sentence_tile`、`reading_text_settings_screen`、`reading_text_prefs`（model/provider）、`media_playback_screen`、`player_screen` 相关测试共 `+292` 全部通过；改动文件 `flutter analyze` 无问题。**待真机验证**：macOS 上练习页、单句模式、随心听列表的字重与行距观感一致。**完成时间**: 2026-11-10
 
 - [x] 修复学习时长柱状图大字号下底部溢出（2026-11-10）：`StudyDurationChart` 的图表高度、列宽、柱高上限全部写死，字号放大后周标签 `10/26-11/1` 折行撑破列高（`BOTTOM OVERFLOWED`）。改为列内「数值 + `Expanded` 柱体 + 日期」结构，柱高取剩余高度并封顶 90（100% 字号外观不变）；周标签只显示起始日（`10/26`），月标签改为 `7月` / `Jul`，完整区间保留在点击后的明细标题中；图表子树文字缩放封顶 1.3 倍，标题、分段按钮、图例仍按系统字号。测试：`study_duration_chart_test` 新增 2 倍字号不溢出、周 / 月标签单行用例，并更新原周标签断言，13 项全部通过；`study_stats_header_test` 与 study 相关目录共 45 项通过。**待实机确认**：最大字号下日 / 周 / 月 / 年四档切换无溢出条纹。**完成时间**: 2026-11-10
