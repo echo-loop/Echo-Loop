@@ -60,11 +60,7 @@ class UserPreferencesSyncService {
   Future<void> _bindSession(String? userId) async {
     if (_disposed) return;
     if (userId == _userId) {
-      if (userId == null) {
-        await _local.bindShareAccount(null);
-      } else {
-        await synchronize();
-      }
+      if (userId != null) await synchronize();
       return;
     }
 
@@ -83,8 +79,6 @@ class UserPreferencesSyncService {
         previousRecord.copyWith(localSnapshot: _local.capture()),
       );
     }
-    if (!_isCurrent(userId, generation)) return;
-    await _local.bindShareAccount(userId);
     if (!_isCurrent(userId, generation) || userId == null) return;
 
     final lastUserId = _metadata.activeUserId;

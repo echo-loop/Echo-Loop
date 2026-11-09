@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:dio/dio.dart';
 import 'package:flutter/services.dart';
@@ -11,10 +12,12 @@ import '../../../services/app_logger.dart';
 import '../../../services/backend_dio.dart';
 import '../../../services/runtime_endpoint_router.dart';
 import '../../auth/providers/auth_providers.dart';
-import '../../profile/domain/user_profile.dart';
 import '../../profile/providers/user_profile_provider.dart';
 import '../../user_region/user_region_providers.dart';
 import '../data/daily_check_in_share_image.dart';
+import '../data/daily_share_background_store.dart';
+import '../data/daily_share_background_repository.dart';
+import '../data/daily_share_decoded_image_cache.dart';
 import '../data/share_card_api.dart';
 import '../domain/share_card_template.dart';
 import 'daily_goal_check_in_provider.dart';
@@ -43,6 +46,18 @@ final shareCardApiProvider = Provider<ShareCardRemoteDataSource>((ref) {
   return ShareCardApi(backend, images);
 });
 
+final dailyShareBackgroundStoreProvider = Provider<DailyShareBackgroundStore>(
+  (ref) => DailyShareBackgroundStore(),
+);
+
+final dailyShareBackgroundRepositoryProvider =
+    Provider<DailyShareBackgroundRepository>(
+      (ref) => DailyShareBackgroundRepository(
+        ref.watch(shareCardApiProvider),
+        ref.watch(dailyShareBackgroundStoreProvider),
+      ),
+    );
+
 typedef DailyShareImageGenerator =
     Future<GeneratedDailyCheckInShareImage> Function({
       required ShareCardTemplate template,
@@ -50,16 +65,25 @@ typedef DailyShareImageGenerator =
       required DailyCheckInShareAssets assets,
     });
 
+final dailyShareDecodedImageCacheProvider =
+    Provider<DailyShareDecodedImageCache>((ref) {
+      final cache = DailyShareDecodedImageCache();
+      ref.onDispose(cache.dispose);
+      return cache;
+    });
+
 final dailyShareImageGeneratorProvider = Provider<DailyShareImageGenerator>((
   ref,
 ) {
   final fonts = DailyShareFontLoader();
+  final cache = ref.watch(dailyShareDecodedImageCacheProvider);
   return ({required template, required data, required assets}) async {
     await fonts.load();
     return generateDailyCheckInShareImage(
       template: template,
       data: data,
       assets: assets,
+      decodedImageCache: cache,
     );
   };
 });
@@ -96,12 +120,14 @@ class DailyCheckInShareState {
     this.status = DailyShareStatus.idle,
     this.card,
     this.isChanging = false,
+    this.isRefreshing = false,
     this.noAvailableCards = false,
     this.failure,
   });
   final DailyShareStatus status;
   final PreparedDailyCheckInShare? card;
   final bool isChanging;
+  final bool isRefreshing;
   final bool noAvailableCards;
   final Object? failure;
 }
@@ -111,38 +137,111 @@ final dailyCheckInShareProvider =
       DailyCheckInShareNotifier.new,
     );
 
+typedef _DailyShareRenderInput = ({
+  String templateId,
+  DateTime date,
+  int totalMinutes,
+  int inputMinutes,
+  int outputMinutes,
+  int streak,
+  String nickname,
+  Uint8List? avatar,
+  bool isChinese,
+  String nativeLanguage,
+  bool isChina,
+});
+
 /// 常驻准备任务只生成图片，不决定是否弹窗；完成回调不会触发补弹。
 class DailyCheckInShareNotifier extends Notifier<DailyCheckInShareState> {
   int _generation = 0;
   GeneratedDailyCheckInShareImage? _ownedImage;
   Future<void>? _preparing;
   Timer? _expiryTimer;
-  ShareCardTemplate? _cachedTemplate;
-  Uint8List? _cachedBackground;
-  DateTime? _cachedDate;
+  _DailyShareRenderInput? _renderedInput;
+  bool _refreshRequested = false;
+  int _assetEpoch = 0;
+  String? _avatarUrl;
+  Uint8List? _avatarBytes;
+  DailyShareDecodedImageCache? _decodedCache;
+  final Map<String, Future<Uint8List>> _bundledAssets = {};
+
+  Future<Uint8List> _asset(String path) {
+    return _bundledAssets.putIfAbsent(path, () async {
+      try {
+        final asset = await rootBundle.load(path);
+        return asset.buffer.asUint8List(
+          asset.offsetInBytes,
+          asset.lengthInBytes,
+        );
+      } on Object {
+        _bundledAssets.remove(path);
+        rethrow;
+      }
+    });
+  }
+
+  void _resetInputs() {
+    _assetEpoch++;
+    _decodedCache?.clear();
+    _avatarUrl = null;
+    _avatarBytes = null;
+    _renderedInput = null;
+    _refreshRequested = false;
+  }
+
+  void _prepareAvatar(String? url, String userId) {
+    if (_avatarUrl == url) return;
+    _avatarUrl = url;
+    _avatarBytes = null;
+    if (url == null) return;
+    final epoch = _assetEpoch;
+    final api = ref.read(shareCardApiProvider);
+    unawaited(() async {
+      final watch = Stopwatch()..start();
+      try {
+        final bytes = await api.downloadImage(url);
+        if (!ref.mounted ||
+            epoch != _assetEpoch ||
+            _avatarUrl != url ||
+            ref.read(dailyShareUserIdProvider) != userId) {
+          return;
+        }
+        _avatarBytes = bytes;
+        AppLogger.log(
+          'DailyShare',
+          '头像后台下载完成 durationMs=${watch.elapsedMilliseconds}',
+        );
+        unawaited(prepare(refresh: true));
+      } on Object catch (error, stackTrace) {
+        // 头像是可选装饰，失败不阻塞成品；相同 URL 不随统计变化重复重试。
+        AppLogger.log('DailyShare', '头像后台下载失败，保留占位: $error\n$stackTrace');
+      }
+    }());
+  }
 
   @override
   DailyCheckInShareState build() {
+    _decodedCache = ref.read(dailyShareDecodedImageCacheProvider);
     final userId = ref.watch(dailyShareUserIdProvider);
     _generation++;
     _preparing = null;
+    _resetInputs();
     ref.onDispose(() {
       _generation++;
       _expiryTimer?.cancel();
       _ownedImage?.dispose();
       _ownedImage = null;
-      _cachedTemplate = null;
-      _cachedBackground = null;
-      _cachedDate = null;
+      _resetInputs();
     });
     if (userId == null) return const DailyCheckInShareState();
     ref.watch(studyTimeServiceProvider);
-    ref.watch(
+    ref.listen(
       appSettingsProvider.select(
         (settings) => (settings.locale, settings.nativeLanguage),
       ),
+      (_, _) => _invalidateComposition(),
     );
-    ref.watch(isChinaUserProvider);
+    ref.listen(isChinaUserProvider, (_, _) => _invalidateComposition());
     _scheduleExpiry();
     ref.listen(dailyGoalCheckInProvider, (_, event) {
       if (event != null &&
@@ -150,7 +249,7 @@ class DailyCheckInShareNotifier extends Notifier<DailyCheckInShareState> {
         unawaited(prepare());
       }
     });
-    // 统计更新后在后台重新合成；重新准备期间首页检查会跳过自动弹出。
+    // 后台刷新保留已完成的卡片，只有实际绘制内容变化才重新合成。
     ref.listen(studyStatsProvider, (previous, next) {
       if (next.value?.isTodayCheckedIn == true &&
           previous?.value != next.value) {
@@ -169,6 +268,18 @@ class DailyCheckInShareNotifier extends Notifier<DailyCheckInShareState> {
     return const DailyCheckInShareState();
   }
 
+  /// 语言和二维码地区只影响合成，不清理背景、头像及固定资源缓存。
+  void _invalidateComposition() {
+    _generation++;
+    _preparing = null;
+    _refreshRequested = false;
+    _renderedInput = null;
+    _ownedImage?.dispose();
+    _ownedImage = null;
+    state = const DailyCheckInShareState();
+    unawaited(prepare(refresh: true));
+  }
+
   void _scheduleExpiry() {
     _expiryTimer?.cancel();
     final now = ref.read(dailyShareNowProvider)();
@@ -176,6 +287,11 @@ class DailyCheckInShareNotifier extends Notifier<DailyCheckInShareState> {
     _expiryTimer = Timer(midnight.difference(now), () {
       if (!ref.mounted) return;
       clear();
+      unawaited(
+        ref
+            .read(dailyShareBackgroundRepositoryProvider)
+            .removeExpired(ref.read(dailyShareNowProvider)()),
+      );
       _scheduleExpiry();
     });
   }
@@ -200,74 +316,64 @@ class DailyCheckInShareNotifier extends Notifier<DailyCheckInShareState> {
 
   Future<void> prepare({bool refresh = false}) {
     if (ref.read(dailyShareUserIdProvider) == null) return Future<void>.value();
-    if (_preparing != null) return _preparing!;
+    if (_preparing != null) {
+      _refreshRequested |= refresh;
+      return _preparing!;
+    }
     if (hasCurrentCard && !refresh) return Future<void>.value();
-    return _startPreparation(reuseBackground: refresh);
+    return _startPreparation();
   }
 
-  Future<void> _startPreparation({
-    String? changeFrom,
-    bool reuseBackground = false,
-  }) {
-    final future = _prepare(
-      changeFrom: changeFrom,
-      reuseBackground: reuseBackground,
-    );
+  Future<void> _startPreparation({String? changeFrom}) {
+    final future = _prepare(changeFrom: changeFrom);
     _preparing = future;
     return future.whenComplete(() {
-      if (identical(_preparing, future)) _preparing = null;
+      if (!identical(_preparing, future)) return;
+      _preparing = null;
+      if (_refreshRequested && ref.mounted) {
+        _refreshRequested = false;
+        unawaited(prepare(refresh: true));
+      }
     });
   }
 
-  Future<void> _prepare({
-    String? changeFrom,
-    required bool reuseBackground,
-  }) async {
+  Future<void> _prepare({String? changeFrom}) async {
     final userId = ref.read(dailyShareUserIdProvider);
     if (userId == null) return;
     final generation = ++_generation;
     final now = ref.read(dailyShareNowProvider)();
     final date = DateTime(now.year, now.month, now.day);
     final service = ref.read(studyTimeServiceProvider);
-    final api = ref.read(shareCardApiProvider);
+    final backgrounds = ref.read(dailyShareBackgroundRepositoryProvider);
     final generate = ref.read(dailyShareImageGeneratorProvider);
     final settings = ref.read(appSettingsProvider);
     final isChina = ref.read(isChinaUserProvider);
-    final oldCard = state.card;
-    if (changeFrom == null) {
-      _ownedImage?.dispose();
-      _ownedImage = null;
-    }
+    final watch = Stopwatch()..start();
+    final oldCard = hasCurrentCard ? state.card : null;
     state = DailyCheckInShareState(
-      status: changeFrom == null
+      status: oldCard == null
           ? DailyShareStatus.preparing
           : DailyShareStatus.ready,
-      card: changeFrom == null ? null : oldCard,
+      card: oldCard,
+      isRefreshing: oldCard != null && changeFrom == null,
       isChanging: changeFrom != null,
     );
     try {
-      if (!await service.isDailyGoalCheckedIn(date)) {
+      if (oldCard == null && !await service.isDailyGoalCheckedIn(date)) {
         if (_isCurrent(generation, userId, date)) {
           state = const DailyCheckInShareState();
         }
         return;
       }
       if (!_isCurrent(generation, userId, date)) return;
-      final cachedTemplate = _cachedTemplate;
-      final cachedBackground = _cachedBackground;
-      final cachedDate = _cachedDate;
       final canReuse =
-          reuseBackground &&
-          cachedTemplate != null &&
-          cachedBackground != null &&
-          cachedDate != null &&
-          _sameDay(cachedDate, date);
-      final template = canReuse
-          ? cachedTemplate
-          : await (changeFrom == null
-                ? api.getToday()
-                : api.getRandom(changeFrom));
+          changeFrom == null && backgrounds.hasCurrentBackground(date);
+      final resourceWatch = Stopwatch()..start();
+      final cached = changeFrom == null
+          ? await backgrounds.getToday(date)
+          : await backgrounds.getRandom(changeFrom);
       if (!_isCurrent(generation, userId, date)) return;
+      final template = cached.template;
       if (changeFrom == template.id) {
         state = DailyCheckInShareState(
           status: DailyShareStatus.ready,
@@ -275,31 +381,38 @@ class DailyCheckInShareNotifier extends Notifier<DailyCheckInShareState> {
         );
         return;
       }
-      final (background, profile) = await (
-        canReuse
-            ? Future.value(cachedBackground)
-            : api.downloadImage(template.imageUrl),
-        _profile(),
-      ).wait;
+      final background = cached.bytes;
+      AppLogger.log(
+        'DailyShare',
+        '模板背景准备完成 内存命中=$canReuse 耗时=${resourceWatch.elapsedMilliseconds}ms',
+      );
+      final stats =
+          ref.read(studyStatsProvider).value ??
+          await ref.read(studyStatsProvider.future);
       if (!_isCurrent(generation, userId, date)) return;
-      // 时长变化只重新绘制，避免每次返回首页都重复下载同一背景。
-      _cachedTemplate = template;
-      _cachedBackground = background;
-      _cachedDate = date;
-      final stats = await ref.read(studyStatsProvider.future);
-      if (!_isCurrent(generation, userId, date)) return;
-      final logo = await rootBundle.load('assets/icon/app-icon-1024-alpha.png');
-      final qr = await rootBundle.load(dailyShareQrAsset(isChina));
-      Uint8List? avatar;
-      if (profile?.avatarUrl != null) {
-        try {
-          avatar = await api.downloadImage(profile!.avatarUrl!);
-        } on DioException catch (error) {
-          AppLogger.log('DailyShare', '头像下载失败，使用首字占位: ${error.type.name}');
-        } on FormatException catch (error) {
-          AppLogger.log('DailyShare', '头像内容无效，使用首字占位: $error');
-        }
+      if (stats == null) throw StateError('分享图片缺少学习统计');
+      // 此前排队的更新已包含在即将读取的快照中，只有后续变化才需追加任务。
+      _refreshRequested = false;
+      final snapshot = ref.read(userProfileProvider).value;
+      final profile = snapshot?.userId == userId ? snapshot : null;
+      _prepareAvatar(profile?.avatarUrl, userId);
+      final avatar = _avatarBytes;
+      final isChinese = resolveUiLocale(settings.locale).languageCode == 'zh';
+      // 与生成器显示口径一致；秒数及未绘制的周统计变化不产生新图片。
+      final input = _currentRenderInput(template, date);
+      if (oldCard != null && _renderedInput == input) {
+        state = DailyCheckInShareState(
+          status: DailyShareStatus.ready,
+          card: oldCard,
+        );
+        AppLogger.log(
+          'DailyShare',
+          '复用分享成品，绘制内容未变化 durationMs=${watch.elapsedMilliseconds}',
+        );
+        return;
       }
+      final logo = await _asset('assets/icon/app-icon-1024-alpha.png');
+      final qr = await _asset(dailyShareQrAsset(isChina));
       if (!_isCurrent(generation, userId, date)) return;
       final image = await generate(
         template: template,
@@ -310,22 +423,32 @@ class DailyCheckInShareNotifier extends Notifier<DailyCheckInShareState> {
           outputSeconds: stats.todayOutputSeconds,
           streak: stats.streak,
           nickname: profile?.nickname,
-          isChinese: resolveUiLocale(settings.locale).languageCode == 'zh',
+          isChinese: isChinese,
           nativeLanguage: settings.nativeLanguage,
         ),
         assets: DailyCheckInShareAssets(
           background: background,
           avatar: avatar,
-          logo: logo.buffer.asUint8List(logo.offsetInBytes, logo.lengthInBytes),
-          qrCode: qr.buffer.asUint8List(qr.offsetInBytes, qr.lengthInBytes),
+          logo: logo,
+          qrCode: qr,
         ),
       );
-      if (!_isCurrent(generation, userId, date)) {
+      if (!_isCurrent(generation, userId, date) ||
+          (_refreshRequested &&
+              changeFrom == null &&
+              _currentRenderInput(template, date) != input)) {
         image.dispose();
         return;
       }
+      if (_currentRenderInput(template, date) == input) {
+        _refreshRequested = false;
+      }
       _ownedImage?.dispose();
       _ownedImage = image;
+      _renderedInput = input;
+      if (changeFrom != null) {
+        unawaited(backgrounds.rememberSelection(date, cached));
+      }
       state = DailyCheckInShareState(
         status: DailyShareStatus.ready,
         card: PreparedDailyCheckInShare(
@@ -335,16 +458,19 @@ class DailyCheckInShareNotifier extends Notifier<DailyCheckInShareState> {
           image: image,
         ),
       );
-      AppLogger.log('DailyShare', '今日分享图片已下载并渲染完成');
+      AppLogger.log(
+        'DailyShare',
+        '今日分享图片已准备完成 backgroundCache=$canReuse totalMs=${watch.elapsedMilliseconds}',
+      );
     } on Object catch (error, stackTrace) {
       // 后台准备是独立边界：失败只更新分享状态，不能中断学习或打卡。
       AppLogger.log('DailyShare', '准备分享图片失败: $error\n$stackTrace');
       if (!_isCurrent(generation, userId, date)) return;
       state = DailyCheckInShareState(
-        status: changeFrom != null && oldCard != null
+        status: oldCard != null
             ? DailyShareStatus.ready
             : DailyShareStatus.failed,
-        card: changeFrom != null ? oldCard : null,
+        card: oldCard,
         noAvailableCards:
             error is DioException &&
             switch (error.response?.data) {
@@ -356,16 +482,36 @@ class DailyCheckInShareNotifier extends Notifier<DailyCheckInShareState> {
     }
   }
 
-  Future<UserProfile?> _profile() async {
-    try {
-      return await ref.read(userProfileProvider.future);
-    } on DioException catch (error) {
-      AppLogger.log('DailyShare', '资料获取失败，省略用户资料: ${error.type.name}');
-      return null;
-    } on FormatException catch (error) {
-      AppLogger.log('DailyShare', '资料格式无效，省略用户资料: $error');
-      return null;
-    }
+  _DailyShareRenderInput? _currentRenderInput(
+    ShareCardTemplate template,
+    DateTime date,
+  ) {
+    final stats = ref.read(studyStatsProvider).value;
+    if (stats == null) return null;
+    final userId = ref.read(dailyShareUserIdProvider);
+    final snapshot = ref.read(userProfileProvider).value;
+    final profile = snapshot?.userId == userId ? snapshot : null;
+    final settings = ref.read(appSettingsProvider);
+    final isChina = ref.read(isChinaUserProvider);
+    final isChinese = resolveUiLocale(settings.locale).languageCode == 'zh';
+    final avatar = _avatarUrl == profile?.avatarUrl ? _avatarBytes : null;
+    return (
+      templateId: template.id,
+      date: date,
+      totalMinutes: dailyShareDisplayMinutes(stats.todaySeconds),
+      inputMinutes: dailyShareDisplayMinutes(
+        math.min(stats.todayInputSeconds, stats.todaySeconds),
+      ),
+      outputMinutes: dailyShareDisplayMinutes(
+        math.min(stats.todayOutputSeconds, stats.todaySeconds),
+      ),
+      streak: stats.streak,
+      nickname: profile?.nickname?.trim() ?? '',
+      avatar: avatar,
+      isChinese: isChinese,
+      nativeLanguage: settings.nativeLanguage,
+      isChina: isChina,
+    );
   }
 
   bool _isCurrent(int generation, String userId, DateTime date) =>
@@ -376,12 +522,10 @@ class DailyCheckInShareNotifier extends Notifier<DailyCheckInShareState> {
 
   void clear() {
     _generation++;
+    _resetInputs();
     _preparing = null;
     _ownedImage?.dispose();
     _ownedImage = null;
-    _cachedTemplate = null;
-    _cachedBackground = null;
-    _cachedDate = null;
     state = const DailyCheckInShareState();
   }
 }

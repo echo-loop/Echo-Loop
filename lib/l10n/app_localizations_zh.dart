@@ -5577,7 +5577,13 @@ class AppLocalizationsZh extends AppLocalizations {
   String get profileLoadFailed => '资料加载失败，点击重试';
 
   @override
-  String get shareCardTitle => '今日打卡';
+  String get autoShowDailyShareToggle => '自动显示今日一刻';
+
+  @override
+  String get autoShowDailyShareSubtitle => '完成每日目标后，返回学习页时自动展示卡片';
+
+  @override
+  String get shareCardTitle => '今日一刻';
 
   @override
   String get shareCardPreparing => '今日卡片正在准备中，请稍后再试';

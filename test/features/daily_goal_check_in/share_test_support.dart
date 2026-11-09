@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:ui' as ui;
 
 import 'package:echo_loop/features/daily_goal_check_in/data/daily_check_in_share_image.dart';
+import 'package:echo_loop/features/daily_goal_check_in/data/daily_share_background_store.dart';
 import 'package:echo_loop/features/daily_goal_check_in/data/share_card_api.dart';
 import 'package:echo_loop/features/daily_goal_check_in/domain/share_card_template.dart';
 import 'package:echo_loop/features/profile/domain/user_profile.dart';
@@ -61,6 +62,7 @@ class ShareTestApi implements ShareCardRemoteDataSource {
   int shareCalls = 0;
   Completer<ShareCardTemplate>? pendingTemplate;
   Object? randomFailure;
+  Completer<Uint8List>? pendingAvatar;
   final template = ShareCardTemplate.fromJson(cardJson());
   @override
   Future<ShareCardTemplate> getToday() async {
@@ -81,11 +83,42 @@ class ShareTestApi implements ShareCardRemoteDataSource {
   @override
   Future<Uint8List> downloadImage(String url) async {
     downloadCalls++;
+    if (url.contains('avatar')) return pendingAvatar?.future ?? shareTestPng;
     return shareTestPng;
   }
 
   @override
   Future<void> recordShare(String id) async {
     shareCalls++;
+  }
+}
+
+class ShareTestBackgroundStore extends DailyShareBackgroundStore {
+  CachedDailyShareBackground? cached;
+  DateTime? date;
+
+  @override
+  Future<CachedDailyShareBackground?> read(DateTime date) async =>
+      date == this.date ? cached : null;
+
+  @override
+  Future<void> write(
+    DateTime date,
+    ShareCardTemplate template,
+    Uint8List bytes,
+  ) async {
+    this.date = date;
+    cached = CachedDailyShareBackground(template, bytes);
+  }
+
+  @override
+  Future<void> clear() async {
+    date = null;
+    cached = null;
+  }
+
+  @override
+  Future<void> removeExpired(DateTime date) async {
+    if (this.date != date) await clear();
   }
 }

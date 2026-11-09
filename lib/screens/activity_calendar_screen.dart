@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:table_calendar/table_calendar.dart';
 
 import '../database/providers.dart';
+import '../features/daily_goal_check_in/providers/daily_check_in_share_provider.dart';
+import '../features/daily_goal_check_in/widgets/daily_check_in_share_dialog.dart';
 import '../l10n/app_localizations.dart';
 import '../providers/learning_settings_provider.dart';
 import '../providers/monthly_study_records_provider.dart';
@@ -13,6 +15,7 @@ import '../widgets/study/daily_goal_progress_card.dart';
 import '../widgets/study/day_stage_breakdown_sheet.dart';
 import '../widgets/study/monthly_summary_card.dart';
 import '../widgets/study/study_duration_chart.dart';
+import '../widgets/study/study_streak_badge.dart';
 
 /// 活动日历页面
 ///
@@ -90,6 +93,9 @@ class _ActivityCalendarScreenState
                     goalMinutes: goalMinutes,
                     isCheckedIn:
                         currentMonthRecords[now.day]?.isCheckedIn ?? false,
+                    onShareTap: ref.watch(dailyShareUserIdProvider) == null
+                        ? null
+                        : () => showDailyCheckInShareDialog(context, ref),
                   ),
                   const SizedBox(height: AppSpacing.s),
                 ],
@@ -319,44 +325,11 @@ class _ActivityCalendarScreenState
     BuildContext context,
     AsyncValue<StudyStats> statsAsync,
   ) {
-    final l10n = AppLocalizations.of(context)!;
-    final theme = Theme.of(context);
     final streak = statsAsync.value?.streak ?? 0;
-    final isActive = streak > 0;
 
     return Padding(
       padding: const EdgeInsets.only(right: AppSpacing.m),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-        decoration: BoxDecoration(
-          color: isActive
-              ? Colors.orange.withValues(alpha: 0.1)
-              : theme.colorScheme.surfaceContainerHighest,
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.local_fire_department_rounded,
-              size: 16,
-              color: isActive
-                  ? Colors.orange
-                  : theme.colorScheme.onSurfaceVariant,
-            ),
-            const SizedBox(width: 4),
-            Text(
-              l10n.streakDays(streak),
-              style: theme.textTheme.labelMedium?.copyWith(
-                fontWeight: FontWeight.w600,
-                color: isActive
-                    ? Colors.orange.shade800
-                    : theme.colorScheme.onSurfaceVariant,
-              ),
-            ),
-          ],
-        ),
-      ),
+      child: StudyStreakBadge(streak: streak),
     );
   }
 }

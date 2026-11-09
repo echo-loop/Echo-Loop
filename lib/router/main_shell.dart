@@ -597,7 +597,27 @@ class _MainShellState extends ConsumerState<MainShell>
             '/study' &&
         !ref.read(guideControllerProvider).isActive;
     try {
-      if (!canPresent() || ref.read(dailyShareUserIdProvider) == null) return;
+      String? skipReason;
+      if (!mounted) {
+        skipReason = '首页已销毁';
+      } else if (!_rootRouteVisible) {
+        skipReason = '其它页面或弹窗遮挡';
+      } else if (widget.navigationShell.currentIndex != 1 ||
+          GoRouter.of(context).routeInformationProvider.value.uri.path !=
+              '/study') {
+        skipReason = '当前不是学习首页';
+      } else if (ref.read(guideControllerProvider).isActive) {
+        skipReason = '新手引导正在展示';
+      } else if (ref.read(dailyShareUserIdProvider) == null) {
+        skipReason = '未登录';
+      } else if (WidgetsBinding.instance.lifecycleState != null &&
+          WidgetsBinding.instance.lifecycleState != AppLifecycleState.resumed) {
+        skipReason = '应用处于后台';
+      }
+      if (skipReason != null) {
+        AppLogger.log('DailyShare', '跳过自动分享弹窗：$skipReason');
+        return;
+      }
       await showDailyCheckInShareDialog(
         context,
         ref,

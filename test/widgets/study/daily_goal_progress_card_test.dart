@@ -4,6 +4,7 @@
 library;
 
 import 'package:echo_loop/l10n/app_localizations.dart';
+import 'package:echo_loop/features/daily_goal_check_in/widgets/daily_check_in_share_icon.dart';
 import 'package:echo_loop/widgets/study/daily_goal_progress_card.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -57,10 +58,49 @@ void main() {
     );
 
     expect(find.text('Checked in today'), findsOneWidget);
+    expect(find.byType(DailyCheckInShareIcon), findsNothing);
     // 已打卡后仍展示实际已学时长与目标
     expect(find.text('3 min studied'), findsOneWidget);
     expect(find.text('Goal 10 min'), findsOneWidget);
     expect(_progressValue(tester), 1);
+  });
+
+  testWidgets('点击已打卡目标卡片其他区域也会触发分享回调', (tester) async {
+    var shareTapped = false;
+    await tester.pumpWidget(
+      _wrap(
+        DailyGoalProgressCard(
+          studiedSeconds: 180,
+          goalMinutes: 10,
+          isCheckedIn: true,
+          onShareTap: () => shareTapped = true,
+        ),
+      ),
+    );
+
+    expect(find.byType(DailyCheckInShareIcon), findsOneWidget);
+
+    await tester.tap(find.byType(LinearProgressIndicator));
+
+    expect(shareTapped, isTrue);
+  });
+
+  testWidgets('未打卡时点击目标卡片不触发分享回调', (tester) async {
+    var shareTapped = false;
+    await tester.pumpWidget(
+      _wrap(
+        DailyGoalProgressCard(
+          studiedSeconds: 180,
+          goalMinutes: 10,
+          isCheckedIn: false,
+          onShareTap: () => shareTapped = true,
+        ),
+      ),
+    );
+
+    await tester.tap(find.byType(LinearProgressIndicator));
+
+    expect(shareTapped, isFalse);
   });
 
   testWidgets('学习时长超过目标时进度封顶为 1', (tester) async {

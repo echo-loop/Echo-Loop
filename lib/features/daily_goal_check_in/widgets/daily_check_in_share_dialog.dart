@@ -3,14 +3,17 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:gal/gal.dart';
 
 import '../../../l10n/app_localizations.dart';
 import '../../../services/app_logger.dart';
+import '../../../providers/learning_settings_provider.dart';
 import '../../../widgets/app_toast.dart';
 import '../data/daily_check_in_share_actions.dart';
 import '../providers/daily_check_in_share_provider.dart';
 import '../providers/daily_check_in_share_presentation_provider.dart';
+import 'daily_check_in_share_icon.dart';
 
 /// 手动入口不等待图片，也不在准备完成后补弹；自动入口仅消费本次返回检查。
 Future<void> showDailyCheckInShareDialog(
@@ -19,18 +22,32 @@ Future<void> showDailyCheckInShareDialog(
   bool automatic = false,
   bool Function()? canPresent,
 }) async {
+  void skip(String reason) {
+    if (automatic) AppLogger.log('DailyShare', '跳过自动分享弹窗：$reason');
+  }
+
+  if (automatic && !ref.read(learningSettingsProvider).autoShowDailyShare) {
+    skip('已关闭自动显示');
+    return;
+  }
+
   final l10n = AppLocalizations.of(context)!;
   final userId = ref.read(dailyShareUserIdProvider);
   if (userId == null) {
+    skip('未登录');
     if (!automatic) {
       _toast(context, l10n.shareCardNotSignedIn);
     }
     return;
   }
   final presentation = ref.read(dailyShareDialogPresentationProvider);
-  if (presentation.isOpen) return;
+  if (presentation.isOpen) {
+    skip('已有分享弹窗');
+    return;
+  }
   final notifier = ref.read(dailyCheckInShareProvider.notifier);
   if (!notifier.hasCurrentCard) {
+    skip('图片未就绪');
     final state = ref.read(dailyCheckInShareProvider);
     if (!automatic) {
       _toast(
@@ -51,7 +68,10 @@ Future<void> showDailyCheckInShareDialog(
         .read(dailyShareNowProvider)()
         .toIso8601String()
         .substring(0, 10);
-    if (automatic && !await presentation.canAutoShow(userId, date)) return;
+    if (automatic && !presentation.canAutoShow(userId, date)) {
+      skip('当天已展示或账号已变化');
+      return;
+    }
     if (!context.mounted ||
         ref.read(dailyShareUserIdProvider) != userId ||
         ref.read(dailyShareNowProvider)().toIso8601String().substring(0, 10) !=
@@ -61,6 +81,7 @@ Future<void> showDailyCheckInShareDialog(
         (WidgetsBinding.instance.lifecycleState != null &&
             WidgetsBinding.instance.lifecycleState !=
                 AppLifecycleState.resumed)) {
+      skip('页面、账号、日期或前台状态已变化');
       return;
     }
     final card = ref.read(dailyCheckInShareProvider).card!.clone();
@@ -84,6 +105,19 @@ void _toast(BuildContext context, String message) => showAppToast(
   message: message,
 );
 
+const _shuffleIconAsset = 'assets/icon/shuffle.svg';
+const _downloadIconAsset = 'assets/icon/download.svg';
+
+/// 图标 SVG 使用 currentColor，通过 colorFilter 按按钮前景色着色。
+Widget _shareIcon(String asset, Color color, {double size = 24}) {
+  return SvgPicture.asset(
+    asset,
+    width: size,
+    height: size,
+    colorFilter: ColorFilter.mode(color, BlendMode.srcIn),
+  );
+}
+
 class _DailyCheckInShareDialog extends ConsumerStatefulWidget {
   const _DailyCheckInShareDialog({
     required this.initialCard,
@@ -101,6 +135,8 @@ class _DailyCheckInShareDialogState
     extends ConsumerState<_DailyCheckInShareDialog> {
   late PreparedDailyCheckInShare _card;
   bool _busy = false;
+  // 仅换卡时显示加载态；保存/分享同样禁用按钮，但不改变换卡图标。
+  bool _changing = false;
 
   @override
   void initState() {
@@ -133,7 +169,10 @@ class _DailyCheckInShareDialogState
       _toast(context, AppLocalizations.of(context)!.shareCardPreparing);
       return;
     }
-    setState(() => _busy = true);
+    setState(() {
+      _busy = true;
+      _changing = true;
+    });
     try {
       final changed = await ref
           .read(dailyCheckInShareProvider.notifier)
@@ -155,7 +194,12 @@ class _DailyCheckInShareDialogState
         _toast(context, AppLocalizations.of(context)!.shareCardActionFailed);
       }
     } finally {
-      if (mounted) setState(() => _busy = false);
+      if (mounted) {
+        setState(() {
+          _busy = false;
+          _changing = false;
+        });
+      }
     }
   }
 
@@ -214,18 +258,21 @@ class _DailyCheckInShareDialogState
     ref.listen(dailyShareUserIdProvider, (_, _) => _closeIfExpired());
     ref.listen(dailyCheckInShareProvider, (_, _) => _closeIfExpired());
     final l10n = AppLocalizations.of(context)!;
+    final theme = Theme.of(context);
     return Dialog(
-      insetPadding: const EdgeInsets.all(16),
+      insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+      clipBehavior: Clip.antiAlias,
       child: ConstrainedBox(
         constraints: BoxConstraints(
-          maxWidth: 480,
+          maxWidth: 420,
           maxHeight:
               MediaQuery.sizeOf(context).height -
               MediaQuery.paddingOf(context).vertical -
-              32,
+              48,
         ),
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -234,8 +281,27 @@ class _DailyCheckInShareDialogState
                   Expanded(
                     child: Text(
                       l10n.shareCardTitle,
-                      style: Theme.of(context).textTheme.titleLarge,
+                      style: theme.textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
+                  ),
+                  IconButton(
+                    tooltip: l10n.shareCardChange,
+                    onPressed: _busy ? null : _change,
+                    icon: _changing
+                        ? SizedBox.square(
+                            dimension: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
+                          )
+                        : _shareIcon(
+                            _shuffleIconAsset,
+                            theme.colorScheme.onSurfaceVariant,
+                            size: 20,
+                          ),
                   ),
                   IconButton(
                     tooltip: MaterialLocalizations.of(context)
@@ -245,31 +311,48 @@ class _DailyCheckInShareDialogState
                   ),
                 ],
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 12),
+              // 卡片作为海报展示，圆角与投影让预览脱离弹窗底色。
+              // 不能包 Center：Center 会撑满 Flexible 的剩余高度，产生多余空白。
               Flexible(
                 child: AspectRatio(
                   aspectRatio: 3 / 4,
-                  child: RawImage(
-                    image: _card.image.preview,
-                    fit: BoxFit.contain,
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.28),
+                          blurRadius: 24,
+                          offset: const Offset(0, 8),
+                        ),
+                      ],
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(16),
+                      child: RawImage(
+                        image: _card.image.preview,
+                        fit: BoxFit.contain,
+                      ),
+                    ),
                   ),
                 ),
               ),
-              const SizedBox(height: 16),
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton.icon(
-                  onPressed: _busy ? null : () => _export(share: true),
-                  icon: const Icon(Icons.ios_share),
-                  label: Text(l10n.shareCardShare),
-                ),
-              ),
+              const SizedBox(height: 20),
+              // 保存为次要操作，分享为主操作，两者等宽并排。
               Row(
                 children: [
                   Expanded(
-                    child: TextButton.icon(
+                    child: OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        minimumSize: const Size.fromHeight(52),
+                      ),
                       onPressed: _busy ? null : () => _export(share: false),
-                      icon: const Icon(Icons.download_outlined),
+                      icon: _shareIcon(
+                        _downloadIconAsset,
+                        theme.colorScheme.primary,
+                        size: 18,
+                      ),
                       label: Text(
                         Platform.isIOS || Platform.isAndroid
                             ? l10n.shareCardSave
@@ -277,11 +360,18 @@ class _DailyCheckInShareDialogState
                       ),
                     ),
                   ),
+                  const SizedBox(width: 12),
                   Expanded(
-                    child: TextButton.icon(
-                      onPressed: _busy ? null : _change,
-                      icon: const Icon(Icons.shuffle),
-                      label: Text(l10n.shareCardChange),
+                    child: FilledButton.icon(
+                      style: FilledButton.styleFrom(
+                        minimumSize: const Size.fromHeight(52),
+                      ),
+                      onPressed: _busy ? null : () => _export(share: true),
+                      icon: DailyCheckInShareIcon(
+                        color: theme.colorScheme.onPrimary,
+                        size: 18,
+                      ),
+                      label: Text(l10n.shareCardShare),
                     ),
                   ),
                 ],

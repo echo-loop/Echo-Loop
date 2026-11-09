@@ -94,6 +94,7 @@ const _ownCacheTempPrefixes = <String>[
   'echoloop_backup_',
   'pdf_export_',
   'log_export_',
+  'daily_check_in_share_backgrounds',
 ];
 
 /// 分享面板使用的临时导出目录前缀。

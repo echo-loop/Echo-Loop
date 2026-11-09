@@ -30,6 +30,28 @@ void main() {
     );
   }
 
+  test('今日一刻默认开启，关闭后跨容器恢复且复制保留设置', () async {
+    SharedPreferences.setMockInitialValues({});
+    final prefs = await SharedPreferences.getInstance();
+    final container = makeContainer(prefs);
+    addTearDown(container.dispose);
+    expect(container.read(learningSettingsProvider).autoShowDailyShare, isTrue);
+    await container
+        .read(learningSettingsProvider.notifier)
+        .setAutoShowDailyShare(false);
+    expect(prefs.getBool(LearningSettingsKeys.autoShowDailyShare), isFalse);
+    final restarted = makeContainer(prefs);
+    addTearDown(restarted.dispose);
+    final settings = restarted.read(learningSettingsProvider);
+    expect(settings.autoShowDailyShare, isFalse);
+    expect(settings.copyWith(dailyGoalMinutes: 20).autoShowDailyShare, isFalse);
+    expect(settings, isNot(settings.copyWith(autoShowDailyShare: true)));
+    await restarted
+        .read(learningSettingsProvider.notifier)
+        .setAutoShowDailyShare(true);
+    expect(prefs.getBool(LearningSettingsKeys.autoShowDailyShare), isTrue);
+  });
+
   group('LearningSettings.fromPrefsSync', () {
     test('SP 缺失时返回默认值', () async {
       SharedPreferences.setMockInitialValues({});

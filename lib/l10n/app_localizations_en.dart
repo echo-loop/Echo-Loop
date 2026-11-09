@@ -5850,7 +5850,14 @@ class AppLocalizationsEn extends AppLocalizations {
   String get profileLoadFailed => 'Couldn\'t load your profile. Tap to retry.';
 
   @override
-  String get shareCardTitle => 'Today’s check-in';
+  String get autoShowDailyShareToggle => 'Auto-show Today’s Moment';
+
+  @override
+  String get autoShowDailyShareSubtitle =>
+      'Automatically show your card when returning to Study after reaching your daily goal';
+
+  @override
+  String get shareCardTitle => 'Today’s Moment';
 
   @override
   String get shareCardPreparing =>

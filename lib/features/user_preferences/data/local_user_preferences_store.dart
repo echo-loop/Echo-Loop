@@ -21,19 +21,8 @@ class LocalUserPreferencesStore {
 
   static const syncMetadataKey = 'user_preferences_sync_state_v1';
   static const dailyShareDateField = 'dailyCheckInShareShownDate';
-  static const _dailyShareAccountKey = 'daily_check_in_share_account';
 
-  static String dailyShareDateKey(String userId) =>
-      'daily_check_in_share_shown_date_$userId';
-
-  /// 分享记录按账号隔离；绑定必须在旧账号快照保存之后、新账号快照应用之前。
-  Future<void> bindShareAccount(String? userId) async {
-    if (userId == null) {
-      await _preferences.remove(_dailyShareAccountKey);
-    } else {
-      await _preferences.setString(_dailyShareAccountKey, userId);
-    }
-  }
+  static const dailyShareDateKey = 'daily_check_in_share_shown_date';
 
   /// 一次性提示标记。写回时只做「未展示 → 已展示」，云端 false 或缺失都不清除
   /// 本地已展示状态，否则旧客户端或新设备首次同步会让提示再次弹出。
@@ -70,10 +59,7 @@ class LocalUserPreferencesStore {
   };
 
   UserPreferencesDocument capture() {
-    final shareAccount = _preferences.getString(_dailyShareAccountKey);
-    final shareDate = shareAccount == null
-        ? null
-        : _preferences.getString(dailyShareDateKey(shareAccount));
+    final shareDate = _preferences.getString(dailyShareDateKey);
     final appearance = <String, Object?>{
       'themeMode': _preferences.getString('theme_mode') ?? 'system',
       'locale': _preferences.getString('locale') ?? 'system',
@@ -157,15 +143,11 @@ class LocalUserPreferencesStore {
     );
 
     final learning = _group(groups, 'learning');
-    final shareAccount = _preferences.getString(_dailyShareAccountKey);
-    if (shareAccount != null) {
-      final shareDate = learning[dailyShareDateField];
-      final key = dailyShareDateKey(shareAccount);
-      if (shareDate is String && isValidPreferenceDate(shareDate)) {
-        await _preferences.setString(key, shareDate);
-      } else {
-        await _preferences.remove(key);
-      }
+    final shareDate = learning[dailyShareDateField];
+    if (shareDate is String && isValidPreferenceDate(shareDate)) {
+      await _preferences.setString(dailyShareDateKey, shareDate);
+    } else {
+      await _preferences.remove(dailyShareDateKey);
     }
     // 云端缺失或非法时回退到本地解析结果（含引导页答案），而不是写死默认值，
     // 避免老版本文档同步时覆盖用户已在引导页选过的目标。

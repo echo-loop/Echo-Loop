@@ -544,6 +544,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       container.read(dailyCheckInShareProvider.notifier).clear();
     }
 
+    if (container.exists(dailyShareBackgroundRepositoryProvider)) {
+      await container.read(dailyShareBackgroundRepositoryProvider).clear();
+    }
+
     // 3. 清理临时目录（录音 .caf 残留、Library/Caches 下 app 自建导出/导入临时目录）
     final result = await cleanupAllTempFiles();
 

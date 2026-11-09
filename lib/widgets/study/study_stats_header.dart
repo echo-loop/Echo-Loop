@@ -14,6 +14,7 @@ import '../../theme/app_theme.dart';
 import '../../theme/learning_progress_colors.dart';
 import '../../features/daily_goal_check_in/providers/daily_check_in_share_provider.dart';
 import '../../features/daily_goal_check_in/widgets/daily_check_in_share_dialog.dart';
+import '../../features/daily_goal_check_in/widgets/daily_check_in_share_icon.dart';
 import 'day_stage_breakdown_sheet.dart';
 import 'learned_word_forms_sheet.dart';
 
@@ -277,7 +278,7 @@ class _TodayCard extends StatelessWidget {
 /// 今日卡片第一行右侧的每日目标状态
 ///
 /// 未打卡：「目标 N 分钟」+ 完成百分比徽章（进行中色浅底）。
-/// 已打卡：只显示浅绿底「✓ 今日已打卡」胶囊，不再显示目标时长。
+/// 已打卡：显示浅绿底状态胶囊；登录用户可点击分享今日学习卡片。
 /// 与时长同一行，避免占用额外高度。以打卡标记为准，之后调高目标仍保持已完成。
 class _DailyGoalSummary extends StatelessWidget {
   final int studiedSeconds;
@@ -309,8 +310,10 @@ class _DailyGoalSummary extends StatelessWidget {
       final pill = _buildPill(
         theme: theme,
         color: palette.completed,
-        leading: Icon(Icons.check_circle, size: 14, color: palette.completed),
         label: l10n.dailyGoalTodayCheckedIn,
+        trailing: onShareTap == null
+            ? null
+            : DailyCheckInShareIcon(color: palette.completed, size: 18),
       );
       if (onShareTap == null) return pill;
       return Tooltip(
@@ -348,7 +351,7 @@ class _DailyGoalSummary extends StatelessWidget {
     required ThemeData theme,
     required Color color,
     required String label,
-    Widget? leading,
+    Widget? trailing,
   }) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
@@ -359,7 +362,6 @@ class _DailyGoalSummary extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (leading != null) ...[leading, const SizedBox(width: 4)],
           Text(
             label,
             style: theme.textTheme.labelSmall?.copyWith(
@@ -368,6 +370,7 @@ class _DailyGoalSummary extends StatelessWidget {
               color: color,
             ),
           ),
+          if (trailing != null) ...[const SizedBox(width: 4), trailing],
         ],
       ),
     );

@@ -32,13 +32,9 @@ Widget _createTestApp({
   final now = DateTime.now();
   final overrides = <Override>[
     appDatabaseProvider.overrideWithValue(db),
-    studyStatsProvider.overrideWith(
-      () => _TestStudyStatsNotifier(stats),
-    ),
+    studyStatsProvider.overrideWith(() => _TestStudyStatsNotifier(stats)),
     // 无 SharedPreferences 时学习设置回退到该初值（每日目标 10 分钟）
-    initialLearningSettingsProvider.overrideWithValue(
-      const LearningSettings(),
-    ),
+    initialLearningSettingsProvider.overrideWithValue(const LearningSettings()),
   ];
 
   // 如果提供了 records，覆盖 provider
@@ -167,6 +163,11 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('5d streak'), findsOneWidget);
+
+    final streakChip = find
+        .ancestor(of: find.text('5d streak'), matching: find.byType(Container))
+        .first;
+    expect(tester.getSize(streakChip).height, 33);
 
     // 验证火焰图标存在
     expect(find.byIcon(Icons.local_fire_department_rounded), findsOneWidget);

@@ -224,6 +224,11 @@ flutter:
     - assets/icon/unlock.svg
     # 视频条目左侧媒体图标（资源库卡片区分音/视频）
     - assets/icon/video-2.svg
+    # 今日一刻分享弹窗图标（currentColor 随 colorFilter 着色）
+    - assets/icon/shuffle.svg
+    - assets/icon/download.svg
+    - assets/icon/share.svg
+    - assets/icon/share-android.svg
     # PDF 导出品牌角标（96px 小图，1024 原图 190KB 直接嵌会撑大每份 PDF）
     - assets/icon/app-icon-96.png
     # chatbot 气泡操作栏图标（复刻 ChatGPT 线条风格，currentColor 随主题着色）

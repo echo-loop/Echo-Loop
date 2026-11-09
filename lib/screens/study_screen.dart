@@ -29,6 +29,7 @@ import '../widgets/speech_permission_dialog.dart';
 import '../widgets/guide_flow.dart';
 import '../widgets/learning_progress_icon.dart';
 import '../widgets/media_type_icon.dart';
+import '../widgets/study/study_streak_badge.dart';
 import '../widgets/study/study_stats_header.dart';
 
 /// 学习 Tab 待复习分组标题图标。
@@ -121,10 +122,10 @@ class _StudyScreenState extends ConsumerState<StudyScreen> {
 
     // AppBar streak chip（始终显示，可点击进入活动日历）
     final streak = statsAsync.value?.streak ?? 0;
-    final isStreakActive = streak > 0;
     final streakChip = Padding(
       padding: const EdgeInsets.only(right: AppSpacing.m),
-      child: GestureDetector(
+      child: StudyStreakBadge(
+        streak: streak,
         onTap: () {
           ref.read(analyticsServiceProvider).track(
             Events.activityCalendarViewed,
@@ -132,37 +133,6 @@ class _StudyScreenState extends ConsumerState<StudyScreen> {
           );
           context.push(AppRoutes.activityCalendar);
         },
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-          decoration: BoxDecoration(
-            color: isStreakActive
-                ? Colors.orange.withValues(alpha: 0.1)
-                : Theme.of(context).colorScheme.surfaceContainerHighest,
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                Icons.local_fire_department_rounded,
-                size: 16,
-                color: isStreakActive
-                    ? Colors.orange
-                    : Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
-              const SizedBox(width: 4),
-              Text(
-                l10n.streakDays(streak),
-                style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
-                  color: isStreakActive
-                      ? Colors.orange.shade800
-                      : Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
-              ),
-            ],
-          ),
-        ),
       ),
     );
 

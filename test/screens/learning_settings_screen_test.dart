@@ -83,6 +83,25 @@ void main() {
     );
   }
 
+  testWidgets('每日目标下方显示今日一刻开关，默认开启且可关闭', (tester) async {
+    await tester.pumpWidget(await buildApp());
+    await tester.pumpAndSettle();
+    final toggle = find.widgetWithText(
+      SwitchListTile,
+      'Auto-show Today’s Moment',
+    );
+    expect(tester.widget<SwitchListTile>(toggle).value, isTrue);
+    expect(
+      tester.getTopLeft(find.byIcon(Icons.flag_outlined)).dy,
+      lessThan(tester.getTopLeft(toggle).dy),
+    );
+    await tester.tap(toggle);
+    await tester.pumpAndSettle();
+    expect(tester.widget<SwitchListTile>(toggle).value, isFalse);
+    final prefs = await SharedPreferences.getInstance();
+    expect(prefs.getBool(LearningSettingsKeys.autoShowDailyShare), isFalse);
+  });
+
   testWidgets('默认显示 AI 讲解总开关 ON，解析/翻译 ON，意群 OFF', (tester) async {
     await tester.pumpWidget(await buildApp());
     await tester.pumpAndSettle();
@@ -235,6 +254,8 @@ void main() {
           w.title is Text &&
           (w.title as Text).data == 'Show rating after each retelling',
     );
+    await tester.ensureVisible(ratingFinder);
+    await tester.pumpAndSettle();
     await tester.tap(ratingFinder);
     await tester.pumpAndSettle();
 
@@ -255,6 +276,8 @@ void main() {
           w.title is Text &&
           (w.title as Text).data == 'Show rating after each repeat',
     );
+    await tester.ensureVisible(ratingFinder);
+    await tester.pumpAndSettle();
     await tester.tap(ratingFinder);
     await tester.pumpAndSettle();
 

@@ -44,6 +44,30 @@ class ShareCardTemplate {
   final Color bottomColor;
   final ShareCardContent content;
 
+  Map<String, Object?> toJson() => {
+    'id': id,
+    'imageUrl': imageUrl,
+    'textColors': {
+      'top':
+          '#${(topColor.toARGB32() & 0xffffff).toRadixString(16).padLeft(6, '0')}',
+      'bottom':
+          '#${(bottomColor.toARGB32() & 0xffffff).toRadixString(16).padLeft(6, '0')}',
+    },
+    'content': switch (content) {
+      ShareCardWord(:final english, :final translations, :final phonetic) => {
+        'type': 'word',
+        'word': english,
+        'meaning': translations,
+        'phonetic': phonetic,
+      },
+      ShareCardSentence(:final english, :final translations) => {
+        'type': 'sentence',
+        'en': english,
+        'translation': translations,
+      },
+    },
+  };
+
   static Color _color(Object? value) {
     if (value is! String || !RegExp(r'^#[0-9a-fA-F]{6}$').hasMatch(value)) {
       throw const FormatException('分享模板配色无效');

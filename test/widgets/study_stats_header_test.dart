@@ -11,6 +11,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:echo_loop/l10n/app_localizations.dart';
 import 'package:echo_loop/database/app_database.dart';
 import 'package:echo_loop/database/providers.dart';
+import 'package:echo_loop/features/daily_goal_check_in/widgets/daily_check_in_share_icon.dart';
 import 'package:echo_loop/widgets/study/study_stats_header.dart';
 import 'package:echo_loop/providers/learning_settings_provider.dart';
 import 'package:echo_loop/providers/study_stats_provider.dart';
@@ -50,11 +51,12 @@ void main() {
     Locale locale = const Locale('en'),
     AppDatabase? db,
     LearningSettings learningSettings = const LearningSettings(),
+    String? shareUserId,
   }) {
     final effectiveDb = db ?? testDb;
     return ProviderScope(
       overrides: dedupeOverrides([
-        dailyShareUserIdProvider.overrideWithValue(null),
+        dailyShareUserIdProvider.overrideWithValue(shareUserId),
         appDatabaseProvider.overrideWithValue(effectiveDb),
         sharedPreferencesProvider.overrideWithValue(prefs),
         studyStatsProvider.overrideWith(() => _TestStudyStatsNotifier(stats)),
@@ -179,7 +181,7 @@ void main() {
       expect(bar.value, 1.0);
     });
 
-    testWidgets('已打卡时右侧只显示「今日已打卡」胶囊，不再显示目标与百分比', (tester) async {
+    testWidgets('未登录用户已打卡时显示状态胶囊，不显示分享入口', (tester) async {
       await tester.pumpWidget(
         createTestWidget(
           stats: const StudyStats(todaySeconds: 900, isTodayCheckedIn: true),
@@ -191,11 +193,45 @@ void main() {
       expect(find.text('Checked in today'), findsOneWidget);
       expect(find.text('Goal 10 min'), findsNothing);
       expect(find.text('100%'), findsNothing);
-      expect(find.byIcon(Icons.check_circle), findsOneWidget);
+      expect(find.byIcon(Icons.check_circle), findsNothing);
+      expect(find.byType(DailyCheckInShareIcon), findsNothing);
       final bar = tester.widget<LinearProgressIndicator>(
         find.byType(LinearProgressIndicator),
       );
       expect(bar.value, 1.0);
+    });
+
+    testWidgets('登录用户的打卡状态胶囊同时包含分享图标并作为一个按钮', (tester) async {
+      await tester.pumpWidget(
+        createTestWidget(
+          stats: const StudyStats(todaySeconds: 900, isTodayCheckedIn: true),
+          learningSettings: const LearningSettings(dailyGoalMinutes: 10),
+          shareUserId: 'test-user',
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final shareButton = find
+          .ancestor(
+            of: find.byType(DailyCheckInShareIcon),
+            matching: find.byType(InkWell),
+          )
+          .first;
+      expect(
+        find.descendant(
+          of: shareButton,
+          matching: find.byIcon(Icons.check_circle),
+        ),
+        findsNothing,
+      );
+      expect(
+        find.descendant(
+          of: shareButton,
+          matching: find.text('Checked in today'),
+        ),
+        findsOneWidget,
+      );
+      expect(tester.widget<InkWell>(shareButton).onTap, isNotNull);
     });
   });
 

@@ -6,12 +6,14 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:echo_loop/database/daos/stage_completion_dao.dart';
 import 'package:echo_loop/database/enums.dart';
+import 'package:echo_loop/database/providers.dart';
 import 'package:echo_loop/l10n/app_localizations.dart';
 import 'package:echo_loop/models/audio_item.dart';
 import 'package:echo_loop/models/learning_progress.dart';
 import 'package:echo_loop/providers/audio_library_provider.dart';
 import 'package:echo_loop/providers/learning_progress_provider.dart';
 import 'package:echo_loop/providers/learning_settings_provider.dart';
+import 'package:echo_loop/providers/study_stats_provider.dart';
 import 'package:echo_loop/providers/study_task_provider.dart';
 import 'package:echo_loop/screens/study_screen.dart';
 import 'package:echo_loop/widgets/learning_progress_icon.dart';
@@ -38,6 +40,7 @@ void main() {
     List<RecentCompletion>? recentCompletions,
     AudioItem? recommendedMaterial,
     AsyncValue<AudioItem?>? recommendationState,
+    StudyStats stats = const StudyStats(),
   }) {
     final router = GoRouter(
       initialLocation: '/study',
@@ -103,6 +106,8 @@ void main() {
         learningProgressProvider.overrideWith(
           () => TestLearningProgressNotifier(progressState),
         ),
+        studyStatsProvider.overrideWith(() => _TestStudyStatsNotifier(stats)),
+        studyTimeServiceProvider.overrideWithValue(TestStudyTimeService()),
         if (fixedNow != null) nowProvider.overrideWithValue(() => fixedNow),
         if (recentCompletions != null)
           recentCompletionsProvider.overrideWith(
@@ -124,6 +129,21 @@ void main() {
       ),
     );
   }
+
+  testWidgets('学习首页连续学习天数 badge 使用统一高度和字号', (tester) async {
+    await tester.pumpWidget(
+      createTestWidget(
+        progressState: const LearningProgressState(isLoading: false),
+        stats: const StudyStats(streak: 5),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final streakChip = find
+        .ancestor(of: find.text('5d streak'), matching: find.byType(Container))
+        .first;
+    expect(tester.getSize(streakChip).height, 33);
+  });
 
   testWidgets('无任务时显示空状态', (tester) async {
     await tester.pumpWidget(
@@ -1039,6 +1059,15 @@ void main() {
       expect(find.text('Recommended for you'), findsNothing);
     });
   });
+}
+
+class _TestStudyStatsNotifier extends StudyStatsNotifier {
+  final StudyStats _stats;
+
+  _TestStudyStatsNotifier(this._stats);
+
+  @override
+  Future<StudyStats> build() async => _stats;
 }
 
 Finder _findSvgAsset(String assetName) {

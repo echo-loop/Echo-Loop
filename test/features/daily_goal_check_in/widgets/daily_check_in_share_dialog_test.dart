@@ -1,9 +1,10 @@
 import 'dart:async';
 
+import 'package:echo_loop/providers/learning_settings_provider.dart';
+
 import 'package:echo_loop/features/daily_goal_check_in/data/daily_check_in_share_actions.dart';
 import 'package:echo_loop/features/daily_goal_check_in/providers/daily_check_in_share_provider.dart';
 import 'package:echo_loop/features/daily_goal_check_in/widgets/daily_check_in_share_dialog.dart';
-import 'package:echo_loop/features/onboarding_survey/providers/onboarding_survey_provider.dart';
 import 'package:echo_loop/features/user_preferences/data/local_user_preferences_store.dart';
 import 'package:echo_loop/features/user_preferences/data/user_preferences_sync_service.dart';
 import 'package:echo_loop/features/user_preferences/providers/user_preferences_sync_providers.dart';
@@ -48,6 +49,11 @@ class _Share extends DailyCheckInShareNotifier {
   Future<void> prepare({bool refresh = false}) async {
     prepareCalls++;
   }
+
+  Completer<bool>? changeOverride;
+
+  @override
+  Future<bool> changeCard() => changeOverride?.future ?? super.changeCard();
 
   void setReady(PreparedDailyCheckInShare card) {
     ref.onDispose(card.image.dispose);
@@ -189,7 +195,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byType(Dialog), findsNothing);
     expect(
-      prefs.getString(LocalUserPreferencesStore.dailyShareDateKey(userId)),
+      prefs.getString(LocalUserPreferencesStore.dailyShareDateKey),
       isNull,
     );
     await drain(tester);
@@ -209,7 +215,7 @@ void main() {
     expect(actions.shares, 1);
     expect(api.shareCalls, 1);
     expect(
-      prefs.getString(LocalUserPreferencesStore.dailyShareDateKey(userId)),
+      prefs.getString(LocalUserPreferencesStore.dailyShareDateKey),
       '2026-11-08',
     );
     await tester.tap(find.byIcon(Icons.close));
@@ -218,7 +224,7 @@ void main() {
 
   testWidgets('云端已展示当天不自动弹出，手动仍可打开', (tester) async {
     await prefs.setString(
-      LocalUserPreferencesStore.dailyShareDateKey(userId),
+      LocalUserPreferencesStore.dailyShareDateKey,
       '2026-11-08',
     );
     await mount(tester, ready: await card(tester));
@@ -232,16 +238,79 @@ void main() {
     await drain(tester);
   });
 
-  testWidgets('等待同步期间离开首页，不会在其它页面弹出', (tester) async {
+  testWidgets('关闭自动显示不弹窗或写标记，手动仍可打开', (tester) async {
+    await mount(tester, ready: await card(tester));
+    await container
+        .read(learningSettingsProvider.notifier)
+        .setAutoShowDailyShare(false);
+    await tester.tap(find.text('automatic'));
+    await tester.pumpAndSettle();
+    expect(find.byType(Dialog), findsNothing);
+    expect(
+      prefs.getString(LocalUserPreferencesStore.dailyShareDateKey),
+      isNull,
+    );
+    await tester.tap(find.text('manual'));
+    await tester.pumpAndSettle();
+    expect(find.byType(Dialog), findsOneWidget);
+    await tester.tap(find.byIcon(Icons.close));
+    await tester.pumpAndSettle();
+    await drain(tester);
+  });
+
+  testWidgets('换一张进行中显示加载态，完成后恢复换卡图标', (tester) async {
+    final share = await mount(tester, ready: await card(tester));
+    final change = Completer<bool>();
+    share.changeOverride = change;
+    await tester.tap(find.text('manual'));
+    await tester.pumpAndSettle();
+    final shuffleButton = find
+        .descendant(of: find.byType(Dialog), matching: find.byType(IconButton))
+        .first;
+    expect(find.byType(CircularProgressIndicator), findsNothing);
+    await tester.tap(shuffleButton);
+    await tester.pump();
+    expect(find.byType(CircularProgressIndicator), findsOneWidget);
+    change.complete(false);
+    await tester.pumpAndSettle();
+    expect(find.byType(CircularProgressIndicator), findsNothing);
+    await tester.tap(find.byIcon(Icons.close));
+    await tester.pumpAndSettle();
+    await drain(tester);
+  });
+
+  testWidgets('慢同步不阻塞自动展示，本地记录立即去重', (tester) async {
     final pending = Completer<void>();
     when(() => sync.onSessionChanged(any())).thenAnswer((_) => pending.future);
     await mount(tester, ready: await card(tester));
     await tester.tap(find.text('automatic'));
-    await tester.pump();
-    visible = false;
-    pending.complete();
+    await tester.pumpAndSettle();
+    expect(find.byType(Dialog), findsOneWidget);
+    expect(pending.isCompleted, isFalse);
+    expect(
+      prefs.getString(LocalUserPreferencesStore.dailyShareDateKey),
+      '2026-11-08',
+    );
+    await tester.tap(find.byIcon(Icons.close));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('automatic'));
     await tester.pumpAndSettle();
     expect(find.byType(Dialog), findsNothing);
+    pending.complete();
+    await drain(tester);
+  });
+
+  testWidgets('已离开首页时不展示或写入展示标记', (tester) async {
+    await mount(tester, ready: await card(tester));
+    visible = false;
+    await tester.tap(find.text('automatic'));
+    await tester.pumpAndSettle();
+    expect(find.byType(Dialog), findsNothing);
+    expect(
+      prefs.getString(LocalUserPreferencesStore.dailyShareDateKey),
+      isNull,
+    );
+    verifyNever(() => sync.onSessionChanged(any()));
   });
 
   testWidgets('未登录不打开分享；弹窗中登出会关闭并阻断操作', (tester) async {

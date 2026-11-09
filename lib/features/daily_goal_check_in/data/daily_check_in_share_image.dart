@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import '../../../services/app_logger.dart';
 
 import '../domain/share_card_template.dart';
+import 'daily_share_decoded_image_cache.dart';
 
 class DailyCheckInShareData {
   const DailyCheckInShareData({
@@ -54,13 +55,20 @@ class GeneratedDailyCheckInShareImage {
   void dispose() => preview.dispose();
 }
 
+/// 缓存比较与卡片绘制共用分钟口径，避免秒数变化触发无效重绘。
+int dailyShareDisplayMinutes(int seconds) => (math.max(0, seconds) / 60).ceil();
+
 String dailyShareQrAsset(bool isChinaUser) =>
     'assets/qr/www.echo-loop.${isChinaUser ? 'cn' : 'top'}.png';
 
 /// 字体加载由资源边界负责，避免每次换卡都重新注册字体。
 class DailyShareFontLoader {
   Future<void>? _loading;
-  Future<void> load() => _loading ??= _load();
+  Future<void> load() =>
+      _loading ??= _load().catchError((Object error, StackTrace stackTrace) {
+        _loading = null;
+        Error.throwWithStackTrace(error, stackTrace);
+      });
 
   Future<void> _load() async {
     await Future.wait([
@@ -83,33 +91,35 @@ Future<GeneratedDailyCheckInShareImage> generateDailyCheckInShareImage({
   required ShareCardTemplate template,
   required DailyCheckInShareData data,
   required DailyCheckInShareAssets assets,
+  DailyShareDecodedImageCache? decodedImageCache,
 }) async {
+  final cache = decodedImageCache ?? DailyShareDecodedImageCache();
+  final totalWatch = Stopwatch()..start();
   final decoded = <ui.Image>[];
   ui.Picture? picture;
   ui.Image? rendered;
-  Future<ui.Image> decode(Uint8List bytes) async {
-    final codec = await ui.instantiateImageCodec(bytes, targetWidth: 1080);
-    try {
-      final image = (await codec.getNextFrame()).image;
-      decoded.add(image);
-      return image;
-    } finally {
-      codec.dispose();
-    }
+  Future<ui.Image> decode(DailyShareImageRole role, Uint8List bytes) async {
+    final image = await cache.acquire(role, bytes);
+    decoded.add(image);
+    return image;
   }
 
   try {
-    final background = await decode(assets.background);
-    final logo = await decode(assets.logo);
-    final qr = await decode(assets.qrCode);
+    final background = await decode(
+      DailyShareImageRole.background,
+      assets.background,
+    );
+    final logo = await decode(DailyShareImageRole.logo, assets.logo);
+    final qr = await decode(DailyShareImageRole.qrCode, assets.qrCode);
     ui.Image? avatar;
     if (assets.avatar != null) {
       try {
-        avatar = await decode(assets.avatar!);
+        avatar = await decode(DailyShareImageRole.avatar, assets.avatar!);
       } on Exception catch (error) {
         AppLogger.log('DailyShare', '头像解码失败，使用昵称首字: $error');
       }
     }
+    final paintWatch = Stopwatch()..start();
     final recorder = ui.PictureRecorder();
     final canvas = Canvas(recorder)..scale(1.08);
     const bounds = Rect.fromLTWH(0, 0, 1000, 4000 / 3);
@@ -191,7 +201,10 @@ Future<GeneratedDailyCheckInShareImage> generateDailyCheckInShareImage({
     canvas.restore();
 
     final content = template.content;
-    final translation = content.translationFor(data.nativeLanguage);
+    // 英语界面只展示原文；母语设置不能让英文卡片回退显示中文译文。
+    final translation = data.isChinese
+        ? content.translationFor(data.nativeLanguage)
+        : '';
     if (content is ShareCardWord) {
       _paintFittedText(
         canvas,
@@ -205,7 +218,9 @@ Future<GeneratedDailyCheckInShareImage> generateDailyCheckInShareImage({
         const Rect.fromLTWH(74, 180, 852, 180),
         TextAlign.left,
       );
-      text(translation, const Rect.fromLTWH(74, 370, 852, 80), 30, top);
+      if (translation.isNotEmpty) {
+        text(translation, const Rect.fromLTWH(74, 370, 852, 80), 30, top);
+      }
     } else {
       _paintFittedText(
         canvas,
@@ -221,10 +236,13 @@ Future<GeneratedDailyCheckInShareImage> generateDailyCheckInShareImage({
       );
     }
 
-    int minutes(int seconds) => (math.max(0, seconds) / 60).ceil();
-    final total = minutes(data.totalSeconds);
-    final input = minutes(math.min(data.inputSeconds, data.totalSeconds));
-    final output = minutes(math.min(data.outputSeconds, data.totalSeconds));
+    final total = dailyShareDisplayMinutes(data.totalSeconds);
+    final input = dailyShareDisplayMinutes(
+      math.min(data.inputSeconds, data.totalSeconds),
+    );
+    final output = dailyShareDisplayMinutes(
+      math.min(data.outputSeconds, data.totalSeconds),
+    );
     _paintFittedText(
       canvas,
       TextSpan(
@@ -297,9 +315,23 @@ Future<GeneratedDailyCheckInShareImage> generateDailyCheckInShareImage({
     );
 
     picture = recorder.endRecording();
+    AppLogger.log(
+      'DailyShare',
+      'Canvas 绘制完成 耗时=${paintWatch.elapsedMilliseconds}ms',
+    );
+    final rasterWatch = Stopwatch()..start();
     rendered = await picture.toImage(1080, 1440);
+    AppLogger.log(
+      'DailyShare',
+      '卡片栅格化完成 耗时=${rasterWatch.elapsedMilliseconds}ms 尺寸=1080x1440',
+    );
+    final pngWatch = Stopwatch()..start();
     final bytes = await rendered.toByteData(format: ui.ImageByteFormat.png);
     if (bytes == null) throw StateError('分享图片编码失败');
+    AppLogger.log(
+      'DailyShare',
+      'PNG 编码完成 耗时=${pngWatch.elapsedMilliseconds}ms 合成总耗时=${totalWatch.elapsedMilliseconds}ms',
+    );
     final result = GeneratedDailyCheckInShareImage(
       bytes.buffer.asUint8List(bytes.offsetInBytes, bytes.lengthInBytes),
       rendered,
@@ -307,6 +339,7 @@ Future<GeneratedDailyCheckInShareImage> generateDailyCheckInShareImage({
     rendered = null;
     return result;
   } finally {
+    if (decodedImageCache == null) cache.dispose();
     rendered?.dispose();
     picture?.dispose();
     for (final image in decoded) {

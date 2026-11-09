@@ -10292,10 +10292,22 @@ abstract class AppLocalizations {
   /// **'Couldn\'t load your profile. Tap to retry.'**
   String get profileLoadFailed;
 
+  /// No description provided for @autoShowDailyShareToggle.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto-show Today’s Moment'**
+  String get autoShowDailyShareToggle;
+
+  /// No description provided for @autoShowDailyShareSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Automatically show your card when returning to Study after reaching your daily goal'**
+  String get autoShowDailyShareSubtitle;
+
   /// No description provided for @shareCardTitle.
   ///
   /// In en, this message translates to:
-  /// **'Today’s check-in'**
+  /// **'Today’s Moment'**
   String get shareCardTitle;
 
   /// No description provided for @shareCardPreparing.

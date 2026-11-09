@@ -23,15 +23,12 @@ class DailyShareDialogPresentation {
   final String? Function() currentUserId;
   final Future<void> Function(String userId) synchronize;
   bool isOpen = false;
-  String? _shownUserId;
-  String? _shownDate;
 
-  Future<bool> canAutoShow(String userId, String date) async {
-    if (_shownUserId == userId && _shownDate == date) return false;
-    await synchronize(userId);
+  bool canAutoShow(String userId, String date) {
+    // 自动入口只使用已落地的展示记录，不等待云端请求。
     if (currentUserId() != userId) return false;
     final shown = preferences.getString(
-      LocalUserPreferencesStore.dailyShareDateKey(userId),
+      LocalUserPreferencesStore.dailyShareDateKey,
     );
     return shown == null ||
         !isValidPreferenceDate(shown) ||
@@ -39,28 +36,26 @@ class DailyShareDialogPresentation {
   }
 
   void didShow(String userId, String date) {
-    _shownUserId = userId;
-    _shownDate = date;
     unawaited(_rememberShown(userId, date));
   }
 
   Future<void> _rememberShown(String userId, String date) async {
     try {
       if (currentUserId() != userId) return;
-      // 先写账号独立的本地记录，不能让慢网络拖延跨重启去重。
-      await _writeShownDate(userId, date);
+      // 先写本地记录，不能让慢网络拖延跨重启去重。
+      await _writeShownDate(date);
       await synchronize(userId);
       if (currentUserId() != userId) return;
       // 首次绑定账号可能应用旧快照；同步结束后再合并一次，避免覆盖本次展示。
-      await _writeShownDate(userId, date);
+      await _writeShownDate(date);
     } on Object catch (error, stackTrace) {
-      // 展示已经成功，记录失败不能让弹窗操作失败；进程内记录仍可避免重复。
+      // 展示已经成功，记录失败只记录日志，不打断弹窗操作。
       AppLogger.log('DailyShare', '保存分享展示记录失败: $error\n$stackTrace');
     }
   }
 
-  Future<void> _writeShownDate(String userId, String date) async {
-    final key = LocalUserPreferencesStore.dailyShareDateKey(userId);
+  Future<void> _writeShownDate(String date) async {
+    final key = LocalUserPreferencesStore.dailyShareDateKey;
     final previous = preferences.getString(key);
     if (previous == null ||
         !isValidPreferenceDate(previous) ||

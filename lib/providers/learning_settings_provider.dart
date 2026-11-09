@@ -59,6 +59,7 @@ abstract final class LearningSettingsKeys {
   static const podcastTranscriptReminderShown =
       'learning_podcast_transcript_reminder_shown';
   static const dailyGoalMinutes = 'learning_daily_goal_minutes';
+  static const autoShowDailyShare = 'learning_auto_show_daily_share';
 
   /// 历史 SP key，启动期会被清理。
   static const legacyOfflineAsrEnabled = 'offline_asr_enabled';
@@ -82,6 +83,9 @@ class LearningSettings {
 
   /// 每日学习目标分钟数（参与跨设备同步）。
   final int dailyGoalMinutes;
+
+  /// 是否自动显示今日一刻（默认开启，仅保存于当前设备）。
+  final bool autoShowDailyShare;
 
   /// 是否自动跳过复述（默认 false）。
   final bool autoSkipRetell;
@@ -133,6 +137,7 @@ class LearningSettings {
 
   const LearningSettings({
     this.dailyGoalMinutes = defaultDailyGoalMinutes,
+    this.autoShowDailyShare = true,
     this.autoSkipRetell = false,
     this.autoExpandCachedAnnotation = true,
     this.autoShowAiExplanation = true,
@@ -155,6 +160,8 @@ class LearningSettings {
   factory LearningSettings.fromPrefsSync(SharedPreferences prefs) {
     return LearningSettings(
       dailyGoalMinutes: resolveDailyGoalMinutes(prefs),
+      autoShowDailyShare:
+          prefs.getBool(LearningSettingsKeys.autoShowDailyShare) ?? true,
       autoSkipRetell:
           prefs.getBool(LearningSettingsKeys.autoSkipRetell) ?? false,
       autoExpandCachedAnnotation:
@@ -223,6 +230,7 @@ class LearningSettings {
 
   LearningSettings copyWith({
     int? dailyGoalMinutes,
+    bool? autoShowDailyShare,
     bool? autoSkipRetell,
     bool? autoExpandCachedAnnotation,
     bool? autoShowAiExplanation,
@@ -242,6 +250,7 @@ class LearningSettings {
   }) {
     return LearningSettings(
       dailyGoalMinutes: dailyGoalMinutes ?? this.dailyGoalMinutes,
+      autoShowDailyShare: autoShowDailyShare ?? this.autoShowDailyShare,
       autoSkipRetell: autoSkipRetell ?? this.autoSkipRetell,
       autoExpandCachedAnnotation:
           autoExpandCachedAnnotation ?? this.autoExpandCachedAnnotation,
@@ -279,6 +288,7 @@ class LearningSettings {
       other is LearningSettings &&
           runtimeType == other.runtimeType &&
           dailyGoalMinutes == other.dailyGoalMinutes &&
+          autoShowDailyShare == other.autoShowDailyShare &&
           autoSkipRetell == other.autoSkipRetell &&
           autoExpandCachedAnnotation == other.autoExpandCachedAnnotation &&
           autoShowAiExplanation == other.autoShowAiExplanation &&
@@ -302,6 +312,7 @@ class LearningSettings {
   @override
   int get hashCode => Object.hash(
     dailyGoalMinutes,
+    autoShowDailyShare,
     autoSkipRetell,
     autoExpandCachedAnnotation,
     autoShowAiExplanation,
@@ -587,6 +598,19 @@ class LearningSettingsNotifier extends Notifier<LearningSettings> {
         'setShowStudyRecommendation 写 SP 失败: $e',
       );
     }
+  }
+
+  /// 自动弹窗属于当前设备偏好，不加入尚未定义的云端字段。
+  Future<void> setAutoShowDailyShare(bool enabled) async {
+    if (state.autoShowDailyShare == enabled) return;
+    final prefs = ref.read(sharedPreferencesProvider);
+    final saved = await prefs.setBool(
+      LearningSettingsKeys.autoShowDailyShare,
+      enabled,
+    );
+    if (!saved) throw StateError('保存今日一刻自动显示设置失败');
+    if (!ref.mounted) return;
+    state = state.copyWith(autoShowDailyShare: enabled);
   }
 
   /// 切换学习页「本周学习时长」柱状图显示，写 SP + 更新 state。
