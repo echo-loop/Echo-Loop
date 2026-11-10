@@ -43,6 +43,7 @@ import '../features/auth/providers/auth_providers.dart';
 import '../features/auth/screens/account_screen.dart';
 import '../features/profile/providers/user_profile_provider.dart';
 import '../features/profile/widgets/user_avatar.dart';
+import '../features/rating_prompt/presentation/rating_prompt_status_dialog.dart';
 import '../features/user_region/user_region_override.dart';
 import '../features/user_region/user_region_providers.dart';
 import '../features/user_region/widgets/user_region_override_tile.dart';
@@ -923,6 +924,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           title: const Text('词典查询'),
           trailing: const Icon(Icons.chevron_right),
           onTap: () => _showDictionaryLookupDialog(context),
+        ),
+        ListTile(
+          leading: _emojiIcon('⭐'),
+          title: const Text('评价提醒状态'),
+          trailing: const Icon(Icons.chevron_right),
+          onTap: () => showDialog<void>(
+            context: context,
+            builder: (_) => const RatingPromptStatusDialog(),
+          ),
         ),
         ListTile(
           leading: _emojiIcon('⚙️'),

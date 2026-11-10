@@ -316,4 +316,121 @@ void main() {
     // 11 月 1 日的记录属于上次请求周期；次日和第三日只有两个有效学习日。
     expect(gateway.requestCount, 0);
   });
+
+  group('inspect', () {
+    RatingPromptCoordinator coordinatorFor(
+      RatingPromptAttemptStore store, {
+      PackageInfo? packageInfoOverride,
+      bool remoteEnabled = true,
+      bool storeInstall = true,
+    }) => RatingPromptCoordinator(
+      packageInfo: packageInfoOverride ?? packageInfo(),
+      studyRecordDao: database.dailyStudyRecordDao,
+      attemptStore: store,
+      reviewGateway: _FakeReviewGateway(() async {}),
+      isEnabled: () => remoteEnabled,
+      storeInstallCheck: () => storeInstall,
+      clock: () => now,
+    );
+
+    Future<void> addThreeEffectiveDays() async {
+      await addEffectiveDay(DateTime(2026, 10, 20));
+      await addEffectiveDay(DateTime(2026, 10, 21));
+      await addEffectiveDay(DateTime(2026, 10, 22));
+    }
+
+    test('条件全部满足时允许两类练习完成后请求，且不写冷却', () async {
+      await addThreeEffectiveDays();
+      final store = RatingPromptAttemptStore(preferences);
+      final gateway = _FakeReviewGateway(() async {});
+      final coordinator = RatingPromptCoordinator(
+        packageInfo: packageInfo(),
+        studyRecordDao: database.dailyStudyRecordDao,
+        attemptStore: store,
+        reviewGateway: gateway,
+        isEnabled: () => true,
+        storeInstallCheck: () => true,
+        clock: () => now,
+      );
+
+      final status = await coordinator.inspect();
+
+      expect(status.effectiveStudyDays, 3);
+      expect(status.cooldownRemaining, isNull);
+      expect(status.allowsEvent(RatingPromptEvent.shadowingCompleted), isTrue);
+      expect(status.allowsEvent(RatingPromptEvent.retellCompleted), isTrue);
+      expect(gateway.requestCount, 0);
+      expect(store.readLastAttempt(), isNull);
+    });
+
+    test('安装未满 7 天时不允许请求', () async {
+      await addThreeEffectiveDays();
+      final coordinator = coordinatorFor(
+        RatingPromptAttemptStore(preferences),
+        packageInfoOverride: packageInfo(installedAt: DateTime(2026, 10, 16)),
+      );
+
+      final status = await coordinator.inspect();
+
+      expect(status.installAge!.inDays, 6);
+      expect(status.allowsEvent(RatingPromptEvent.retellCompleted), isFalse);
+    });
+
+    test('冷却期内返回剩余时长且不允许请求', () async {
+      await addThreeEffectiveDays();
+      final store = RatingPromptAttemptStore(preferences);
+      await store.recordAttempt(DateTime(2026, 10, 20, 12));
+      final coordinator = coordinatorFor(store);
+
+      final status = await coordinator.inspect();
+
+      expect(status.cooldownRemaining!.inDays, 118);
+      expect(status.allowsEvent(RatingPromptEvent.retellCompleted), isFalse);
+    });
+
+    test('远程开关关闭或非商店安装时不允许请求', () async {
+      await addThreeEffectiveDays();
+
+      final remoteOff = await coordinatorFor(
+        RatingPromptAttemptStore(preferences),
+        remoteEnabled: false,
+      ).inspect();
+      final notStore = await coordinatorFor(
+        RatingPromptAttemptStore(preferences),
+        storeInstall: false,
+      ).inspect();
+
+      expect(remoteOff.isRemoteEnabled, isFalse);
+      expect(remoteOff.allowsEvent(RatingPromptEvent.retellCompleted), isFalse);
+      expect(notStore.isStoreInstall, isFalse);
+      expect(notStore.installerStore, 'com.android.vending');
+      expect(notStore.allowsEvent(RatingPromptEvent.retellCompleted), isFalse);
+    });
+
+    test('快照结论与实际请求判定一致：有效学习日不足时两者都不请求', () async {
+      await addEffectiveDay(DateTime(2026, 10, 21));
+      await addEffectiveDay(DateTime(2026, 10, 22));
+      final store = RatingPromptAttemptStore(preferences);
+      final gateway = _FakeReviewGateway(() async {});
+      final coordinator = RatingPromptCoordinator(
+        packageInfo: packageInfo(),
+        studyRecordDao: database.dailyStudyRecordDao,
+        attemptStore: store,
+        reviewGateway: gateway,
+        isEnabled: () => true,
+        storeInstallCheck: () => true,
+        clock: () => now,
+      );
+
+      final status = await coordinator.inspect();
+      await coordinator.maybeRequest(
+        RatingPromptEvent.retellCompleted,
+        canPresent: () => true,
+      );
+
+      expect(status.effectiveStudyDays, 2);
+      expect(status.allowsEvent(RatingPromptEvent.retellCompleted), isFalse);
+      expect(gateway.requestCount, 0);
+    });
+  });
 }

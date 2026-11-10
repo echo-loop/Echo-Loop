@@ -5,6 +5,7 @@ import '../../../database/daos/daily_study_record_dao.dart';
 import '../../../services/app_logger.dart';
 import '../data/rating_prompt_attempt_store.dart';
 import '../domain/rating_prompt_policy.dart';
+import '../domain/rating_prompt_status.dart';
 import 'in_app_review_gateway.dart';
 
 /// 管理评分邀请的资格检查、冷却、防重入及原生请求。
@@ -33,7 +34,8 @@ class RatingPromptCoordinator {
 
   static const _cooldown = Duration(days: 120);
   static const _effectiveDayThreshold = 10 * 60 * 1000;
-  static const _logTag = 'RatingPrompt';
+  /// 评分邀请相关日志的标签；开发者选项据此筛选自动触发记录。
+  static const logTag = 'RatingPrompt';
 
   final PackageInfo _packageInfo;
   final DailyStudyRecordDao _studyRecordDao;
@@ -56,53 +58,48 @@ class RatingPromptCoordinator {
     RatingPromptEvent event, {
     required bool Function() canPresent,
   }) async {
-    if (_requestInFlight || !_isEnabled() || !canPresent()) return;
+    if (!_isEnabled()) {
+      AppLogger.log(logTag, 'skip reason=remote_disabled');
+      return;
+    }
+    if (!canPresent()) {
+      AppLogger.log(logTag, 'skip reason=not_presentable');
+      return;
+    }
+    if (_requestInFlight) {
+      AppLogger.log(logTag, 'skip reason=in_flight');
+      return;
+    }
     _requestInFlight = true;
     try {
       final now = _clock();
       final lastAttempt = _attemptStore.readLastAttempt();
-      if (lastAttempt != null && now.difference(lastAttempt) < _cooldown) {
-        AppLogger.log(_logTag, 'skip reason=cooldown');
+      if (_cooldownRemaining(now, lastAttempt) != null) {
+        AppLogger.log(logTag, 'skip reason=cooldown');
         return;
       }
 
-      final installTime = _packageInfo.installTime;
-      final installedFromStore = _isStoreInstall();
-      final firstCountedDate = lastAttempt == null
-          ? _dateOnly(installTime ?? now)
-          : _nextCalendarDate(_dateOnly(lastAttempt));
-      final today = _dateOnly(now);
-      final effectiveStudyDays = await _countEffectiveStudyDays(
-        firstCountedDate,
-        today,
-      );
-      final facts = RatingPromptFacts(
-        now: now,
-        installTime: installTime,
-        effectiveStudyDays: effectiveStudyDays,
-        event: event,
-        isStoreInstall: installedFromStore,
-      );
-      if (!_policy.allows(facts)) {
+      final status = await _readStatus(now: now, lastAttempt: lastAttempt);
+      if (!status.allowsEvent(event)) {
         AppLogger.log(
-          _logTag,
-          'skip reason=conditions installTime=${installTime != null} '
-          'effectiveDays=$effectiveStudyDays store=$installedFromStore '
-          'event=${event.name}',
+          logTag,
+          'skip reason=conditions installTime=${status.installTime != null} '
+          'effectiveDays=${status.effectiveStudyDays} '
+          'store=${status.isStoreInstall} event=${event.name}',
         );
         return;
       }
 
       // 查询期间可能切页、进入后台或关闭远程开关，失效请求不得消费冷却。
       if (!_isEnabled() || !canPresent()) {
-        AppLogger.log(_logTag, 'skip reason=eligibility_expired');
+        AppLogger.log(logTag, 'skip reason=eligibility_expired');
         return;
       }
 
       // 必须先记尝试再调用系统；失败也进入冷却，避免重复打扰用户。
       final recorded = await _attemptStore.recordAttempt(now);
       if (!recorded) {
-        AppLogger.log(_logTag, 'skip reason=attempt_persist_failed');
+        AppLogger.log(logTag, 'skip reason=attempt_persist_failed');
         return;
       }
 
@@ -110,19 +107,61 @@ class RatingPromptCoordinator {
       if (!_isEnabled() || !canPresent()) {
         final restored = await _attemptStore.restoreAttempt(lastAttempt);
         AppLogger.log(
-          _logTag,
+          logTag,
           'skip reason=eligibility_expired cooldownRestored=$restored',
         );
         return;
       }
 
-      AppLogger.log(_logTag, 'request event=${event.name}');
+      AppLogger.log(logTag, 'request event=${event.name}');
       await _reviewGateway.requestReview();
     } catch (error, stackTrace) {
-      AppLogger.log(_logTag, 'request failed error=$error\n$stackTrace');
+      AppLogger.log(logTag, 'request failed error=$error\n$stackTrace');
     } finally {
       _requestInFlight = false;
     }
+  }
+
+  /// 只读查询当前评分邀请条件，供开发者选项展示。
+  ///
+  /// 不写入冷却、不请求系统评分、不占用防重入标记，因此可以在任意时刻调用。
+  Future<RatingPromptStatus> inspect() async {
+    final now = _clock();
+    return _readStatus(now: now, lastAttempt: _attemptStore.readLastAttempt());
+  }
+
+  /// 组装条件快照；[maybeRequest] 与 [inspect] 共用，避免两处规则分叉。
+  Future<RatingPromptStatus> _readStatus({
+    required DateTime now,
+    required DateTime? lastAttempt,
+  }) async {
+    final installTime = _packageInfo.installTime;
+    // 有过请求时从上次请求后的下一个自然日开始计数，避免重复计算已消费的学习日。
+    final countedFrom = lastAttempt == null
+        ? _dateOnly(installTime ?? now)
+        : _nextCalendarDate(_dateOnly(lastAttempt));
+    final effectiveStudyDays = await _countEffectiveStudyDays(
+      countedFrom,
+      _dateOnly(now),
+    );
+    return RatingPromptStatus(
+      now: now,
+      isRemoteEnabled: _isEnabled(),
+      isStoreInstall: _isStoreInstall(),
+      installerStore: _packageInfo.installerStore,
+      installTime: installTime,
+      lastAttempt: lastAttempt,
+      cooldownRemaining: _cooldownRemaining(now, lastAttempt),
+      countedFrom: countedFrom,
+      effectiveStudyDays: effectiveStudyDays,
+      policy: _policy,
+    );
+  }
+
+  Duration? _cooldownRemaining(DateTime now, DateTime? lastAttempt) {
+    if (lastAttempt == null) return null;
+    final remaining = _cooldown - now.difference(lastAttempt);
+    return remaining > Duration.zero ? remaining : null;
   }
 
   DateTime _dateOnly(DateTime? date) {
