@@ -41,6 +41,7 @@ import '../../providers/settings_provider.dart';
 import '../../providers/word_highlight_provider.dart';
 import '../../providers/saved_sense_group_provider.dart';
 import '../../services/app_logger.dart';
+import '../app_toast.dart';
 import '../../services/dictionary/ai_dictionary_source.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/sense_group_service.dart';
@@ -633,12 +634,27 @@ class _SentenceExplanationViewState
       _playedSenseGroupIndices.add(index);
     });
 
-    if (rangePlayback != null && audioItemId != null) {
-      await rangePlayback.play(audioItemId, timing.start, timing.end);
-    } else {
-      final engine = ref.read(audioEngineProvider.notifier);
-      final sessionId = engine.newSession();
-      await engine.playRangeOnce(timing.start, timing.end, sessionId);
+    try {
+      if (rangePlayback != null && audioItemId != null) {
+        await rangePlayback.play(audioItemId, timing.start, timing.end);
+      } else {
+        final engine = ref.read(audioEngineProvider.notifier);
+        final sessionId = engine.newSession();
+        await engine.playRangeOnce(timing.start, timing.end, sessionId);
+      }
+    } on StateError catch (error) {
+      // 音频未加载到播放器（如文件未下载）是可预期的失败：提示用户并结束本次试听，
+      // 不能让异步异常从点击回调里逃逸。
+      AppLogger.log(
+        'SentenceExplanation',
+        'sense group playback unavailable audio=$audioItemId: $error',
+      );
+      if (mounted) {
+        showAppToast(
+          overlayState: Overlay.of(context),
+          message: AppLocalizations.of(context)!.sentenceAudioUnavailable,
+        );
+      }
     }
 
     if (mounted && _sgPlaybackGeneration == generation) {

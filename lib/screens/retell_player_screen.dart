@@ -1499,12 +1499,9 @@ class _RetellPlayerScreenState extends ConsumerState<RetellPlayerScreen>
         audioName: audioName,
         sentenceText: sentence.text,
         sentenceIndex: sentence.index,
-        totalSentenceCount: ref
-            .read(retellPlayerProvider.notifier)
-            .totalSentenceCount,
         startTimeMs: sentence.startTime.inMilliseconds,
         endTimeMs: sentence.endTime.inMilliseconds,
-        rangePlayback: _retellMediaRangePlayback,
+        rangePlaybackBuilder: _buildMediaRangePlayback,
         wordHighlightSource: _wordHighlightSource(),
         mediaSession: usesMedia ? _buildMediaSession() : null,
       ),
@@ -1519,12 +1516,13 @@ class _RetellPlayerScreenState extends ConsumerState<RetellPlayerScreen>
         .initializeBookmarks(widget.audioItemId);
   }
 
-  late final MediaSenseGroupRangePlayback _retellMediaRangePlayback =
-      MediaSenseGroupRangePlayback(
-        engine: ref.read(mediaEngineProvider.notifier),
-        playbackSpeed: () =>
-            ref.read(retellPlayerProvider).settings.playbackSpeed,
-      );
+  /// 讲解页按自身速度创建媒体区间播放器，不沿用复述的播放速度。
+  MediaSenseGroupRangePlayback _buildMediaRangePlayback(
+    double Function() playbackSpeed,
+  ) => MediaSenseGroupRangePlayback(
+    engine: ref.read(mediaEngineProvider.notifier),
+    playbackSpeed: playbackSpeed,
+  );
 
   WordHighlightSource _wordHighlightSource() {
     final engine = ref.read(mediaEngineProvider.notifier);

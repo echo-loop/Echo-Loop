@@ -6,7 +6,10 @@ import 'media_engine_provider.dart';
 /// 每个学习会话各自创建实例；内部 generation 与活动标记隔离，
 /// 防止重复点击、切句或退出后的旧播放影响当前材料。
 class MediaSenseGroupRangePlayback
-    implements SenseGroupRangePlayback, ResumableSentenceRangePlayback {
+    implements
+        SenseGroupRangePlayback,
+        ResumableSentenceRangePlayback,
+        LiveSpeedRangePlayback {
   MediaSenseGroupRangePlayback({
     required MediaEngine engine,
     required double Function() playbackSpeed,
@@ -54,4 +57,7 @@ class MediaSenseGroupRangePlayback
     _isPlaying = false;
     await _engine.cancelActiveRange(reason: 'sense-group-cancel');
   }
+
+  @override
+  Future<void> setPlaybackSpeed(double speed) => _engine.setSpeed(speed);
 }

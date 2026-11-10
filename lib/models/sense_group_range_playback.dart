@@ -26,3 +26,12 @@ abstract interface class ResumableSentenceRangePlayback {
     Duration position,
   );
 }
+
+/// 支持在区间播放进行中改变播放速度的能力。
+///
+/// 句子讲解页的速度按钮用它让正在播放的句子即时变速；未实现该接口的播放器只能在下一次
+/// 播放时应用新速度。
+abstract interface class LiveSpeedRangePlayback {
+  /// 立即把 [speed] 应用到正在进行的区间播放；未在播放时仅影响之后的播放。
+  Future<void> setPlaybackSpeed(double speed);
+}

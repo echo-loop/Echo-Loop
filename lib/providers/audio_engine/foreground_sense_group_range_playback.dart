@@ -8,7 +8,10 @@ import 'foreground_audio_engine_provider.dart';
 /// 预先管理播放器状态。generation 让取消/重复点击后的旧异步调用失效；session 所有权
 /// 让迟到的取消只暂停本适配器仍在播放的区间，不会中断新句的主播放。
 class ForegroundSenseGroupRangePlayback
-    implements SenseGroupRangePlayback, ResumableSentenceRangePlayback {
+    implements
+        SenseGroupRangePlayback,
+        ResumableSentenceRangePlayback,
+        LiveSpeedRangePlayback {
   ForegroundSenseGroupRangePlayback({
     required ForegroundAudioEngine engine,
     required double Function() playbackSpeed,
@@ -99,4 +102,7 @@ class ForegroundSenseGroupRangePlayback
     if (!ownsActiveSession) return;
     await _engine.pause();
   }
+
+  @override
+  Future<void> setPlaybackSpeed(double speed) => _engine.setSpeed(speed);
 }

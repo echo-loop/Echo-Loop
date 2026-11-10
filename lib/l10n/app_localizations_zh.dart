@@ -691,6 +691,15 @@ class AppLocalizationsZh extends AppLocalizations {
   String get sentenceMenuActionFailed => '操作失败，请重试。';
 
   @override
+  String get sentenceAudioUnavailable => '音频文件不可用，无法播放。';
+
+  @override
+  String get sentenceDetailLoadFailed => '字幕加载失败，请重试。';
+
+  @override
+  String get sentenceDetailRetry => '重试';
+
+  @override
   String get hotkeyReplay => 'R：重播';
 
   @override

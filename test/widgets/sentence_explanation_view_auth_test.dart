@@ -219,6 +219,17 @@ class _NoopSenseGroupRangePlayback implements SenseGroupRangePlayback {
 }
 
 /// 记录取消次数；[play] 返回的 Future 由测试决定何时完成，用于模拟意群试听进行中。
+/// 模拟音频未加载到播放器（如文件未下载）时的意群试听失败。
+class _UnavailableSenseGroupRangePlayback implements SenseGroupRangePlayback {
+  @override
+  Future<void> cancel() async {}
+
+  @override
+  Future<void> play(String audioItemId, Duration start, Duration end) {
+    throw StateError('audio_not_loaded:$audioItemId');
+  }
+}
+
 class _RecordingSenseGroupRangePlayback implements SenseGroupRangePlayback {
   int cancelCount = 0;
   int playCount = 0;
@@ -1015,6 +1026,54 @@ void main() {
           .isSaved,
       isFalse,
     );
+  });
+
+  testWidgets('意群音频不可用时提示用户且不向外抛出异常', (tester) async {
+    final cacheDao = _MockCacheDao();
+    final savedSenseGroupDao = _MockSavedSenseGroupDao();
+    final audioItemDao = _MockAudioItemDao();
+    when(() => cacheDao.getByHash(any(), any())).thenAnswer((_) async => null);
+    when(() => audioItemDao.getById('audio-1')).thenAnswer((_) async => null);
+    when(
+      () => audioItemDao.getTranscriptSrt('audio-1'),
+    ).thenAnswer((_) async => null);
+    when(
+      savedSenseGroupDao.watchSavedPhraseTexts,
+    ).thenAnswer((_) => Stream<Set<String>>.value(const {}));
+
+    await pumpAuthTestApp(
+      tester,
+      cacheDao: cacheDao,
+      savedSenseGroupDao: savedSenseGroupDao,
+      signedIn: true,
+      audioItemId: 'audio-1',
+      autoShowAiExplanation: false,
+      aiNotifier: _TwoGroupSentenceAiNotifier(
+        cacheDao: cacheDao,
+        apiClient: _NoopSentenceAiApiClient(),
+      ),
+      senseGroupRangePlayback: _UnavailableSenseGroupRangePlayback(),
+      extraOverrides: [
+        audioItemDaoProvider.overrideWithValue(audioItemDao),
+        remoteFeatureEnabledProvider(
+          RemoteFeature.aiChatAssistant,
+        ).overrideWithValue(false),
+      ],
+    );
+
+    await tester.tap(find.byKey(const ValueKey('senseGroup')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Hello'));
+    await tester.pumpAndSettle();
+
+    final l10n = AppLocalizations.of(
+      tester.element(find.byType(SentenceExplanationView)),
+    )!;
+    expect(tester.takeException(), isNull);
+    expect(find.text(l10n.sentenceAudioUnavailable), findsOneWidget);
+    // 提示会自动消失；等待其计时器结束，避免测试结束时残留计时器。
+    await tester.pump(const Duration(seconds: 5));
+    await tester.pumpAndSettle();
   });
 
   testWidgets('意群操作栏显示时可一次点击直接切换到其它意群', (tester) async {

@@ -14,6 +14,7 @@ import '../models/sentence.dart';
 import '../models/word_highlight_binding.dart';
 import '../providers/collection_provider.dart';
 import '../providers/media_engine/media_engine_provider.dart';
+import '../providers/media_engine/media_sense_group_range_playback.dart';
 import '../providers/media_playback/media_playback_provider.dart';
 import '../providers/media_playback/media_sleep_timer_provider.dart';
 import '../router/app_router.dart';
@@ -641,10 +642,12 @@ class _MediaPlaybackScreenState extends ConsumerState<MediaPlaybackScreen>
           audioName: widget.audioItem.name,
           sentenceText: sentence.text,
           sentenceIndex: sentence.index,
-          totalSentenceCount: ref.read(mediaPlaybackProvider).sentences.length,
           startTimeMs: sentence.startTime.inMilliseconds,
           endTimeMs: sentence.endTime.inMilliseconds,
-          rangePlayback: controller.senseGroupRangePlayback,
+          rangePlaybackBuilder: (playbackSpeed) => MediaSenseGroupRangePlayback(
+            engine: ref.read(mediaEngineProvider.notifier),
+            playbackSpeed: playbackSpeed,
+          ),
           wordHighlightSource: _wordHighlightSource(widget.audioItem.id),
           mediaSession: widget.audioItem.isVideo
               ? SentenceDetailMediaSession(

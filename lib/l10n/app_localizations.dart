@@ -1364,6 +1364,24 @@ abstract class AppLocalizations {
   /// **'Couldn\'t complete this action. Please try again.'**
   String get sentenceMenuActionFailed;
 
+  /// No description provided for @sentenceAudioUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'The audio file is unavailable, so it can\'t be played.'**
+  String get sentenceAudioUnavailable;
+
+  /// No description provided for @sentenceDetailLoadFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t load the transcript. Please try again.'**
+  String get sentenceDetailLoadFailed;
+
+  /// No description provided for @sentenceDetailRetry.
+  ///
+  /// In en, this message translates to:
+  /// **'Retry'**
+  String get sentenceDetailRetry;
+
   /// No description provided for @hotkeyReplay.
   ///
   /// In en, this message translates to:

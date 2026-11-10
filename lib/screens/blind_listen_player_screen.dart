@@ -229,12 +229,9 @@ class _BlindListenPlayerScreenState
         audioName: audioName,
         sentenceText: sentence.text,
         sentenceIndex: sentence.index,
-        totalSentenceCount: ref
-            .read(blindListenPlayerProvider.notifier)
-            .totalSentenceCount,
         startTimeMs: sentence.startTime.inMilliseconds,
         endTimeMs: sentence.endTime.inMilliseconds,
-        rangePlayback: mediaReady ? _blindMediaRangePlayback : null,
+        rangePlaybackBuilder: mediaReady ? _buildMediaRangePlayback : null,
         wordHighlightSource: _wordHighlightSource(),
         mediaSession: usesVideo ? _buildMediaSession() : null,
       ),
@@ -248,12 +245,13 @@ class _BlindListenPlayerScreenState
         .initializeBookmarks(widget.audioItemId);
   }
 
-  late final MediaSenseGroupRangePlayback _blindMediaRangePlayback =
-      MediaSenseGroupRangePlayback(
-        engine: ref.read(mediaEngineProvider.notifier),
-        playbackSpeed: () =>
-            ref.read(blindListenPlayerProvider).settings.playbackSpeed,
-      );
+  /// 讲解页按自身速度创建媒体区间播放器，不沿用盲听的播放速度。
+  MediaSenseGroupRangePlayback _buildMediaRangePlayback(
+    double Function() playbackSpeed,
+  ) => MediaSenseGroupRangePlayback(
+    engine: ref.read(mediaEngineProvider.notifier),
+    playbackSpeed: playbackSpeed,
+  );
 
   WordHighlightSource _wordHighlightSource() {
     final engine = ref.read(mediaEngineProvider.notifier);

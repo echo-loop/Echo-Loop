@@ -16,14 +16,11 @@ import '../guide_flow.dart';
 import '../../utils/playback_speed.dart';
 import 'capsule_selector.dart';
 
-/// 播放类按钮的 SVG 图标：主播放按钮用播放 / 暂停；没有上一句 / 下一句的页面
-/// （如句子讲解页）用带圆形外框的播放 / 停止，让按钮的用途一眼可辨。
+/// 播放类按钮的 SVG 图标：播放 / 暂停。
 enum PlaybackToggleIcon {
   play('assets/icon/play.svg', 1),
   // 暂停条的占满面积比三角形大，按 0.9 缩小后与播放三角形的视觉高度接近
-  pause('assets/icon/pause.svg', 0.9),
-  playCircle('assets/icon/play-circle.svg', 1),
-  stopCircle('assets/icon/stop-circle.svg', 1);
+  pause('assets/icon/pause.svg', 0.9);
 
   const PlaybackToggleIcon(this.assetPath, this.opticalScale);
 
@@ -134,6 +131,9 @@ class PlaybackControls extends StatelessWidget {
   /// 是否可以返回上一个
   final bool canGoPrev;
 
+  /// 是否可以前进到下一个。默认 true；为 false 时下一个按钮置灰（如讲解页的末句）。
+  final bool canGoNext;
+
   /// 是否为最后一个（影响下一个按钮图标：skip_next → check_circle）
   final bool isLast;
 
@@ -161,6 +161,7 @@ class PlaybackControls extends StatelessWidget {
   const PlaybackControls({
     super.key,
     required this.canGoPrev,
+    this.canGoNext = true,
     required this.isLast,
     required this.centerIcon,
     this.onCenter,
@@ -201,8 +202,8 @@ class PlaybackControls extends StatelessWidget {
     );
     final nextRegionChild = PlaybackNavButton(
       icon: isLast ? Icons.check_circle_rounded : Icons.skip_next_rounded,
-      enabled: true,
-      onTap: onNext,
+      enabled: canGoNext,
+      onTap: canGoNext ? onNext : null,
     );
 
     final speed = playbackSpeed;

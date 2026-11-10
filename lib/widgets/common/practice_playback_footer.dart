@@ -20,6 +20,9 @@ class PracticePlaybackFooter extends StatelessWidget {
   /// 是否可以返回上一句
   final bool canGoPrev;
 
+  /// 是否可以前进到下一句。为 false 时下一句按钮置灰（如讲解页的末句）。
+  final bool canGoNext;
+
   /// 是否为最后一句
   final bool isLast;
 
@@ -38,8 +41,9 @@ class PracticePlaybackFooter extends StatelessWidget {
   /// 是否为手动模式
   final bool isManualMode;
 
-  /// 预格式化的遍数文本
-  final String playCountText;
+  /// 预格式化的遍数文本。为空时（如句子讲解页没有遍数概念）标签不显示内容，
+  /// 但仍保留同样的高度，使各页按钮与屏幕底边的距离保持一致。
+  final String? playCountText;
 
   /// 可选状态后缀（如盲听播放速度）
   final String? statusSuffixText;
@@ -62,13 +66,14 @@ class PracticePlaybackFooter extends StatelessWidget {
   const PracticePlaybackFooter({
     super.key,
     required this.canGoPrev,
+    this.canGoNext = true,
     required this.isLast,
     required this.centerIcon,
     required this.onPrevious,
     required this.onNext,
     required this.onCenter,
     required this.isManualMode,
-    required this.playCountText,
+    this.playCountText,
     this.statusSuffixText,
     required this.l10n,
     required this.theme,
@@ -95,6 +100,7 @@ class PracticePlaybackFooter extends StatelessWidget {
           children: [
             PlaybackControls(
               canGoPrev: canGoPrev,
+              canGoNext: canGoNext,
               isLast: isLast,
               centerIcon: centerIcon,
               onPrevious: onPrevious,
@@ -105,17 +111,26 @@ class PracticePlaybackFooter extends StatelessWidget {
               onPlaybackSpeedChanged: onPlaybackSpeedChanged,
             ),
             const SizedBox(height: AppSpacing.s),
-            PracticePlayCountLabel(
-              key: kPracticePlaybackFooterLabelKey,
-              isManualMode: isManualMode,
-              playCountText: playCountText,
-              statusSuffixText: statusSuffixText,
-              l10n: l10n,
-              theme: theme,
-            ),
+            _buildCountSlot(),
           ],
         ),
       ),
+    );
+  }
+
+  /// 遍数标签；无遍数文本时输出同字体的空行，保持与有标签时相同的底部高度。
+  Widget _buildCountSlot() {
+    final countText = playCountText;
+    if (countText == null) {
+      return Text(' ', style: theme.textTheme.bodySmall);
+    }
+    return PracticePlayCountLabel(
+      key: kPracticePlaybackFooterLabelKey,
+      isManualMode: isManualMode,
+      playCountText: countText,
+      statusSuffixText: statusSuffixText,
+      l10n: l10n,
+      theme: theme,
     );
   }
 }

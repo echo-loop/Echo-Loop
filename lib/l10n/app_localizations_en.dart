@@ -714,6 +714,17 @@ class AppLocalizationsEn extends AppLocalizations {
       'Couldn\'t complete this action. Please try again.';
 
   @override
+  String get sentenceAudioUnavailable =>
+      'The audio file is unavailable, so it can\'t be played.';
+
+  @override
+  String get sentenceDetailLoadFailed =>
+      'Couldn\'t load the transcript. Please try again.';
+
+  @override
+  String get sentenceDetailRetry => 'Retry';
+
+  @override
   String get hotkeyReplay => 'R: Replay';
 
   @override

@@ -3,7 +3,10 @@ import 'audio_engine_provider.dart';
 
 /// 基于媒体 [AudioEngine] 的按需加载意群播放实现。
 class AudioEngineSenseGroupRangePlayback
-    implements SenseGroupRangePlayback, ResumableSentenceRangePlayback {
+    implements
+        SenseGroupRangePlayback,
+        ResumableSentenceRangePlayback,
+        LiveSpeedRangePlayback {
   AudioEngineSenseGroupRangePlayback({
     required AudioEngine engine,
     required double Function() playbackSpeed,
@@ -53,4 +56,7 @@ class AudioEngineSenseGroupRangePlayback
     _generation++;
     await _engine.pause();
   }
+
+  @override
+  Future<void> setPlaybackSpeed(double speed) => _engine.setSpeed(speed);
 }

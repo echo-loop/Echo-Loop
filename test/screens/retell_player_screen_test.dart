@@ -1553,7 +1553,11 @@ void main() {
         final mediaEngine = ProviderScope.containerOf(
           detailContext,
         ).read(mediaEngineProvider.notifier);
-        expect(args.rangePlayback, isA<MediaSenseGroupRangePlayback>());
+        expect(args.rangePlaybackBuilder, isNotNull);
+        expect(
+          args.rangePlaybackBuilder!(() => 1.0),
+          isA<MediaSenseGroupRangePlayback>(),
+        );
         expect(args.wordHighlightSource.audioItemId, 'a1');
         expect(
           args.wordHighlightSource.currentPosition,

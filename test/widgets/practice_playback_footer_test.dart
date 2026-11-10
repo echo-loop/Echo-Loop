@@ -156,6 +156,51 @@ void main() {
     expect(previousCalls, 0);
   });
 
+  testWidgets('无遍数文本时底栏与有遍数标签时等高，底部留白保持一致', (tester) async {
+    Future<double> footerHeight(bool showCount) async {
+      await tester.pumpWidget(
+        createTestApp(
+          Builder(
+            builder: (context) {
+              final l10n = AppLocalizations.of(context)!;
+              return Column(
+                children: [
+                  const Spacer(),
+                  PracticePlaybackFooter(
+                    canGoPrev: true,
+                    isLast: false,
+                    centerIcon: PlaybackToggleIcon.play,
+                    onPrevious: () {},
+                    onNext: () {},
+                    onCenter: () {},
+                    isManualMode: false,
+                    playCountText: showCount
+                        ? formatPracticePlayCount(
+                            l10n,
+                            currentCount: 1,
+                            totalCount: 1,
+                          )
+                        : null,
+                    l10n: l10n,
+                    theme: Theme.of(context),
+                  ),
+                ],
+              );
+            },
+          ),
+          locale: const Locale('zh'),
+        ),
+      );
+      await tester.pump();
+      return tester.getSize(find.byType(PracticePlaybackFooter)).height;
+    }
+
+    final withLabel = await footerHeight(true);
+    final withoutLabel = await footerHeight(false);
+
+    expect(withoutLabel, closeTo(withLabel, 0.5));
+  });
+
   testWidgets('移动端学习页底部控制区完整避让系统安全区', (tester) async {
     tester.view.physicalSize = const Size(390, 844);
     tester.view.devicePixelRatio = 1.0;
