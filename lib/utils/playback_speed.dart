@@ -69,3 +69,28 @@ double playbackSpeedFromSliderValue(double sliderValue) {
   final index = sliderValue.round().clamp(0, kUnifiedPlaybackSpeeds.length - 1);
   return kUnifiedPlaybackSpeeds[index];
 }
+
+/// 播放控制栏速度按钮的可选档位，升序排列。
+///
+/// 只做粗调，不复用完整的 [kUnifiedPlaybackSpeeds]，以免选择列表过长。
+const List<double> kQuickPlaybackSpeeds = [0.6, 0.8, 1.0, 1.2, 1.5];
+
+/// 与 [speed] 最接近的快捷档位下标，用于速度选择器的初始高亮。
+int nearestQuickPlaybackSpeedIndex(double speed) =>
+    nearestPlaybackSpeedIndex(kQuickPlaybackSpeeds, speed);
+
+/// [options]（升序）中与 [speed] 最接近的下标。
+///
+/// 速度可能来自完整档位表（如媒体页），不一定在选项里，因此按距离取最近项。
+int nearestPlaybackSpeedIndex(List<double> options, double speed) {
+  var best = 0;
+  var bestDistance = double.infinity;
+  for (var i = 0; i < options.length; i++) {
+    final distance = (options[i] - speed).abs();
+    if (distance < bestDistance) {
+      best = i;
+      bestDistance = distance;
+    }
+  }
+  return best;
+}

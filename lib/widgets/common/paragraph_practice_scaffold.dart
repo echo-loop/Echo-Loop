@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import '../../l10n/app_localizations.dart';
 import '../../theme/app_theme.dart';
 import '../practice/practice_progress_section.dart';
+import 'playback_controls.dart';
 import 'practice_playback_footer.dart';
 
 /// 段落练习页共享骨架
@@ -49,13 +50,20 @@ class ParagraphPracticeScaffold extends StatelessWidget {
   final Widget? practiceControls;
   final bool canGoPrev;
   final bool isLast;
-  final IconData centerIcon;
+  final PlaybackToggleIcon centerIcon;
   final VoidCallback onPrevious;
   final VoidCallback onNext;
   final VoidCallback onCenter;
   final bool isManualMode;
   final String playCountText;
   final String? statusSuffixText;
+
+  /// 可选：当前播放速度，与 [onPlaybackSpeedChanged] 同时提供时显示速度按钮。
+  final double? playbackSpeed;
+
+  /// 可选：选定新速度后的回调。
+  final ValueChanged<double>? onPlaybackSpeedChanged;
+
   final AppLocalizations l10n;
   final ThemeData theme;
 
@@ -86,6 +94,8 @@ class ParagraphPracticeScaffold extends StatelessWidget {
     required this.isManualMode,
     required this.playCountText,
     this.statusSuffixText,
+    this.playbackSpeed,
+    this.onPlaybackSpeedChanged,
     required this.l10n,
     required this.theme,
   });
@@ -132,6 +142,8 @@ class ParagraphPracticeScaffold extends StatelessWidget {
           isManualMode: isManualMode,
           playCountText: playCountText,
           statusSuffixText: statusSuffixText,
+          playbackSpeed: playbackSpeed,
+          onPlaybackSpeedChanged: onPlaybackSpeedChanged,
           l10n: l10n,
           theme: theme,
         ),

@@ -24,7 +24,7 @@ class PracticePlaybackFooter extends StatelessWidget {
   final bool isLast;
 
   /// 中间按钮图标
-  final IconData centerIcon;
+  final PlaybackToggleIcon centerIcon;
 
   /// 上一句回调
   final VoidCallback onPrevious;
@@ -44,12 +44,6 @@ class PracticePlaybackFooter extends StatelessWidget {
   /// 可选状态后缀（如盲听播放速度）
   final String? statusSuffixText;
 
-  /// 可选的右侧自定义控件；未提供时显示下一句/完成图标。
-  final Widget? nextControl;
-
-  /// 自定义右侧控件占用的布局宽度。
-  final double? nextControlWidth;
-
   /// 本地化
   final AppLocalizations l10n;
 
@@ -58,6 +52,12 @@ class PracticePlaybackFooter extends StatelessWidget {
 
   /// 可选：中间播放/暂停按钮的新手引导步骤
   final GuideStep? centerGuideStep;
+
+  /// 可选：当前播放速度，与 [onPlaybackSpeedChanged] 同时提供时显示速度按钮。
+  final double? playbackSpeed;
+
+  /// 可选：选定新速度后的回调。
+  final ValueChanged<double>? onPlaybackSpeedChanged;
 
   const PracticePlaybackFooter({
     super.key,
@@ -70,11 +70,11 @@ class PracticePlaybackFooter extends StatelessWidget {
     required this.isManualMode,
     required this.playCountText,
     this.statusSuffixText,
-    this.nextControl,
-    this.nextControlWidth,
     required this.l10n,
     required this.theme,
     this.centerGuideStep,
+    this.playbackSpeed,
+    this.onPlaybackSpeedChanged,
   });
 
   @override
@@ -100,9 +100,9 @@ class PracticePlaybackFooter extends StatelessWidget {
               onPrevious: onPrevious,
               onNext: onNext,
               onCenter: onCenter,
-              nextControl: nextControl,
-              nextControlWidth: nextControlWidth,
               centerGuideStep: centerGuideStep,
+              playbackSpeed: playbackSpeed,
+              onPlaybackSpeedChanged: onPlaybackSpeedChanged,
             ),
             const SizedBox(height: AppSpacing.s),
             PracticePlayCountLabel(

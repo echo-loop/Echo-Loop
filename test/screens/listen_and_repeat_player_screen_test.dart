@@ -598,7 +598,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 200));
 
       expect(find.byIcon(Icons.skip_previous_rounded), findsOneWidget);
-      expect(find.byIcon(Icons.play_arrow_rounded), findsOneWidget);
+      expect(find.byKey(playbackCenterIconKey(PlaybackToggleIcon.play)), findsOneWidget);
       expect(find.byIcon(Icons.skip_next_rounded), findsOneWidget);
     });
 
@@ -613,11 +613,11 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 200));
 
-      await tester.tap(find.byIcon(Icons.pause_rounded));
+      await tester.tap(find.byKey(playbackCenterIconKey(PlaybackToggleIcon.pause)));
       await tester.pump();
       expect(controller.pausePlaybackCalls, 1);
 
-      await tester.tap(find.byIcon(Icons.play_arrow_rounded));
+      await tester.tap(find.byKey(playbackCenterIconKey(PlaybackToggleIcon.play)));
       await tester.pump();
       expect(controller.resumeOrReplayCalls, 1);
     });

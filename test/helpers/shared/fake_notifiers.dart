@@ -1349,18 +1349,6 @@ class FakeIntensiveListenPlayer extends IntensiveListenPlayer {
   }
 
   @override
-  Future<void> exitAnnotationMode() async {
-    state = state.copyWith(
-      isAnnotationMode: true,
-      isAnnotationReplay: true,
-      isPlaying: true,
-      annotationReplayRemaining: const Duration(seconds: 3),
-      annotationReplayDuration: const Duration(seconds: 3),
-      isCurrentSentenceAutoMarked: false,
-    );
-  }
-
-  @override
   Future<void> replayInAnnotationMode() async {
     if (!state.isAnnotationMode) return;
     state = state.copyWith(isPlaying: true);

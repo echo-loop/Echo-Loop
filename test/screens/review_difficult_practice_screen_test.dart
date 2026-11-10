@@ -632,7 +632,7 @@ void main() {
 
       expect(find.byIcon(Icons.skip_previous_rounded), findsOneWidget);
       expect(find.byIcon(Icons.skip_next_rounded), findsOneWidget);
-      expect(find.byIcon(Icons.pause_rounded), findsOneWidget);
+      expect(find.byKey(playbackCenterIconKey(PlaybackToggleIcon.pause)), findsOneWidget);
     });
 
     testWidgets('播放中不显示盲听标签（共享 widget 简化）', (tester) async {
@@ -657,7 +657,7 @@ void main() {
 
       expect(find.byIcon(Icons.skip_previous_rounded), findsOneWidget);
       expect(find.byIcon(Icons.skip_next_rounded), findsOneWidget);
-      expect(find.byIcon(Icons.pause_rounded), findsOneWidget);
+      expect(find.byKey(playbackCenterIconKey(PlaybackToggleIcon.pause)), findsOneWidget);
     });
 
     testWidgets('暂停后显示播放图标', (tester) async {
@@ -667,11 +667,11 @@ void main() {
       await tester.pumpAndSettle();
 
       // 点击暂停
-      await tester.tap(find.byIcon(Icons.pause_rounded));
+      await tester.tap(find.byKey(playbackCenterIconKey(PlaybackToggleIcon.pause)));
       await tester.pumpAndSettle();
 
-      expect(find.byIcon(Icons.play_arrow_rounded), findsOneWidget);
-      expect(find.byIcon(Icons.pause_rounded), findsNothing);
+      expect(find.byKey(playbackCenterIconKey(PlaybackToggleIcon.play)), findsOneWidget);
+      expect(find.byKey(playbackCenterIconKey(PlaybackToggleIcon.pause)), findsNothing);
     });
 
     testWidgets('盲听模式打开设置会进入 WaitingForUser', (tester) async {
@@ -1078,7 +1078,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // 播放按钮显示暂停图标（非禁用态）
-      expect(find.byIcon(Icons.pause_rounded), findsOneWidget);
+      expect(find.byKey(playbackCenterIconKey(PlaybackToggleIcon.pause)), findsOneWidget);
     });
 
     testWidgets('跟读模式只显示一套底部播放控制', (tester) async {
@@ -1094,7 +1094,7 @@ void main() {
 
       expect(find.byIcon(Icons.skip_previous_rounded), findsOneWidget);
       expect(find.byIcon(Icons.skip_next_rounded), findsOneWidget);
-      expect(find.byIcon(Icons.pause_rounded), findsOneWidget);
+      expect(find.byKey(playbackCenterIconKey(PlaybackToggleIcon.pause)), findsOneWidget);
     });
 
     testWidgets('打开设置弹窗后进入 WaitingForUser', (tester) async {
@@ -1130,11 +1130,11 @@ void main() {
       await tester.pumpAndSettle();
 
       // 点击暂停
-      await tester.tap(find.byIcon(Icons.pause_rounded));
+      await tester.tap(find.byKey(playbackCenterIconKey(PlaybackToggleIcon.pause)));
       await tester.pumpAndSettle();
 
       // 应切换为播放图标
-      expect(find.byIcon(Icons.play_arrow_rounded), findsOneWidget);
+      expect(find.byKey(playbackCenterIconKey(PlaybackToggleIcon.play)), findsOneWidget);
     });
 
     testWidgets('暂停中点击 → 恢复播放', (tester) async {
@@ -1144,14 +1144,14 @@ void main() {
       await tester.pumpAndSettle();
 
       // 先暂停
-      await tester.tap(find.byIcon(Icons.pause_rounded));
+      await tester.tap(find.byKey(playbackCenterIconKey(PlaybackToggleIcon.pause)));
       await tester.pumpAndSettle();
-      expect(find.byIcon(Icons.play_arrow_rounded), findsOneWidget);
+      expect(find.byKey(playbackCenterIconKey(PlaybackToggleIcon.play)), findsOneWidget);
 
       // 再恢复
-      await tester.tap(find.byIcon(Icons.play_arrow_rounded));
+      await tester.tap(find.byKey(playbackCenterIconKey(PlaybackToggleIcon.play)));
       await tester.pumpAndSettle();
-      expect(find.byIcon(Icons.pause_rounded), findsOneWidget);
+      expect(find.byKey(playbackCenterIconKey(PlaybackToggleIcon.pause)), findsOneWidget);
     });
 
     testWidgets('点击听不懂 → 进入跟读模式', (tester) async {
@@ -1188,11 +1188,11 @@ void main() {
       await tester.pumpAndSettle();
 
       // 暂停
-      await tester.tap(find.byIcon(Icons.pause_rounded));
+      await tester.tap(find.byKey(playbackCenterIconKey(PlaybackToggleIcon.pause)));
       await tester.pumpAndSettle();
 
       // 恢复 → resume 调 _startShadowReading()，currentPlayCount 回 1
-      await tester.tap(find.byIcon(Icons.play_arrow_rounded));
+      await tester.tap(find.byKey(playbackCenterIconKey(PlaybackToggleIcon.play)));
       await tester.pumpAndSettle();
 
       expect(find.text('Play 1/3'), findsOneWidget);

@@ -766,7 +766,6 @@
   "aiVocabulary": "Key Vocabulary",
   "aiListening": "Listening tips",
   "intensiveListenWordDictNotFound": "Word not found in dictionary",
-  "intensiveListenContinue": "Next",
   "intensiveListenReplayingWithSubtitle": "Listen again to help it stick",
   "intensiveListenPauseBetweenPlays": "Next play in {seconds}s",
   "@intensiveListenPauseBetweenPlays": {
@@ -2311,6 +2310,9 @@
   "hideRecommendationMessage": "The Study page will stop showing recommendations. To bring it back, turn it on again in Profile › Display Settings.",
   "showWeeklyChartToggle": "Show weekly study chart",
   "showWeeklyChartSubtitle": "Show the weekly study time chart on the Study page",
+  "showPlaybackSpeedButtonToggle": "Show playback speed button",
+  "showPlaybackSpeedButtonSubtitle": "Show the playback speed button in the playback controls of learning tasks.",
+  "playbackSpeedDragHint": "Slide left or right · release to apply",
   "hideWeeklyChartTooltip": "Hide weekly chart",
   "hideWeeklyChartTitle": "Hide weekly study chart?",
   "hideWeeklyChartMessage": "The Study page will stop showing the weekly study chart. To bring it back, turn it on again in Profile › Display Settings.",

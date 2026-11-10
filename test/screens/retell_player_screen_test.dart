@@ -616,8 +616,8 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
 
-      expect(find.byIcon(Icons.play_arrow_rounded), findsOneWidget);
-      expect(find.byIcon(Icons.pause_rounded), findsNothing);
+      expect(find.byKey(playbackCenterIconKey(PlaybackToggleIcon.play)), findsOneWidget);
+      expect(find.byKey(playbackCenterIconKey(PlaybackToggleIcon.pause)), findsNothing);
     });
 
     testWidgets('播放完成后空闲态不显示复述提示', (tester) async {
@@ -700,7 +700,7 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
 
-      await tester.tap(find.byIcon(Icons.play_arrow_rounded));
+      await tester.tap(find.byKey(playbackCenterIconKey(PlaybackToggleIcon.play)));
       await tester.pump();
       await tester.pump();
 
@@ -710,7 +710,7 @@ void main() {
         RetellRecordingPhase.idle,
         reason: '点击主播放后录音状态应结束',
       );
-      expect(find.byIcon(Icons.pause_rounded), findsOneWidget);
+      expect(find.byKey(playbackCenterIconKey(PlaybackToggleIcon.pause)), findsOneWidget);
     });
 
     testWidgets('复述录音中点击主播放不会在取消后自动重启录音', (tester) async {
@@ -744,14 +744,14 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
 
-      await tester.tap(find.byIcon(Icons.play_arrow_rounded));
+      await tester.tap(find.byKey(playbackCenterIconKey(PlaybackToggleIcon.play)));
       await tester.pump();
       await tester.pump();
 
       expect(recordingController.cancelCalls, 1);
       expect(recordingController.state.phase, RetellRecordingPhase.idle);
       expect(recordingController.startCalls, 0);
-      expect(find.byIcon(Icons.pause_rounded), findsOneWidget);
+      expect(find.byKey(playbackCenterIconKey(PlaybackToggleIcon.pause)), findsOneWidget);
     });
 
     // 回归：评估中点主播放重听本段，录音清理期间跑过一帧时，
@@ -789,7 +789,7 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
 
-      await tester.tap(find.byIcon(Icons.play_arrow_rounded));
+      await tester.tap(find.byKey(playbackCenterIconKey(PlaybackToggleIcon.play)));
       // 清理尚未完成，先跑几帧，让 idle 触发的 post-frame 回调执行。
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 16));

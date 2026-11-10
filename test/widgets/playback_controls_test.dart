@@ -5,6 +5,7 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:echo_loop/widgets/common/playback_controls.dart' show PlaybackToggleIcon, playbackCenterIconKey;
 import 'package:echo_loop/widgets/playback_controls.dart';
 import 'package:echo_loop/models/playback_settings.dart';
 import 'package:echo_loop/models/sentence.dart';
@@ -45,8 +46,8 @@ void main() {
         await tester.pumpAndSettle();
 
         // 暂停状态显示播放图标
-        expect(find.byIcon(Icons.play_arrow), findsOneWidget);
-        expect(find.byIcon(Icons.pause), findsNothing);
+        expect(find.byKey(playbackCenterIconKey(PlaybackToggleIcon.play)), findsOneWidget);
+        expect(find.byKey(playbackCenterIconKey(PlaybackToggleIcon.pause)), findsNothing);
       });
 
       testWidgets('播放中显示暂停图标', (tester) async {
@@ -62,15 +63,15 @@ void main() {
         );
         await tester.pumpAndSettle();
 
-        expect(find.byIcon(Icons.pause), findsOneWidget);
+        expect(find.byKey(playbackCenterIconKey(PlaybackToggleIcon.pause)), findsOneWidget);
       });
 
       testWidgets('显示上一句/下一句按钮', (tester) async {
         await tester.pumpWidget(buildControls());
         await tester.pumpAndSettle();
 
-        expect(find.byIcon(Icons.skip_previous), findsOneWidget);
-        expect(find.byIcon(Icons.skip_next), findsOneWidget);
+        expect(find.byIcon(Icons.skip_previous_rounded), findsOneWidget);
+        expect(find.byIcon(Icons.skip_next_rounded), findsOneWidget);
       });
 
       testWidgets('移动端主控制按钮间距与学习页一致', (tester) async {
@@ -83,10 +84,10 @@ void main() {
         await tester.pumpAndSettle();
 
         final previousCenter = tester.getCenter(
-          find.byIcon(Icons.skip_previous),
+          find.byIcon(Icons.skip_previous_rounded),
         );
-        final playCenter = tester.getCenter(find.byIcon(Icons.play_arrow));
-        final nextCenter = tester.getCenter(find.byIcon(Icons.skip_next));
+        final playCenter = tester.getCenter(find.byKey(playbackCenterIconKey(PlaybackToggleIcon.play)));
+        final nextCenter = tester.getCenter(find.byIcon(Icons.skip_next_rounded));
         expect(playCenter.dx - previousCenter.dx, closeTo(104, 0.1));
         expect(nextCenter.dx - playCenter.dx, closeTo(104, 0.1));
       });
@@ -184,10 +185,10 @@ void main() {
         await tester.pumpWidget(createTestApp(const PlaybackControls()));
         await tester.pumpAndSettle();
 
-        expect(find.byIcon(Icons.replay_10), findsOneWidget);
-        expect(find.byIcon(Icons.forward_10), findsOneWidget);
-        expect(find.byIcon(Icons.skip_previous), findsNothing);
-        expect(find.byIcon(Icons.skip_next), findsNothing);
+        expect(find.byIcon(Icons.replay_10_rounded), findsOneWidget);
+        expect(find.byIcon(Icons.forward_10_rounded), findsOneWidget);
+        expect(find.byIcon(Icons.skip_previous_rounded), findsNothing);
+        expect(find.byIcon(Icons.skip_next_rounded), findsNothing);
       });
 
       testWidgets('无字幕隐藏模式切换/字幕显示，保留速度/整篇循环/播放', (tester) async {
@@ -204,7 +205,7 @@ void main() {
         expect(find.text('1.0x'), findsOneWidget);
         expect(find.byIcon(Icons.repeat), findsOneWidget);
         expect(find.byIcon(Icons.repeat_one), findsNothing);
-        expect(find.byIcon(Icons.play_arrow), findsOneWidget);
+        expect(find.byKey(playbackCenterIconKey(PlaybackToggleIcon.play)), findsOneWidget);
       });
 
       testWidgets('无字幕循环浮层只含整篇循环，不含单句循环', (tester) async {
@@ -227,12 +228,12 @@ void main() {
         await tester.pumpAndSettle();
 
         final rewind = tester.widget<IconButton>(
-          find.widgetWithIcon(IconButton, Icons.replay_10),
+          find.widgetWithIcon(IconButton, Icons.replay_10_rounded),
         );
         expect(rewind.onPressed, isNotNull);
 
         final forward = tester.widget<IconButton>(
-          find.widgetWithIcon(IconButton, Icons.forward_10),
+          find.widgetWithIcon(IconButton, Icons.forward_10_rounded),
         );
         expect(forward.onPressed, isNotNull);
       });
@@ -249,12 +250,12 @@ void main() {
         await tester.pumpAndSettle();
 
         final prevButton = tester.widget<IconButton>(
-          find.widgetWithIcon(IconButton, Icons.skip_previous),
+          find.widgetWithIcon(IconButton, Icons.skip_previous_rounded),
         );
         expect(prevButton.onPressed, isNotNull);
 
         final nextButton = tester.widget<IconButton>(
-          find.widgetWithIcon(IconButton, Icons.skip_next),
+          find.widgetWithIcon(IconButton, Icons.skip_next_rounded),
         );
         expect(nextButton.onPressed, isNotNull);
       });
@@ -271,12 +272,12 @@ void main() {
         await tester.pumpAndSettle();
 
         final prevButton = tester.widget<IconButton>(
-          find.widgetWithIcon(IconButton, Icons.skip_previous),
+          find.widgetWithIcon(IconButton, Icons.skip_previous_rounded),
         );
         expect(prevButton.onPressed, isNull);
 
         final nextButton = tester.widget<IconButton>(
-          find.widgetWithIcon(IconButton, Icons.skip_next),
+          find.widgetWithIcon(IconButton, Icons.skip_next_rounded),
         );
         expect(nextButton.onPressed, isNotNull);
       });
@@ -293,12 +294,12 @@ void main() {
         await tester.pumpAndSettle();
 
         final prevButton = tester.widget<IconButton>(
-          find.widgetWithIcon(IconButton, Icons.skip_previous),
+          find.widgetWithIcon(IconButton, Icons.skip_previous_rounded),
         );
         expect(prevButton.onPressed, isNotNull);
 
         final nextButton = tester.widget<IconButton>(
-          find.widgetWithIcon(IconButton, Icons.skip_next),
+          find.widgetWithIcon(IconButton, Icons.skip_next_rounded),
         );
         expect(nextButton.onPressed, isNull);
       });
@@ -371,7 +372,7 @@ void main() {
         // 窄屏布局使用 Column（两行）
         // 验证组件正常渲染即可
         expect(find.byType(PlaybackControls), findsOneWidget);
-        expect(find.byIcon(Icons.play_arrow), findsOneWidget);
+        expect(find.byKey(playbackCenterIconKey(PlaybackToggleIcon.play)), findsOneWidget);
       });
 
       testWidgets('宽屏 (>=600px) 使用横向布局', (tester) async {
@@ -385,7 +386,7 @@ void main() {
 
         // 宽屏布局使用单行 Row
         expect(find.byType(PlaybackControls), findsOneWidget);
-        expect(find.byIcon(Icons.play_arrow), findsOneWidget);
+        expect(find.byKey(playbackCenterIconKey(PlaybackToggleIcon.play)), findsOneWidget);
       });
     });
   });

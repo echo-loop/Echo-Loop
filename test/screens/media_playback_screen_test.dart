@@ -24,6 +24,7 @@ import 'package:echo_loop/services/media_session_router.dart';
 import 'package:echo_loop/services/sentence_ai_api_client.dart';
 import 'package:echo_loop/theme/app_theme.dart';
 import 'package:echo_loop/utils/app_data_dir.dart';
+import 'package:echo_loop/widgets/common/capsule_selector.dart';
 import 'package:echo_loop/widgets/common/paragraph_sentence_list_card.dart';
 import 'package:echo_loop/widgets/common/masked_sentence_tile.dart';
 import 'package:echo_loop/widgets/common/free_player_sentence_pager.dart';
@@ -34,6 +35,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:echo_loop/widgets/common/playback_controls.dart' show PlaybackToggleIcon, playbackCenterIconKey;
 import 'package:go_router/go_router.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:echo_loop/services/app_logger.dart';
@@ -343,6 +345,54 @@ void main() {
     expect(find.text('No subtitles available'), findsOneWidget);
   });
 
+  testMediaWidgets('随心听速度按钮使用胶囊选择器，只列出常用档位并应用选择', (tester) async {
+    final audioItem = AudioItem(
+      id: item.id,
+      name: 'Screen Audio',
+      audioPath: 'echo-loop-audio-screen.mp3',
+      addedDate: item.addedDate,
+    );
+    await tester.pumpWidget(
+      createTestApp(
+        MediaPlaybackScreen(audioItem: audioItem),
+        overrides: dedupeOverrides([
+          mediaBackendFactoryProvider.overrideWithValue(() => backend),
+          mediaSessionRouterProvider.overrideWithValue(router),
+        ]),
+      ),
+    );
+    await pumpMediaReady(tester, requireVideoView: false);
+
+    final capsule = find.byType(CapsuleSelector<double>);
+    expect(capsule, findsOneWidget);
+    await tester.tap(find.descendant(of: capsule, matching: find.text('1.0x')));
+    await tester.pumpAndSettle();
+
+    for (final label in [
+      '0.5x',
+      '0.7x',
+      '0.8x',
+      '0.9x',
+      '1.2x',
+      '1.5x',
+      '2.0x',
+    ]) {
+      expect(find.text(label), findsOneWidget);
+    }
+    for (final label in ['0.4x', '0.6x', '1.1x', '1.3x', '1.4x']) {
+      expect(find.text(label), findsNothing);
+    }
+
+    await tester.tap(find.text('1.2x'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('0.5x'), findsNothing);
+    expect(
+      find.descendant(of: capsule, matching: find.text('1.2x')),
+      findsOneWidget,
+    );
+  });
+
   testMediaWidgets('已创建意群播放器后退出页面不在卸载期修改媒体状态', (tester) async {
     await tester.pumpWidget(
       createTestApp(
@@ -458,7 +508,7 @@ void main() {
     final playButton = tester.getRect(
       find.descendant(
         of: find.byKey(const ValueKey('media-control-panel')),
-        matching: find.byIcon(Icons.play_arrow),
+        matching: find.byKey(playbackCenterIconKey(PlaybackToggleIcon.play)),
       ),
     );
     expect(playButton.bottom, lessThanOrEqualTo(844 - 34));
@@ -1338,7 +1388,7 @@ void main() {
     await tester.pump();
     expect(backend.playCalls, 1);
 
-    await tester.tap(find.widgetWithIcon(IconButton, Icons.skip_next));
+    await tester.tap(find.widgetWithIcon(IconButton, Icons.skip_next_rounded));
     await tester.pump(const Duration(milliseconds: 100));
     expect(container.read(mediaPlaybackProvider).currentFullIndex, 0);
     expect(backend.playCalls, 1);
@@ -1382,7 +1432,7 @@ void main() {
     );
     await tester.pump(const Duration(milliseconds: 500));
 
-    await tester.tap(find.widgetWithIcon(IconButton, Icons.skip_next));
+    await tester.tap(find.widgetWithIcon(IconButton, Icons.skip_next_rounded));
     await pumpUntil(
       tester,
       () => container.read(mediaPlaybackProvider).currentFullIndex == 1,
@@ -1409,12 +1459,12 @@ void main() {
     await pumpMediaReady(tester);
 
     final prevButton = tester.widget<IconButton>(
-      find.widgetWithIcon(IconButton, Icons.skip_previous),
+      find.widgetWithIcon(IconButton, Icons.skip_previous_rounded),
     );
     expect(prevButton.onPressed, isNull);
 
     final nextButton = tester.widget<IconButton>(
-      find.widgetWithIcon(IconButton, Icons.skip_next),
+      find.widgetWithIcon(IconButton, Icons.skip_next_rounded),
     );
     expect(nextButton.onPressed, isNotNull);
 
@@ -1440,12 +1490,12 @@ void main() {
     await tester.pumpAndSettle();
 
     final prevButton = tester.widget<IconButton>(
-      find.widgetWithIcon(IconButton, Icons.skip_previous),
+      find.widgetWithIcon(IconButton, Icons.skip_previous_rounded),
     );
     expect(prevButton.onPressed, isNotNull);
 
     final nextButton = tester.widget<IconButton>(
-      find.widgetWithIcon(IconButton, Icons.skip_next),
+      find.widgetWithIcon(IconButton, Icons.skip_next_rounded),
     );
     expect(nextButton.onPressed, isNull);
 

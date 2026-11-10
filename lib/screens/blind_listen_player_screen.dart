@@ -24,6 +24,7 @@ import '../models/sentence.dart';
 import '../models/word_highlight_binding.dart';
 import '../providers/learning_plan_provider.dart';
 import '../providers/learning_progress_provider.dart';
+import '../providers/learning_settings_provider.dart';
 import '../providers/learning_session/blind_listen_player_provider.dart';
 import '../providers/learning_session/learning_session_provider.dart';
 import '../providers/media_engine/media_engine_provider.dart';
@@ -285,6 +286,14 @@ class _BlindListenPlayerScreenState
   }
 
   // ========== 完成处理 ==========
+
+  /// 播放栏速度按钮与设置面板走同一更新路径，保证两处行为一致。
+  void _handlePlaybackSpeedSelected(double speed) {
+    final settings = ref.read(blindListenPlayerProvider).settings;
+    ref
+        .read(blindListenPlayerProvider.notifier)
+        .updateSettings(settings.copyWith(playbackSpeed: speed));
+  }
 
   /// 播放完成处理
   void _handleCompleted() {
@@ -561,6 +570,9 @@ class _BlindListenPlayerScreenState
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final theme = Theme.of(context);
+    final showPlaybackSpeedButton = ref.watch(
+      learningSettingsProvider.select((s) => s.showPlaybackSpeedButton),
+    );
     // 只监听非倒计时字段，排除 pauseRemaining，
     // 避免倒计时每 100ms tick 导致整个页面重建
     ref.watch(
@@ -610,6 +622,7 @@ class _BlindListenPlayerScreenState
             l10n,
             theme,
             playerState,
+            showPlaybackSpeedButton: showPlaybackSpeedButton,
             topContent: presentation.enabled ? mediaSurface : null,
             bodyWrapper: _wrapMediaStartup,
             fullscreenBody: presentation.expanded ? mediaSurface : null,
@@ -659,6 +672,7 @@ class _BlindListenPlayerScreenState
     AppLocalizations l10n,
     ThemeData theme,
     BlindListenPlayerState playerState, {
+    required bool showPlaybackSpeedButton,
     Widget? topContent,
     Widget Function(Widget child)? bodyWrapper,
     Widget? fullscreenBody,
@@ -885,8 +899,8 @@ class _BlindListenPlayerScreenState
                 playerState.currentParagraphIndex >=
                 playerState.totalParagraphs - 1,
             centerIcon: _isBlindMainPlaybackActive(playerState)
-                ? Icons.pause_rounded
-                : Icons.play_arrow_rounded,
+                ? PlaybackToggleIcon.pause
+                : PlaybackToggleIcon.play,
             onPrevious: () => player.goToPreviousParagraph(),
             onNext: () {
               final isLast =
@@ -909,6 +923,12 @@ class _BlindListenPlayerScreenState
               totalCount: playerState.settings.repeatCount,
             ),
             statusSuffixText: _formatSpeed(playerState.settings.playbackSpeed),
+            playbackSpeed: showPlaybackSpeedButton
+                ? playerState.settings.playbackSpeed
+                : null,
+            onPlaybackSpeedChanged: showPlaybackSpeedButton
+                ? _handlePlaybackSpeedSelected
+                : null,
             l10n: l10n,
             theme: theme,
           ),

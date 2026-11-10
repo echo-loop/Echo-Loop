@@ -1363,9 +1363,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get intensiveListenWordDictNotFound => '未收录该单词';
 
   @override
-  String get intensiveListenContinue => '继续';
-
-  @override
   String get intensiveListenReplayingWithSubtitle => '再听一遍，巩固记忆';
 
   @override
@@ -4278,6 +4275,15 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get showWeeklyChartSubtitle => '在学习页显示本周学习时长图';
+
+  @override
+  String get showPlaybackSpeedButtonToggle => '显示倍速调节按钮';
+
+  @override
+  String get showPlaybackSpeedButtonSubtitle => '在学习任务中显示倍速调节按钮。';
+
+  @override
+  String get playbackSpeedDragHint => '左右滑动 · 松手应用';
 
   @override
   String get hideWeeklyChartTooltip => '关闭周学习时长';

@@ -55,6 +55,7 @@ import '../widgets/practice/practice_normal_mode_view.dart';
 import '../widgets/dictionary/dictionary_panel_host.dart';
 import '../widgets/practice/sentence_explanation_view.dart';
 import '../widgets/common/bookmark_toggle_row.dart';
+import '../widgets/common/playback_controls.dart';
 import '../widgets/common/practice_playback_footer.dart';
 import '../widgets/common/managed_media_visual_surface.dart';
 import '../widgets/common/practice_media_presentation_host.dart';
@@ -489,6 +490,9 @@ class _ReviewDifficultPracticeScreenState
     final l10n = AppLocalizations.of(context)!;
     final theme = Theme.of(context);
     final mediaReady = widget.mediaStartup == null || _mediaStartupReady;
+    final showPlaybackSpeedButton = ref.watch(
+      learningSettingsProvider.select((s) => s.showPlaybackSpeedButton),
+    );
 
     // select 过滤倒计时 tick（100ms 一次的 remaining 变化），避免整页频繁 rebuild
     // 导致 TapGestureRecognizer 被反复 dispose/重建，点击单词无法触发词典弹窗。
@@ -857,6 +861,12 @@ class _ReviewDifficultPracticeScreenState
                                 statusSuffixText: _formatSpeed(
                                   playerState.settings.playbackSpeed,
                                 ),
+                                playbackSpeed: showPlaybackSpeedButton
+                                    ? playerState.settings.playbackSpeed
+                                    : null,
+                                onPlaybackSpeedChanged: showPlaybackSpeedButton
+                                    ? _handlePlaybackSpeedSelected
+                                    : null,
                                 l10n: l10n,
                                 theme: theme,
                               ),
@@ -947,16 +957,16 @@ class _ReviewDifficultPracticeScreenState
     );
   }
 
-  IconData _buildFooterCenterIcon(ReviewDifficultPracticeState playerState) {
+  PlaybackToggleIcon _buildFooterCenterIcon(ReviewDifficultPracticeState playerState) {
     final flowState = playerState.repeatFlowState;
     if (playerState.isAnnotationMode && flowState != null) {
       return _isRepeatPromptPlaybackActive(flowState)
-          ? Icons.pause_rounded
-          : Icons.play_arrow_rounded;
+          ? PlaybackToggleIcon.pause
+          : PlaybackToggleIcon.play;
     }
     return _isBlindSentencePlaybackActive(playerState)
-        ? Icons.pause_rounded
-        : Icons.play_arrow_rounded;
+        ? PlaybackToggleIcon.pause
+        : PlaybackToggleIcon.play;
   }
 
   bool _isRepeatPromptPlaybackActive(RepeatFlowState flowState) {
@@ -999,6 +1009,14 @@ class _ReviewDifficultPracticeScreenState
           ? 1
           : playerState.settings.blindListenRepeatCount,
     );
+  }
+
+  /// 播放栏速度按钮与设置面板走同一更新路径，保证两处行为一致。
+  void _handlePlaybackSpeedSelected(double speed) {
+    final settings = ref.read(reviewDifficultPracticeProvider).settings;
+    ref
+        .read(reviewDifficultPracticeProvider.notifier)
+        .updateSettings(settings.copyWith(playbackSpeed: speed));
   }
 
   void _handlePrevious({required String source}) {

@@ -85,6 +85,12 @@ class _TestLearningSettingsNotifier extends Notifier<LearningSettings>
   }
 
   @override
+  Future<void> setShowPlaybackSpeedButton(bool enabled) async {
+    if (state.showPlaybackSpeedButton == enabled) return;
+    state = state.copyWith(showPlaybackSpeedButton: enabled);
+  }
+
+  @override
   Future<void> setAutoSaveOnUnclear(bool enabled) async {
     if (state.autoSaveOnUnclear == enabled) return;
     state = state.copyWith(autoSaveOnUnclear: enabled);

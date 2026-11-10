@@ -512,20 +512,6 @@ class IntensiveListenPlayer extends _$IntensiveListenPlayer {
     _setAnnotationPhase(const InspectingAnnotation());
   }
 
-  Future<void> exitAnnotationMode() async {
-    if (state.annotationState == null ||
-        state.annotationState?.phase is WaitingAnnotationPageTransition) {
-      return;
-    }
-    stopSenseGroupPlayback();
-    // “继续”始终只重播一次，再沿用原有自动推进流程。
-    await _startInlineAnnotationReplay(
-      repeatCount: 1,
-      advanceAfterReplay: true,
-      showReplayStatus: true,
-    );
-  }
-
   /// 盲听模式下用户接管流程。
   void enterWaitingForUserInBlindMode() {
     if (state.annotationState != null) return;

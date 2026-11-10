@@ -53,6 +53,8 @@ abstract final class LearningSettingsKeys {
   static const pdfExportReminderShown = 'learning_pdf_export_reminder_shown';
   static const showStudyRecommendation = 'learning_show_study_recommendation';
   static const showWeeklyStudyChart = 'learning_show_weekly_study_chart';
+  static const showPlaybackSpeedButton =
+      'learning_show_playback_speed_button';
   static const autoSaveOnUnclear = 'learning_auto_favorite_on_cant_understand';
   static const unclearAutoSaveReminderShown =
       'learning_unclear_auto_save_reminder_shown';
@@ -126,6 +128,9 @@ class LearningSettings {
   /// 是否在学习页展示本周学习时长柱状图（默认 true）。
   final bool showWeeklyStudyChart;
 
+  /// 是否在学习任务的播放控制区显示倍速调节按钮（默认 true）。
+  final bool showPlaybackSpeedButton;
+
   /// 精听点击「听不太懂」时是否自动收藏当前句（默认 true）。
   final bool autoSaveOnUnclear;
 
@@ -151,6 +156,7 @@ class LearningSettings {
     this.pdfExportReminderShown = false,
     this.showStudyRecommendation = true,
     this.showWeeklyStudyChart = true,
+    this.showPlaybackSpeedButton = true,
     this.autoSaveOnUnclear = true,
     this.unclearAutoSaveReminderShown = false,
     this.podcastTranscriptReminderShown = false,
@@ -194,6 +200,8 @@ class LearningSettings {
           prefs.getBool(LearningSettingsKeys.showStudyRecommendation) ?? true,
       showWeeklyStudyChart:
           prefs.getBool(LearningSettingsKeys.showWeeklyStudyChart) ?? true,
+      showPlaybackSpeedButton:
+          prefs.getBool(LearningSettingsKeys.showPlaybackSpeedButton) ?? true,
       autoSaveOnUnclear:
           prefs.getBool(LearningSettingsKeys.autoSaveOnUnclear) ?? true,
       unclearAutoSaveReminderShown:
@@ -244,6 +252,7 @@ class LearningSettings {
     bool? pdfExportReminderShown,
     bool? showStudyRecommendation,
     bool? showWeeklyStudyChart,
+    bool? showPlaybackSpeedButton,
     bool? autoSaveOnUnclear,
     bool? unclearAutoSaveReminderShown,
     bool? podcastTranscriptReminderShown,
@@ -274,6 +283,8 @@ class LearningSettings {
       showStudyRecommendation:
           showStudyRecommendation ?? this.showStudyRecommendation,
       showWeeklyStudyChart: showWeeklyStudyChart ?? this.showWeeklyStudyChart,
+      showPlaybackSpeedButton:
+          showPlaybackSpeedButton ?? this.showPlaybackSpeedButton,
       autoSaveOnUnclear: autoSaveOnUnclear ?? this.autoSaveOnUnclear,
       unclearAutoSaveReminderShown:
           unclearAutoSaveReminderShown ?? this.unclearAutoSaveReminderShown,
@@ -304,6 +315,7 @@ class LearningSettings {
           pdfExportReminderShown == other.pdfExportReminderShown &&
           showStudyRecommendation == other.showStudyRecommendation &&
           showWeeklyStudyChart == other.showWeeklyStudyChart &&
+          showPlaybackSpeedButton == other.showPlaybackSpeedButton &&
           autoSaveOnUnclear == other.autoSaveOnUnclear &&
           unclearAutoSaveReminderShown == other.unclearAutoSaveReminderShown &&
           podcastTranscriptReminderShown ==
@@ -326,6 +338,7 @@ class LearningSettings {
     pdfExportReminderShown,
     showStudyRecommendation,
     showWeeklyStudyChart,
+    showPlaybackSpeedButton,
     autoSaveOnUnclear,
     unclearAutoSaveReminderShown,
     podcastTranscriptReminderShown,
@@ -623,6 +636,25 @@ class LearningSettingsNotifier extends Notifier<LearningSettings> {
       userPreferencesSyncEvents.notifyLocalChange();
     } catch (e) {
       AppLogger.log('LearningSettings', 'setShowWeeklyStudyChart 写 SP 失败: $e');
+    }
+  }
+
+  /// 切换精听播放按钮两侧的变速快捷按钮显示，写 SP + 更新 state。
+  Future<void> setShowPlaybackSpeedButton(bool enabled) async {
+    if (state.showPlaybackSpeedButton == enabled) return;
+    state = state.copyWith(showPlaybackSpeedButton: enabled);
+    try {
+      final prefs = ref.read(sharedPreferencesProvider);
+      await prefs.setBool(
+        LearningSettingsKeys.showPlaybackSpeedButton,
+        enabled,
+      );
+      userPreferencesSyncEvents.notifyLocalChange();
+    } catch (e) {
+      AppLogger.log(
+        'LearningSettings',
+        'setShowPlaybackSpeedButton 写 SP 失败: $e',
+      );
     }
   }
 

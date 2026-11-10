@@ -4,6 +4,46 @@
 
 ## 本次完成
 
+- [x] 显示设置变速开关文案与默认值调整（2026-11-10）：设置项标题改为「显示倍速调节按钮」，副标题改为「在学习任务中显示倍速调节按钮。」（中文 ARB）；英文 ARB 同步为 `Show playback speed button`。默认值由关闭改为开启：`learning_settings_provider.dart` 构造默认值与 SP 缺失时的读取回退、`local_user_preferences_store.dart` 默认值同步改为 `true`。已显式关闭的用户 SP 中有 `false`，不受影响。测试：provider 默认开启用例、显示设置页默认开启用例更新，`flutter analyze` 无问题。
+
+- [x] 随心听循环设置与定时停止浮层改用播放速度浮层样式（2026-11-10）：`AnchoredBubble` / `BubbleCard` 新增可选的 `color`、`borderColor`、`borderRadius`、`showCaret`（默认值与原来一致）。随心听循环设置（`_MediaLoopButton`）与定时停止（`SleepTimerButton`）使用 surface 底色、outlineVariant 描边、圆角 20、阴影，并关闭箭头（`showCaret: false`），与播放速度浮层统一为无箭头。`CaretPainter` 新增斜边描边，并修复朝下箭头被卡片阴影盖住的问题（仍用于其他未关闭箭头的浮层，如 PDF 预览、字幕管理）。验证：`sleep_timer_test`、`media_playback_screen_test`、`pdf_preview_screen_test`、胶囊组件测试合计 `+72` 通过；`flutter analyze` 无问题；格式化与 HEAD 一致。**待真机验证**：浅色 / 深色主题下两个浮层的边界观感。**完成时间**: 2026-11-10
+
+- [x] 学习任务播放栏速度快捷档位改为 0.6 / 0.8 / 1.0 / 1.2 / 1.5（2026-11-10）：`kQuickPlaybackSpeeds` 由 0.7/0.9/1.0/1.1/1.3 改为新档位，影响逐句精听、盲听、跟读、复述、难句补练的底栏速度按钮。随心听（`kFreePlayerSpeedOptions`）与媒体页不受影响。测试：逐句精听与盲听的按钮用例改为新档位；`playback_speed_quick_test` 的最近档位期望同步更新；胶囊组件测试改用自带的固定选项，与产品档位解耦。验证：相关测试合计 `+145` 通过；`flutter analyze` 无问题；格式化差异与 HEAD 相同。**完成时间**: 2026-11-10
+
+- [x] 胶囊选择器浮层修正（2026-11-10）：8 个选项在 375pt 屏幕上宽约 440pt，浮层被左右裁切。改为选项宽度随屏幕缩小（上限 52，`_optionWidthFor`），拖动换算同步使用该宽度。浮层改回 `Material` 卡片：`surface` 底色（与循环设置浮层一致）、`outlineVariant` 描边、圆角 20、阴影，按用户要求去掉箭头。底色原用 `surfaceContainerHigh` 呈灰色，已去掉。紧凑化：选项宽上限 52→44、高 44→36，选项字号 15→13，浮层内边距 12/10/12→10/8/10。共享的 `BubbleCard` / `CaretPainter` 已还原，未改动。验证：`capsule_selector_test`、`media_playback_screen_test`、`intensive_listen_player_screen_test`、`playback_speed_quick_test` 合计 `+122` 通过；`sleep_timer_test` 此前已通过；`flutter analyze` 无问题；格式化差异与 HEAD 相同。**待真机验证**：浅色 / 深色主题下浮层边界是否清楚，窄屏（320pt）下 8 个选项的文字是否单行显示。**完成时间**: 2026-11-10
+
+- [x] 随心听速度按钮改用胶囊选择器（2026-11-10）：随心听页面（路由 `MediaPlaybackScreen`，即 `lib/screens/media_playback_screen.dart` 的 `_MediaSpeedButton`）原浮层气泡（`AnchoredBubble` + `BubbleMenuRow`，列出 13 档）替换为通用 `CapsuleSelector`，与逐句精听共用组件。选项精简为 0.5 / 0.7 / 0.8 / 0.9 / 1.0 / 1.2 / 1.5 / 2.0（新增 `kFreePlayerSpeedOptions`）。当前速度不在选项中时高亮最接近的档位（新增 `nearestPlaybackSpeedIndex`，`nearestQuickPlaybackSpeedIndex` 改为复用它）。`kFreePlayerPlaybackSpeeds` 未改动。注意：曾误改 `lib/widgets/playback_controls.dart`（`PlayerScreen` 无路由引用，属死代码），已还原。测试：`media_playback_screen_test` 新增随心听速度胶囊用例；`playback_speed_quick_test` 新增最近档位用例；相关测试合计 `+88` 通过。**待真机验证**：胶囊在随心听底栏的位置与浮层向上弹出的观感。**完成时间**: 2026-11-10
+
+- [x] 主播放按钮图标放大（2026-11-10）：`PlaybackControls.centerIconSize` 由 36 改为 44，点击区域 56 保持不变。play.svg 的三角形只占 viewBox 的约一半，36 时偏小。该常量由所有共用中间播放按钮的页面共享（练习页底栏、媒体播放页即随心听、播放器页）。修复：`PlaybackCenterButton` 的 `IconButton` 默认 8 内边距会把图标压到 40，改为 `padding: EdgeInsets.zero`，新增 `test/widgets/common/playback_center_button_test.dart` 校验图标渲染尺寸（修复前为 40，已确认先红后绿）。验证：`flutter analyze` 改动文件无问题；`test/widgets/common`、`test/widgets/practice` 共 171 项全部通过。**待真机验证**：各页面中间播放图标的大小观感。**完成时间**: 2026-11-10
+
+- [x] 播放速度按钮扩展到其他学习任务（2026-11-10）：盲听、跟读、复述、难句补练的播放栏左侧同样显示速度按钮，交互复用逐句精听的 `CapsuleSelector`。四个页面的速度按钮与设置面板走同一个 `updateSettings` / `update` 路径，行为一致。仍共用学习设置里唯一的 `showPlaybackSpeedButton` 开关，未按任务拆分。随心听不接入。`ParagraphPracticeScaffold` 新增可选 `playbackSpeed` / `onPlaybackSpeedChanged` 透传到底栏。设置项副标题改为列出五个任务（中英文）。测试：盲听页默认隐藏、开启后轻点 1.1x 应用到播放状态。相关测试文件（盲听、跟读、复述、难句补练、底栏、控制栏）`+135 ~5` 全部通过；`flutter analyze` 无问题；改动文件的格式化差异与 HEAD 一致（仓库本身与本机 `dart format` 风格不一致，未引入新差异）。自检修复：跟读页速度按钮改回整体监听设置以保持原重建时机；盲听页速度标志改在 `build` 中监听后透传。**待真机验证**：四个页面底栏的按钮位置与窄屏（320pt）隐藏效果。**完成时间**: 2026-11-10
+
+- [x] 播放速度按钮开关改名（2026-11-10）：`showSpeedShortcutButtons` → `showPlaybackSpeedButton`（不绑定精听页，后续其他学习任务的播放栏也可复用）。同步改名：SP key 为 `learning_show_playback_speed_button`，云端字段为 `showPlaybackSpeedButton`，文案 key 为 `showPlaybackSpeedButtonToggle` / `showPlaybackSpeedButtonSubtitle`。该开关仍只控制播放栏的速度按钮，设置页位置不变。**注意**：旧 SP 值与云端旧字段不再读取，开关会回到默认关闭，需要重新开启。**完成时间**: 2026-11-10
+
+- [x] 删除精听 `exitAnnotationMode`（2026-11-10）：「继续」按钮删除后该方法已无调用方。删除 provider 方法、测试替身实现，以及 7 个仅通过它触发的测试用例。副作用：原先覆盖「重播重叠时的竞态」（两条用例）随之移除，如需恢复该覆盖，应改用其他入口（如详情页重播）重写。`advanceAfterReplay` 参数仍被自动推进流程使用，保留。精听 provider 测试 56 项通过。**完成时间**: 2026-11-10
+
+- [x] 代码审查修复（2026-11-10）：(1) 设置页「显示变速快捷按钮」副标题改为「在逐句精听的播放按钮左侧显示播放速度按钮」（中英文），原文案仍写着减速、加速按钮；(2) `CapsuleSelector` 记录激活手指，多指触摸时忽略其他手指的按下、移动与抬起，避免覆盖长按计时器或误结束拖动；(3) 高亮下标越界时夹到选项范围；(4) 宽度不足 312pt（4×64+56）时隐藏速度按钮，避免导航区域溢出 320pt 屏幕（此前溢出 20px）。测试：多指触摸用例、320pt 窄屏隐藏用例。未处理：`IntensiveListenPlayerNotifier.exitAnnotationMode` 已无调用方，待确认是否删除；设置项名 `showSpeedShortcutButtons` 与「速度按钮」的命名不完全一致。**完成时间**: 2026-11-10
+
+- [x] 删除速度选择后的顶部 toast（2026-11-10）：精听页 `_handlePlaybackSpeedSelected` 只负责应用速度，不再弹出提示。删除 `playbackSpeedChangedToast` 文案（中英文）。此前「选中后仍弹出顶部 1 秒 toast」的记录已作废。测试：轻点选择用例改为断言不弹提示。**完成时间**: 2026-11-10
+
+- [x] 速度选择器重构为通用胶囊选择器（2026-11-10）：`PlaybackSpeedSelector` 改名为通用的 `CapsuleSelector<T>`（`widgets/common/capsule_selector.dart`），与播放速度无关。值类型、选项、文字（`labelOf`）、高亮下标（`highlightIndexOf`）、标题与滑动提示均由调用方传入，后续其他选择器可直接复用。速度相关逻辑只保留在底栏（`kQuickPlaybackSpeeds`、`nearestQuickPlaybackSpeedIndex`）。同时修复：滑动时从 1.3x 左移会直接跳到 0.7x（改为以长按起点为基准的相对位移）；浮层加细边框与阴影；速度按钮空闲时无底色，文字为 60% 灰；滑动经过按钮时不产生悬浮反馈。测试：通用组件 10 项（含字符串选项）、快捷档位工具函数 1 项。**待真机验证**：浮层边界与滑动手感。**完成时间**: 2026-11-10
+
+- [x] 逐句精听变速改为单个速度按钮（2026-11-10）：取代原先的乌龟 / 兔子两个按钮。开启「显示变速快捷按钮」后，播放按钮左侧显示当前速度（如 `1.0x`），右侧只保留下一句；间距与按钮尺寸不变（中心距 64）。交互由独立可复用组件 `PlaybackSpeedSelector`（`widgets/common/playback_speed_selector.dart`）完成：轻点弹出五档（0.7 / 0.9 / 1.0 / 1.1 / 1.3）浮层，点选即应用；长按超过 `kLongPressTimeout` 后保持按住、左右滑动高亮，松手应用；松手时手指离开按钮与浮层纵向范围、或未滑动到其他档位则保持原速。滑动切换档位时有触觉反馈。选中后仍弹出顶部 1 秒 toast。删除 `PlaybackSpeedShortcuts` / `PlaybackSpeedShortcutButton` 与 `nextQuickPlaybackSpeed`。测试：组件 5 项（轻点、长按滑动、未滑动、滑出取消、点外部关闭）；精听页轻点、长按滑动、四个按钮等距。**待真机验证**：长按延迟与浮层位置的手感。**完成时间**: 2026-11-10
+
+- [x] 精听讲解页删除自动模式的「继续」按钮（2026-11-10）：右侧统一为下一句 / 完成，与手动模式一致（`goToSentence`，不再先重播一遍）。移除 `PlaybackControls` / `PracticePlaybackFooter` 的 `nextControl` / `nextControlWidth` 参数，讲解态的 80 间距分支随之删除，普通状态统一为 104。删除 `intensiveListenContinue` 文案（中英文）。测试：删除「继续」专属用例，其余断言改为下一句按钮，新增普通状态中心距 104 用例。**待确认**：provider 中 `exitAnnotationMode`（仅剩测试在用）是否一并删除。**完成时间**: 2026-11-10
+
+- [x] 练习页导航间距统一为随心听的中心距 104（2026-11-10）：普通状态下播放按钮与上一句 / 下一句的间距由 24 改为 48（`standardControlGap`），与随心听一致。讲解态的「继续」按钮较宽，间距保持 24（中心距 80），避免 375pt 手机上溢出。快捷按钮出现时仍为统一中心距 64。共用 `PlaybackControls` 的盲听、跟读、复述、难句补练、收藏复习页面同步生效。底栏测试断言同步更新，相关 271 项通过。**待真机验证**：精听与其他练习页的按钮间距观感。**完成时间**: 2026-11-10
+
+- [x] 统一随心听页与媒体播放页的上一句 / 下一句 / 快进快退按钮样式（2026-11-10）：两处各自用 `IconButton` + 默认 Material 尖角图标，颜色不透明，与精听的 `PlaybackNavButton`（圆角图标、0.6 透明度、禁用 0.15）不一致。旧版控制栏 `_buildNavButton` 与媒体页 `_navButton` 改为共用 `PlaybackNavButton`，图标统一为 `*_rounded`，原 28 号紧凑尺寸并入统一的 32。相关 100 项测试通过。**待真机验证**：随心听与媒体播放页的导航按钮观感。**完成时间**: 2026-11-10
+
+- [x] 句子讲解页播放 / 停止按钮改用 `assets/icon/play-circle.svg` / `stop-circle.svg`（2026-11-10）：本页没有上一句 / 下一句，带圆形外框的图标能让用户看出这是播放按钮。`PlaybackToggleIcon` 新增 `playCircle` / `stopCircle`，渲染尺寸 48、主题主色。测试改为按 Key 定位。**待真机验证**：讲解页按钮的大小与外框观感。**完成时间**: 2026-11-10
+
+- [x] 统一全部播放主按钮为新样式（无底色、主题主色图标）：新增共用的 `PlaybackCenterButton` 与 `playbackToggleGlyph`（`widgets/common/playback_controls.dart`），改掉仍使用蓝色实心圆的 4 处：旧版控制栏（`widgets/playback_controls.dart`，player 页）、媒体播放页 `_playPauseButton`、句子详情页 `_PlayButton`、复述 AI 点评的回放按钮（保留评级色）。播放 / 暂停用 `play.svg` / `pause.svg`，停止态沿用 Material `stop_rounded`。测试改为按 Key 定位播放图标；相关 299 项通过。视频画面上的半透明黑底播放按钮属于覆盖层样式，未改动。**待真机验证**：各页面播放按钮的尺寸与颜色。**完成时间**: 2026-11-10
+
+- [x] 练习页中间主播放按钮图标改为 `assets/icon/play.svg` / `pause.svg`（2026-11-10）：`PlaybackControls` 的 `centerIcon` 由 `IconData` 改为 `PlaybackToggleIcon`（play / pause，映射 SVG 路径），中间按钮去掉蓝色实心底色，图标 36、直接使用主题主色（禁用时 0.38 透明度）。所有共用底栏的页面（精听、盲听、跟读、复述、难句补练、段落复述脚手架）同步生效。测试改为按 `playbackCenterIconKey` 定位中间按钮。**待真机验证**：各页面播放 / 暂停图标的大小和居中观感。**完成时间**: 2026-11-10
+
+- [x] 逐句精听新增变速快捷按钮（乌龟减速 / 兔子加速）：播放按钮两侧各一个，档位固定为 0.7x / 0.9x / 1.0x / 1.1x / 1.3x（`kQuickPlaybackSpeeds`，`nextQuickPlaybackSpeed` 计算相邻档），到最慢 / 最快档对应按钮置灰。点击只改播放速度，不影响播放 / 暂停状态，并在屏幕顶部弹出 1 秒 toast（「播放速度 1.1x」）。与设置面板滑块共用 `updateSettings` 链路。快捷按钮与上一句/下一句同为 56 尺寸、图标 32；快捷按钮出现时五个按钮统一中心距 64（360 宽手机可放下，不显示快捷按钮时保持 80）。讲解态「继续」按钮出现时隐藏快捷按钮。默认关闭，在「我的 › 显示设置」新增「显示变速快捷按钮」开关（`learning_show_speed_shortcut_buttons`，参与云同步）。改动：`utils/playback_speed.dart`、`widgets/common/playback_controls.dart`、`practice_playback_footer.dart`、`intensive_listen_player_screen.dart`、`display_settings_screen.dart`、`learning_settings_provider.dart`、`local_user_preferences_store.dart`、l10n、`pubspec.yaml`（登记两个 SVG）。测试：新增 `test/utils/quick_playback_speed_test.dart`；精听页 3 例（默认隐藏、加速切档 + 播放态不变 + toast 1 秒消失、最慢档置灰）；显示设置开关 1 例；provider 开关 1 例。**待真机验证**：macOS 上底栏两侧按钮位置与窄窗口布局、toast 位于底部的观感。**完成时间**: 2026-11-10
+
 - [x] 学习首页推荐卡与任务卡去掉「继续 / 开始」按钮，整张卡片即入口（`study_screen.dart`）。按钮原先字号 16 w600、内边距 24，偏大；两张卡的按钮与点击卡片都进入学习计划页，任务卡按钮仅多一次语音就绪检查并自动弹出开始面板，判定为冗余，一并删除。学习计划页内部的开始操作仍会做语音检查。测试：删除按钮相关断言，改为点击卡片；`usageOverride()` 补入 `createTestWidget`。验证：`study_screen_test`、`test/widgets/study/`、`study_task_provider_test`、`learning_plan_screen_test` 共 `+151` 通过；改动文件 `flutter analyze` 无问题，格式检查通过。**待真机验证**：首页卡片点击区域与无按钮后的视觉是否满意。**完成时间**: 2026-11-10
 
 - [x] 修复解析列表圆点与首行文字不水平对齐：圆点原为 15pt、行高 1 且上移 1px，与 14pt / 行高 1.5 的正文行框不一致。改为与正文同字号、同行高，仅加粗并着主题色（`sentence_annotation_card.dart`）。新增测试「解析圆点与正文同字号同行高，首行基线对齐」，校验字号与行高。验证：annotation card、explanation view、`test/widgets/practice` 共 `+170` 通过；改动文件 `flutter analyze` 无问题。**待真机验证**：100% 与 150% 档下圆点与首行中线对齐。**完成时间**: 2026-11-10

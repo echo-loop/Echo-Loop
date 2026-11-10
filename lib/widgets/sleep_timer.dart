@@ -86,6 +86,11 @@ class _SleepTimerButtonState extends ConsumerState<SleepTimerButton> {
       controller: _portalController,
       direction: BubbleDirection.down,
       width: _popupWidth,
+      // 与播放速度浮层同样式：surface 底色、outlineVariant 描边、圆角 20，无箭头
+      color: Theme.of(context).colorScheme.surface,
+      borderColor: Theme.of(context).colorScheme.outlineVariant,
+      borderRadius: 20,
+      showCaret: false,
       contentBuilder: (_) => _SleepTimerPopup(
         onSelected: _portalController.hide,
         forMediaPlayback: widget.forMediaPlayback,

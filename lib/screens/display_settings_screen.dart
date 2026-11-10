@@ -1,6 +1,7 @@
 /// 显示设置页面
 ///
-/// 控制学习页的展示偏好，包含「显示推荐卡片」「显示周学习时长」开关。
+/// 控制学习页的展示偏好，包含「显示推荐卡片」「显示周学习时长」开关，
+/// 以及逐句精听的「显示变速快捷按钮」开关。
 /// 学习页的「为你推荐」卡片与周学习时长图可被用户关闭，关闭后在此重新开启。
 library;
 
@@ -23,6 +24,9 @@ class DisplaySettingsScreen extends ConsumerWidget {
     );
     final showWeeklyChart = ref.watch(
       learningSettingsProvider.select((s) => s.showWeeklyStudyChart),
+    );
+    final showPlaybackSpeedButton = ref.watch(
+      learningSettingsProvider.select((s) => s.showPlaybackSpeedButton),
     );
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
@@ -92,6 +96,36 @@ class DisplaySettingsScreen extends ConsumerWidget {
                 await ref
                     .read(learningSettingsProvider.notifier)
                     .setShowWeeklyStudyChart(value);
+              },
+            ),
+          ),
+          Card(
+            child: SwitchListTile(
+              secondary: Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: colorScheme.primary.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(
+                  Icons.speed_rounded,
+                  size: 20,
+                  color: colorScheme.primary,
+                ),
+              ),
+              title: Text(l10n.showPlaybackSpeedButtonToggle),
+              subtitle: Text(
+                l10n.showPlaybackSpeedButtonSubtitle,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
+                ),
+              ),
+              value: showPlaybackSpeedButton,
+              onChanged: (value) async {
+                await ref
+                    .read(learningSettingsProvider.notifier)
+                    .setShowPlaybackSpeedButton(value);
               },
             ),
           ),

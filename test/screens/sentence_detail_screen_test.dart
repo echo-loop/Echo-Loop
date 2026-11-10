@@ -15,6 +15,7 @@ import 'package:echo_loop/widgets/common/bookmark_toggle_row.dart';
 import 'package:echo_loop/widgets/practice/sentence_explanation_view.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:echo_loop/widgets/common/playback_controls.dart' show PlaybackToggleIcon, playbackCenterIconKey;
 import 'package:mocktail/mocktail.dart';
 import 'package:flutter_riverpod/misc.dart';
 
@@ -144,13 +145,13 @@ void main() {
     );
     expect(annotation.senseGroupRangePlayback, same(rangePlayback));
 
-    await tester.tap(find.byIcon(Icons.play_arrow_rounded));
+    await tester.tap(find.byKey(playbackCenterIconKey(PlaybackToggleIcon.playCircle)));
     await tester.pump();
 
     expect(rangePlayback.start, const Duration(seconds: 1));
     expect(rangePlayback.end, const Duration(seconds: 3));
 
-    await tester.tap(find.byIcon(Icons.play_arrow_rounded));
+    await tester.tap(find.byKey(playbackCenterIconKey(PlaybackToggleIcon.playCircle)));
     await tester.pump();
     expect(rangePlayback.playStarts, [
       const Duration(seconds: 1),
@@ -187,16 +188,16 @@ void main() {
     );
     await tester.pump();
 
-    await tester.tap(find.byIcon(Icons.play_arrow_rounded));
+    await tester.tap(find.byKey(playbackCenterIconKey(PlaybackToggleIcon.playCircle)));
     await tester.pump();
     expect(rangePlayback.start, const Duration(seconds: 1));
 
     rangePlayback.currentPosition = const Duration(milliseconds: 1840);
-    await tester.tap(find.byIcon(Icons.stop_rounded));
+    await tester.tap(find.byKey(playbackCenterIconKey(PlaybackToggleIcon.stopCircle)));
     await tester.pump();
     expect(rangePlayback.cancelCalls, 1);
 
-    await tester.tap(find.byIcon(Icons.play_arrow_rounded));
+    await tester.tap(find.byKey(playbackCenterIconKey(PlaybackToggleIcon.playCircle)));
     await tester.pump();
     expect(rangePlayback.resumedPositions, [
       const Duration(milliseconds: 1840),
@@ -242,14 +243,14 @@ void main() {
     );
     await tester.pump();
 
-    await tester.tap(find.byIcon(Icons.play_arrow_rounded));
+    await tester.tap(find.byKey(playbackCenterIconKey(PlaybackToggleIcon.playCircle)));
     await tester.pump();
 
     rangePlayback.currentPosition = const Duration(milliseconds: 1840);
-    await tester.tap(find.byIcon(Icons.stop_rounded));
+    await tester.tap(find.byKey(playbackCenterIconKey(PlaybackToggleIcon.stopCircle)));
     await tester.pump();
 
-    await tester.tap(find.byIcon(Icons.play_arrow_rounded));
+    await tester.tap(find.byKey(playbackCenterIconKey(PlaybackToggleIcon.playCircle)));
     await tester.pump();
     expect(rangePlayback.start, const Duration(seconds: 1));
     expect(rangePlayback.end, const Duration(seconds: 3));

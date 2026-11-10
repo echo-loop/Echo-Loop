@@ -26,6 +26,7 @@ import 'package:echo_loop/providers/notification_permission_provider.dart';
 import 'package:echo_loop/screens/blind_listen_player_screen.dart';
 import 'package:echo_loop/services/notification_permission_service.dart';
 import 'package:echo_loop/theme/app_theme.dart';
+import 'package:echo_loop/widgets/common/capsule_selector.dart';
 import 'package:echo_loop/widgets/common/masked_sentence_tile.dart';
 import 'package:echo_loop/widgets/common/playback_controls.dart';
 import 'package:echo_loop/widgets/practice/practice_progress_section.dart';
@@ -91,6 +92,7 @@ void main() {
     BlindListenPlayerState? playerState,
     List<Override> extraOverrides = const [],
     MediaLearningStartup? mediaStartup,
+    bool showPlaybackSpeedButton = false,
     TestBlindListenPlayer Function(BlindListenPlayerState initialState)?
     playerFactory,
   }) {
@@ -138,6 +140,9 @@ void main() {
           () => (playerFactory ?? TestBlindListenPlayer.new)(initialState),
         ),
         ...studyTimeOverrides(),
+        ...learningSettingsOverrides(
+          showPlaybackSpeedButton: showPlaybackSpeedButton,
+        ),
         ...extraOverrides,
       ]),
       child: MaterialApp.router(
@@ -261,6 +266,30 @@ void main() {
       expect(find.text('Auto · Round 1/1 · 1.3x'), findsOneWidget);
     });
 
+    testWidgets('默认不显示速度按钮', (tester) async {
+      await tester.pumpWidget(createTestWidget());
+      await tester.pumpAndSettle();
+
+      expect(find.byType(CapsuleSelector<double>), findsNothing);
+    });
+
+    testWidgets('开启速度按钮后轻点选择速度即应用到播放状态', (tester) async {
+      await tester.pumpWidget(
+        createTestWidget(
+          showPlaybackSpeedButton: true,
+          playerFactory: _StaticBlindListenPlayer.new,
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('1.0x'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('1.2x'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Auto · Round 1/1 · 1.2x'), findsOneWidget);
+    });
+
     testWidgets('文本显隐开关位于句子列表下方', (tester) async {
       await tester.pumpWidget(
         createTestWidget(
@@ -359,8 +388,8 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.byIcon(Icons.play_arrow_rounded), findsOneWidget);
-      expect(find.byIcon(Icons.pause_rounded), findsNothing);
+      expect(find.byKey(playbackCenterIconKey(PlaybackToggleIcon.play)), findsOneWidget);
+      expect(find.byKey(playbackCenterIconKey(PlaybackToggleIcon.pause)), findsNothing);
     });
 
     testWidgets('手动模式播放完成后显示回忆提示', (tester) async {

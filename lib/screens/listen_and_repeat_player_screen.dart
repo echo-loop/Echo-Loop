@@ -49,6 +49,7 @@ import '../widgets/review/review_briefing_sheet.dart';
 import '../widgets/player_hotkey_scope.dart';
 import '../widgets/dictionary/dictionary_panel_host.dart';
 import '../widgets/practice/sentence_explanation_view.dart';
+import '../widgets/common/playback_controls.dart';
 import '../widgets/common/practice_playback_footer.dart';
 import '../widgets/common/recording_button.dart' show RecordingButtonMode;
 import '../widgets/common/repeat_practice_panel.dart';
@@ -452,6 +453,14 @@ class _ListenAndRepeatPlayerScreenState
     GoRouter.of(context).push(route);
   }
 
+  /// 播放栏速度按钮与设置面板走同一更新路径，保证两处行为一致。
+  void _handlePlaybackSpeedSelected(double speed) {
+    final settings = ref.read(listenAndRepeatSettingsProvider);
+    ref
+        .read(listenAndRepeatSettingsProvider.notifier)
+        .update(settings.copyWith(playbackSpeed: speed));
+  }
+
   /// 先完成向上一句的分页动画，再提交业务切句。
   void _handlePrevious() {
     final state = ref.read(listenAndRepeatControllerProvider);
@@ -522,6 +531,12 @@ class _ListenAndRepeatPlayerScreenState
     );
     final isManualMode = ref.watch(
       listenAndRepeatSettingsProvider.select((s) => s.isManualMode),
+    );
+    // 整体监听跟读设置：保持与改动前一致的重建时机，速度取自同一份设置。
+    final listenAndRepeatSettings = ref.watch(listenAndRepeatSettingsProvider);
+    final playbackSpeed = listenAndRepeatSettings.playbackSpeed;
+    final showPlaybackSpeedButton = ref.watch(
+      learningSettingsProvider.select((s) => s.showPlaybackSpeedButton),
     );
     final ctrlState = ref.read(listenAndRepeatControllerProvider);
     final ctrl = ref.read(listenAndRepeatControllerProvider.notifier);
@@ -806,8 +821,8 @@ class _ListenAndRepeatPlayerScreenState
                                 canGoPrev: !ctrlState.isFirstSentence,
                                 isLast: ctrlState.isLastSentence,
                                 centerIcon: isPlaying
-                                    ? Icons.pause_rounded
-                                    : Icons.play_arrow_rounded,
+                                    ? PlaybackToggleIcon.pause
+                                    : PlaybackToggleIcon.play,
                                 onPrevious: _handlePrevious,
                                 onNext: _handleNext,
                                 onCenter: _handleCenter,
@@ -817,11 +832,13 @@ class _ListenAndRepeatPlayerScreenState
                                   currentCount: ctrlState.repeatIndex + 1,
                                   totalCount: ctrlState.totalRepeats,
                                 ),
-                                statusSuffixText: _formatSpeed(
-                                  ref
-                                      .watch(listenAndRepeatSettingsProvider)
-                                      .playbackSpeed,
-                                ),
+                                statusSuffixText: _formatSpeed(playbackSpeed),
+                                playbackSpeed: showPlaybackSpeedButton
+                                    ? playbackSpeed
+                                    : null,
+                                onPlaybackSpeedChanged: showPlaybackSpeedButton
+                                    ? _handlePlaybackSpeedSelected
+                                    : null,
                                 l10n: l10n,
                                 theme: theme,
                               ),

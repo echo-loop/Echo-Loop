@@ -11,6 +11,7 @@ import '../../l10n/app_localizations.dart';
 import '../../models/retell_review_evaluation.dart';
 import '../../services/audio_preview_controller.dart';
 import '../../theme/app_theme.dart';
+import '../common/playback_controls.dart';
 import 'retell_review_corrections.dart';
 import 'retell_review_key_points.dart';
 import 'retell_review_rating_style.dart';
@@ -314,19 +315,20 @@ class _ReviewRecordingButton extends StatelessWidget {
     final l10n = AppLocalizations.of(context)!;
     return ValueListenableBuilder<bool>(
       valueListenable: preview.isPlayingListenable,
-      builder: (context, isPlaying, _) => IconButton.filled(
+      builder: (context, isPlaying, _) => PlaybackCenterButton(
         tooltip: isPlaying
             ? l10n.retellAiReviewStopRecording
             : l10n.retellAiReviewPlayRecording,
         onPressed: () => _handleTap(context),
-        // 收一档尺寸：满饱和的实心圆本来就重，默认尺寸下它比评级词还抢眼。
-        iconSize: 20,
-        style: IconButton.styleFrom(
-          backgroundColor: accent,
-          foregroundColor: Theme.of(context).colorScheme.surface,
-          padding: const EdgeInsets.all(10),
-        ),
-        icon: Icon(isPlaying ? Icons.stop_rounded : Icons.play_arrow_rounded),
+        // 与评级色一致的图标，不再使用实心底色，避免按钮比评级词还抢眼。
+        size: 40,
+        icon: isPlaying
+            ? Icon(Icons.stop_rounded, size: 22, color: accent)
+            : playbackToggleGlyph(
+                PlaybackToggleIcon.play,
+                color: accent,
+                size: 22,
+              ),
       ),
     );
   }

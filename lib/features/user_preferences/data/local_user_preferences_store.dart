@@ -55,6 +55,7 @@ class LocalUserPreferencesStore {
     LearningSettingsKeys.retellRatingEnabled: true,
     LearningSettingsKeys.showStudyRecommendation: true,
     LearningSettingsKeys.showWeeklyStudyChart: true,
+    LearningSettingsKeys.showPlaybackSpeedButton: true,
     LearningSettingsKeys.autoSaveOnUnclear: true,
   };
 
@@ -249,6 +250,7 @@ class LocalUserPreferencesStore {
     LearningSettingsKeys.retellRatingEnabled: 'retellRatingEnabled',
     LearningSettingsKeys.showStudyRecommendation: 'showStudyRecommendation',
     LearningSettingsKeys.showWeeklyStudyChart: 'showWeeklyStudyChart',
+    LearningSettingsKeys.showPlaybackSpeedButton: 'showPlaybackSpeedButton',
     LearningSettingsKeys.autoSaveOnUnclear: 'autoFavoriteOnCantUnderstand',
   };
 

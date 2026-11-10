@@ -22,6 +22,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:echo_loop/widgets/common/playback_controls.dart' show PlaybackToggleIcon, playbackCenterIconKey;
 import 'package:flutter_riverpod/misc.dart';
 import '../../helpers/mock_providers.dart';
 
@@ -546,7 +547,7 @@ void main() {
     );
     await tester.pump();
 
-    await tester.tap(find.byIcon(Icons.play_arrow_rounded));
+    await tester.tap(find.byKey(playbackCenterIconKey(PlaybackToggleIcon.play)));
     await tester.pump();
     expect(find.byIcon(Icons.stop_rounded), findsOneWidget);
 
@@ -568,7 +569,7 @@ void main() {
 
     await tester.drag(find.byType(ListView), const Offset(0, 1200));
     await tester.pumpAndSettle();
-    expect(find.byIcon(Icons.play_arrow_rounded), findsOneWidget);
+    expect(find.byKey(playbackCenterIconKey(PlaybackToggleIcon.play)), findsOneWidget);
     expect(find.byIcon(Icons.stop_rounded), findsNothing);
   });
 
@@ -610,7 +611,7 @@ void main() {
     await tester.tap(find.text('open'));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byIcon(Icons.play_arrow_rounded));
+    await tester.tap(find.byKey(playbackCenterIconKey(PlaybackToggleIcon.play)));
     await tester.pump();
     expect(preview.isPlaying, isTrue);
 
@@ -660,7 +661,7 @@ void main() {
     await tester.tap(find.text('open'));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byIcon(Icons.play_arrow_rounded));
+    await tester.tap(find.byKey(playbackCenterIconKey(PlaybackToggleIcon.play)));
     await tester.pump();
     expect(preview.isPlaying, isFalse);
 

@@ -22,7 +22,9 @@ import '../services/media_fullscreen_service.dart';
 import '../theme/app_theme.dart';
 import '../utils/playback_speed.dart';
 import '../widgets/common/anchored_bubble.dart';
+import '../widgets/common/capsule_selector.dart';
 import '../widgets/common/audio_app_bar_title.dart';
+import '../widgets/common/playback_controls.dart';
 import '../widgets/common/paragraph_sentence_list_card.dart';
 import '../widgets/common/free_player_sentence_pager.dart';
 import '../widgets/common/media_visual_surface.dart';
@@ -1027,11 +1029,11 @@ class _MediaControls extends ConsumerWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                _navButton(Icons.replay_10, onPrevious),
+                _navButton(Icons.replay_10_rounded, onPrevious),
                 const SizedBox(width: _mainControlGap),
                 _playPauseButton(context, controller),
                 const SizedBox(width: _mainControlGap),
-                _navButton(Icons.forward_10, onNext),
+                _navButton(Icons.forward_10_rounded, onNext),
               ],
             ),
           ],
@@ -1086,13 +1088,13 @@ class _MediaControls extends ConsumerWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               _navButton(
-                Icons.skip_previous,
+                Icons.skip_previous_rounded,
                 state.isFirstSentence ? null : onPrevious,
               ),
               const SizedBox(width: _mainControlGap),
               _playPauseButton(context, controller),
               const SizedBox(width: _mainControlGap),
-              _navButton(Icons.skip_next, state.isLastSentence ? null : onNext),
+              _navButton(Icons.skip_next_rounded, state.isLastSentence ? null : onNext),
             ],
           ),
         ],
@@ -1160,27 +1162,25 @@ class _MediaControls extends ConsumerWidget {
   Widget _playPauseButton(BuildContext context, MediaPlayback controller) {
     return SizedBox.square(
       dimension: _controlButtonSize,
-      child: DecoratedBox(
-        decoration: BoxDecoration(
+      child: PlaybackCenterButton(
+        icon: playbackToggleGlyph(
+          state.isPlaying ? PlaybackToggleIcon.pause : PlaybackToggleIcon.play,
           color: Theme.of(context).colorScheme.primary,
-          shape: BoxShape.circle,
+          size: PlaybackControls.centerIconSize,
         ),
-        child: IconButton(
-          icon: Icon(state.isPlaying ? Icons.pause : Icons.play_arrow),
-          iconSize: 36,
-          color: Theme.of(context).colorScheme.onPrimary,
-          onPressed: () => state.isPlaying
-              ? unawaited(controller.pause())
-              : unawaited(controller.play()),
-        ),
+        onPressed: () => state.isPlaying
+            ? unawaited(controller.pause())
+            : unawaited(controller.play()),
       ),
     );
   }
 
+  /// 导航按钮与练习页共用同一样式（圆角图标、禁用态降低透明度）。
   static Widget _navButton(IconData icon, VoidCallback? onPressed) {
-    return SizedBox.square(
-      dimension: _controlButtonSize,
-      child: IconButton(icon: Icon(icon), iconSize: 32, onPressed: onPressed),
+    return PlaybackNavButton(
+      icon: icon,
+      enabled: onPressed != null,
+      onTap: onPressed,
     );
   }
 
@@ -1259,86 +1259,33 @@ class _MediaSentencePaneSwitcherState
   }
 }
 
-class _MediaSpeedButton extends ConsumerStatefulWidget {
+/// 随心听速度按钮：胶囊选择器，与逐句精听共用同一组件。
+///
+/// 选项只保留 [kFreePlayerSpeedOptions] 中的常用档位；当前速度不在选项中时高亮最接近的档位。
+class _MediaSpeedButton extends ConsumerWidget {
   const _MediaSpeedButton();
 
   @override
-  ConsumerState<_MediaSpeedButton> createState() => _MediaSpeedButtonState();
-}
-
-class _MediaSpeedButtonState extends ConsumerState<_MediaSpeedButton> {
-  final OverlayPortalController _portalController = OverlayPortalController();
-
-  @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context)!;
     final speed = ref.watch(
       mediaPlaybackProvider.select((s) => s.settings.playbackSpeed),
     );
-    final color = Theme.of(
-      context,
-    ).colorScheme.onSurface.withValues(alpha: 0.6);
-    return AnchoredBubble(
-      controller: _portalController,
-      direction: BubbleDirection.up,
-      width: 120,
-      contentBuilder: (_) =>
-          _MediaSpeedPopup(onSelected: _portalController.hide),
-      child: TextButton(
-        onPressed: _portalController.toggle,
-        style: TextButton.styleFrom(
-          minimumSize: const Size(40, 40),
-          padding: const EdgeInsets.symmetric(horizontal: 8),
-          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-          foregroundColor: color,
-        ),
-        child: Text(
-          formatPlaybackSpeedLabel(speed),
-          style: TextStyle(fontSize: 14, color: color),
-        ),
-      ),
-    );
-  }
-}
 
-class _MediaSpeedPopup extends ConsumerWidget {
-  const _MediaSpeedPopup({required this.onSelected});
-
-  final VoidCallback onSelected;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final state = ref.watch(mediaPlaybackProvider);
-    final controller = ref.read(mediaPlaybackProvider.notifier);
-    final theme = Theme.of(context);
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          for (final speed in kFreePlayerPlaybackSpeeds)
-            BubbleMenuRow(
-              label: formatPlaybackSpeedLabel(speed),
-              selected: speed == state.settings.playbackSpeed,
-              color: speed == state.settings.playbackSpeed
-                  ? theme.colorScheme.primary
-                  : theme.colorScheme.onSurface,
-              trailing: speed == state.settings.playbackSpeed
-                  ? Icon(
-                      Icons.check,
-                      size: 18,
-                      color: theme.colorScheme.primary,
-                    )
-                  : null,
-              onTap: () {
-                controller.updateSettings(
-                  state.settings.copyWith(playbackSpeed: speed),
-                );
-                onSelected();
-              },
-            ),
-        ],
-      ),
+    return CapsuleSelector<double>(
+      value: speed,
+      options: kFreePlayerSpeedOptions,
+      labelOf: formatPlaybackSpeedLabel,
+      highlightIndexOf: (value) =>
+          nearestPlaybackSpeedIndex(kFreePlayerSpeedOptions, value),
+      onChanged: (value) {
+        final settings = ref.read(mediaPlaybackProvider).settings;
+        ref
+            .read(mediaPlaybackProvider.notifier)
+            .updateSettings(settings.copyWith(playbackSpeed: value));
+      },
+      title: l10n.playbackSpeed,
+      dragHint: l10n.playbackSpeedDragHint,
     );
   }
 }
@@ -1365,6 +1312,11 @@ class _MediaLoopButtonState extends ConsumerState<_MediaLoopButton> {
       controller: _portalController,
       direction: BubbleDirection.up,
       width: 280,
+      // 与播放速度浮层同样式：surface 底色、outlineVariant 描边、圆角 20，无箭头
+      color: colorScheme.surface,
+      borderColor: colorScheme.outlineVariant,
+      borderRadius: 20,
+      showCaret: false,
       contentBuilder: (_) => const _MediaLoopPopup(),
       child: IconButton(
         icon: Icon(icon),

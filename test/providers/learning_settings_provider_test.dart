@@ -428,6 +428,30 @@ void main() {
       expect(prefs.getBool(LearningSettingsKeys.showWeeklyStudyChart), isFalse);
     });
 
+    test('SP 缺失时倍速调节按钮默认显示，关闭后写 SP + 翻转 state', () async {
+      SharedPreferences.setMockInitialValues({});
+      final prefs = await SharedPreferences.getInstance();
+      final container = makeContainer(prefs);
+      addTearDown(container.dispose);
+
+      expect(
+        container.read(learningSettingsProvider).showPlaybackSpeedButton,
+        isTrue,
+      );
+      await container
+          .read(learningSettingsProvider.notifier)
+          .setShowPlaybackSpeedButton(false);
+
+      expect(
+        container.read(learningSettingsProvider).showPlaybackSpeedButton,
+        isFalse,
+      );
+      expect(
+        prefs.getBool(LearningSettingsKeys.showPlaybackSpeedButton),
+        isFalse,
+      );
+    });
+
     test('SP 缺失时周学习时长图默认显示，已关闭时启动读取为 false', () async {
       SharedPreferences.setMockInitialValues({});
       final prefs = await SharedPreferences.getInstance();

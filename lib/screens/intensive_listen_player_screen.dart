@@ -45,6 +45,7 @@ import '../widgets/review/review_briefing_sheet.dart';
 import '../widgets/practice/selectable_sentence_text.dart';
 import '../widgets/common/bookmark_toggle_row.dart';
 import '../widgets/common/countdown_chip.dart';
+import '../widgets/common/playback_controls.dart';
 import '../widgets/common/practice_playback_footer.dart';
 import '../widgets/player_hotkey_scope.dart';
 import '../widgets/dictionary/dictionary_panel_host.dart';
@@ -652,6 +653,9 @@ class _IntensiveListenPlayerScreenState
         ),
       ),
     );
+    final showPlaybackSpeedButton = ref.watch(
+      learningSettingsProvider.select((s) => s.showPlaybackSpeedButton),
+    );
     final playerState = ref.read(intensiveListenPlayerProvider);
     final player = ref.read(intensiveListenPlayerProvider.notifier);
 
@@ -1036,38 +1040,6 @@ class _IntensiveListenPlayerScreenState
                                       onPrevious: _handlePrevious,
                                       onNext: _handleNext,
                                       onCenter: _handleCenter,
-                                      nextControl:
-                                          _showContinueButton(playerState)
-                                          ? FilledButton(
-                                              key: const ValueKey(
-                                                'intensive-annotation-continue-button',
-                                              ),
-                                              onPressed: () =>
-                                                  player.exitAnnotationMode(),
-                                              style: FilledButton.styleFrom(
-                                                shape: const StadiumBorder(),
-                                                // 只固定高度，宽度由文字加左右对称内边距决定
-                                                minimumSize: const Size(0, 48),
-                                                padding:
-                                                    const EdgeInsets.symmetric(
-                                                      horizontal: 16,
-                                                    ),
-                                                textStyle: theme
-                                                    .textTheme
-                                                    .titleMedium
-                                                    ?.copyWith(
-                                                      fontWeight:
-                                                          FontWeight.w600,
-                                                    ),
-                                              ),
-                                              // 宽度随文字自适应，文字居中；过长时换行而不是截断
-                                              child: Text(
-                                                l10n.intensiveListenContinue,
-                                                textAlign: TextAlign.center,
-                                              ),
-                                            )
-                                          : null,
-                                      nextControlWidth: 128,
                                       isManualMode:
                                           playerState.settings.isManualMode,
                                       playCountText: formatPracticePlayCount(
@@ -1080,6 +1052,13 @@ class _IntensiveListenPlayerScreenState
                                       statusSuffixText: _formatSpeed(
                                         playerState.settings.playbackSpeed,
                                       ),
+                                      playbackSpeed: showPlaybackSpeedButton
+                                          ? playerState.settings.playbackSpeed
+                                          : null,
+                                      onPlaybackSpeedChanged:
+                                          showPlaybackSpeedButton
+                                          ? _handlePlaybackSpeedSelected
+                                          : null,
                                       l10n: l10n,
                                       theme: theme,
                                     ),
@@ -1115,23 +1094,14 @@ class _AnnotationContent extends StatelessWidget {
   }
 }
 
-/// 自动模式在讲解页显示“继续”；手动模式沿用页脚的下一句导航。
-bool _showContinueButton(IntensiveListenState playerState) {
-  return playerState.isAnnotationMode &&
-      !playerState.settings.isManualMode &&
-      !playerState.isAnnotationReplay &&
-      !playerState.isPauseBetweenSentences &&
-      playerState.annotationState?.phase is! WaitingAnnotationPageTransition;
-}
-
 bool _showAnnotationCountdown(IntensiveListenState playerState) {
   return playerState.isAnnotationMode && playerState.isPauseBetweenSentences;
 }
 
-IconData _buildFooterCenterIcon(IntensiveListenState playerState) {
+PlaybackToggleIcon _buildFooterCenterIcon(IntensiveListenState playerState) {
   return _isIntensiveMainPlaybackActive(playerState)
-      ? Icons.pause_rounded
-      : Icons.play_arrow_rounded;
+      ? PlaybackToggleIcon.pause
+      : PlaybackToggleIcon.play;
 }
 
 bool _isIntensiveMainPlaybackActive(IntensiveListenState state) {
@@ -1179,6 +1149,17 @@ extension on _IntensiveListenPlayerScreenState {
         commit: () => player.goToSentence(targetIndex),
       ),
     );
+  }
+
+  /// 速度按钮选定新速度后应用。
+  ///
+  /// 走与设置面板滑块相同的 `updateSettings` 链路，速度变化由 `ref.listen` 应用到引擎；
+  /// 不改变播放 / 暂停状态。
+  void _handlePlaybackSpeedSelected(double speed) {
+    final currentSettings = ref.read(intensiveListenPlayerProvider).settings;
+    ref
+        .read(intensiveListenPlayerProvider.notifier)
+        .updateSettings(currentSettings.copyWith(playbackSpeed: speed));
   }
 
   void _handleCenter() {

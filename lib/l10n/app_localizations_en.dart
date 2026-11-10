@@ -1404,9 +1404,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get intensiveListenWordDictNotFound => 'Word not found in dictionary';
 
   @override
-  String get intensiveListenContinue => 'Next';
-
-  @override
   String get intensiveListenReplayingWithSubtitle =>
       'Listen again to help it stick';
 
@@ -4488,6 +4485,16 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get showWeeklyChartSubtitle =>
       'Show the weekly study time chart on the Study page';
+
+  @override
+  String get showPlaybackSpeedButtonToggle => 'Show playback speed button';
+
+  @override
+  String get showPlaybackSpeedButtonSubtitle =>
+      'Show the playback speed button in the playback controls of learning tasks.';
+
+  @override
+  String get playbackSpeedDragHint => 'Slide left or right · release to apply';
 
   @override
   String get hideWeeklyChartTooltip => 'Hide weekly chart';

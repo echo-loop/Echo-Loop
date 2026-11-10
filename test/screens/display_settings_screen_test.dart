@@ -43,16 +43,22 @@ void main() {
     return prefs;
   }
 
-  /// 页面有两个开关：第一个是推荐卡片，第二个是周学习时长图。
+  /// 页面有三个开关：依次为推荐卡片、周学习时长图、变速快捷按钮。
   bool recommendationSwitchValue(WidgetTester tester) {
     return tester
-        .widget<SwitchListTile>(find.byType(SwitchListTile).first)
+        .widget<SwitchListTile>(find.byType(SwitchListTile).at(0))
         .value;
   }
 
   bool weeklyChartSwitchValue(WidgetTester tester) {
     return tester
-        .widget<SwitchListTile>(find.byType(SwitchListTile).last)
+        .widget<SwitchListTile>(find.byType(SwitchListTile).at(1))
+        .value;
+  }
+
+  bool playbackSpeedButtonSwitchValue(WidgetTester tester) {
+    return tester
+        .widget<SwitchListTile>(find.byType(SwitchListTile).at(2))
         .value;
   }
 
@@ -99,11 +105,27 @@ void main() {
   testWidgets('关闭周学习时长图开关后写入 SP，且不影响推荐卡开关', (tester) async {
     final prefs = await pumpScreen(tester);
 
-    await tester.tap(find.byType(Switch).last);
+    await tester.tap(find.byType(Switch).at(1));
     await tester.pumpAndSettle();
 
     expect(weeklyChartSwitchValue(tester), isFalse);
     expect(recommendationSwitchValue(tester), isTrue);
     expect(prefs.getBool(LearningSettingsKeys.showWeeklyStudyChart), isFalse);
+  });
+
+  testWidgets('默认开启倍速调节按钮，关闭后写入 SP 且不影响其他开关', (tester) async {
+    final prefs = await pumpScreen(tester);
+
+    expect(playbackSpeedButtonSwitchValue(tester), isTrue);
+
+    await tester.tap(find.byType(Switch).at(2));
+    await tester.pumpAndSettle();
+
+    expect(playbackSpeedButtonSwitchValue(tester), isFalse);
+    expect(weeklyChartSwitchValue(tester), isTrue);
+    expect(
+      prefs.getBool(LearningSettingsKeys.showPlaybackSpeedButton),
+      isFalse,
+    );
   });
 }

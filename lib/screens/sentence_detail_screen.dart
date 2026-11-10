@@ -35,6 +35,7 @@ import '../services/app_logger.dart';
 import '../theme/app_theme.dart';
 import '../widgets/common/bookmark_toggle_row.dart';
 import '../widgets/common/media_visual_surface.dart';
+import '../widgets/common/playback_controls.dart';
 import '../widgets/common/tappable_wrapper.dart';
 import '../widgets/dictionary/dictionary_panel_host.dart';
 import '../widgets/practice/sentence_explanation_view.dart';
@@ -600,6 +601,7 @@ class _PlayButton extends StatelessWidget {
   const _PlayButton({required this.isPlaying, required this.onTap});
 
   static const double _size = 56;
+  static const double _iconSize = 48;
 
   @override
   Widget build(BuildContext context) {
@@ -609,24 +611,18 @@ class _PlayButton extends StatelessWidget {
       onTap: onTap,
       feedbackType: TapFeedback.scale,
       scaleDown: 0.92,
-      child: Container(
-        width: _size,
-        height: _size,
-        decoration: BoxDecoration(
-          color: theme.colorScheme.primary,
-          shape: BoxShape.circle,
-          boxShadow: [
-            BoxShadow(
-              color: theme.colorScheme.primary.withValues(alpha: 0.15),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Icon(
-          isPlaying ? Icons.stop_rounded : Icons.play_arrow_rounded,
-          size: 28,
-          color: theme.colorScheme.onPrimary,
+      // 点击由外层 TappableWrapper 处理。本页没有上一句 / 下一句，图标自带圆形外框，
+      // 用户才能看出这是播放 / 停止按钮。
+      child: SizedBox.square(
+        dimension: _size,
+        child: Center(
+          child: playbackToggleGlyph(
+            isPlaying
+                ? PlaybackToggleIcon.stopCircle
+                : PlaybackToggleIcon.playCircle,
+            color: theme.colorScheme.primary,
+            size: _iconSize,
+          ),
         ),
       ),
     );

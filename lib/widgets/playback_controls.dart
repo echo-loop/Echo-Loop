@@ -5,6 +5,7 @@ import '../providers/listening_practice/listening_practice_provider.dart';
 import '../theme/app_theme.dart';
 import '../utils/playback_speed.dart';
 import 'common/anchored_bubble.dart';
+import 'common/playback_controls.dart' as shared;
 import 'settings_dialog.dart';
 
 String _formatPlaybackSpeedLabel(double speed) =>
@@ -59,11 +60,11 @@ class PlaybackControls extends ConsumerWidget {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  _buildSeekButton(controller, Icons.replay_10, -10, 32),
+                  _buildSeekButton(controller, Icons.replay_10_rounded, -10),
                   const SizedBox(width: _mainControlGap),
                   _buildPlayPauseButton(context, playerState, controller),
                   const SizedBox(width: _mainControlGap),
-                  _buildSeekButton(controller, Icons.forward_10, 10, 32),
+                  _buildSeekButton(controller, Icons.forward_10_rounded, 10),
                 ],
               ),
             ),
@@ -123,7 +124,7 @@ class PlaybackControls extends ConsumerWidget {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 _buildNavButton(
-                  icon: Icons.skip_previous,
+                  icon: Icons.skip_previous_rounded,
                   onPressed: playerState.isFirstSentence
                       ? null
                       : () => controller.previousSentence(),
@@ -132,7 +133,7 @@ class PlaybackControls extends ConsumerWidget {
                 _buildPlayPauseButton(context, playerState, controller),
                 const SizedBox(width: _mainControlGap),
                 _buildNavButton(
-                  icon: Icons.skip_next,
+                  icon: Icons.skip_next_rounded,
                   onPressed: playerState.isLastSentence
                       ? null
                       : () => controller.nextSentence(),
@@ -160,11 +161,11 @@ class PlaybackControls extends ConsumerWidget {
           children: [
             const _SpeedButton(),
             const SizedBox(width: 16),
-            _buildSeekButton(controller, Icons.replay_10, -10, 28),
+            _buildSeekButton(controller, Icons.replay_10_rounded, -10),
             const SizedBox(width: _mainControlGap),
             _buildPlayPauseButton(context, playerState, controller),
             const SizedBox(width: _mainControlGap),
-            _buildSeekButton(controller, Icons.forward_10, 10, 28),
+            _buildSeekButton(controller, Icons.forward_10_rounded, 10),
             const SizedBox(width: 16),
             const _LoopButton(),
           ],
@@ -195,8 +196,7 @@ class PlaybackControls extends ConsumerWidget {
           const _SpeedButton(),
           const SizedBox(width: 16),
           _buildNavButton(
-            icon: Icons.skip_previous,
-            iconSize: 28,
+            icon: Icons.skip_previous_rounded,
             onPressed: playerState.isFirstSentence
                 ? null
                 : () => controller.previousSentence(),
@@ -205,8 +205,7 @@ class PlaybackControls extends ConsumerWidget {
           _buildPlayPauseButton(context, playerState, controller),
           const SizedBox(width: _mainControlGap),
           _buildNavButton(
-            icon: Icons.skip_next,
-            iconSize: 28,
+            icon: Icons.skip_next_rounded,
             onPressed: playerState.isLastSentence
                 ? null
                 : () => controller.nextSentence(),
@@ -238,27 +237,22 @@ class PlaybackControls extends ConsumerWidget {
     ListeningPractice controller,
     IconData icon,
     int seconds,
-    double size,
   ) {
     return _buildNavButton(
       icon: icon,
-      iconSize: size,
       onPressed: () => controller.seekRelative(Duration(seconds: seconds)),
     );
   }
 
+  /// 导航按钮与练习页共用同一样式（圆角图标、禁用态降低透明度）。
   Widget _buildNavButton({
     required IconData icon,
     required VoidCallback? onPressed,
-    double iconSize = 32,
   }) {
-    return SizedBox.square(
-      dimension: _controlButtonSize,
-      child: IconButton(
-        icon: Icon(icon),
-        iconSize: iconSize,
-        onPressed: onPressed,
-      ),
+    return shared.PlaybackNavButton(
+      icon: icon,
+      enabled: onPressed != null,
+      onTap: onPressed,
     );
   }
 
@@ -272,23 +266,21 @@ class PlaybackControls extends ConsumerWidget {
     final isPlaying = playerState.isPlaying;
     return SizedBox.square(
       dimension: _controlButtonSize,
-      child: Container(
-        decoration: BoxDecoration(
+      child: shared.PlaybackCenterButton(
+        icon: shared.playbackToggleGlyph(
+          isPlaying
+              ? shared.PlaybackToggleIcon.pause
+              : shared.PlaybackToggleIcon.play,
           color: Theme.of(context).colorScheme.primary,
-          shape: BoxShape.circle,
+          size: shared.PlaybackControls.centerIconSize,
         ),
-        child: IconButton(
-          icon: Icon(isPlaying ? Icons.pause : Icons.play_arrow),
-          iconSize: 36,
-          color: Theme.of(context).colorScheme.onPrimary,
-          onPressed: () {
-            if (isPlaying) {
-              controller.pause();
-            } else {
-              controller.play();
-            }
-          },
-        ),
+        onPressed: () {
+          if (isPlaying) {
+            controller.pause();
+          } else {
+            controller.play();
+          }
+        },
       ),
     );
   }

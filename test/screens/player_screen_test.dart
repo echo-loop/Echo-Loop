@@ -7,6 +7,7 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:echo_loop/widgets/common/playback_controls.dart' show PlaybackToggleIcon, playbackCenterIconKey;
 import 'package:mocktail/mocktail.dart';
 import 'package:audio_video_progress_bar/audio_video_progress_bar.dart';
 import 'package:echo_loop/screens/player_screen.dart';
@@ -333,12 +334,12 @@ void main() {
         expect(
           find.descendant(
             of: find.byType(PlaybackControls),
-            matching: find.byIcon(Icons.play_arrow),
+            matching: find.byKey(playbackCenterIconKey(PlaybackToggleIcon.play)),
           ),
           findsOneWidget,
         );
-        expect(find.byIcon(Icons.skip_previous), findsOneWidget);
-        expect(find.byIcon(Icons.skip_next), findsOneWidget);
+        expect(find.byIcon(Icons.skip_previous_rounded), findsOneWidget);
+        expect(find.byIcon(Icons.skip_next_rounded), findsOneWidget);
         await _disposeTree(tester);
       });
 
@@ -410,7 +411,7 @@ void main() {
         final button = tester.getRect(
           find.descendant(
             of: find.byType(PlaybackControls),
-            matching: find.byIcon(Icons.play_arrow),
+            matching: find.byKey(playbackCenterIconKey(PlaybackToggleIcon.play)),
           ),
         );
         final safeBottom =

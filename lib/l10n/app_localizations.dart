@@ -2558,12 +2558,6 @@ abstract class AppLocalizations {
   /// **'Word not found in dictionary'**
   String get intensiveListenWordDictNotFound;
 
-  /// No description provided for @intensiveListenContinue.
-  ///
-  /// In en, this message translates to:
-  /// **'Next'**
-  String get intensiveListenContinue;
-
   /// No description provided for @intensiveListenReplayingWithSubtitle.
   ///
   /// In en, this message translates to:
@@ -7837,6 +7831,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Show the weekly study time chart on the Study page'**
   String get showWeeklyChartSubtitle;
+
+  /// No description provided for @showPlaybackSpeedButtonToggle.
+  ///
+  /// In en, this message translates to:
+  /// **'Show playback speed button'**
+  String get showPlaybackSpeedButtonToggle;
+
+  /// No description provided for @showPlaybackSpeedButtonSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Show the playback speed button in the playback controls of learning tasks.'**
+  String get showPlaybackSpeedButtonSubtitle;
+
+  /// No description provided for @playbackSpeedDragHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Slide left or right · release to apply'**
+  String get playbackSpeedDragHint;
 
   /// No description provided for @hideWeeklyChartTooltip.
   ///

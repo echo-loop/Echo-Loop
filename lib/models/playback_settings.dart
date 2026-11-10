@@ -3,6 +3,20 @@ import '../utils/playback_speed.dart';
 /// Free Player 支持的离散速度档位。
 const List<double> kFreePlayerPlaybackSpeeds = kUnifiedPlaybackSpeeds;
 
+/// 随心听播放栏速度按钮的可选档位，升序排列。
+///
+/// 比 [kFreePlayerPlaybackSpeeds] 精简，只保留常用速度，避免浮层过长。
+const List<double> kFreePlayerSpeedOptions = [
+  0.5,
+  0.7,
+  0.8,
+  0.9,
+  1.0,
+  1.2,
+  1.5,
+  2.0,
+];
+
 double normalizeFreePlayerPlaybackSpeed(double speed) {
   return normalizePlaybackSpeed(speed);
 }

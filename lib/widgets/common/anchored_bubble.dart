@@ -36,6 +36,10 @@ class AnchoredBubble extends StatefulWidget {
     required this.child,
     this.gap = 8,
     this.margin = 16,
+    this.color,
+    this.borderColor,
+    this.borderRadius = 16,
+    this.showCaret = true,
   });
 
   /// 浮层显隐控制器（由调用方持有，触发按钮的 onTap 用同一个 toggle）。
@@ -58,6 +62,18 @@ class AnchoredBubble extends StatefulWidget {
 
   /// 浮层与屏幕左右的安全边距。
   final double margin;
+
+  /// 卡片底色；为 null 时使用 surface。
+  final Color? color;
+
+  /// 卡片描边色；为 null 时不描边。箭头的斜边同色描边，与卡片无缝相接。
+  final Color? borderColor;
+
+  /// 卡片圆角半径。
+  final double borderRadius;
+
+  /// 是否绘制指向锚点的箭头；为 false 时只绘制卡片。
+  final bool showCaret;
 
   @override
   State<AnchoredBubble> createState() => _AnchoredBubbleState();
@@ -99,6 +115,10 @@ class _AnchoredBubbleState extends State<AnchoredBubble> {
         width: width,
         caretX: caretX,
         direction: widget.direction,
+        color: widget.color,
+        borderColor: widget.borderColor,
+        borderRadius: widget.borderRadius,
+        showCaret: widget.showCaret,
         child: widget.contentBuilder(overlayContext),
       ),
     );
@@ -153,7 +173,23 @@ class BubbleCard extends StatelessWidget {
     required this.caretX,
     required this.direction,
     required this.child,
+    this.color,
+    this.borderColor,
+    this.borderRadius = 16,
+    this.showCaret = true,
   });
+
+  /// 是否绘制箭头；为 false 时只绘制卡片。
+  final bool showCaret;
+
+  /// 卡片与箭头的底色；为 null 时使用 surface。
+  final Color? color;
+
+  /// 卡片描边色；为 null 时不描边。
+  final Color? borderColor;
+
+  /// 卡片圆角半径。
+  final double borderRadius;
 
   /// 卡片宽度。
   final double width;
@@ -169,7 +205,7 @@ class BubbleCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final surface = Theme.of(context).colorScheme.surface;
+    final cardColor = color ?? Theme.of(context).colorScheme.surface;
 
     // 箭头贴卡片边缘并平移 1px 盖住接缝：up 三角在卡片下方上移 1px；down 在上方下移 1px
     final caret = ExcludeSemantics(
@@ -179,8 +215,9 @@ class BubbleCard extends StatelessWidget {
           size: Size(width, 8),
           painter: CaretPainter(
             caretX: caretX,
-            color: surface,
+            color: cardColor,
             direction: direction,
+            borderColor: borderColor,
           ),
         ),
       ),
@@ -188,20 +225,31 @@ class BubbleCard extends StatelessWidget {
 
     final card = Material(
       elevation: 8,
-      color: surface,
-      borderRadius: BorderRadius.circular(16),
+      color: cardColor,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(borderRadius),
+        side: borderColor == null
+            ? BorderSide.none
+            : BorderSide(color: borderColor!),
+      ),
       clipBehavior: Clip.antiAlias,
       child: SizedBox(width: width, child: child),
     );
 
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        if (direction == BubbleDirection.down) caret,
-        card,
-        if (direction == BubbleDirection.up) caret,
-      ],
-    );
+    if (!showCaret) return card;
+
+    // 朝上的箭头在卡片上方：卡片的 elevation 阴影会盖住先绘制的箭头，
+    // 所以用 Stack 把箭头放在卡片之后绘制，保证箭头可见。
+    if (direction == BubbleDirection.down) {
+      return Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Padding(padding: const EdgeInsets.only(top: 8), child: card),
+          Positioned(top: 0, left: 0, right: 0, height: 8, child: caret),
+        ],
+      );
+    }
+    return Column(mainAxisSize: MainAxisSize.min, children: [card, caret]);
   }
 }
 
@@ -293,6 +341,7 @@ class CaretPainter extends CustomPainter {
     required this.caretX,
     required this.color,
     required this.direction,
+    this.borderColor,
   });
 
   /// 尖端相对左边缘的水平位置。
@@ -304,30 +353,49 @@ class CaretPainter extends CustomPainter {
   /// 箭头方向。
   final BubbleDirection direction;
 
+  /// 两条斜边的描边色，与卡片描边一致；为 null 时不描边。
+  /// 卡片描边只画在圆角矩形上，箭头需要自己描边，否则与卡片交接处会断开。
+  final Color? borderColor;
+
   @override
   void paint(Canvas canvas, Size size) {
     const halfWidth = 8.0;
+    const borderWidth = 1.0;
     final x = caretX.clamp(halfWidth, size.width - halfWidth);
-    final Path path;
-    if (direction == BubbleDirection.up) {
-      // 浮层在上、箭头朝下：底边在上贴卡片，尖端朝下
-      path = Path()
-        ..moveTo(x - halfWidth, 0)
-        ..lineTo(x + halfWidth, 0)
-        ..lineTo(x, size.height)
-        ..close();
-    } else {
-      // 浮层在下、箭头朝上：底边在下贴卡片，尖端朝上
-      path = Path()
-        ..moveTo(x - halfWidth, size.height)
-        ..lineTo(x + halfWidth, size.height)
-        ..lineTo(x, 0)
-        ..close();
-    }
-    canvas.drawPath(path, Paint()..color = color);
+    // 底边贴卡片的一侧（up 时在上，down 时在下），尖端指向另一侧
+    final baseY = direction == BubbleDirection.up ? 0.0 : size.height;
+    final tipY = direction == BubbleDirection.up ? size.height : 0.0;
+    final leftBase = Offset(x - halfWidth, baseY);
+    final rightBase = Offset(x + halfWidth, baseY);
+    final tip = Offset(x, tipY);
+
+    final fill = Path()
+      ..moveTo(leftBase.dx, leftBase.dy)
+      ..lineTo(rightBase.dx, rightBase.dy)
+      ..lineTo(tip.dx, tip.dy)
+      ..close();
+    canvas.drawPath(fill, Paint()..color = color);
+
+    final edgeColor = borderColor;
+    if (edgeColor == null) return;
+    // 只描两条斜边，底边留空，由箭头覆盖卡片描边，使两者无缝相接
+    final edges = Path()
+      ..moveTo(leftBase.dx, leftBase.dy)
+      ..lineTo(tip.dx, tip.dy)
+      ..lineTo(rightBase.dx, rightBase.dy);
+    canvas.drawPath(
+      edges,
+      Paint()
+        ..color = edgeColor
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = borderWidth,
+    );
   }
 
   @override
   bool shouldRepaint(CaretPainter old) =>
-      old.caretX != caretX || old.color != color || old.direction != direction;
+      old.caretX != caretX ||
+      old.color != color ||
+      old.direction != direction ||
+      old.borderColor != borderColor;
 }

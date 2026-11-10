@@ -1,6 +1,7 @@
 // 精听播放器页面测试
 import 'dart:async';
 
+import 'package:flutter/gestures.dart' show kLongPressTimeout;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -31,6 +32,8 @@ import 'package:echo_loop/database/providers.dart';
 import 'package:echo_loop/services/sentence_ai_api_client.dart';
 import 'package:echo_loop/theme/app_theme.dart';
 import 'package:echo_loop/widgets/common/bookmark_toggle_row.dart';
+import 'package:echo_loop/widgets/common/playback_controls.dart';
+import 'package:echo_loop/widgets/common/capsule_selector.dart';
 import 'package:echo_loop/widgets/practice/sentence_annotation_card.dart';
 import 'package:echo_loop/widgets/practice/sentence_explanation_view.dart';
 import 'package:echo_loop/widgets/practice/practice_normal_mode_view.dart';
@@ -217,6 +220,7 @@ void main() {
     List<Override> extraOverrides = const [],
     bool startAtHome = false,
     bool unclearReminderShown = true,
+    bool showPlaybackSpeedButton = false,
     MediaIntensiveListenStartup? mediaStartup,
     TestIntensiveListenPlayer Function(
       IntensiveListenState initialState,
@@ -265,6 +269,7 @@ void main() {
         ...studyTimeOverrides(),
         ...learningSettingsOverrides(
           unclearAutoSaveReminderShown: unclearReminderShown,
+          showPlaybackSpeedButton: showPlaybackSpeedButton,
         ),
         listeningPracticeProvider.overrideWith(
           () => TestListeningPractice(
@@ -537,7 +542,7 @@ void main() {
       expect(find.text('Manual · Round 2/3 · 1.0x'), findsOneWidget);
     });
 
-    testWidgets('详情模式显示带文字的继续按钮', (tester) async {
+    testWidgets('详情模式右侧显示下一句按钮，不再显示继续按钮', (tester) async {
       await tester.pumpWidget(
         createTestWidget(
           playerState: createPlayerState(
@@ -548,30 +553,12 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      final continueButtonFinder = find.byKey(
-        const ValueKey('intensive-annotation-continue-button'),
-      );
-      expect(continueButtonFinder, findsOneWidget);
-      expect(find.text('Next'), findsOneWidget);
-      // 文字居中，宽度随文字自适应（高度固定 48），不再固定宽度导致裁切
-      final continueLabel = tester.widget<Text>(find.text('Next'));
-      expect(continueLabel.textAlign, TextAlign.center);
+      expect(find.byIcon(Icons.skip_next_rounded), findsOneWidget);
+      expect(find.text('Next'), findsNothing);
       expect(
-        tester.getCenter(find.text('Next')).dx,
-        closeTo(tester.getCenter(continueButtonFinder).dx, 0.5),
+        find.byKey(const ValueKey('intensive-annotation-continue-button')),
+        findsNothing,
       );
-
-      final continueButton = tester.widget<FilledButton>(continueButtonFinder);
-      expect(continueButton.style?.shape?.resolve({}), isA<StadiumBorder>());
-      expect(
-        continueButton.style?.minimumSize?.resolve({}),
-        const Size(0, 48),
-      );
-      expect(
-        continueButton.style?.padding?.resolve({}),
-        const EdgeInsets.symmetric(horizontal: 16),
-      );
-      expect(continueButton.style?.fixedSize?.resolve({}), isNull);
     });
 
     testWidgets('手动模式讲解页使用下一句导航，不显示继续按钮', (tester) async {
@@ -610,7 +597,7 @@ void main() {
       expect(player.state.isAnnotationMode, isFalse);
     });
 
-    testWidgets('从普通倒计时点击听不懂进入详情页时只显示继续按钮', (tester) async {
+    testWidgets('从普通倒计时点击听不懂进入详情页时只显示下一句按钮', (tester) async {
       await tester.pumpWidget(
         createTestWidget(
           playerState: createPlayerState(
@@ -628,10 +615,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byType(SentenceAnnotationCard), findsOneWidget);
-      expect(
-        find.byKey(const ValueKey('intensive-annotation-continue-button')),
-        findsOneWidget,
-      );
+      expect(find.byIcon(Icons.skip_next_rounded), findsOneWidget);
       expect(find.text('3s'), findsNothing);
       expect(find.text('Listen again to help it stick'), findsNothing);
     });
@@ -780,7 +764,131 @@ void main() {
       expect(find.byIcon(Icons.skip_previous_rounded), findsOneWidget);
       expect(find.byIcon(Icons.skip_next_rounded), findsOneWidget);
       // 播放中显示暂停图标
-      expect(find.byIcon(Icons.pause_rounded), findsOneWidget);
+      expect(find.byKey(playbackCenterIconKey(PlaybackToggleIcon.pause)), findsOneWidget);
+    });
+
+    testWidgets('讲解页开启速度按钮后同样显示速度按钮', (tester) async {
+      await tester.pumpWidget(
+        createTestWidget(
+          showPlaybackSpeedButton: true,
+          playerState: createPlayerState(
+            isAnnotationMode: true,
+            isPlaying: false,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byType(CapsuleSelector<double>), findsOneWidget);
+    });
+
+    testWidgets('默认不显示速度按钮', (tester) async {
+      await tester.pumpWidget(createTestWidget());
+      await tester.pumpAndSettle();
+
+      expect(find.byType(CapsuleSelector<double>), findsNothing);
+    });
+
+    testWidgets('轻点速度按钮选择 1.2x 后应用，播放状态不变且不弹出提示', (tester) async {
+      await tester.pumpWidget(
+        createTestWidget(showPlaybackSpeedButton: true),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('1.0x'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('1.2x'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Auto · Round 1/1 · 1.2x'), findsOneWidget);
+      expect(find.text('Playback speed 1.2x'), findsNothing);
+      // 只改速度，仍处于播放中（显示暂停图标）
+      expect(
+        find.byKey(playbackCenterIconKey(PlaybackToggleIcon.pause)),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('长按速度按钮后滑动到 1.5x 松手即应用', (tester) async {
+      await tester.pumpWidget(
+        createTestWidget(showPlaybackSpeedButton: true),
+      );
+      await tester.pumpAndSettle();
+
+      final gesture = await tester.startGesture(
+        tester.getCenter(find.text('1.0x')),
+      );
+      await tester.pump(kLongPressTimeout + const Duration(milliseconds: 50));
+      expect(find.text('1.5x'), findsOneWidget);
+      await gesture.moveTo(tester.getCenter(find.text('1.5x')));
+      await tester.pump();
+      await gesture.up();
+      await tester.pump(const Duration(seconds: 5));
+      await tester.pumpAndSettle();
+      await tester.pump(const Duration(seconds: 1));
+
+      expect(find.text('Auto · Round 1/1 · 1.5x'), findsOneWidget);
+    });
+
+    testWidgets('速度按钮与上一句、播放、下一句四个按钮中心等距，360 宽度下不溢出', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(360 * 3, 800 * 3);
+      tester.view.devicePixelRatio = 3;
+      addTearDown(tester.view.reset);
+
+      await tester.pumpWidget(createTestWidget(showPlaybackSpeedButton: true));
+      await tester.pumpAndSettle();
+
+      double centerX(Finder finder) => tester.getCenter(finder).dx;
+      final centers = [
+        centerX(find.byType(CapsuleSelector<double>)),
+        centerX(find.byIcon(Icons.skip_previous_rounded)),
+        centerX(find.byKey(playbackCenterIconKey(PlaybackToggleIcon.pause))),
+        centerX(find.byIcon(Icons.skip_next_rounded)),
+      ];
+      for (var i = 1; i < centers.length; i++) {
+        expect(centers[i] - centers[i - 1], closeTo(64, 0.5));
+      }
+      // 速度按钮与导航按钮尺寸一致
+      final navSize = tester.getSize(
+        find.ancestor(
+          of: find.byIcon(Icons.skip_next_rounded),
+          matching: find.byType(PlaybackNavButton),
+        ),
+      );
+      expect(tester.getSize(find.byType(CapsuleSelector<double>)), navSize);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('宽屏下速度按钮与各按钮间距拉开到标准中心距 104，播放按钮仍居中', (
+      tester,
+    ) async {
+      await tester.pumpWidget(createTestWidget(showPlaybackSpeedButton: true));
+      await tester.pumpAndSettle();
+
+      double centerX(Finder finder) => tester.getCenter(finder).dx;
+      final centers = [
+        centerX(find.byType(CapsuleSelector<double>)),
+        centerX(find.byIcon(Icons.skip_previous_rounded)),
+        centerX(find.byKey(playbackCenterIconKey(PlaybackToggleIcon.pause))),
+        centerX(find.byIcon(Icons.skip_next_rounded)),
+      ];
+      for (var i = 1; i < centers.length; i++) {
+        expect(centers[i] - centers[i - 1], closeTo(104, 0.5));
+      }
+    });
+
+    testWidgets('窄屏（320pt）放不下速度按钮时隐藏它，且不溢出', (tester) async {
+      tester.view.physicalSize = const Size(320 * 3, 800 * 3);
+      tester.view.devicePixelRatio = 3;
+      addTearDown(tester.view.reset);
+
+      await tester.pumpWidget(createTestWidget(showPlaybackSpeedButton: true));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(CapsuleSelector<double>), findsNothing);
+      expect(tester.takeException(), isNull);
     });
 
     testWidgets('第一句时上一句按钮透明度降低（禁用态）', (tester) async {
@@ -1405,34 +1513,6 @@ void main() {
       expect(player.state.isAnnotationMode, isTrue);
     });
 
-    testWidgets('讲解状态底部右侧继续按钮退出当前句讲解', (tester) async {
-      late _RecordingIntensiveListenPlayer player;
-      await tester.pumpWidget(
-        createTestWidget(
-          playerState: createPlayerState(
-            currentSentenceIndex: 2,
-            isAnnotationMode: true,
-            isPlaying: false,
-          ),
-          playerFactory: (state, sentences) {
-            player = _RecordingIntensiveListenPlayer(state, sentences);
-            return player;
-          },
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      await tester.tap(
-        find.byKey(const ValueKey('intensive-annotation-continue-button')),
-      );
-      await tester.pumpAndSettle();
-
-      expect(player.goToNextCalls, 0);
-      expect(player.currentIndex, 2);
-      expect(player.state.isAnnotationMode, isTrue);
-      expect(player.state.isAnnotationReplay, isTrue);
-    });
-
     testWidgets('标注模式下导航按钮可用（非重播状态）', (tester) async {
       await tester.pumpWidget(
         createTestWidget(
@@ -1446,13 +1526,10 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // 标注模式下（非 annotationReplay）右侧位置由继续按钮接管。
+      // 标注模式下（非 annotationReplay）右侧仍是下一句按钮，与手动模式一致。
       final prevIcon = find.byIcon(Icons.skip_previous_rounded);
       expect(prevIcon, findsOneWidget);
-      expect(
-        find.byKey(const ValueKey('intensive-annotation-continue-button')),
-        findsOneWidget,
-      );
+      expect(find.byIcon(Icons.skip_next_rounded), findsOneWidget);
 
       final prevOpacity = tester.widget<Opacity>(
         find.ancestor(of: prevIcon, matching: find.byType(Opacity)).first,
@@ -1534,7 +1611,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      await tester.tap(find.byIcon(Icons.pause_rounded));
+      await tester.tap(find.byKey(playbackCenterIconKey(PlaybackToggleIcon.pause)));
       await tester.pumpAndSettle();
 
       expect(player.pauseCalls, 1);
@@ -1559,14 +1636,14 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      await tester.tap(find.byIcon(Icons.play_arrow_rounded));
+      await tester.tap(find.byKey(playbackCenterIconKey(PlaybackToggleIcon.play)));
       await tester.pumpAndSettle();
 
       expect(player.resumeCalls, 1);
       expect(player.replayInDetailsCalls, 0);
     });
 
-    testWidgets('详情页查看讲解时点击播放不显示重播提示且保留继续按钮', (tester) async {
+    testWidgets('详情页查看讲解时点击播放不显示重播提示且保留下一句按钮', (tester) async {
       late _RecordingIntensiveListenPlayer player;
       await tester.pumpWidget(
         createTestWidget(
@@ -1582,15 +1659,12 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      await tester.tap(find.byIcon(Icons.play_arrow_rounded));
+      await tester.tap(find.byKey(playbackCenterIconKey(PlaybackToggleIcon.play)));
       await tester.pumpAndSettle();
 
       expect(player.replayInDetailsCalls, 1);
       expect(find.text('Listen again to help it stick'), findsNothing);
-      expect(
-        find.byKey(const ValueKey('intensive-annotation-continue-button')),
-        findsOneWidget,
-      );
+      expect(find.byIcon(Icons.skip_next_rounded), findsOneWidget);
     });
 
     testWidgets('详情页倒计时中点击播放按钮会回到带字幕重播态', (tester) async {
@@ -1613,7 +1687,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      await tester.tap(find.byIcon(Icons.play_arrow_rounded));
+      await tester.tap(find.byKey(playbackCenterIconKey(PlaybackToggleIcon.play)));
       await tester.pumpAndSettle();
 
       expect(player.replayDuringCountdownCalls, 1);

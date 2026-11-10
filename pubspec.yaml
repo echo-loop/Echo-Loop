@@ -215,6 +215,10 @@ flutter:
     - assets/icon/microphone.svg
     - assets/icon/account-1.svg
     - assets/icon/play-pause.svg
+    - assets/icon/play.svg
+    - assets/icon/pause.svg
+    - assets/icon/play-circle.svg
+    - assets/icon/stop-circle.svg
     - assets/icon/speak.svg
     - assets/icon/speaker.svg
     - assets/icon/text-decrease.svg
