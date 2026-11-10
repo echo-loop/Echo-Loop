@@ -4,6 +4,8 @@
 
 ## 本次完成
 
+- [x] BUG FIX：今日分享卡片跨时区错日（2026-11-10）：客户端原先按本地日期缓存模板，服务端却按 UTC 日期选卡，北京用户凌晨打卡拿到前一天的卡且整个本地日不再刷新。现请求 `GET /api/v1/share-cards/today?date=<本地 YYYY-MM-DD>`，服务端回显 `date`，客户端校验回显一致后才缓存（不一致抛 `FormatException`）。后端配套改动见 fluency-frontend `apps/app/features/share-cards`。**部署顺序**：后端先上线（旧后端收到 `date` 会 400），旧版 App 不带 `date` 仍按 UTC 工作。测试：Flutter `test/features/daily_goal_check_in` 55 项通过，`flutter analyze` 改动范围无问题；后端 `share-card-api.test.ts` 28 项通过，biome 通过。**未验证**：`share-card-database.test.ts` 需要真实 PostgreSQL（`SHARE_CARDS_TEST_DATABASE_URL`），本机无 Postgres 服务且 Docker 未运行，尚未实跑。**完成时间**: 2026-11-10
+
 - [x] 开发者选项新增「评价提醒状态」只读弹窗（2026-11-10）：设置页开发者分组新增入口，弹窗展示远程开关、商店安装（含安装来源原始值）、安装时长、有效学习天数（含统计起始日）、冷却剩余、跟读/复述完成时是否会请求，以及本次启动内 `RatingPrompt` 评估日志（最近 20 条）。协调器新增无副作用的 `inspect()`，与 `maybeRequest` 共用 `_readStatus` 组装快照，结论复用 `RatingPromptPolicy.allows`；`maybeRequest` 的早退分支（远程关闭、页面不可见、请求进行中）补充日志。仅查看，不写冷却、不调用系统评分。测试：协调器 `inspect` 用例 5 项（含与 `maybeRequest` 结论一致性），弹窗 widget 测试 1 项，`test/features/rating_prompt` 共 22 项通过；`test/screens/settings_screen_test.dart` 与 `settings_rating_entry_test.dart` 全部通过；改动文件 `flutter analyze` 无新增问题（既有 info 为原有构造函数写法）。**完成时间**: 2026-11-10 16:15
 
 - [x] 显示设置变速开关文案与默认值调整（2026-11-10）：设置项标题改为「显示倍速调节按钮」，副标题改为「在学习任务中显示倍速调节按钮。」（中文 ARB）；英文 ARB 同步为 `Show playback speed button`。默认值由关闭改为开启：`learning_settings_provider.dart` 构造默认值与 SP 缺失时的读取回退、`local_user_preferences_store.dart` 默认值同步改为 `true`。已显式关闭的用户 SP 中有 `false`，不受影响。测试：provider 默认开启用例、显示设置页默认开启用例更新，`flutter analyze` 无问题。

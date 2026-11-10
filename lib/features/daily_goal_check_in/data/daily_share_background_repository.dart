@@ -52,7 +52,7 @@ class DailyShareBackgroundRepository {
     }
     final hit = result != null;
     if (result == null) {
-      final template = await api.getToday();
+      final template = await api.getToday(date);
       result = CachedDailyShareBackground(
         template,
         await api.downloadImage(template.imageUrl),

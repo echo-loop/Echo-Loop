@@ -43,6 +43,14 @@ void main() {
     expect(await restarted.getToday(date), same(restored));
   });
 
+  test('请求模板时使用本地日历日，而非 UTC 日期', () async {
+    final repository = DailyShareBackgroundRepository(api, store);
+    // 北京时间 1 月 1 日 00:30 对应 UTC 12 月 31 日，请求必须仍是本地 1 月 1 日。
+    final localMidnight = DateTime(2027, 1, 1, 0, 30);
+    await repository.getToday(localMidnight);
+    expect(api.lastTodayDate, DateTime(2027, 1, 1));
+  });
+
   test('并发首次加载只请求一次，下一天重新加载并清理旧日', () async {
     final repository = DailyShareBackgroundRepository(api, store);
     final cards = await Future.wait([

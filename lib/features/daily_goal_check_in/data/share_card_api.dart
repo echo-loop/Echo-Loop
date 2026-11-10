@@ -5,7 +5,8 @@ import 'package:dio/dio.dart';
 import '../domain/share_card_template.dart';
 
 abstract interface class ShareCardRemoteDataSource {
-  Future<ShareCardTemplate> getToday();
+  /// [date] 为用户本地日历日；服务端按该日期选卡，使各时区同一天看到同一张卡。
+  Future<ShareCardTemplate> getToday(DateTime date);
   Future<ShareCardTemplate> getRandom(String excludeId);
   Future<Uint8List> downloadImage(String url);
   Future<void> recordShare(String id);
@@ -18,13 +19,27 @@ class ShareCardApi implements ShareCardRemoteDataSource {
   final Dio _images;
 
   @override
-  Future<ShareCardTemplate> getToday() => _get('/api/v1/share-cards/today');
+  Future<ShareCardTemplate> getToday(DateTime date) async {
+    final requested = _formatLocalDate(date);
+    final body = await _getBody('/api/v1/share-cards/today', {
+      'date': requested,
+    });
+    // 缓存按本地日期保存，服务端若回显其它日期必须拒绝，避免错日卡片被当作今日卡。
+    if (body['date'] != requested) {
+      throw const FormatException('分享卡片日期与请求不一致');
+    }
+    return ShareCardTemplate.fromJson(body['card']);
+  }
 
   @override
-  Future<ShareCardTemplate> getRandom(String excludeId) =>
-      _get('/api/v1/share-cards/random', {'excludeId': excludeId});
+  Future<ShareCardTemplate> getRandom(String excludeId) async {
+    final body = await _getBody('/api/v1/share-cards/random', {
+      'excludeId': excludeId,
+    });
+    return ShareCardTemplate.fromJson(body['card']);
+  }
 
-  Future<ShareCardTemplate> _get(
+  Future<Map<String, Object?>> _getBody(
     String path, [
     Map<String, String>? query,
   ]) async {
@@ -33,8 +48,13 @@ class ShareCardApi implements ShareCardRemoteDataSource {
     if (body is! Map<String, Object?>) {
       throw const FormatException('分享卡片响应无效');
     }
-    return ShareCardTemplate.fromJson(body['card']);
+    return body;
   }
+
+  static String _formatLocalDate(DateTime date) =>
+      '${date.year.toString().padLeft(4, '0')}-'
+      '${date.month.toString().padLeft(2, '0')}-'
+      '${date.day.toString().padLeft(2, '0')}';
 
   @override
   Future<Uint8List> downloadImage(String url) async {

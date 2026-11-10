@@ -58,6 +58,7 @@ class ShareTestProfile extends UserProfileNotifier {
 
 class ShareTestApi implements ShareCardRemoteDataSource {
   int todayCalls = 0;
+  DateTime? lastTodayDate;
   int downloadCalls = 0;
   int shareCalls = 0;
   Completer<ShareCardTemplate>? pendingTemplate;
@@ -65,8 +66,9 @@ class ShareTestApi implements ShareCardRemoteDataSource {
   Completer<Uint8List>? pendingAvatar;
   final template = ShareCardTemplate.fromJson(cardJson());
   @override
-  Future<ShareCardTemplate> getToday() async {
+  Future<ShareCardTemplate> getToday(DateTime date) async {
     todayCalls++;
+    lastTodayDate = date;
     return pendingTemplate?.future ?? template;
   }
 

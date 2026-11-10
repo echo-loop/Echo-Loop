@@ -15,7 +15,7 @@
 唯一合成函数为 `lib/features/daily_goal_check_in/data/daily_check_in_share_image.dart` 中的 `generateDailyCheckInShareImage`。它返回 PNG 字节和已渲染预览，弹窗不需要再次解码或截图。修改布局、字体、Logo、统计排版均从此入口维护。
 
 - 后端返回背景 URL、上下文字颜色和 word/sentence 文案。复用 today、random、shares 三个既有公开 API；客户端以登录状态限制功能。
-- 本地日期、总时长、听说明细和连续学习天数使用学习统计；UTC 日期仅影响服务端默认模板选择。
+- 本地日期、总时长、听说明细和连续学习天数使用学习统计；今日模板请求携带本地日历日（`date=YYYY-MM-DD`），服务端按该日期选卡并回显，客户端校验回显一致后才缓存。
 - Logo 固定为透明的 `app-icon-1024-alpha.png`，名称固定 `Echo Loop`。
 - 英语界面的单词/句子卡片不绘制译文，保留英文原文与单词音标；中文界面按母语设置选择译文。切换界面语言重新合成，继续复用背景和头像缓存。
 - 副标题按界面语言选择「英语听说 E 筋经」或「Listen. Speak. Grow.」。

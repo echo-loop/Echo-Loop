@@ -61,7 +61,7 @@ void main() {
 
   test('今日、随机及分享计数符合后端契约；公网下载不携带鉴权头', () async {
     final backendAdapter = _Adapter([
-      _json(200, {'date': '2026-11-07', 'timezone': 'UTC', 'card': cardJson()}),
+      _json(200, {'date': '2026-11-11', 'card': cardJson()}),
       _json(200, {'card': cardJson(word: true)}),
       ResponseBody.fromString('', 204),
     ]);
@@ -76,12 +76,12 @@ void main() {
     )..httpClientAdapter = backendAdapter;
     final images = Dio()..httpClientAdapter = imagesAdapter;
     final api = ShareCardApi(backend, images);
-    final today = await api.getToday();
+    final today = await api.getToday(DateTime(2026, 11, 11, 1));
     await api.getRandom(today.id);
     await api.recordShare(today.id);
     expect(await api.downloadImage(today.imageUrl), [1, 2, 3]);
     expect(backendAdapter.requests[0].path, '/api/v1/share-cards/today');
-    expect(backendAdapter.requests[0].queryParameters, isEmpty);
+    expect(backendAdapter.requests[0].queryParameters, {'date': '2026-11-11'});
     expect(backendAdapter.requests[1].queryParameters, {'excludeId': today.id});
     expect(backendAdapter.requests[2].method, 'POST');
     expect(backendAdapter.requests[2].data, isNull);
@@ -93,6 +93,27 @@ void main() {
     images.close();
   });
 
+  test('今日请求使用本地日历日，并拒绝回显日期不一致的卡片', () async {
+    final adapter = _Adapter([
+      _json(200, {'date': '2026-01-05', 'card': cardJson()}),
+      _json(200, {'date': '2026-01-05', 'card': cardJson()}),
+      _json(200, {'date': '2026-01-04', 'card': cardJson()}),
+    ]);
+    final backend = Dio(BaseOptions(baseUrl: 'https://api.test'))
+      ..httpClientAdapter = adapter;
+    final api = ShareCardApi(backend, Dio());
+    // 本地 1 月 5 日凌晨与深夜都必须按同一日历日补零格式请求。
+    await api.getToday(DateTime(2026, 1, 5, 0, 30));
+    await api.getToday(DateTime(2026, 1, 5, 23, 59));
+    expect(adapter.requests[0].queryParameters, {'date': '2026-01-05'});
+    expect(adapter.requests[1].queryParameters, {'date': '2026-01-05'});
+    await expectLater(
+      api.getToday(DateTime(2026, 1, 5)),
+      throwsFormatException,
+    );
+    backend.close();
+  });
+
   test('空卡池及计数失败向调用方报告，POST 不重试', () async {
     final adapter = _Adapter([
       _json(404, {'code': 'no_available_cards', 'error': 'none'}),
@@ -102,7 +123,10 @@ void main() {
       ..httpClientAdapter = adapter;
     final images = Dio();
     final api = ShareCardApi(backend, images);
-    await expectLater(api.getToday(), throwsA(isA<DioException>()));
+    await expectLater(
+      api.getToday(DateTime(2026, 11, 11)),
+      throwsA(isA<DioException>()),
+    );
     await expectLater(api.recordShare('id'), throwsA(isA<DioException>()));
     expect(adapter.requests, hasLength(2));
     backend.close();
