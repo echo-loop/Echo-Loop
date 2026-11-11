@@ -857,7 +857,7 @@ void main() {
     expect(find.text('2h ago'), findsOneWidget);
     expect(find.text('30m ago'), findsOneWidget);
     // 媒体图标与「合集」item 同款圆环风格，不再叠加对钩徽标，避免被误认为整个
-    // 音频已学完；完成状态改由左侧绿色条传达。
+    // 音频已学完；左侧绿色条已删除，不再表达完成状态。
     final mediaIcon = tester.widget<SizedBox>(
       find.byKey(const ValueKey('recent_completion_media_icon')).first,
     );
@@ -865,9 +865,8 @@ void main() {
     expect(mediaIcon.height, 36);
     final accentBars = tester
         .widgetList<Container>(find.byType(Container))
-        .where((c) => c.color == const Color(0xFF4CAF50))
-        .toList();
-    expect(accentBars.length, 2);
+        .where((c) => c.color == const Color(0xFF4CAF50));
+    expect(accentBars, isEmpty);
   });
 
   testWidgets('最近完成视频使用视频图标而不是完成对钩', (tester) async {

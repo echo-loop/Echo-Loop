@@ -46,9 +46,6 @@ const double _kProgressLabelWidth = 44;
 /// 最近完成条目左侧方形图标的边长。该条目只有两行文字，图标保持较小。
 const double _kRecentCompletionIconSize = 36;
 
-/// 最近完成记录左侧的绿色条颜色。
-const Color _kCompletedAccentColor = Color(0xFF4CAF50);
-
 /// 学习任务列表页
 ///
 /// 页面结构（从上到下）：
@@ -795,9 +792,6 @@ class _RecentCompletionTile extends ConsumerWidget {
         child: IntrinsicHeight(
           child: Row(
             children: [
-              // 左侧绿色条标记本条子步骤已完成（不用对钩，避免误认为整个音频已学完）。
-              Container(width: 4, color: _kCompletedAccentColor),
-              // 内容区
               Expanded(
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(12, 10, AppSpacing.m, 10),
@@ -912,10 +906,7 @@ class _CommunityInviteCard extends ConsumerWidget {
               await launchUrl(uri);
             },
             child: Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.m,
-                vertical: 8,
-              ),
+              padding: const EdgeInsets.all(12),
               child: Row(
                 children: [
                   Icon(Icons.group_rounded, size: 20, color: palette.icon),

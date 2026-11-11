@@ -125,10 +125,7 @@ class _TodayCard extends StatelessWidget {
 
     return Card(
       child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.m,
-          vertical: 12,
-        ),
+        padding: const EdgeInsets.all(12),
         child: Column(
           children: [
             // 第一行：今日时长（点击弹出阶段总览）
@@ -641,7 +638,7 @@ class _WeeklyBarChartState extends State<_WeeklyBarChart> {
 
     return Card(
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(AppSpacing.m, 12, AppSpacing.m, 12),
+        padding: const EdgeInsets.all(12),
         child: Column(
           children: [
             // 标题行：本周累计
