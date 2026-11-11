@@ -4,6 +4,14 @@
 
 ## 本次完成
 
+- [x] 最近完成任务条目对齐任务卡（2026-11-11）：`_RecentCompletionTile` 改用 `_StudyMaterialCard`，图标增至 56（`_kStudyCardIconSize`），新增进度条与百分比行，时间角标移到标题行右侧，阶段文案留在第二行；删除 `_kRecentCompletionIconSize`。测试：`study_screen_test` 26 项全部通过（图标尺寸断言改为 56），`dart analyze` 无问题。**待真机验证**：右侧三行的排版与进度条显示。**完成时间**: 2026-11-11
+
+- [x] 学习页折叠区内条目增加边界（2026-11-11）：待解锁、最近完成任务折叠区展开后，条目卡片与折叠区同为白色，边界看不出。新增 `_buildExpandedArea`，展开后的内容区改用灰色底（`surfaceContainerLowest`），条目卡片保持自身背景色；折叠区 Card 加 `clipBehavior: Clip.antiAlias` 让灰色底跟随圆角。测试：`study_screen_test` 26 项全部通过，`dart analyze` 无问题。**待真机验证**：浅色/深色下展开区观感。**完成时间**: 2026-11-11
+
+- [x] 学习页「已学完的材料」折叠区复用合集列表项（2026-11-11）：`_CompletedSection` 改用 `AudioListTile(showMenu: false)`，不再使用 `ListTile`；新增 `AudioListTile.showMenu` 控制右侧菜单按钮（默认 true，无菜单时右内边距补齐）；新增 `titleMaxLines`（默认 2），已完成折叠区传 1，标题单行省略。`completedAudioProvider` 改为返回 `List<AudioItem>`，去掉 `audioId/audioName` 记录类型。测试：`study_task_provider_test` 全部通过；`study_screen_test` + `audio_list_tile_test` 合计 90 项中仅「资源库全局列表不显示合集专属难度徽章」失败，该失败在 HEAD 上同样复现，与本次改动无关。**待真机验证**：嵌套卡片的边距与观感。**完成时间**: 2026-11-11
+
+- [x] 学习页标题字体统一为合集列表项样式（2026-11-11）：推荐卡、待解锁/任务卡、最近完成条目的标题改为 14 号 w500、letterSpacing 0（`_kAudioItemTitleStyle`），与合集详情页列表项一致；标题仍单行省略（study 卡片标题行右侧有状态角标，未改为两行）。测试：`study_screen_test` 26 项全部通过。**待真机验证**：标题字重观感。**完成时间**: 2026-11-11
+
 - [x] 学习计划页顶部进度卡改为合集列表项样式（2026-11-11）：`_ProgressCard` 去掉圆环，左侧改为 56 方形圆角封面（`AudioItemArtwork`），标题改为 14 号 w500、单行省略；描述同为单行省略；右侧底部为进度条 + 数字百分比（`LearningProgressTrack` + 宽 44 的百分比文案，与合集列表项一致）。圆环绘制器 `_ProgressRingPainter` 已删除。测试：`learning_plan_screen_test` 107 项中仅「已完成状态显示正确」失败，该失败在干净的 HEAD 上同样复现（「4/4」出现两次），与本次改动无关。**待真机验证**：卡片排版与两行标题。**完成时间**: 2026-11-11
 
 - [x] 为你推荐卡第二行改为元信息行（2026-11-11）：推荐卡第二行与合集列表项一致，依次展示 CC 徽章、难度徽章、时长与日期，不显示下载状态。元信息构建抽为 `lib/widgets/audio_meta_line.dart`（`buildAudioMetaParts` / `AudioMetaLine` / `formatAudioDuration` / `formatAbsoluteDate`），列表项复用同一套规则后再追加下载状态。阶段文案（如「首次学习 - 逐句精听」）保留，显示在元信息行下方第三行。测试：`study_screen_test` 26 项全部通过；`audio_list_tile_test` 仅剩既有的难度徽章失败。**待真机验证**：推荐卡元信息行的宽度与省略。**完成时间**: 2026-11-11

@@ -861,8 +861,8 @@ void main() {
     final mediaIcon = tester.widget<SizedBox>(
       find.byKey(const ValueKey('recent_completion_media_icon')).first,
     );
-    expect(mediaIcon.width, 36);
-    expect(mediaIcon.height, 36);
+    expect(mediaIcon.width, 56);
+    expect(mediaIcon.height, 56);
     final accentBars = tester
         .widgetList<Container>(find.byType(Container))
         .where((c) => c.color == const Color(0xFF4CAF50));

@@ -142,22 +142,21 @@ final pendingStudyTaskCountProvider = Provider<int>((ref) {
 });
 
 /// 已完成音频（LearningStage.completed）列表
-final completedAudioProvider =
-    Provider<List<({String audioId, String audioName})>>((ref) {
-      final audioState = ref.watch(audioLibraryProvider);
-      final progressMap = ref.watch(
-        learningProgressProvider.select((s) => s.progressMap),
-      );
+final completedAudioProvider = Provider<List<AudioItem>>((ref) {
+  final audioState = ref.watch(audioLibraryProvider);
+  final progressMap = ref.watch(
+    learningProgressProvider.select((s) => s.progressMap),
+  );
 
-      final completed = <({String audioId, String audioName})>[];
-      for (final item in audioState.audioItems) {
-        final progress = progressMap[item.id];
-        if (progress != null && progress.isCompleted) {
-          completed.add((audioId: item.id, audioName: item.name));
-        }
-      }
-      return completed;
-    });
+  final completed = <AudioItem>[];
+  for (final item in audioState.audioItems) {
+    final progress = progressMap[item.id];
+    if (progress != null && progress.isCompleted) {
+      completed.add(item);
+    }
+  }
+  return completed;
+});
 
 StudyTask? _buildTaskForAudio({
   required String audioId,

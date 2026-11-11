@@ -1105,8 +1105,8 @@ void main() {
 
       final completed = container.read(completedAudioProvider);
       expect(completed.length, 2);
-      expect(completed[0].audioName, 'Completed');
-      expect(completed[1].audioName, 'Also Completed');
+      expect(completed[0].name, 'Completed');
+      expect(completed[1].name, 'Also Completed');
     });
 
     test('无已完成音频时返回空列表', () {

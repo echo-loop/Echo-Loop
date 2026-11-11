@@ -91,6 +91,13 @@ class AudioListTile extends ConsumerWidget {
   /// 为空时与普通列表完全一致。
   final String searchQuery;
 
+  /// 是否展示右侧菜单按钮。只读展示场景（如学习页已完成折叠区）传 false。
+  final bool showMenu;
+
+  /// 标题最多显示行数。默认 2 行，与合集详情页、搜索结果保持一致；
+  /// 空间紧凑的只读列表（如学习页已完成折叠区）可传 1。
+  final int titleMaxLines;
+
   const AudioListTile({
     super.key,
     required this.audioItem,
@@ -105,6 +112,8 @@ class AudioListTile extends ConsumerWidget {
     this.onLongPress,
     this.onSelectToggle,
     this.searchQuery = '',
+    this.showMenu = true,
+    this.titleMaxLines = 2,
   });
 
   /// 是否在合集上下文中
@@ -176,11 +185,11 @@ class AudioListTile extends ConsumerWidget {
                   Expanded(
                     child: Padding(
                       // 右侧留白通常由 trailing 菜单撑起，故默认为 0；
-                      // 多选态隐藏了菜单，需补回右内边距以保持左右对称。
+                      // 多选态与无菜单态隐藏了菜单，需补回右内边距以保持左右对称。
                       padding: EdgeInsets.fromLTRB(
                         sideInset,
                         8,
-                        selectionMode ? sideInset : 0,
+                        (selectionMode || !showMenu) ? sideInset : 0,
                         8,
                       ),
                       child: Row(
@@ -208,8 +217,8 @@ class AudioListTile extends ConsumerWidget {
                                     // 与学习正文一致取消字间距（Material 默认 bodyMedium 为 0.25），避免标题显得更宽更大。
                                     letterSpacing: 0,
                                   ),
-                                  // 标题统一最多两行，与合集详情页、搜索结果保持一致。
-                                  maxLines: 2,
+                                  // 标题默认最多两行，与合集详情页、搜索结果保持一致。
+                                  maxLines: titleMaxLines,
                                   overflow: TextOverflow.ellipsis,
                                 ),
                                 if (searchDescription != null) ...[
@@ -249,7 +258,7 @@ class AudioListTile extends ConsumerWidget {
                         ),
                       ),
                     )
-                  else
+                  else if (showMenu)
                     _buildTrailing(
                       context,
                       ref,

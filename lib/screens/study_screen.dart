@@ -30,7 +30,7 @@ import '../widgets/guide_flow.dart';
 import '../widgets/learning_progress_bar.dart';
 import '../widgets/audio_artwork.dart';
 import '../widgets/audio_meta_line.dart';
-import '../widgets/media_type_icon.dart';
+import '../widgets/audio_list_tile.dart';
 import '../widgets/study/study_streak_badge.dart';
 import '../widgets/study/study_stats_header.dart';
 
@@ -43,8 +43,12 @@ const double _kStudyCardIconSize = 56;
 /// 学习页卡片进度条右侧百分比文案的宽度，与合集列表项的进度文案保持一致。
 const double _kProgressLabelWidth = 44;
 
-/// 最近完成条目左侧方形图标的边长。该条目只有两行文字，图标保持较小。
-const double _kRecentCompletionIconSize = 36;
+// 与合集详情页、搜索结果的音频列表项标题保持同一字体样式，避免同一概念出现视觉差异。
+const TextStyle _kAudioItemTitleStyle = TextStyle(
+  fontWeight: FontWeight.w500,
+  fontSize: 14,
+  letterSpacing: 0,
+);
 
 /// 学习任务列表页
 ///
@@ -270,7 +274,7 @@ class _StudyScreenState extends ConsumerState<StudyScreen> {
   Widget _buildAllDoneContent(
     BuildContext context,
     AppLocalizations l10n,
-    List<({String audioId, String audioName})> completedAudios,
+    List<AudioItem> completedAudios,
     GuideStep stepStatsHeader,
   ) {
     return ListView(
@@ -386,9 +390,7 @@ class _StudyMaterialCard extends StatelessWidget {
                         Expanded(
                           child: Text(
                             title,
-                            style: theme.textTheme.titleSmall?.copyWith(
-                              fontWeight: FontWeight.w600,
-                            ),
+                            style: _kAudioItemTitleStyle,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -545,6 +547,26 @@ class _RecommendedMaterialCard extends ConsumerWidget {
   }
 }
 
+/// 展开后的内容区：灰色底衬托出条目卡片，条目保持自身背景色。
+Widget _buildExpandedArea(BuildContext context, List<Widget> items) {
+  final theme = Theme.of(context);
+  return ColoredBox(
+    color: theme.colorScheme.surfaceContainerLowest,
+    child: Padding(
+      padding: const EdgeInsets.only(
+        left: AppSpacing.m,
+        top: AppSpacing.s,
+        right: AppSpacing.m,
+        bottom: AppSpacing.s,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: items,
+      ),
+    ),
+  );
+}
+
 /// 可折叠区段（标题 + 摘要 + 展开后的内容）
 class _CollapsibleSection extends StatelessWidget {
   final String title;
@@ -563,6 +585,7 @@ class _CollapsibleSection extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Card(
+      clipBehavior: Clip.antiAlias,
       child: ExpansionTile(
         title: Text(title, style: theme.textTheme.titleSmall),
         subtitle: Text(
@@ -574,12 +597,9 @@ class _CollapsibleSection extends StatelessWidget {
         initiallyExpanded: initiallyExpanded,
         shape: const Border(),
         collapsedShape: const Border(),
-        childrenPadding: const EdgeInsets.only(
-          left: AppSpacing.m,
-          right: AppSpacing.m,
-          bottom: AppSpacing.s,
-        ),
-        children: children,
+        // 内边距由 _buildExpandedArea 提供，便于灰色底铺满整行宽度。
+        childrenPadding: EdgeInsets.zero,
+        children: [_buildExpandedArea(context, children)],
       ),
     );
   }
@@ -661,16 +681,15 @@ class _TaskCard extends ConsumerWidget {
 // ============================================================
 
 /// 已完成音频折叠区
-class _CompletedSection extends ConsumerWidget {
-  final List<({String audioId, String audioName})> completedAudios;
+class _CompletedSection extends StatelessWidget {
+  final List<AudioItem> completedAudios;
 
   const _CompletedSection({required this.completedAudios});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final theme = Theme.of(context);
-    final audioItems = ref.watch(audioLibraryProvider).audioItems;
     return Card(
       child: ExpansionTile(
         title: Text(
@@ -680,30 +699,14 @@ class _CompletedSection extends ConsumerWidget {
         initiallyExpanded: false,
         shape: const Border(),
         collapsedShape: const Border(),
-        childrenPadding: const EdgeInsets.only(
-          left: AppSpacing.m,
-          right: AppSpacing.m,
-          bottom: AppSpacing.s,
-        ),
+        childrenPadding: const EdgeInsets.only(bottom: AppSpacing.xs),
+        // 复用合集详情页的列表项，只读展示，不需要菜单按钮。
         children: completedAudios
             .map(
-              (audio) => ListTile(
-                dense: true,
-                leading: MediaTypeIcon(
-                  isVideo:
-                      audioItems
-                          .where((item) => item.id == audio.audioId)
-                          .firstOrNull
-                          ?.isVideo ??
-                      false,
-                  size: 20,
-                  color: theme.colorScheme.primary,
-                ),
-                title: Text(audio.audioName),
-                contentPadding: EdgeInsets.zero,
-                onTap: () {
-                  context.push(AppRoutes.audioLearningPlan(audio.audioId));
-                },
+              (audio) => AudioListTile(
+                audioItem: audio,
+                showMenu: false,
+                titleMaxLines: 1,
               ),
             )
             .toList(),
@@ -733,6 +736,7 @@ class _RecentCompletionsSection extends StatelessWidget {
     final theme = Theme.of(context);
 
     return Card(
+      clipBehavior: Clip.antiAlias,
       child: ExpansionTile(
         title: Text(
           l10n.recentCompletions(completions.length),
@@ -747,16 +751,21 @@ class _RecentCompletionsSection extends StatelessWidget {
         initiallyExpanded: false,
         shape: const Border(),
         collapsedShape: const Border(),
-        childrenPadding: const EdgeInsets.only(
-          left: AppSpacing.m,
-          right: AppSpacing.m,
-          bottom: AppSpacing.s,
-        ),
-        children: completions
-            .map(
-              (c) => _RecentCompletionTile(completion: c, l10n: l10n, now: now),
-            )
-            .toList(),
+        childrenPadding: EdgeInsets.zero,
+        children: [
+          _buildExpandedArea(
+            context,
+            completions
+                .map(
+                  (c) => _RecentCompletionTile(
+                    completion: c,
+                    l10n: l10n,
+                    now: now,
+                  ),
+                )
+                .toList(),
+          ),
+        ],
       ),
     );
   }
@@ -782,71 +791,37 @@ class _RecentCompletionTile extends ConsumerWidget {
     final stageLabel = _stageSubStageLabel(l10n, stage, subStage);
     final timeAgo = _timeAgo(l10n, now, completion.completedAt);
 
-    return Card(
-      margin: const EdgeInsets.only(bottom: AppSpacing.s),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: () {
-          context.push(AppRoutes.audioLearningPlan(completion.audioId));
-        },
-        child: IntrinsicHeight(
-          child: Row(
-            children: [
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(12, 10, AppSpacing.m, 10),
-                  child: Row(
-                    children: [
-                      SizedBox(
-                        key: const ValueKey('recent_completion_media_icon'),
-                        width: _kRecentCompletionIconSize,
-                        height: _kRecentCompletionIconSize,
-                        child: AudioItemArtwork(
-                          audioId: completion.audioId,
-                          size: _kRecentCompletionIconSize,
-                        ),
-                      ),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              completion.audioName,
-                              style: theme.textTheme.titleSmall?.copyWith(
-                                fontWeight: FontWeight.w600,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            const SizedBox(height: 3),
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: Text(
-                                    stageLabel,
-                                    style: theme.textTheme.bodySmall?.copyWith(
-                                      color: theme.colorScheme.onSurfaceVariant,
-                                    ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                                const SizedBox(width: AppSpacing.s),
-                                _StatusBadge(text: timeAgo, isOverdue: false),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
+    // 与任务卡一致：展示进度条与百分比
+    final progressState = ref.watch(learningProgressProvider);
+    final progress = progressState.progressMap[completion.audioId];
+    final plan = ref.watch(learningPlanForAudioProvider(completion.audioId));
+    final completedKeys = progressState.completionsFor(completion.audioId);
+    final progressPercent =
+        progress?.progressPercent(plan, completedKeys) ?? 0.0;
+
+    return _StudyMaterialCard(
+      title: completion.audioName,
+      leading: SizedBox(
+        key: const ValueKey('recent_completion_media_icon'),
+        width: _kStudyCardIconSize,
+        height: _kStudyCardIconSize,
+        child: AudioItemArtwork(
+          audioId: completion.audioId,
+          size: _kStudyCardIconSize,
         ),
       ),
+      subtitle: Text(
+        stageLabel,
+        style: theme.textTheme.bodySmall?.copyWith(
+          color: theme.colorScheme.onSurfaceVariant,
+        ),
+      ),
+      statusBadge: _StatusBadge(text: timeAgo, isOverdue: false),
+      progress: progress,
+      progressPercent: progressPercent,
+      onTap: () {
+        context.push(AppRoutes.audioLearningPlan(completion.audioId));
+      },
     );
   }
 }
