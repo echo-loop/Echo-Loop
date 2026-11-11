@@ -313,7 +313,7 @@
   "audioFileNotFound": "音频文件未找到。文件可能已被删除。",
   "pickAudioFileFailed": "选择音频文件失败",
   "addAudioFailed": "添加音频失败",
-  "audioUnsupportedFormat": "不支持的音频格式：{ext}。仅支持 MP3、WAV、M4A、AAC、FLAC。",
+  "audioUnsupportedFormat": "不支持的音频格式：{ext}。仅支持 MP3、WAV、M4A、AAC、FLAC、OPUS、OGG。",
   "@audioUnsupportedFormat": {
     "placeholders": {
       "ext": {
@@ -323,7 +323,7 @@
   },
   "audioErrorUnsupportedTitle": "不支持的音频格式",
   "audioErrorNoAudioTitle": "未选择音频文件",
-  "audioNoAudioSelected": "字幕需要和音频一起导入，请把音频文件也选上：MP3、WAV、M4A、AAC、FLAC。",
+  "audioNoAudioSelected": "字幕需要和音频一起导入，请把音频文件也选上：MP3、WAV、M4A、AAC、FLAC、OPUS、OGG。",
   "audioErrorGenericTitle": "添加音频失败",
   "pickTranscriptFileFailed": "选择字幕文件失败",
   "subtitleUnsupportedFormat": "不支持 .{ext} 格式的字幕，仅支持 SRT 和 VTT 文件。",

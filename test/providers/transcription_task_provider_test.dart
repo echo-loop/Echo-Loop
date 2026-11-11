@@ -2130,6 +2130,14 @@ void main() {
         'audio/ogg',
       );
       expect(
+        TranscriptionTaskManager.getMimeTypeForTest('test.opus'),
+        'audio/opus',
+      );
+      expect(
+        TranscriptionTaskManager.getMimeTypeForTest('clip.avi'),
+        'video/x-msvideo',
+      );
+      expect(
         TranscriptionTaskManager.getMimeTypeForTest('TEST.MP3'),
         'audio/mpeg',
       );

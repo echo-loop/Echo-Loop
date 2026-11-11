@@ -18,6 +18,7 @@ import 'audio_import_models.dart';
 import 'podcast_audio_uri.dart';
 import 'audio_registration_service.dart';
 import 'audio_transcode_service.dart';
+import 'subtitle_pairing.dart';
 
 typedef AudioImportProgressCallback =
     void Function(int receivedBytes, int? totalBytes);
@@ -60,8 +61,6 @@ class AudioImportService {
   final Future<int> Function(String relativePath) _readDurationSeconds;
   final AudioRegistrationService _registrationService;
   final AudioFinalizationService _finalizationService;
-
-  static const supportedExtensions = {'mp3', 'wav', 'm4a', 'aac', 'flac'};
 
   Future<AudioItem> importFromUrl({
     required String url,
@@ -273,7 +272,7 @@ class AudioImportService {
         'Unsupported audio format',
       );
     }
-    if (!supportedExtensions.contains(extension)) {
+    if (!audioImportExtensions.contains(extension)) {
       throw AudioImportException(
         AudioImportFailureCode.unsupportedFormat,
         'Unsupported audio format: .$extension',
@@ -402,6 +401,8 @@ class AudioImportService {
       'audio/mp4' || 'audio/x-m4a' => 'm4a',
       'audio/aac' => 'aac',
       'audio/flac' || 'audio/x-flac' => 'flac',
+      'audio/opus' => 'opus',
+      'audio/ogg' => 'ogg',
       _ => null,
     };
   }

@@ -745,6 +745,7 @@ class TranscriptionTaskManager extends _$TranscriptionTaskManager {
       '.m4v': 'video/mp4',
       '.mov': 'video/quicktime',
       '.webm': 'video/webm',
+      '.avi': 'video/x-msvideo',
     };
     return mimeMap[ext] ?? 'audio/mpeg';
   }

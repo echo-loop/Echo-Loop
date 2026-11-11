@@ -8,7 +8,18 @@ import 'package:path/path.dart' as p;
 import '../../models/audio_item.dart';
 
 /// 支持导入的音频扩展名（小写、不含点）。
-const audioImportExtensions = {'mp3', 'wav', 'm4a', 'aac', 'flac'};
+///
+/// opus/ogg 由 ffmpeg-kit 解码转录、media_kit（libmpv）播放，两端的构建都包含
+/// Ogg 解封装与 Opus / Vorbis 解码器。
+const audioImportExtensions = {
+  'mp3',
+  'wav',
+  'm4a',
+  'aac',
+  'flac',
+  'opus',
+  'ogg',
+};
 
 /// 支持导入的字幕扩展名（小写、不含点）。同名多字幕的优先级见 [_subtitlePriority]。
 const subtitleImportExtensions = {'srt', 'vtt', 'lrc'};

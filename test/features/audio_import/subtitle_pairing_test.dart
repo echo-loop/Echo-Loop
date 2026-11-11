@@ -181,15 +181,31 @@ void main() {
       expect(c.subtitleNames, ['a.srt']);
       expect(c.rejectedExtensions, ['jpg']);
     });
+
+    test('opus/ogg 归入 audioNames 且不进 rejected', () {
+      final c = classifyImportFiles(['a.opus', 'b.OGG']);
+      expect(c.audioNames, ['a.opus', 'b.OGG']);
+      expect(c.rejectedExtensions, isEmpty);
+    });
+
+    test('webm/avi 归入 videoNames 且不进 rejected', () {
+      final c = classifyImportFiles(['a.webm', 'b.AVI']);
+      expect(c.videoNames, ['a.webm', 'b.AVI']);
+      expect(c.rejectedExtensions, isEmpty);
+    });
   });
 
   group('isImportablePrimaryMediaExtension', () {
     test('音频和视频扩展名都视为主素材', () {
       expect(isImportablePrimaryMediaExtension('mp3'), isTrue);
       expect(isImportablePrimaryMediaExtension('.m4a'), isTrue);
+      expect(isImportablePrimaryMediaExtension('.opus'), isTrue);
+      expect(isImportablePrimaryMediaExtension('ogg'), isTrue);
       expect(isImportablePrimaryMediaExtension('mp4'), isTrue);
       expect(isImportablePrimaryMediaExtension('.MOV'), isTrue);
       expect(isImportablePrimaryMediaExtension('.mkv'), isTrue);
+      expect(isImportablePrimaryMediaExtension('.webm'), isTrue);
+      expect(isImportablePrimaryMediaExtension('avi'), isTrue);
       expect(isImportablePrimaryMediaExtension('txt'), isFalse);
     });
 
@@ -197,7 +213,10 @@ void main() {
       expect(isVideoImportExtension('mp4'), isTrue);
       expect(isVideoImportExtension('.m4v'), isTrue);
       expect(isVideoImportExtension('MKV'), isTrue);
+      expect(isVideoImportExtension('.webm'), isTrue);
+      expect(isVideoImportExtension('avi'), isTrue);
       expect(isVideoImportExtension('mp3'), isFalse);
+      expect(isVideoImportExtension('opus'), isFalse);
     });
   });
 

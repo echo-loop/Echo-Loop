@@ -757,7 +757,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String audioUnsupportedFormat(String ext) {
-    return 'Unsupported audio format: $ext. Only MP3, WAV, M4A, AAC, FLAC are supported.';
+    return 'Unsupported audio format: $ext. Only MP3, WAV, M4A, AAC, FLAC, OPUS, OGG are supported.';
   }
 
   @override
@@ -768,7 +768,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get audioNoAudioSelected =>
-      'Subtitles are imported together with their audio. Select the audio file too — MP3, WAV, M4A, AAC, FLAC.';
+      'Subtitles are imported together with their audio. Select the audio file too — MP3, WAV, M4A, AAC, FLAC, OPUS, OGG.';
 
   @override
   String get audioErrorGenericTitle => 'Failed to add audio';
