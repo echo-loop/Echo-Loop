@@ -503,6 +503,7 @@
   "continueLearning": "继续学习",
   "learningInProgress": "学习中",
   "learningCompleted": "已完成",
+  "learningNotStarted": "未学习",
   "reviewReady": "可以复习了",
   "reviewCountdown": "{days} 天后可复习",
   "reviewCountdownHours": "{hours} 小时后可复习",

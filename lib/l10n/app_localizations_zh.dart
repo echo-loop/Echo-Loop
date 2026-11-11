@@ -1155,6 +1155,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get learningCompleted => '已完成';
 
   @override
+  String get learningNotStarted => '未学习';
+
+  @override
   String get reviewReady => '可以复习了';
 
   @override

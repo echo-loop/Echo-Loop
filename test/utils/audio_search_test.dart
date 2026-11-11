@@ -120,6 +120,15 @@ void main() {
       expect(snippet.length, lessThan(description.length));
     });
 
+    test('换行会压成空格，使第一段之后的命中内容仍在单行内可见', () {
+      const description = 'First paragraph.\n\nSecond paragraph has keyword.';
+
+      expect(
+        buildDescriptionSnippet(description, 'keyword'),
+        'First paragraph. Second paragraph has keyword.',
+      );
+    });
+
     test('截取时不会把关键词切掉', () {
       final description = '${'a ' * 100}target';
 

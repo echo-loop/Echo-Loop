@@ -59,6 +59,32 @@ class SearchHighlightText extends StatelessWidget {
   }
 }
 
+/// 搜索结果中的描述单行片段（命中部分高亮）。
+///
+/// 描述为空或无搜索关键词时返回 null，列表项据此不占位。
+/// 普通列表不展示描述，避免行高变化；只有搜索时才展示，帮助用户看出命中内容。
+Widget? buildSearchDescriptionLine({
+  required String? description,
+  required String searchQuery,
+  required ThemeData theme,
+}) {
+  final trimmedDescription = description?.trim();
+  if (searchQuery.trim().isEmpty ||
+      trimmedDescription == null ||
+      trimmedDescription.isEmpty) {
+    return null;
+  }
+  return SearchHighlightText(
+    text: buildDescriptionSnippet(trimmedDescription, searchQuery),
+    searchQuery: searchQuery,
+    style: theme.textTheme.bodyMedium?.copyWith(
+      color: theme.colorScheme.onSurfaceVariant,
+    ),
+    maxLines: 1,
+    overflow: TextOverflow.ellipsis,
+  );
+}
+
 /// 命中高亮的底色：浅色主题用柔和琥珀色，深色主题用压暗的琥珀色以免刺眼。
 Color _highlightBackgroundColor(Brightness brightness) {
   return brightness == Brightness.dark

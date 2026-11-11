@@ -634,6 +634,7 @@
   "continueLearning": "Continue practicing",
   "learningInProgress": "In Progress",
   "learningCompleted": "Completed",
+  "learningNotStarted": "Not started",
   "reviewReady": "Ready to review",
   "reviewCountdown": "Unlocked in {days} days",
   "@reviewCountdown": {

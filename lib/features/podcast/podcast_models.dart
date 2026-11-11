@@ -1,6 +1,8 @@
 /// Podcast feature 数据模型
 library;
 
+import 'dart:convert';
+
 /// Feed 元信息（从 RSS channel 或 iTunes lookup 提取）
 class PodcastFeedMeta {
   final String title;
@@ -168,4 +170,16 @@ class PodcastEpisode {
     this.transcriptUrl,
     this.transcriptFormat,
   });
+}
+
+/// 解码合集 `podcastMetaJson` 中保存的 Feed 元信息；格式异常时返回 null，由调用方回退到其他封面来源。
+PodcastFeedMeta? decodePodcastFeedMeta(String? raw) {
+  if (raw == null || raw.isEmpty) return null;
+  try {
+    final decoded = jsonDecode(raw);
+    if (decoded is! Map<String, dynamic>) return null;
+    return PodcastFeedMeta.fromJson(decoded);
+  } catch (_) {
+    return null;
+  }
 }

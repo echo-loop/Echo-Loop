@@ -4,9 +4,45 @@
 
 ## 本次完成
 
-- [x] BUG FIX：社区合集音频下载失败后重试被永久拒绝（2026-11-11）：`CommunityDownload.start()` 用 `state.containsKey` 判断是否在下载，失败记录残留在 state 中，重试每次都返回 `alreadyRunning` 且不发请求，直到杀进程重启。改为以 `_active` 判断，失败记录只用于展示。测试：`community_download_notifier_test.dart` 新增「下载失败后重试会重新开始」，先红后绿；`test/features/community_collections`、`test/features/media_readiness` 共 `+94` 通过，`test/screens/learning_plan_screen_test.dart`、`test/widgets/audio_list_tile_test.dart` 共 `+142` 通过；改动文件 `flutter analyze` 无问题。**待真机验证**：弱网下失败后直接点重试能否开始下载。**完成时间**: 2026-11-11
+- [x] 为你推荐卡第二行改为元信息行（2026-11-11）：推荐卡第二行与合集列表项一致，依次展示 CC 徽章、难度徽章、时长与日期，不显示下载状态。元信息构建抽为 `lib/widgets/audio_meta_line.dart`（`buildAudioMetaParts` / `AudioMetaLine` / `formatAudioDuration` / `formatAbsoluteDate`），列表项复用同一套规则后再追加下载状态。阶段文案（如「首次学习 - 逐句精听」）保留，显示在元信息行下方第三行。测试：`study_screen_test` 26 项全部通过；`audio_list_tile_test` 仅剩既有的难度徽章失败。**待真机验证**：推荐卡元信息行的宽度与省略。**完成时间**: 2026-11-11
+
+- [x] 推荐材料排除待解锁的复习（2026-11-11）：`selectStudyRecommendation` 原先只排除已完成与最近完成的材料，复习未到时间（`isReviewLockedAt(now)`）的材料仍可能被推荐，导致同一音频同时出现在「为你推荐」和「待解锁」中。现在待解锁材料不参与推荐，函数新增必填参数 `now`，由 `studyRecommendationProvider` 通过 `nowProvider` 传入。测试：`study_task_provider_test` 新增「待解锁的复习材料不推荐」用例，原有调用点补充 `now`，`study_task_provider_test`（30 项）与 `study_screen_test`（26 项）全部通过。**完成时间**: 2026-11-11
+
+- [x] 学习页卡片上下留白收紧（2026-11-11）：`_StudyMaterialCard` 内边距由四周 12 改为上下 8、左右 12，去掉多余的上下空白。测试：`study_screen_test` 全部通过。**待真机验证**：卡片高度观感。**完成时间**: 2026-11-11
+
+- [x] 学习页卡片去掉「学习中」徽章，改为进度条右侧百分比（2026-11-11）：推荐卡与任务卡的第二行只保留阶段文案；进度条右侧（宽 44，与合集列表项一致）显示百分比。逾期、可学习时间等状态徽章从第二行移到标题行右侧（`_StudyMaterialCard` 新增可选 `statusBadge` 角标槽位），推荐卡无角标。`_StatusBadge` 去掉 `isInProgress` 参数。测试：`study_screen_test` 全部通过。**待真机验证**：角标与长标题的排版。**完成时间**: 2026-11-11
+
+- [x] 学习页任务卡与推荐卡改为左右结构（2026-11-11）：左侧为方形图标，右侧为上下布局的内容区（标题、阶段信息、进度条）。进度条从整张卡片底部移入右侧内容列，不再延伸到图标下方；去掉已无用途的外层 `IntrinsicHeight` 与 `Expanded`。任务卡与推荐卡的图标放大到 56（与合集列表项一致，`_kStudyCardIconSize`），最近完成条目保持 36（`_kRecentCompletionIconSize`）。测试：`study_screen_test` 全部通过。**待真机验证**：进度条宽度、图标与内容区的观感。**完成时间**: 2026-11-11
+
+- [x] 删除学习页任务卡与推荐卡左侧色条（2026-11-11）：色条原含义为逾期红、普通任务主色、推荐紫，但逾期已由状态徽章（错误色）表达，推荐已由「为你推荐」标题表达，色条冗余，已删除 `_StudyMaterialCard` 的 `accentColor` 参数及两处调用方的计算。最近完成条目的绿色左条保留（表示子步骤已完成，非本次范围）。测试：`study_screen_test` 全部通过。**完成时间**: 2026-11-11
+
+- [x] 学习页进度条配色与合集列表项统一（2026-11-11）：学习页任务卡与为你推荐卡底部进度条改为与合集详情页素材列表项一致：完成为绿色、学习中为蓝色、暂停灰化，轨道底色与高度 3 同步。抽出 `LearningProgressTrack`（进度条轨道）与 `learningProgressColor`（颜色规则）到 `learning_progress_bar.dart`，`LearningProgressBar` 与学习页卡片共用。学习页卡片左侧色条（逾期红 / 推荐紫）保持不变。测试：`learning_progress_bar_test.dart` 新增颜色规则用例，`learning_progress_bar_test`、`study_screen_test`、`audio_artwork_test` 通过；`audio_list_tile_test` 仍只有既有的难度徽章失败。**待真机验证**：学习页进度条在深色模式下的颜色。**完成时间**: 2026-11-11
+
+- [x] 学习页卡片改用方形圆角媒体图标（2026-11-11）：待复习、为你推荐、最近完成三处左侧由环形进度图标改为 36×36 圆角 8 方形（`AudioItemArtwork`，与合集列表项共用 `AudioArtwork`，`lib/widgets/audio_artwork.dart`）。有封面用封面（单集封面 → 播客 Feed 封面 / 社区合集封面），否则显示音频 / 视频图标。图标不再显示进度，进度由卡片下方进度条展示。`LearningProgressIcon` 无引用后删除（含其测试），左侧绿色条颜色改为学习页内常量。封面解析抽为 `resolveSubscribedArtworkUrl`，播客元信息解码移到 `decodePodcastFeedMeta`，已订阅合集查找改为 `CollectionState.subscribedCollectionForAudio`。测试：新增 `test/widgets/audio_artwork_test.dart`（默认图标尺寸与圆角、封面优先级、地区镜像）；`study_screen_test`、`audio_list_tile_test`、`library_search_test`、`audio_search_test`、`test/features/podcast` 相关用例通过（`audio_list_tile_test` 有 1 项「资源库全局列表不显示合集专属难度徽章」既有失败，与本次无关）。**待真机验证**：学习页方形图标与封面观感。**完成时间**: 2026-11-11
+
+- [x] 搜索结果合集展示命中描述（2026-11-11）：资源库全局搜索结果中的合集卡片在名称下方展示一行描述（bodyMedium、onSurfaceVariant、最多 1 行），命中部分高亮，与音频行一致。描述行抽为 `buildSearchDescriptionLine`（`search_highlight_text.dart`），合集与音频共用。资源库首页与无关键词时不展示。`buildDescriptionSnippet` 先把描述中的连续空白（含换行）压成单个空格，避免多段描述的命中内容被单行截断看不见。仅描述命中时展示描述行；仅作者昵称命中时不展示（未在本次范围内）。测试：`audio_search_test.dart` 新增换行用例，`library_search_test.dart` 新增合集描述展示 / 首页不展示用例，并修正已过时的「Coffee Corner 出现两次」断言。**待真机验证**：合集描述一行的观感与高亮位置。**完成时间**: 2026-11-11
+
+- [x] 列表标题字号调小（2026-11-11）：`AudioListTile` 标题字号由 15 改为 14，字间距设为 0 与学习正文一致（原继承 bodyMedium 的 0.25，显得更宽更大），字重不变。未跑测试。**完成时间**: 2026-11-11
+
+- [x] 列表项视觉统一（2026-11-11）：全局搜索与合集内搜索/详情共用 `AudioListTile`。去掉仅合集上下文生效的视觉分支：社区难度标签对所有社区素材显示，标签 chip 两处都显示，菜单区域宽度统一为 44。菜单项与跳转目标保持按上下文区分（行为差异）。未跑测试。**待真机验证**：搜索结果中标签 chip 的信息量。**完成时间**: 2026-11-11
+
+- [x] 列表标题行数统一为最多两行（2026-11-11）：`AudioListTile` 的标题不再区分合集上下文，全局搜索结果与合集内搜索都限制为 2 行省略，与合集详情页一致。`audio_list_tile_test.dart` 对应用例改为断言 `maxLines == 2`。未跑测试。**待真机验证**：搜索结果标题行数是否已与合集内搜索一致。**完成时间**: 2026-11-11
+
+- [x] 搜索结果精简（2026-11-11）：搜索结果中的描述改为 bodyMedium 字号、最多 1 行；不再展示合集名称 chip 与标签 chip（合集名称 chip 仅搜索结果使用，已删除相关代码）。合集详情页的标签不变。未跑测试，仅通过静态分析。**待真机验证**：搜索结果信息量与可读性。**完成时间**: 2026-11-11
+
+- [x] 列表封面加载慢的修复（2026-11-11）：排查发现本地缓存的封面多为 3000×3000 源图，`CachedNetworkImage` 未限制解码尺寸，滚动回来时整图重新解码且挤占 Flutter 图片内存缓存，导致封面延迟出现。现加 `memCacheWidth/Height = 168`，加载中占位改为中性色块（不再闪现默认图标）。未跑测试。**待真机验证**：滚动回来时封面是否立即出现。**完成时间**: 2026-11-11
+
+- [x] 搜索结果素材列表项与合集详情页统一样式（2026-11-11）：`AudioListTile` 的方形圆角图标、学习进度条、下载状态（元信息行）、紧凑间距与阶段 badge 移除在搜索结果中同样生效；`_buildLeading`、`_DownloadLeading`、标签行的下载进度条与对应的 `formatBytes` 依赖已删除。仅无下载来源的素材不显示下载状态；标题两行限制仍只作用于合集详情页，搜索结果保持自然换行。相关套件（列表项、资源库搜索、合集详情搜索、社区合集详情、进度条）`+85` 通过，未跑全量套件。**待真机验证**：搜索结果中的方形图标与进度条观感。**完成时间**: 2026-11-11
+
+- [x] 合集详情页列表项图标尺寸与合集封面统一（2026-11-11）：`_kCollectionItemIconSize` 设为 56（字形 28），与合集页封面一致，避免素材图标大于合集封面。图标与文字区在行内垂直居中，不再追求与文字区等高。`test/widgets/audio_list_tile_test.dart` 与合集详情相关套件 `+80` 通过。**待真机验证**：56 的尺寸在合集详情页中的观感。**完成时间**: 2026-11-11
+
+- [x] 字幕标记改用 `closed-captions.svg`（2026-11-11）：`TranscriptCcBadge` 由「CC」文字徽章改为字幕图标（布局尺寸 22px，可见轮廓约 16px），中性色随主题着色，API 不变。该组件同时用于列表项与播客预览页，两处一并生效。`pubspec.yaml` 注册新资源。测试：`audio_list_tile_test.dart` 与 `podcast_preview_screen_test.dart` 改为断言图标资源与组件类型，`test/features/podcast` 与列表项测试共 `+163` 通过。**待真机验证**：字幕图标与难度 badge 的视觉高度是否一致。**完成时间**: 2026-11-11
+
+- [x] 合集详情页素材列表项增加学习进度条（2026-11-11）：新增 `LearningProgressBar`，列表项标题下方显示进度条与右侧文案（未学习 / 百分比 / 已完成），本地合集与已订阅合集一致；学习中为蓝色 `#5C87D2`（深色提亮），已完成为绿色 `#4CA054`，轨道 `#E5E7EB`，取自设计稿。左侧图标不再显示进度环，统一为方形圆角（有封面用封面，否则音频 / 视频图标）；`LearningProgressIcon` 的圆角方形改动已撤回。资源库全局列表与学习页保持原样。新增 l10n `learningNotStarted`。合集详情页标题下方的学习阶段 badge 已移除（进度由进度条展示），仅保留「已暂停」提示；其他场景不变。测试：新增 `test/widgets/learning_progress_bar_test.dart` 3 项，`audio_list_tile_test.dart` 更新本地合集用例；`test/screens test/widgets test/features/community_collections` 共 `+1622 ~7` 通过（移除 badge 后相关套件 `+80` 通过）。**待真机验证**：进度条在深色模式下的对比度与列表滚动性能。**完成时间**: 2026-11-11
 
 - [x] 已订阅合集列表项展示下载状态与进度（2026-11-11）：素材元信息行末尾显示状态，未下载为灰色下载图标 +「未下载」，已下载为绿色下载图标 +「已下载」，下载中（含排队）为主色进度环（无进度时旋转）+「下载中」；无下载来源的素材不显示。新增 l10n `audioNotDownloaded` / `audioDownloaded` / `audioDownloading`（中英文）。该场景下不再重复显示badge 行的进度条，本地合集与资源库全局列表保持原样。测试：`test/widgets/audio_list_tile_test.dart` 新增 4 项（未下载 / 已下载 / 下载中 / 本地合集不显示），全文件 `+64` 通过；相关套件 `+49` 通过。**待真机验证**：下载中进度环随进度推进是否流畅。**完成时间**: 2026-11-11
+
+- [x] BUG FIX：社区合集音频下载失败后重试被永久拒绝（2026-11-11）：`CommunityDownload.start()` 用 `state.containsKey` 判断是否在下载，失败记录残留在 state 中，重试每次都返回 `alreadyRunning` 且不发请求，直到杀进程重启。改为以 `_active` 判断，失败记录只用于展示。测试：`community_download_notifier_test.dart` 新增「下载失败后重试会重新开始」，先红后绿；`test/features/community_collections`、`test/features/media_readiness` 共 `+94` 通过，`test/screens/learning_plan_screen_test.dart`、`test/widgets/audio_list_tile_test.dart` 共 `+142` 通过；改动文件 `flutter analyze` 无问题。**待真机验证**：弱网下失败后直接点重试能否开始下载。**完成时间**: 2026-11-11
 
 - [x] 删除资源库全局音频列表（2026-11-11）：移除资源库内隐藏的音频视图（`LibraryViewType`、被注释的合集/音频切换组件、连续点击标题 5 次的「全部」入口及 `library_all_audio_button`），资源库只保留合集列表与全局搜索结果。`AudioListView.items` 改为必填，去掉 provider 读取分支；`libraryShowAll` 文案已删除并重新生成 l10n。`AudioListTile` 的全局上下文仍被搜索结果使用，保留。测试：删除 4 个旧入口相关用例，新增的 `test/screens/collection_screen_test.dart` 删除用例显式保持 `audioLibraryProvider` 存活以便断言；`test/screens test/widgets` 全量 `+1551 ~7` 通过。**完成时间**: 2026-11-11
 

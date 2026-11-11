@@ -11,6 +11,9 @@ const int _kSnippetLeadingLimit = 40;
 /// 截取描述时，关键词前保留的上下文字符数。
 const int _kSnippetContextChars = 20;
 
+/// 连续空白（含换行），展示描述前统一压成单个空格。
+final RegExp _kWhitespaceRun = RegExp(r'\s+');
+
 /// 将关键词转换为匹配模式；去除首尾空格后为空时返回 null（表示不过滤）。
 RegExp? buildSearchKeywordPattern(String rawKeyword) {
   final keyword = rawKeyword.trim();
@@ -57,18 +60,22 @@ bool _matchesOptional(RegExp pattern, String? text) =>
 /// 为描述生成展示用文本。匹配靠前时返回原文；匹配靠后时从关键词附近开始截取，
 /// 并以「…」标记前文被省略，避免长描述里的命中内容被 maxLines 截断掉。
 String buildDescriptionSnippet(String description, String rawKeyword) {
+  // 展示区只有一行，换行会让第一段之后的命中内容不可见，先把空白压成单个空格。
+  final flatDescription = description.replaceAll(_kWhitespaceRun, ' ').trim();
   final pattern = buildSearchKeywordPattern(rawKeyword);
-  final match = pattern?.firstMatch(description);
-  if (match == null || match.start <= _kSnippetLeadingLimit) return description;
+  final match = pattern?.firstMatch(flatDescription);
+  if (match == null || match.start <= _kSnippetLeadingLimit) {
+    return flatDescription;
+  }
 
   var start = match.start - _kSnippetContextChars;
   // 尽量从单词边界开始，但不能越过关键词本身。
-  final spaceIndex = description.indexOf(' ', start);
+  final spaceIndex = flatDescription.indexOf(' ', start);
   if (spaceIndex != -1 && spaceIndex < match.start) start = spaceIndex + 1;
   // 不能切开 UTF-16 代理对（如 emoji），否则会渲染成乱码。
-  if (_isLowSurrogate(description.codeUnitAt(start))) start += 1;
+  if (_isLowSurrogate(flatDescription.codeUnitAt(start))) start += 1;
 
-  return '…${description.substring(start)}';
+  return '…${flatDescription.substring(start)}';
 }
 
 bool _isLowSurrogate(int codeUnit) => codeUnit >= 0xDC00 && codeUnit <= 0xDFFF;

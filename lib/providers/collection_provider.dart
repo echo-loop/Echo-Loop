@@ -66,6 +66,23 @@ class CollectionState {
     return result;
   }
 
+  /// 素材所在的第一个已订阅合集（社区 / 播客），用于选取封面。
+  /// 用户自建合集不参与封面选择，返回 null。
+  Collection? subscribedCollectionForAudio(String audioId) {
+    final collectionIds = audioToCollectionsMap[audioId];
+    if (collectionIds == null) return null;
+    for (final collectionId in collectionIds) {
+      final collection = rawCollections
+          .where((c) => c.id == collectionId)
+          .firstOrNull;
+      if (collection != null &&
+          (collection.isCommunity || collection.isPodcast)) {
+        return collection;
+      }
+    }
+    return null;
+  }
+
   /// 排序后的合集列表（置顶项始终在前）
   List<Collection> get collections {
     final sorted = List<Collection>.from(rawCollections);

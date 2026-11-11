@@ -3,9 +3,7 @@
 // 统一的音频列表项，同时用于资源库全局列表和合集详情页。
 // 通过 collectionId 参数区分两种上下文，自动调整菜单、路由和显示逻辑。
 import 'dart:async';
-import 'dart:convert';
 
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -13,10 +11,6 @@ import 'package:go_router/go_router.dart';
 
 import '../models/audio_item.dart';
 import '../models/collection.dart';
-import '../services/app_network_image_cache.dart';
-import '../utils/audio_search.dart';
-import '../utils/file_size.dart';
-import '../utils/time_format.dart';
 import '../models/learning_progress.dart';
 import '../models/tag.dart';
 import '../providers/audio_library_provider.dart';
@@ -26,19 +20,18 @@ import '../providers/tag_provider.dart';
 import '../features/user_region/user_region_providers.dart';
 import '../l10n/app_localizations.dart';
 import '../utils/audio_item_actions.dart';
-import '../widgets/review/review_briefing_sheet.dart';
 import '../router/app_router.dart';
 import '../theme/app_theme.dart';
 import 'common/app_popup_menu.dart';
 import 'common/transcript_cc_badge.dart';
 import '../features/community_collections/download/community_download_notifier.dart';
 import '../features/community_collections/data/community_collection_api.dart';
-import '../features/community_collections/models/community_asset_url.dart';
 import '../features/community_collections/models/community_collection_models.dart';
 import '../features/community_collections/widgets/community_difficulty_badge.dart';
 import 'guide_flow.dart';
-import 'learning_progress_icon.dart';
-import 'media_type_icon.dart';
+import 'learning_progress_bar.dart';
+import 'audio_artwork.dart';
+import 'audio_meta_line.dart';
 import 'search_highlight_text.dart';
 import '../providers/transcription_task_provider.dart';
 import 'dialogs/text_input_dialog.dart';
@@ -58,9 +51,7 @@ import '../features/podcast/podcast_models.dart';
 /// - 显示合集标签 chips 和"管理合集"菜单
 /// - 导航到 audioLearningPlan(audioId)
 class AudioListTile extends ConsumerWidget {
-  static const double _kTrailingButtonSize = 60;
-  // 合集详情页两侧留白更紧凑，菜单区域相应收窄；44 仍满足最小触控尺寸。
-  static const double _kCollectionTrailingButtonSize = 44;
+  static const double _kTrailingButtonSize = 44;
   static const Key _kMenuHitAreaKey = Key('audio_list_tile_menu_hit_area');
 
   /// 音频项数据
@@ -126,28 +117,19 @@ class AudioListTile extends ConsumerWidget {
     final pinnedHighlightColor = theme.colorScheme.primary.withValues(
       alpha: 0.06,
     );
-    final difficulty = _isCollectionContext && audioItem.isCommunity
+    final difficulty = audioItem.isCommunity
         ? CommunityDifficulty.fromCode(audioItem.difficulty)
         : null;
 
-    // 已订阅合集（社区 / 播客）暂不展示学习进度，待后续设计再接入；下载状态在元信息行展示。
+    // 已订阅合集（社区 / 播客）的下载状态在元信息行展示。
     final subscribedCollection = _subscribedCollection(ref);
-    final isSubscribedItem = subscribedCollection != null;
     final isChinaUser = ref.watch(isChinaUserProvider);
 
     // 精确订阅学习进度
-    final LearningProgress? progress = isSubscribedItem
-        ? null
-        : ref.watch(
-            learningProgressProvider.select((s) => s.progressMap[audioItem.id]),
-          );
+    final LearningProgress? progress = ref.watch(
+      learningProgressProvider.select((s) => s.progressMap[audioItem.id]),
+    );
 
-    // 全局上下文：精确订阅所属合集名称
-    final collectionNames = _isCollectionContext
-        ? const <String>[]
-        : _getCollectionNames(ref);
-
-    // 获取音频关联的标签数据
     final tagData = _getTagData(ref);
 
     // 监听后台转录任务状态
@@ -163,11 +145,11 @@ class AudioListTile extends ConsumerWidget {
       mediaDownloadSnapshotProvider(audioItem.id)
           .select((snapshot) => snapshot?.progress),
     );
-    final double? downloadSpeed = ref.watch(
-      mediaDownloadSnapshotProvider(audioItem.id)
-          .select((snapshot) => snapshot?.speedBytesPerSecond),
+    final searchDescription = buildSearchDescriptionLine(
+      description: audioItem.description,
+      searchQuery: searchQuery,
+      theme: theme,
     );
-    final searchDescription = _buildSearchDescription(theme);
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -205,15 +187,12 @@ class AudioListTile extends ConsumerWidget {
                         crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
                           // 左侧图标，垂直居中
-                          if (subscribedCollection != null)
-                            _buildSubscribedLeading(
-                              subscribedCollection,
-                              isChinaUser,
-                            )
-                          else
-                            _buildLeading(progress, downloadProgress),
-                          // 合集详情页图标与标题间距收窄，给标题让出空间。
-                          SizedBox(width: _isCollectionContext ? 8 : 16),
+                          _buildCollectionLeading(
+                            subscribedCollection,
+                            isChinaUser,
+                          ),
+                          // 图标与标题间距保持紧凑，给标题让出空间。
+                          const SizedBox(width: 8),
                           // 中间标题 + 副标题
                           Expanded(
                             child: Column(
@@ -225,10 +204,12 @@ class AudioListTile extends ConsumerWidget {
                                   searchQuery: searchQuery,
                                   style: const TextStyle(
                                     fontWeight: FontWeight.w500,
-                                    fontSize: 15,
+                                    fontSize: 14,
+                                    // 与学习正文一致取消字间距（Material 默认 bodyMedium 为 0.25），避免标题显得更宽更大。
+                                    letterSpacing: 0,
                                   ),
-                                  // 合集内标题最多两行；资源库全局列表保持自然换行。
-                                  maxLines: _isCollectionContext ? 2 : null,
+                                  // 标题统一最多两行，与合集详情页、搜索结果保持一致。
+                                  maxLines: 2,
                                   overflow: TextOverflow.ellipsis,
                                 ),
                                 if (searchDescription != null) ...[
@@ -241,14 +222,11 @@ class AudioListTile extends ConsumerWidget {
                                   l10n,
                                   theme,
                                   progress,
-                                  collectionNames,
                                   tagData,
                                   transcriptionTask,
                                   downloadProgress,
                                   downloadQueued,
-                                  downloadSpeed,
                                   difficulty,
-                                  showsDownloadStatus: isSubscribedItem,
                                 ),
                               ],
                             ),
@@ -304,12 +282,13 @@ class AudioListTile extends ConsumerWidget {
     );
   }
 
-  /// 构建左侧图标。
-  ///
-  /// 播客单集 / 社区合集音频在下载到本地前无法学习，因此其「未学习」态的环形进度
-  /// 图标是闲置的，此时改用下载态图标承载「未下载 / 下载中」，与已下载音频的学习
-  /// 进度环区分（业界 App 的标准做法）；下载完成后自动切回 [LearningProgressIcon]。
-  Widget _buildLeading(LearningProgress? progress, double? downloadProgress) {
+  /// 合集详情页的左侧方形圆角图标。已订阅合集有封面时显示封面，否则回退到音频 / 视频图标；
+  /// 学习进度由列表项下方的进度条展示，这里不再使用进度环。
+  Widget _buildCollectionLeading(
+    Collection? subscribedCollection,
+    bool isChinaUser,
+  ) {
+    // 下架状态是内容级提示，不能被封面替换掉，沿用原有的云离线图标。
     if (audioItem.isCommunityUnavailable) {
       return Icon(
         Icons.cloud_off_outlined,
@@ -317,93 +296,37 @@ class AudioListTile extends ConsumerWidget {
         size: 28,
       );
     }
-    // 播客单集 / 社区合集音频未下载：用下载态图标取代闲置的学习进度环。
-    final isDownloadable =
-        !audioItem.isAudioReady &&
-        (audioItem.podcastEnclosureUrl != null ||
-            audioItem.remoteAudioId != null);
-    if (isDownloadable) {
-      return _DownloadLeading(
-        downloading: downloadProgress != null,
-        progress: downloadProgress,
-      );
-    }
-    // 合集详情页与已订阅合集封面统一使用圆角方形图标，保持外形一致。
-    if (_isCollectionContext) {
-      return LearningProgressIcon(
-        progress: progress,
-        isVideo: audioItem.isVideo,
-        size: _kCollectionItemIconSize,
-        iconSize: _kCollectionItemGlyphSize,
-        isRoundedSquare: true,
-      );
-    }
-    return LearningProgressIcon(progress: progress, isVideo: audioItem.isVideo);
-  }
-
-  /// 已订阅合集项的左侧方形圆角图标；有封面时显示封面，否则回退到音频 / 视频图标。
-  Widget _buildSubscribedLeading(Collection collection, bool isChinaUser) {
-    // 下架状态是内容级提示，不能被封面替换掉，沿用原有的云离线图标。
-    if (audioItem.isCommunityUnavailable) return _buildLeading(null, null);
-    return _SubscribedItemArtwork(
-      imageUrl: _subscribedArtworkUrl(collection, isChinaUser),
+    final imageUrl = subscribedCollection == null
+        ? null
+        : resolveSubscribedArtworkUrl(
+            audio: audioItem,
+            collection: subscribedCollection,
+            isChinaUser: isChinaUser,
+          );
+    return AudioArtwork(
+      imageUrl: imageUrl,
       isVideo: audioItem.isVideo,
+      size: _kCollectionItemIconSize,
     );
   }
 
-  /// 已订阅合集项的封面地址：单集自身封面优先，其次是播客 Feed 封面或社区合集封面。
-  String? _subscribedArtworkUrl(Collection collection, bool isChinaUser) {
-    final episodeImageUrl = _nonBlank(audioItem.podcastImageUrl);
-    if (episodeImageUrl != null) return episodeImageUrl;
-    if (collection.isPodcast) {
-      final feedImageUrl = _nonBlank(
-        _decodePodcastMeta(collection.podcastMetaJson)?.imageUrl,
-      );
-      return feedImageUrl ?? _nonBlank(collection.coverUrl);
-    }
-    return communityAssetUrlForRegion(
-      globalUrl: collection.coverUrl,
-      chinaUrl: collection.coverUrlChina,
-      isChinaUser: isChinaUser,
-    );
-  }
-
-  /// 当前合集上下文对应的已订阅合集（社区 / 播客）；用户自建合集与全局列表返回 null。
+  /// 取封面所用的已订阅合集（社区 / 播客）。合集上下文取当前合集；
+  /// 全局上下文（如搜索结果）取素材所在的第一个已订阅合集。用户自建合集返回 null。
   Collection? _subscribedCollection(WidgetRef ref) {
     final id = collectionId;
-    if (id == null) return null;
-    final collection = ref.watch(
-      collectionListProvider.select(
-        (s) => s.rawCollections.where((c) => c.id == id).firstOrNull,
-      ),
-    );
-    if (collection == null) return null;
-    return collection.isCommunity || collection.isPodcast ? collection : null;
-  }
-
-  /// 构建左侧环形进度图标
-  ///
-  /// - 未学习：音频图标在浅色圆形背景上
-  /// - 进行中：环形进度 + 中心音频图标
-  /// - 已完成：满环（绿色）+ 对应的音频或视频图标
-  /// 搜索模式下的描述片段：仅在有有效关键词且描述非空时展示，最多 3 行。
-  ///
-  /// 普通列表不展示描述，避免行高变化；只有用户搜索时才需要描述帮助判断命中内容。
-  Widget? _buildSearchDescription(ThemeData theme) {
-    final description = audioItem.description?.trim();
-    if (searchQuery.trim().isEmpty ||
-        description == null ||
-        description.isEmpty) {
-      return null;
+    if (id != null) {
+      final collection = ref.watch(
+        collectionListProvider.select(
+          (s) => s.rawCollections.where((c) => c.id == id).firstOrNull,
+        ),
+      );
+      if (collection == null) return null;
+      return collection.isCommunity || collection.isPodcast ? collection : null;
     }
-    return SearchHighlightText(
-      text: buildDescriptionSnippet(description, searchQuery),
-      searchQuery: searchQuery,
-      style: theme.textTheme.bodySmall?.copyWith(
-        color: theme.colorScheme.onSurfaceVariant,
+    return ref.watch(
+      collectionListProvider.select(
+        (s) => s.subscribedCollectionForAudio(audioItem.id),
       ),
-      maxLines: 3,
-      overflow: TextOverflow.ellipsis,
     );
   }
 
@@ -423,26 +346,6 @@ class AudioListTile extends ConsumerWidget {
     return result;
   }
 
-  /// 获取音频所属合集名称列表（仅全局上下文使用）
-  List<String> _getCollectionNames(WidgetRef ref) {
-    final collectionIds = ref.watch(
-      collectionListProvider.select(
-        (s) => s.audioToCollectionsMap[audioItem.id],
-      ),
-    );
-    if (collectionIds == null) return const [];
-
-    final collectionState = ref.watch(collectionListProvider);
-    final names = <String>[];
-    for (final cId in collectionIds) {
-      final c = collectionState.rawCollections
-          .where((c) => c.id == cId)
-          .firstOrNull;
-      if (c != null) names.add(c.name);
-    }
-    return names;
-  }
-
   /// 构建标题下方的元数据与状态标签区域。
   ///
   /// 第二行显示可用的难度、时长和日期；第三行仅在存在字幕、学习状态或其他标签时显示。
@@ -451,89 +354,32 @@ class AudioListTile extends ConsumerWidget {
     AppLocalizations l10n,
     ThemeData theme,
     LearningProgress? progress,
-    List<String> collectionNames,
     List<Tag> tagData,
     TranscriptionTaskState? transcriptionTask,
     double? downloadProgress,
     bool downloadQueued,
-    double? downloadSpeed,
-    CommunityDifficulty? difficulty, {
-    required bool showsDownloadStatus,
-  }) {
+    CommunityDifficulty? difficulty,
+  ) {
     // 是否有进行中的转录任务
     final isTranscribing =
         transcriptionTask is TranscriptionHashing ||
         transcriptionTask is TranscriptionUploading ||
         transcriptionTask is TranscriptionProcessing;
 
-    final metaParts = <InlineSpan>[];
-    final accessibleMetaParts = <String>[];
+    final meta = buildAudioMetaParts(context, audioItem);
+    final metaParts = <InlineSpan>[...meta.spans];
+    final accessibleMetaParts = <String>[...meta.accessibleLabels];
     void addMetaSeparator() {
       if (metaParts.isNotEmpty) {
         metaParts.add(const TextSpan(text: ' · '));
       }
     }
 
-    if (audioItem.totalDuration > 0) {
-      final duration = _formatDuration(audioItem.totalDuration);
-      addMetaSeparator();
-      metaParts.add(
-        WidgetSpan(
-          alignment: PlaceholderAlignment.middle,
-          child: Icon(
-            Icons.schedule_outlined,
-            size: 14,
-            color: theme.colorScheme.onSurfaceVariant,
-          ),
-        ),
-      );
-      metaParts.add(TextSpan(text: ' $duration'));
-      accessibleMetaParts.add(l10n.audioDuration(duration));
-    }
-    // 日期 meta：
-    // - 用户自建普通音频：显示「添加于 X」（addedDate 是 import 时间，有意义）
-    // - 社区合集 / podcast 单集：显示「发布于 yyyy/M/d」
-    //   （originalDate 为后端运营录入或 RSS pubDate 的原始播出日期）；
-    //   originalDate 未录入则跳过
-    final isPublishedSource =
-        audioItem.remoteAudioId != null || audioItem.podcastEpisodeGuid != null;
-    if (!isPublishedSource) {
-      final addedDate = _formatDate(context, audioItem.addedDate);
-      final addedOn = l10n.addedOn(addedDate);
-      addMetaSeparator();
-      metaParts.add(
-        WidgetSpan(
-          alignment: PlaceholderAlignment.middle,
-          child: Icon(
-            Icons.calendar_today_outlined,
-            size: 14,
-            color: theme.colorScheme.onSurfaceVariant,
-          ),
-        ),
-      );
-      metaParts.add(TextSpan(text: ' $addedDate'));
-      accessibleMetaParts.add(addedOn);
-    } else if (audioItem.originalDate case final originalDate?) {
-      final publishedDate = _formatAbsoluteDate(originalDate);
-      addMetaSeparator();
-      metaParts.add(
-        WidgetSpan(
-          alignment: PlaceholderAlignment.middle,
-          child: Icon(
-            Icons.calendar_today_outlined,
-            size: 14,
-            color: theme.colorScheme.onSurfaceVariant,
-          ),
-        ),
-      );
-      metaParts.add(TextSpan(text: ' $publishedDate'));
-      accessibleMetaParts.add(l10n.publishedOn(publishedDate));
-    }
-
     // 已订阅合集素材的下载状态：图标 + 文案追加在元信息行末尾。
-    final downloadStatus = showsDownloadStatus
-        ? _resolveDownloadStatus(downloadProgress, downloadQueued)
-        : null;
+    final downloadStatus = _resolveDownloadStatus(
+      downloadProgress,
+      downloadQueued,
+    );
     if (downloadStatus != null) {
       final statusLabel = _downloadStatusLabel(l10n, downloadStatus);
       addMetaSeparator();
@@ -567,17 +413,12 @@ class AudioListTile extends ConsumerWidget {
     );
     // CC 徽章已下沉到元信息行（与时长/日期同排），不再触发标签行。
     final hasCc = audioItem.hasTranscript && !isTranscribing;
-    // 已订阅素材的下载状态已放在元信息行，这里不再重复显示进度条。
-    final hasDownloadProgressBadge =
-        downloadProgress != null && !showsDownloadStatus;
     final hasBadgeRow =
         isTranscribing ||
         contentWarningLabel != null ||
-        (progress?.isStarted ?? false) ||
-        collectionNames.isNotEmpty ||
+        (progress?.isPaused ?? false) ||
         tagData.isNotEmpty ||
-        audioItem.isCommunityUnavailable ||
-        hasDownloadProgressBadge;
+        audioItem.isCommunityUnavailable;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -608,6 +449,8 @@ class AudioListTile extends ConsumerWidget {
             ),
           ],
         ),
+        const SizedBox(height: 6),
+        LearningProgressBar(progress: progress),
         if (hasBadgeRow) ...[
           const SizedBox(height: 4),
           Wrap(
@@ -649,58 +492,9 @@ class AudioListTile extends ConsumerWidget {
                     ),
                   ],
                 ),
-              // 学习进度 badge
-              // 暂停态优先级最高：替换轮次 chip 为「已暂停」灰色 chip。
-              if (progress != null && progress.isStarted)
-                if (progress.isPaused)
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 6,
-                      vertical: 2,
-                    ),
-                    decoration: BoxDecoration(
-                      color: theme.colorScheme.surfaceContainerHighest,
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: Text(
-                      l10n.pausedChipLabel,
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
-                        fontSize: 10,
-                      ),
-                    ),
-                  )
-                else
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 6,
-                      vertical: 2,
-                    ),
-                    decoration: BoxDecoration(
-                      color: progress.isCompleted
-                          ? (theme.brightness == Brightness.dark
-                                ? const Color(0xFF1D3B27)
-                                : AppTheme.successContainer)
-                          : theme.colorScheme.primaryContainer,
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: Text(
-                      progress.isCompleted
-                          ? l10n.learningCompleted
-                          : reviewStageLabel(l10n, progress.currentStage),
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        color: progress.isCompleted
-                            ? (theme.brightness == Brightness.dark
-                                  ? const Color(0xFF8FE0A8)
-                                  : AppTheme.successColor)
-                            : theme.colorScheme.onPrimaryContainer,
-                        fontSize: 10,
-                      ),
-                    ),
-                  ),
-              // 合集标签 chips（仅全局上下文显示）
-              ...collectionNames.map(
-                (name) => Container(
+              // 暂停提示 badge：学习阶段与完成状态已由进度条展示。
+              if (progress?.isPaused ?? false)
+                Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 6,
                     vertical: 2,
@@ -710,14 +504,13 @@ class AudioListTile extends ConsumerWidget {
                     borderRadius: BorderRadius.circular(4),
                   ),
                   child: Text(
-                    name,
+                    l10n.pausedChipLabel,
                     style: theme.textTheme.labelSmall?.copyWith(
                       color: theme.colorScheme.onSurfaceVariant,
                       fontSize: 10,
                     ),
                   ),
                 ),
-              ),
               // 标签 chips（彩色）
               ...tagData.map(
                 (tag) => Container(
@@ -739,14 +532,6 @@ class AudioListTile extends ConsumerWidget {
                   ),
                 ),
               ),
-              if (hasDownloadProgressBadge)
-                _buildDownloadProgress(
-                  theme,
-                  l10n,
-                  downloadProgress,
-                  queued: downloadQueued,
-                  speedBytesPerSecond: downloadSpeed,
-                ),
             ],
           ),
         ],
@@ -754,22 +539,21 @@ class AudioListTile extends ConsumerWidget {
     );
   }
 
-  /// 行内下载进度（播客单集 / 社区合集音频共用），避免只用短暂提示承载状态。
-  ///
-  /// [progress] 为 0..1；<0（或不定态）时显示无固定进度的进度条。
   /// 已订阅素材的下载状态。正在下载（含排队）优先；没有任何下载来源的素材返回 null，不展示状态。
   _AudioDownloadStatus? _resolveDownloadStatus(
     double? downloadProgress,
     bool downloadQueued,
   ) {
-    if (downloadProgress != null || downloadQueued) {
-      return _AudioDownloadStatus.downloading;
-    }
-    if (audioItem.isAudioReady) return _AudioDownloadStatus.downloaded;
     final hasDownloadSource =
         audioItem.remoteAudioId != null ||
         audioItem.podcastEnclosureUrl != null;
-    return hasDownloadSource ? _AudioDownloadStatus.notDownloaded : null;
+    if (!hasDownloadSource) return null;
+    if (downloadProgress != null || downloadQueued) {
+      return _AudioDownloadStatus.downloading;
+    }
+    return audioItem.isAudioReady
+        ? _AudioDownloadStatus.downloaded
+        : _AudioDownloadStatus.notDownloaded;
   }
 
   String _downloadStatusLabel(
@@ -820,44 +604,6 @@ class AudioListTile extends ConsumerWidget {
         const SizedBox(width: 4),
         Text(label, style: theme.textTheme.bodySmall?.copyWith(color: color)),
       ],
-    );
-  }
-
-  Widget _buildDownloadProgress(
-    ThemeData theme,
-    AppLocalizations l10n,
-    double progress, {
-    required bool queued,
-    double? speedBytesPerSecond,
-  }) {
-    final value = progress < 0 ? null : progress.clamp(0.0, 1.0);
-    final percent = value == null ? null : (value * 100).toStringAsFixed(0);
-    final speed = speedBytesPerSecond == null
-        ? ''
-        : ' · ${formatBytes(speedBytesPerSecond.round())}/s';
-    return SizedBox(
-      key: const Key('audio_list_tile_download_progress'),
-      width: 220,
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          SizedBox(width: 56, child: LinearProgressIndicator(value: value)),
-          const SizedBox(width: 6),
-          Flexible(
-            child: Text(
-              queued
-                  ? l10n.audioQueued
-                  : '${l10n.audioDownloadInProgress}'
-                        '${percent == null ? '' : ' $percent%'}$speed',
-              overflow: TextOverflow.ellipsis,
-              style: theme.textTheme.labelSmall?.copyWith(
-                color: theme.colorScheme.primary,
-                fontSize: 10,
-              ),
-            ),
-          ),
-        ],
-      ),
     );
   }
 
@@ -912,9 +658,7 @@ class AudioListTile extends ConsumerWidget {
     required bool isDownloading,
   }) {
     final menu = SizedBox(
-      width: _isCollectionContext
-          ? _kCollectionTrailingButtonSize
-          : _kTrailingButtonSize,
+      width: _kTrailingButtonSize,
       child: _buildPopupMenu(
         context,
         ref,
@@ -1186,22 +930,11 @@ class AudioListTile extends ConsumerWidget {
           .where((c) => c.id == id && c.isPodcast)
           .firstOrNull;
       if (collection == null) continue;
-      final meta = _decodePodcastMeta(collection.podcastMetaJson);
+      final meta = decodePodcastFeedMeta(collection.podcastMetaJson);
       final imageUrl = meta?.imageUrl ?? collection.coverUrl;
       if (imageUrl != null && imageUrl.trim().isNotEmpty) return imageUrl;
     }
     return null;
-  }
-
-  PodcastFeedMeta? _decodePodcastMeta(String? raw) {
-    if (raw == null || raw.isEmpty) return null;
-    try {
-      final decoded = jsonDecode(raw);
-      if (decoded is! Map<String, dynamic>) return null;
-      return PodcastFeedMeta.fromJson(decoded);
-    } catch (_) {
-      return null;
-    }
   }
 
   /// 从 provider 读取当前最新 AudioItem，避免下载完成后 widget 仍持有旧对象。
@@ -1279,27 +1012,6 @@ class AudioListTile extends ConsumerWidget {
         SnackBar(content: Text(l10n.communitySubtitleUpdateFailed)),
       );
     }
-  }
-
-  /// 用户自建音频：相对时间（如「8 分钟前」）。
-  String _formatDate(BuildContext context, DateTime date) {
-    return formatTimeAgo(context, date);
-  }
-
-  /// 社区音频原始发布日期：绝对日期 `yyyy/M/d`（历史日期相对时间没意义）。
-  String _formatAbsoluteDate(DateTime date) {
-    return '${date.year}/${date.month}/${date.day}';
-  }
-
-  /// 格式化音频时长（秒 → mm:ss 或 h:mm:ss）
-  String _formatDuration(int totalSeconds) {
-    final h = totalSeconds ~/ 3600;
-    final m = (totalSeconds % 3600) ~/ 60;
-    final s = totalSeconds % 60;
-    if (h > 0) {
-      return '$h:${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
-    }
-    return '${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
   }
 
   /// 切换暂停学习状态：
@@ -1431,121 +1143,7 @@ Widget _downloadIcon(double size, Color color) {
 /// 已订阅素材在元信息行展示的下载状态。
 enum _AudioDownloadStatus { notDownloaded, downloading, downloaded }
 
-/// 合集详情页列表项左侧图标的尺寸：已订阅封面与本地合集进度图标共用，保证外形一致。
-/// 行高由标题和元信息撑开，图标尺寸不会改变行高。
-const double _kCollectionItemIconSize = 48;
-const double _kCollectionItemGlyphSize = 24;
-
-/// 已订阅合集列表项的方形圆角图标：有封面时显示封面，否则显示音频 / 视频图标。
-class _SubscribedItemArtwork extends StatelessWidget {
-  static const double _kRadius = 8;
-
-  final String? imageUrl;
-  final bool isVideo;
-
-  const _SubscribedItemArtwork({required this.imageUrl, required this.isVideo});
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final fallback = Container(
-      width: _kCollectionItemIconSize,
-      height: _kCollectionItemIconSize,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(_kRadius),
-        color: theme.colorScheme.surfaceContainerHighest,
-      ),
-      alignment: Alignment.center,
-      child: MediaTypeIcon(
-        isVideo: isVideo,
-        size: _kCollectionItemGlyphSize,
-        color: theme.colorScheme.onSurfaceVariant,
-      ),
-    );
-    final url = imageUrl;
-    if (url == null) return fallback;
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(_kRadius),
-      child: CachedNetworkImage(
-        key: const Key('audio_list_tile_subscribed_artwork'),
-        imageUrl: url,
-        cacheManager: AppNetworkImageCache.instance,
-        width: _kCollectionItemIconSize,
-        height: _kCollectionItemIconSize,
-        fit: BoxFit.cover,
-        // 缓存命中时立即显示，去掉默认淡入造成的延迟感
-        fadeInDuration: Duration.zero,
-        placeholderFadeInDuration: Duration.zero,
-        placeholder: (_, __) => fallback,
-        errorWidget: (_, __, ___) => fallback,
-      ),
-    );
-  }
-}
-
-/// 去掉首尾空白后为空则视为缺失，避免空字符串地址触发无效的网络请求。
-String? _nonBlank(String? value) {
-  final trimmed = value?.trim();
-  return trimmed == null || trimmed.isEmpty ? null : trimmed;
-}
-
-/// 未下载音频（播客单集 / 社区合集音频）的左侧图标，承载「未下载 / 下载中」两态。
-///
-/// 尺寸与 [LearningProgressIcon] 默认值保持一致，确保切换时不抖动。
-class _DownloadLeading extends StatelessWidget {
-  const _DownloadLeading({required this.downloading, this.progress});
-
-  /// 是否正在下载：true 显示进度环，false 显示静态下载图标。
-  final bool downloading;
-
-  /// 下载进度 0..1；null 或 <0 表示不定态（旋转动画）。
-  final double? progress;
-
-  static const double _size = 40;
-  static const double _iconSize = 20;
-  static const double _strokeWidth = 3;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    // 下载中：进度环 + 中心下载图标（不定进度时环为旋转动画）。
-    if (downloading) {
-      final p = progress;
-      final value = (p == null || p < 0) ? null : p.clamp(0.0, 1.0);
-      return SizedBox(
-        key: const Key('audio_list_tile_downloading_icon'),
-        width: _size,
-        height: _size,
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
-            SizedBox(
-              width: _size,
-              height: _size,
-              child: CircularProgressIndicator(
-                value: value,
-                strokeWidth: _strokeWidth,
-                color: theme.colorScheme.primary,
-                backgroundColor: theme.colorScheme.surfaceContainerHighest,
-              ),
-            ),
-            _downloadIcon(_iconSize - 4, theme.colorScheme.primary),
-          ],
-        ),
-      );
-    }
-
-    // 未下载：下载图标；点击行进入计划页后由计划页自动下载。
-    return Container(
-      key: const Key('audio_list_tile_download_icon'),
-      width: _size,
-      height: _size,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: theme.colorScheme.primary.withValues(alpha: 0.12),
-      ),
-      child: _downloadIcon(_iconSize, theme.colorScheme.primary),
-    );
-  }
-}
+/// 合集详情页列表项左侧图标的尺寸：已订阅封面与本地素材的默认图标共用，保证外形一致。
+/// 与合集页封面保持同一尺寸（56），避免素材图标比合集封面还大、打乱层级。
+/// 图标不会改变行高，图标与右侧文字区在行内垂直居中。
+const double _kCollectionItemIconSize = 56;

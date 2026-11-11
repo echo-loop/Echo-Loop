@@ -571,6 +571,11 @@ class _CollectionListTile extends ConsumerWidget {
     final pinnedHighlightColor = theme.colorScheme.primary.withValues(
       alpha: 0.06,
     );
+    final searchDescription = buildSearchDescriptionLine(
+      description: collection.description,
+      searchQuery: searchQuery,
+      theme: theme,
+    );
     final card = Card(
       // margin 与 Discover 卡片保持一致
       margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 3),
@@ -602,6 +607,10 @@ class _CollectionListTile extends ConsumerWidget {
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
                             ),
+                            if (searchDescription != null) ...[
+                              const SizedBox(height: 4),
+                              searchDescription,
+                            ],
                             const SizedBox(height: 4),
                             Text(
                               '${l10n.audioCount(collectionState.getAudioCount(collection.id))} · ${l10n.updatedOn(formatTimeAgo(context, collection.updatedAt))}',

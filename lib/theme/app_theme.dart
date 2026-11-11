@@ -76,6 +76,21 @@ class AppTheme {
       ? const Color(0xFF5B8DEF)
       : const Color(0xFF3066E3);
 
+  /// 语义色：学习中进度条（取自设计稿的蓝色，深色模式提亮）
+  static Color learningInProgressColor(Brightness brightness) =>
+      brightness == Brightness.dark
+      ? const Color(0xFF5B8DEF)
+      : const Color(0xFF5C87D2);
+
+  /// 语义色：学习已完成的进度条与文案（取自设计稿的绿色，浅深色均可读）
+  static const Color learningCompletedColor = Color(0xFF4CA054);
+
+  /// 学习进度条轨道底色
+  static Color progressTrackColor(Brightness brightness) =>
+      brightness == Brightness.dark
+      ? const Color(0xFF2C2C2E)
+      : const Color(0xFFE5E7EB);
+
   /// 语义色：女声标签（国际通用粉/玫瑰，浅深色均可读）
   static const Color femaleVoiceColor = Color(0xFFE0709F);
 

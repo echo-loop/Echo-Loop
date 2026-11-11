@@ -4,6 +4,7 @@ import 'package:echo_loop/features/podcast/podcast_models.dart';
 import 'package:echo_loop/features/podcast/podcast_preview_provider.dart';
 import 'package:echo_loop/features/podcast/podcast_url_resolver.dart';
 import 'package:echo_loop/features/podcast/screens/podcast_preview_screen.dart';
+import 'package:echo_loop/widgets/common/transcript_cc_badge.dart';
 import 'package:echo_loop/models/collection.dart';
 import 'package:echo_loop/providers/collection_provider.dart';
 import 'package:echo_loop/services/app_logger.dart';
@@ -113,9 +114,8 @@ void main() {
     });
 
     test('RSS 正文含反爬特征短语时仍解析预览', () async {
-      final data = await _service(
-        _FakeDio(body: _rssWithChallengePhrase),
-      ).fetchByUrl(_feedUrl);
+      final data = await _service(_FakeDio(body: _rssWithChallengePhrase))
+          .fetchByUrl(_feedUrl);
 
       expect(data.meta.title, "Bob's Short English Lessons");
       expect(data.episodes.single.guid, 'ep-just-a-moment');
@@ -262,7 +262,10 @@ void main() {
         matching: find.byType(Row),
       );
       expect(
-        find.descendant(of: subtitledRow.first, matching: find.text('CC')),
+        find.descendant(
+          of: subtitledRow.first,
+          matching: find.byType(TranscriptCcBadge),
+        ),
         findsOneWidget,
       );
       expect(find.text('附逐句 srt 字幕'), findsNothing);
@@ -289,9 +292,8 @@ void main() {
           ),
           overrides: dedupeOverrides([
             collectionListProvider.overrideWith(() => TestCollectionList()),
-            podcastPreviewProvider(
-              _feedUrl,
-            ).overrideWith((ref) async => _previewData),
+            podcastPreviewProvider(_feedUrl)
+                .overrideWith((ref) async => _previewData),
           ]),
         ),
       );
@@ -393,9 +395,8 @@ void main() {
                 ),
               ),
             ),
-            podcastPreviewProvider(
-              _feedUrl,
-            ).overrideWith((ref) async => _previewData),
+            podcastPreviewProvider(_feedUrl)
+                .overrideWith((ref) async => _previewData),
           ]),
         ),
       );

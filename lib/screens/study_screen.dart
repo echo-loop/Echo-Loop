@@ -13,6 +13,7 @@ import '../database/daos/stage_completion_dao.dart';
 import '../database/enums.dart';
 import '../l10n/app_localizations.dart';
 import '../models/audio_item.dart';
+import '../models/learning_progress.dart';
 import '../providers/audio_library_provider.dart';
 import '../providers/learning_plan_provider.dart';
 import '../providers/learning_progress_provider.dart';
@@ -26,13 +27,27 @@ import '../theme/app_theme.dart';
 import '../services/app_logger.dart';
 import '../services/startup_trace.dart';
 import '../widgets/guide_flow.dart';
-import '../widgets/learning_progress_icon.dart';
+import '../widgets/learning_progress_bar.dart';
+import '../widgets/audio_artwork.dart';
+import '../widgets/audio_meta_line.dart';
 import '../widgets/media_type_icon.dart';
 import '../widgets/study/study_streak_badge.dart';
 import '../widgets/study/study_stats_header.dart';
 
 /// 学习 Tab 待复习分组标题图标。
 const String _studyReviewIconAsset = 'assets/icon/refresh.svg';
+
+/// 学习页任务卡与推荐卡左侧方形图标的边长。与右侧三行内容（标题、阶段、进度条）等高，与合集列表项图标一致。
+const double _kStudyCardIconSize = 56;
+
+/// 学习页卡片进度条右侧百分比文案的宽度，与合集列表项的进度文案保持一致。
+const double _kProgressLabelWidth = 44;
+
+/// 最近完成条目左侧方形图标的边长。该条目只有两行文字，图标保持较小。
+const double _kRecentCompletionIconSize = 36;
+
+/// 最近完成记录左侧的绿色条颜色。
+const Color _kCompletedAccentColor = Color(0xFF4CAF50);
 
 /// 学习任务列表页
 ///
@@ -331,19 +346,23 @@ class _TaskSection extends StatelessWidget {
 /// 整张卡片即操作入口，不再单独放置「继续 / 开始」按钮。
 class _StudyMaterialCard extends StatelessWidget {
   final String title;
-  final Color accentColor;
   final Widget leading;
   final Widget subtitle;
+
+  /// 标题行右侧的状态角标（如逾期、可学习时间），为 null 时不展示。
+  final Widget? statusBadge;
+  final LearningProgress? progress;
   final double progressPercent;
   final VoidCallback? onTap;
 
   const _StudyMaterialCard({
     required this.title,
-    required this.accentColor,
     required this.leading,
     required this.subtitle,
+    required this.progress,
     required this.progressPercent,
     required this.onTap,
+    this.statusBadge,
   });
 
   @override
@@ -354,54 +373,63 @@ class _StudyMaterialCard extends StatelessWidget {
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onTap,
-        child: IntrinsicHeight(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              Container(width: 4, color: accentColor),
+              leading,
+              const SizedBox(width: 12),
               Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(12, 12, AppSpacing.m, 12),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            title,
+                            style: theme.textTheme.titleSmall?.copyWith(
+                              fontWeight: FontWeight.w600,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        if (statusBadge != null) ...[
+                          const SizedBox(width: AppSpacing.s),
+                          statusBadge!,
+                        ],
+                      ],
+                    ),
+                    const SizedBox(height: 3),
+                    subtitle,
+                    if (progressPercent > 0) ...[
+                      const SizedBox(height: 10),
                       Row(
                         children: [
-                          leading,
-                          const SizedBox(width: 10),
                           Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  title,
-                                  style: theme.textTheme.titleSmall?.copyWith(
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                                const SizedBox(height: 3),
-                                subtitle,
-                              ],
+                            child: LearningProgressTrack(
+                              value: progressPercent,
+                              color: learningProgressColor(theme, progress),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          SizedBox(
+                            width: _kProgressLabelWidth,
+                            child: Text(
+                              '${(progressPercent * 100).round()}%',
+                              textAlign: TextAlign.end,
+                              maxLines: 1,
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: theme.colorScheme.onSurfaceVariant,
+                              ),
                             ),
                           ),
                         ],
                       ),
-                      if (progressPercent > 0) ...[
-                        const SizedBox(height: 10),
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(3),
-                          child: LinearProgressIndicator(
-                            value: progressPercent,
-                            minHeight: 4,
-                            color: accentColor,
-                            backgroundColor:
-                                theme.colorScheme.surfaceContainerHighest,
-                          ),
-                        ),
-                      ],
                     ],
-                  ),
+                  ],
                 ),
               ),
             ],
@@ -427,16 +455,9 @@ class _RecommendedMaterialCard extends ConsumerWidget {
     final stage = progress?.currentStage ?? LearningStage.firstLearn;
     final subStage = progress?.currentSubStage ?? SubStageType.blindListen;
     final completedKeys = progressState.completionsFor(material.id);
-    final hasRoundProgress = completedKeys.any(
-      (key) => key.startsWith('${stage.key}:'),
-    );
     final plan = ref.watch(learningPlanForAudioProvider(material.id));
     final progressPercent =
         progress?.progressPercent(plan, completedKeys) ?? 0.0;
-    final statusText = hasRoundProgress ? l10n.learningInProgress : '';
-    final accentColor = AppTheme.studyRecommendationAccentColor(
-      theme.brightness,
-    );
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -475,32 +496,25 @@ class _RecommendedMaterialCard extends ConsumerWidget {
         const SizedBox(height: AppSpacing.s),
         _StudyMaterialCard(
           title: material.name,
-          accentColor: accentColor,
-          leading: LearningProgressIcon(
-            progress: progress,
-            size: 36,
-            iconSize: 18,
-            isVideo: material.isVideo,
+          leading: AudioItemArtwork(
+            audioId: material.id,
+            size: _kStudyCardIconSize,
           ),
-          subtitle: Wrap(
-            spacing: AppSpacing.s,
-            runSpacing: 4,
-            crossAxisAlignment: WrapCrossAlignment.center,
+          subtitle: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
             children: [
+              AudioMetaLine(audio: material),
+              const SizedBox(height: 3),
               Text(
                 _stageSubStageLabel(l10n, stage, subStage),
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: theme.colorScheme.onSurfaceVariant,
                 ),
               ),
-              if (statusText.isNotEmpty)
-                _StatusBadge(
-                  text: statusText,
-                  isOverdue: false,
-                  isInProgress: true,
-                ),
             ],
           ),
+          progress: progress,
           progressPercent: progressPercent,
           onTap: () => context.push(AppRoutes.audioLearningPlan(material.id)),
         ),
@@ -593,54 +607,35 @@ class _TaskCard extends ConsumerWidget {
     final theme = Theme.of(context);
     final stageLabel = _stageSubStageLabel(l10n, task.stage, task.subStage);
     final statusText = _statusText(context, l10n, task, now);
+    final showsStatusBadge =
+        statusText.isNotEmpty && statusText != l10n.learningInProgress;
     final isOverdue = task.isOverdue;
 
     // 获取进度数据
     final progressState = ref.watch(learningProgressProvider);
     final progress = progressState.progressMap[task.audioId];
-    final audioItem = ref
-        .watch(audioLibraryProvider)
-        .audioItems
-        .where((item) => item.id == task.audioId)
-        .firstOrNull;
     final plan = ref.watch(learningPlanForAudioProvider(task.audioId));
     final completedKeys = progressState.completionsFor(task.audioId);
     final progressPercent =
         progress?.progressPercent(plan, completedKeys) ?? 0.0;
 
-    // 左侧色条颜色
-    final accentColor = isOverdue
-        ? theme.colorScheme.error
-        : theme.colorScheme.primary;
-
     return _StudyMaterialCard(
       title: task.audioName,
-      accentColor: accentColor,
-      leading: LearningProgressIcon(
-        progress: progress,
-        size: 36,
-        iconSize: 18,
-        isVideo: audioItem?.isVideo ?? false,
+      leading: AudioItemArtwork(
+        audioId: task.audioId,
+        size: _kStudyCardIconSize,
       ),
-      subtitle: Wrap(
-        spacing: AppSpacing.s,
-        runSpacing: 4,
-        crossAxisAlignment: WrapCrossAlignment.center,
-        children: [
-          Text(
-            stageLabel,
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
-          ),
-          if (statusText.isNotEmpty)
-            _StatusBadge(
-              text: statusText,
-              isOverdue: isOverdue,
-              isInProgress: statusText == l10n.learningInProgress,
-            ),
-        ],
+      subtitle: Text(
+        stageLabel,
+        style: theme.textTheme.bodySmall?.copyWith(
+          color: theme.colorScheme.onSurfaceVariant,
+        ),
       ),
+      // 学习中由进度条右侧的百分比表达，不再显示徽章。
+      statusBadge: showsStatusBadge
+          ? _StatusBadge(text: statusText, isOverdue: isOverdue)
+          : null,
+      progress: progress,
       progressPercent: progressPercent,
       onTap: () async {
         ref
@@ -785,16 +780,6 @@ class _RecentCompletionTile extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
-    final audioItems = ref.watch(audioLibraryProvider).audioItems;
-    final progress = ref
-        .watch(learningProgressProvider)
-        .progressMap[completion.audioId];
-    final isVideo =
-        audioItems
-            .where((item) => item.id == completion.audioId)
-            .firstOrNull
-            ?.isVideo ??
-        false;
     final stage = LearningStage.fromKey(completion.stage);
     final subStage = SubStageType.fromKey(completion.subStage);
     final stageLabel = _stageSubStageLabel(l10n, stage, subStage);
@@ -811,7 +796,7 @@ class _RecentCompletionTile extends ConsumerWidget {
           child: Row(
             children: [
               // 左侧绿色条标记本条子步骤已完成（不用对钩，避免误认为整个音频已学完）。
-              Container(width: 4, color: LearningProgressIcon.completedColor),
+              Container(width: 4, color: _kCompletedAccentColor),
               // 内容区
               Expanded(
                 child: Padding(
@@ -820,13 +805,11 @@ class _RecentCompletionTile extends ConsumerWidget {
                     children: [
                       SizedBox(
                         key: const ValueKey('recent_completion_media_icon'),
-                        width: 36,
-                        height: 36,
-                        child: LearningProgressIcon(
-                          progress: progress,
-                          isVideo: isVideo,
-                          size: 36,
-                          iconSize: 18,
+                        width: _kRecentCompletionIconSize,
+                        height: _kRecentCompletionIconSize,
+                        child: AudioItemArtwork(
+                          audioId: completion.audioId,
+                          size: _kRecentCompletionIconSize,
                         ),
                       ),
                       const SizedBox(width: 14),
@@ -843,22 +826,24 @@ class _RecentCompletionTile extends ConsumerWidget {
                               overflow: TextOverflow.ellipsis,
                             ),
                             const SizedBox(height: 3),
-                            Text(
-                              stageLabel,
-                              style: theme.textTheme.bodySmall?.copyWith(
-                                color: theme.colorScheme.onSurfaceVariant,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    stageLabel,
+                                    style: theme.textTheme.bodySmall?.copyWith(
+                                      color: theme.colorScheme.onSurfaceVariant,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                const SizedBox(width: AppSpacing.s),
+                                _StatusBadge(text: timeAgo, isOverdue: false),
+                              ],
                             ),
                           ],
                         ),
-                      ),
-                      const SizedBox(width: AppSpacing.s),
-                      _StatusBadge(
-                        text: timeAgo,
-                        isOverdue: false,
-                        isInProgress: false,
                       ),
                     ],
                   ),
@@ -1246,19 +1231,13 @@ String _stageName(AppLocalizations l10n, LearningStage stage) {
 class _StatusBadge extends StatelessWidget {
   final String text;
   final bool isOverdue;
-  final bool isInProgress;
 
-  const _StatusBadge({
-    required this.text,
-    required this.isOverdue,
-    required this.isInProgress,
-  });
+  const _StatusBadge({required this.text, required this.isOverdue});
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    // "学习中"统一使用中性色，不受逾期影响
-    final useErrorStyle = isOverdue && !isInProgress;
+    final useErrorStyle = isOverdue;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
       decoration: BoxDecoration(

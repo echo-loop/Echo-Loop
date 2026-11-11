@@ -23,7 +23,7 @@ import 'package:echo_loop/features/community_collections/download/community_down
 import 'package:echo_loop/features/auth/providers/auth_providers.dart';
 import 'package:echo_loop/theme/app_theme.dart';
 import 'package:echo_loop/widgets/audio_list_tile.dart';
-import 'package:echo_loop/widgets/learning_progress_icon.dart';
+import 'package:echo_loop/widgets/learning_progress_bar.dart';
 import 'package:echo_loop/widgets/media_type_icon.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -145,29 +145,31 @@ void main() {
         findsOneWidget,
       );
       expect(find.byIcon(Icons.subtitles_outlined), findsNothing);
-      expect(find.text('CC'), findsOneWidget);
+      expect(find.text('CC'), findsNothing);
       expect(find.text('subtitles'), findsNothing);
 
-      final badge = tester.widget<Container>(
+      final badge = tester.widget<SvgPicture>(
         find.byKey(const Key('audio_list_tile_transcript_badge')),
       );
-      switch (badge.decoration) {
-        case BoxDecoration(:final color, :final border):
-          expect(color, isNotNull);
-          expect(border, isNotNull);
-        default:
-          fail('字幕标签应使用 BoxDecoration');
-      }
+      expect(badge.bytesLoader, isA<SvgAssetLoader>());
+      expect(
+        (badge.bytesLoader as SvgAssetLoader).assetName,
+        'assets/icon/closed-captions.svg',
+      );
 
       final titleY = tester.getTopLeft(find.text('Audio with transcript')).dy;
       final metadataY = tester
           .getTopLeft(find.byKey(const Key('audio_list_tile_metadata_row')))
           .dy;
-      final badgeY = tester
-          .getTopLeft(find.byKey(const Key('audio_list_tile_transcript_badge')))
+      // 字幕图标比元信息行高，二者在行内垂直居中对齐。
+      final metadataCenterY = tester
+          .getCenter(find.byKey(const Key('audio_list_tile_metadata_row')))
+          .dy;
+      final badgeCenterY = tester
+          .getCenter(find.byKey(const Key('audio_list_tile_transcript_badge')))
           .dy;
       expect(metadataY, greaterThan(titleY));
-      expect((badgeY - metadataY).abs(), lessThan(2));
+      expect((badgeCenterY - metadataCenterY).abs(), lessThan(2));
     });
 
     testWidgets('无任何 badge 时只显示标题和元数据两行', (tester) async {
@@ -231,7 +233,7 @@ void main() {
       expect(find.byKey(const Key('community_difficulty_badge')), findsNothing);
     });
 
-    testWidgets('资源库全局列表长标题仍可自然换行', (tester) async {
+    testWidgets('全局搜索结果长标题同样最多显示两行', (tester) async {
       const title =
           'A very long community lesson title that should keep wrapping naturally';
       final item = createTestAudioItem(name: title);
@@ -239,7 +241,7 @@ void main() {
       await tester.pumpWidget(buildTile(item, width: 300));
       await tester.pumpAndSettle();
 
-      expect(tester.widget<Text>(find.text(title)).maxLines, isNull);
+      expect(tester.widget<Text>(find.text(title)).maxLines, 2);
       expect(tester.takeException(), isNull);
     });
 
@@ -307,7 +309,6 @@ void main() {
 
       final glyph = tester.widget<MediaTypeIcon>(find.byType(MediaTypeIcon));
       expect(glyph.isVideo, isFalse);
-      expect(find.byType(LearningProgressIcon), findsNothing);
       expect(tester.takeException(), isNull);
     });
 
@@ -461,7 +462,7 @@ void main() {
       );
     });
 
-    testWidgets('用户自建合集仍显示学习进度图标', (tester) async {
+    testWidgets('用户自建合集左侧不显示进度环，改为下方进度条', (tester) async {
       final item = createTestAudioItem(name: 'Local audio');
 
       await tester.pumpWidget(
@@ -472,11 +473,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      final icon = tester.widget<LearningProgressIcon>(
-        find.byType(LearningProgressIcon),
-      );
-      expect(icon.isRoundedSquare, isTrue);
-      expect(icon.size, 48);
+      expect(find.byType(LearningProgressBar), findsOneWidget);
     });
   });
 
@@ -943,7 +940,7 @@ void main() {
   });
 
   group('AudioListTile Podcast 单集', () {
-    testWidgets('未下载单集显示对应的懒下载进度', (tester) async {
+    testWidgets('未下载单集元信息行显示下载中状态', (tester) async {
       final item =
           createTestAudioItem(
             name: 'Podcast Episode',
@@ -973,11 +970,18 @@ void main() {
       );
       await tester.pumpAndSettle();
 
+      final status = find.byKey(const Key('audio_list_tile_download_status'));
       expect(
-        find.byKey(const Key('audio_list_tile_download_progress')),
+        find.descendant(
+          of: status,
+          matching: find.byType(CircularProgressIndicator),
+        ),
         findsOneWidget,
       );
-      expect(find.textContaining('Downloading 42%'), findsOneWidget);
+      expect(
+        find.descendant(of: status, matching: find.text('Downloading')),
+        findsOneWidget,
+      );
     });
 
     testWidgets('未下载单集点击只进入计划页，不在列表行发起下载', (tester) async {
@@ -1017,7 +1021,7 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('未下载单集左侧显示下载图标而非进度环', (tester) async {
+    testWidgets('未下载单集元信息行显示未下载状态，左侧不显示进度环', (tester) async {
       final item =
           createTestAudioItem(
             name: 'Podcast Episode',
@@ -1044,17 +1048,14 @@ void main() {
       );
       await tester.pumpAndSettle();
 
+      final status = find.byKey(const Key('audio_list_tile_download_status'));
       expect(
-        find.byKey(const Key('audio_list_tile_download_icon')),
+        find.descendant(of: status, matching: find.text('Not downloaded')),
         findsOneWidget,
-      );
-      expect(
-        find.byKey(const Key('audio_list_tile_downloading_icon')),
-        findsNothing,
       );
     });
 
-    testWidgets('单集下载中时左侧显示下载进度环', (tester) async {
+    testWidgets('单集下载中时元信息行显示下载进度环与下载中状态', (tester) async {
       final item =
           createTestAudioItem(
             name: 'Podcast Episode',
@@ -1084,17 +1085,21 @@ void main() {
       );
       await tester.pumpAndSettle();
 
+      final status = find.byKey(const Key('audio_list_tile_download_status'));
       expect(
-        find.byKey(const Key('audio_list_tile_downloading_icon')),
+        find.descendant(
+          of: status,
+          matching: find.byType(CircularProgressIndicator),
+        ),
         findsOneWidget,
       );
       expect(
-        find.byKey(const Key('audio_list_tile_download_icon')),
-        findsNothing,
+        find.descendant(of: status, matching: find.text('Downloading')),
+        findsOneWidget,
       );
     });
 
-    testWidgets('已下载单集左侧显示学习进度图标而非下载图标', (tester) async {
+    testWidgets('已下载单集元信息行显示已下载状态', (tester) async {
       final item =
           createTestAudioItem(
             name: 'Podcast Episode',
@@ -1121,17 +1126,14 @@ void main() {
       );
       await tester.pumpAndSettle();
 
+      final status = find.byKey(const Key('audio_list_tile_download_status'));
       expect(
-        find.byKey(const Key('audio_list_tile_download_icon')),
-        findsNothing,
-      );
-      expect(
-        find.byKey(const Key('audio_list_tile_downloading_icon')),
-        findsNothing,
+        find.descendant(of: status, matching: find.text('Downloaded')),
+        findsOneWidget,
       );
     });
 
-    testWidgets('未下载社区音频左侧显示下载图标而非进度环', (tester) async {
+    testWidgets('未下载社区音频元信息行显示未下载状态，左侧不显示进度环', (tester) async {
       final item = createTestAudioItem(
         name: 'Official Audio',
         transcriptPath: null,
@@ -1152,17 +1154,14 @@ void main() {
       );
       await tester.pumpAndSettle();
 
+      final status = find.byKey(const Key('audio_list_tile_download_status'));
       expect(
-        find.byKey(const Key('audio_list_tile_download_icon')),
+        find.descendant(of: status, matching: find.text('Not downloaded')),
         findsOneWidget,
-      );
-      expect(
-        find.byKey(const Key('audio_list_tile_downloading_icon')),
-        findsNothing,
       );
     });
 
-    testWidgets('社区音频下载中时左侧显示下载进度环', (tester) async {
+    testWidgets('社区音频下载中时元信息行显示下载进度环与下载中状态', (tester) async {
       final item = createTestAudioItem(
         name: 'Official Audio',
         transcriptPath: null,
@@ -1186,23 +1185,21 @@ void main() {
       );
       await tester.pumpAndSettle();
 
+      final status = find.byKey(const Key('audio_list_tile_download_status'));
       expect(
-        find.byKey(const Key('audio_list_tile_downloading_icon')),
+        find.descendant(
+          of: status,
+          matching: find.byType(CircularProgressIndicator),
+        ),
         findsOneWidget,
       );
       expect(
-        find.byKey(const Key('audio_list_tile_download_icon')),
-        findsNothing,
-      );
-      // 社区下载与播客一致：行内进度条（无弹窗）。
-      expect(
-        find.byKey(const Key('audio_list_tile_download_progress')),
+        find.descendant(of: status, matching: find.text('Downloading')),
         findsOneWidget,
       );
-      expect(find.textContaining('Downloading 42%'), findsOneWidget);
     });
 
-    testWidgets('已下载社区音频左侧显示学习进度图标而非下载图标', (tester) async {
+    testWidgets('已下载社区音频元信息行显示已下载状态', (tester) async {
       final item =
           createTestAudioItem(
             name: 'Official Audio',
@@ -1227,13 +1224,10 @@ void main() {
       );
       await tester.pumpAndSettle();
 
+      final status = find.byKey(const Key('audio_list_tile_download_status'));
       expect(
-        find.byKey(const Key('audio_list_tile_download_icon')),
-        findsNothing,
-      );
-      expect(
-        find.byKey(const Key('audio_list_tile_downloading_icon')),
-        findsNothing,
+        find.descendant(of: status, matching: find.text('Downloaded')),
+        findsOneWidget,
       );
     });
 

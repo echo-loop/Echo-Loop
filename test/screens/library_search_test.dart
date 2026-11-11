@@ -28,8 +28,12 @@ void main() {
     audio('a2', name: 'Airport', description: 'Check-in and coffee break'),
   ];
 
+  const collectionDescription = 'Brewing tips for every coffee lover';
   final collections = [
-    collection('c1', 'Coffee Corner'),
+    collection(
+      'c1',
+      'Coffee Corner',
+    ).copyWith(description: collectionDescription),
     collection('c2', 'Music'),
   ];
 
@@ -76,13 +80,24 @@ void main() {
 
     // 合集名命中、音频标题或描述命中，均展示；未命中的合集隐藏。
     expect(find.text('Collections'), findsOneWidget);
-    // 「Coffee Corner」出现两次：合集卡片本身，以及 Coffee Talk 行内的所属合集标签。
-    expect(find.text('Coffee Corner'), findsNWidgets(2));
-    // 「Music」只剩 Airport 行内的所属合集标签，合集卡片本身未命中。
-    expect(find.text('Music'), findsOneWidget);
+    // 搜索结果不再展示音频行内的所属合集标签，「Coffee Corner」只出现在合集卡片上。
+    expect(find.text('Coffee Corner'), findsOneWidget);
+    // 「Music」未命中，合集卡片隐藏。
+    expect(find.text('Music'), findsNothing);
     expect(find.text('Audio'), findsOneWidget);
     expect(find.text('Coffee Talk'), findsOneWidget);
     expect(find.text('Airport'), findsOneWidget);
+  });
+
+  testWidgets('搜索结果中合集展示命中的描述，资源库首页不展示描述', (tester) async {
+    await pumpLibrary(tester);
+    expect(find.text(collectionDescription), findsNothing);
+
+    await enterSearch(tester);
+    await typeQuery(tester, 'lover');
+
+    // 命中的是合集描述，名称未命中，描述行需要让用户看出匹配位置。
+    expect(find.text(collectionDescription), findsOneWidget);
   });
 
   testWidgets('只命中合集时不展示音频分区', (tester) async {

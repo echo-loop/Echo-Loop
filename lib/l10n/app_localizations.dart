@@ -2198,6 +2198,12 @@ abstract class AppLocalizations {
   /// **'Completed'**
   String get learningCompleted;
 
+  /// No description provided for @learningNotStarted.
+  ///
+  /// In en, this message translates to:
+  /// **'Not started'**
+  String get learningNotStarted;
+
   /// No description provided for @reviewReady.
   ///
   /// In en, this message translates to:

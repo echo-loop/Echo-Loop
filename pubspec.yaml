@@ -232,6 +232,8 @@ flutter:
     # 今日一刻分享弹窗图标（currentColor 随 colorFilter 着色）
     - assets/icon/shuffle.svg
     - assets/icon/download.svg
+    # 列表项字幕徽章（TranscriptCcBadge）
+    - assets/icon/closed-captions.svg
     - assets/icon/share.svg
     - assets/icon/share-android.svg
     - assets/icon/search.svg

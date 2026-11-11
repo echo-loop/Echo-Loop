@@ -16,7 +16,8 @@ import 'package:echo_loop/providers/learning_settings_provider.dart';
 import 'package:echo_loop/providers/study_stats_provider.dart';
 import 'package:echo_loop/providers/study_task_provider.dart';
 import 'package:echo_loop/screens/study_screen.dart';
-import 'package:echo_loop/widgets/learning_progress_icon.dart';
+import 'package:echo_loop/widgets/audio_artwork.dart';
+import 'package:echo_loop/widgets/audio_meta_line.dart';
 import 'package:echo_loop/providers/time_provider.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -482,6 +483,8 @@ void main() {
 
     expect(find.text('Recommended for you'), findsOneWidget);
     expect(find.text('First Study Audio'), findsOneWidget);
+    // 推荐卡：第二行元信息（与合集列表项一致），信息行下方为阶段文案。
+    expect(find.byType(AudioMetaLine), findsOneWidget);
     expect(find.textContaining('Listen sentence by sentence'), findsOneWidget);
   });
 
@@ -698,7 +701,7 @@ void main() {
     expect(tester.widget<Icon>(find.byIcon(Icons.chevron_right)).size, 20);
   });
 
-  testWidgets('任务卡片中显示 LearningProgressIcon', (tester) async {
+  testWidgets('任务卡片左侧显示 56 方形媒体图标', (tester) async {
     final now = DateTime(2026, 2, 25, 12, 0);
     final audioItems = [
       AudioItem(
@@ -727,7 +730,8 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.byType(LearningProgressIcon), findsAtLeast(1));
+    expect(find.byType(AudioArtwork), findsAtLeast(1));
+    expect(tester.getSize(find.byType(AudioArtwork).first), const Size(56, 56));
   });
 
   testWidgets('多个未学习音频时页面只显示一条推荐材料', (tester) async {
@@ -861,7 +865,7 @@ void main() {
     expect(mediaIcon.height, 36);
     final accentBars = tester
         .widgetList<Container>(find.byType(Container))
-        .where((c) => c.color == LearningProgressIcon.completedColor)
+        .where((c) => c.color == const Color(0xFF4CAF50))
         .toList();
     expect(accentBars.length, 2);
   });

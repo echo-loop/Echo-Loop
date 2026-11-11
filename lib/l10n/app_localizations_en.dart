@@ -1194,6 +1194,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get learningCompleted => 'Completed';
 
   @override
+  String get learningNotStarted => 'Not started';
+
+  @override
   String get reviewReady => 'Ready to review';
 
   @override
