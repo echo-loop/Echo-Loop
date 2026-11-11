@@ -29,11 +29,14 @@ class AppTheme {
   /// 导航栏选中态颜色：明亮蓝
   static const Color navActiveColor = Color(0xFF3AA0FF);
 
-  /// 视频类型图标的紫色强调色；深色主题下提亮，维持可辨识度。
+  /// 视频类型图标的青绿色强调色；深色主题下提亮，维持可辨识度。
   static Color videoMediaTypeColor(Brightness brightness) =>
       brightness == Brightness.dark
-      ? const Color(0xFFB39DDB)
-      : const Color(0xFF7655A6);
+      ? const Color(0xFF2DD4BF)
+      : const Color(0xFF0D9488);
+
+  /// 音频类型的紫色强调色，与 `assets/icon/waveform.svg` 的填充色一致；音频默认图标的底色由它派生。
+  static const Color audioMediaTypeColor = Color(0xFF924FF7);
 
   /// 学习页「为你推荐」区段的蓝紫强调色。
   static Color studyRecommendationAccentColor(Brightness brightness) =>

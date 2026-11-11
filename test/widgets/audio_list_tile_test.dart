@@ -1454,9 +1454,14 @@ void main() {
       await tester.pumpAndSettle();
 
       // leading 图标现在显示进度状态，不再根据置顶变色
-      final audioIcon = tester.widget<Icon>(find.byIcon(Icons.graphic_eq));
-      expect(audioIcon.color, isNotNull);
-      expect(audioIcon.color, isNot(AppTheme.bookmarkColor));
+      final audioIcon = tester.widget<SvgPicture>(
+        find.descendant(
+          of: find.byType(MediaTypeIcon),
+          matching: find.byType(SvgPicture),
+        ),
+      );
+      // 音频图标保留 SVG 自带紫色，不做 colorFilter 染色，置顶不影响其颜色
+      expect(audioIcon.colorFilter, isNull);
     });
 
     testWidgets('菜单内点击置顶触发 togglePin 并更新背景', (tester) async {

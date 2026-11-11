@@ -13,13 +13,17 @@ import '../models/collection.dart';
 import '../providers/audio_library_provider.dart';
 import '../providers/collection_provider.dart';
 import '../services/app_network_image_cache.dart';
+import '../theme/app_theme.dart';
 import 'media_type_icon.dart';
 
 /// 方形圆角图标的圆角半径。
 const double _kArtworkRadius = 8;
 
-/// 图标中心媒体图标占整体尺寸的比例（与封面外形搭配的默认图标）。
-const double _kGlyphRatio = 0.5;
+/// 视频默认图标占整体尺寸的比例。video-2.svg 自身留白较少，取 0.6 与音频图标的视觉重量接近。
+const double _kVideoGlyphRatio = 0.6;
+
+/// 音频默认图标占整体尺寸的比例。waveform.svg 四周留白约 1/6，取 0.7 让波形条约占方块一半。
+const double _kAudioGlyphRatio = 0.7;
 
 /// 封面解码边长取显示尺寸的 3 倍，兼顾高分屏清晰度与解码开销。
 const int _kCoverDecodeScale = 3;
@@ -43,18 +47,22 @@ class AudioArtwork extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    // 默认图标用各自的媒体类型强调色：渐变底 + 同色图标，与封面占位区分开。
+    final accentColor = isVideo
+        ? AppTheme.videoMediaTypeColor(theme.brightness)
+        : AppTheme.audioMediaTypeColor;
     final fallback = Container(
       width: size,
       height: size,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(_kArtworkRadius),
-        color: theme.colorScheme.surfaceContainerHighest,
+      decoration: _fallbackDecoration(
+        isVideo: isVideo,
+        brightness: theme.brightness,
       ),
       alignment: Alignment.center,
       child: MediaTypeIcon(
         isVideo: isVideo,
-        size: size * _kGlyphRatio,
-        color: theme.colorScheme.onSurfaceVariant,
+        size: size * (isVideo ? _kVideoGlyphRatio : _kAudioGlyphRatio),
+        color: accentColor,
       ),
     );
     final url = imageUrl;
@@ -149,6 +157,31 @@ class AudioItemArtwork extends ConsumerWidget {
       size: size,
     );
   }
+}
+
+/// 默认图标渐变底：与合集封面占位相同的左上到右下渐变，颜色取各媒体类型的浅色调（深色模式取深色调）。
+/// 端点保持饱和，不渐隐到白色，避免在浅色卡片上发灰。
+const _kAudioLightGradient = [Color(0xFFEFE6FF), Color(0xFFD9C4FD)];
+const _kAudioDarkGradient = [Color(0xFF3B2A5C), Color(0xFF2A1F45)];
+const _kVideoLightGradient = [Color(0xFFD5F5EF), Color(0xFFA7EDE0)];
+const _kVideoDarkGradient = [Color(0xFF13453F), Color(0xFF0D2F2B)];
+
+BoxDecoration _fallbackDecoration({
+  required bool isVideo,
+  required Brightness brightness,
+}) {
+  final isDark = brightness == Brightness.dark;
+  final colors = isVideo
+      ? (isDark ? _kVideoDarkGradient : _kVideoLightGradient)
+      : (isDark ? _kAudioDarkGradient : _kAudioLightGradient);
+  return BoxDecoration(
+    borderRadius: BorderRadius.circular(_kArtworkRadius),
+    gradient: LinearGradient(
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+      colors: colors,
+    ),
+  );
 }
 
 /// 去掉首尾空白后为空则视为缺失，避免空字符串地址触发无效的网络请求。

@@ -14,19 +14,21 @@ class MediaTypeIcon extends StatelessWidget {
     this.color,
   });
 
+  static const audioAsset = 'assets/icon/waveform.svg';
   static const videoAsset = 'assets/icon/video-2.svg';
 
   @override
   Widget build(BuildContext context) {
-    final iconColor = color ?? Theme.of(context).colorScheme.onSurface;
-    if (isVideo) {
-      return SvgPicture.asset(
-        videoAsset,
-        width: size,
-        height: size,
-        colorFilter: ColorFilter.mode(iconColor, BlendMode.srcIn),
-      );
+    if (!isVideo) {
+      // 音频图标保留 waveform.svg 自带的品牌紫色；叠加 colorFilter 会整体染色，因此忽略 color。
+      return SvgPicture.asset(audioAsset, width: size, height: size);
     }
-    return Icon(Icons.graphic_eq, size: size, color: iconColor);
+    final iconColor = color ?? Theme.of(context).colorScheme.onSurface;
+    return SvgPicture.asset(
+      videoAsset,
+      width: size,
+      height: size,
+      colorFilter: ColorFilter.mode(iconColor, BlendMode.srcIn),
+    );
   }
 }

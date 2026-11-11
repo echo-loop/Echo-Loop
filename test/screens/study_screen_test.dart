@@ -18,6 +18,7 @@ import 'package:echo_loop/providers/study_task_provider.dart';
 import 'package:echo_loop/screens/study_screen.dart';
 import 'package:echo_loop/widgets/audio_artwork.dart';
 import 'package:echo_loop/widgets/audio_meta_line.dart';
+import 'package:echo_loop/widgets/media_type_icon.dart';
 import 'package:echo_loop/providers/time_provider.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -526,7 +527,7 @@ void main() {
     await tester.tap(find.textContaining('Completed Materials (1)'));
     await tester.pumpAndSettle();
     expect(find.text('Completed Audio'), findsOneWidget);
-    expect(find.byIcon(Icons.graphic_eq), findsOneWidget);
+    expect(find.byType(MediaTypeIcon), findsOneWidget);
     expect(find.byIcon(Icons.check_circle), findsNothing);
   });
 
