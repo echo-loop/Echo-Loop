@@ -1013,6 +1013,15 @@ class AppLocalizationsZh extends AppLocalizations {
   String get collectionSearchClearTooltip => '清除';
 
   @override
+  String get librarySearchTooltip => '搜索';
+
+  @override
+  String get librarySearchHint => '搜索合集和音频';
+
+  @override
+  String get librarySearchEmpty => '未找到匹配的合集或音频';
+
+  @override
   String get renameAudio => '重命名';
 
   @override

@@ -6,6 +6,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../widgets/common/search_app_bar.dart';
 import '../widgets/common/svg_action_icon.dart';
 import '../models/audio_item.dart';
 import '../models/collection.dart';
@@ -167,7 +168,15 @@ class _CollectionDetailScreenState
           appBar: _selectionMode
               ? _buildSelectionAppBar(context, l10n, currentIds)
               : _isSearching
-              ? _buildSearchAppBar(context, l10n)
+              ? SearchAppBar(
+                  controller: _searchController,
+                  focusNode: _searchFocusNode,
+                  hintText: l10n.collectionSearchHint,
+                  query: _searchQuery,
+                  onChanged: (value) => setState(() => _searchQuery = value),
+                  onClear: _clearSearchQuery,
+                  onCancel: _exitSearch,
+                )
               : AppBar(
                   title: Text(collection.name),
                   actions: [
@@ -324,65 +333,6 @@ class _CollectionDetailScreenState
   Widget _buildSearchEmptyState(AppLocalizations l10n) {
     return Center(
       child: Text(l10n.collectionSearchEmpty, textAlign: TextAlign.center),
-    );
-  }
-
-  /// 搜索模式 AppBar：输入框替代标题，「取消」退出搜索模式。
-  AppBar _buildSearchAppBar(BuildContext context, AppLocalizations l10n) {
-    final colorScheme = Theme.of(context).colorScheme;
-    return AppBar(
-      automaticallyImplyLeading: false,
-      // 输入框做成带底色的圆角搜索框，让用户一眼看出这里可以输入。
-      title: Container(
-        height: 40,
-        padding: const EdgeInsets.only(right: 4),
-        decoration: BoxDecoration(
-          color: colorScheme.surfaceContainerHighest,
-          borderRadius: BorderRadius.circular(20),
-        ),
-        child: Row(
-          children: [
-            Expanded(
-              // 搜索图标作为 prefixIcon 与文字交给同一个 InputDecorator 排版，
-              // 两者才能按同一基线垂直对齐。
-              child: TextField(
-                controller: _searchController,
-                focusNode: _searchFocusNode,
-                autofocus: true,
-                textInputAction: TextInputAction.search,
-                decoration: InputDecoration(
-                  isDense: true,
-                  border: InputBorder.none,
-                  hintText: l10n.collectionSearchHint,
-                  prefixIcon: SvgActionIcon(
-                    assetName: _searchIconAsset,
-                    size: 20,
-                    color: colorScheme.onSurfaceVariant,
-                  ),
-                  prefixIconConstraints: const BoxConstraints(
-                    minWidth: 36,
-                    minHeight: 0,
-                  ),
-                ),
-                onChanged: (value) => setState(() => _searchQuery = value),
-                // 键盘上的搜索键只收起键盘，不退出搜索模式。
-                onSubmitted: (_) => _searchFocusNode.unfocus(),
-              ),
-            ),
-            if (_searchQuery.isNotEmpty)
-              IconButton(
-                icon: const Icon(Icons.clear, size: 20),
-                tooltip: l10n.collectionSearchClearTooltip,
-                visualDensity: VisualDensity.compact,
-                onPressed: _clearSearchQuery,
-              ),
-          ],
-        ),
-      ),
-      actions: [
-        TextButton(onPressed: _exitSearch, child: Text(l10n.cancel)),
-        const SizedBox(width: 8),
-      ],
     );
   }
 

@@ -27,6 +27,7 @@ import '../widgets/common/secondary_action_button.dart';
 import '../widgets/dialogs/confirm_dialog.dart';
 import '../widgets/dialogs/text_input_dialog.dart';
 import '../widgets/guide_flow.dart';
+import '../widgets/search_highlight_text.dart';
 
 /// 合集排序按钮（公开供 LibraryScreen 使用）
 class CollectionSortButton extends ConsumerWidget {
@@ -133,11 +134,23 @@ class CollectionListView extends StatelessWidget {
   final GuideStep? firstItemStep;
   final GuideStep? firstMenuStep;
 
+  /// 搜索原始输入，用于合集名称高亮；为空时不高亮。
+  final String searchQuery;
+
+  /// 嵌入到其它可滚动组件中（如资源库搜索结果头部）时设为 true，列表按内容高度收缩。
+  final bool shrinkWrap;
+
+  /// 与 [shrinkWrap] 配合使用，嵌入时传入 [NeverScrollableScrollPhysics] 交由外层滚动。
+  final ScrollPhysics? physics;
+
   const CollectionListView({
     super.key,
     required this.collections,
     this.firstItemStep,
     this.firstMenuStep,
+    this.searchQuery = '',
+    this.shrinkWrap = false,
+    this.physics,
   });
 
   @override
@@ -146,6 +159,8 @@ class CollectionListView extends StatelessWidget {
       // 横向 padding 为 0：卡片自己有 horizontal 12 的 margin，避免 8+12=20
       // 的双重内缩导致和顶部 DiscoverEntryBanner（horizontal 12）错位
       padding: const EdgeInsets.symmetric(vertical: 8),
+      shrinkWrap: shrinkWrap,
+      physics: physics,
       itemCount: collections.length,
       itemBuilder: (context, index) {
         final isFirst = index == 0;
@@ -153,6 +168,7 @@ class CollectionListView extends StatelessWidget {
           collection: collections[index],
           itemStep: isFirst ? firstItemStep : null,
           menuStep: isFirst ? firstMenuStep : null,
+          searchQuery: searchQuery,
         );
       },
     );
@@ -534,11 +550,13 @@ class _CollectionListTile extends ConsumerWidget {
   final Collection collection;
   final GuideStep? itemStep;
   final GuideStep? menuStep;
+  final String searchQuery;
 
   const _CollectionListTile({
     required this.collection,
     this.itemStep,
     this.menuStep,
+    this.searchQuery = '',
   });
 
   static const Key _kListMenuHitAreaKey = Key('collection_list_menu_hit_area');
@@ -577,8 +595,9 @@ class _CollectionListTile extends ConsumerWidget {
                           mainAxisAlignment: MainAxisAlignment.center,
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              collection.name,
+                            SearchHighlightText(
+                              text: collection.name,
+                              searchQuery: searchQuery,
                               style: theme.textTheme.titleMedium,
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,

@@ -1,4 +1,5 @@
 import 'package:echo_loop/models/audio_item.dart';
+import 'package:echo_loop/models/collection.dart';
 import 'package:echo_loop/utils/audio_search.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -9,7 +10,49 @@ AudioItem _item(String id, {String? name, String? description}) => AudioItem(
   addedDate: DateTime(2026, 1, 1),
 );
 
+Collection _collection(
+  String id, {
+  String? name,
+  String? description,
+  String? authorNickname,
+}) => Collection(
+  id: id,
+  name: name ?? id,
+  description: description,
+  authorNickname: authorNickname,
+  createdDate: DateTime(2026, 1, 1),
+);
+
 void main() {
+  group('filterCollectionsByKeyword', () {
+    final collections = [
+      _collection('a', name: 'Daily English', description: 'Office talk'),
+      _collection('b', name: 'Podcasts', description: 'Long form ENGLISH'),
+      _collection('c', name: 'Music', authorNickname: 'English Ann'),
+      _collection('d', name: 'History'),
+    ];
+
+    test('空关键词或纯空格返回全部合集', () {
+      expect(filterCollectionsByKeyword(collections, ''), collections);
+      expect(filterCollectionsByKeyword(collections, '   '), collections);
+    });
+
+    test('名称、描述或作者任一命中即保留，且保持传入顺序', () {
+      final result = filterCollectionsByKeyword(collections, 'english');
+
+      expect(result.map((e) => e.id), ['a', 'b', 'c']);
+    });
+
+    test('匹配不区分大小写，正则特殊字符按字面量匹配', () {
+      final special = [_collection('x', name: 'C++ (basics)')];
+
+      expect(filterCollectionsByKeyword(special, 'C++').map((e) => e.id), [
+        'x',
+      ]);
+      expect(filterCollectionsByKeyword(special, '.*'), isEmpty);
+    });
+  });
+
   group('filterAudioItemsByKeyword', () {
     final items = [
       _item('a', name: 'Coffee Talk', description: 'Ordering at a cafe'),

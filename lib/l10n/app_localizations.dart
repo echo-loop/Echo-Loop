@@ -1934,6 +1934,24 @@ abstract class AppLocalizations {
   /// **'Clear'**
   String get collectionSearchClearTooltip;
 
+  /// No description provided for @librarySearchTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Search'**
+  String get librarySearchTooltip;
+
+  /// No description provided for @librarySearchHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Search collections and audio'**
+  String get librarySearchHint;
+
+  /// No description provided for @librarySearchEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No matching collections or audio'**
+  String get librarySearchEmpty;
+
   /// No description provided for @renameAudio.
   ///
   /// In en, this message translates to:

@@ -1,8 +1,9 @@
-// 合集内节目的本地搜索工具。
+// 本地搜索工具（合集详情内搜索、资源库全局搜索共用）。
 //
 // 纯客户端匹配标题与描述，不访问后端。关键词按不区分大小写的普通子串匹配，
 // 正则特殊字符一律按字面量处理。
 import '../models/audio_item.dart';
+import '../models/collection.dart';
 
 /// 描述中匹配位置超过此字符数时，截掉匹配位置之前的文本，保证关键词在 3 行内可见。
 const int _kSnippetLeadingLimit = 40;
@@ -32,6 +33,26 @@ List<AudioItem> filterAudioItemsByKeyword(
       )
       .toList();
 }
+
+/// 按关键词过滤合集，名称、描述或作者昵称任一命中即保留。保持传入顺序，置顶排序由调用方负责。
+List<Collection> filterCollectionsByKeyword(
+  List<Collection> collections,
+  String rawKeyword,
+) {
+  final pattern = buildSearchKeywordPattern(rawKeyword);
+  if (pattern == null) return collections;
+  return collections
+      .where(
+        (collection) =>
+            pattern.hasMatch(collection.name) ||
+            _matchesOptional(pattern, collection.description) ||
+            _matchesOptional(pattern, collection.authorNickname),
+      )
+      .toList();
+}
+
+bool _matchesOptional(RegExp pattern, String? text) =>
+    text != null && pattern.hasMatch(text);
 
 /// 为描述生成展示用文本。匹配靠前时返回原文；匹配靠后时从关键词附近开始截取，
 /// 并以「…」标记前文被省略，避免长描述里的命中内容被 maxLines 截断掉。

@@ -1047,6 +1047,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get collectionSearchClearTooltip => 'Clear';
 
   @override
+  String get librarySearchTooltip => 'Search';
+
+  @override
+  String get librarySearchHint => 'Search collections and audio';
+
+  @override
+  String get librarySearchEmpty => 'No matching collections or audio';
+
+  @override
   String get renameAudio => 'Rename';
 
   @override
