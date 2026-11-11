@@ -4505,7 +4505,7 @@ class AppLocalizationsEn extends AppLocalizations {
       'Show the playback speed button in the playback controls of learning tasks.';
 
   @override
-  String get playbackSpeedDragHint => 'Slide left or right · release to apply';
+  String get playbackSpeedDragHint => 'Slide up or down · release to apply';
 
   @override
   String get hideWeeklyChartTooltip => 'Hide weekly chart';

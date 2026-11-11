@@ -3,13 +3,13 @@
 /// 胶囊按钮显示当前值。同一次连续触摸完成两种选择：
 /// - 轻点：弹出选项浮层（标题为 [CapsuleSelector.title]），点选项即应用，点浮层外关闭。
 /// - 长按滑动：按住超过长按时长后弹出浮层（提示为 [CapsuleSelector.dragHint]），
-///   手指不离开屏幕左右滑动高亮选项，松手即应用。
+///   手指不离开屏幕上下滑动高亮选项，松手即应用。
 ///
 /// 取消：松手时手指离开按钮与浮层的纵向范围，或没有滑动到其他选项，值保持不变。
 ///
 /// 组件与具体业务无关：选项的文字由 [CapsuleSelector.labelOf] 生成，
 /// 当前值对应的高亮下标由 [CapsuleSelector.highlightIndexOf] 决定。
-/// 选项文字应保持简短，因为每个选项的宽度是固定的。
+/// 选项文字应保持简短，因为浮层宽度固定。
 library;
 
 import 'dart:async';
@@ -24,8 +24,9 @@ import 'package:flutter/services.dart';
 const double _pillHeight = 36;
 
 /// 浮层中单个选项的尺寸
-const double _optionWidth = 44;
+const double _panelWidth = 120;
 const double _optionHeight = 36;
+const double _optionSpacing = 4;
 const double _optionRadius = 14;
 
 /// 浮层内边距与圆角
@@ -34,8 +35,8 @@ const double _panelTopPadding = 8;
 const double _panelBottomPadding = 10;
 const double _panelRadius = 20;
 
-/// 浮层箭头与按钮胶囊之间的间距
-const double _panelGap = 4;
+/// 浮层与按钮胶囊之间的间距
+const double _panelGap = 12;
 
 /// 浮层与屏幕左右边缘的最小距离
 const double _screenMargin = 8;
@@ -106,13 +107,6 @@ class _CapsuleSelectorState<T> extends State<CapsuleSelector<T>> {
   /// 当前驱动这次触摸的手指。多指触摸时只响应第一根手指，其余手指一律忽略。
   int? _activePointer;
 
-  /// 最近一次指针的横坐标，长按开始时作为滑动的起点
-  double _pointerDx = 0;
-
-  /// 长按开始时手指的横坐标与高亮下标，之后按相对位移换算下标
-  double _dragAnchorDx = 0;
-  int _dragAnchorIndex = 0;
-
   bool get _isPanelOpen => _panelEntry != null;
 
   @override
@@ -137,7 +131,6 @@ class _CapsuleSelectorState<T> extends State<CapsuleSelector<T>> {
     // 已有手指在操作时，忽略额外按下的手指，避免覆盖计时器或误结束拖动。
     if (_activePointer != null) return;
     _activePointer = event.pointer;
-    _pointerDx = event.position.dx;
     setState(() => _isPressed = true);
     // 浮层打开时由遮罩接管点击，这里不会收到事件；防御性地直接忽略。
     if (_isPanelOpen) return;
@@ -146,9 +139,8 @@ class _CapsuleSelectorState<T> extends State<CapsuleSelector<T>> {
 
   void _handlePointerMove(PointerMoveEvent event) {
     if (event.pointer != _activePointer) return;
-    _pointerDx = event.position.dx;
     if (!_isDragging) return;
-    final index = _optionIndexForDrag(event.position.dx);
+    final index = _optionIndexForDrag(event.position);
     if (index == _highlightedIndex.value) return;
     _highlightedIndex.value = index;
     _hasSlid = true;
@@ -188,8 +180,6 @@ class _CapsuleSelectorState<T> extends State<CapsuleSelector<T>> {
     _longPressTimer = null;
     _isDragging = true;
     _hasSlid = false;
-    _dragAnchorDx = _pointerDx;
-    _dragAnchorIndex = _indexOfValue();
     _showPanel(isDragMode: true);
   }
 
@@ -204,21 +194,23 @@ class _CapsuleSelectorState<T> extends State<CapsuleSelector<T>> {
     widget.onChanged(option);
   }
 
-  /// 单个选项的宽度：不超过 [_optionWidth]；选项多或屏幕窄时缩小，保证整个浮层放得进屏幕。
-  double _optionWidthFor(Size screenSize) {
-    final availableWidth =
-        screenSize.width - _screenMargin * 2 - _panelHorizontalPadding * 2;
-    return math.min(_optionWidth, availableWidth / widget.options.length);
-  }
+  /// 指针进入选项列表后按实际命中行高亮；在列表外保持当前高亮项。
+  int _optionIndexForDrag(Offset globalPosition) {
+    final listBox = _rowKey.currentContext?.findRenderObject() as RenderBox?;
+    if (listBox != null) {
+      final localPosition = listBox.globalToLocal(globalPosition);
+      if (localPosition.dx >= 0 &&
+          localPosition.dx <= listBox.size.width &&
+          localPosition.dy >= 0 &&
+          localPosition.dy <= listBox.size.height) {
+        final optionPitch = _optionHeight + _optionSpacing;
+        final index = ((localPosition.dy - _optionHeight / 2) / optionPitch)
+            .round();
+        return index.clamp(0, widget.options.length - 1);
+      }
+    }
 
-  /// 滑动时的高亮下标：以长按开始时的下标为起点，每移动一个选项宽度前进或后退一项。
-  ///
-  /// 不能用手指的绝对位置对应选项行：浮层会因屏幕边缘被夹紧，选项行的位置与手指并不对应，
-  /// 会导致手指刚动就跳到首尾选项。超出两端时夹到首尾。
-  int _optionIndexForDrag(double globalDx) {
-    final optionWidth = _optionWidthFor(MediaQuery.sizeOf(context));
-    final steps = ((globalDx - _dragAnchorDx) / optionWidth).round();
-    return (_dragAnchorIndex + steps).clamp(0, widget.options.length - 1);
+    return _highlightedIndex.value;
   }
 
   /// 手指纵向离开按钮与浮层范围即视为取消。
@@ -243,9 +235,11 @@ class _CapsuleSelectorState<T> extends State<CapsuleSelector<T>> {
     if (buttonBox == null) return;
     final buttonTopLeft = buttonBox.localToGlobal(Offset.zero);
     final screenSize = MediaQuery.sizeOf(context);
-    final optionWidth = _optionWidthFor(screenSize);
-    final panelWidth =
-        widget.options.length * optionWidth + _panelHorizontalPadding * 2;
+    final panelWidth = math.min(
+      _panelWidth,
+      screenSize.width - _screenMargin * 2,
+    );
+    final optionWidth = panelWidth - _panelHorizontalPadding * 2;
     final buttonCenterX = buttonTopLeft.dx + buttonBox.size.width / 2;
     // 浮层水平居中于按钮，但不超出屏幕两侧。
     final left = math.min(
@@ -255,9 +249,20 @@ class _CapsuleSelectorState<T> extends State<CapsuleSelector<T>> {
     // 浮层底部贴着胶囊顶部，留出箭头与间距。
     final pillTop =
         buttonTopLeft.dy + (buttonBox.size.height - _pillHeight) / 2;
+    final desiredPanelHeight =
+        _panelTopPadding +
+        _panelBottomPadding +
+        widget.options.length * _optionHeight +
+        (widget.options.length - 1) * _optionSpacing;
+    final panelHeight = math.min(
+      desiredPanelHeight,
+      math.max(0.0, pillTop - _panelGap - _screenMargin),
+    );
+    if (panelHeight == 0) return;
     final bottom = screenSize.height - pillTop + _panelGap;
-    final header = isDragMode ? widget.dragHint : widget.title;
-    final labels = [for (final option in widget.options) widget.labelOf(option)];
+    final labels = [
+      for (final option in widget.options) widget.labelOf(option),
+    ];
 
     _highlightedIndex.value = _indexOfValue();
     _panelEntry = OverlayEntry(
@@ -278,8 +283,8 @@ class _CapsuleSelectorState<T> extends State<CapsuleSelector<T>> {
             bottom: bottom,
             child: _CapsulePanel(
               width: panelWidth,
+              height: panelHeight,
               optionWidth: optionWidth,
-              header: header,
               rowKey: _rowKey,
               labels: labels,
               highlightedIndex: _highlightedIndex,
@@ -323,6 +328,7 @@ class _CapsuleSelectorState<T> extends State<CapsuleSelector<T>> {
       child: Semantics(
         button: true,
         label: widget.title,
+        hint: widget.dragHint,
         child: SizedBox.square(
           key: _buttonKey,
           dimension: widget.size,
@@ -354,11 +360,11 @@ class _CapsuleSelectorState<T> extends State<CapsuleSelector<T>> {
   }
 }
 
-/// 选项浮层：标题与当前高亮选项在上，选项水平排列在下，底部带指向按钮的箭头。
+/// 选项浮层：标题与当前高亮选项在上，选项纵向排列在下，底部带指向按钮的箭头。
 class _CapsulePanel extends StatelessWidget {
   const _CapsulePanel({
     required this.width,
-    required this.header,
+    required this.height,
     required this.optionWidth,
     required this.rowKey,
     required this.labels,
@@ -367,7 +373,7 @@ class _CapsulePanel extends StatelessWidget {
   });
 
   final double width;
-  final String header;
+  final double height;
   final double optionWidth;
   final GlobalKey rowKey;
   final List<String> labels;
@@ -377,13 +383,12 @@ class _CapsulePanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final textTheme = Theme.of(context).textTheme;
     return SizedBox(
       width: width,
+      height: height,
       child: Material(
         color: colorScheme.surface,
         elevation: 8,
-        shadowColor: colorScheme.shadow.withValues(alpha: 0.25),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(_panelRadius),
           side: BorderSide(color: colorScheme.outlineVariant),
@@ -399,41 +404,22 @@ class _CapsulePanel extends StatelessWidget {
             valueListenable: highlightedIndex,
             builder: (context, highlighted, _) {
               return Column(
-                mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          header,
-                          style: textTheme.bodySmall?.copyWith(
-                            color: colorScheme.onSurfaceVariant,
-                          ),
-                        ),
+                  Expanded(
+                    child: ListView.separated(
+                      key: rowKey,
+                      padding: EdgeInsets.zero,
+                      itemCount: labels.length,
+                      separatorBuilder: (context, index) =>
+                          const SizedBox(height: _optionSpacing),
+                      itemBuilder: (context, index) => _CapsuleOption(
+                        width: optionWidth,
+                        label: labels[index],
+                        isHighlighted: index == highlighted,
+                        onTap: () => onSelect(index),
                       ),
-                      Text(
-                        labels[highlighted],
-                        style: textTheme.titleSmall?.copyWith(
-                          fontWeight: FontWeight.w500,
-                          color: colorScheme.onSurface,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    key: rowKey,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      for (var i = 0; i < labels.length; i++)
-                        _CapsuleOption(
-                          width: optionWidth,
-                          label: labels[i],
-                          isHighlighted: i == highlighted,
-                          onTap: () => onSelect(i),
-                        ),
-                    ],
+                    ),
                   ),
                 ],
               );

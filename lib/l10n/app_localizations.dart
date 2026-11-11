@@ -7865,7 +7865,7 @@ abstract class AppLocalizations {
   /// No description provided for @playbackSpeedDragHint.
   ///
   /// In en, this message translates to:
-  /// **'Slide left or right · release to apply'**
+  /// **'Slide up or down · release to apply'**
   String get playbackSpeedDragHint;
 
   /// No description provided for @hideWeeklyChartTooltip.

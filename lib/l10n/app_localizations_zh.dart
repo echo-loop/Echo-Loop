@@ -4292,7 +4292,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get showPlaybackSpeedButtonSubtitle => '在学习任务中显示倍速调节按钮。';
 
   @override
-  String get playbackSpeedDragHint => '左右滑动 · 松手应用';
+  String get playbackSpeedDragHint => '上下滑动 · 松手应用';
 
   @override
   String get hideWeeklyChartTooltip => '关闭周学习时长';
