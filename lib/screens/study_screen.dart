@@ -561,7 +561,63 @@ Widget _buildExpandedArea(BuildContext context, List<Widget> items) {
   );
 }
 
-/// 可折叠区段（标题 + 摘要 + 展开后的内容）
+/// 可折叠区段的卡片外壳：展开后在浅色主题下补细边框。
+///
+/// 浅色下白色区段落在白底上边界不明显，仅展开时加边框；折叠态沿用卡片主题。
+class _ExpansionCard extends StatefulWidget {
+  final Widget title;
+  final Widget? subtitle;
+  final bool initiallyExpanded;
+  final EdgeInsetsGeometry childrenPadding;
+  final List<Widget> children;
+
+  const _ExpansionCard({
+    required this.title,
+    required this.subtitle,
+    required this.initiallyExpanded,
+    required this.childrenPadding,
+    required this.children,
+  });
+
+  @override
+  State<_ExpansionCard> createState() => _ExpansionCardState();
+}
+
+class _ExpansionCardState extends State<_ExpansionCard> {
+  late bool _isExpanded = widget.initiallyExpanded;
+
+  @override
+  Widget build(BuildContext context) {
+    final showsExpandedBorder =
+        _isExpanded && Theme.of(context).brightness == Brightness.light;
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      shape: showsExpandedBorder
+          ? RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+              side: const BorderSide(
+                color: AppTheme.lightCardBorderColor,
+                width: 1,
+              ),
+            )
+          : null,
+      child: ExpansionTile(
+        title: widget.title,
+        subtitle: widget.subtitle,
+        initiallyExpanded: widget.initiallyExpanded,
+        onExpansionChanged: (bool expanded) {
+          setState(() => _isExpanded = expanded);
+        },
+        shape: const Border(),
+        collapsedShape: const Border(),
+        childrenPadding: widget.childrenPadding,
+        children: widget.children,
+      ),
+    );
+  }
+}
+
+/// 可折叠区段（标题 + 摘要 + 展开后的灰色内容区）
 class _CollapsibleSection extends StatelessWidget {
   final String title;
   final String summary;
@@ -578,23 +634,18 @@ class _CollapsibleSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Card(
-      clipBehavior: Clip.antiAlias,
-      child: ExpansionTile(
-        title: Text(title, style: theme.textTheme.titleSmall),
-        subtitle: Text(
-          summary,
-          style: theme.textTheme.bodySmall?.copyWith(
-            color: theme.colorScheme.onSurfaceVariant,
-          ),
+    return _ExpansionCard(
+      title: Text(title, style: theme.textTheme.titleSmall),
+      subtitle: Text(
+        summary,
+        style: theme.textTheme.bodySmall?.copyWith(
+          color: theme.colorScheme.onSurfaceVariant,
         ),
-        initiallyExpanded: initiallyExpanded,
-        shape: const Border(),
-        collapsedShape: const Border(),
-        // 内边距由 _buildExpandedArea 提供，便于灰色底铺满整行宽度。
-        childrenPadding: EdgeInsets.zero,
-        children: [_buildExpandedArea(context, children)],
       ),
+      initiallyExpanded: initiallyExpanded,
+      // 内边距由 _buildExpandedArea 提供，便于灰色底铺满整行宽度。
+      childrenPadding: EdgeInsets.zero,
+      children: [_buildExpandedArea(context, children)],
     );
   }
 }
@@ -684,27 +735,24 @@ class _CompletedSection extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final theme = Theme.of(context);
-    return Card(
-      child: ExpansionTile(
-        title: Text(
-          l10n.completedSection(completedAudios.length),
-          style: theme.textTheme.titleSmall,
-        ),
-        initiallyExpanded: false,
-        shape: const Border(),
-        collapsedShape: const Border(),
-        childrenPadding: const EdgeInsets.only(bottom: AppSpacing.xs),
-        // 复用合集详情页的列表项，只读展示，不需要菜单按钮。
-        children: completedAudios
-            .map(
-              (audio) => AudioListTile(
-                audioItem: audio,
-                showMenu: false,
-                titleMaxLines: 1,
-              ),
-            )
-            .toList(),
+    return _ExpansionCard(
+      title: Text(
+        l10n.completedSection(completedAudios.length),
+        style: theme.textTheme.titleSmall,
       ),
+      subtitle: null,
+      initiallyExpanded: false,
+      childrenPadding: const EdgeInsets.only(bottom: AppSpacing.xs),
+      // 复用合集详情页的列表项，只读展示，不需要菜单按钮。
+      children: completedAudios
+          .map(
+            (audio) => AudioListTile(
+              audioItem: audio,
+              showMenu: false,
+              titleMaxLines: 1,
+            ),
+          )
+          .toList(),
     );
   }
 }
@@ -727,40 +775,15 @@ class _RecentCompletionsSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Card(
-      clipBehavior: Clip.antiAlias,
-      child: ExpansionTile(
-        title: Text(
-          l10n.recentCompletions(completions.length),
-          style: theme.textTheme.titleSmall,
-        ),
-        subtitle: Text(
-          l10n.recentCompletionsSummary,
-          style: theme.textTheme.bodySmall?.copyWith(
-            color: theme.colorScheme.onSurfaceVariant,
-          ),
-        ),
-        initiallyExpanded: false,
-        shape: const Border(),
-        collapsedShape: const Border(),
-        childrenPadding: EdgeInsets.zero,
-        children: [
-          _buildExpandedArea(
-            context,
-            completions
-                .map(
-                  (c) => _RecentCompletionTile(
-                    completion: c,
-                    l10n: l10n,
-                    now: now,
-                  ),
-                )
-                .toList(),
-          ),
-        ],
-      ),
+    return _CollapsibleSection(
+      title: l10n.recentCompletions(completions.length),
+      summary: l10n.recentCompletionsSummary,
+      initiallyExpanded: false,
+      children: completions
+          .map(
+            (c) => _RecentCompletionTile(completion: c, l10n: l10n, now: now),
+          )
+          .toList(),
     );
   }
 }

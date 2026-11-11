@@ -4,6 +4,8 @@
 
 ## 本次完成
 
+- [x] 学习页折叠区展开后在浅色主题下补 1px 细边框（2026-11-12）：待解锁、最近完成任务、已学完的材料三个折叠区，白色外壳在白底上边界不明显。新增 `_ExpansionCard`（StatefulWidget）统一承载 Card + ExpansionTile 并记录展开状态，仅浅色且展开时给外层 Card 加 `AppTheme.lightCardBorderColor`（`#DFE2EA`）描边；折叠态与内部条目卡片不变，深色沿用原描边。`_CollapsibleSection` 与 `_RecentCompletionsSection` 复用它（后者改为直接调用 `_CollapsibleSection`），`_CompletedSection` 直接使用。已学完材料折叠区的 Card 同时补上 `clipBehavior: Clip.antiAlias`。测试：`test/screens/study_screen_test.dart` 与 `test/widgets/study` 共 40 项全部通过，`dart analyze` 与 `dart format` 无问题。**待真机验证**：浅色下三个折叠区展开后的描边观感。**完成时间**: 2026-11-12
+
 - [x] 每日学习时长进度条变细为 4（2026-11-11）：学习统计头部 `study_stats_header.dart` 的 `_DailyGoalBar` 与学习日历页的 `DailyGoalProgressCard`（`daily_goal_progress_card.dart`）高度由 6 改为 4，圆角同步为 2。`study_stats_header_test`、`test/widgets/study/`、`activity_calendar_screen_test` 全部通过。**待真机验证**：细条观感。**完成时间**: 2026-11-11
 
 - [x] 播客搜索失败日志补充 HTTP 状态码（2026-11-11）：`PodcastSearchService.search` 对 `DioException` 单独记录 `dioType` 与 `statusCode`，便于区分网络错误与 iTunes 限流（403）。排查结论见下。`podcast_search_service_test`、`podcast_discovery_screen_test` 全部通过。**待复现**：下次失败时确认 `statusCode`。**完成时间**: 2026-11-11

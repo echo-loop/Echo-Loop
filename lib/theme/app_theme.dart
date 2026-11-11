@@ -192,6 +192,9 @@ class AppTheme {
       ? Colors.transparent
       : const Color(0xFFF2F3F7);
 
+  /// 浅色卡片描边色，用于白卡片落在灰底上、需要边界时（如学习页展开区内的卡片）。
+  static const Color lightCardBorderColor = Color(0xFFDFE2EA);
+
   /// 设置类底部弹窗中，展开态的可折叠分组标题行背景色。
   ///
   /// 比分组卡片背景更深一档（浅色）/更亮一档（深色），让用户能一眼看出
