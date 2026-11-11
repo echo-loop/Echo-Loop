@@ -1035,6 +1035,18 @@ class AppLocalizationsEn extends AppLocalizations {
   String get emptyCollection => 'This collection has no content yet';
 
   @override
+  String get collectionSearchHint => 'Search this collection';
+
+  @override
+  String get collectionSearchEmpty => 'No matching content';
+
+  @override
+  String get collectionSearchTooltip => 'Search';
+
+  @override
+  String get collectionSearchClearTooltip => 'Clear';
+
+  @override
   String get renameAudio => 'Rename';
 
   @override

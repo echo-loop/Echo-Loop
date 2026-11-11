@@ -6,6 +6,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:echo_loop/models/collection.dart';
 import 'package:echo_loop/screens/library_screen.dart';
+import 'package:echo_loop/widgets/audio_list_view.dart';
+import 'package:echo_loop/widgets/common/svg_action_icon.dart';
 import 'package:echo_loop/providers/settings_provider.dart';
 import 'package:echo_loop/providers/audio_library_provider.dart';
 import 'package:echo_loop/providers/collection_provider.dart';
@@ -15,6 +17,12 @@ import 'package:echo_loop/features/user_region/user_region_providers.dart';
 
 import '../helpers/mock_providers.dart';
 import '../helpers/test_app.dart';
+
+
+/// 按 SVG 资源名查找图标（图标已从 Material 切换为 SvgActionIcon）。
+Finder svgIcon(String assetName) => find.byWidgetPredicate(
+  (widget) => widget is SvgActionIcon && widget.assetName == assetName,
+);
 
 void main() {
   group('LibraryScreen（合集视图）', () {
@@ -70,7 +78,7 @@ void main() {
         await tester.pumpAndSettle();
 
         expect(find.text('No audio files yet'), findsOneWidget);
-        expect(find.byIcon(Icons.sort), findsOneWidget);
+        expect(find.byType(AudioSortButton), findsOneWidget);
       });
 
       testWidgets('全部入口仅保存在当前页面内存中', (tester) async {
@@ -106,14 +114,14 @@ void main() {
         await tester.pumpAndSettle();
 
         // AppBar 中的 + 按钮和空状态 CTA 中都有 add 图标
-        expect(find.byIcon(Icons.add), findsNWidgets(2));
+        expect(svgIcon('assets/icon/plus.svg'), findsNWidgets(2));
       });
 
       testWidgets('显示排序按钮', (tester) async {
         await tester.pumpWidget(createTestScreen(const LibraryScreen()));
         await tester.pumpAndSettle();
 
-        expect(find.byIcon(Icons.sort), findsOneWidget);
+        expect(svgIcon('assets/icon/sort.svg'), findsOneWidget);
       });
 
       testWidgets('列表视图模式下合集列表正确显示', (tester) async {
@@ -373,7 +381,7 @@ void main() {
         await tester.pumpAndSettle();
 
         // 点击 AppBar 中的创建按钮（第一个 add 图标）
-        await tester.tap(find.byIcon(Icons.add).first);
+        await tester.tap(svgIcon('assets/icon/plus.svg').first);
         await tester.pumpAndSettle();
 
         // 先进入统一底部 sheet 的类型选择页
@@ -401,7 +409,7 @@ void main() {
         await tester.pumpWidget(createTestScreen(const LibraryScreen()));
         await tester.pumpAndSettle();
 
-        await tester.tap(find.byIcon(Icons.add).first);
+        await tester.tap(svgIcon('assets/icon/plus.svg').first);
         await tester.pumpAndSettle();
         await tester.tap(find.byKey(const ValueKey('collection-option-local')));
         await tester.pumpAndSettle();
@@ -441,7 +449,7 @@ void main() {
         await tester.pumpAndSettle();
 
         // 打开创建对话框（AppBar 中的 + 按钮）
-        await tester.tap(find.byIcon(Icons.add).first);
+        await tester.tap(svgIcon('assets/icon/plus.svg').first);
         await tester.pumpAndSettle();
         await tester.tap(find.byKey(const ValueKey('collection-option-local')));
         await tester.pumpAndSettle();
@@ -466,7 +474,7 @@ void main() {
         await tester.pumpWidget(createTestScreen(const LibraryScreen()));
         await tester.pumpAndSettle();
 
-        await tester.tap(find.byIcon(Icons.add).first);
+        await tester.tap(svgIcon('assets/icon/plus.svg').first);
         await tester.pumpAndSettle();
         await tester.tap(
           find.byKey(const ValueKey('collection-option-podcast')),
@@ -486,7 +494,7 @@ void main() {
         await tester.pumpAndSettle();
 
         // 点击排序按钮
-        await tester.tap(find.byIcon(Icons.sort));
+        await tester.tap(svgIcon('assets/icon/sort.svg'));
         await tester.pumpAndSettle();
 
         // 应显示排序选项

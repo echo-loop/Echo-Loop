@@ -68,6 +68,7 @@ import '../utils/audio_item_actions.dart';
 import '../utils/time_format.dart';
 import '../widgets/blind_listen_paragraph_sheet.dart';
 import '../widgets/common/app_popup_menu.dart';
+import '../widgets/common/svg_action_icon.dart';
 import '../widgets/intensive_listen/intensive_listen_briefing_sheet.dart';
 import '../widgets/listen_and_repeat/listen_and_repeat_briefing_sheet.dart';
 import '../widgets/common/paragraph_selection_sheet.dart'
@@ -4261,7 +4262,10 @@ class _NoTranscriptBanner extends StatelessWidget {
               step: addSubtitleStep,
               child: FilledButton.icon(
                 onPressed: () => _showManageSubtitlesSheet(context),
-                icon: const Icon(Icons.add, size: 18),
+                icon: const SvgActionIcon(
+                  assetName: 'assets/icon/plus.svg',
+                  size: 18,
+                ),
                 label: Text(l10n.addSubtitle),
                 style: FilledButton.styleFrom(
                   backgroundColor: theme.colorScheme.onErrorContainer,

@@ -15,6 +15,7 @@ import '../l10n/app_localizations.dart';
 import '../theme/app_theme.dart';
 import 'audio_list_tile.dart';
 import 'common/app_popup_menu.dart';
+import 'common/svg_action_icon.dart';
 import 'dialogs/confirm_dialog.dart';
 import 'edit_collection_membership_sheet.dart';
 import 'edit_tag_membership_sheet.dart';
@@ -122,6 +123,12 @@ class AudioListView extends ConsumerStatefulWidget {
   /// 多选模式下点击某项时回调 —— 切换该 id 选中态（由外层注入）。
   final ValueChanged<String>? onToggleSelection;
 
+  /// 合集内搜索的原始输入，透传给每个 [AudioListTile] 用于高亮。
+  final String searchQuery;
+
+  /// 外部持有的滚动控制器。合集详情页用它在进入/退出搜索时保存并恢复滚动位置。
+  final ScrollController? scrollController;
+
   const AudioListView({
     super.key,
     this.items,
@@ -137,6 +144,8 @@ class AudioListView extends ConsumerStatefulWidget {
     this.selectedIds = const {},
     this.onEnterSelection,
     this.onToggleSelection,
+    this.searchQuery = '',
+    this.scrollController,
   });
 
   @override
@@ -192,6 +201,7 @@ class _AudioListViewState extends ConsumerState<AudioListView> {
     final header = widget.header;
     final headerCount = header == null ? 0 : 1;
     final listView = ListView.builder(
+      controller: widget.scrollController,
       padding: header == null ? const EdgeInsets.all(8) : EdgeInsets.zero,
       physics: widget.scrollPhysics,
       itemCount: sortedItems.length + headerCount,
@@ -203,6 +213,7 @@ class _AudioListViewState extends ConsumerState<AudioListView> {
         final tile = AudioListTile(
           audioItem: item,
           collectionId: widget.collectionId,
+          searchQuery: widget.searchQuery,
           menuStep: (isFirst && showMenuGuide) ? stepAudioMenu : null,
           onManageCollections: () =>
               _showManageCollectionsSheet(context, item.id),
@@ -539,7 +550,7 @@ class _DefaultEmptyState extends StatelessWidget {
             onPressed: () {
               showImportAudioSheet(context);
             },
-            icon: const Icon(Icons.add),
+            icon: const SvgActionIcon(assetName: 'assets/icon/plus.svg'),
             label: Text(l10n.addAudio),
           ),
         ],
@@ -556,6 +567,9 @@ class _DefaultEmptyState extends StatelessWidget {
 /// **受控模式**（`allowedTypes` + `current` + `onChanged` 三者非 null）：
 /// 菜单内容完全由调用方决定，状态也由调用方管理，provider 不参与。
 /// 社区合集详情页用此模式避免全局 sort 被污染。
+/// 排序按钮图标（SVG，与合集搜索图标同一套线性风格）。
+const _sortIconAsset = 'assets/icon/sort.svg';
+
 class AudioSortButton extends ConsumerWidget {
   /// 受控模式：显示的选项子集（按数组顺序）。为 null 走默认模式。
   final List<AudioSortType>? allowedTypes;
@@ -575,6 +589,8 @@ class AudioSortButton extends ConsumerWidget {
 
   bool get _isControlled =>
       allowedTypes != null && current != null && onChanged != null;
+
+  Widget _sortIcon() => const SvgActionIcon(assetName: _sortIconAsset);
 
   /// 每种 SortType 对应的 i18n 标签
   String _labelFor(AudioSortType t, AppLocalizations l10n) {
@@ -604,7 +620,7 @@ class AudioSortButton extends ConsumerWidget {
       final types = allowedTypes!;
       final cur = current!;
       return PopupMenuButton<AudioSortType>(
-        icon: const Icon(Icons.sort),
+        icon: _sortIcon(),
         onSelected: (t) => onChanged!(t),
         itemBuilder: (context) => [
           for (final t in types)
@@ -615,7 +631,7 @@ class AudioSortButton extends ConsumerWidget {
 
     // 默认模式：读写全局 provider，固定 4 项
     return PopupMenuButton<AudioSortType>(
-      icon: const Icon(Icons.sort),
+      icon: _sortIcon(),
       onSelected: (type) {
         ref.read(audioListSettingsProvider.notifier).setSortType(type);
       },

@@ -20,6 +20,7 @@ import '../services/app_network_image_cache.dart';
 import '../theme/app_theme.dart';
 import '../utils/time_format.dart';
 import '../widgets/common/app_popup_menu.dart';
+import '../widgets/common/svg_action_icon.dart';
 import '../widgets/common/form_input_style.dart';
 import '../widgets/audio_list_view.dart';
 import '../widgets/common/secondary_action_button.dart';
@@ -35,7 +36,7 @@ class CollectionSortButton extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context)!;
     return PopupMenuButton<CollectionSortType>(
-      icon: const Icon(Icons.sort),
+      icon: const SvgActionIcon(assetName: 'assets/icon/sort.svg'),
       onSelected: (type) {
         ref.read(collectionListProvider.notifier).setSortType(type);
       },
@@ -117,7 +118,7 @@ class CollectionEmptyState extends StatelessWidget {
           const SizedBox(height: AppSpacing.l),
           FilledButton.icon(
             onPressed: () => showCreateCollectionDialog(context),
-            icon: const Icon(Icons.add),
+            icon: const SvgActionIcon(assetName: 'assets/icon/plus.svg'),
             label: Text(l10n.createCollection),
           ),
         ],

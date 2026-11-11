@@ -22,6 +22,7 @@ import '../../../router/app_router.dart';
 import '../../../services/app_logger.dart';
 import '../../../theme/app_theme.dart';
 import '../../../widgets/common/form_input_style.dart';
+import '../../../widgets/common/svg_action_icon.dart';
 import '../../auth/sign_in_required_dialog.dart';
 import '../providers/featured_podcasts_provider.dart';
 import '../podcast_models.dart';
@@ -157,7 +158,7 @@ class _PodcastDiscoveryScreenState
                   isDense: true,
                   // 纯占位提示：输入后即消失，不使用浮动 label（搜索框惯用法）。
                   hintText: l10n.podcastSearchHint,
-                  prefixIcon: const Icon(Icons.search),
+                  prefixIcon: const SvgActionIcon(assetName: 'assets/icon/search.svg'),
                   suffixIcon: rawText.isEmpty
                       ? null
                       : IconButton(

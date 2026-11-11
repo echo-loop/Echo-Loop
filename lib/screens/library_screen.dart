@@ -9,6 +9,7 @@ import '../providers/new_user_guide_provider.dart';
 import '../providers/collection_provider.dart';
 import '../l10n/app_localizations.dart';
 import '../widgets/audio_list_view.dart';
+import '../widgets/common/svg_action_icon.dart';
 import '../widgets/guide_flow.dart';
 import '../widgets/import_audio_sheet.dart';
 import 'collection_screen.dart';
@@ -150,7 +151,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
         GuideTarget(
           step: createStep,
           child: IconButton(
-            icon: const Icon(Icons.add),
+            icon: const SvgActionIcon(assetName: 'assets/icon/plus.svg'),
             onPressed: () => showCreateCollectionDialog(context),
           ),
         ),
@@ -162,7 +163,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
         const AudioSortButton(),
         // 添加音频
         IconButton(
-          icon: const Icon(Icons.add),
+          icon: const SvgActionIcon(assetName: 'assets/icon/plus.svg'),
           onPressed: () => showImportAudioSheet(context),
         ),
         const SizedBox(width: 8),

@@ -80,6 +80,7 @@ import 'download_tasks_screen.dart';
 import 'reminder_settings_screen.dart';
 import '../services/runtime_endpoint_router.dart';
 import '../widgets/app_update_dialog.dart';
+import '../widgets/common/svg_action_icon.dart';
 
 const double _settingsLeadingIconExtent = 32;
 const double _settingsSvgIconExtent = 26;
@@ -1791,7 +1792,7 @@ class _DictionaryLookupDialogState extends State<_DictionaryLookupDialog> {
               decoration: InputDecoration(
                 hintText: '输入单词...',
                 suffixIcon: IconButton(
-                  icon: const Icon(Icons.search),
+                  icon: const SvgActionIcon(assetName: 'assets/icon/search.svg'),
                   onPressed: _lookup,
                 ),
               ),

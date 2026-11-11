@@ -10,6 +10,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../models/audio_item.dart';
+import '../utils/audio_search.dart';
 import '../utils/file_size.dart';
 import '../utils/time_format.dart';
 import '../models/learning_progress.dart';
@@ -31,6 +32,7 @@ import '../features/community_collections/models/community_collection_models.dar
 import '../features/community_collections/widgets/community_difficulty_badge.dart';
 import 'guide_flow.dart';
 import 'learning_progress_icon.dart';
+import 'search_highlight_text.dart';
 import '../providers/transcription_task_provider.dart';
 import 'dialogs/text_input_dialog.dart';
 import '../features/audio_import/audio_import_provider.dart';
@@ -85,6 +87,10 @@ class AudioListTile extends ConsumerWidget {
   /// 多选模式下点击本项切换选中态（由外层注入）。
   final VoidCallback? onSelectToggle;
 
+  /// 合集内搜索的原始输入。非空时高亮标题，并展示描述片段（命中部分高亮）；
+  /// 为空时与普通列表完全一致。
+  final String searchQuery;
+
   const AudioListTile({
     super.key,
     required this.audioItem,
@@ -98,6 +104,7 @@ class AudioListTile extends ConsumerWidget {
     this.selected = false,
     this.onLongPress,
     this.onSelectToggle,
+    this.searchQuery = '',
   });
 
   /// 是否在合集上下文中
@@ -144,6 +151,7 @@ class AudioListTile extends ConsumerWidget {
       mediaDownloadSnapshotProvider(audioItem.id)
           .select((snapshot) => snapshot?.speedBytesPerSecond),
     );
+    final searchDescription = _buildSearchDescription(theme);
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -188,13 +196,18 @@ class AudioListTile extends ConsumerWidget {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                Text(
-                                  audioItem.name,
+                                SearchHighlightText(
+                                  text: audioItem.name,
+                                  searchQuery: searchQuery,
                                   style: const TextStyle(
                                     fontWeight: FontWeight.w500,
                                     fontSize: 15,
                                   ),
                                 ),
+                                if (searchDescription != null) ...[
+                                  const SizedBox(height: 4),
+                                  searchDescription,
+                                ],
                                 const SizedBox(height: 4),
                                 _buildSubtitle(
                                   context,
@@ -295,6 +308,27 @@ class AudioListTile extends ConsumerWidget {
   /// - 未学习：音频图标在浅色圆形背景上
   /// - 进行中：环形进度 + 中心音频图标
   /// - 已完成：满环（绿色）+ 对应的音频或视频图标
+  /// 搜索模式下的描述片段：仅在有有效关键词且描述非空时展示，最多 3 行。
+  ///
+  /// 普通列表不展示描述，避免行高变化；只有用户搜索时才需要描述帮助判断命中内容。
+  Widget? _buildSearchDescription(ThemeData theme) {
+    final description = audioItem.description?.trim();
+    if (searchQuery.trim().isEmpty ||
+        description == null ||
+        description.isEmpty) {
+      return null;
+    }
+    return SearchHighlightText(
+      text: buildDescriptionSnippet(description, searchQuery),
+      searchQuery: searchQuery,
+      style: theme.textTheme.bodySmall?.copyWith(
+        color: theme.colorScheme.onSurfaceVariant,
+      ),
+      maxLines: 3,
+      overflow: TextOverflow.ellipsis,
+    );
+  }
+
   /// 获取音频关联的标签数据（名称 + 颜色）
   List<Tag> _getTagData(WidgetRef ref) {
     final tagIds = ref.watch(

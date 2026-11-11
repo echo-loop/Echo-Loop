@@ -12,6 +12,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../widgets/common/svg_action_icon.dart';
+
 import '../providers/learning_settings_provider.dart';
 
 /// 偏好设置查看页面。
@@ -149,7 +151,7 @@ class _PreferencesViewerScreenState
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
             child: TextField(
               decoration: const InputDecoration(
-                prefixIcon: Icon(Icons.search),
+                prefixIcon: SvgActionIcon(assetName: 'assets/icon/search.svg'),
                 hintText: '搜索 key 或 value',
                 border: OutlineInputBorder(),
                 isDense: true,

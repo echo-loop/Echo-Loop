@@ -4,6 +4,8 @@
 
 ## 本次完成
 
+- [x] 合集详情页增加本地搜索（2026-11-11）：AppBar 在排序按钮左侧新增搜索图标，进入搜索模式后输入框自动聚焦、隐藏合集介绍与原标题、排序按钮；按标题或描述做不区分大小写的实时子串匹配（去首尾空格，正则字符按字面量），保持现有排序。标题与描述命中部分高亮（琥珀色底，明暗主题分别取色，保留原大小写）；搜索模式下描述最多 3 行，匹配靠后时截取包含关键词的上下文。清除按钮保持搜索模式，「取消」或系统返回键退出搜索并清空关键词、恢复合集介绍与进入前的滚动位置；键盘搜索键只收起键盘。无匹配显示「未找到匹配的内容」。纯客户端过滤，不新增后端接口；合集节目本地已全量加载，无分页加载分支。播客合集同样支持。多选时「全选」仅选中搜索结果。实现：`lib/utils/audio_search.dart`（匹配与截取）、`lib/widgets/search_highlight_text.dart`（高亮）、`AudioListTile` / `AudioListView` 新增 `searchQuery`、`AudioListView` 新增 `scrollController`。修复过程中发现：挂载外部 controller 后列表不再是 primary，短列表下拉刷新失效，已显式保持 `AlwaysScrollableScrollPhysics`。测试：新增 `test/utils/audio_search_test.dart`、`test/widgets/search_highlight_text_test.dart`、`test/screens/collection_detail_search_test.dart`（含滚动恢复、返回键、清除、空状态）全部通过；合集详情相关既有套件与 `test/widgets` 均通过。**完成时间**: 2026-11-11
+
 - [x] 升级应用版本号至 1.0.48（2026-11-11）：更新 `pubspec.yaml` 的应用版本。Android `versionCode` / iOS `CFBundleVersion` 仍由发布脚本按 commit count 生成。**完成时间**: 2026-11-11
 
 - [x] 播放速度浮层改为纵向档位与上下滑动选择（2026-11-11）：速度档位改成单列纵向排列，移除列表上方的标题与当前速度区域，浮层宽度收窄至 120px；长按后上下滑动，指针进入列表后按实际命中项高亮、列表外保持当前项，松手应用；中英文提示同步调整，拖动提示作为按钮的无障碍语义提示。**完成时间**: 2026-11-11

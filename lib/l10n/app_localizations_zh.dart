@@ -1001,6 +1001,18 @@ class AppLocalizationsZh extends AppLocalizations {
   String get emptyCollection => '合集暂无内容';
 
   @override
+  String get collectionSearchHint => '搜索本合集';
+
+  @override
+  String get collectionSearchEmpty => '未找到匹配的内容';
+
+  @override
+  String get collectionSearchTooltip => '搜索';
+
+  @override
+  String get collectionSearchClearTooltip => '清除';
+
+  @override
   String get renameAudio => '重命名';
 
   @override

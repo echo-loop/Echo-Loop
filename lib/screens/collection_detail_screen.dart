@@ -6,6 +6,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../widgets/common/svg_action_icon.dart';
 import '../models/audio_item.dart';
 import '../models/collection.dart';
 import '../providers/collection_provider.dart';
@@ -25,8 +26,12 @@ import '../features/community_collections/data/community_sync_service.dart';
 import '../features/community_collections/data/trigger_community_sync.dart';
 import '../features/community_collections/widgets/community_collection_header.dart';
 import '../services/app_logger.dart';
+import '../utils/audio_search.dart';
 
-/// 合集详情页面 - 展示合集中的音频，支持上传音频
+const _searchIconAsset = 'assets/icon/search.svg';
+const _addIconAsset = 'assets/icon/plus.svg';
+
+/// 合集详情页面 - 展示合集中的音频，支持上传音频与合集内搜索
 class CollectionDetailScreen extends ConsumerStatefulWidget {
   final String collectionId;
 
@@ -62,6 +67,35 @@ class _CollectionDetailScreenState
     AudioSortType.originalDateDesc,
   ];
 
+  /// 搜索入口按钮的 Key，供测试定位（图标为 SVG，不能用 byIcon 查找）。
+  static const _keySearchButton = Key('collection_search_button');
+
+  /// 合集内搜索模式开关。只过滤当前合集已加载的节目，不访问后端。
+  bool _isSearching = false;
+
+  /// 搜索输入框的原始内容；过滤与高亮时再去除首尾空格。
+  String _searchQuery = '';
+
+  final _searchController = TextEditingController();
+  final _searchFocusNode = FocusNode();
+
+  /// 列表滚动控制器。隐藏合集介绍会改变列表高度，退出搜索时需要据此恢复位置。
+  final _listScrollController = ScrollController();
+
+  /// 进入搜索前的滚动偏移，退出搜索时恢复；未进入过搜索时为 null。
+  double? _scrollOffsetBeforeSearch;
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    _searchFocusNode.dispose();
+    _listScrollController.dispose();
+    super.dispose();
+  }
+
+  /// 搜索模式下有有效关键词时为 true，此时无匹配应显示搜索空状态。
+  bool get _hasSearchKeyword => _isSearching && _searchQuery.trim().isNotEmpty;
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
@@ -86,11 +120,15 @@ class _CollectionDetailScreenState
         .toList();
 
     final hasAudioItems = audioItems.isNotEmpty;
+    // 搜索只改变展示的列表，引导与合集是否为空仍以完整合集为准。
+    final visibleItems = _isSearching
+        ? filterAudioItemsByKeyword(audioItems, _searchQuery)
+        : audioItems;
 
     // 仅用户自建合集允许多选删除；社区 / 播客合集音频由后端 / RSS 管理，禁止增删。
     final canMultiSelect = !collection.isCommunity && !collection.isPodcast;
-    // 当前列表的 id 集合，用于全选判断与剔除已失效选中项。
-    final currentIds = audioItems.map((a) => a.id).toSet();
+    // 当前可见列表的 id 集合，用于全选判断与剔除已失效选中项；搜索时「全选」即全选搜索结果。
+    final currentIds = visibleItems.map((a) => a.id).toSet();
 
     final stepUpload = GuideStep(
       key: _keyUpload,
@@ -115,17 +153,30 @@ class _CollectionDetailScreenState
         ),
       ],
       child: PopScope(
-        // 多选态下系统返回优先退出多选，而非退出页面。
-        canPop: !_selectionMode,
+        // 多选态、搜索态下系统返回优先退出当前模式，而非退出页面。
+        canPop: !_selectionMode && !_isSearching,
         onPopInvokedWithResult: (didPop, _) {
-          if (!didPop && _selectionMode) _exitSelection();
+          if (didPop) return;
+          if (_selectionMode) {
+            _exitSelection();
+          } else if (_isSearching) {
+            _exitSearch();
+          }
         },
         child: Scaffold(
           appBar: _selectionMode
               ? _buildSelectionAppBar(context, l10n, currentIds)
+              : _isSearching
+              ? _buildSearchAppBar(context, l10n)
               : AppBar(
                   title: Text(collection.name),
                   actions: [
+                    IconButton(
+                      key: _keySearchButton,
+                      icon: const SvgActionIcon(assetName: _searchIconAsset),
+                      tooltip: l10n.collectionSearchTooltip,
+                      onPressed: _enterSearch,
+                    ),
                     // 社区合集：独立 sort state + 5 项菜单（默认 / 名称×2 / 原始发布×2）
                     // 用户合集：保持现状 —— 4 项默认菜单 + 全局 provider
                     if (collection.isCommunity)
@@ -141,7 +192,7 @@ class _CollectionDetailScreenState
                       GuideTarget(
                         step: stepUpload,
                         child: IconButton(
-                          icon: const Icon(Icons.add),
+                          icon: const SvgActionIcon(assetName: _addIconAsset),
                           onPressed: () => showImportAudioSheet(
                             context,
                             collectionId: collection.id,
@@ -154,30 +205,37 @@ class _CollectionDetailScreenState
           body: collection.isPodcast
               ? _PodcastCollectionBody(
                   collection: collection,
-                  audioItems: audioItems,
+                  audioItems: visibleItems,
                   guideFirstAudioMenu: hasAudioItems,
                   menuGuideStep: stepAudioMenu,
                   refreshState: _podcastRefreshState,
                   onRefresh: () => _refreshPodcastFeed(force: true),
+                  isSearching: _isSearching,
+                  searchQuery: _searchQuery,
+                  scrollController: _listScrollController,
+                  searchEmptyState: _hasSearchKeyword
+                      ? _buildSearchEmptyState(l10n)
+                      : null,
                 )
               : _buildCollectionAudioBody(
                   context: context,
                   collection: collection,
-                  audioItems: audioItems,
+                  audioItems: visibleItems,
                   hasAudioItems: hasAudioItems,
                   canMultiSelect: canMultiSelect,
                   menuGuideStep: stepAudioMenu,
                   l10n: l10n,
-                  header: collection.isCommunity
-                      ? CommunityCollectionHeader(
+                  // 搜索时隐藏合集介绍，把空间让给结果列表。
+                  header: _isSearching || !collection.isCommunity
+                      ? null
+                      : CommunityCollectionHeader(
                           description: collection.description,
                           authorNickname: collection.authorNickname,
                           updatedAt: collection.updatedAt,
                           fileCount: collectionState.getAudioCount(
                             collection.id,
                           ),
-                        )
-                      : null,
+                        ),
                 ),
         ),
       ),
@@ -203,9 +261,9 @@ class _CollectionDetailScreenState
       menuGuideStep,
       l10n,
       header: header,
-      scrollPhysics: collection.isCommunity
-          ? const AlwaysScrollableScrollPhysics()
-          : null,
+      // 列表挂载了外部 scrollController，不再是 primary，Flutter 不会再默认
+      // 使用 AlwaysScrollable 物理属性；这里显式保持原有行为（短列表也可下拉、回弹）。
+      scrollPhysics: const AlwaysScrollableScrollPhysics(),
     );
     if (!collection.isCommunity) return audioList;
     return RefreshIndicator(
@@ -234,12 +292,16 @@ class _CollectionDetailScreenState
       header: header,
       overrideSortType: collection.isCommunity ? _communitySort : null,
       scrollPhysics: scrollPhysics,
+      scrollController: _listScrollController,
+      searchQuery: _searchQuery,
       // 仅用户自建合集启用多选删除。
       selectionMode: canMultiSelect && _selectionMode,
       selectedIds: _selectedIds,
       onEnterSelection: canMultiSelect ? (id) => _enterSelection(id) : null,
       onToggleSelection: canMultiSelect ? (id) => _toggleSelect(id) : null,
-      emptyState: collection.isCommunity
+      emptyState: _hasSearchKeyword
+          ? _buildSearchEmptyState(l10n)
+          : collection.isCommunity
           ? Center(
               child: Text(
                 // 区分「已下架」vs「暂无音频」：前者是后端主动下线，后者
@@ -256,6 +318,114 @@ class _CollectionDetailScreenState
                   showImportAudioSheet(context, collectionId: collection.id),
             ),
     );
+  }
+
+  /// 搜索有关键词但无匹配时的空状态。
+  Widget _buildSearchEmptyState(AppLocalizations l10n) {
+    return Center(
+      child: Text(l10n.collectionSearchEmpty, textAlign: TextAlign.center),
+    );
+  }
+
+  /// 搜索模式 AppBar：输入框替代标题，「取消」退出搜索模式。
+  AppBar _buildSearchAppBar(BuildContext context, AppLocalizations l10n) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return AppBar(
+      automaticallyImplyLeading: false,
+      // 输入框做成带底色的圆角搜索框，让用户一眼看出这里可以输入。
+      title: Container(
+        height: 40,
+        padding: const EdgeInsets.only(right: 4),
+        decoration: BoxDecoration(
+          color: colorScheme.surfaceContainerHighest,
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              // 搜索图标作为 prefixIcon 与文字交给同一个 InputDecorator 排版，
+              // 两者才能按同一基线垂直对齐。
+              child: TextField(
+                controller: _searchController,
+                focusNode: _searchFocusNode,
+                autofocus: true,
+                textInputAction: TextInputAction.search,
+                decoration: InputDecoration(
+                  isDense: true,
+                  border: InputBorder.none,
+                  hintText: l10n.collectionSearchHint,
+                  prefixIcon: SvgActionIcon(
+                    assetName: _searchIconAsset,
+                    size: 20,
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                  prefixIconConstraints: const BoxConstraints(
+                    minWidth: 36,
+                    minHeight: 0,
+                  ),
+                ),
+                onChanged: (value) => setState(() => _searchQuery = value),
+                // 键盘上的搜索键只收起键盘，不退出搜索模式。
+                onSubmitted: (_) => _searchFocusNode.unfocus(),
+              ),
+            ),
+            if (_searchQuery.isNotEmpty)
+              IconButton(
+                icon: const Icon(Icons.clear, size: 20),
+                tooltip: l10n.collectionSearchClearTooltip,
+                visualDensity: VisualDensity.compact,
+                onPressed: _clearSearchQuery,
+              ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(onPressed: _exitSearch, child: Text(l10n.cancel)),
+        const SizedBox(width: 8),
+      ],
+    );
+  }
+
+  /// 进入搜索模式。搜索前先记录滚动位置，并回到列表顶部。
+  void _enterSearch() {
+    if (_listScrollController.hasClients) {
+      _scrollOffsetBeforeSearch = _listScrollController.offset;
+      _listScrollController.jumpTo(0);
+    }
+    setState(() => _isSearching = true);
+  }
+
+  /// 退出搜索模式：清空关键词，恢复合集介绍与进入搜索前的滚动位置。
+  void _exitSearch() {
+    final offset = _scrollOffsetBeforeSearch;
+    _scrollOffsetBeforeSearch = null;
+    _searchController.clear();
+    _searchFocusNode.unfocus();
+    setState(() {
+      _isSearching = false;
+      _searchQuery = '';
+    });
+    if (offset != null) _restoreListOffset(offset);
+  }
+
+  /// 清空关键词但保持搜索模式，并把焦点交回输入框。
+  void _clearSearchQuery() {
+    _searchController.clear();
+    _searchFocusNode.requestFocus();
+    setState(() => _searchQuery = '');
+  }
+
+  /// 在本帧布局完成后恢复滚动偏移。头部重新出现会改变内容高度，因此需要 clamp 到有效范围。
+  void _restoreListOffset(double offset) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_listScrollController.hasClients) return;
+      final position = _listScrollController.position;
+      _listScrollController.jumpTo(
+        offset
+            .clamp(position.minScrollExtent, position.maxScrollExtent)
+            .toDouble(),
+      );
+    });
   }
 
   /// 强制同步当前订阅的社区合集，并在同步部分或全部失败时提示用户。
@@ -465,6 +635,14 @@ class _PodcastCollectionBody extends StatelessWidget {
   final _PodcastRefreshViewState? refreshState;
   final Future<void> Function() onRefresh;
 
+  /// 搜索模式下隐藏 Feed 摘要头部，把空间让给结果列表。
+  final bool isSearching;
+  final String searchQuery;
+  final ScrollController scrollController;
+
+  /// 搜索有关键词但无匹配时的空状态；为 null 时沿用原有空状态。
+  final Widget? searchEmptyState;
+
   const _PodcastCollectionBody({
     required this.collection,
     required this.audioItems,
@@ -472,6 +650,10 @@ class _PodcastCollectionBody extends StatelessWidget {
     required this.menuGuideStep,
     required this.refreshState,
     required this.onRefresh,
+    required this.isSearching,
+    required this.searchQuery,
+    required this.scrollController,
+    required this.searchEmptyState,
   });
 
   @override
@@ -484,24 +666,31 @@ class _PodcastCollectionBody extends StatelessWidget {
         collectionId: collection.id,
         guideFirstAudioMenu: guideFirstAudioMenu,
         menuGuideStep: menuGuideStep,
-        header: _PodcastFeedHeader(
-          collection: collection,
-          refreshState: refreshState,
-        ),
-        emptyState: ListView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          children: [
-            SizedBox(
-              height: MediaQuery.of(context).size.height * 0.5,
-              child: Center(
-                child: Text(
-                  l10n.communityCollectionEmpty,
-                  textAlign: TextAlign.center,
-                ),
+        header: isSearching
+            ? null
+            : _PodcastFeedHeader(
+                collection: collection,
+                refreshState: refreshState,
               ),
+        searchQuery: searchQuery,
+        scrollPhysics: const AlwaysScrollableScrollPhysics(),
+        scrollController: scrollController,
+        emptyState:
+            searchEmptyState ??
+            ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              children: [
+                SizedBox(
+                  height: MediaQuery.of(context).size.height * 0.5,
+                  child: Center(
+                    child: Text(
+                      l10n.communityCollectionEmpty,
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ),
+              ],
             ),
-          ],
-        ),
       ),
     );
   }
@@ -662,7 +851,7 @@ class _CollectionEmptyState extends StatelessWidget {
           const SizedBox(height: AppSpacing.l),
           FilledButton.icon(
             onPressed: onAdd,
-            icon: const Icon(Icons.add),
+            icon: const SvgActionIcon(assetName: _addIconAsset),
             label: Text(l10n.addAudioToCollection),
           ),
         ],

@@ -1910,6 +1910,30 @@ abstract class AppLocalizations {
   /// **'This collection has no content yet'**
   String get emptyCollection;
 
+  /// No description provided for @collectionSearchHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Search this collection'**
+  String get collectionSearchHint;
+
+  /// No description provided for @collectionSearchEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No matching content'**
+  String get collectionSearchEmpty;
+
+  /// No description provided for @collectionSearchTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Search'**
+  String get collectionSearchTooltip;
+
+  /// No description provided for @collectionSearchClearTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear'**
+  String get collectionSearchClearTooltip;
+
   /// No description provided for @renameAudio.
   ///
   /// In en, this message translates to:
