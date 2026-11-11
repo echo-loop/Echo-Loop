@@ -203,6 +203,9 @@ class AudioListTile extends ConsumerWidget {
                                     fontWeight: FontWeight.w500,
                                     fontSize: 15,
                                   ),
+                                  // 合集内标题最多两行；资源库全局列表保持自然换行。
+                                  maxLines: _isCollectionContext ? 2 : null,
+                                  overflow: TextOverflow.ellipsis,
                                 ),
                                 if (searchDescription != null) ...[
                                   const SizedBox(height: 4),

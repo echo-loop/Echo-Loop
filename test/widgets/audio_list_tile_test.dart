@@ -240,6 +240,20 @@ void main() {
       expect(tester.widget<Text>(find.text(title)).maxLines, isNull);
       expect(tester.takeException(), isNull);
     });
+
+    testWidgets('合集内长标题最多显示两行并省略', (tester) async {
+      const title =
+          'A very long collection material title that should be clamped to two lines';
+      final item = createTestAudioItem(name: title);
+
+      await tester.pumpWidget(buildTile(item, collectionId: 'collection-1'));
+      await tester.pumpAndSettle();
+
+      final titleText = tester.widget<Text>(find.text(title));
+      expect(titleText.maxLines, 2);
+      expect(titleText.overflow, TextOverflow.ellipsis);
+      expect(tester.takeException(), isNull);
+    });
   });
 
   group('AudioListTile 导出 PDF 菜单项', () {

@@ -4,6 +4,8 @@
 
 ## 本次完成
 
+- [x] 合集内素材标题最多两行（2026-11-11）：`AudioListTile` 标题在合集上下文（`collectionId` 非空）限制为 2 行并省略，资源库全局列表保持自然换行（既有测试约束）。测试：`test/widgets/audio_list_tile_test.dart` 新增合集内长标题用例，全文件通过。**完成时间**: 2026-11-11
+
 - [x] 导入入口图标替换（2026-11-11）：`import_audio_sheet.dart` 的本地文件选项由 `Icons.audio_file_outlined` 改为 `assets/icon/file-input.svg`，网盘由 `Icons.cloud_outlined` 改为 `cloud-download.svg`，链接由 `Icons.link` 改为 `link.svg`；三者共用 `_importOptionSvgIcon`，24pt 居中于 34pt 图标位，颜色取 `colorScheme.primary`；`pubspec.yaml` 注册三个资源。验证：`flutter analyze` 无问题，`test/widgets/import_audio_sheet_test.dart` 38 项通过。**待真机验证**：浅色 / 深色主题下图标的线条粗细与颜色观感。**完成时间**: 2026-11-11
 
 - [x] 导入支持 OPUS / OGG 音频与 WEBM / AVI 视频（2026-11-11）：`audioImportExtensions` 新增 `opus`、`ogg`，`videoFileExtensions` 新增 `webm`、`avi`；`AudioImportService` 的 URL 导入改用同一份音频白名单（原为独立常量），并补充 `audio/opus`、`audio/ogg` MIME 映射；转录上传 MIME 补充 `.avi`；中英文「仅支持…」提示文案同步更新并重新生成 l10n。依据：ffmpeg-kit min 的 iOS 构建包含 Ogg / AVI / Matroska 解封装与 Opus / Vorbis 解码器（扫描二进制字符串确认）；media_kit iOS 的 libmpv 构建配置显式启用 ogg 解封装、opus / vorbis 解码器，以及 matroska、avi 解封装与 vp8/vp9/mpeg4 解码器。未纳入 WMA、FLV、3GP、TS、AIFF：未逐一核实两端解码器，3GP 的 AMR 音频在 media_kit 构建中未见解码器。测试：先写失败用例（红），再改实现；`subtitle_pairing_test`、`audio_item_test`、`transcription_task_provider_test` 及导入 / 媒体类型相关套件共 `+1388` 通过，改动文件 `flutter analyze` 无问题。**待真机验证**：iOS 与 Android 各导入 `.opus`、`.ogg`、`.webm`、`.avi`，确认播放、时长、字幕配对与转录；Android 端 ffmpeg-kit / libmpv 构建未做二进制核验。**完成时间**: 2026-11-11
