@@ -202,15 +202,18 @@ flutter:
     - assets/icon/check-circle-3.svg
     - assets/icon/calendar-2.svg
     - assets/icon/china_flag.svg
+    - assets/icon/cloud-download.svg
     - assets/icon/diamond.svg
     - assets/icon/diskette.svg
     - assets/icon/documents.svg
+    - assets/icon/file-input.svg
     - assets/icon/eye.svg
     - assets/icon/feedback.svg
     - assets/icon/help.svg
     - assets/icon/group.svg
     - assets/icon/locale-1.svg
     - assets/icon/locale.svg
+    - assets/icon/link.svg
     - assets/icon/lock.svg
     - assets/icon/microphone.svg
     - assets/icon/account-1.svg

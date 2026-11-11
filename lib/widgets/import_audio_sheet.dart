@@ -697,7 +697,7 @@ class _ChooseSourcePanel extends StatelessWidget {
       children: [
         _ImportOptionTile(
           key: const ValueKey('import-option-local-file'),
-          icon: Icons.audio_file_outlined,
+          leading: _importOptionSvgIcon(context, 'assets/icon/file-input.svg'),
           title: l10n.importAudioFromFile,
           onTap: onLocalFile,
         ),
@@ -705,7 +705,10 @@ class _ChooseSourcePanel extends StatelessWidget {
           const SizedBox(height: 8),
           _ImportOptionTile(
             key: const ValueKey('import-option-cloud-drive'),
-            icon: Icons.cloud_outlined,
+            leading: _importOptionSvgIcon(
+              context,
+              'assets/icon/cloud-download.svg',
+            ),
             title: l10n.importAudioFromCloudDrive,
             onTap: onCloudDrive,
           ),
@@ -713,7 +716,7 @@ class _ChooseSourcePanel extends StatelessWidget {
         const SizedBox(height: 8),
         _ImportOptionTile(
           key: const ValueKey('import-option-direct-url'),
-          icon: Icons.link,
+          leading: _importOptionSvgIcon(context, 'assets/icon/link.svg'),
           title: l10n.importAudioFromUrl,
           description: l10n.importAudioFromUrlDescription,
           onTap: onDirectUrl,
@@ -1337,6 +1340,22 @@ class _BaiduFileTile extends StatelessWidget {
       child: Text(l10n.cancel),
     );
   }
+}
+
+/// 导入入口的单色 SVG 图标：线条图标使用 currentColor，统一按主题主色着色，
+/// 居中于 _ImportOptionTile 的 34pt 图标位，尺寸与 Material Icon 一致。
+Widget _importOptionSvgIcon(BuildContext context, String assetPath) {
+  return Center(
+    child: SvgPicture.asset(
+      assetPath,
+      width: 24,
+      height: 24,
+      colorFilter: ColorFilter.mode(
+        Theme.of(context).colorScheme.primary,
+        BlendMode.srcIn,
+      ),
+    ),
+  );
 }
 
 class _ImportOptionTile extends StatelessWidget {
