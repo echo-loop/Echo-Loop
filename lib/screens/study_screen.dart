@@ -320,7 +320,16 @@ class _TaskSection extends StatelessWidget {
         // 区段标题
         Row(
           children: [
-            SvgPicture.asset(iconAsset, width: 20, height: 20),
+            // 图标 SVG 未声明填充色，需跟随主题前景色着色，否则深色主题下会变成黑色不可见。
+            SvgPicture.asset(
+              iconAsset,
+              width: 20,
+              height: 20,
+              colorFilter: ColorFilter.mode(
+                theme.colorScheme.onSurface,
+                BlendMode.srcIn,
+              ),
+            ),
             const SizedBox(width: 6),
             Text(
               title,

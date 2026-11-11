@@ -137,6 +137,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               _buildThemeModeTile(context, l10n, settings, settingsController),
               _buildLanguageTile(context, l10n, settings, settingsController),
               _buildReadingTextTile(context, l10n),
+              _buildDisplaySettingsTile(context, l10n),
             ],
           ),
           const SizedBox(height: AppSpacing.m),
@@ -393,16 +394,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           onTap: () => Navigator.of(context).push(
             MaterialPageRoute<void>(
               builder: (_) => const LearningSettingsScreen(),
-            ),
-          ),
-        ),
-        ListTile(
-          leading: _settingsThemedSvgIcon(context, 'assets/icon/eye.svg'),
-          title: Text(l10n.displaySettings),
-          trailing: const Icon(Icons.chevron_right),
-          onTap: () => Navigator.of(context).push(
-            MaterialPageRoute<void>(
-              builder: (_) => const DisplaySettingsScreen(),
             ),
           ),
         ),
@@ -1395,6 +1386,22 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       onTap: () => Navigator.of(context).push(
         MaterialPageRoute<void>(
           builder: (_) => const ReadingTextSettingsScreen(),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDisplaySettingsTile(
+    BuildContext context,
+    AppLocalizations l10n,
+  ) {
+    return ListTile(
+      leading: _settingsThemedSvgIcon(context, 'assets/icon/eye.svg'),
+      title: Text(l10n.displaySettings),
+      trailing: const Icon(Icons.chevron_right),
+      onTap: () => Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => const DisplaySettingsScreen(),
         ),
       ),
     );
