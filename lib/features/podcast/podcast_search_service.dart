@@ -63,6 +63,15 @@ class PodcastSearchService {
             'elapsedMs=${stopwatch.elapsedMilliseconds}',
       );
       rethrow;
+    } on DioException catch (error) {
+      // 区分网络错误与 HTTP 状态码：iTunes 限流时返回空 body 的 403，仅看 errorType 无法定位。
+      AppLogger.log(
+        'PodcastSearch',
+        'request failed errorType=DioException dioType=${error.type.name} '
+            'statusCode=${error.response?.statusCode} '
+            'elapsedMs=${stopwatch.elapsedMilliseconds}',
+      );
+      throw PodcastSearchException('播客搜索失败：$error');
     } catch (e) {
       AppLogger.log(
         'PodcastSearch',

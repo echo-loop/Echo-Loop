@@ -134,6 +134,7 @@ class _PodcastDiscoveryScreenState
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
+    final colorScheme = Theme.of(context).colorScheme;
     final rawText = _searchController.text;
     final link = _asLink(_query);
 
@@ -146,32 +147,53 @@ class _PodcastDiscoveryScreenState
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              TextField(
-                controller: _searchController,
-                autofocus: false,
-                style: compactFormTextStyle(context),
-                // 搜索词通常包含空格；RSS 链接仍可直接粘贴并由下方逻辑识别。
-                keyboardType: TextInputType.text,
-                textInputAction: TextInputAction.search,
-                decoration: compactFormInputDecoration(
-                  context,
-                  isDense: true,
-                  // 纯占位提示：输入后即消失，不使用浮动 label（搜索框惯用法）。
-                  hintText: l10n.podcastSearchHint,
-                  prefixIcon: const SvgActionIcon(assetName: 'assets/icon/search.svg'),
-                  suffixIcon: rawText.isEmpty
-                      ? null
-                      : IconButton(
-                          icon: const Icon(Icons.close),
-                          onPressed: () {
-                            _debounce?.cancel();
-                            _searchController.clear();
-                            setState(() => _query = '');
-                          },
-                        ),
+              // 外观与资源库搜索框（SearchAppBar）一致：浅色圆角底、无描边、小号搜索图标。
+              Container(
+                height: 40,
+                padding: const EdgeInsets.only(right: 4),
+                decoration: BoxDecoration(
+                  color: colorScheme.surfaceContainerHighest,
+                  borderRadius: BorderRadius.circular(20),
                 ),
-                onTapOutside: _dismissKeyboardOnTapOutside,
-                onChanged: _onSearchChanged,
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _searchController,
+                        autofocus: false,
+                        style: compactFormTextStyle(context),
+                        // 搜索词通常包含空格；RSS 链接仍可直接粘贴并由下方逻辑识别。
+                        keyboardType: TextInputType.text,
+                        textInputAction: TextInputAction.search,
+                        decoration: InputDecoration(
+                          isDense: true,
+                          border: InputBorder.none,
+                          // 纯占位提示：输入后即消失，不使用浮动 label（搜索框惯用法）。
+                          hintText: l10n.podcastSearchHint,
+                          prefixIcon: SvgActionIcon(
+                            assetName: 'assets/icon/search.svg',
+                            size: 20,
+                            color: colorScheme.onSurfaceVariant,
+                          ),
+                          prefixIconConstraints: const BoxConstraints(minWidth: 36, minHeight: 0),
+                        ),
+                        onTapOutside: _dismissKeyboardOnTapOutside,
+                        onChanged: _onSearchChanged,
+                      ),
+                    ),
+                    if (rawText.isNotEmpty)
+                      IconButton(
+                        icon: const Icon(Icons.clear, size: 20),
+                        tooltip: l10n.collectionSearchClearTooltip,
+                        visualDensity: VisualDensity.compact,
+                        onPressed: () {
+                          _debounce?.cancel();
+                          _searchController.clear();
+                          setState(() => _query = '');
+                        },
+                      ),
+                  ],
+                ),
               ),
               const SizedBox(height: AppSpacing.s),
               Expanded(

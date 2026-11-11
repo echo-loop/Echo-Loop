@@ -19,6 +19,7 @@ import '../../../router/app_router.dart';
 import '../../../services/app_logger.dart';
 import '../../../widgets/common/transcript_cc_badge.dart';
 import '../../../theme/app_theme.dart';
+import '../../../theme/list_item_text_styles.dart';
 import '../../auth/sign_in_required_dialog.dart';
 import '../podcast_info_sheet.dart';
 import '../podcast_models.dart';
@@ -54,7 +55,12 @@ class _PodcastPreviewScreenState extends ConsumerState<PodcastPreviewScreen> {
     final subscribedCollection = _findSubscribedCollection(preview);
 
     return Scaffold(
-      appBar: AppBar(title: Text(_arg.title)),
+      appBar: AppBar(
+        title: Text(
+          _arg.title,
+          style: collectionTitleStyle(Theme.of(context)),
+        ),
+      ),
       body: Column(
         children: [
           Expanded(
@@ -340,6 +346,7 @@ class _PodcastPreviewHeader extends ConsumerWidget {
       context,
       title: l10n.podcastDetails,
       heroTitle: arg.title,
+      heroTitleStyle: collectionTitleStyle,
       heroAuthor: arg.author,
       heroDescription: arg.description,
       imageUrl: arg.imageUrl,
@@ -401,10 +408,7 @@ class _EpisodePreviewTile extends StatelessWidget {
                       episode.title,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
-                        height: 1.2,
-                      ),
+                      style: audioTitleStyle(theme),
                     ),
                     if (meta.isNotEmpty || hasTranscript)
                       Padding(

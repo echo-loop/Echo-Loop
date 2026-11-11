@@ -15,6 +15,7 @@ import '../providers/audio_library_provider.dart';
 import '../providers/new_user_guide_provider.dart';
 import '../l10n/app_localizations.dart';
 import '../theme/app_theme.dart';
+import '../theme/list_item_text_styles.dart';
 import '../providers/audio_list_settings_provider.dart';
 import '../widgets/audio_list_view.dart';
 import '../widgets/guide_flow.dart';
@@ -178,7 +179,10 @@ class _CollectionDetailScreenState
                   onCancel: _exitSearch,
                 )
               : AppBar(
-                  title: Text(collection.name),
+                  title: Text(
+                    collection.name,
+                    style: collectionTitleStyle(Theme.of(context)),
+                  ),
                   actions: [
                     IconButton(
                       key: _keySearchButton,

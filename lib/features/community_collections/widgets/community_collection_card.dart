@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../services/app_network_image_cache.dart';
 import '../../../theme/app_theme.dart';
+import '../../../theme/list_item_text_styles.dart';
 import '../../../widgets/common/collection_added_badge.dart';
 import '../models/community_asset_url.dart';
 import '../models/community_collection_models.dart';
@@ -72,7 +73,7 @@ class CommunityCollectionCard extends StatelessWidget {
                           children: [
                             Text(
                               item.name,
-                              style: theme.textTheme.titleMedium,
+                              style: collectionTitleStyle(theme),
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
                             ),

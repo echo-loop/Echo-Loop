@@ -8,6 +8,7 @@ import '../models/collection.dart';
 import '../providers/collection_provider.dart';
 import '../l10n/app_localizations.dart';
 import '../theme/app_theme.dart';
+import '../theme/list_item_text_styles.dart';
 import 'dialogs/text_input_dialog.dart';
 
 /// 合集归属编辑 BottomSheet
@@ -93,7 +94,10 @@ class EditCollectionMembershipSheet extends ConsumerWidget {
                       contentPadding: const EdgeInsets.symmetric(
                         horizontal: AppSpacing.m,
                       ),
-                      title: Text(collection.name),
+                      title: Text(
+                        collection.name,
+                        style: collectionTitleStyle(Theme.of(context)),
+                      ),
                       value: isSelected,
                       onChanged: (value) {
                         final notifier = ref.read(

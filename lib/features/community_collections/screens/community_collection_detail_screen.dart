@@ -10,6 +10,7 @@ import '../../../models/collection.dart';
 import '../../../providers/collection_provider.dart';
 import '../../../router/app_router.dart';
 import '../../../theme/app_theme.dart';
+import '../../../theme/list_item_text_styles.dart';
 import '../models/community_collection_models.dart';
 import '../models/community_collection_paging.dart';
 import '../providers/community_collection_detail_provider.dart';
@@ -63,6 +64,7 @@ class _CommunityCollectionDetailScreenState
       appBar: AppBar(
         title: Text(
           files.value?.collection?.name ?? catalogEntry?.name ?? '',
+          style: collectionTitleStyle(Theme.of(context)),
         ),
       ),
       body: files.when(
@@ -363,9 +365,7 @@ class _CommunityCollectionPreviewTile extends StatelessWidget {
               file.title,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: theme.textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
+              style: audioTitleStyle(theme),
             ),
           ),
         ],

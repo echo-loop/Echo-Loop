@@ -22,6 +22,7 @@ import '../l10n/app_localizations.dart';
 import '../utils/audio_item_actions.dart';
 import '../router/app_router.dart';
 import '../theme/app_theme.dart';
+import '../theme/list_item_text_styles.dart';
 import 'common/app_popup_menu.dart';
 import 'common/transcript_cc_badge.dart';
 import '../features/community_collections/download/community_download_notifier.dart';
@@ -211,12 +212,7 @@ class AudioListTile extends ConsumerWidget {
                                 SearchHighlightText(
                                   text: audioItem.name,
                                   searchQuery: searchQuery,
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.w500,
-                                    fontSize: 14,
-                                    // 与学习正文一致取消字间距（Material 默认 bodyMedium 为 0.25），避免标题显得更宽更大。
-                                    letterSpacing: 0,
-                                  ),
+                                  style: audioTitleStyle(theme),
                                   // 标题默认最多两行，与合集详情页、搜索结果保持一致。
                                   maxLines: titleMaxLines,
                                   overflow: TextOverflow.ellipsis,

@@ -397,10 +397,10 @@ class _DailyGoalBar extends StatelessWidget {
         : (studiedSeconds / goalSeconds).clamp(0.0, 1.0);
     final palette = learningProgressPalette(theme.brightness);
     return ClipRRect(
-      borderRadius: BorderRadius.circular(4),
+      borderRadius: BorderRadius.circular(2),
       child: LinearProgressIndicator(
         value: isCheckedIn ? 1 : progress,
-        minHeight: 6,
+        minHeight: 4,
         color: isCheckedIn ? palette.completed : palette.active,
         backgroundColor: palette.track,
       ),

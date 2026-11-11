@@ -7,6 +7,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+
 import '../features/community_collections/models/community_asset_url.dart';
 import '../features/community_collections/providers/community_enrollment_provider.dart';
 import '../features/community_collections/widgets/community_badge.dart';
@@ -18,6 +19,7 @@ import '../l10n/app_localizations.dart';
 import '../router/app_router.dart';
 import '../services/app_network_image_cache.dart';
 import '../theme/app_theme.dart';
+import '../theme/list_item_text_styles.dart';
 import '../utils/time_format.dart';
 import '../widgets/common/app_popup_menu.dart';
 import '../widgets/common/svg_action_icon.dart';
@@ -332,16 +334,14 @@ class _CollectionSheetHeader extends StatelessWidget {
                 ? IconButton(
                     icon: const Icon(Icons.arrow_back),
                     onPressed: onBack,
-                    tooltip: MaterialLocalizations.of(
-                      context,
-                    ).backButtonTooltip,
+                    tooltip: MaterialLocalizations.of(context)
+                        .backButtonTooltip,
                   )
                 : IconButton(
                     icon: const Icon(Icons.close),
                     onPressed: onClose,
-                    tooltip: MaterialLocalizations.of(
-                      context,
-                    ).closeButtonTooltip,
+                    tooltip: MaterialLocalizations.of(context)
+                        .closeButtonTooltip,
                   ),
           ),
           Expanded(
@@ -603,7 +603,7 @@ class _CollectionListTile extends ConsumerWidget {
                             SearchHighlightText(
                               text: collection.name,
                               searchQuery: searchQuery,
-                              style: theme.textTheme.titleMedium,
+                              style: collectionTitleStyle(theme),
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
                             ),

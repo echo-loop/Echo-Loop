@@ -4,6 +4,16 @@
 
 ## 本次完成
 
+- [x] 每日学习时长进度条变细为 4（2026-11-11）：学习统计头部 `study_stats_header.dart` 的 `_DailyGoalBar` 与学习日历页的 `DailyGoalProgressCard`（`daily_goal_progress_card.dart`）高度由 6 改为 4，圆角同步为 2。`study_stats_header_test`、`test/widgets/study/`、`activity_calendar_screen_test` 全部通过。**待真机验证**：细条观感。**完成时间**: 2026-11-11
+
+- [x] 播客搜索失败日志补充 HTTP 状态码（2026-11-11）：`PodcastSearchService.search` 对 `DioException` 单独记录 `dioType` 与 `statusCode`，便于区分网络错误与 iTunes 限流（403）。排查结论见下。`podcast_search_service_test`、`podcast_discovery_screen_test` 全部通过。**待复现**：下次失败时确认 `statusCode`。**完成时间**: 2026-11-11
+
+- [x] 订阅 Podcast 搜索框样式统一（2026-11-11）：`podcast_discovery_screen.dart` 搜索框从描边表单样式改为与资源库搜索框（`SearchAppBar`）一致的浅色圆角底、无描边、20 号搜索图标与紧凑清除按钮。`flutter analyze` 无问题，`podcast_discovery_screen_test` 全部通过。**待真机验证**：搜索框在浅色/深色模式下的观感。**完成时间**: 2026-11-11
+
+- [x] 资源库合集名与音频名分别统一为两套样式（2026-11-11）：`lib/theme/list_item_text_styles.dart` 定义 `collectionTitleStyle`（titleMedium + 15 号 + letterSpacing 0）与 `audioTitleStyle`（titleMedium + 14 号 + letterSpacing 0）。合集名入口：资源库合集列表项、合集详情 AppBar、发现合集卡片、社区合集详情 AppBar、播客预览页 AppBar、播客信息弹窗标题（`_InfoHero`，由调用方传入 `heroTitleStyle`）、订阅播客搜索结果（`PodcastSubscribeTile`）、加入合集弹窗的合集列表项；音频名入口：音频列表项、学习页卡片、社区合集详情的音频文件行、播客预览页单集标题、单集信息弹窗标题、音频详情页标题（均去掉原 w600 / height 1.2 / headlineSmall）。测试：涉及的测试文件共 245 项，仅剩既有的「资源库全局列表不显示合集专属难度徽章」与「LearningPlanScreen 已完成状态显示正确」失败。**待真机验证**：各入口观感。**待真机验证**：各入口观感。**完成时间**: 2026-11-11
+- [x] 音频列表项标题样式统一为主题写法（2026-11-11）：新增 `audioItemTitleStyle(theme)`（`audio_list_tile.dart`），基于 `titleMedium` 设 14 号、letterSpacing 0；`AudioListTile` 与学习页 `_StudyMaterialCard` 共用，删除学习页的 `_kAudioItemTitleStyle` 常量。行高由 1.43 变为 1.5，两行标题每行约高 1px。测试：`study_screen_test`、`collection_screen_test` 全部通过；`audio_list_tile_test` 仅剩既有的「资源库全局列表不显示合集专属难度徽章」失败。**待真机验证**：列表项高度与标题观感。**完成时间**: 2026-11-11
+- [x] 资源库合集列表项标题字号调为 15、字间距 0（2026-11-11）：`_CollectionListTile` 标题在 `titleMedium` 基础上 `copyWith(fontSize: 15, letterSpacing: 0)`，仅改资源库合集项，合集详情页音频项不变。测试：`collection_screen_test` 22 项全部通过，`flutter analyze` 无问题。**待真机验证**：标题观感。**完成时间**: 2026-11-11
+
 - [x] 最近完成任务条目对齐任务卡（2026-11-11）：`_RecentCompletionTile` 改用 `_StudyMaterialCard`，图标增至 56（`_kStudyCardIconSize`），新增进度条与百分比行，时间角标移到标题行右侧，阶段文案留在第二行；删除 `_kRecentCompletionIconSize`。测试：`study_screen_test` 26 项全部通过（图标尺寸断言改为 56），`dart analyze` 无问题。**待真机验证**：右侧三行的排版与进度条显示。**完成时间**: 2026-11-11
 
 - [x] 学习页折叠区内条目增加边界（2026-11-11）：待解锁、最近完成任务折叠区展开后，条目卡片与折叠区同为白色，边界看不出。新增 `_buildExpandedArea`，展开后的内容区改用灰色底（`surfaceContainerLowest`），条目卡片保持自身背景色；折叠区 Card 加 `clipBehavior: Clip.antiAlias` 让灰色底跟随圆角。测试：`study_screen_test` 26 项全部通过，`dart analyze` 无问题。**待真机验证**：浅色/深色下展开区观感。**完成时间**: 2026-11-11

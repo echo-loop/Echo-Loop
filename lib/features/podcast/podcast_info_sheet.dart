@@ -17,6 +17,7 @@ import '../../models/audio_item.dart';
 import '../../models/collection.dart';
 import '../../providers/collection_provider.dart';
 import '../../theme/app_theme.dart';
+import '../../theme/list_item_text_styles.dart';
 import 'podcast_models.dart';
 import 'widgets/podcast_subscribe_tile.dart';
 
@@ -55,6 +56,7 @@ void showPodcastFeedInfoSheet(
         return _InfoSheet(
           title: l10n.podcastDetails,
           heroTitle: title,
+          heroTitleStyle: collectionTitleStyle,
           heroAuthor: meta?.author,
           heroDescription: description,
           imageUrl: imageUrl,
@@ -111,6 +113,7 @@ void showPodcastInfoSheet(
   BuildContext context, {
   required String title,
   required String heroTitle,
+  required TextStyle? Function(ThemeData theme) heroTitleStyle,
   required List<PodcastInfoLink> links,
   String? heroAuthor,
   String? heroDescription,
@@ -125,6 +128,7 @@ void showPodcastInfoSheet(
     builder: (ctx) => _InfoSheet(
       title: title,
       heroTitle: heroTitle,
+      heroTitleStyle: heroTitleStyle,
       heroAuthor: heroAuthor,
       heroDescription: heroDescription,
       imageUrl: imageUrl,
@@ -151,6 +155,7 @@ void showPodcastFeedMetaInfoSheet(
     context,
     title: l10n.podcastDetails,
     heroTitle: meta.title,
+    heroTitleStyle: collectionTitleStyle,
     heroAuthor: meta.author,
     heroDescription: meta.description,
     imageUrl: imageUrl,
@@ -185,6 +190,7 @@ void showPodcastEpisodeInfoSheet(
     builder: (ctx) => _InfoSheet(
       title: l10n.podcastEpisodeMeta,
       heroTitle: item.name,
+      heroTitleStyle: audioTitleStyle,
       heroDescription: item.description,
       dateText: metaParts.isEmpty ? null : metaParts.join(' · '),
       // 单集封面优先用 episode 自带图，缺省时 _PodcastArtwork 会显示占位图标。
@@ -224,6 +230,7 @@ void showPodcastPreviewEpisodeSheet(
     builder: (ctx) => _InfoSheet(
       title: l10n.podcastEpisodeMeta,
       heroTitle: episode.title,
+      heroTitleStyle: audioTitleStyle,
       heroDescription: episode.description,
       dateText: metaParts.isEmpty ? null : metaParts.join(' · '),
       imageUrl: _hasText(episode.imageUrl) ? episode.imageUrl : podcastImageUrl,
@@ -458,6 +465,7 @@ class _LinkifiedTextState extends State<_LinkifiedText> {
 class _InfoSheet extends StatelessWidget {
   final String title;
   final String heroTitle;
+  final TextStyle? Function(ThemeData theme) heroTitleStyle;
   final String? heroAuthor;
   final String? heroDescription;
   final String? imageUrl;
@@ -469,6 +477,7 @@ class _InfoSheet extends StatelessWidget {
   const _InfoSheet({
     required this.title,
     required this.heroTitle,
+    required this.heroTitleStyle,
     required this.links,
     this.heroAuthor,
     this.heroDescription,
@@ -515,6 +524,7 @@ class _InfoSheet extends StatelessWidget {
               const SizedBox(height: AppSpacing.l),
               _InfoHero(
                 title: heroTitle,
+                titleStyle: heroTitleStyle,
                 author: heroAuthor,
                 description: heroDescription,
                 imageUrl: imageUrl,
@@ -536,6 +546,7 @@ class _InfoSheet extends StatelessWidget {
 
 class _InfoHero extends StatelessWidget {
   final String title;
+  final TextStyle? Function(ThemeData theme) titleStyle;
   final String? author;
   final String? description;
   final String? imageUrl;
@@ -545,6 +556,7 @@ class _InfoHero extends StatelessWidget {
 
   const _InfoHero({
     required this.title,
+    required this.titleStyle,
     this.author,
     this.description,
     this.imageUrl,
@@ -561,7 +573,7 @@ class _InfoHero extends StatelessWidget {
     final headColumn = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        SelectableText(title, style: theme.textTheme.titleLarge),
+        SelectableText(title, style: titleStyle(theme)),
         if (_hasText(author)) ...[
           const SizedBox(height: AppSpacing.xs),
           Text(

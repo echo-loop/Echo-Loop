@@ -6,6 +6,7 @@ import '../l10n/app_localizations.dart';
 import '../models/audio_item.dart';
 import '../services/subtitle_parser.dart';
 import '../theme/app_theme.dart';
+import '../theme/list_item_text_styles.dart';
 import '../widgets/audio_info_chip.dart';
 
 /// 音频详情页：展示单个音频的完整描述、难度与基础元信息。
@@ -34,9 +35,7 @@ class AudioDetailScreen extends StatelessWidget {
         children: [
           Text(
             audioItem.name,
-            style: theme.textTheme.headlineSmall?.copyWith(
-              fontWeight: FontWeight.bold,
-            ),
+            style: audioTitleStyle(theme),
           ),
           if (metaChips.isNotEmpty) ...[
             const SizedBox(height: AppSpacing.s),

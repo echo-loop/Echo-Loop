@@ -10,6 +10,7 @@ import 'package:flutter/material.dart';
 
 import '../../../l10n/app_localizations.dart';
 import '../../../theme/app_theme.dart';
+import '../../../theme/list_item_text_styles.dart';
 import '../../../widgets/common/collection_added_badge.dart';
 
 /// 单个可订阅播客卡片。
@@ -67,7 +68,7 @@ class PodcastSubscribeTile extends StatelessWidget {
                             children: [
                               Text(
                                 title,
-                                style: theme.textTheme.titleMedium,
+                                style: collectionTitleStyle(theme),
                                 maxLines: 2,
                                 overflow: TextOverflow.ellipsis,
                               ),

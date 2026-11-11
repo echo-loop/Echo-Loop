@@ -24,6 +24,7 @@ import '../providers/study_task_provider.dart';
 import '../providers/time_provider.dart';
 import '../router/app_router.dart';
 import '../theme/app_theme.dart';
+import '../theme/list_item_text_styles.dart';
 import '../services/app_logger.dart';
 import '../services/startup_trace.dart';
 import '../widgets/guide_flow.dart';
@@ -42,13 +43,6 @@ const double _kStudyCardIconSize = 56;
 
 /// 学习页卡片进度条右侧百分比文案的宽度，与合集列表项的进度文案保持一致。
 const double _kProgressLabelWidth = 44;
-
-// 与合集详情页、搜索结果的音频列表项标题保持同一字体样式，避免同一概念出现视觉差异。
-const TextStyle _kAudioItemTitleStyle = TextStyle(
-  fontWeight: FontWeight.w500,
-  fontSize: 14,
-  letterSpacing: 0,
-);
 
 /// 学习任务列表页
 ///
@@ -390,7 +384,7 @@ class _StudyMaterialCard extends StatelessWidget {
                         Expanded(
                           child: Text(
                             title,
-                            style: _kAudioItemTitleStyle,
+                            style: audioTitleStyle(theme),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),

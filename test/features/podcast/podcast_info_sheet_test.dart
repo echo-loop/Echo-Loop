@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:echo_loop/features/podcast/podcast_info_sheet.dart';
 import 'package:echo_loop/features/podcast/podcast_models.dart';
 import 'package:echo_loop/models/collection.dart';
+import 'package:echo_loop/theme/list_item_text_styles.dart';
 import 'package:echo_loop/providers/collection_provider.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
@@ -51,6 +52,7 @@ void main() {
                 context,
                 title: 'Details',
                 heroTitle: '6 Minute English',
+                heroTitleStyle: collectionTitleStyle,
                 heroDescription: description,
                 links: const [
                   PodcastInfoLink('RSS URL', 'https://example.com/feed.xml'),

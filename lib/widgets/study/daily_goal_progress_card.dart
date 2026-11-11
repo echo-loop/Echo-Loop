@@ -95,10 +95,10 @@ class DailyGoalProgressCard extends StatelessWidget {
               ),
               const SizedBox(height: AppSpacing.s),
               ClipRRect(
-                borderRadius: BorderRadius.circular(4),
+                borderRadius: BorderRadius.circular(2),
                 child: LinearProgressIndicator(
                   value: isCheckedIn ? 1 : progress,
-                  minHeight: 6,
+                  minHeight: 4,
                   color: color,
                   backgroundColor: palette.track,
                 ),
