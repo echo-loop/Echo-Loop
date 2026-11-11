@@ -4,6 +4,8 @@
 
 ## 本次完成
 
+- [x] 学习计划页顶部进度卡改为合集列表项样式（2026-11-11）：`_ProgressCard` 去掉圆环，左侧改为 56 方形圆角封面（`AudioItemArtwork`），标题改为 14 号 w500、单行省略；描述同为单行省略；右侧底部为进度条 + 数字百分比（`LearningProgressTrack` + 宽 44 的百分比文案，与合集列表项一致）。圆环绘制器 `_ProgressRingPainter` 已删除。测试：`learning_plan_screen_test` 107 项中仅「已完成状态显示正确」失败，该失败在干净的 HEAD 上同样复现（「4/4」出现两次），与本次改动无关。**待真机验证**：卡片排版与两行标题。**完成时间**: 2026-11-11
+
 - [x] 为你推荐卡第二行改为元信息行（2026-11-11）：推荐卡第二行与合集列表项一致，依次展示 CC 徽章、难度徽章、时长与日期，不显示下载状态。元信息构建抽为 `lib/widgets/audio_meta_line.dart`（`buildAudioMetaParts` / `AudioMetaLine` / `formatAudioDuration` / `formatAbsoluteDate`），列表项复用同一套规则后再追加下载状态。阶段文案（如「首次学习 - 逐句精听」）保留，显示在元信息行下方第三行。测试：`study_screen_test` 26 项全部通过；`audio_list_tile_test` 仅剩既有的难度徽章失败。**待真机验证**：推荐卡元信息行的宽度与省略。**完成时间**: 2026-11-11
 
 - [x] 推荐材料排除待解锁的复习（2026-11-11）：`selectStudyRecommendation` 原先只排除已完成与最近完成的材料，复习未到时间（`isReviewLockedAt(now)`）的材料仍可能被推荐，导致同一音频同时出现在「为你推荐」和「待解锁」中。现在待解锁材料不参与推荐，函数新增必填参数 `now`，由 `studyRecommendationProvider` 通过 `nowProvider` 传入。测试：`study_task_provider_test` 新增「待解锁的复习材料不推荐」用例，原有调用点补充 `now`，`study_task_provider_test`（30 项）与 `study_screen_test`（26 项）全部通过。**完成时间**: 2026-11-11

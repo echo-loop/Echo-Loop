@@ -356,9 +356,8 @@ void main() {
         ),
         audioEngineProvider.overrideWith(() => TestAudioEngine()),
         // 媒体就绪以本地文件存在为前提；测试中直接视为存在，避免真实 IO 挂起 FakeAsync。
-        localMediaFileExistsProvider(
-          item.id,
-        ).overrideWith((ref) => Future.value(true)),
+        localMediaFileExistsProvider(item.id)
+            .overrideWith((ref) => Future.value(true)),
         learningProgressProvider.overrideWith(
           () =>
               TestLearningProgressNotifier(withAutoCompletions(progressState)),
@@ -791,7 +790,7 @@ void main() {
       );
     });
 
-    testWidgets('进度卡片副标题显示文件描述，最多两行并省略', (tester) async {
+    testWidgets('进度卡片副标题显示文件描述，单行并省略', (tester) async {
       const description = 'A puma was spotted south of London.';
       await tester.pumpWidget(
         createTestWidget(
@@ -801,25 +800,27 @@ void main() {
       await tester.pumpAndSettle();
 
       final text = tester.widget<Text>(find.text(description));
-      expect(text.maxLines, 2);
+      expect(text.maxLines, 1);
       expect(text.overflow, TextOverflow.ellipsis);
     });
 
     testWidgets('文件描述为空白时不显示副标题行', (tester) async {
-      Finder subtitleTexts() =>
-          find.byWidgetPredicate((w) => w is Text && w.maxLines == 2);
+      Finder singleLineTexts() =>
+          find.byWidgetPredicate((w) => w is Text && w.maxLines == 1);
 
-      // 基线：无描述时卡片上没有任何两行文本
-      await tester.pumpWidget(createTestWidget());
+      // 基线：有标题但无描述时的单行文本数量
+      await tester.pumpWidget(
+        createTestWidget(audioItem: testAudioItem.copyWith(description: null)),
+      );
       await tester.pumpAndSettle();
-      final baselineCount = subtitleTexts().evaluate().length;
+      final baselineCount = singleLineTexts().evaluate().length;
 
       await tester.pumpWidget(
         createTestWidget(audioItem: testAudioItem.copyWith(description: '  ')),
       );
       await tester.pumpAndSettle();
 
-      expect(subtitleTexts().evaluate().length, baselineCount);
+      expect(singleLineTexts().evaluate().length, baselineCount);
     });
 
     testWidgets('有难度的音频在进度卡片元信息行显示难度徽章', (tester) async {
@@ -991,9 +992,8 @@ void main() {
         findsOneWidget,
       );
 
-      ScaffoldMessenger.of(
-        tester.element(find.byType(LearningPlanScreen)),
-      ).hideCurrentSnackBar();
+      ScaffoldMessenger.of(tester.element(find.byType(LearningPlanScreen)))
+          .hideCurrentSnackBar();
       await tester.pumpAndSettle();
 
       await tester.tap(find.text('Start practicing'));
@@ -1170,9 +1170,7 @@ void main() {
       // 验证 Provider 状态 isPaused=true
       final appContext = tester.element(find.byType(LearningPlanScreen));
       final container = ProviderScope.containerOf(appContext);
-      final p = container
-          .read(learningProgressProvider)
-          .progressMap['test-1'];
+      final p = container.read(learningProgressProvider).progressMap['test-1'];
       expect(p!.isPaused, isTrue);
     });
 
@@ -1550,14 +1548,15 @@ void main() {
               ),
             ),
             audioEngineProvider.overrideWith(() => TestAudioEngine()),
-            localMediaFileExistsProvider(
-              longAudio.id,
-            ).overrideWith((ref) => Future.value(true)),
+            localMediaFileExistsProvider(longAudio.id)
+                .overrideWith((ref) => Future.value(true)),
             learningProgressProvider.overrideWith(
               () => TestLearningProgressNotifier(),
             ),
             learningSessionProvider.overrideWith(() => TestLearningSession()),
-            supabaseSessionProvider.overrideWithValue(AsyncData<Session?>(signedInSession())),
+            supabaseSessionProvider.overrideWithValue(
+              AsyncData<Session?>(signedInSession()),
+            ),
             // 已登录用户视为已解锁（Pro），转录机制测试不被额度闸拦截。
             subscriptionEntitlementOverride(),
           ]),
@@ -2335,9 +2334,8 @@ void main() {
           );
           expect(
             find.text(
-              AppLocalizations.of(
-                sheetContext,
-              )!.estimatedMinutes(effectiveRepeatCount),
+              AppLocalizations.of(sheetContext)!
+                  .estimatedMinutes(effectiveRepeatCount),
             ),
             findsOneWidget,
           );
@@ -2486,9 +2484,8 @@ void main() {
           audioItem: notDownloaded,
           listeningPracticeOverride: () => listening,
           extraOverrides: [
-            mediaReadinessProvider(
-              notDownloaded.id,
-            ).overrideWith((ref) => ref.watch(readiness)),
+            mediaReadinessProvider(notDownloaded.id)
+                .overrideWith((ref) => ref.watch(readiness)),
             communityDownloadProvider.overrideWith(() => community),
           ],
         ),
@@ -2513,9 +2510,8 @@ void main() {
           audioItem: notDownloaded,
           listeningPracticeOverride: () => listening,
           extraOverrides: [
-            mediaReadinessProvider(
-              notDownloaded.id,
-            ).overrideWith((ref) => ref.watch(readiness)),
+            mediaReadinessProvider(notDownloaded.id)
+                .overrideWith((ref) => ref.watch(readiness)),
             communityDownloadProvider.overrideWith(
               () => _RecordingCommunityDownload(),
             ),
@@ -2553,9 +2549,8 @@ void main() {
         createTestWidget(
           audioItem: notDownloaded,
           extraOverrides: [
-            mediaReadinessProvider(
-              notDownloaded.id,
-            ).overrideWith((ref) => const MediaFailed('network')),
+            mediaReadinessProvider(notDownloaded.id)
+                .overrideWith((ref) => const MediaFailed('network')),
             communityDownloadProvider.overrideWith(() => community),
           ],
         ),
