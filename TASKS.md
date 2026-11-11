@@ -4,6 +4,8 @@
 
 ## 本次完成
 
+- [x] BUG FIX：社区合集音频下载失败后重试被永久拒绝（2026-11-11）：`CommunityDownload.start()` 用 `state.containsKey` 判断是否在下载，失败记录残留在 state 中，重试每次都返回 `alreadyRunning` 且不发请求，直到杀进程重启。改为以 `_active` 判断，失败记录只用于展示。测试：`community_download_notifier_test.dart` 新增「下载失败后重试会重新开始」，先红后绿；`test/features/community_collections`、`test/features/media_readiness` 共 `+94` 通过，`test/screens/learning_plan_screen_test.dart`、`test/widgets/audio_list_tile_test.dart` 共 `+142` 通过；改动文件 `flutter analyze` 无问题。**待真机验证**：弱网下失败后直接点重试能否开始下载。**完成时间**: 2026-11-11
+
 - [x] 已订阅合集列表项展示下载状态与进度（2026-11-11）：素材元信息行末尾显示状态，未下载为灰色下载图标 +「未下载」，已下载为绿色下载图标 +「已下载」，下载中（含排队）为主色进度环（无进度时旋转）+「下载中」；无下载来源的素材不显示。新增 l10n `audioNotDownloaded` / `audioDownloaded` / `audioDownloading`（中英文）。该场景下不再重复显示badge 行的进度条，本地合集与资源库全局列表保持原样。测试：`test/widgets/audio_list_tile_test.dart` 新增 4 项（未下载 / 已下载 / 下载中 / 本地合集不显示），全文件 `+64` 通过；相关套件 `+49` 通过。**待真机验证**：下载中进度环随进度推进是否流畅。**完成时间**: 2026-11-11
 
 - [x] 删除资源库全局音频列表（2026-11-11）：移除资源库内隐藏的音频视图（`LibraryViewType`、被注释的合集/音频切换组件、连续点击标题 5 次的「全部」入口及 `library_all_audio_button`），资源库只保留合集列表与全局搜索结果。`AudioListView.items` 改为必填，去掉 provider 读取分支；`libraryShowAll` 文案已删除并重新生成 l10n。`AudioListTile` 的全局上下文仍被搜索结果使用，保留。测试：删除 4 个旧入口相关用例，新增的 `test/screens/collection_screen_test.dart` 删除用例显式保持 `audioLibraryProvider` 存活以便断言；`test/screens test/widgets` 全量 `+1551 ~7` 通过。**完成时间**: 2026-11-11

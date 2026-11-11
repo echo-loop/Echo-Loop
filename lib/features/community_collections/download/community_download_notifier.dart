@@ -54,7 +54,9 @@ class CommunityDownload extends _$CommunityDownload {
     required String audioItemId,
     required String displayName,
   }) async {
-    if (state.containsKey(audioItemId) || !_starting.add(audioItemId)) {
+    // 以 _active 判断是否在下载：state 里的失败记录只用于展示，不代表仍在进行，
+    // 若用 state 判断，失败后的重试会被永久拒绝，直到进程重启。
+    if (_active.containsKey(audioItemId) || !_starting.add(audioItemId)) {
       AppLogger.log(
         'CommunityDownload',
         'start rejected: already running id=$audioItemId',

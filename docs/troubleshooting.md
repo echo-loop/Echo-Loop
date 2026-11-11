@@ -660,3 +660,14 @@
 - 规则：固定尺寸容器内的文字不能假设单行或固定宽度；需要撑满的图形用 `Expanded` / `LayoutBuilder` 承接剩余空间，不用写死的高度。
 - 测试约定：`study_duration_chart_test.dart` 「2 倍字号下周标签单行且图表不溢出」，先在未修复代码上复现 `RenderFlex OVERFLOWING`。
 - 修复时间：2026-11-10。
+
+### 7.44 社区合集音频下载失败后重试永久被拒，只能杀进程恢复
+
+- 现象：弱网下音频下载失败，页面停在「下载失败，请重试」，点重试无效；开发者模式下载队列里也没有该任务。杀进程重启后同一条目可以正常下载。
+- 日志特征：失败后每次重试都打出 `start rejected: already running`，`MediaEnsure` 返回 `result=alreadyRunning`，但没有任何网络请求；同一时段其他条目下载正常，说明网络并非持续故障。
+- 根因：`CommunityDownload.start()` 的重入判断用 `state.containsKey(audioItemId)`。`state` 中的 `DownloadFailed` 只用于展示失败，不代表仍在下载，却被当作「进行中」，失败记录只在取消或进程重启时清除。失败发生在获取文件详情阶段（尚未入队后台下载），因此队列里也看不到任务。
+- 解法：重入判断改为 `_active.containsKey`（`_runDownload` 的 finally 会在任务结束时移除），与 `_starting` 共同防止并发重复启动。
+- 规则：区分「展示状态」与「运行状态」。用于拦截并发的判断必须读取真实的运行登记表，不能复用面向 UI 的状态 map。
+- 测试约定：`community_download_notifier_test.dart`「下载失败后重试会重新开始，不被残留的失败状态拦截」，先在未修复代码上复现 `StartResult.alreadyRunning`。
+- 相关代码：`lib/features/community_collections/download/community_download_notifier.dart`（`start`）。
+- 修复时间：2026-11-11。
