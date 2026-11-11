@@ -4,6 +4,14 @@
 
 ## 本次完成
 
+- [x] 已订阅合集列表项展示下载状态与进度（2026-11-11）：素材元信息行末尾显示状态，未下载为灰色下载图标 +「未下载」，已下载为绿色下载图标 +「已下载」，下载中（含排队）为主色进度环（无进度时旋转）+「下载中」；无下载来源的素材不显示。新增 l10n `audioNotDownloaded` / `audioDownloaded` / `audioDownloading`（中英文）。该场景下不再重复显示badge 行的进度条，本地合集与资源库全局列表保持原样。测试：`test/widgets/audio_list_tile_test.dart` 新增 4 项（未下载 / 已下载 / 下载中 / 本地合集不显示），全文件 `+64` 通过；相关套件 `+49` 通过。**待真机验证**：下载中进度环随进度推进是否流畅。**完成时间**: 2026-11-11
+
+- [x] 删除资源库全局音频列表（2026-11-11）：移除资源库内隐藏的音频视图（`LibraryViewType`、被注释的合集/音频切换组件、连续点击标题 5 次的「全部」入口及 `library_all_audio_button`），资源库只保留合集列表与全局搜索结果。`AudioListView.items` 改为必填，去掉 provider 读取分支；`libraryShowAll` 文案已删除并重新生成 l10n。`AudioListTile` 的全局上下文仍被搜索结果使用，保留。测试：删除 4 个旧入口相关用例，新增的 `test/screens/collection_screen_test.dart` 删除用例显式保持 `audioLibraryProvider` 存活以便断言；`test/screens test/widgets` 全量 `+1551 ~7` 通过。**完成时间**: 2026-11-11
+
+- [x] 合集详情页列表项统一圆角方形与紧凑留白（2026-11-11）：本地合集列表项的学习进度图标改为 48×48 圆角 8 方形（`LearningProgressIcon` 新增 `isRoundedSquare`，进度环用自绘圆角矩形路径），与已订阅封面一致；合集详情页两侧留白收窄（左右内边距 16/12，菜单区域 60→44）。资源库全局列表与学习页保持圆形。测试：`learning_progress_icon_test.dart` 新增圆角方形底色与进度环用例，`audio_list_tile_test.dart` 断言本地合集图标为方形 48，相关套件共 `+108` 通过。**完成时间**: 2026-11-11
+
+- [x] 已订阅合集详情页列表项方形图标（2026-11-11）：`AudioListTile` 在社区 / 播客合集上下文中，左侧改为 48×48 圆角 8 方形图标；封面优先级为单集封面（`podcastImageUrl`）→ 播客 Feed 封面 / 社区合集封面（社区按地区选 CDN）→ 默认音频 / 视频图标。暂隐藏该类列表项的学习进度与下载状态（后续另行设计）；下架项保留云离线图标。用户自建合集与全局列表不变。测试：`test/widgets/audio_list_tile_test.dart` 新增「已订阅合集图标」分组 4 项，全文件 `+60` 通过；`test/screens/collection_detail_search_test.dart`、`test/features/community_collections/community_collection_detail_screen_test.dart` 通过。**完成时间**: 2026-11-11
+
 - [x] 合集内素材标题最多两行（2026-11-11）：`AudioListTile` 标题在合集上下文（`collectionId` 非空）限制为 2 行并省略，资源库全局列表保持自然换行（既有测试约束）。测试：`test/widgets/audio_list_tile_test.dart` 新增合集内长标题用例，全文件通过。**完成时间**: 2026-11-11
 
 - [x] 导入入口图标替换（2026-11-11）：`import_audio_sheet.dart` 的本地文件选项由 `Icons.audio_file_outlined` 改为 `assets/icon/file-input.svg`，网盘由 `Icons.cloud_outlined` 改为 `cloud-download.svg`，链接由 `Icons.link` 改为 `link.svg`；三者共用 `_importOptionSvgIcon`，24pt 居中于 34pt 图标位，颜色取 `colorScheme.primary`；`pubspec.yaml` 注册三个资源。验证：`flutter analyze` 无问题，`test/widgets/import_audio_sheet_test.dart` 38 项通过。**待真机验证**：浅色 / 深色主题下图标的线条粗细与颜色观感。**完成时间**: 2026-11-11

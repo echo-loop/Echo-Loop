@@ -1,11 +1,10 @@
 // 音频列表视图
 //
-// 展示音频列表，支持排序。同时用于资源库全局列表和合集详情页。
-// - items 为 null 时从 audioLibraryProvider 读取（全局场景）
-// - items 非 null 时使用传入的列表（合集场景）
+// 展示调用方传入的音频列表，支持排序。用于合集详情页与全局搜索结果。
 // 排序逻辑统一使用 audioListSettingsProvider。
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../models/audio_item.dart';
 import '../providers/audio_library_provider.dart';
 import '../providers/audio_list_settings_provider.dart';
@@ -82,8 +81,8 @@ List<AudioItem> sortAudioItems(List<AudioItem> items, AudioSortType sortType) {
 
 /// 音频列表视图 — 资源库全局列表和合集详情页共用
 class AudioListView extends ConsumerStatefulWidget {
-  /// 外部传入的音频列表（合集场景），为 null 时从 provider 读取
-  final List<AudioItem>? items;
+  /// 要展示的音频列表，由调用方决定数据来源（合集或搜索结果）
+  final List<AudioItem> items;
 
   /// 合集 ID — 传递给 AudioListTile
   final String? collectionId;
@@ -131,7 +130,7 @@ class AudioListView extends ConsumerStatefulWidget {
 
   const AudioListView({
     super.key,
-    this.items,
+    required this.items,
     this.collectionId,
     this.emptyState,
     this.header,
@@ -161,10 +160,7 @@ class _AudioListViewState extends ConsumerState<AudioListView> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
 
-    // 数据来源：外部传入 or provider
-    final List<AudioItem> audioItems =
-        widget.items ??
-        ref.watch(audioLibraryProvider.select((s) => s.audioItems));
+    final List<AudioItem> audioItems = widget.items;
 
     // 受控模式（overrideSortType 非 null）下不再 watch provider，避免全局排序
     // 变化把社区合集详情页的独立 sort state 误刷。

@@ -1307,9 +1307,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get myLibrary => 'My Library';
 
   @override
-  String get libraryShowAll => 'All';
-
-  @override
   String get collectionsTab => 'Collections';
 
   @override
@@ -5178,6 +5175,15 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get audioQueued => 'Queued';
+
+  @override
+  String get audioNotDownloaded => 'Not downloaded';
+
+  @override
+  String get audioDownloaded => 'Downloaded';
+
+  @override
+  String get audioDownloading => 'Downloading';
 
   @override
   String get baiduImportedToLibrary => 'Imported to library';

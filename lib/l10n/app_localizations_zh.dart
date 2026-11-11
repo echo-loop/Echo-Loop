@@ -1265,9 +1265,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get myLibrary => '我的资源库';
 
   @override
-  String get libraryShowAll => '全部';
-
-  @override
   String get collectionsTab => '合集';
 
   @override
@@ -4928,6 +4925,15 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get audioQueued => '排队中';
+
+  @override
+  String get audioNotDownloaded => '未下载';
+
+  @override
+  String get audioDownloaded => '已下载';
+
+  @override
+  String get audioDownloading => '下载中';
 
   @override
   String get baiduImportedToLibrary => '已导入到资源库';

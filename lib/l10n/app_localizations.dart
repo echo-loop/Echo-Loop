@@ -2390,12 +2390,6 @@ abstract class AppLocalizations {
   /// **'My Library'**
   String get myLibrary;
 
-  /// No description provided for @libraryShowAll.
-  ///
-  /// In en, this message translates to:
-  /// **'All'**
-  String get libraryShowAll;
-
   /// No description provided for @collectionsTab.
   ///
   /// In en, this message translates to:
@@ -9073,6 +9067,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Queued'**
   String get audioQueued;
+
+  /// No description provided for @audioNotDownloaded.
+  ///
+  /// In en, this message translates to:
+  /// **'Not downloaded'**
+  String get audioNotDownloaded;
+
+  /// No description provided for @audioDownloaded.
+  ///
+  /// In en, this message translates to:
+  /// **'Downloaded'**
+  String get audioDownloaded;
+
+  /// No description provided for @audioDownloading.
+  ///
+  /// In en, this message translates to:
+  /// **'Downloading'**
+  String get audioDownloading;
 
   /// No description provided for @baiduImportedToLibrary.
   ///

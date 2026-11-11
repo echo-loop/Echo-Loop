@@ -8,10 +8,15 @@ import 'package:echo_loop/models/learning_plan.dart';
 import 'package:echo_loop/models/learning_progress.dart';
 import 'package:echo_loop/database/enums.dart';
 import 'package:echo_loop/providers/learning_settings_provider.dart';
+
 import '../helpers/mock_providers.dart';
 
 void main() {
-  Widget createTestWidget(LearningProgress? progress, {bool isVideo = false}) {
+  Widget createTestWidget(
+    LearningProgress? progress, {
+    bool isVideo = false,
+    bool isRoundedSquare = false,
+  }) {
     return ProviderScope(
       overrides: dedupeOverrides([
         initialLearningSettingsProvider.overrideWithValue(
@@ -21,7 +26,11 @@ void main() {
       child: MaterialApp(
         home: Scaffold(
           body: Center(
-            child: LearningProgressIcon(progress: progress, isVideo: isVideo),
+            child: LearningProgressIcon(
+              progress: progress,
+              isVideo: isVideo,
+              isRoundedSquare: isRoundedSquare,
+            ),
           ),
         ),
       ),
@@ -149,6 +158,40 @@ void main() {
       expect(find.byType(CircularProgressIndicator), findsOneWidget);
       expect(find.byType(SvgPicture), findsOneWidget);
       expect(find.byIcon(Icons.graphic_eq), findsNothing);
+    });
+
+    testWidgets('圆角方形未学习 → 底色为圆角矩形而非圆形', (tester) async {
+      await tester.pumpWidget(createTestWidget(null, isRoundedSquare: true));
+
+      final container = tester.widget<Container>(find.byType(Container).first);
+      final decoration = container.decoration as BoxDecoration;
+      expect(decoration.shape, BoxShape.rectangle);
+      expect(decoration.borderRadius, BorderRadius.circular(8));
+    });
+
+    testWidgets('圆角方形进行中 → 自绘进度环，不使用圆形进度指示器', (tester) async {
+      final progress = LearningProgress(
+        audioItemId: 'test-1',
+        currentStage: LearningStage.firstLearn,
+        currentSubStage: SubStageType.listenAndRepeat,
+        updatedAt: DateTime(2026, 1, 1),
+      );
+
+      await tester.pumpWidget(
+        createTestWidget(progress, isRoundedSquare: true),
+      );
+
+      expect(find.byType(CircularProgressIndicator), findsNothing);
+      // 进度环由私有 painter 绘制，这里只确认尺寸与绘制入口，进度值由圆形用例覆盖。
+      final paint = tester.widget<CustomPaint>(
+        find.descendant(
+          of: find.byType(LearningProgressIcon),
+          matching: find.byType(CustomPaint),
+        ),
+      );
+      expect(paint.painter, isNotNull);
+      expect(paint.size, const Size.square(40));
+      expect(find.byIcon(Icons.graphic_eq), findsOneWidget);
     });
   });
 }

@@ -69,6 +69,13 @@ class AppTheme {
   /// 语义色：成功/完成（用于完成对话框的勾选徽章，清新绿）
   static const Color successColor = Color(0xFF2E9E5B);
 
+  /// 语义色：下载中（列表项下载进度环与文案，与品牌选中蓝区分）。
+  /// 深色卡片上 #3066E3 对比度约 3.9:1，文案不达 AA，故深色模式提亮到约 6:1。
+  static Color downloadingColor(Brightness brightness) =>
+      brightness == Brightness.dark
+      ? const Color(0xFF5B8DEF)
+      : const Color(0xFF3066E3);
+
   /// 语义色：女声标签（国际通用粉/玫瑰，浅深色均可读）
   static const Color femaleVoiceColor = Color(0xFFE0709F);
 

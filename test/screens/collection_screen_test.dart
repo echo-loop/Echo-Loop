@@ -3,10 +3,10 @@
 // 测试资源库页面的合集视图渲染和交互。
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:echo_loop/models/collection.dart';
 import 'package:echo_loop/screens/library_screen.dart';
-import 'package:echo_loop/widgets/audio_list_view.dart';
 import 'package:echo_loop/widgets/common/svg_action_icon.dart';
 import 'package:echo_loop/providers/settings_provider.dart';
 import 'package:echo_loop/providers/audio_library_provider.dart';
@@ -17,7 +17,6 @@ import 'package:echo_loop/features/user_region/user_region_providers.dart';
 
 import '../helpers/mock_providers.dart';
 import '../helpers/test_app.dart';
-
 
 /// 按 SVG 资源名查找图标（图标已从 Material 切换为 SvgActionIcon）。
 Finder svgIcon(String assetName) => find.byWidgetPredicate(
@@ -45,68 +44,6 @@ void main() {
         expect(find.text('My Library'), findsOneWidget);
         expect(find.text('Collections'), findsNothing);
         expect(find.text('Audio'), findsNothing);
-      });
-
-      testWidgets('连续点击标题五次后显示全部音频入口', (tester) async {
-        await tester.pumpWidget(createTestScreen(const LibraryScreen()));
-        await tester.pumpAndSettle();
-
-        final title = find.byKey(const Key('library_title'));
-        expect(find.byKey(const Key('library_all_audio_button')), findsNothing);
-
-        for (var i = 0; i < 4; i++) {
-          await tester.tap(title);
-        }
-        await tester.pump();
-        expect(find.byKey(const Key('library_all_audio_button')), findsNothing);
-
-        await tester.tap(title);
-        await tester.pump();
-        expect(find.text('All'), findsOneWidget);
-      });
-
-      testWidgets('点击全部后进入原音频列表视图', (tester) async {
-        await tester.pumpWidget(createTestScreen(const LibraryScreen()));
-        await tester.pumpAndSettle();
-
-        final title = find.byKey(const Key('library_title'));
-        for (var i = 0; i < 5; i++) {
-          await tester.tap(title);
-        }
-        await tester.pump();
-        await tester.tap(find.byKey(const Key('library_all_audio_button')));
-        await tester.pumpAndSettle();
-
-        expect(find.text('No audio files yet'), findsOneWidget);
-        expect(find.byType(AudioSortButton), findsOneWidget);
-      });
-
-      testWidgets('全部入口仅保存在当前页面内存中', (tester) async {
-        await tester.pumpWidget(createTestScreen(const LibraryScreen()));
-        await tester.pumpAndSettle();
-
-        for (var i = 0; i < 5; i++) {
-          await tester.tap(find.byKey(const Key('library_title')));
-        }
-        await tester.pump();
-        expect(find.text('All'), findsOneWidget);
-
-        await tester.pumpWidget(createTestScreen(const LibraryScreen()));
-        await tester.pumpAndSettle();
-        expect(find.text('All'), findsNothing);
-      });
-
-      testWidgets('中文环境显示全部按钮', (tester) async {
-        await tester.pumpWidget(
-          createTestScreen(const LibraryScreen(), locale: const Locale('zh')),
-        );
-        await tester.pumpAndSettle();
-
-        for (var i = 0; i < 5; i++) {
-          await tester.tap(find.byKey(const Key('library_title')));
-        }
-        await tester.pump();
-        expect(find.text('全部'), findsOneWidget);
       });
 
       testWidgets('显示创建按钮', (tester) async {
@@ -597,12 +534,22 @@ void main() {
           findsOneWidget,
         );
 
+        // 资源库页面不再监听音频库，显式保持 provider 存活，才能断言删除后的最终状态。
+        final container = ProviderScope.containerOf(
+          tester.element(find.byType(LibraryScreen)),
+        );
+        final keepAudioLibraryAlive = container.listen(
+          audioLibraryProvider,
+          (_, __) {},
+        );
+
         // 删除 → 合集删除，音频保留。
         await tester.tap(find.widgetWithText(FilledButton, 'Delete'));
         await tester.pumpAndSettle();
 
         expect(collectionList.state.rawCollections, isEmpty);
         expect(audioLib.state.audioItems, hasLength(1));
+        keepAudioLibraryAlive.close();
       });
 
       testWidgets('删除合集默认勾选时一并删除音频文件', (tester) async {
