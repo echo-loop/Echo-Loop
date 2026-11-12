@@ -609,6 +609,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.favoriteVocabularyReview,
         parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) => const FavoriteVocabularyReviewScreen(),
+        routes: [_sentenceDetailRoute()],
       ),
       // 活动日历（全屏）
       GoRoute(
@@ -621,6 +622,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.dictionaryLookup,
         parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) => const DictionaryLookupScreen(),
+        routes: [_sentenceDetailRoute()],
       ),
       GoRoute(
         path: AppRoutes.reviewStatistics,

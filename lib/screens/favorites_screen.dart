@@ -16,15 +16,11 @@ import '../analytics/models/event_names.dart';
 import '../features/usage/usage_event.dart';
 import '../features/usage/usage_providers.dart';
 import '../database/app_database.dart';
-import '../database/daos/audio_item_dao.dart';
 import '../database/daos/bookmark_dao.dart';
 import '../database/providers.dart';
 import '../l10n/app_localizations.dart';
 import '../models/dict_entry.dart';
-import '../models/sentence.dart';
-import '../models/word_highlight_binding.dart';
 import '../screens/sentence_detail_screen.dart';
-import '../providers/audio_engine/audio_engine_provider.dart';
 import '../providers/short_audio_player_provider.dart';
 import '../providers/tts/tts_controller_provider.dart';
 import '../providers/pronunciation/pronunciation_providers.dart';
@@ -43,10 +39,10 @@ import '../services/dictionary/ai_dictionary_source.dart';
 import '../services/pronunciation/local_audio_clip_player.dart';
 import '../services/pronunciation/local_audio_range_player.dart';
 import '../services/pronunciation/source_sentence_player.dart';
-import '../services/subtitle_parser.dart';
 import '../router/app_router.dart';
 import '../theme/app_theme.dart';
 import '../widgets/favorites/sentence_recycle_bin_sheet.dart';
+import '../widgets/favorites/source_sentence_detail_navigation.dart';
 import '../widgets/favorites/vocabulary_recycle_bin_sheet.dart';
 import '../widgets/bookmark_review/bookmark_review_settings_sheet.dart';
 import '../widgets/common/app_popup_menu.dart';
@@ -881,7 +877,7 @@ class _BookmarkSentenceTileState extends ConsumerState<_BookmarkSentenceTile> {
         sentenceIndex: bm.sentenceIndex,
         startTimeMs: (bm.startTime * 1000).round(),
         endTimeMs: (bm.endTime * 1000).round(),
-        wordHighlightSource: _audioEngineWordHighlightSource(
+        wordHighlightSource: audioEngineWordHighlightSource(
           ref,
           widget.audioId,
         ),
@@ -1021,109 +1017,6 @@ class _FavoriteSourceSentenceTile extends StatelessWidget {
       ),
     );
   }
-}
-
-/// 解析收藏词汇来源句进入讲解页所需的位置。
-///
-/// 新数据直接使用持久化的句序和时间；旧数据缺少其中任一字段时，改从当前
-/// 材料字幕按句序或文本恢复，避免把错误的时间范围传给讲解页。
-Future<void> _openFavoriteSourceSentenceDetail({
-  required BuildContext context,
-  required WidgetRef ref,
-  required String audioItemId,
-  required String sentenceText,
-  required int? sentenceIndex,
-  required int? sentenceStartMs,
-  required int? sentenceEndMs,
-}) async {
-  final audioItemDao = ref.read(audioItemDaoProvider);
-  final audio = await audioItemDao.getById(audioItemId);
-  if (audio == null) return;
-
-  final storedRangeIsValid =
-      sentenceStartMs != null &&
-      sentenceEndMs != null &&
-      sentenceEndMs - sentenceStartMs >= 200;
-  final storedIndexIsValid = sentenceIndex != null && sentenceIndex >= 0;
-  final storedLocation = storedRangeIsValid && storedIndexIsValid
-      ? (
-          sentenceIndex: sentenceIndex,
-          startTimeMs: sentenceStartMs,
-          endTimeMs: sentenceEndMs,
-        )
-      : null;
-  final location =
-      storedLocation ??
-      await _resolveSourceSentenceLocation(
-        audioItemDao: audioItemDao,
-        audioItemId: audioItemId,
-        sentenceText: sentenceText,
-        preferredSentenceIndex: sentenceIndex,
-      );
-  if (location == null || !context.mounted) return;
-
-  AppRoutes.pushNested(
-    context,
-    AppRoutes.sentenceDetailSegment,
-    extra: SentenceDetailArgs(
-      audioItemId: audioItemId,
-      audioName: audio.name,
-      sentenceText: sentenceText,
-      sentenceIndex: location.sentenceIndex,
-      startTimeMs: location.startTimeMs,
-      endTimeMs: location.endTimeMs,
-      wordHighlightSource: _audioEngineWordHighlightSource(ref, audioItemId),
-    ),
-  );
-}
-
-/// 收藏详情页的句子试听由全局音频引擎播放，因此显式绑定该引擎的时间轴。
-WordHighlightSource _audioEngineWordHighlightSource(
-  WidgetRef ref,
-  String audioItemId,
-) {
-  final engine = ref.read(audioEngineProvider.notifier);
-  return WordHighlightSource(
-    audioItemId: audioItemId,
-    positionStream: engine.absolutePositionStream,
-    currentPosition: engine.absoluteCurrentPosition,
-    playbackStatus: engine.wordHighlightPlaybackStatus,
-    playbackStatusStream: engine.wordHighlightPlaybackStatusStream,
-  );
-}
-
-/// 从材料字幕恢复来源句的位置；优先信任仍与文本一致的原句序。
-Future<({int sentenceIndex, int startTimeMs, int endTimeMs})?>
-_resolveSourceSentenceLocation({
-  required AudioItemDao audioItemDao,
-  required String audioItemId,
-  required String sentenceText,
-  required int? preferredSentenceIndex,
-}) async {
-  final srt = await audioItemDao.getTranscriptSrt(audioItemId);
-  if (srt == null || srt.isEmpty) return null;
-  final sentences = await SubtitleParser.parseSubtitleString(srt);
-  final normalizedText = sentenceText.trim();
-  if (normalizedText.isEmpty) return null;
-
-  final preferred =
-      preferredSentenceIndex != null &&
-          preferredSentenceIndex >= 0 &&
-          preferredSentenceIndex < sentences.length
-      ? sentences[preferredSentenceIndex]
-      : null;
-  final resolved = preferred?.text.trim() == normalizedText
-      ? preferred
-      : sentences.cast<Sentence?>().firstWhere(
-          (candidate) => candidate?.text.trim() == normalizedText,
-          orElse: () => null,
-        );
-  if (resolved == null) return null;
-  return (
-    sentenceIndex: resolved.index,
-    startTimeMs: resolved.startTime.inMilliseconds,
-    endTimeMs: resolved.endTime.inMilliseconds,
-  );
 }
 
 // ============================================================
@@ -1561,7 +1454,7 @@ class _SavedPhraseTileState extends ConsumerState<_SavedPhraseTile> {
     final audioItemId = phrase.audioItemId;
     final sentenceText = phrase.sentenceText;
     if (audioItemId == null || sentenceText == null) return Future.value();
-    return _openFavoriteSourceSentenceDetail(
+    return openFavoriteSourceSentenceDetail(
       context: context,
       ref: ref,
       audioItemId: audioItemId,
@@ -1834,7 +1727,7 @@ class _SavedWordTileState extends ConsumerState<_SavedWordTile> {
     final audioItemId = word.audioItemId;
     final sentenceText = word.sentenceText;
     if (audioItemId == null || sentenceText == null) return Future.value();
-    return _openFavoriteSourceSentenceDetail(
+    return openFavoriteSourceSentenceDetail(
       context: context,
       ref: ref,
       audioItemId: audioItemId,
