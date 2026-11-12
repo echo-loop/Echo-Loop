@@ -1184,7 +1184,6 @@ void main() {
       };
 
       final result = selectStudyRecommendation(
-        now: now,
         materials: materials,
         progressByAudioId: progress,
         playbackSavedAtByAudioId: {
@@ -1204,7 +1203,6 @@ void main() {
 
     test('待解锁的复习材料不推荐，即使它是最近学习的材料', () {
       final result = selectStudyRecommendation(
-        now: now,
         materials: [material('locked', 'Locked'), material('free', 'Free')],
         progressByAudioId: {
           'locked': LearningProgress(
@@ -1222,6 +1220,25 @@ void main() {
       expect(result?.id, 'free');
     });
 
+    test('已到时间的待复习材料也不推荐，它已在「待复习」分组中展示', () {
+      final result = selectStudyRecommendation(
+        materials: [material('ready', 'Ready'), material('free', 'Free')],
+        progressByAudioId: {
+          'ready': LearningProgress(
+            audioItemId: 'ready',
+            currentStage: LearningStage.review1,
+            lastStageCompletedAt: now.subtract(const Duration(days: 365)),
+            updatedAt: now,
+          ),
+        },
+        playbackSavedAtByAudioId: {'ready': now.add(const Duration(hours: 1))},
+        latestCompletionAtByAudioId: const {},
+        recentCompletions: const [],
+      );
+
+      expect(result?.id, 'free');
+    });
+
     test('随心听播放、两类学习断点和完成记录都能标记最近学习', () {
       AudioItem? select({
         Map<String, LearningProgress> progress = const {},
@@ -1229,7 +1246,6 @@ void main() {
         Map<String, DateTime> completionTimes = const {},
       }) {
         return selectStudyRecommendation(
-          now: now,
           materials: [material('a', 'Alpha')],
           progressByAudioId: progress,
           playbackSavedAtByAudioId: playbackTimes,
@@ -1275,7 +1291,6 @@ void main() {
       ];
 
       final result = selectStudyRecommendation(
-        now: now,
         materials: materials,
         progressByAudioId: const {},
         playbackSavedAtByAudioId: const {},
@@ -1291,7 +1306,6 @@ void main() {
 
     test('没有可匹配的最近完成材料时选择名称排序后的第一条', () {
       final result = selectStudyRecommendation(
-        now: now,
         materials: [
           material('lower', 'alpha'),
           material('upper', 'Alpha'),
@@ -1320,7 +1334,6 @@ void main() {
       };
 
       final available = selectStudyRecommendation(
-        now: now,
         materials: materials,
         progressByAudioId: completedProgress,
         playbackSavedAtByAudioId: const {},
@@ -1328,7 +1341,6 @@ void main() {
         recentCompletions: const [],
       );
       final allCompleted = selectStudyRecommendation(
-        now: now,
         materials: [materials.first],
         progressByAudioId: completedProgress,
         playbackSavedAtByAudioId: const {},
@@ -1348,7 +1360,6 @@ void main() {
       ];
 
       final result = selectStudyRecommendation(
-        now: now,
         materials: materials,
         progressByAudioId: {
           'completed-after-anchor': LearningProgress(
@@ -1367,7 +1378,6 @@ void main() {
 
     test('最近完成锚点之后没有材料时不循环', () {
       final result = selectStudyRecommendation(
-        now: now,
         materials: [material('last', 'Zulu'), material('first', 'Alpha')],
         progressByAudioId: const {},
         playbackSavedAtByAudioId: const {},
@@ -1380,7 +1390,6 @@ void main() {
 
     test('没有最近完成记录时取名称排序第一条，空材料列表返回 null', () {
       final first = selectStudyRecommendation(
-        now: now,
         materials: [material('z', 'Zulu'), material('a', 'alpha')],
         progressByAudioId: const {},
         playbackSavedAtByAudioId: const {},
@@ -1388,7 +1397,6 @@ void main() {
         recentCompletions: const [],
       );
       final empty = selectStudyRecommendation(
-        now: now,
         materials: const [],
         progressByAudioId: const {},
         playbackSavedAtByAudioId: const {},

@@ -348,7 +348,6 @@ final studyRecommendationProvider = Provider<AsyncValue<AudioItem?>>((ref) {
   final playbackSavedAt = ref.watch(_playbackSavedAtByAudioProvider);
   final latestCompletionAt = ref.watch(_latestCompletionAtByAudioProvider);
   final recentCompletions = ref.watch(recentCompletionsProvider);
-  final now = ref.watch(nowProvider)();
 
   if (audioState.isLoading || progressState.isLoading) {
     return const AsyncLoading();
@@ -359,7 +358,6 @@ final studyRecommendationProvider = Provider<AsyncValue<AudioItem?>>((ref) {
       data: (completionTimes) => recentCompletions.when(
         data: (recentItems) => AsyncData(
           selectStudyRecommendation(
-            now: now,
             materials: audioState.audioItems,
             progressByAudioId: progressState.progressMap,
             playbackSavedAtByAudioId: playbackTimes,
@@ -380,10 +378,10 @@ final studyRecommendationProvider = Provider<AsyncValue<AudioItem?>>((ref) {
 
 /// 按学习活动时间和最近完成记录选择学习页推荐材料。
 ///
-/// 复习未到时间（待解锁）的材料不推荐：它当前无法学习，且已在「待解锁」分组中展示。
+/// 处于复习阶段的材料不推荐：无论已到时间（「待复习」）还是未到时间（「待解锁」），
+/// 学习页都已在对应分组中展示，推荐卡重复出现会造成同一材料两处入口。
 @visibleForTesting
 AudioItem? selectStudyRecommendation({
-  required DateTime now,
   required List<AudioItem> materials,
   required Map<String, LearningProgress> progressByAudioId,
   required Map<String, DateTime> playbackSavedAtByAudioId,
@@ -397,7 +395,7 @@ AudioItem? selectStudyRecommendation({
     final progress = progressByAudioId[material.id];
     return !recentCompletionIds.contains(material.id) &&
         progress?.isCompleted != true &&
-        progress?.isReviewLockedAt(now) != true;
+        progress?.isInReviewStage != true;
   }
 
   AudioItem? mostRecentlyStudied;

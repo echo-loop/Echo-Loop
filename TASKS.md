@@ -4,6 +4,8 @@
 
 ## 本次完成
 
+- [x] 推荐材料排除所有复习阶段材料（2026-11-12）：上次修复只排除了「待解锁」（`isReviewLockedAt`），已到时间的「待复习」材料仍会进入「为你推荐」，同一材料两处出现。现改为 `isInReviewStage` 整体排除，`selectStudyRecommendation` 去掉已无用途的 `now` 参数（`studyRecommendationProvider` 不再 watch `nowProvider`）。测试：`study_task_provider_test` 新增「已到时间的待复习材料也不推荐」用例，`study_task_provider_test` + `study_screen_test` 共 57 项通过；`flutter analyze` 无问题。**副作用**：暂停中的复习材料（不在任何分组里）也不再被推荐。**完成时间**: 2026-11-12
+
 - [x] 最近完成任务的完成时间移到第二行末尾（2026-11-12）：`_RecentCompletionTile` 的副标题改为「阶段文案 + 时间角标」的行，不再放在标题行右侧，避免遮挡音频名称。`_StatusBadge` 仍用于待解锁与任务卡。`flutter analyze` 无问题，`study_screen_test` 26 项全部通过。**待真机验证**：第二行文案过长时的截断观感。**完成时间**: 2026-11-12
 
 - [x] 学习页折叠区展开后条目卡片占满整行宽度、末尾不留空白（2026-11-12）：`_CollapsibleSection`（待解锁任务、最近完成任务）的内容区 `_buildExpandedArea` 去掉左右内边距，条目间距改由布局提供（末尾无间距）；`_StudyMaterialCard` 不再自带 bottom margin，主列表任务卡与推荐卡在调用处用 `Padding(bottom: AppSpacing.s)` 补回原间距，视觉与原来一致。折叠头左右空白保留。`_CompletedSection`（已学完的材料）未改动。`flutter analyze` 无问题，`study_screen_test` 26 项全部通过。**待真机验证**：条目全宽与末尾间距观感。**完成时间**: 2026-11-12
