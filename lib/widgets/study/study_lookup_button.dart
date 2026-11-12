@@ -1,4 +1,4 @@
-/// 学习页顶部的手动查词入口，与连续学习天数胶囊同款样式，位于其左侧。
+/// 学习页顶部的手动查词入口，与连续学习天数胶囊同尺寸，位于其左侧。蓝色配色用于和连续天数对比效果。
 library;
 
 import 'package:flutter/material.dart';
@@ -15,7 +15,7 @@ class StudyLookupButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final l10n = AppLocalizations.of(context)!;
-    final foreground = theme.colorScheme.onSurfaceVariant;
+    final foreground = Colors.blue.shade800;
     return Semantics(
       button: true,
       label: l10n.studyLookupEntry,
@@ -35,7 +35,7 @@ class StudyLookupButton extends StatelessWidget {
                   vertical: 8,
                 ),
                 decoration: BoxDecoration(
-                  color: theme.colorScheme.surfaceContainerHighest,
+                  color: Colors.blue.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(16),
                 ),
                 child: Row(
