@@ -1,6 +1,6 @@
 /// 显示设置页面
 ///
-/// 控制学习页的展示偏好，包含「文字大小」入口、「显示推荐卡片」「显示周学习时长」开关，
+/// 控制学习页的展示偏好，包含「字幕文字」入口、「显示推荐卡片」「显示周学习时长」开关，
 /// 以及逐句精听的「显示变速快捷按钮」开关。
 /// 学习页的「为你推荐」卡片与周学习时长图可被用户关闭，关闭后在此重新开启。
 library;
@@ -10,9 +10,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../l10n/app_localizations.dart';
 import '../providers/learning_settings_provider.dart';
-import '../providers/reading_text_prefs_provider.dart';
+import '../providers/subtitle_text_prefs_provider.dart';
 import '../theme/app_theme.dart';
-import 'reading_text_settings_screen.dart';
+import 'subtitle_text_settings_screen.dart';
 
 /// 显示设置页面
 class DisplaySettingsScreen extends ConsumerWidget {
@@ -30,8 +30,8 @@ class DisplaySettingsScreen extends ConsumerWidget {
     final showPlaybackSpeedButton = ref.watch(
       learningSettingsProvider.select((s) => s.showPlaybackSpeedButton),
     );
-    final fontScale = ref.watch(
-      readingTextPrefsProvider.select((s) => s.fontScale),
+    final fontSizePercent = ref.watch(
+      subtitleTextPrefsProvider.select((s) => s.fontSizePercent),
     );
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
@@ -59,12 +59,12 @@ class DisplaySettingsScreen extends ConsumerWidget {
                   color: colorScheme.primary,
                 ),
               ),
-              title: Text(l10n.readingTextSettings),
+              title: Text(l10n.subtitleTextSettings),
               trailing: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    '${(fontScale * 100).round()}%',
+                    '$fontSizePercent%',
                     style: TextStyle(color: colorScheme.onSurfaceVariant),
                   ),
                   const SizedBox(width: AppSpacing.xs),
@@ -73,7 +73,7 @@ class DisplaySettingsScreen extends ConsumerWidget {
               ),
               onTap: () => Navigator.of(context).push(
                 MaterialPageRoute<void>(
-                  builder: (_) => const ReadingTextSettingsScreen(),
+                  builder: (_) => const SubtitleTextSettingsScreen(),
                 ),
               ),
             ),

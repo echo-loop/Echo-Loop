@@ -20,7 +20,7 @@ import 'package:echo_loop/providers/learning_settings_provider.dart';
 import 'package:echo_loop/providers/learning_session/favorite_vocabulary_review_provider.dart';
 import 'package:echo_loop/screens/favorite_vocabulary_review_screen.dart';
 import 'package:echo_loop/widgets/dictionary/local_dict_result_view.dart';
-import 'package:echo_loop/widgets/dictionary/reading_text_scale.dart';
+import 'package:echo_loop/widgets/dictionary/subtitle_text_scale.dart';
 import 'package:echo_loop/widgets/review/review_completion_summary.dart';
 import 'package:echo_loop/widgets/practice/selectable_sentence_text.dart';
 import 'package:echo_loop/services/dictionary/dictionary_source.dart';
@@ -34,6 +34,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
 import '../helpers/mock_providers.dart';
 
 SavedWord _word(
@@ -677,8 +678,8 @@ void main() {
   });
 
   testWidgets('学习内容字号放大时，背面词典结果的主题文字同比放大', (tester) async {
-    await _sharedPreferences.setDouble('reading_font_scale', 1.5);
-    addTearDown(() => _sharedPreferences.remove('reading_font_scale'));
+    await _sharedPreferences.setInt('subtitle_font_size_percent', 150);
+    addTearDown(() => _sharedPreferences.remove('subtitle_font_size_percent'));
     await tester.pumpWidget(_app());
     await tester.pump();
     await tester.tap(
@@ -686,11 +687,12 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    final scopeContext = tester.element(find.byType(ReadingTextScale).first);
+    final scopeContext = tester.element(find.byType(SubtitleTextScale).first);
     final outer = Theme.of(scopeContext).textTheme.bodyMedium?.fontSize;
-    final inner = Theme.of(
-      tester.element(find.byType(LocalDictResultView)),
-    ).textTheme.bodyMedium?.fontSize;
+    final inner = Theme.of(tester.element(find.byType(LocalDictResultView)))
+        .textTheme
+        .bodyMedium
+        ?.fontSize;
     expect(outer, isNotNull);
     expect(inner, closeTo(outer! * 1.5, 0.01));
   });

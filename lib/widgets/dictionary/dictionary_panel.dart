@@ -21,7 +21,7 @@ import '../../models/dictionary/dict_speakable_texts.dart';
 import '../../providers/dictionary/dictionary_registry.dart';
 import '../../providers/dictionary/dictionary_settings_provider.dart';
 import '../../providers/dictionary/lookup_controller.dart';
-import '../../providers/reading_text_prefs_provider.dart';
+import '../../providers/subtitle_text_prefs_provider.dart';
 import '../../providers/pronunciation/pronunciation_providers.dart';
 import '../../providers/saved_word_provider.dart';
 import '../../providers/saved_sense_group_provider.dart';
@@ -35,7 +35,7 @@ import '../animated_bookmark_icon.dart';
 import '../common/text_context_menu.dart';
 import 'dictionary_panel_host.dart';
 import 'dictionary_result_view.dart';
-import 'reading_text_scale.dart';
+import 'subtitle_text_scale.dart';
 import 'source_switcher.dart';
 import '../common/prewarm_visibility.dart';
 
@@ -426,9 +426,7 @@ class _DictionaryPanelState extends ConsumerState<DictionaryPanel> {
         _ => null,
       };
       if (result == null) return;
-      _prewarmDictionaryTexts(
-        dictionaryPrewarmTexts(result),
-      );
+      _prewarmDictionaryTexts(dictionaryPrewarmTexts(result));
     });
 
     final isWeb = _isWebSource(state.selectedSourceId);
@@ -507,7 +505,7 @@ class _DictionaryPanelState extends ConsumerState<DictionaryPanel> {
     bool isResizable,
   ) {
     // 学习内容字号偏好：整块结果区统一缩放主题文字（释义、例句、AI 解析等）
-    final resultView = ReadingTextScale(
+    final resultView = SubtitleTextScale(
       child: DictionaryResultView(
         sourceId: state.selectedSourceId,
         state: state.current,
@@ -645,7 +643,7 @@ class _DictionaryPanelState extends ConsumerState<DictionaryPanel> {
   Widget _buildTitleRow(ThemeData theme, String displayWord, String savedWord) {
     // 收藏态统一读取两类底层收藏：对用户而言单词与意群没有状态差异，
     // 任一表命中即显示已收藏，避免多词在来源句查词时漏显收藏状态。
-    final textPrefs = ref.watch(readingTextPrefsProvider);
+    final textPrefs = ref.watch(subtitleTextPrefsProvider);
     final savedWords = ref.watch(savedWordTextsProvider).value;
     final savedSenseGroups = ref.watch(savedSenseGroupTextsProvider).value;
     final isSaved =
@@ -665,7 +663,7 @@ class _DictionaryPanelState extends ConsumerState<DictionaryPanel> {
               overflow: TextOverflow.visible,
               style: theme.textTheme.titleLarge?.copyWith(
                 // 词头基准 17，随学习内容字号同比缩放
-                fontSize: 17 * textPrefs.fontScale,
+                fontSize: 17 * textPrefs.fontSizePercent / 100,
                 height: 1.25,
                 fontWeight: FontWeight.w700,
                 color: theme.colorScheme.onSurface,

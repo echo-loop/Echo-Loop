@@ -4,7 +4,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../providers/reading_text_prefs_provider.dart';
+import '../../providers/subtitle_text_prefs_provider.dart';
 import '../../theme/app_theme.dart';
 import 'retell_review_rating_style.dart';
 
@@ -66,13 +66,13 @@ class RetellReviewTranscriptCardState
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final rawBodyStyle = theme.textTheme.bodyLarge?.copyWith(
-      height: readingBodyLineHeight,
+      height: subtitleBodyLineHeight,
       letterSpacing: 0,
     );
     // 学习内容字号偏好：超行预判与正文渲染共用同一缩放后的样式
     final bodyStyle = rawBodyStyle == null
         ? null
-        : ref.watch(readingTextPrefsProvider).applyTo(rawBodyStyle);
+        : ref.watch(subtitleTextPrefsProvider).applyTo(rawBodyStyle);
     // 量高与实际渲染必须共用同一段文本和样式，否则超行判断会和渲染结果对不上。
     final span = TextSpan(text: widget.transcript, style: bodyStyle);
     return Container(

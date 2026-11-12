@@ -436,11 +436,11 @@ void main() {
         tester.widget<Text>(find.text(word)).style;
 
     testWidgets('按用户字号渲染，可见词与遮盖词一致（布局不跳动）', (tester) async {
-      await pumpWithPrefs(tester, {'reading_font_scale': 1.5});
+      await pumpWithPrefs(tester, {'subtitle_font_size_percent': 150});
 
-      final base = Theme.of(
-        tester.element(find.byType(MaskedSentenceTile)),
-      ).textTheme.bodyLarge;
+      final base = Theme.of(tester.element(find.byType(MaskedSentenceTile)))
+          .textTheme
+          .bodyLarge;
       final visible = styleOf(tester, 'love');
       expect(visible?.fontSize, (base?.fontSize ?? 16) * 1.5);
       // 遮盖词只改颜色，尺寸必须和可见词相同
@@ -450,9 +450,9 @@ void main() {
     testWidgets('默认偏好保持主题正文样式', (tester) async {
       await pumpWithPrefs(tester, {});
 
-      final base = Theme.of(
-        tester.element(find.byType(MaskedSentenceTile)),
-      ).textTheme.bodyLarge;
+      final base = Theme.of(tester.element(find.byType(MaskedSentenceTile)))
+          .textTheme
+          .bodyLarge;
       expect(styleOf(tester, 'love')?.fontSize, base?.fontSize);
     });
 
@@ -504,8 +504,7 @@ void main() {
             keywordIndices: const {},
             isPlayingSentence: false,
             onPlayFromTap: () => playFromCount += 1,
-            secondaryTextBuilder: (textStyle) =>
-                Text('你好世界', style: textStyle),
+            secondaryTextBuilder: (textStyle) => Text('你好世界', style: textStyle),
           ),
         ),
       );

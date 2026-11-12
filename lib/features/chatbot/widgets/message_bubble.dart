@@ -7,7 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
 import '../../../l10n/app_localizations.dart';
-import '../../../models/reading_text_prefs.dart';
+import '../../../models/subtitle_text_prefs.dart';
 import '../../../theme/app_theme.dart';
 import '../../subscription/models/premium_feature.dart';
 import '../../subscription/utils/ai_quota_copy.dart';
@@ -48,13 +48,13 @@ class ChatMessageBubble extends StatelessWidget {
     this.onEdit,
     this.onRegenerate,
     this.onFollowUp,
-    this.textPrefs = const ReadingTextPrefs(),
+    this.textPrefs = const SubtitleTextPrefs(),
   });
 
   final ChatMessage message;
 
   /// 学习内容字号偏好（助教回答与用户消息同比缩放）。
-  final ReadingTextPrefs textPrefs;
+  final SubtitleTextPrefs textPrefs;
   final VoidCallback? onRetry; // 仅 error 态用
   final VoidCallback? onUpgrade; // 仅 quotaBlocked 态用
   final VoidCallback? onSignIn; // 仅 authRequired 态用

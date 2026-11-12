@@ -27,7 +27,7 @@ import '../models/flashcard_item.dart';
 import '../router/app_router.dart';
 import '../widgets/dictionary/ai_dict_result_view.dart';
 import '../widgets/dictionary/local_dict_result_view.dart';
-import '../widgets/dictionary/reading_text_scale.dart';
+import '../widgets/dictionary/subtitle_text_scale.dart';
 import '../widgets/dictionary/dictionary_panel_host.dart';
 import '../services/app_logger.dart';
 import '../services/dictionary/ai_dictionary_source.dart';
@@ -550,9 +550,8 @@ class _CenteredPrompt extends StatelessWidget {
                   visibleVocabulary,
                   key: const Key('favorite-vocabulary-review-front-word'),
                   textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
+                  style: Theme.of(context).textTheme.headlineSmall
+                      ?.copyWith(fontWeight: FontWeight.w700),
                 ),
                 const SizedBox(height: AppSpacing.m),
               ],
@@ -570,9 +569,8 @@ class _CenteredPrompt extends StatelessWidget {
               Text(
                 title,
                 textAlign: TextAlign.center,
-                style: Theme.of(
-                  context,
-                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+                style: Theme.of(context).textTheme.titleMedium
+                    ?.copyWith(fontWeight: FontWeight.w700),
               ),
               if (body.isNotEmpty) ...[
                 const SizedBox(height: AppSpacing.s),
@@ -836,7 +834,7 @@ class _VocabularyBackState extends ConsumerState<_VocabularyBack> {
                 if (_showAi) ...[
                   const SizedBox(height: AppSpacing.s),
                   // AI 查词结果同样随学习内容字号缩放
-                  ReadingTextScale(
+                  SubtitleTextScale(
                     child: AiDictResultView(
                       state: aiLookup?.current,
                       onRetry: () => ref
@@ -1091,7 +1089,7 @@ class _LocalDictionarySectionState
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              ReadingTextScale(
+              SubtitleTextScale(
                 child: LocalDictResultView(
                   state: LookupLoaded(result),
                   word: widget.word,

@@ -1307,7 +1307,7 @@ void main() {
   });
 
   testWidgets('学习内容字号：正文样式按偏好倍率放大', (tester) async {
-    await prefs.setDouble('reading_font_scale', 1.5);
+    await prefs.setInt('subtitle_font_size_percent', 150);
     await tester.pumpWidget(wrap(style: const TextStyle(fontSize: 16)));
     await tester.pumpAndSettle();
     expect(

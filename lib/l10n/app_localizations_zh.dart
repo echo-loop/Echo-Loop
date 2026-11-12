@@ -500,19 +500,28 @@ class AppLocalizationsZh extends AppLocalizations {
   String get appearance => '外观与音效';
 
   @override
-  String get readingTextSettings => '文字大小';
+  String get subtitleTextSettings => '字幕文字';
 
   @override
-  String get readingTextPreview => '预览';
+  String get subtitleTextPreview => '预览';
 
   @override
-  String get readingFontSize => '字号';
+  String get subtitleFontSize => '字号';
 
   @override
-  String get readingFontSizeDecrease => '缩小字号';
+  String get subtitleFontSizeDecrease => '缩小字号';
 
   @override
-  String get readingFontSizeIncrease => '放大字号';
+  String get subtitleFontSizeIncrease => '放大字号';
+
+  @override
+  String get subtitleFontWeight => '粗细';
+
+  @override
+  String get subtitleFontWeightDecrease => '变细';
+
+  @override
+  String get subtitleFontWeightIncrease => '加粗';
 
   @override
   String get themeMode => '主题';

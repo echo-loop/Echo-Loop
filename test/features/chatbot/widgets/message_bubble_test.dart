@@ -9,7 +9,7 @@ import 'package:echo_loop/features/chatbot/models/chat_role.dart';
 import 'package:echo_loop/features/chatbot/widgets/markdown_message.dart';
 import 'package:echo_loop/features/chatbot/widgets/message_bubble.dart';
 import 'package:echo_loop/features/subscription/models/ai_quota_rejection.dart';
-import 'package:echo_loop/models/reading_text_prefs.dart';
+import 'package:echo_loop/models/subtitle_text_prefs.dart';
 import 'package:echo_loop/widgets/selection/selectable_content.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -50,20 +50,20 @@ void main() {
       tester,
       ChatMessageBubble(
         message: msg(role: ChatRole.user, content: 'Hello'),
-        textPrefs: const ReadingTextPrefs(fontScale: 1.5),
+        textPrefs: const SubtitleTextPrefs(fontSizePercent: 150),
       ),
     );
     expect(tester.widget<Text>(find.text('Hello')).style?.fontSize, 21);
 
-    Future<double> headingSize(double scale) => _headingFontSize(
+    Future<double> headingSize(int percent) => _headingFontSize(
       tester,
       ChatMessageBubble(
         message: msg(content: '# Title'),
-        textPrefs: ReadingTextPrefs(fontScale: scale),
+        textPrefs: SubtitleTextPrefs(fontSizePercent: percent),
       ),
     );
-    final base = await headingSize(1.0);
-    expect(await headingSize(1.5), closeTo(base * 1.5, 0.01));
+    final base = await headingSize(100);
+    expect(await headingSize(150), closeTo(base * 1.5, 0.01));
   });
 
   testWidgets('assistant 消息用 markdown 渲染', (tester) async {
@@ -169,55 +169,47 @@ void main() {
     );
   });
 
-  testWidgets(
-    'assistant 内容渲染为可选中 markdown（自有选区内核）',
-    (tester) async {
-      await pumpChatWidget(
-        tester,
-        ChatMessageBubble(
-          message: msg(content: '**note**'),
-          onFollowUp: (_) {},
-        ),
-      );
-      // AI 回答用与句子正文同一套自有选区实现（不再是官方 SelectionArea），
-      // 支持长按/拖拽自由选中连续文本、跨 markdown 块。
-      expect(find.byType(MarkdownMessage), findsOneWidget);
-      expect(find.byType(GptMarkdown), findsOneWidget);
-      expect(find.byType(SelectableContent), findsOneWidget);
-      expect(find.byType(SelectableRegion), findsNothing);
-    },
-    variant: TargetPlatformVariant.only(TargetPlatform.iOS),
-  );
+  testWidgets('assistant 内容渲染为可选中 markdown（自有选区内核）', (tester) async {
+    await pumpChatWidget(
+      tester,
+      ChatMessageBubble(
+        message: msg(content: '**note**'),
+        onFollowUp: (_) {},
+      ),
+    );
+    // AI 回答用与句子正文同一套自有选区实现（不再是官方 SelectionArea），
+    // 支持长按/拖拽自由选中连续文本、跨 markdown 块。
+    expect(find.byType(MarkdownMessage), findsOneWidget);
+    expect(find.byType(GptMarkdown), findsOneWidget);
+    expect(find.byType(SelectableContent), findsOneWidget);
+    expect(find.byType(SelectableRegion), findsNothing);
+  }, variant: TargetPlatformVariant.only(TargetPlatform.iOS));
 
-  testWidgets(
-    'assistant 流式期间禁用选择，完成后再挂载选区内核',
-    (tester) async {
-      final streaming = msg(
-        content: '正在生成 **markdown**',
-        status: ChatMessageStatus.streaming,
-      );
-      await pumpChatWidget(
-        tester,
-        ChatMessageBubble(message: streaming, onFollowUp: (_) {}),
-      );
+  testWidgets('assistant 流式期间禁用选择，完成后再挂载选区内核', (tester) async {
+    final streaming = msg(
+      content: '正在生成 **markdown**',
+      status: ChatMessageStatus.streaming,
+    );
+    await pumpChatWidget(
+      tester,
+      ChatMessageBubble(message: streaming, onFollowUp: (_) {}),
+    );
 
-      expect(find.byType(GptMarkdown), findsOneWidget);
-      expect(find.byType(SelectableContent), findsNothing);
+    expect(find.byType(GptMarkdown), findsOneWidget);
+    expect(find.byType(SelectableContent), findsNothing);
 
-      await pumpChatWidget(
-        tester,
-        ChatMessageBubble(
-          message: streaming.copyWith(status: ChatMessageStatus.done),
-          onFollowUp: (_) {},
-        ),
-      );
-      await tester.pump();
+    await pumpChatWidget(
+      tester,
+      ChatMessageBubble(
+        message: streaming.copyWith(status: ChatMessageStatus.done),
+        onFollowUp: (_) {},
+      ),
+    );
+    await tester.pump();
 
-      expect(find.byType(SelectableContent), findsOneWidget);
-      expect(tester.takeException(), isNull);
-    },
-    variant: TargetPlatformVariant.only(TargetPlatform.iOS),
-  );
+    expect(find.byType(SelectableContent), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  }, variant: TargetPlatformVariant.only(TargetPlatform.iOS));
 
   testWidgets('user 带 quote：气泡上方显示引用行，气泡只显示问题', (tester) async {
     await pumpChatWidget(

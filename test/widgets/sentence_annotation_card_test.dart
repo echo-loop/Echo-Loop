@@ -705,7 +705,9 @@ void main() {
     });
 
     cardTest('解析分类标题跟随字号偏好缩放', (tester) async {
-      SharedPreferences.setMockInitialValues({'reading_font_scale': 1.5});
+      SharedPreferences.setMockInitialValues({
+        'subtitle_font_size_percent': 150,
+      });
       final prefs = await SharedPreferences.getInstance();
       final cached = _analysis(vocabulary: const [('词汇', '解释')]);
       await tester.pumpWidget(

@@ -31,6 +31,8 @@ void main() {
         'themeMode': 'dark',
         'locale': 'zh-CN',
         'nativeLanguage': 'zh-TW',
+        'subtitleFontSizePercent': 100,
+        'subtitleFontWeightPercent': 100,
       });
       expect(
         (document.preferences['learning'] as Map)['autoSkipRetell'],
@@ -69,6 +71,25 @@ void main() {
     // 新手引导的开关与已看状态只保存在本机，不进入云端快照。
     expect(learning.containsKey('guideEnabled'), isFalse);
     expect(learning.containsKey('guideSeen'), isFalse);
+  });
+
+  test('syncs the daily share auto-show toggle both ways', () async {
+    SharedPreferences.setMockInitialValues({
+      'learning_auto_show_daily_share': false,
+    });
+    final prefs = await SharedPreferences.getInstance();
+    final store = LocalUserPreferencesStore(prefs);
+
+    final learning =
+        store.capture().preferences['learning'] as Map<String, Object?>;
+    expect(learning['autoShowDailyShare'], isFalse);
+
+    await store.apply(
+      UserPreferencesDocument({
+        'learning': {'autoShowDailyShare': true},
+      }),
+    );
+    expect(prefs.getBool('learning_auto_show_daily_share'), isTrue);
   });
 
   test('applies cloud prompt markers and ignores guide state', () async {
@@ -291,5 +312,72 @@ void main() {
     );
 
     expect(prefs.getInt('learning_daily_goal_minutes'), 720);
+  });
+
+  test('字号与粗细随 appearance 分组双向同步，并吸附到档位', () async {
+    SharedPreferences.setMockInitialValues({
+      'subtitle_font_size_percent': 131,
+      'subtitle_font_weight_percent': 120,
+    });
+    final prefs = await SharedPreferences.getInstance();
+    final store = LocalUserPreferencesStore(prefs);
+
+    final appearance =
+        store.capture().preferences['appearance'] as Map<String, Object?>;
+    expect(appearance['subtitleFontSizePercent'], 130);
+    expect(appearance['subtitleFontWeightPercent'], 120);
+
+    await store.apply(
+      UserPreferencesDocument({
+        'appearance': {
+          'subtitleFontSizePercent': 90,
+          'subtitleFontWeightPercent': 147, // 吸附到 145%
+        },
+      }),
+    );
+    expect(prefs.getInt('subtitle_font_size_percent'), 90);
+    expect(prefs.getInt('subtitle_font_weight_percent'), 145);
+  });
+
+  test('未设置字号与粗细时快照为默认值 100%', () async {
+    SharedPreferences.setMockInitialValues({});
+    final prefs = await SharedPreferences.getInstance();
+    final store = LocalUserPreferencesStore(prefs);
+
+    final appearance =
+        store.capture().preferences['appearance'] as Map<String, Object?>;
+
+    expect(appearance['subtitleFontSizePercent'], 100);
+    expect(appearance['subtitleFontWeightPercent'], 100);
+  });
+
+  test('云端缺失或非法的字号与粗细保留本地值，不重置为默认', () async {
+    SharedPreferences.setMockInitialValues({
+      'subtitle_font_size_percent': 120,
+      'subtitle_font_weight_percent': 130,
+    });
+    final prefs = await SharedPreferences.getInstance();
+    final store = LocalUserPreferencesStore(prefs);
+
+    // 老版本客户端的快照不含这两个字段
+    await store.apply(
+      UserPreferencesDocument({
+        'appearance': {'themeMode': 'dark'},
+      }),
+    );
+    expect(prefs.getInt('subtitle_font_size_percent'), 120);
+    expect(prefs.getInt('subtitle_font_weight_percent'), 130);
+
+    // 非数字的脏值同样不覆盖本地
+    await store.apply(
+      UserPreferencesDocument({
+        'appearance': {
+          'subtitleFontSizePercent': 'big',
+          'subtitleFontWeightPercent': 'bold',
+        },
+      }),
+    );
+    expect(prefs.getInt('subtitle_font_size_percent'), 120);
+    expect(prefs.getInt('subtitle_font_weight_percent'), 130);
   });
 }

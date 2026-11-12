@@ -11,6 +11,7 @@ import '../../../providers/dictionary/dictionary_settings_provider.dart';
 import '../../../providers/favorite_review_settings_provider.dart';
 import '../../../providers/intensive_listen_prefs_provider.dart';
 import '../../../providers/learning_settings_provider.dart';
+import '../../../providers/subtitle_text_prefs_provider.dart';
 import '../../../providers/reminder_settings_provider.dart';
 import '../../../providers/retell_prefs_provider.dart';
 import '../../../providers/settings_provider.dart';
@@ -68,19 +69,18 @@ final userPreferencesSyncServiceProvider = Provider<UserPreferencesSyncService>(
                 .reloadFromPrefs(),
           ),
           Future<void>.sync(
-            () => ref
-                .read(dictionarySettingsProvider.notifier)
-                .reloadFromPrefs(),
+            () =>
+                ref.read(dictionarySettingsProvider.notifier).reloadFromPrefs(),
           ),
           Future<void>.sync(
-            () => ref
-                .read(reminderSettingsProvider.notifier)
-                .reloadFromPrefs(),
+            () => ref.read(reminderSettingsProvider.notifier).reloadFromPrefs(),
           ),
           Future<void>.sync(
             () =>
                 ref.read(audioListSettingsProvider.notifier).reloadFromPrefs(),
           ),
+          // 字号与粗细的 Provider 从 SharedPreferences 重建，失效即可读到云端回写的值。
+          Future<void>.sync(() => ref.invalidate(subtitleTextPrefsProvider)),
         ]);
       },
     );

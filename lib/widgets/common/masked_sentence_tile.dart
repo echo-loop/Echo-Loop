@@ -19,7 +19,7 @@ import '../../l10n/app_localizations.dart';
 import '../../models/retell_settings.dart';
 import '../../models/sentence.dart';
 import '../../models/word_highlight_binding.dart';
-import '../../providers/reading_text_prefs_provider.dart';
+import '../../providers/subtitle_text_prefs_provider.dart';
 import '../../providers/saved_word_provider.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/keyword_extraction.dart';
@@ -129,10 +129,10 @@ class MaskedSentenceTile extends ConsumerWidget {
     );
     // 字幕正文样式：主题正文 + 用户的学习内容字号/字体偏好（每句只算一次）
     final textStyle = ref
-        .watch(readingTextPrefsProvider)
+        .watch(subtitleTextPrefsProvider)
         .applyTo(
           theme.textTheme.bodyLarge?.copyWith(
-                height: readingBodyLineHeight,
+                height: subtitleBodyLineHeight,
                 letterSpacing: 0,
               ) ??
               const TextStyle(),

@@ -53,8 +53,7 @@ abstract final class LearningSettingsKeys {
   static const pdfExportReminderShown = 'learning_pdf_export_reminder_shown';
   static const showStudyRecommendation = 'learning_show_study_recommendation';
   static const showWeeklyStudyChart = 'learning_show_weekly_study_chart';
-  static const showPlaybackSpeedButton =
-      'learning_show_playback_speed_button';
+  static const showPlaybackSpeedButton = 'learning_show_playback_speed_button';
   static const autoSaveOnUnclear = 'learning_auto_favorite_on_cant_understand';
   static const unclearAutoSaveReminderShown =
       'learning_unclear_auto_save_reminder_shown';
@@ -613,7 +612,7 @@ class LearningSettingsNotifier extends Notifier<LearningSettings> {
     }
   }
 
-  /// 自动弹窗属于当前设备偏好，不加入尚未定义的云端字段。
+  /// 切换今日一刻自动弹出开关，参与跨设备同步。
   Future<void> setAutoShowDailyShare(bool enabled) async {
     if (state.autoShowDailyShare == enabled) return;
     final prefs = ref.read(sharedPreferencesProvider);
@@ -624,6 +623,7 @@ class LearningSettingsNotifier extends Notifier<LearningSettings> {
     if (!saved) throw StateError('保存今日一刻自动显示设置失败');
     if (!ref.mounted) return;
     state = state.copyWith(autoShowDailyShare: enabled);
+    userPreferencesSyncEvents.notifyLocalChange();
   }
 
   /// 切换学习页「本周学习时长」柱状图显示，写 SP + 更新 state。

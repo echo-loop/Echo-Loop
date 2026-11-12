@@ -30,7 +30,7 @@ import '../favorites/source_sentence_card.dart';
 import '../tts/speak_button.dart';
 import 'ai_dict_result_view.dart';
 import 'local_dict_result_view.dart';
-import 'reading_text_scale.dart';
+import 'subtitle_text_scale.dart';
 
 /// 取查询状态中可用于预热发音的词条：流式部分结果与完成态都可用。
 DictionaryLookupResult? resultOfLookupState(SourceLookupState? state) =>
@@ -173,7 +173,7 @@ class _LookupDetailViewState extends ConsumerState<LookupDetailView> {
             ],
           ),
           const SizedBox(height: AppSpacing.s),
-          ReadingTextScale(
+          SubtitleTextScale(
             child: isAiMainSource
                 ? AiDictResultView(
                     state: mainState.current,
@@ -337,7 +337,7 @@ class _AiLookupCardState extends ConsumerState<_AiLookupCard> {
         ),
         if (showBody) ...[
           const SizedBox(height: AppSpacing.s),
-          ReadingTextScale(
+          SubtitleTextScale(
             child: AiDictResultView(
               state: current,
               onRetry: () => ref.read(_aiProvider.notifier).retry(),

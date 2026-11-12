@@ -520,19 +520,28 @@ class AppLocalizationsEn extends AppLocalizations {
   String get appearance => 'Appearance & Sound';
 
   @override
-  String get readingTextSettings => 'Font Size';
+  String get subtitleTextSettings => 'Subtitle Text';
 
   @override
-  String get readingTextPreview => 'Preview';
+  String get subtitleTextPreview => 'Preview';
 
   @override
-  String get readingFontSize => 'Text size';
+  String get subtitleFontSize => 'Text size';
 
   @override
-  String get readingFontSizeDecrease => 'Smaller text';
+  String get subtitleFontSizeDecrease => 'Smaller text';
 
   @override
-  String get readingFontSizeIncrease => 'Larger text';
+  String get subtitleFontSizeIncrease => 'Larger text';
+
+  @override
+  String get subtitleFontWeight => 'Weight';
+
+  @override
+  String get subtitleFontWeightDecrease => 'Lighter';
+
+  @override
+  String get subtitleFontWeightIncrease => 'Bolder';
 
   @override
   String get themeMode => 'Theme';

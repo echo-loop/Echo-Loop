@@ -5,8 +5,11 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../../models/bookmark_review_settings.dart';
 import '../../../models/dictionary/dictionary_settings.dart';
 import '../../../models/favorite_review_settings.dart';
+import '../../../models/subtitle_text_prefs.dart';
 import '../../../models/reminder_settings.dart';
 import '../../../providers/learning_settings_provider.dart';
+import '../../../providers/subtitle_text_prefs_provider.dart'
+    show subtitleFontSizePercentKey, subtitleFontWeightPercentKey;
 import '../domain/user_preferences_document.dart';
 
 /// 将当前仍使用的用户偏好映射到同步文档；设备/开发状态不在此白名单中。
@@ -57,14 +60,21 @@ class LocalUserPreferencesStore {
     LearningSettingsKeys.showWeeklyStudyChart: true,
     LearningSettingsKeys.showPlaybackSpeedButton: true,
     LearningSettingsKeys.autoSaveOnUnclear: true,
+    LearningSettingsKeys.autoShowDailyShare: true,
   };
 
   UserPreferencesDocument capture() {
     final shareDate = _preferences.getString(dailyShareDateKey);
+    final subtitleText = SubtitleTextPrefs.fromStored(
+      fontSizePercent: _preferences.getInt(subtitleFontSizePercentKey),
+      fontWeightPercent: _preferences.getInt(subtitleFontWeightPercentKey),
+    );
     final appearance = <String, Object?>{
       'themeMode': _preferences.getString('theme_mode') ?? 'system',
       'locale': _preferences.getString('locale') ?? 'system',
       'nativeLanguage': _preferences.getString('native_language') ?? 'zh-CN',
+      'subtitleFontSizePercent': subtitleText.fontSizePercent,
+      'subtitleFontWeightPercent': subtitleText.fontWeightPercent,
     };
     final learning = <String, Object?>{
       if (shareDate != null) dailyShareDateField: shareDate,
@@ -142,6 +152,8 @@ class LocalUserPreferencesStore {
       appearance['nativeLanguage'],
       'zh-CN',
     );
+
+    await _applySubtitleTextPrefs(appearance);
 
     final learning = _group(groups, 'learning');
     final shareDate = learning[dailyShareDateField];
@@ -252,6 +264,7 @@ class LocalUserPreferencesStore {
     LearningSettingsKeys.showWeeklyStudyChart: 'showWeeklyStudyChart',
     LearningSettingsKeys.showPlaybackSpeedButton: 'showPlaybackSpeedButton',
     LearningSettingsKeys.autoSaveOnUnclear: 'autoFavoriteOnCantUnderstand',
+    LearningSettingsKeys.autoShowDailyShare: 'autoShowDailyShare',
   };
 
   static String _learningFieldName(String storageKey) =>
@@ -308,6 +321,25 @@ class LocalUserPreferencesStore {
   }) async {
     final number = value is int ? value : fallback;
     await _preferences.setInt(key, number.clamp(minimum, maximum));
+  }
+
+  /// 字号与粗细的云端值非法或缺失时保留本地值：老版本客户端不写这两个字段，
+  /// 不能把用户已调好的字号重置为默认。合法值仍按档位吸附后写入。
+  Future<void> _applySubtitleTextPrefs(Map<String, Object?> appearance) async {
+    final fontSizePercent = appearance['subtitleFontSizePercent'];
+    if (fontSizePercent is num) {
+      await _preferences.setInt(
+        subtitleFontSizePercentKey,
+        snapSubtitleFontSizePercent(fontSizePercent.round()),
+      );
+    }
+    final fontWeightPercent = appearance['subtitleFontWeightPercent'];
+    if (fontWeightPercent is num) {
+      await _preferences.setInt(
+        subtitleFontWeightPercentKey,
+        snapSubtitleFontWeightPercent(fontWeightPercent.round()),
+      );
+    }
   }
 
   Future<void> _writeJsonObject(

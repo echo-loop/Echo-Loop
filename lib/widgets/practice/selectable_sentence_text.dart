@@ -25,7 +25,7 @@ import '../../features/remote_config/remote_config.dart';
 import '../../features/remote_config/remote_config_providers.dart';
 import '../../l10n/app_localizations.dart';
 import '../../models/speech_practice_models.dart';
-import '../../providers/reading_text_prefs_provider.dart';
+import '../../providers/subtitle_text_prefs_provider.dart';
 import '../../providers/saved_word_provider.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/saved_text_index.dart';
@@ -199,9 +199,8 @@ class _SelectableSentenceTextState
       _selectableKey.currentState?.endSession();
       return;
     }
-    DictionaryPanelHost.of(
-      context,
-    ).show(widget.origin.queryFor(selectedText), owner: this);
+    DictionaryPanelHost.of(context)
+        .show(widget.origin.queryFor(selectedText), owner: this);
   }
 
   void _handleSessionEnded() {
@@ -332,7 +331,7 @@ class _SelectableSentenceTextState
     final baseStyle = widget.style;
     final textStyle = baseStyle == null
         ? null
-        : ref.watch(readingTextPrefsProvider).applyTo(baseStyle);
+        : ref.watch(subtitleTextPrefsProvider).applyTo(baseStyle);
     return PlatformTextSelectionStyle(
       child: AppSelectableText(
         key: _selectableKey,

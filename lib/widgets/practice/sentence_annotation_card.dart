@@ -11,7 +11,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../l10n/app_localizations.dart';
-import '../../providers/reading_text_prefs_provider.dart';
+import '../../providers/subtitle_text_prefs_provider.dart';
 import '../../providers/sentence_ai_provider.dart';
 import '../../services/app_logger.dart';
 import '../../models/sense_group_result.dart';
@@ -989,7 +989,7 @@ class SentenceAnnotationCardState
           : SelectableSentenceText(
               text: widget.text,
               style: theme.textTheme.bodyLarge?.copyWith(
-                height: readingBodyLineHeight,
+                height: subtitleBodyLineHeight,
                 letterSpacing: 0,
                 color: theme.colorScheme.onSurface,
               ),
@@ -1070,7 +1070,9 @@ class SentenceAnnotationCardState
             _translationContent ?? '',
             style: translationStyle == null
                 ? null
-                : ref.watch(readingTextPrefsProvider).applyTo(translationStyle),
+                : ref
+                      .watch(subtitleTextPrefsProvider)
+                      .applyTo(translationStyle),
           ),
         );
       case ContentLoadState.error:
@@ -1124,7 +1126,7 @@ class SentenceAnnotationCardState
       ContentLoadState.loading => const ShimmerPlaceholder(),
       ContentLoadState.loaded when content != null => _AnalysisContent(
         analysis: content,
-        textPrefs: ref.watch(readingTextPrefsProvider),
+        textPrefs: ref.watch(subtitleTextPrefsProvider),
       ),
       ContentLoadState.loaded => const SizedBox.shrink(),
       ContentLoadState.error => const SizedBox.shrink(),
@@ -1163,7 +1165,7 @@ class _AnalysisContent extends StatelessWidget {
   final SentenceAnalysis analysis;
 
   /// 学习内容字号偏好（作用于解析正文）
-  final ReadingTextPrefs textPrefs;
+  final SubtitleTextPrefs textPrefs;
 
   const _AnalysisContent({required this.analysis, required this.textPrefs});
 

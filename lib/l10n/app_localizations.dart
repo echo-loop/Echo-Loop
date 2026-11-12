@@ -998,35 +998,53 @@ abstract class AppLocalizations {
   /// **'Appearance & Sound'**
   String get appearance;
 
-  /// Settings entry and page title for learning-content text size
+  /// Settings entry and page title for learning-content text size and weight
   ///
   /// In en, this message translates to:
-  /// **'Font Size'**
-  String get readingTextSettings;
+  /// **'Subtitle Text'**
+  String get subtitleTextSettings;
 
-  /// No description provided for @readingTextPreview.
+  /// No description provided for @subtitleTextPreview.
   ///
   /// In en, this message translates to:
   /// **'Preview'**
-  String get readingTextPreview;
+  String get subtitleTextPreview;
 
-  /// No description provided for @readingFontSize.
+  /// No description provided for @subtitleFontSize.
   ///
   /// In en, this message translates to:
   /// **'Text size'**
-  String get readingFontSize;
+  String get subtitleFontSize;
 
-  /// No description provided for @readingFontSizeDecrease.
+  /// No description provided for @subtitleFontSizeDecrease.
   ///
   /// In en, this message translates to:
   /// **'Smaller text'**
-  String get readingFontSizeDecrease;
+  String get subtitleFontSizeDecrease;
 
-  /// No description provided for @readingFontSizeIncrease.
+  /// No description provided for @subtitleFontSizeIncrease.
   ///
   /// In en, this message translates to:
   /// **'Larger text'**
-  String get readingFontSizeIncrease;
+  String get subtitleFontSizeIncrease;
+
+  /// No description provided for @subtitleFontWeight.
+  ///
+  /// In en, this message translates to:
+  /// **'Weight'**
+  String get subtitleFontWeight;
+
+  /// No description provided for @subtitleFontWeightDecrease.
+  ///
+  /// In en, this message translates to:
+  /// **'Lighter'**
+  String get subtitleFontWeightDecrease;
+
+  /// No description provided for @subtitleFontWeightIncrease.
+  ///
+  /// In en, this message translates to:
+  /// **'Bolder'**
+  String get subtitleFontWeightIncrease;
 
   /// No description provided for @themeMode.
   ///
