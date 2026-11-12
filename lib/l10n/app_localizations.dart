@@ -7904,6 +7904,12 @@ abstract class AppLocalizations {
   /// **'Daily goal completed'**
   String get activityLegendCheckedIn;
 
+  /// No description provided for @dailyGoalAchievedTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Daily goal achieved!'**
+  String get dailyGoalAchievedTitle;
+
   /// No description provided for @dailyGoalCompletedToast.
   ///
   /// In en, this message translates to:

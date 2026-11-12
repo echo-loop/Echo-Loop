@@ -4308,6 +4308,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get activityLegendCheckedIn => '已完成每日目标';
 
   @override
+  String get dailyGoalAchievedTitle => '今日目标达成！';
+
+  @override
   String dailyGoalCompletedToast(int minutes) {
     return '今日 $minutes 分钟学习目标已完成！';
   }

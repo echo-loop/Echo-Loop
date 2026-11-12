@@ -8,24 +8,9 @@ import 'package:lottie/lottie.dart';
 
 import '../../features/scheduled_flashcard/domain/review_session_summary.dart';
 import '../../theme/app_theme.dart';
+import '../common/dot_lottie_decoder.dart';
 
 const _confettiAnimationAsset = 'assets/animation/confetti.lottie';
-
-/// 从 dotLottie 压缩包中选取第一个动画 JSON，供纯 Dart Lottie 播放器解析。
-Future<LottieComposition?> _decodeConfettiAnimation(List<int> bytes) {
-  return LottieComposition.decodeZip(
-    bytes,
-    filePicker: (files) {
-      for (final file in files) {
-        if (file.name.startsWith('animations/') &&
-            file.name.endsWith('.json')) {
-          return file;
-        }
-      }
-      return null;
-    },
-  );
-}
 
 /// 为收藏句和收藏词汇复习复用同一套完成总结布局。
 class ReviewCompletionSummary extends StatefulWidget {
@@ -96,7 +81,7 @@ class _ReviewCompletionSummaryState extends State<ReviewCompletionSummary> {
               Lottie.asset(
                 _confettiAnimationAsset,
                 key: const Key('review-completion-confetti'),
-                decoder: _decodeConfettiAnimation,
+                decoder: decodeDotLottieAnimation,
                 repeat: true,
                 animate: _shouldAnimate,
                 width: 160,

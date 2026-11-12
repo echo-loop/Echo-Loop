@@ -2308,6 +2308,7 @@
   "dailyGoalTodayCheckedIn": "Checked in today",
   "monthlyCheckInDays": "Check-in days",
   "activityLegendCheckedIn": "Daily goal completed",
+  "dailyGoalAchievedTitle": "Daily goal achieved!",
   "dailyGoalCompletedToast": "Today's {minutes}-minute study goal is complete!",
   "@dailyGoalCompletedToast": {
     "placeholders": {

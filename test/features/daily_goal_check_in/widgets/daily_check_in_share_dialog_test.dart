@@ -182,6 +182,43 @@ void main() {
     });
   }
 
+  testWidgets('自动弹出先播放庆祝动画，手动入口不播放', (tester) async {
+    await mount(tester, ready: await card(tester));
+    await tester.tap(find.text('automatic'));
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(find.text('今日目标达成！'), findsOneWidget);
+    expect(find.byType(Dialog), findsNothing);
+
+    await tester.pumpAndSettle();
+    expect(find.text('今日目标达成！'), findsNothing);
+    expect(find.byType(Dialog), findsOneWidget);
+    await tester.tap(find.byIcon(Icons.close));
+    await tester.pumpAndSettle();
+
+    // 手动入口直接打开卡片，不播放庆祝动画。
+    await tester.tap(find.text('manual'));
+    await tester.pumpAndSettle();
+    expect(find.text('今日目标达成！'), findsNothing);
+    expect(find.byType(Dialog), findsOneWidget);
+    await tester.tap(find.byIcon(Icons.close));
+    await drain(tester);
+  });
+
+  testWidgets('庆祝期间页面离开则不弹卡片也不写展示标记', (tester) async {
+    await mount(tester, ready: await card(tester));
+    await tester.tap(find.text('automatic'));
+    await tester.pump(const Duration(milliseconds: 100));
+    visible = false;
+    await tester.pumpAndSettle();
+
+    expect(find.text('今日目标达成！'), findsNothing);
+    expect(find.byType(Dialog), findsNothing);
+    expect(
+      prefs.getString(LocalUserPreferencesStore.dailyShareDateKey),
+      isNull,
+    );
+  });
+
   testWidgets('未就绪自动跳过，手动只 toast，准备完成不会补弹', (tester) async {
     final share = await mount(tester);
     await tester.tap(find.text('automatic'));

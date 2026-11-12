@@ -1851,6 +1851,7 @@
       "minutes": {"type": "int"}
     }
   },
+  "dailyGoalAchievedTitle": "今日目标达成！",
   "dailyGoalTodayCheckedIn": "今日已打卡",
   "monthlyCheckInDays": "打卡天数",
   "activityLegendCheckedIn": "已完成每日目标",

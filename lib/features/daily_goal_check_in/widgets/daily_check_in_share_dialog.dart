@@ -14,6 +14,7 @@ import '../data/daily_check_in_share_actions.dart';
 import '../providers/daily_check_in_share_provider.dart';
 import '../providers/daily_check_in_share_presentation_provider.dart';
 import 'daily_check_in_share_icon.dart';
+import 'daily_goal_celebration.dart';
 
 /// 手动入口不等待图片，也不在准备完成后补弹；自动入口仅消费本次返回检查。
 Future<void> showDailyCheckInShareDialog(
@@ -72,17 +73,33 @@ Future<void> showDailyCheckInShareDialog(
       skip('当天已展示或账号已变化');
       return;
     }
-    if (!context.mounted ||
-        ref.read(dailyShareUserIdProvider) != userId ||
-        ref.read(dailyShareNowProvider)().toIso8601String().substring(0, 10) !=
-            date ||
-        !ref.read(dailyCheckInShareProvider.notifier).hasCurrentCard ||
-        (canPresent != null && !canPresent()) ||
-        (WidgetsBinding.instance.lifecycleState != null &&
-            WidgetsBinding.instance.lifecycleState !=
-                AppLifecycleState.resumed)) {
+    // 自动弹窗前会等待庆祝动画，期间页面、账号、日期或前台状态都可能变化，需在展示前重新确认。
+    // 先检查 context.mounted，确保下面读取 ref 时调用方仍然存活。
+    bool isStillPresentable() {
+      return context.mounted &&
+          ref.read(dailyShareUserIdProvider) == userId &&
+          ref
+                  .read(dailyShareNowProvider)()
+                  .toIso8601String()
+                  .substring(0, 10) ==
+              date &&
+          ref.read(dailyCheckInShareProvider.notifier).hasCurrentCard &&
+          (canPresent == null || canPresent()) &&
+          (WidgetsBinding.instance.lifecycleState == null ||
+              WidgetsBinding.instance.lifecycleState ==
+                  AppLifecycleState.resumed);
+    }
+
+    if (!isStillPresentable()) {
       skip('页面、账号、日期或前台状态已变化');
       return;
+    }
+    if (automatic) {
+      await showDailyGoalCelebration(context);
+      if (!context.mounted || !isStillPresentable()) {
+        skip('庆祝动画期间页面、账号、日期或前台状态已变化');
+        return;
+      }
     }
     final card = ref.read(dailyCheckInShareProvider).card!.clone();
     await showDialog<void>(

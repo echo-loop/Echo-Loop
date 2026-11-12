@@ -4,6 +4,8 @@
 
 ## 本次完成
 
+- [x] 今日一刻自动弹出前播放「今日目标达成！」庆祝动画（2026-11-12）：自动弹出今日一刻卡片前，在学习页上方叠加播放 `confetti-2.lottie`（5.04s，背景透明，下方页面仍可见；按屏幕宽度等比贴顶部完整显示，不裁切），并叠加绿色勾选 + 「今日目标达成！」文字（轻微上浮 + 淡入 + 小幅放大，末段淡出），播完后再展示卡片。仅自动入口播放，手动入口不播放。播放期间若页面、账号、日期或前台状态变化，播完后不再弹卡片，也不写当天展示标记。点击屏幕可跳过；系统开启「减少动画」时不播放彩带、文字停留约 1.2s；彩带加载失败时只显示文字。新增 `lib/features/daily_goal_check_in/widgets/daily_goal_celebration.dart`；dotLottie 解码函数抽到 `lib/widgets/common/dot_lottie_decoder.dart`，`review_completion_summary.dart` 与 `completion_dialog_parts.dart` 改为复用，删除两处重复实现。`pubspec.yaml` 补充声明 `confetti-2.lottie`。l10n 新增 `dailyGoalAchievedTitle`。测试：新增 `daily_goal_celebration_test`；`daily_check_in_share_dialog_test` 新增自动/手动播放与庆祝期间离开用例。`flutter analyze` 改动范围无问题；相关 73 项测试通过。**待真机验证**：彩带观感与全屏过渡、文字位置与深浅色表现。**完成时间**: 2026-11-12
+
 - [x] 随心听、全文盲听、段落复述（看英文）字幕列表的收藏句显示译文（2026-11-12）：显示字幕时，收藏句原文下方附弱化译文（与段落复述原文档同一样式，`SentenceTranslationText.secondaryStyle`），非收藏句不变；单句模式与隐藏字幕时不显示。段落复述看英文模式下选「全部显示」时同样只给收藏句附译文（看译文模式原文档仍是每句都附）。共用 `bookmarkedSentenceTranslationBuilder`（`sentence_translation_text.dart`），翻译缓存键与句子讲解页一致；只有列表中可见的收藏句才请求译文，不做预热。未登录时不显示译文，不弹登录引导；额度用尽时在译文位置提示「AI 翻译额度已用完，点此订阅」，点击进入订阅页。`SentenceTranslationText.onSignInRequired` 改为可选，为空时登录失效不占位；`MaskedSentenceTile.secondaryTextBuilder` / `ParagraphSentenceListCard.sentenceSecondaryTextBuilder` 可按句返回 null。测试：`sentence_translation_text_test`、`masked_sentence_tile_test`、`media_playback_screen_test`、`retell_player_screen_test`（已登录 / 未登录）新增用例；全文盲听页未单独写测试。**待真机验证**：收藏句译文显示与滚动观感，以及未订阅用户的额度提示。**完成时间**: 2026-11-12
 
 - [x] 修复段落复述「看英文」且可见词生成关闭时可见性按钮整组消失（2026-11-12）：原逻辑在 `KeywordMethod.off` 时不显示按钮并强制全部隐藏，用户无法查看字幕。现保留「隐藏 / 显示」两档（`ParagraphVisibilityControls.showKeywordsOption`，短文案并加宽内边距），复述阶段系统自动切到的提示档按全部隐藏处理，复述完成后照常全部显示。测试：`retell_player_screen_test` 新增用例。**完成时间**: 2026-11-12

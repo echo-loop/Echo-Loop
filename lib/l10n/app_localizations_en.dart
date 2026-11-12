@@ -4521,6 +4521,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get activityLegendCheckedIn => 'Daily goal completed';
 
   @override
+  String get dailyGoalAchievedTitle => 'Daily goal achieved!';
+
+  @override
   String dailyGoalCompletedToast(int minutes) {
     return 'Today\'s $minutes-minute study goal is complete!';
   }

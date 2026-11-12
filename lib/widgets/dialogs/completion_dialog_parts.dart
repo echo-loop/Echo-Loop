@@ -8,6 +8,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
 import '../../theme/app_theme.dart';
+import '../common/dot_lottie_decoder.dart';
 
 /// 单条完成统计项
 ///
@@ -15,22 +16,6 @@ import '../../theme/app_theme.dart';
 typedef CompletionStat = ({String value, String label});
 
 const _doneCheckAnimationAsset = 'assets/animation/done-check.lottie';
-
-/// 从 dotLottie 压缩包中选取第一个动画 JSON，供 Lottie 播放器解析。
-Future<LottieComposition?> _decodeDoneCheckAnimation(List<int> bytes) {
-  return LottieComposition.decodeZip(
-    bytes,
-    filePicker: (files) {
-      for (final file in files) {
-        if (file.name.startsWith('animations/') &&
-            file.name.endsWith('.json')) {
-          return file;
-        }
-      }
-      return null;
-    },
-  );
-}
 
 /// 完成对话框顶部英雄区
 ///
@@ -70,7 +55,7 @@ class CompletionHeroHeader extends StatelessWidget {
           Lottie.asset(
             _doneCheckAnimationAsset,
             key: const Key('completion-dialog-done-check'),
-            decoder: _decodeDoneCheckAnimation,
+            decoder: decodeDotLottieAnimation,
             repeat: true,
             animate: true,
             width: 160,
