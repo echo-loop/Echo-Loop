@@ -35,6 +35,7 @@ abstract final class PostHogEventPolicy {
     Events.subscriptionCheckoutStarted,
     Events.subscriptionPurchaseResult,
     Events.chatTurnResult,
+    Events.dailyGoalCheckedIn,
   };
 
   /// 判断事件是否允许发送到 PostHog。

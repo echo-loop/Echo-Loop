@@ -5,9 +5,13 @@
 /// - 同日再次学习不会再次打卡，state 保持不变
 /// - 未达标不打卡
 /// - 重建 Provider（模拟重启或切库）后同日不重复打卡
+/// - 打卡成功上报埋点，未达标或同日重复学习不上报
 library;
 
 import 'package:drift/native.dart';
+import 'package:echo_loop/analytics/analytics_providers.dart';
+import 'package:echo_loop/analytics/analytics_service.dart';
+import 'package:echo_loop/analytics/models/event_names.dart';
 import 'package:echo_loop/database/app_database.dart';
 import 'package:echo_loop/database/providers.dart';
 import 'package:echo_loop/features/daily_goal_check_in/providers/daily_goal_check_in_provider.dart';
@@ -18,13 +22,17 @@ import 'package:echo_loop/services/study_time_service.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mocktail/mocktail.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+class _MockAnalyticsService extends Mock implements AnalyticsService {}
 
 void main() {
   final binding = TestWidgetsFlutterBinding.ensureInitialized();
   late AppDatabase db;
   late StudyTimeService service;
   late SharedPreferences prefs;
+  late _MockAnalyticsService analytics;
   final today = DateTime(2026, 11, 6);
 
   setUp(() async {
@@ -35,6 +43,8 @@ void main() {
       NativeDatabase.memory(setup: configureAppDatabaseConnection),
     );
     service = _buildService(db);
+    analytics = _MockAnalyticsService();
+    when(() => analytics.track(any(), any())).thenAnswer((_) async {});
   });
 
   tearDown(() async {
@@ -47,6 +57,7 @@ void main() {
         sharedPreferencesProvider.overrideWithValue(prefs),
         appDatabaseProvider.overrideWithValue(db),
         studyTimeServiceProvider.overrideWithValue(studyService),
+        analyticsServiceProvider.overrideWithValue(analytics),
       ],
     );
     addTearDown(container.dispose);
@@ -82,9 +93,24 @@ void main() {
     await _settle();
 
     expect(container.read(dailyGoalCheckInProvider), isNull);
+    verifyNever(() => analytics.track(any(), any()));
   });
 
-  test('同日再次学习不会再次打卡，state 保持首次实例', () async {
+  test('打卡成功后上报埋点，携带目标分钟数', () async {
+    final container = makeContainer(service);
+
+    await study(service, 5);
+    await _waitFor(() => container.read(dailyGoalCheckInProvider) != null);
+
+    final captured = verify(() => analytics.track(captureAny(), captureAny()))
+        .captured;
+    expect(captured, [
+      Events.dailyGoalCheckedIn,
+      {EventParams.goalMinutes: 5},
+    ]);
+  });
+
+  test('同日再次学习不会再次打卡，state 保持首次实例，埋点只上报一次', () async {
     final container = makeContainer(service);
     await study(service, 5);
     await _waitFor(() => container.read(dailyGoalCheckInProvider) != null);
@@ -94,6 +120,7 @@ void main() {
     await _settle();
 
     expect(identical(container.read(dailyGoalCheckInProvider), first), isTrue);
+    verify(() => analytics.track(any(), any())).called(1);
   });
 
   test('打卡成功后刷新学习统计，今日打卡状态无需等待下次进入页面', () async {

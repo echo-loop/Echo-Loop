@@ -179,6 +179,11 @@ abstract class Events {
   /// 点击学习 Tab 的「加入学习社群」邀请卡片
   static const communityInviteTapped = 'community_invite_tapped';
 
+  // ── 每日目标打卡 ──
+  /// 当天学习时长首次达标并完成打卡
+  /// params: goal_minutes（打卡时的每日学习目标，分钟）
+  static const dailyGoalCheckedIn = 'daily_goal_checked_in';
+
   // ── 收藏复习按钮 ──
   /// 点击句子复习按钮
   static const bookmarkReviewButtonTapped = 'bookmark_review_button_tapped';
@@ -392,6 +397,9 @@ abstract class EventParams {
 
   /// Q2 每日学习时长
   static const dailyMinutes = 'daily_minutes';
+
+  /// 打卡时的每日学习目标（分钟），用于 [Events.dailyGoalCheckedIn]
+  static const goalMinutes = 'goal_minutes';
 
   /// Q3 来源渠道（user property 同名）
   static const referralSource = 'referral_source';

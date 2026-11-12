@@ -36,6 +36,10 @@ void main() {
       );
       expect(PostHogEventPolicy.shouldCapture(Events.chatTurnResult), isTrue);
       expect(
+        PostHogEventPolicy.shouldCapture(Events.dailyGoalCheckedIn),
+        isTrue,
+      );
+      expect(
         PostHogEventPolicy.shouldCapture(Events.themeModeChanged),
         isFalse,
       );

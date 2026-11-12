@@ -12,6 +12,8 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../analytics/analytics_providers.dart';
+import '../../../analytics/models/event_names.dart';
 import '../../../database/providers.dart';
 import '../../../providers/learning_settings_provider.dart';
 import '../../../providers/study_stats_provider.dart';
@@ -78,6 +80,10 @@ class DailyGoalCheckInNotifier extends Notifier<DailyGoalCheckIn?> {
         'event=checked_in goalMinutes=$goalMinutes',
       );
       state = DailyGoalCheckIn(date: eventDate, goalMinutes: goalMinutes);
+      // 埋点只在首次打卡成功时上报，同日重复学习已被数据库条件 UPDATE 拦截
+      ref.read(analyticsServiceProvider).track(Events.dailyGoalCheckedIn, {
+        EventParams.goalMinutes: goalMinutes,
+      });
       // 时长写入时学习页统计已刷新过，打卡标记晚于那次刷新落库，需要再刷新一次。
       await ref.read(studyStatsProvider.notifier).refresh();
     } catch (error, stackTrace) {
