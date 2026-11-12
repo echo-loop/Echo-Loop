@@ -10,6 +10,7 @@ import 'dart:async';
 import 'dart:ui';
 
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart' show listEquals;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -36,6 +37,7 @@ import '../../models/word_highlight_binding.dart';
 import '../../providers/audio_engine/audio_engine_provider.dart';
 import '../../providers/audio_sentences_provider.dart';
 import '../../providers/learning_settings_provider.dart';
+import '../../providers/sentence_ai_prewarm.dart';
 import '../../providers/sentence_ai_provider.dart';
 import '../../providers/settings_provider.dart';
 import '../../providers/word_highlight_provider.dart';
@@ -45,6 +47,7 @@ import '../app_toast.dart';
 import '../../services/dictionary/ai_dictionary_source.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/sense_group_service.dart';
+import '../../utils/text_normalize.dart';
 import '../../utils/sense_group_timing_notice_store.dart';
 import '../../utils/sense_group_timing.dart';
 import '../dictionary/dictionary_panel_host.dart';
@@ -141,6 +144,17 @@ class SentenceExplanationView extends ConsumerStatefulWidget {
   /// AI 意群自动展示覆盖；未传入时沿用全局学习任务设置。
   final bool? autoShowAiSenseGroups;
 
+  /// 当前卡片之后即将展示的卡片（按展示顺序）。
+  ///
+  /// 当前句为激活页且开启了 AI 自动展示时，后台预热这些卡片的翻译/解析/意群，
+  /// 用户切换过去即可直接显示缓存结果。
+  ///
+  /// 只用于用户会按顺序逐张浏览、且每张卡片都直接展示 AI 结果的页面（难句跟读、
+  /// 随心听精听模式、收藏句子复习）。逐句精听、难句复习先盲听，用户点「听不懂」才进入
+  /// 讲解；句子讲解页是为查看某一句而打开，很少顺序往后滑。这些页面预热的大多是用户
+  /// 不会看的句子，浪费额度，不应传入。
+  final List<SentenceAiPrewarmTarget> prewarmTargets;
+
   const SentenceExplanationView({
     super.key,
     this.text,
@@ -166,6 +180,7 @@ class SentenceExplanationView extends ConsumerStatefulWidget {
     this.autoShowAiAnalysis,
     this.autoShowAiTranslation,
     this.autoShowAiSenseGroups,
+    this.prewarmTargets = const [],
   });
 
   @override
@@ -285,6 +300,7 @@ class _SentenceExplanationViewState
   void initState() {
     super.initState();
     _preloadCache();
+    _schedulePrewarm();
   }
 
   @override
@@ -325,6 +341,86 @@ class _SentenceExplanationViewState
     if (_shouldResetScrollPosition(oldWidget)) {
       _resetScrollPosition();
     }
+    if (_shouldRestartPrewarm(oldWidget)) {
+      _schedulePrewarm();
+    }
+  }
+
+  /// 按用户 AI 自动展示设置解析各功能是否自动加载；宿主覆盖优先于全局学习设置。
+  SentenceAiPrewarmFeatures _autoShowFeatures(LearningSettings settings) {
+    final explanation =
+        widget.autoShowAiExplanation ?? settings.autoShowAiExplanation;
+    return SentenceAiPrewarmFeatures(
+      translation:
+          explanation &&
+          (widget.autoShowAiTranslation ?? settings.autoShowAiTranslation),
+      analysis:
+          explanation &&
+          (widget.autoShowAiAnalysis ?? settings.autoShowAiAnalysis),
+      senseGroups:
+          explanation &&
+          (widget.autoShowAiSenseGroups ?? settings.autoShowAiSenseGroups),
+    );
+  }
+
+  /// 切句、重新激活、后续卡片或自动展示设置变化时重新调度预热。
+  bool _shouldRestartPrewarm(SentenceExplanationView oldWidget) {
+    if (!widget.isActiveSentence) return false;
+    return !oldWidget.isActiveSentence ||
+        _text != (oldWidget.text ?? '') ||
+        widget.audioItemId != oldWidget.audioItemId ||
+        widget.sentenceIndex != oldWidget.sentenceIndex ||
+        widget.autoShowAiExplanation != oldWidget.autoShowAiExplanation ||
+        widget.autoShowAiAnalysis != oldWidget.autoShowAiAnalysis ||
+        widget.autoShowAiTranslation != oldWidget.autoShowAiTranslation ||
+        widget.autoShowAiSenseGroups != oldWidget.autoShowAiSenseGroups ||
+        !listEquals(widget.prewarmTargets, oldWidget.prewarmTargets);
+  }
+
+  /// 帧后启动后台预热：先等当前句（与卡片自动请求共享同一条流），再依次预热后续卡片。
+  ///
+  /// 仅激活页触发，离屏保活页不重复调度；未登录或未开启任何自动展示时不预热。
+  void _schedulePrewarm() {
+    if (!widget.isActiveSentence || widget.prewarmTargets.isEmpty) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !widget.isActiveSentence) return;
+      final features = _autoShowFeatures(ref.read(learningSettingsProvider));
+      final accessToken = ref.read(supabaseSessionProvider).value?.accessToken;
+      final skipReason = features.isEmpty
+          ? 'allSettingsDisabled'
+          : (accessToken == null || accessToken.isEmpty)
+          ? 'missingAuth'
+          : null;
+      if (skipReason != null || accessToken == null) {
+        AppLogger.log(
+          'SentenceAiPrewarm',
+          '跳过预热 source=${_diagnosticSource ?? 'unknown'} '
+              'sentence=${_sentenceIndex ?? -1} reason=$skipReason',
+        );
+        return;
+      }
+      final nativeLanguage = ref.read(
+        appSettingsProvider.select((s) => s.nativeLanguage),
+      );
+      unawaited(
+        ref
+            .read(sentenceAiPrewarmerProvider)
+            .prewarm(
+              [
+                SentenceAiPrewarmTarget(
+                  text: _text,
+                  audioItemId: widget.audioItemId,
+                  sentenceIndex: _sentenceIndex,
+                ),
+                ...widget.prewarmTargets,
+              ],
+              features: features,
+              targetLanguage: nativeLanguage,
+              accessToken: accessToken,
+              source: _diagnosticSource ?? 'unknown',
+            ),
+      );
+    });
   }
 
   /// 判断是否进入了新的讲解阅读会话。
@@ -395,26 +491,36 @@ class _SentenceExplanationViewState
     final (previousText, nextText) = _neighborTexts(sentences);
 
     // 预加载翻译和解析（结果通过 getCachedTranslation/getCachedAnalysis 透给 card）
-    await ai.preloadTranslationFromDb(
+    final translationLoaded = await ai.preloadTranslationFromDb(
       _text,
       targetLanguage: nativeLanguage,
       previous: previousText,
       next: nextText,
     );
-    await ai.preloadAnalysisFromDb(_text, targetLanguage: nativeLanguage);
+    final analysisLoaded = await ai.preloadAnalysisFromDb(
+      _text,
+      targetLanguage: nativeLanguage,
+    );
 
     // 预加载意群并计算时间范围
     final sgLoaded = await ai.preloadSenseGroupsFromDb(_text);
 
     if (!mounted || generation != _preloadGeneration) return;
+    // 进入卡片时缓存是否已就绪：开启自动展示却 miss，说明预热未完成或未命中同一缓存键，
+    // 可结合 SentenceAiPrewarm / SentenceAI 日志中的 key 排查。
+    AppLogger.log(
+      'SentenceAiPrewarm',
+      '进入卡片缓存状态 source=${_diagnosticSource ?? 'unknown'} '
+          'sentence=${_sentenceIndex ?? -1} active=${widget.isActiveSentence} '
+          'translationKey=${aiCacheLogKey(translationContextHash(_text, previous: previousText, next: nextText))} '
+          'translation=${translationLoaded ? 'hit' : 'miss'} '
+          'analysis=${analysisLoaded ? 'hit' : 'miss'} '
+          'senseGroups=${sgLoaded ? 'hit' : 'miss'}',
+    );
 
     if (sgLoaded) {
-      final settings = ref.read(learningSettingsProvider);
-      final autoShowAiExplanation =
-          widget.autoShowAiExplanation ?? settings.autoShowAiExplanation;
-      final autoShowAiSenseGroups =
-          widget.autoShowAiSenseGroups ?? settings.autoShowAiSenseGroups;
-      final autoExpand = autoShowAiExplanation && autoShowAiSenseGroups;
+      final autoExpand = _autoShowFeatures(ref.read(learningSettingsProvider))
+          .senseGroups;
       if (!autoExpand) return;
       final result = ai.getCachedSenseGroups(_text);
       if (result != null && result.medium.isNotEmpty) {
@@ -984,20 +1090,10 @@ class _SentenceExplanationViewState
     final nativeLanguage = ref.watch(
       appSettingsProvider.select((s) => s.nativeLanguage),
     );
-    final learningSettings = ref.watch(learningSettingsProvider);
-    final autoShowAiExplanation =
-        widget.autoShowAiExplanation ?? learningSettings.autoShowAiExplanation;
-    final autoShowAiAnalysis =
-        autoShowAiExplanation &&
-        (widget.autoShowAiAnalysis ?? learningSettings.autoShowAiAnalysis);
-    final autoShowAiTranslation =
-        autoShowAiExplanation &&
-        (widget.autoShowAiTranslation ??
-            learningSettings.autoShowAiTranslation);
-    final autoShowAiSenseGroups =
-        autoShowAiExplanation &&
-        (widget.autoShowAiSenseGroups ??
-            learningSettings.autoShowAiSenseGroups);
+    final autoShow = _autoShowFeatures(ref.watch(learningSettingsProvider));
+    final autoShowAiAnalysis = autoShow.analysis;
+    final autoShowAiTranslation = autoShow.translation;
+    final autoShowAiSenseGroups = autoShow.senseGroups;
     // watch 共享字幕投影：撑起其 autoDispose 生命周期（视图在屏则常驻）+ 同步取前后句。
     // 翻译缓存 key 包含前后句，必须等字幕投影就绪后才允许自动翻译；
     // 否则首帧会用 null/null 写入无上下文 key，返回页面时再用带上下文 key 读取就会 miss。

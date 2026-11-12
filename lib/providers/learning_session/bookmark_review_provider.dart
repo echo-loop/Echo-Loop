@@ -19,6 +19,7 @@ import '../../database/providers.dart';
 import '../../features/memory_scheduler/domain/memory_rating.dart';
 import '../../features/memory_scheduler/domain/memory_scheduler_results.dart';
 import '../../features/memory_scheduler/providers/memory_scheduler_providers.dart';
+import '../../config/ai_prewarm_config.dart';
 import '../../features/scheduled_flashcard/application/scheduled_flashcard_controller.dart';
 import '../../features/scheduled_flashcard/domain/scheduled_flashcard.dart';
 import '../../features/scheduled_flashcard/domain/review_session_summary.dart';
@@ -59,9 +60,13 @@ class BookmarkReviewState {
     this.isSubmittingRating = false,
     this.reviewedCount = 0,
     this.completionSummary,
+    this.upcomingCards = const [],
   });
 
   final BookmarkSentence? currentCard;
+
+  /// 当前卡之后即将展示的卡片，供页面提前预热 AI 内容。
+  final List<BookmarkSentence> upcomingCards;
   final int initialTotal;
   final int remainingCount;
   final BookmarkReviewFace face;
@@ -95,6 +100,7 @@ class BookmarkReviewState {
     int? reviewedCount,
     ReviewSessionSummary? completionSummary,
     bool clearCompletionSummary = false,
+    List<BookmarkSentence>? upcomingCards,
   }) => BookmarkReviewState(
     currentCard: clearCurrentCard ? null : currentCard ?? this.currentCard,
     initialTotal: initialTotal ?? this.initialTotal,
@@ -110,6 +116,7 @@ class BookmarkReviewState {
     completionSummary: clearCompletionSummary
         ? null
         : completionSummary ?? this.completionSummary,
+    upcomingCards: upcomingCards ?? this.upcomingCards,
   );
 }
 
@@ -254,6 +261,9 @@ class BookmarkReview extends _$BookmarkReview {
       );
       if (controller.reorderPending(orderedDeck)) {
         state = _stateFromController(controller);
+      } else {
+        // 首卡未变时保留当前翻面等状态，只同步重排后的后续卡片。
+        state = state.copyWith(upcomingCards: _upcomingCards(controller));
       }
     } catch (error) {
       AppLogger.log(
@@ -544,7 +554,15 @@ class BookmarkReview extends _$BookmarkReview {
     remainingCount: controller.state.remainingCount,
     reviewedCount: controller.state.reviewedCount,
     completionSummary: completionSummary,
+    upcomingCards: _upcomingCards(controller),
   );
+
+  List<BookmarkSentence> _upcomingCards(
+    ScheduledFlashcardController<BookmarkSentence> controller,
+  ) => controller
+      .upcoming(kAiPrewarmAheadCount)
+      .map((card) => card.content)
+      .toList(growable: false);
 
   /// 调度器没有下一张可展示卡时，统一产出本次会话的完成快照。
   ///

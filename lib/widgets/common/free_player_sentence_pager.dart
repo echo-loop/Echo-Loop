@@ -7,6 +7,7 @@ import '../../models/audio_item.dart';
 import '../../models/sentence.dart';
 import '../../models/sense_group_range_playback.dart';
 import '../../models/word_highlight_binding.dart';
+import '../../providers/sentence_ai_prewarm.dart';
 import '../../services/app_logger.dart';
 import '../../services/subtitle_parser.dart';
 import '../../theme/app_theme.dart';
@@ -198,6 +199,7 @@ class _FreePlayerSentencePagerState extends State<FreePlayerSentencePager> {
                 onPageChanged: _onPageChanged,
                 itemBuilder: (context, position) => _buildSentencePage(
                   widget.sentences[position],
+                  position: position,
                   isActivePage: position == targetPosition,
                 ),
               ),
@@ -531,7 +533,11 @@ class _FreePlayerSentencePagerState extends State<FreePlayerSentencePager> {
     return nextPageMovesLeft ? 'right_to_left' : 'left_to_right';
   }
 
-  Widget _buildSentencePage(Sentence sentence, {required bool isActivePage}) {
+  Widget _buildSentencePage(
+    Sentence sentence, {
+    required int position,
+    required bool isActivePage,
+  }) {
     // 分页页填满视口，讲解组件只滚动工具栏和正文。
     return Column(
       children: [
@@ -556,6 +562,13 @@ class _FreePlayerSentencePagerState extends State<FreePlayerSentencePager> {
             enableGuide: isActivePage,
             isActiveSentence: isActivePage,
             showTranscript: widget.showTranscript,
+            prewarmTargets: isActivePage
+                ? upcomingSentencePrewarmTargets(
+                    sentences: widget.sentences,
+                    position: position,
+                    audioItemId: widget.audioItem.id,
+                  )
+                : const [],
           ),
         ),
       ],

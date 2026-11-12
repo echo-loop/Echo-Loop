@@ -75,6 +75,42 @@ void main() {
     expect(engine.state.remainingCount, 2);
   });
 
+  test('upcoming 返回当前卡之后的普通卡，不含当前卡与重试卡', () {
+    final first = card('one');
+    final second = card('two');
+    final third = card('three');
+    final fourth = card('four');
+    final engine = ScheduledFlashcardEngine<String>();
+    engine.setDeck(<ScheduledFlashcard<String>>[
+      first,
+      second,
+      third,
+      fourth,
+    ], now);
+
+    expect(engine.upcoming(2), <ScheduledFlashcard<String>>[second, third]);
+
+    // 评「重来」进入重试队列：重试卡不纳入预热，后续普通卡顺延。
+    engine.revealAnswer();
+    engine.beginSubmitting(MemoryRating.again);
+    engine.completeRating(
+      rating: MemoryRating.again,
+      scheduleRevision: 4,
+      dueAt: now,
+      now: now,
+    );
+    expect(engine.state.current, same(second));
+    expect(engine.upcoming(2), <ScheduledFlashcard<String>>[third, fourth]);
+
+    engine
+      ..removeCurrent(now)
+      ..removeCurrent(now)
+      ..removeCurrent(now);
+    // 普通卡用尽、当前为重试卡时没有可预热的后续卡。
+    expect(engine.state.current, same(first));
+    expect(engine.upcoming(2), isEmpty);
+  });
+
   group('removeCurrent', () {
     final first = card('one');
     final second = card('two');

@@ -653,6 +653,9 @@ class _SentenceDetailScreenState extends ConsumerState<SentenceDetailScreen> {
       senseGroupRangePlayback: _rangePlayback,
       enableGuide: isActive,
       isActiveSentence: isActive,
+      explanationContext: const SentenceExplanationContext(
+        source: 'sentenceDetail',
+      ),
     );
   }
 

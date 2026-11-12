@@ -20,6 +20,7 @@ import '../providers/bookmark_review_settings_provider.dart';
 import '../providers/favorite_review_settings_provider.dart';
 import '../providers/short_audio_player_provider.dart';
 import '../providers/learning_session/bookmark_review_provider.dart';
+import '../providers/sentence_ai_prewarm.dart';
 import '../providers/sentence_ai_provider.dart';
 import '../providers/sense_group_range_playback_provider.dart';
 import '../services/pronunciation/local_audio_sense_group_range_playback.dart';
@@ -238,6 +239,7 @@ class _BookmarkReviewScreenState extends ConsumerState<BookmarkReviewScreen>
                                   ],
                                   child: _ReviewAnswer(
                                     card: card,
+                                    upcomingCards: state.upcomingCards,
                                     preview: state.preview,
                                     showNextReviewTime: ref.watch(
                                       favoriteReviewSettingsProvider.select(
@@ -561,6 +563,7 @@ class _CenteredPrompt extends StatelessWidget {
 class _ReviewAnswer extends ConsumerWidget {
   const _ReviewAnswer({
     required this.card,
+    required this.upcomingCards,
     required this.preview,
     required this.showNextReviewTime,
     required this.isSubmitting,
@@ -570,6 +573,9 @@ class _ReviewAnswer extends ConsumerWidget {
   });
 
   final BookmarkSentence card;
+
+  /// 当前卡之后即将展示的收藏句，答案面展示期间后台预热其 AI 内容。
+  final List<BookmarkSentence> upcomingCards;
   final MemoryRatingPreviewSet? preview;
   final bool showNextReviewTime;
   final bool isSubmitting;
@@ -649,10 +655,21 @@ class _ReviewAnswer extends ConsumerWidget {
                 senseGroupRangePlaybackProvider,
               ),
               enableGuide: false,
+              explanationContext: const SentenceExplanationContext(
+                source: 'bookmarkReview',
+              ),
               autoShowAiExplanation: sentenceSettings.autoShowAiExplanation,
               autoShowAiAnalysis: sentenceSettings.autoShowAiAnalysis,
               autoShowAiTranslation: sentenceSettings.autoShowAiTranslation,
               autoShowAiSenseGroups: sentenceSettings.autoShowAiSenseGroups,
+              prewarmTargets: [
+                for (final upcoming in upcomingCards)
+                  SentenceAiPrewarmTarget(
+                    text: upcoming.sentence.text,
+                    audioItemId: upcoming.audioItemId,
+                    sentenceIndex: upcoming.originalSentenceIndex,
+                  ),
+              ],
             ),
           ),
         ),

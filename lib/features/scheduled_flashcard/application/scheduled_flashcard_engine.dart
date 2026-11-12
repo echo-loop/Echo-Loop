@@ -63,6 +63,17 @@ final class ScheduledFlashcardEngine<T> {
   int _retrySequence = 0;
   ScheduledFlashcardSessionState<T> get state => _state;
 
+  /// 当前卡之后即将展示的普通卡（按队列顺序，最多 [count] 张），供页面提前预热 AI 内容。
+  ///
+  /// 重试卡展示时机取决于到期时间且此前已展示过（内容已缓存），不纳入预热范围。
+  List<ScheduledFlashcard<T>> upcoming(int count) {
+    final current = _state.current;
+    return _pending
+        .where((card) => !identical(card, current))
+        .take(count)
+        .toList(growable: false);
+  }
+
   void setDeck(List<ScheduledFlashcard<T>> deck, DateTime now) {
     _pending
       ..clear()

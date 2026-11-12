@@ -46,6 +46,10 @@ final class ScheduledFlashcardController<T> {
   bool _disposed = false;
 
   ScheduledFlashcardSessionState<T> get state => _engine.state;
+
+  /// 当前卡之后即将展示的普通卡，见 [ScheduledFlashcardEngine.upcoming]。
+  List<ScheduledFlashcard<T>> upcoming(int count) => _engine.upcoming(count);
+
   void addListener(void Function() listener) => _listeners.add(listener);
   void removeListener(void Function() listener) => _listeners.remove(listener);
 

@@ -29,6 +29,8 @@ import '../widgets/dictionary/ai_dict_result_view.dart';
 import '../widgets/dictionary/local_dict_result_view.dart';
 import '../widgets/dictionary/reading_text_scale.dart';
 import '../widgets/dictionary/dictionary_panel_host.dart';
+import '../services/app_logger.dart';
+import '../services/dictionary/ai_dictionary_source.dart';
 import '../services/dictionary/dictionary_source.dart';
 import '../theme/app_theme.dart';
 import '../utils/time_format.dart';
@@ -58,15 +60,116 @@ class _FavoriteVocabularyReviewScreenState
   final GlobalKey<DictionaryPanelHostState> _dictionaryHostKey =
       GlobalKey<DictionaryPanelHostState>();
 
+  /// AI 查词预热订阅（按卡片文本）。
+  ///
+  /// 持有当前卡及后续卡的 AI 查词 controller，使请求在卡片翻到背面前完成并写入缓存；
+  /// 背面 watch 同一 provider，直接复用进行中或已完成的结果，不会重复请求。
+  final Map<String, ProviderSubscription<DictionaryLookupState>>
+  _aiLookupPrewarms = {};
+
+  /// 当前预热窗口内的词；不在窗口内但仍在订阅中的词表示正在等待请求完成后释放。
+  Set<String> _aiLookupWindow = const {};
+
   @override
   void initState() {
     super.initState();
     _review = ref.read(favoriteVocabularyReviewProvider.notifier);
+    ref.listenManual(
+      favoriteVocabularyReviewProvider.select(
+        (state) => (state.currentCard, state.upcomingCards),
+      ),
+      (_, _) => _syncAiLookupPrewarms(),
+    );
+    ref.listenManual(
+      favoriteReviewSettingsProvider.select(
+        (settings) => settings.autoShowAiLookup,
+      ),
+      (_, _) => _syncAiLookupPrewarms(),
+    );
+    _syncAiLookupPrewarms();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         unawaited(_review.startCurrentCard());
       }
     });
+  }
+
+  /// 按当前卡与后续卡同步 AI 查词预热：新进入窗口的词开始查询，离开窗口的词释放。
+  ///
+  /// 仅在开启「自动显示 AI 查词」时预热，与背面自动展开 AI 结果的条件一致。
+  /// 离开窗口时请求若仍在进行（用户快速评分划过、或评完最后一张进入完成页），
+  /// 等它完成并写入缓存后再释放，避免已消耗的请求被取消白费；用户关闭开关则立即释放。
+  /// 退出页面时订阅随页面销毁，仍在进行的请求会被取消。
+  void _syncAiLookupPrewarms() {
+    final state = ref.read(favoriteVocabularyReviewProvider);
+    final isAutoShowEnabled = ref
+        .read(favoriteReviewSettingsProvider)
+        .autoShowAiLookup;
+    final isCompleted = state.completionSummary != null;
+    final currentCard = state.currentCard;
+    final words = isAutoShowEnabled && !isCompleted
+        ? {
+            if (currentCard != null) currentCard.displayText,
+            for (final card in state.upcomingCards) card.displayText,
+          }
+        : const <String>{};
+    final leavingWords = _aiLookupWindow
+        .where((word) => !words.contains(word))
+        .toList();
+    _aiLookupWindow = words;
+    final releasedWords = <String>[];
+    final drainingWords = <String>[];
+    for (final word in leavingWords) {
+      final subscription = _aiLookupPrewarms[word];
+      if (subscription == null) continue;
+      if (isAutoShowEnabled && !_isAiLookupSettled(subscription.read())) {
+        drainingWords.add(word);
+        continue;
+      }
+      _aiLookupPrewarms.remove(word)!.close();
+      releasedWords.add(word);
+    }
+    final newWords = words
+        .where((word) => !_aiLookupPrewarms.containsKey(word))
+        .toList();
+    if (leavingWords.isEmpty && newWords.isEmpty) return;
+    AppLogger.log(
+      'FavoriteVocabularyReview',
+      'AI 查词预热窗口 autoShow=$isAutoShowEnabled completed=$isCompleted '
+          'current=${currentCard?.displayText} '
+          'start=${newWords.join('|')} release=${releasedWords.join('|')} '
+          'drainBeforeRelease=${drainingWords.join('|')} window=${words.length}',
+    );
+    for (final word in newWords) {
+      _aiLookupPrewarms[word] = ref.listenManual(
+        dictionaryLookupControllerProvider(
+          word,
+          preferredSourceId: AiDictionarySource.sourceId,
+        ),
+        (_, next) => _releaseDrainedAiLookup(word, next),
+      );
+    }
+  }
+
+  /// 已离开窗口的词在请求结束后释放订阅。
+  void _releaseDrainedAiLookup(String word, DictionaryLookupState lookup) {
+    if (_aiLookupWindow.contains(word) || !_isAiLookupSettled(lookup)) return;
+    final subscription = _aiLookupPrewarms.remove(word);
+    if (subscription == null) return;
+    subscription.close();
+    AppLogger.log(
+      'FavoriteVocabularyReview',
+      'AI 查词预热请求结束后释放 word=$word '
+          'status=${lookup.current.runtimeType}',
+    );
+  }
+
+  /// 查询已结束（成功、未收录或失败），不再有在途请求。
+  bool _isAiLookupSettled(DictionaryLookupState lookup) {
+    final current = lookup.current;
+    return current != null &&
+        current is! LookupLoading &&
+        current is! LookupStreaming;
   }
 
   /// 页面生命周期内只启动一次会话收尾，避免返回回调与 dispose 兜底重复刷统计。
@@ -530,6 +633,34 @@ class _VocabularyBackState extends ConsumerState<_VocabularyBack> {
       }
       _showAi = widget.autoShowAiLookup;
     }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    if (_showAi) _logAiLookupReadiness();
+  }
+
+  /// 翻到背面时记录 AI 查词是否已由预热就绪：loaded 为预期；streaming 说明预热未完成
+  /// 但已复用同一请求；notPrewarmed 说明预热窗口未覆盖该卡，属于异常。
+  void _logAiLookupReadiness() {
+    final word = widget.card.displayText;
+    final provider = dictionaryLookupControllerProvider(
+      word,
+      preferredSourceId: AiDictionarySource.sourceId,
+    );
+    final status = ref.exists(provider)
+        ? switch (ref.read(provider).current) {
+            LookupLoaded() => 'loaded',
+            LookupStreaming() => 'streaming',
+            LookupLoading() || null => 'loading',
+            final other => other.runtimeType.toString(),
+          }
+        : 'notPrewarmed';
+    AppLogger.log(
+      'FavoriteVocabularyReview',
+      '翻面 AI 查词状态 word=$word status=$status',
+    );
   }
 
   bool get _isSingleWord =>

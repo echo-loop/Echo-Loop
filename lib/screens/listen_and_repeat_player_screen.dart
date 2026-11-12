@@ -38,6 +38,7 @@ import '../providers/listen_and_repeat/listen_and_repeat_session_state.dart';
 import '../providers/media_engine/media_engine_provider.dart';
 import '../providers/repeat_flow/repeat_flow_state.dart';
 import '../providers/sentence_ai_provider.dart';
+import '../providers/sentence_ai_prewarm.dart';
 import '../services/app_logger.dart';
 import '../theme/app_theme.dart';
 import '../widgets/common/bookmark_toggle_row.dart';
@@ -751,6 +752,18 @@ class _ListenAndRepeatPlayerScreenState
                                                 : null,
                                             enableGuide: false,
                                             isActiveSentence: isActive,
+                                            explanationContext:
+                                                const SentenceExplanationContext(
+                                                  source: 'listenAndRepeat',
+                                                ),
+                                            prewarmTargets: isActive
+                                                ? upcomingSentencePrewarmTargets(
+                                                    sentences: ctrl.sentences,
+                                                    position: sentenceIndex,
+                                                    audioItemId:
+                                                        widget.audioItemId,
+                                                  )
+                                                : const [],
                                             onStopMainPlayer:
                                                 ctrl.enterWaitingForUser,
                                             onToolbarButtonTapped: () {
