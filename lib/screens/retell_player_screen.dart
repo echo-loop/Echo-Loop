@@ -12,6 +12,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+
 import '../database/enums.dart';
 import '../models/practice_completion_result.dart';
 import '../features/auth/sign_in_required_dialog.dart';
@@ -38,6 +39,9 @@ import '../providers/learning_session/retell_player_provider.dart';
 import '../providers/media_engine/media_engine_provider.dart';
 import '../providers/media_engine/media_sense_group_range_playback.dart';
 import '../providers/new_user_guide_provider.dart';
+import '../features/auth/providers/auth_providers.dart';
+import '../providers/sentence_ai_prewarm.dart';
+import '../providers/sentence_translation_provider.dart';
 import '../widgets/common/recording_button.dart' show RecordingButtonMode;
 import '../providers/retell_recording_controller_provider.dart';
 import '../providers/retell_review_evaluation_provider.dart';
@@ -56,6 +60,7 @@ import '../widgets/common/paragraph_practice_scaffold.dart';
 import '../widgets/common/managed_media_visual_surface.dart';
 import '../widgets/common/practice_media_presentation_host.dart';
 import '../widgets/common/paragraph_sentence_list_card.dart';
+import '../widgets/common/sentence_translation_text.dart';
 import '../widgets/study/study_activity_detector.dart';
 import '../widgets/guide_flow.dart';
 import '../widgets/common/paragraph_visibility_controls.dart';
@@ -141,6 +146,9 @@ class _RetellPlayerScreenState extends ConsumerState<RetellPlayerScreen>
   /// 防止同一轮评估的状态更新叠加多个额度提示。
   bool _isShowingAiQuotaDialog = false;
 
+  /// 已预热译文的段落标识（首句全局索引:句数），避免同一段重复调度。
+  String? _translationPrewarmParagraphKey;
+
   ProviderSubscription<RetellPlayerState>? _playerSubscription;
   ProviderSubscription<RetellRecordingState>? _recordingSubscription;
   ProviderSubscription<RetellReviewEvaluationState>? _reviewSubscription;
@@ -170,6 +178,7 @@ class _RetellPlayerScreenState extends ConsumerState<RetellPlayerScreen>
         .silenceSkipEventStream
         .listen(_showSilenceSkippedSnackBar);
     _latestPlayerState = ref.read(retellPlayerProvider);
+    _prewarmParagraphTranslationsIfNeeded(_latestPlayerState!);
     final initialRecordingState = ref.read(retellRecordingControllerProvider);
     _latestRecordingState = initialRecordingState;
     _syncReviewAttempt(initialRecordingState);
@@ -269,6 +278,95 @@ class _RetellPlayerScreenState extends ConsumerState<RetellPlayerScreen>
       );
   }
 
+  /// 看译文模式下，进入段落即预热整段句子的译文（不限于屏幕内）。
+  ///
+  /// 复述前的听力阶段译文处于隐藏状态，提前请求可让进入复述时直接显示；
+  /// 同一段只调度一次，切回看英文后再切回会重新调度（已缓存的句子不再请求）。
+  void _prewarmParagraphTranslationsIfNeeded(RetellPlayerState state) {
+    if (state.settings.promptLanguage != RetellPromptLanguage.translation) {
+      _translationPrewarmParagraphKey = null;
+      return;
+    }
+    final sentences = ref
+        .read(retellPlayerProvider.notifier)
+        .currentParagraphSentences;
+    if (sentences.isEmpty) return;
+    final paragraphKey = '${sentences.first.index}:${sentences.length}';
+    if (paragraphKey == _translationPrewarmParagraphKey) return;
+    _translationPrewarmParagraphKey = paragraphKey;
+    final accessToken = ref.read(supabaseSessionProvider).value?.accessToken;
+    if (accessToken == null || accessToken.isEmpty) {
+      AppLogger.log(
+        'SentenceAiPrewarm',
+        '跳过预热 source=retell paragraph=$paragraphKey reason=missingAuth',
+      );
+      _handleTranslationSignInRequired();
+      return;
+    }
+    // 额度用尽不拦截：预热请求会在本地额度闸处直接失败（不访问后端），
+    // 译文位置就地提示订阅。
+    unawaited(
+      ref
+          .read(sentenceAiPrewarmerProvider)
+          .prewarm(
+            [for (final sentence in sentences) _translationTarget(sentence)],
+            features: const SentenceAiPrewarmFeatures(
+              translation: true,
+              analysis: false,
+              senseGroups: false,
+            ),
+            targetLanguage: ref.read(
+              appSettingsProvider.select((s) => s.nativeLanguage),
+            ),
+            accessToken: accessToken,
+            source: 'retell',
+          ),
+    );
+  }
+
+  /// 看译文时未登录：回退看英文并引导登录。
+  ///
+  /// 先回退再弹窗：回退后不再预热和请求译文，多句同时报错只会处理一次。
+  /// 可能在 initState 或构建期间触发，状态修改与弹窗统一放到帧后执行。
+  void _handleTranslationSignInRequired() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || _isExiting) return;
+      final settings = ref.read(retellPlayerProvider).settings;
+      if (settings.promptLanguage != RetellPromptLanguage.translation) return;
+      AppLogger.log('RetellPlayer', '看译文需要登录，回退看英文');
+      ref
+          .read(retellPlayerProvider.notifier)
+          .updateSettings(
+            settings.copyWith(promptLanguage: RetellPromptLanguage.original),
+          );
+      final l10n = AppLocalizations.of(context)!;
+      unawaited(
+        ensureSignedInForAction(
+          context: context,
+          ref: ref,
+          title: l10n.senseGroupSignInRequiredTitle,
+          message: l10n.senseGroupSignInRequiredMessage,
+        ),
+      );
+    });
+  }
+
+  /// 译文定位：与句子讲解页一致按全局句索引取前后句上下文，共用翻译缓存。
+  /// 原文下方译文的弱化样式：字号略小、次要文字色。
+  TextStyle _secondaryTranslationStyle(ThemeData theme, TextStyle textStyle) {
+    return textStyle.copyWith(
+      fontSize: (textStyle.fontSize ?? 16) * 0.875,
+      color: theme.colorScheme.onSurfaceVariant,
+    );
+  }
+
+  SentenceAiPrewarmTarget _translationTarget(Sentence sentence) =>
+      SentenceAiPrewarmTarget(
+        text: sentence.text,
+        audioItemId: widget.audioItemId,
+        sentenceIndex: sentence.index,
+      );
+
   void _onRetellPlayerStateChanged(
     RetellPlayerState? prev,
     RetellPlayerState next,
@@ -276,6 +374,7 @@ class _RetellPlayerScreenState extends ConsumerState<RetellPlayerScreen>
     _latestPlayerState = next;
     if (!mounted || _isExiting || prev == null) return;
     _logRetellPlayerStateTransition(prev, next);
+    _prewarmParagraphTranslationsIfNeeded(next);
 
     if (!prev.stepFinished && next.stepFinished) {
       shortenIdleTimeout(5);
@@ -1613,6 +1712,25 @@ class _RetellPlayerScreenState extends ConsumerState<RetellPlayerScreen>
     final sentences = player.currentParagraphSentences;
     final paragraphDuration = player.currentParagraphDuration;
     final keywords = player.keywordsMap;
+    // 看译文三档「隐藏 / 译文 / 原文」：提示档（keywordsOnly）显示译文，
+    // 复述阶段系统自动切到提示档即显示译文；复述完成后切到 showAll 对照原文。
+    final isTranslationPrompt =
+        state.settings.promptLanguage == RetellPromptLanguage.translation;
+    if (isTranslationPrompt) {
+      // 看译文期间持有本段每句的译文流：切到「原文 / 隐藏」时译文组件卸载，
+      // autoDispose 会销毁流，切回「译文」又从加载态重来，整列表闪骨架、行高跳动。
+      // 仅监听不重建；离开看译文或换段后不再监听，流随之释放。
+      for (final sentence in sentences) {
+        ref.listen(
+          sentenceTranslationProvider(_translationTarget(sentence)),
+          (_, _) {},
+        );
+      }
+    }
+    final listDisplayMode =
+        isTranslationPrompt || state.settings.keywordMethod != KeywordMethod.off
+        ? state.displayMode
+        : RetellDisplayMode.hideAll;
 
     // 顶部进度条：多段按「段落」单调驱动（不随句子/遍数回退），单段无段落
     // 进度可言，保留原逐句行为。
@@ -1708,10 +1826,29 @@ class _RetellPlayerScreenState extends ConsumerState<RetellPlayerScreen>
                   fullscreenBody: presentation.expanded ? mediaSurface : null,
                   paragraphContent: ParagraphSentenceListCard(
                     sentences: sentences,
-                    displayMode:
-                        state.settings.keywordMethod != KeywordMethod.off
-                        ? state.displayMode
-                        : RetellDisplayMode.hideAll,
+                    displayMode: listDisplayMode,
+                    sentenceReplacementTextBuilder:
+                        isTranslationPrompt &&
+                            listDisplayMode == RetellDisplayMode.keywordsOnly
+                        ? (sentence, textStyle) => SentenceTranslationText(
+                            target: _translationTarget(sentence),
+                            textStyle: textStyle,
+                            onSignInRequired: _handleTranslationSignInRequired,
+                          )
+                        : null,
+                    // 原文档下方附弱化译文，方便对照；额度用尽时就地提示订阅。
+                    sentenceSecondaryTextBuilder:
+                        isTranslationPrompt &&
+                            listDisplayMode == RetellDisplayMode.showAll
+                        ? (sentence, textStyle) => SentenceTranslationText(
+                            target: _translationTarget(sentence),
+                            textStyle: _secondaryTranslationStyle(
+                              theme,
+                              textStyle,
+                            ),
+                            onSignInRequired: _handleTranslationSignInRequired,
+                          )
+                        : null,
                     keywordMap: keywords,
                     playingSentenceIndex: state.phase == RetellPhase.listening
                         ? state.playingSentenceIndex
@@ -1728,10 +1865,12 @@ class _RetellPlayerScreenState extends ConsumerState<RetellPlayerScreen>
                     bodyAreaGuideStep: bodyStep,
                   ),
                   contentControls:
-                      state.settings.keywordMethod != KeywordMethod.off
+                      isTranslationPrompt ||
+                          state.settings.keywordMethod != KeywordMethod.off
                       ? ParagraphVisibilityControls(
                           selectedMode: state.displayMode,
                           onChanged: player.setDisplayMode,
+                          isTranslationPrompt: isTranslationPrompt,
                         )
                       : null,
                   practiceControls: RepeatPracticePanel(

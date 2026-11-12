@@ -1832,6 +1832,33 @@ class AppLocalizationsZh extends AppLocalizations {
   String get retellDisplayHideAll => '全部隐藏';
 
   @override
+  String get retellDisplayHide => '隐藏';
+
+  @override
+  String get retellDisplayOriginal => '原文';
+
+  @override
+  String get retellDisplayTranslation => '译文';
+
+  @override
+  String get retellPromptLanguage => '复述模式';
+
+  @override
+  String get retellPromptLanguageOriginal => '看英文';
+
+  @override
+  String get retellPromptLanguageTranslation => '看译文';
+
+  @override
+  String get retellPromptLanguageTranslationDesc => '字幕显示 AI 译文而非英文，对照译文用英文复述。';
+
+  @override
+  String get sentenceTranslationLoadFailed => '翻译失败，点击重试';
+
+  @override
+  String get sentenceTranslationQuotaExceeded => 'AI 翻译额度已用完，点此订阅';
+
+  @override
   String get retellSettingsTitle => '复述设置';
 
   @override

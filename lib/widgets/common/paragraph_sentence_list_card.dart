@@ -83,6 +83,14 @@ class ParagraphSentenceListCard extends StatefulWidget {
   /// 新手引导：句子主体播放 step
   final GuideStep? bodyAreaGuideStep;
 
+  /// 替换句子原文正文的构建器（如译文）；为空时按 [displayMode] 渲染原文。
+  final Widget Function(Sentence sentence, TextStyle textStyle)?
+  sentenceReplacementTextBuilder;
+
+  /// 句子正文下方附加文本的构建器（如原文下的弱化译文）；为空时不显示。
+  final Widget Function(Sentence sentence, TextStyle textStyle)?
+  sentenceSecondaryTextBuilder;
+
   const ParagraphSentenceListCard({
     super.key,
     required this.sentences,
@@ -105,6 +113,8 @@ class ParagraphSentenceListCard extends StatefulWidget {
     this.guideTargetLocalIdx,
     this.explanationAreaGuideStep,
     this.bodyAreaGuideStep,
+    this.sentenceReplacementTextBuilder,
+    this.sentenceSecondaryTextBuilder,
   });
 
   @override
@@ -689,6 +699,10 @@ class _ParagraphSentenceListCardState extends State<ParagraphSentenceListCard>
               final onSentencePlayFrom = widget.onSentencePlayFrom;
               final onSentenceBookmarkToggle = widget.onSentenceBookmarkToggle;
               final wordHighlightSource = widget.wordHighlightSource;
+              final sentenceReplacementTextBuilder =
+                  widget.sentenceReplacementTextBuilder;
+              final sentenceSecondaryTextBuilder =
+                  widget.sentenceSecondaryTextBuilder;
               return Builder(
                 builder: (itemContext) {
                   _scrollPosition = Scrollable.of(itemContext).position;
@@ -733,6 +747,17 @@ class _ParagraphSentenceListCardState extends State<ParagraphSentenceListCard>
                     bodyAreaGuideStep: isGuideTarget
                         ? widget.bodyAreaGuideStep
                         : null,
+                    replacementTextBuilder:
+                        sentenceReplacementTextBuilder == null
+                        ? null
+                        : (textStyle) => sentenceReplacementTextBuilder(
+                            sentence,
+                            textStyle,
+                          ),
+                    secondaryTextBuilder: sentenceSecondaryTextBuilder == null
+                        ? null
+                        : (textStyle) =>
+                              sentenceSecondaryTextBuilder(sentence, textStyle),
                   );
                 },
               );

@@ -14,6 +14,11 @@ import 'package:echo_loop/models/intensive_listen_settings.dart'
     show ShadowingControlMode;
 import 'package:echo_loop/models/sentence.dart';
 import 'package:echo_loop/models/retell_settings.dart';
+import 'package:echo_loop/widgets/common/shimmer_placeholder.dart';
+import 'package:echo_loop/features/auth/providers/auth_providers.dart';
+import 'package:echo_loop/features/subscription/providers/feature_access_provider.dart';
+import 'package:echo_loop/providers/sentence_translation_provider.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' show Session, User;
 import 'package:echo_loop/models/speech_practice_models.dart';
 import 'package:echo_loop/screens/retell_player_screen.dart';
 import 'package:echo_loop/screens/sentence_detail_screen.dart';
@@ -243,6 +248,42 @@ class _ManualRetellReviewController extends RetellReviewEvaluationController {
   }
 }
 
+/// 看译文模式、复述阶段（系统已自动切到提示档）的播放器状态。
+const _translationRetellingState = RetellPlayerState(
+  currentParagraphIndex: 0,
+  totalParagraphs: 1,
+  phase: RetellPhase.retelling,
+  displayMode: RetellDisplayMode.keywordsOnly,
+  settings: RetellSettings(
+    keywordMethod: KeywordMethod.random,
+    promptLanguage: RetellPromptLanguage.translation,
+  ),
+);
+
+Session _session() => Session(
+  accessToken: 't',
+  tokenType: 'bearer',
+  user: const User(
+    id: 'u',
+    appMetadata: {},
+    userMetadata: {},
+    aud: 'authenticated',
+    createdAt: '2026-07-13T00:00:00.000Z',
+  ),
+);
+
+/// 已登录且 AI 翻译已解锁。
+Future<List<Override>> _translationAvailableOverrides() async {
+  SharedPreferences.setMockInitialValues({});
+  final prefs = await SharedPreferences.getInstance();
+  return [
+    sharedPreferencesProvider.overrideWithValue(prefs),
+    isAuthenticatedProvider.overrideWithValue(true),
+    supabaseSessionProvider.overrideWithValue(AsyncData<Session?>(_session())),
+    featureAccessProvider.overrideWith((ref, feature) => true),
+  ];
+}
+
 void main() {
   /// 创建测试段落
   List<List<Sentence>> createTestParagraphs() {
@@ -444,6 +485,139 @@ void main() {
         greaterThanOrEqualTo(sentenceCardBox.bottom - 1),
         reason: 'SegmentedButton 应位于句子列表卡片下方',
       );
+    });
+
+    testWidgets('看译文模式：隐藏/译文/原文三档，复述阶段默认显示译文，原文档附译文', (tester) async {
+      await tester.pumpWidget(
+        createTestWidget(
+          playerState: _translationRetellingState,
+          extraOverrides: [
+            ...await _translationAvailableOverrides(),
+            sentenceTranslationProvider.overrideWith(
+              (ref, target) => Stream.value('译文 ${target.sentenceIndex}'),
+            ),
+          ],
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Partial'), findsNothing);
+      expect(
+        tester
+            .widget<SegmentedButton<RetellDisplayMode>>(
+              find.byType(SegmentedButton<RetellDisplayMode>),
+            )
+            .segments
+            .map((segment) => segment.value),
+        [
+          RetellDisplayMode.hideAll,
+          RetellDisplayMode.keywordsOnly,
+          RetellDisplayMode.showAll,
+        ],
+      );
+      expect(find.text('Original'), findsOneWidget);
+      expect(find.text('Translation'), findsOneWidget);
+      expect(find.text('译文 0'), findsOneWidget);
+      expect(find.text('sentence'), findsNothing);
+
+      // 原文档：英文正文 + 下方弱化译文。
+      await tester.tap(find.text('Original'));
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(find.text('sentence'), findsWidgets);
+      expect(find.text('译文 0'), findsOneWidget);
+
+      await tester.tap(find.text('Hidden'));
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(find.text('译文 0'), findsNothing);
+      expect(
+        tester
+            .widget<SegmentedButton<RetellDisplayMode>>(
+              find.byType(SegmentedButton<RetellDisplayMode>),
+            )
+            .selected,
+        {RetellDisplayMode.hideAll},
+      );
+    });
+
+    testWidgets('看译文模式：原文切回译文时直接显示译文，不闪骨架', (tester) async {
+      await tester.pumpWidget(
+        createTestWidget(
+          playerState: _translationRetellingState,
+          extraOverrides: [
+            ...await _translationAvailableOverrides(),
+            sentenceTranslationProvider.overrideWith(
+              (ref, target) => Stream.value('译文 ${target.sentenceIndex}'),
+            ),
+          ],
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('译文 0'), findsOneWidget);
+
+      await tester.tap(find.text('Original'));
+      await tester.pump(const Duration(milliseconds: 400));
+      await tester.tap(find.text('Translation'));
+      await tester.pump();
+
+      // 切回后同一帧即显示译文：译文流在看译文期间保持存活，不重新加载。
+      expect(find.byType(ShimmerPlaceholder), findsNothing);
+      expect(find.text('译文 0'), findsOneWidget);
+    });
+
+    testWidgets('看译文模式未登录：回退看英文并要求登录', (tester) async {
+      late TestRetellPlayer player;
+      await tester.pumpWidget(
+        createTestWidget(
+          playerState: _translationRetellingState,
+          playerFactory: (state, paragraphs, keywords) =>
+              player = TestRetellPlayer(state, paragraphs, keywords),
+          extraOverrides: [
+            isAuthenticatedProvider.overrideWithValue(false),
+            supabaseSessionProvider.overrideWithValue(
+              const AsyncData<Session?>(null),
+            ),
+          ],
+        ),
+      );
+      await tester.pump();
+      await tester.pump();
+
+      expect(
+        player.state.settings.promptLanguage,
+        RetellPromptLanguage.original,
+      );
+      expect(find.text('Sign In'), findsOneWidget);
+    });
+
+    testWidgets('看译文额度用尽：保持看译文，字幕位置提示订阅', (tester) async {
+      late TestRetellPlayer player;
+      await tester.pumpWidget(
+        createTestWidget(
+          playerState: _translationRetellingState,
+          playerFactory: (state, paragraphs, keywords) =>
+              player = TestRetellPlayer(state, paragraphs, keywords),
+          extraOverrides: [
+            ...await _translationAvailableOverrides(),
+            sentenceTranslationProvider.overrideWith(
+              (ref, target) =>
+                  Stream.error(const AiFeatureQuotaExceededException()),
+            ),
+          ],
+        ),
+      );
+      await tester.pump();
+      await tester.pump();
+      await tester.pump();
+
+      expect(
+        player.state.settings.promptLanguage,
+        RetellPromptLanguage.translation,
+      );
+      expect(
+        find.text('AI translation quota used up. Tap to subscribe.'),
+        findsNWidgets(3),
+      );
+      expect(find.byType(AlertDialog), findsNothing);
     });
 
     testWidgets('页面接入学习统计活动检测器', (tester) async {

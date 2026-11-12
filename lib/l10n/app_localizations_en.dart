@@ -1899,6 +1899,36 @@ class AppLocalizationsEn extends AppLocalizations {
   String get retellDisplayHideAll => 'Hidden';
 
   @override
+  String get retellDisplayHide => 'Hidden';
+
+  @override
+  String get retellDisplayOriginal => 'Original';
+
+  @override
+  String get retellDisplayTranslation => 'Translation';
+
+  @override
+  String get retellPromptLanguage => 'Retell with';
+
+  @override
+  String get retellPromptLanguageOriginal => 'English';
+
+  @override
+  String get retellPromptLanguageTranslation => 'Translation';
+
+  @override
+  String get retellPromptLanguageTranslationDesc =>
+      'Shows the AI translation instead of the English text, so you can retell in English from the translation.';
+
+  @override
+  String get sentenceTranslationLoadFailed =>
+      'Translation failed. Tap to retry.';
+
+  @override
+  String get sentenceTranslationQuotaExceeded =>
+      'AI translation quota used up. Tap to subscribe.';
+
+  @override
   String get retellSettingsTitle => 'Retell Settings';
 
   @override

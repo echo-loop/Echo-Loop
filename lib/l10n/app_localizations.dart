@@ -3368,6 +3368,60 @@ abstract class AppLocalizations {
   /// **'Hidden'**
   String get retellDisplayHideAll;
 
+  /// No description provided for @retellDisplayHide.
+  ///
+  /// In en, this message translates to:
+  /// **'Hidden'**
+  String get retellDisplayHide;
+
+  /// No description provided for @retellDisplayOriginal.
+  ///
+  /// In en, this message translates to:
+  /// **'Original'**
+  String get retellDisplayOriginal;
+
+  /// No description provided for @retellDisplayTranslation.
+  ///
+  /// In en, this message translates to:
+  /// **'Translation'**
+  String get retellDisplayTranslation;
+
+  /// No description provided for @retellPromptLanguage.
+  ///
+  /// In en, this message translates to:
+  /// **'Retell with'**
+  String get retellPromptLanguage;
+
+  /// No description provided for @retellPromptLanguageOriginal.
+  ///
+  /// In en, this message translates to:
+  /// **'English'**
+  String get retellPromptLanguageOriginal;
+
+  /// No description provided for @retellPromptLanguageTranslation.
+  ///
+  /// In en, this message translates to:
+  /// **'Translation'**
+  String get retellPromptLanguageTranslation;
+
+  /// No description provided for @retellPromptLanguageTranslationDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Shows the AI translation instead of the English text, so you can retell in English from the translation.'**
+  String get retellPromptLanguageTranslationDesc;
+
+  /// No description provided for @sentenceTranslationLoadFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Translation failed. Tap to retry.'**
+  String get sentenceTranslationLoadFailed;
+
+  /// No description provided for @sentenceTranslationQuotaExceeded.
+  ///
+  /// In en, this message translates to:
+  /// **'AI translation quota used up. Tap to subscribe.'**
+  String get sentenceTranslationQuotaExceeded;
+
   /// No description provided for @retellSettingsTitle.
   ///
   /// In en, this message translates to:

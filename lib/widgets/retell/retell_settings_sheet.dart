@@ -1,14 +1,20 @@
 /// 复述设置面板
 ///
 /// 底部弹窗，即时生效，仅本次会话。
-/// 设置项：控制模式 + 重复次数 + 段间停顿 + 播放速度 + 可见词生成方式 + 可见词比例
+/// 设置项：控制模式 + 重复次数 + 段间停顿 + 播放速度 + 复述模式 + 可见词生成方式 + 可见词比例
 /// UI 风格与跟读设置面板保持一致。
 library;
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+
 import '../common/app_dropdown.dart';
 import '../common/setting_labeled_row.dart';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../features/auth/sign_in_required_dialog.dart';
 import '../../l10n/app_localizations.dart';
 import '../../models/intensive_listen_settings.dart'
     show PauseMode, ShadowingControlMode;
@@ -77,53 +83,16 @@ class _RetellSettingsSheet extends ConsumerWidget {
           _buildPlaybackSpeedSection(l10n, theme, settings, ref),
           const SizedBox(height: AppSpacing.l),
 
-          // ── 可见词生成方式 ──
-          Text(
-            l10n.retellKeywordMethod,
-            style: theme.textTheme.titleSmall?.copyWith(
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(height: AppSpacing.s),
-          SizedBox(
-            width: double.infinity,
-            child: SegmentedButton<KeywordMethod>(
-              showSelectedIcon: false,
-              segments: [
-                ButtonSegment(
-                  value: KeywordMethod.off,
-                  label: Text(l10n.retellKeywordMethodOff),
-                ),
-                ButtonSegment(
-                  value: KeywordMethod.random,
-                  label: Text(l10n.retellKeywordMethodRandom),
-                ),
-                // TODO: AI 关键词提取功能尚未实现，暂时隐藏
-                // ButtonSegment(
-                //   value: KeywordMethod.ai,
-                //   label: Tooltip(
-                //     message: l10n.retellKeywordMethodAiComingSoon,
-                //     child: Text(l10n.retellKeywordMethodAi),
-                //   ),
-                //   enabled: false,
-                // ),
-              ],
-              selected: {settings.keywordMethod},
-              onSelectionChanged: (selected) {
-                ref
-                    .read(retellPlayerProvider.notifier)
-                    .updateSettings(
-                      settings.copyWith(keywordMethod: selected.first),
-                    );
-              },
-            ),
-          ),
+          // ── 复述模式 ──
+          _buildPromptLanguageSection(context, l10n, theme, settings, ref),
 
-          // 可见词比例（关闭时隐藏）
-          if (settings.keywordMethod != KeywordMethod.off) ...[
+          // 可见词只作用于英文原文，看译文时隐藏
+          if (settings.promptLanguage == RetellPromptLanguage.original) ...[
             const SizedBox(height: AppSpacing.l),
+
+            // ── 可见词生成方式 ──
             Text(
-              l10n.retellKeywordRatio,
+              l10n.retellKeywordMethod,
               style: theme.textTheme.titleSmall?.copyWith(
                 fontWeight: FontWeight.w600,
               ),
@@ -131,23 +100,161 @@ class _RetellSettingsSheet extends ConsumerWidget {
             const SizedBox(height: AppSpacing.s),
             SizedBox(
               width: double.infinity,
-              child: SegmentedButton<KeywordRatio>(
+              child: SegmentedButton<KeywordMethod>(
                 showSelectedIcon: false,
                 segments: [
-                  for (final r in KeywordRatio.values)
-                    ButtonSegment(value: r, label: Text('${r.percent}%')),
+                  ButtonSegment(
+                    value: KeywordMethod.off,
+                    label: Text(l10n.retellKeywordMethodOff),
+                  ),
+                  ButtonSegment(
+                    value: KeywordMethod.random,
+                    label: Text(l10n.retellKeywordMethodRandom),
+                  ),
+                  // TODO: AI 关键词提取功能尚未实现，暂时隐藏
+                  // ButtonSegment(
+                  //   value: KeywordMethod.ai,
+                  //   label: Tooltip(
+                  //     message: l10n.retellKeywordMethodAiComingSoon,
+                  //     child: Text(l10n.retellKeywordMethodAi),
+                  //   ),
+                  //   enabled: false,
+                  // ),
                 ],
-                selected: {settings.keywordRatio},
-                onSelectionChanged: (selected) => ref
-                    .read(retellPlayerProvider.notifier)
-                    .updateSettings(
-                      settings.copyWith(keywordRatio: selected.first),
-                    ),
+                selected: {settings.keywordMethod},
+                onSelectionChanged: (selected) {
+                  ref
+                      .read(retellPlayerProvider.notifier)
+                      .updateSettings(
+                        settings.copyWith(keywordMethod: selected.first),
+                      );
+                },
               ),
             ),
+
+            // 可见词比例（关闭时隐藏）
+            if (settings.keywordMethod != KeywordMethod.off) ...[
+              const SizedBox(height: AppSpacing.l),
+              Text(
+                l10n.retellKeywordRatio,
+                style: theme.textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: AppSpacing.s),
+              SizedBox(
+                width: double.infinity,
+                child: SegmentedButton<KeywordRatio>(
+                  showSelectedIcon: false,
+                  segments: [
+                    for (final r in KeywordRatio.values)
+                      ButtonSegment(value: r, label: Text('${r.percent}%')),
+                  ],
+                  selected: {settings.keywordRatio},
+                  onSelectionChanged: (selected) => ref
+                      .read(retellPlayerProvider.notifier)
+                      .updateSettings(
+                        settings.copyWith(keywordRatio: selected.first),
+                      ),
+                ),
+              ),
+            ],
           ],
         ],
       ),
+    );
+  }
+
+  /// 切换复述模式：看译文需先登录，未登录则保持原模式。
+  ///
+  /// 额度用尽不拦截：切换后在字幕位置就地提示并引导订阅。
+  Future<void> _selectPromptLanguage(
+    BuildContext context,
+    WidgetRef ref,
+    RetellPromptLanguage language,
+  ) async {
+    if (language == RetellPromptLanguage.translation &&
+        !await _ensureSignedIn(context, ref)) {
+      return;
+    }
+    final player = ref.read(retellPlayerProvider.notifier);
+    final settings = ref.read(retellPlayerProvider).settings;
+    player.updateSettings(settings.copyWith(promptLanguage: language));
+  }
+
+  Future<bool> _ensureSignedIn(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context)!;
+    return ensureSignedInForAction(
+      context: context,
+      ref: ref,
+      title: l10n.senseGroupSignInRequiredTitle,
+      message: l10n.senseGroupSignInRequiredMessage,
+    );
+  }
+
+  /// 复述模式：看英文（可见词提示）/ 看译文。
+  Widget _buildPromptLanguageSection(
+    BuildContext context,
+    AppLocalizations l10n,
+    ThemeData theme,
+    RetellSettings settings,
+    WidgetRef ref,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          l10n.retellPromptLanguage,
+          style: theme.textTheme.titleSmall?.copyWith(
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: AppSpacing.s),
+        SizedBox(
+          width: double.infinity,
+          child: SegmentedButton<RetellPromptLanguage>(
+            showSelectedIcon: false,
+            segments: [
+              ButtonSegment(
+                value: RetellPromptLanguage.original,
+                label: Text(l10n.retellPromptLanguageOriginal),
+              ),
+              ButtonSegment(
+                value: RetellPromptLanguage.translation,
+                label: Text(l10n.retellPromptLanguageTranslation),
+              ),
+            ],
+            selected: {settings.promptLanguage},
+            onSelectionChanged: (selected) =>
+                unawaited(_selectPromptLanguage(context, ref, selected.first)),
+          ),
+        ),
+        if (settings.promptLanguage == RetellPromptLanguage.translation) ...[
+          const SizedBox(height: AppSpacing.xs),
+          Row(
+            children: [
+              Icon(
+                Icons.info_outline,
+                size: 14,
+                color: theme.colorScheme.onSurfaceVariant.withValues(
+                  alpha: 0.6,
+                ),
+              ),
+              const SizedBox(width: AppSpacing.xs),
+              Expanded(
+                child: Text(
+                  l10n.retellPromptLanguageTranslationDesc,
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant.withValues(
+                      alpha: 0.6,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ],
     );
   }
 

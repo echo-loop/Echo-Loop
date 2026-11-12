@@ -14,6 +14,7 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../l10n/app_localizations.dart';
 import '../../models/retell_settings.dart';
 import '../../models/sentence.dart';
@@ -89,6 +90,16 @@ class MaskedSentenceTile extends ConsumerWidget {
   /// 新手引导：主体区 GuideStep（非空时包 GuideTarget 高亮可播放文本区）
   final GuideStep? bodyAreaGuideStep;
 
+  /// 替换原文正文的构建器（如复述「看译文」时的译文），参数为正文样式。
+  ///
+  /// 非空时不渲染原文、遮盖与逐词高亮，点击/收藏/讲解等交互保持不变。
+  final Widget Function(TextStyle textStyle)? replacementTextBuilder;
+
+  /// 正文下方的附加文本构建器（如复述「看译文」原文档时的弱化译文），参数为正文样式。
+  ///
+  /// 与正文同在主体点击区内，点击仍从该句播放；附加文本自身可拦截点击（如订阅入口）。
+  final Widget Function(TextStyle textStyle)? secondaryTextBuilder;
+
   const MaskedSentenceTile({
     super.key,
     required this.sentence,
@@ -103,6 +114,8 @@ class MaskedSentenceTile extends ConsumerWidget {
     this.onBookmarkTap,
     this.explanationAreaGuideStep,
     this.bodyAreaGuideStep,
+    this.replacementTextBuilder,
+    this.secondaryTextBuilder,
   });
 
   @override
@@ -125,7 +138,10 @@ class MaskedSentenceTile extends ConsumerWidget {
         );
     final words = tokenize(sentence.text);
     final binding = wordHighlightBinding;
-    final Widget sentenceText = binding == null
+    final replacementTextBuilder = this.replacementTextBuilder;
+    final Widget primaryText = replacementTextBuilder != null
+        ? replacementTextBuilder(textStyle)
+        : binding == null
         ? _buildMaskedText(theme, textStyle, words, savedSegments, null)
         : WordHighlightBuilder(
             text: sentence.text,
@@ -137,6 +153,18 @@ class MaskedSentenceTile extends ConsumerWidget {
               savedSegments,
               activeWordIndex,
             ),
+          );
+    final secondaryTextBuilder = this.secondaryTextBuilder;
+    final Widget sentenceText = secondaryTextBuilder == null
+        ? primaryText
+        : Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              primaryText,
+              const SizedBox(height: 4),
+              secondaryTextBuilder(textStyle),
+            ],
           );
 
     return AnimatedContainer(

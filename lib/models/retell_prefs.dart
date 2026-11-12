@@ -40,6 +40,9 @@ class RetellPrefs {
   /// 非 RetellSettings 字段,合法档位校验在屏幕层(下拉 value 须在 items 内)。
   final int? targetSeconds;
 
+  /// 复述参照文本覆盖(`null`=看英文)。
+  final RetellPromptLanguage? promptLanguage;
+
   const RetellPrefs({
     this.playbackSpeed,
     this.pauseMode,
@@ -50,6 +53,7 @@ class RetellPrefs {
     this.controlMode,
     this.repeatCount,
     this.targetSeconds,
+    this.promptLanguage,
   });
 
   /// 空偏好(用户未改动任何字段)。
@@ -62,7 +66,8 @@ class RetellPrefs {
       keywordRatio = null,
       controlMode = null,
       repeatCount = null,
-      targetSeconds = null;
+      targetSeconds = null,
+      promptLanguage = null;
 
   /// 把偏好叠加到默认值,得到本次会话生效的完整 [RetellSettings]。
   ///
@@ -80,6 +85,7 @@ class RetellPrefs {
     keywordRatio: keywordRatio ?? smartRatio,
     controlMode: controlMode ?? ShadowingControlMode.auto,
     repeatCount: repeatCount ?? 1,
+    promptLanguage: promptLanguage ?? RetellPromptLanguage.original,
   );
 
   /// 返回叠加非空字段后的新偏好(细粒度 setter 用:只改传入的字段)。
@@ -93,6 +99,7 @@ class RetellPrefs {
     ShadowingControlMode? controlMode,
     int? repeatCount,
     int? targetSeconds,
+    RetellPromptLanguage? promptLanguage,
   }) => RetellPrefs(
     playbackSpeed: playbackSpeed ?? this.playbackSpeed,
     pauseMode: pauseMode ?? this.pauseMode,
@@ -103,6 +110,7 @@ class RetellPrefs {
     controlMode: controlMode ?? this.controlMode,
     repeatCount: repeatCount ?? this.repeatCount,
     targetSeconds: targetSeconds ?? this.targetSeconds,
+    promptLanguage: promptLanguage ?? this.promptLanguage,
   );
 
   /// 序列化为稀疏 JSON(只写非空字段,枚举存 name)。
@@ -116,6 +124,7 @@ class RetellPrefs {
     if (controlMode != null) 'controlMode': controlMode!.name,
     if (repeatCount != null) 'repeatCount': repeatCount,
     if (targetSeconds != null) 'targetSeconds': targetSeconds,
+    if (promptLanguage != null) 'promptLanguage': promptLanguage!.name,
   };
 
   /// 防御性解析:缺失/类型错/越档一律视作未设(`null`)。
@@ -131,7 +140,13 @@ class RetellPrefs {
     targetSeconds: json['targetSeconds'] is int
         ? json['targetSeconds'] as int
         : null,
+    promptLanguage: _parsePromptLanguage(json['promptLanguage']),
   );
+
+  static RetellPromptLanguage? _parsePromptLanguage(dynamic raw) =>
+      raw is String
+      ? RetellPromptLanguage.values.where((e) => e.name == raw).firstOrNull
+      : null;
 
   static double? _parseSpeed(dynamic raw) =>
       raw is num ? normalizePlaybackSpeed(raw.toDouble()) : null;
@@ -183,7 +198,8 @@ class RetellPrefs {
           keywordRatio == other.keywordRatio &&
           controlMode == other.controlMode &&
           repeatCount == other.repeatCount &&
-          targetSeconds == other.targetSeconds;
+          targetSeconds == other.targetSeconds &&
+          promptLanguage == other.promptLanguage;
 
   @override
   int get hashCode => Object.hash(
@@ -196,5 +212,6 @@ class RetellPrefs {
     controlMode,
     repeatCount,
     targetSeconds,
+    promptLanguage,
   );
 }

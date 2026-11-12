@@ -93,6 +93,9 @@ class RetellPrefsNotifier extends SlotPrefsNotifier<RetellPrefs> {
   Future<void> setRepeatCount(String slot, int value) =>
       updateSlot(slot, prefsFor(slot).copyWith(repeatCount: value));
 
+  Future<void> setPromptLanguage(String slot, RetellPromptLanguage value) =>
+      updateSlot(slot, prefsFor(slot).copyWith(promptLanguage: value));
+
   Future<void> setTargetSeconds(String slot, int value) =>
       updateSlot(slot, prefsFor(slot).copyWith(targetSeconds: value));
 }
@@ -129,6 +132,9 @@ void persistRetellSettingsDiff(
   }
   if (next.repeatCount != old.repeatCount) {
     notifier.setRepeatCount(slot, next.repeatCount);
+  }
+  if (next.promptLanguage != old.promptLanguage) {
+    notifier.setPromptLanguage(slot, next.promptLanguage);
   }
 }
 

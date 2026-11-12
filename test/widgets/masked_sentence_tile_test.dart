@@ -462,4 +462,62 @@ void main() {
       expect(styleOf(tester, 'love')?.fontSize, 16);
     });
   });
+
+  group('MaskedSentenceTile 正文替换', () {
+    testWidgets('提供 replacementTextBuilder 时显示替换内容而非原文，点击仍从该句播放', (
+      tester,
+    ) async {
+      var playFromCount = 0;
+      await tester.pumpWidget(
+        createTestApp(
+          MaskedSentenceTile(
+            sentence: _sentence('Hello world'),
+            displayMode: RetellDisplayMode.showAll,
+            keywordIndices: const {},
+            isPlayingSentence: false,
+            onPlayFromTap: () => playFromCount += 1,
+            replacementTextBuilder: (textStyle) =>
+                Text('你好世界', style: textStyle),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('你好世界'), findsOneWidget);
+      expect(find.text('Hello'), findsNothing);
+      expect(find.byType(Wrap), findsNothing);
+
+      await tester.tap(find.text('你好世界'));
+      await tester.pump();
+      expect(playFromCount, 1);
+    });
+
+    testWidgets('提供 secondaryTextBuilder 时在原文下方显示附加内容，点击仍从该句播放', (
+      tester,
+    ) async {
+      var playFromCount = 0;
+      await tester.pumpWidget(
+        createTestApp(
+          MaskedSentenceTile(
+            sentence: _sentence('Hello world'),
+            displayMode: RetellDisplayMode.showAll,
+            keywordIndices: const {},
+            isPlayingSentence: false,
+            onPlayFromTap: () => playFromCount += 1,
+            secondaryTextBuilder: (textStyle) =>
+                Text('你好世界', style: textStyle),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final original = tester.getRect(find.text('Hello'));
+      final secondary = tester.getRect(find.text('你好世界'));
+      expect(secondary.top, greaterThanOrEqualTo(original.bottom));
+
+      await tester.tap(find.text('你好世界'));
+      await tester.pump();
+      expect(playFromCount, 1);
+    });
+  });
 }

@@ -123,6 +123,18 @@ enum RetellDisplayMode {
   hideAll,
 }
 
+/// 复述时参照的文本
+///
+/// 看英文时按可见词提示遮盖原文；看译文时正文改为 AI 译文，只有隐藏/显示两档，
+/// 用于「看中文说英文」的练习。复述评估始终以英文原文为准。
+enum RetellPromptLanguage {
+  /// 看英文原文（默认）
+  original,
+
+  /// 看 AI 译文
+  translation,
+}
+
 /// 复述设置（会话内临时生效）
 class RetellSettings {
   /// 每段重复次数（`0`=∞ 无限，`1-10/20/30/40/50`=有限次数，默认 1）
@@ -153,6 +165,9 @@ class RetellSettings {
 
   /// 复述评估完成后是否自动播放本段录音（本次会话生效）。
   final bool autoPlayRecordingAfterCompletion;
+
+  /// 复述参照文本（默认看英文）
+  final RetellPromptLanguage promptLanguage;
 
   /// 是否为手动控制模式
   bool get isManualMode => controlMode == ShadowingControlMode.manual;
@@ -200,6 +215,7 @@ class RetellSettings {
     this.controlMode = ShadowingControlMode.auto,
     this.playbackSpeed = 1.0,
     this.autoPlayRecordingAfterCompletion = false,
+    this.promptLanguage = RetellPromptLanguage.original,
   });
 
   RetellSettings copyWith({
@@ -212,6 +228,7 @@ class RetellSettings {
     ShadowingControlMode? controlMode,
     double? playbackSpeed,
     bool? autoPlayRecordingAfterCompletion,
+    RetellPromptLanguage? promptLanguage,
   }) {
     return RetellSettings(
       repeatCount: repeatCount ?? this.repeatCount,
@@ -225,6 +242,7 @@ class RetellSettings {
       autoPlayRecordingAfterCompletion:
           autoPlayRecordingAfterCompletion ??
           this.autoPlayRecordingAfterCompletion,
+      promptLanguage: promptLanguage ?? this.promptLanguage,
     );
   }
 
@@ -238,6 +256,7 @@ class RetellSettings {
     'controlMode': controlMode.name,
     'playbackSpeed': playbackSpeed,
     'autoPlayRecordingAfterCompletion': autoPlayRecordingAfterCompletion,
+    'promptLanguage': promptLanguage.name,
   };
 
   factory RetellSettings.fromJson(Map<String, dynamic> json) {
@@ -252,6 +271,7 @@ class RetellSettings {
       playbackSpeed: _parsePlaybackSpeed(json['playbackSpeed']),
       autoPlayRecordingAfterCompletion:
           json['autoPlayRecordingAfterCompletion'] == true,
+      promptLanguage: _parsePromptLanguage(json['promptLanguage']),
     );
   }
 
@@ -336,6 +356,14 @@ class RetellSettings {
             .where((e) => e.name == raw)
             .firstOrNull ??
         ShadowingControlMode.auto;
+  }
+
+  static RetellPromptLanguage _parsePromptLanguage(dynamic raw) {
+    if (raw is! String) return RetellPromptLanguage.original;
+    return RetellPromptLanguage.values
+            .where((e) => e.name == raw)
+            .firstOrNull ??
+        RetellPromptLanguage.original;
   }
 
   static double _parsePlaybackSpeed(dynamic raw) {
