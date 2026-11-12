@@ -1902,6 +1902,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get retellDisplayHide => 'Hidden';
 
   @override
+  String get retellDisplayShow => 'Visible';
+
+  @override
   String get retellDisplayOriginal => 'Original';
 
   @override

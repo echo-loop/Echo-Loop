@@ -3374,6 +3374,12 @@ abstract class AppLocalizations {
   /// **'Hidden'**
   String get retellDisplayHide;
 
+  /// No description provided for @retellDisplayShow.
+  ///
+  /// In en, this message translates to:
+  /// **'Visible'**
+  String get retellDisplayShow;
+
   /// No description provided for @retellDisplayOriginal.
   ///
   /// In en, this message translates to:

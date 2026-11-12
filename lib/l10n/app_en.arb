@@ -1073,6 +1073,7 @@
   "retellDisplayShowAll": "Visible",
   "retellDisplayHideAll": "Hidden",
   "retellDisplayHide": "Hidden",
+  "retellDisplayShow": "Visible",
   "retellDisplayOriginal": "Original",
   "retellDisplayTranslation": "Translation",
   "retellPromptLanguage": "Retell with",

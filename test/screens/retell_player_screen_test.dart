@@ -539,6 +539,33 @@ void main() {
       );
     });
 
+    testWidgets('看英文且可见词关闭：保留全部隐藏/全部显示两档', (tester) async {
+      await tester.pumpWidget(
+        createTestWidget(
+          playerState: const RetellPlayerState(
+            currentParagraphIndex: 0,
+            totalParagraphs: 1,
+            phase: RetellPhase.retelling,
+            displayMode: RetellDisplayMode.keywordsOnly,
+            settings: RetellSettings(keywordMethod: KeywordMethod.off),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      SegmentedButton<RetellDisplayMode> segmented() =>
+          tester.widget<SegmentedButton<RetellDisplayMode>>(
+            find.byType(SegmentedButton<RetellDisplayMode>),
+          );
+      expect(find.text('Partial'), findsNothing);
+      // 复述阶段系统自动切到的提示档，无可见词时按全部隐藏显示。
+      expect(segmented().selected, {RetellDisplayMode.hideAll});
+
+      await tester.tap(find.text('Visible'));
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(segmented().selected, {RetellDisplayMode.showAll});
+    });
+
     testWidgets('看译文模式：原文切回译文时直接显示译文，不闪骨架', (tester) async {
       await tester.pumpWidget(
         createTestWidget(

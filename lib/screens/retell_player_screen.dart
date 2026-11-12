@@ -1727,10 +1727,16 @@ class _RetellPlayerScreenState extends ConsumerState<RetellPlayerScreen>
         );
       }
     }
+    // 看英文且可见词生成关闭：没有「仅可见词」档，复述阶段系统自动切到的
+    // 提示档按「全部隐藏」处理（无可见词即全遮），用户仍可手动全部显示。
+    final hasKeywordsOption =
+        isTranslationPrompt ||
+        state.settings.keywordMethod != KeywordMethod.off;
     final listDisplayMode =
-        isTranslationPrompt || state.settings.keywordMethod != KeywordMethod.off
-        ? state.displayMode
-        : RetellDisplayMode.hideAll;
+        !hasKeywordsOption &&
+            state.displayMode == RetellDisplayMode.keywordsOnly
+        ? RetellDisplayMode.hideAll
+        : state.displayMode;
 
     // 顶部进度条：多段按「段落」单调驱动（不随句子/遍数回退），单段无段落
     // 进度可言，保留原逐句行为。
@@ -1864,15 +1870,12 @@ class _RetellPlayerScreenState extends ConsumerState<RetellPlayerScreen>
                     explanationAreaGuideStep: explanationStep,
                     bodyAreaGuideStep: bodyStep,
                   ),
-                  contentControls:
-                      isTranslationPrompt ||
-                          state.settings.keywordMethod != KeywordMethod.off
-                      ? ParagraphVisibilityControls(
-                          selectedMode: state.displayMode,
-                          onChanged: player.setDisplayMode,
-                          isTranslationPrompt: isTranslationPrompt,
-                        )
-                      : null,
+                  contentControls: ParagraphVisibilityControls(
+                    selectedMode: listDisplayMode,
+                    onChanged: player.setDisplayMode,
+                    isTranslationPrompt: isTranslationPrompt,
+                    showKeywordsOption: hasKeywordsOption,
+                  ),
                   practiceControls: RepeatPracticePanel(
                     l10n: l10n,
                     theme: theme,

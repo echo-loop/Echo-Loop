@@ -1835,6 +1835,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get retellDisplayHide => '隐藏';
 
   @override
+  String get retellDisplayShow => '显示';
+
+  @override
   String get retellDisplayOriginal => '原文';
 
   @override

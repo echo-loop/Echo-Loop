@@ -858,6 +858,7 @@
   "retellDisplayShowAll": "全部显示",
   "retellDisplayHideAll": "全部隐藏",
   "retellDisplayHide": "隐藏",
+  "retellDisplayShow": "显示",
   "retellDisplayOriginal": "原文",
   "retellDisplayTranslation": "译文",
   "retellPromptLanguage": "复述模式",
