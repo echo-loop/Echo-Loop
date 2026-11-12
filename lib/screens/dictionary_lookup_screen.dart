@@ -5,6 +5,8 @@
 /// 词表在页面存活期间加载，退出即释放（见 [wordlistProvider]）。
 library;
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -88,6 +90,22 @@ class _DictionaryLookupScreenState
     );
     setState(() => _lookedUpQuery = query);
     _focusNode.unfocus();
+    _recordHistory(query);
+  }
+
+  /// 每次提交查询都记入历史，包括词表与词典均未收录的词（用户期望「搜过的都在这里」）。
+  /// 同词只刷新时间，写入失败不影响查询结果展示。
+  void _recordHistory(String query) {
+    final normalizedWord = normalizeWord(query);
+    unawaited(
+      ref
+          .read(lookupHistoryDaoProvider)
+          .record(normalizedWord, DateTime.now())
+          .then((_) => AppLogger.log('Lookup', '写入查词历史 词="$normalizedWord"'))
+          .catchError((Object error) {
+            AppLogger.log('Lookup', '写入查词历史失败: $error');
+          }),
+    );
   }
 
   Future<void> _openSettings() async {
@@ -282,9 +300,11 @@ class _DictionaryLookupScreenState
         ),
         for (final entry in history)
           ListTile(
-            leading: Icon(
-              Icons.history,
-              color: theme.colorScheme.onSurfaceVariant,
+            // 与上方「最近查询」标题同为 AppSpacing.m 左边距，图标左边界才能对齐
+            contentPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.m),
+            leading: SvgActionIcon(
+              assetName: 'assets/icon/history.svg',
+              color: theme.colorScheme.outline,
             ),
             title: Text(entry.word),
             onTap: () => _openLookup(entry.word, source: '历史点击'),

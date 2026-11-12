@@ -9,7 +9,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../database/providers.dart';
 import '../../features/auth/sign_in_required_dialog.dart';
 import '../../features/subscription/widgets/feature_gate.dart';
 import '../../models/dictionary/dict_speakable_texts.dart';
@@ -52,9 +51,6 @@ class LookupDetailView extends ConsumerStatefulWidget {
 }
 
 class _LookupDetailViewState extends ConsumerState<LookupDetailView> {
-  /// 每次详情只记录一次历史，避免重建或状态往返时重复写入
-  bool _historyRecorded = false;
-
   /// dispose 阶段不能使用 ref，提前缓存 TTS 控制器以便取消未完成的预热
   TtsController? _ttsController;
 
@@ -124,7 +120,6 @@ class _LookupDetailViewState extends ConsumerState<LookupDetailView> {
     final mainNotifier = ref.read(mainProvider.notifier);
     ref.listen<DictionaryLookupState>(mainProvider, (previous, next) {
       _logMainState(next);
-      if (next.current is LookupLoaded) _recordHistory();
     });
     // 按当前状态调度预热，而非只监听变化：结果在订阅前已就绪时同样生效。
     _schedulePrewarmForMainResult(resultOfLookupState(mainState.current));
@@ -239,22 +234,6 @@ class _LookupDetailViewState extends ConsumerState<LookupDetailView> {
       'Lookup',
       '主查询状态 查询词="${widget.query}" 数据源=${state.selectedSourceId} '
           '状态=${current.runtimeType} 展示词条headword=${result?.headword ?? '-'}',
-    );
-  }
-
-  /// 首次成功打开有效词条时写入历史；未收录或失败不记录。
-  void _recordHistory() {
-    if (_historyRecorded) return;
-    _historyRecorded = true;
-    final normalizedWord = normalizeWord(widget.query);
-    unawaited(
-      ref
-          .read(lookupHistoryDaoProvider)
-          .record(normalizedWord, DateTime.now())
-          .then((_) => AppLogger.log('Lookup', '写入查词历史 词="$normalizedWord"'))
-          .catchError((Object error) {
-            AppLogger.log('Lookup', '写入查词历史失败: $error');
-          }),
     );
   }
 

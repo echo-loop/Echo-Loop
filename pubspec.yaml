@@ -240,6 +240,8 @@ flutter:
     - assets/icon/search.svg
     # 学习页查词入口图标（currentColor 随主题着色）
     - assets/icon/book-search.svg
+    # 手动查词最近查询图标（fill 未指定，由 SvgActionIcon 着色）
+    - assets/icon/history.svg
     # 手动查词的本地英文词表（查词页按需加载，离开页面即释放引用）
     - assets/dictionary/wordlist-en_US.txt
     - assets/icon/sort.svg

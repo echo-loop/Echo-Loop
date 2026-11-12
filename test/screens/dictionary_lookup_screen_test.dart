@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:echo_loop/database/app_database.dart';
+import 'package:echo_loop/database/providers.dart';
 import 'package:echo_loop/providers/dictionary/dictionary_registry.dart';
 import 'package:echo_loop/services/dictionary_service.dart';
 import 'package:drift/native.dart';
@@ -174,6 +175,7 @@ Widget _buildScreen({
   bool useRealLookup = false,
   DictionaryService? dictionaryService,
   TtsController Function()? ttsController,
+  AppDatabase? database,
 }) {
   return createTestScreen(
     const DictionaryLookupScreen(),
@@ -198,6 +200,8 @@ Widget _buildScreen({
         dictionaryServiceProvider.overrideWithValue(dictionaryService),
       if (ttsController != null)
         ttsControllerProvider.overrideWith(ttsController),
+      if (database != null)
+        appDatabaseProvider.overrideWithValue(database),
       savedWordTextsProvider.overrideWith(_EmptySavedWordTexts.new),
       savedSenseGroupTextsProvider.overrideWith(_EmptySavedSenseGroupTexts.new),
       activeSavedWordProvider.overrideWith((ref, word) => Stream.value(null)),
@@ -295,6 +299,20 @@ void main() {
       await tester.testTextInput.receiveAction(TextInputAction.search);
       await _settle(tester);
       expect(find.byType(LookupDetailView), findsOneWidget);
+    });
+
+    testWidgets('未收录的词提交后同样写入查词历史', (tester) async {
+      final db = AppDatabase(NativeDatabase.memory());
+      addTearDown(db.close);
+      await tester.pumpWidget(_buildScreen(database: db));
+      await _settle(tester);
+
+      await _typeQuery(tester, 'Zyzzyva');
+      await tester.testTextInput.receiveAction(TextInputAction.search);
+      await _settle(tester);
+
+      final rows = await db.lookupHistoryDao.watchRecent().first;
+      expect(rows.map((row) => row.word), ['zyzzyva']);
     });
 
     testWidgets('确认查词后立即后台预热标题发音', (tester) async {

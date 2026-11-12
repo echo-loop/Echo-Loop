@@ -4,6 +4,8 @@
 
 ## 本次完成
 
+- [x] 手动查词页历史记录图标弱化（2026-11-12）：`dictionary_lookup_screen.dart` 的最近查询列表图标颜色由 `onSurfaceVariant` 改为 `outline`，搜索建议图标保持不变。`flutter analyze` 无问题，`test/screens/dictionary_lookup_screen_test.dart` 13 项全部通过。**待真机验证**：浅色/深色下图标观感。**完成时间**: 2026-11-12
+
 - [x] 手动查词功能（2026-11-12）：学习页顶部新增「查词」入口（位于连续天数左侧），打开全屏查词页。搜索框自动聚焦；输入时用本地 SCOWL 词表做前缀建议（最多 8 条，忽略所有格）；空输入显示最近查询（Drift 本地表，最多 20 条、同词去重、可清空并确认）；键盘搜索或点击建议/历史均走词典 API，词表无匹配的词仍可查询。词表在页面存活期间后台加载（`compute` 解析），退出即释放。详情页复用基础词典（单词）/AI 解析（词组）、来源句卡片、AI 查词折叠卡与 AI 助手入口；单词可收藏。新增设置「自动展开 AI 查词」（默认关闭）：自动请求遇额度用尽或未登录时静默收起。schema v66→v67。测试：新增 `wordlist_index_test`、`lookup_history_dao_test`、`v66_to_v67_lookup_history_migration_test`、`dictionary_lookup_screen_test`；`dictionary_settings` 测试 Switch 位次随新开关更新。`flutter analyze` 改动范围无问题。**待办**：SCOWL 词表的许可声明文本尚未补充；真机验证键盘弹出、词表加载不阻塞输入、历史整行点击。**完成时间**: 2026-11-12
 - [x] 学习页「最近完成任务」折叠头去掉「过去24小时」描述行（2026-11-12）：`_CollapsibleSection` 移除 `summary` 参数与副标题，学习页所有折叠头统一为单行标题；删除已无引用的 `recentCompletionsSummary` 文案（ARB 与生成的 l10n 文件）。`study_screen_test` 中对应断言改为「摘要不再显示」。`flutter analyze` 无问题，`study_screen_test` 26 项全部通过。**完成时间**: 2026-11-12
 
