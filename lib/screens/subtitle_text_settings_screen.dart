@@ -10,6 +10,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
 import '../l10n/app_localizations.dart';
+import '../providers/settings_provider.dart';
 import '../providers/subtitle_text_prefs_provider.dart';
 import '../theme/app_theme.dart';
 import '../widgets/common/sentence_translation_text.dart';
@@ -20,8 +21,15 @@ const _previewText =
     'Listen carefully, then repeat each sentence out loud until it '
     'feels natural.';
 
-/// 预览译文：与 [_previewText] 对应的静态译文，预览不调用 AI。
-const _previewTranslation = '学习语言需要耐心和大量练习。认真听，然后大声跟读每一句，直到说得自然为止。';
+/// 预览译文，按母语取值（键与 [supportedNativeLanguages] 一致）。
+/// 译文跟随母语而非应用语言：应用界面语言可能被设成要学习的语言。
+const _previewTranslations = <String, String>{
+  'zh-CN': '学习语言需要耐心和大量练习。认真听，然后大声跟读每一句，直到说得自然为止。',
+  'zh-TW': '學習語言需要耐心和大量練習。認真聽，然後大聲跟讀每一句，直到說得自然為止。',
+};
+
+/// 母语缺失对应译文时的回退语言（与 [AppSettingsState.nativeLanguage] 默认值一致）。
+const _fallbackNativeLanguage = 'zh-CN';
 
 class SubtitleTextSettingsScreen extends ConsumerWidget {
   const SubtitleTextSettingsScreen({super.key});
@@ -32,6 +40,9 @@ class SubtitleTextSettingsScreen extends ConsumerWidget {
     final prefs = ref.watch(subtitleTextPrefsProvider);
     final controller = ref.read(subtitleTextPrefsProvider.notifier);
     final theme = Theme.of(context);
+    final nativeLanguage = ref.watch(
+      appSettingsProvider.select((settings) => settings.nativeLanguage),
+    );
 
     return Scaffold(
       appBar: AppBar(title: Text(l10n.subtitleTextSettings)),
@@ -62,7 +73,7 @@ class SubtitleTextSettingsScreen extends ConsumerWidget {
           Card(
             child: Padding(
               padding: const EdgeInsets.all(AppSpacing.m),
-              child: _buildPreview(prefs, theme),
+              child: _buildPreview(prefs, theme, nativeLanguage),
             ),
           ),
         ],
@@ -71,7 +82,11 @@ class SubtitleTextSettingsScreen extends ConsumerWidget {
   }
 
   /// 原文与译文：原文样式与字幕列表一致，译文沿用列表内的次级样式。
-  Widget _buildPreview(SubtitleTextPrefs prefs, ThemeData theme) {
+  Widget _buildPreview(
+    SubtitleTextPrefs prefs,
+    ThemeData theme,
+    String nativeLanguage,
+  ) {
     final textStyle = prefs.applyTo(
       theme.textTheme.bodyLarge?.copyWith(
             height: subtitleBodyLineHeight,
@@ -79,13 +94,16 @@ class SubtitleTextSettingsScreen extends ConsumerWidget {
           ) ??
           const TextStyle(),
     );
+    final translation =
+        _previewTranslations[nativeLanguage] ??
+        _previewTranslations[_fallbackNativeLanguage]!;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(_previewText, style: textStyle),
         const SizedBox(height: AppSpacing.s),
         Text(
-          _previewTranslation,
+          translation,
           style: SentenceTranslationText.secondaryStyle(theme, textStyle),
         ),
       ],
