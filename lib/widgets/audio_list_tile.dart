@@ -99,6 +99,9 @@ class AudioListTile extends ConsumerWidget {
   /// 空间紧凑的只读列表（如学习页已完成折叠区）可传 1。
   final int titleMaxLines;
 
+  /// 列表项外侧的间距。默认上下 4、左右 8；由外层统一布局间距的只读列表（如学习页已完成折叠区）传 zero。
+  final EdgeInsetsGeometry outerPadding;
+
   const AudioListTile({
     super.key,
     required this.audioItem,
@@ -115,6 +118,7 @@ class AudioListTile extends ConsumerWidget {
     this.searchQuery = '',
     this.showMenu = true,
     this.titleMaxLines = 2,
+    this.outerPadding = const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
   });
 
   /// 是否在合集上下文中
@@ -279,10 +283,7 @@ class AudioListTile extends ConsumerWidget {
         final guidedCard = itemStep != null
             ? GuideTarget(step: itemStep!, child: decoratedCard)
             : decoratedCard;
-        return Padding(
-          padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
-          child: guidedCard,
-        );
+        return Padding(padding: outerPadding, child: guidedCard);
       },
     );
   }

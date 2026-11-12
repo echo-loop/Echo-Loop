@@ -231,8 +231,16 @@ class _StudyScreenState extends ConsumerState<StudyScreen> {
                         upcomingReviews.length,
                       ),
                       initiallyExpanded: false,
+                      expansionStorageKey: 'study-upcoming-reviews',
                       children: upcomingReviews
-                          .map((t) => _TaskCard(task: t, l10n: l10n, now: now))
+                          .map(
+                            (t) => _TaskCard(
+                              task: t,
+                              l10n: l10n,
+                              now: now,
+                              isBadgeInSubtitle: true,
+                            ),
+                          )
                           .toList(),
                     ),
                     const SizedBox(height: AppSpacing.m),
@@ -358,8 +366,11 @@ class _StudyMaterialCard extends StatelessWidget {
   final Widget leading;
   final Widget subtitle;
 
-  /// 标题行右侧的状态角标（如逾期、可学习时间），为 null 时不展示。
+  /// 状态角标（如逾期、可学习时间），为 null 时不展示。
   final Widget? statusBadge;
+
+  /// 角标是否放在副标题行末尾（而非标题行右侧），避免挤占音频名称。
+  final bool isBadgeInSubtitle;
   final LearningProgress? progress;
   final double progressPercent;
   final VoidCallback? onTap;
@@ -372,6 +383,7 @@ class _StudyMaterialCard extends StatelessWidget {
     required this.progressPercent,
     required this.onTap,
     this.statusBadge,
+    this.isBadgeInSubtitle = false,
   });
 
   @override
@@ -404,14 +416,23 @@ class _StudyMaterialCard extends StatelessWidget {
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
-                        if (statusBadge != null) ...[
+                        if (!isBadgeInSubtitle && statusBadge != null) ...[
                           const SizedBox(width: AppSpacing.s),
                           statusBadge!,
                         ],
                       ],
                     ),
                     const SizedBox(height: 3),
-                    subtitle,
+                    if (isBadgeInSubtitle && statusBadge != null)
+                      Row(
+                        children: [
+                          Expanded(child: subtitle),
+                          const SizedBox(width: AppSpacing.s),
+                          statusBadge!,
+                        ],
+                      )
+                    else
+                      subtitle,
                     if (progressPercent > 0) ...[
                       const SizedBox(height: 10),
                       Row(
@@ -560,7 +581,8 @@ class _RecommendedMaterialCard extends ConsumerWidget {
 }
 
 /// 展开后的内容区：灰色底衬托出条目卡片，条目保持自身背景色。
-/// 左右不留内边距，条目卡片占满整行宽度；条目之间用间距分隔，末尾不留空白。
+/// 左右不留内边距，条目卡片占满整行宽度；条目之间与顶部用 AppSpacing.s 分隔，末尾不留空白。
+/// 条目外侧不应再自带左右或底部间距（如 AudioListTile 需传 outerPadding: zero）。
 Widget _buildExpandedArea(BuildContext context, List<Widget> items) {
   final theme = Theme.of(context);
   return ColoredBox(
@@ -583,6 +605,9 @@ Widget _buildExpandedArea(BuildContext context, List<Widget> items) {
 /// 可折叠区段的卡片外壳：展开后在浅色主题下补细边框。
 ///
 /// 浅色下白色区段落在白底上边界不明显，仅展开时加边框；折叠态沿用卡片主题。
+///
+/// 展开状态会在页面路由内记住：列表滚动或数据刷新导致条目 State 被重建时，
+/// 不应把用户已展开的区段重置回 initiallyExpanded。冷启动后仍按 initiallyExpanded 折叠。
 class _ExpansionCard extends StatefulWidget {
   final Widget title;
   final Widget? subtitle;
@@ -590,12 +615,16 @@ class _ExpansionCard extends StatefulWidget {
   final EdgeInsetsGeometry childrenPadding;
   final List<Widget> children;
 
+  /// 同一页面内唯一的展开状态存储键。
+  final String expansionStorageKey;
+
   const _ExpansionCard({
     required this.title,
     required this.subtitle,
     required this.initiallyExpanded,
     required this.childrenPadding,
     required this.children,
+    required this.expansionStorageKey,
   });
 
   @override
@@ -603,7 +632,30 @@ class _ExpansionCard extends StatefulWidget {
 }
 
 class _ExpansionCardState extends State<_ExpansionCard> {
-  late bool _isExpanded = widget.initiallyExpanded;
+  late bool _isExpanded;
+
+  @override
+  void initState() {
+    super.initState();
+    _isExpanded = _readStoredExpansion() ?? widget.initiallyExpanded;
+  }
+
+  /// 展开状态存入路由级 PageStorage（路由存活期间有效），不会跨冷启动保留。
+  bool? _readStoredExpansion() {
+    final stored = PageStorage.maybeOf(
+      context,
+    )?.readState(context, identifier: widget.expansionStorageKey);
+    return stored is bool ? stored : null;
+  }
+
+  void _handleExpansionChanged(bool expanded) {
+    setState(() => _isExpanded = expanded);
+    PageStorage.maybeOf(context)?.writeState(
+      context,
+      expanded,
+      identifier: widget.expansionStorageKey,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -623,10 +675,8 @@ class _ExpansionCardState extends State<_ExpansionCard> {
       child: ExpansionTile(
         title: widget.title,
         subtitle: widget.subtitle,
-        initiallyExpanded: widget.initiallyExpanded,
-        onExpansionChanged: (bool expanded) {
-          setState(() => _isExpanded = expanded);
-        },
+        initiallyExpanded: _isExpanded,
+        onExpansionChanged: _handleExpansionChanged,
         shape: const Border(),
         collapsedShape: const Border(),
         childrenPadding: widget.childrenPadding,
@@ -642,12 +692,14 @@ class _CollapsibleSection extends StatelessWidget {
   final String summary;
   final bool initiallyExpanded;
   final List<Widget> children;
+  final String expansionStorageKey;
 
   const _CollapsibleSection({
     required this.title,
     required this.summary,
     required this.initiallyExpanded,
     required this.children,
+    required this.expansionStorageKey,
   });
 
   @override
@@ -662,6 +714,7 @@ class _CollapsibleSection extends StatelessWidget {
         ),
       ),
       initiallyExpanded: initiallyExpanded,
+      expansionStorageKey: expansionStorageKey,
       // 内边距由 _buildExpandedArea 提供，便于灰色底铺满整行宽度。
       childrenPadding: EdgeInsets.zero,
       children: [_buildExpandedArea(context, children)],
@@ -681,7 +734,15 @@ class _TaskCard extends ConsumerWidget {
   final AppLocalizations l10n;
   final DateTime now;
 
-  const _TaskCard({required this.task, required this.l10n, required this.now});
+  /// 待解锁区段的角标（解锁倒计时）放在副标题行末尾。
+  final bool isBadgeInSubtitle;
+
+  const _TaskCard({
+    required this.task,
+    required this.l10n,
+    required this.now,
+    this.isBadgeInSubtitle = false,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -716,6 +777,7 @@ class _TaskCard extends ConsumerWidget {
       statusBadge: showsStatusBadge
           ? _StatusBadge(text: statusText, isOverdue: isOverdue)
           : null,
+      isBadgeInSubtitle: isBadgeInSubtitle,
       progress: progress,
       progressPercent: progressPercent,
       onTap: () async {
@@ -761,17 +823,26 @@ class _CompletedSection extends StatelessWidget {
       ),
       subtitle: null,
       initiallyExpanded: false,
-      childrenPadding: const EdgeInsets.only(bottom: AppSpacing.xs),
+      expansionStorageKey: 'study-completed-section',
+      // 内边距由 _buildExpandedArea 提供，与其他折叠区保持一致的灰色底与间距。
+      childrenPadding: EdgeInsets.zero,
       // 复用合集详情页的列表项，只读展示，不需要菜单按钮。
-      children: completedAudios
-          .map(
-            (audio) => AudioListTile(
-              audioItem: audio,
-              showMenu: false,
-              titleMaxLines: 1,
-            ),
-          )
-          .toList(),
+      // 列表项外侧间距由本区段统一提供，故传 zero 让条目占满宽度。
+      children: [
+        _buildExpandedArea(
+          context,
+          completedAudios
+              .map(
+                (audio) => AudioListTile(
+                  audioItem: audio,
+                  showMenu: false,
+                  titleMaxLines: 1,
+                  outerPadding: EdgeInsets.zero,
+                ),
+              )
+              .toList(),
+        ),
+      ],
     );
   }
 }
@@ -798,6 +869,7 @@ class _RecentCompletionsSection extends StatelessWidget {
       title: l10n.recentCompletions(completions.length),
       summary: l10n.recentCompletionsSummary,
       initiallyExpanded: false,
+      expansionStorageKey: 'study-recent-completions',
       children: completions
           .map(
             (c) => _RecentCompletionTile(completion: c, l10n: l10n, now: now),
@@ -846,21 +918,15 @@ class _RecentCompletionTile extends ConsumerWidget {
           size: _kStudyCardIconSize,
         ),
       ),
-      // 完成时间放在第二行末尾，避免挤占标题行的音频名称。
-      subtitle: Row(
-        children: [
-          Expanded(
-            child: Text(
-              stageLabel,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-            ),
-          ),
-          const SizedBox(width: AppSpacing.s),
-          _StatusBadge(text: timeAgo, isOverdue: false),
-        ],
+      subtitle: Text(
+        stageLabel,
+        style: theme.textTheme.bodySmall?.copyWith(
+          color: theme.colorScheme.onSurfaceVariant,
+        ),
       ),
+      // 完成时间放在第二行末尾，避免挤占标题行的音频名称。
+      statusBadge: _StatusBadge(text: timeAgo, isOverdue: false),
+      isBadgeInSubtitle: true,
       progress: progress,
       progressPercent: progressPercent,
       onTap: () {
