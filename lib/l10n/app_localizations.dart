@@ -995,7 +995,7 @@ abstract class AppLocalizations {
   /// No description provided for @appearance.
   ///
   /// In en, this message translates to:
-  /// **'Appearance'**
+  /// **'Appearance & Sound'**
   String get appearance;
 
   /// Settings entry and page title for learning-content text size
@@ -9403,6 +9403,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Audio URL'**
   String get podcastEnclosureUrl;
+
+  /// No description provided for @soundEffects.
+  ///
+  /// In en, this message translates to:
+  /// **'Sound Effects'**
+  String get soundEffects;
+
+  /// No description provided for @soundSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'Sound'**
+  String get soundSettings;
 
   /// No description provided for @ttsSettings.
   ///

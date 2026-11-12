@@ -9,6 +9,7 @@ import 'package:echo_loop/features/user_preferences/data/local_user_preferences_
 import 'package:echo_loop/features/user_preferences/data/user_preferences_sync_service.dart';
 import 'package:echo_loop/features/user_preferences/providers/user_preferences_sync_providers.dart';
 import 'package:echo_loop/l10n/app_localizations.dart';
+import 'package:echo_loop/services/sound_effect_player.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -16,6 +17,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../../helpers/fake_sound_effect_player.dart';
 import '../share_test_support.dart';
 
 class _Sync extends Mock implements UserPreferencesSyncService {}
@@ -117,6 +119,7 @@ void main() {
         userPreferencesSyncServiceProvider.overrideWithValue(sync),
         dailyShareActionsProvider.overrideWithValue(actions),
         shareCardApiProvider.overrideWithValue(api),
+        soundEffectPlayerProvider.overrideWithValue(FakeSoundEffectPlayer()),
       ],
     );
     addTearDown(container.dispose);

@@ -497,7 +497,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get addBookmark => '添加收藏';
 
   @override
-  String get appearance => '外观';
+  String get appearance => '外观与音效';
 
   @override
   String get readingTextSettings => '文字大小';
@@ -5106,6 +5106,12 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get podcastEnclosureUrl => '音频链接';
+
+  @override
+  String get soundEffects => '音效';
+
+  @override
+  String get soundSettings => '声效';
 
   @override
   String get ttsSettings => '语音合成';

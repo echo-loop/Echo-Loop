@@ -1,6 +1,7 @@
 import 'package:echo_loop/l10n/app_localizations.dart';
 import 'package:echo_loop/providers/learning_settings_provider.dart';
 import 'package:echo_loop/screens/display_settings_screen.dart';
+import 'package:echo_loop/screens/reading_text_settings_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -127,5 +128,20 @@ void main() {
       prefs.getBool(LearningSettingsKeys.showPlaybackSpeedButton),
       isFalse,
     );
+  });
+
+  testWidgets('点击文字大小入口进入文字大小设置页', (tester) async {
+    await pumpScreen(tester);
+
+    await tester.tap(find.text('Font Size'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(ReadingTextSettingsScreen), findsOneWidget);
+  });
+
+  testWidgets('文字大小入口显示当前字号百分比', (tester) async {
+    await pumpScreen(tester, initialValues: {'reading_font_scale': 1.2});
+
+    expect(find.text('120%'), findsOneWidget);
   });
 }

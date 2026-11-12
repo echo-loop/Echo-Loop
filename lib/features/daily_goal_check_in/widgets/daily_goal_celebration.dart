@@ -2,10 +2,12 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lottie/lottie.dart';
 
 import '../../../l10n/app_localizations.dart';
 import '../../../services/app_logger.dart';
+import '../../../services/sound_effect_player.dart';
 import '../../../theme/app_theme.dart';
 import '../../../widgets/common/dot_lottie_decoder.dart';
 
@@ -23,7 +25,7 @@ const _fallbackHoldDuration = Duration(milliseconds: 2500);
 /// 系统开启「减少动画」时不播放彩带，文字静止停留的时长。
 const _reducedMotionHoldDuration = Duration(milliseconds: 1200);
 
-/// 自动弹出今日一刻卡片前播放的全屏庆祝动画。
+/// 自动弹出今日一刻卡片前播放的全屏庆祝动画，同时播放达成音效（受全局音效开关控制）。
 ///
 /// 动画播完、点击屏幕或按返回键后返回，由调用方继续展示卡片。
 Future<void> showDailyGoalCelebration(BuildContext context) {
@@ -39,14 +41,15 @@ Future<void> showDailyGoalCelebration(BuildContext context) {
   );
 }
 
-class _DailyGoalCelebration extends StatefulWidget {
+class _DailyGoalCelebration extends ConsumerStatefulWidget {
   const _DailyGoalCelebration();
 
   @override
-  State<_DailyGoalCelebration> createState() => _DailyGoalCelebrationState();
+  ConsumerState<_DailyGoalCelebration> createState() =>
+      _DailyGoalCelebrationState();
 }
 
-class _DailyGoalCelebrationState extends State<_DailyGoalCelebration>
+class _DailyGoalCelebrationState extends ConsumerState<_DailyGoalCelebration>
     with TickerProviderStateMixin {
   late final AnimationController _textEntrance;
   late final AnimationController _confetti;
@@ -73,6 +76,10 @@ class _DailyGoalCelebrationState extends State<_DailyGoalCelebration>
     // 依赖 MediaQuery 的初始化只做一次，之后系统设置变化不再重新播放。
     if (_started) return;
     _started = true;
+    // 音效与文字同时出现；减少动画只影响画面，不影响音效。
+    unawaited(
+      ref.read(soundEffectPlayerProvider).play(SoundEffect.achievementBell),
+    );
     final reduceMotion =
         MediaQuery.maybeOf(context)?.disableAnimations ?? false;
     if (reduceMotion) {

@@ -517,7 +517,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get addBookmark => 'Add bookmark';
 
   @override
-  String get appearance => 'Appearance';
+  String get appearance => 'Appearance & Sound';
 
   @override
   String get readingTextSettings => 'Font Size';
@@ -5361,6 +5361,12 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get podcastEnclosureUrl => 'Audio URL';
+
+  @override
+  String get soundEffects => 'Sound Effects';
+
+  @override
+  String get soundSettings => 'Sound';
 
   @override
   String get ttsSettings => 'Text-to-Speech';

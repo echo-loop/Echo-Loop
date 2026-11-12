@@ -757,7 +757,7 @@ void main() {
         );
         await tester.pumpAndSettle();
 
-        expect(find.text('Appearance'), findsOneWidget);
+        expect(find.text('Appearance & Sound'), findsOneWidget);
       });
 
       testWidgets('Speech Recognition 入口仅在开关启用时显示', (tester) async {

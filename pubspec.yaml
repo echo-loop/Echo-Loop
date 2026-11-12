@@ -224,7 +224,6 @@ flutter:
     - assets/icon/speaker.svg
     - assets/icon/text-decrease.svg
     - assets/icon/text-increase.svg
-    - assets/icon/text-size.svg
     - assets/icon/trash-bin.svg
     - assets/icon/unlock.svg
     # 媒体类型图标（音频默认图标 / 视频条目图标，资源库卡片区分音/视频）
@@ -255,6 +254,8 @@ flutter:
     - assets/animation/confetti-2.lottie
     # 后台静音保活轨：停顿期间循环播放以保持 iOS 音频会话活跃（见 background_audio_handler）
     - assets/audio/silence_2s.m4a
+    # 界面音效（见 lib/services/sound_effect_player.dart）
+    - assets/sound_effects/achievement_bell.m4a
     # PDF 导出内嵌字体（TrueType 轮廓；pdf 包不支持 CFF/OTF，也无法读系统 CJK 字体）。
     # 不注册进 fonts: 段——仅经 rootBundle 读原始字节喂 pw.Font.ttf，生成时自动子集化。
     - assets/fonts/pdf/
