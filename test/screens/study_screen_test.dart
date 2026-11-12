@@ -845,8 +845,8 @@ void main() {
 
     // 折叠区标题可见
     expect(find.textContaining('Recently Completed Tasks (2)'), findsOneWidget);
-    // 摘要文案可见
-    expect(find.text('Past 24 hours'), findsOneWidget);
+    // 折叠头只保留标题，不再显示摘要
+    expect(find.text('Past 24 hours'), findsNothing);
 
     // 默认折叠 —— 子项不可见
     expect(find.text('Listen without subtitles'), findsNothing);

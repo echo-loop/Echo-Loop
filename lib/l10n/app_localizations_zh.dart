@@ -2426,11 +2426,6 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String upcomingReviewsSummary(int count) {
-    return '$count 个复习任务将在稍后解锁';
-  }
-
-  @override
   String get recommendedForYou => '为你推荐';
 
   @override
@@ -3241,9 +3236,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String recentCompletions(int count) {
     return '最近完成任务 ($count)';
   }
-
-  @override
-  String get recentCompletionsSummary => '过去24小时';
 
   @override
   String get timeAgoJustNow => '刚刚';

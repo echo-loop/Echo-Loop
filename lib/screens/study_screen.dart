@@ -227,9 +227,6 @@ class _StudyScreenState extends ConsumerState<StudyScreen> {
                   if (upcomingReviews.isNotEmpty) ...[
                     _CollapsibleSection(
                       title: l10n.upcomingReviews(upcomingReviews.length),
-                      summary: l10n.upcomingReviewsSummary(
-                        upcomingReviews.length,
-                      ),
                       initiallyExpanded: false,
                       expansionStorageKey: 'study-upcoming-reviews',
                       children: upcomingReviews
@@ -686,17 +683,15 @@ class _ExpansionCardState extends State<_ExpansionCard> {
   }
 }
 
-/// 可折叠区段（标题 + 摘要 + 展开后的灰色内容区）
+/// 可折叠区段（单行标题 + 展开后的灰色内容区）
 class _CollapsibleSection extends StatelessWidget {
   final String title;
-  final String summary;
   final bool initiallyExpanded;
   final List<Widget> children;
   final String expansionStorageKey;
 
   const _CollapsibleSection({
     required this.title,
-    required this.summary,
     required this.initiallyExpanded,
     required this.children,
     required this.expansionStorageKey,
@@ -707,12 +702,7 @@ class _CollapsibleSection extends StatelessWidget {
     final theme = Theme.of(context);
     return _ExpansionCard(
       title: Text(title, style: theme.textTheme.titleSmall),
-      subtitle: Text(
-        summary,
-        style: theme.textTheme.bodySmall?.copyWith(
-          color: theme.colorScheme.onSurfaceVariant,
-        ),
-      ),
+      subtitle: null,
       initiallyExpanded: initiallyExpanded,
       expansionStorageKey: expansionStorageKey,
       // 内边距由 _buildExpandedArea 提供，便于灰色底铺满整行宽度。
@@ -867,7 +857,6 @@ class _RecentCompletionsSection extends StatelessWidget {
   Widget build(BuildContext context) {
     return _CollapsibleSection(
       title: l10n.recentCompletions(completions.length),
-      summary: l10n.recentCompletionsSummary,
       initiallyExpanded: false,
       expansionStorageKey: 'study-recent-completions',
       children: completions

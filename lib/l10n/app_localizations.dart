@@ -4436,12 +4436,6 @@ abstract class AppLocalizations {
   /// **'Upcoming Reviews ({count})'**
   String upcomingReviews(int count);
 
-  /// No description provided for @upcomingReviewsSummary.
-  ///
-  /// In en, this message translates to:
-  /// **'{count} review tasks will unlock later'**
-  String upcomingReviewsSummary(int count);
-
   /// No description provided for @recommendedForYou.
   ///
   /// In en, this message translates to:
@@ -5953,12 +5947,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Recently Completed Tasks ({count})'**
   String recentCompletions(int count);
-
-  /// No description provided for @recentCompletionsSummary.
-  ///
-  /// In en, this message translates to:
-  /// **'Past 24 hours'**
-  String get recentCompletionsSummary;
 
   /// No description provided for @timeAgoJustNow.
   ///

@@ -4,6 +4,10 @@
 
 ## 本次完成
 
+- [x] 学习页「最近完成任务」折叠头去掉「过去24小时」描述行（2026-11-12）：`_CollapsibleSection` 移除 `summary` 参数与副标题，学习页所有折叠头统一为单行标题；删除已无引用的 `recentCompletionsSummary` 文案（ARB 与生成的 l10n 文件）。`study_screen_test` 中对应断言改为「摘要不再显示」。`flutter analyze` 无问题，`study_screen_test` 26 项全部通过。**完成时间**: 2026-11-12
+
+- [x] 学习页「待解锁」折叠头去掉描述行（2026-11-12）：`_CollapsibleSection.summary` 改为可空，待解锁区段不再传摘要，折叠头只显示标题；「最近完成」保留摘要。删除已无引用的 `upcomingReviewsSummary` 文案（ARB 与生成的 l10n 文件）。`flutter analyze` 无问题，`study_screen_test` 26 项全部通过。**完成时间**: 2026-11-12
+
 - [x] 学习页折叠区展开后滚动或数据刷新会被自动折叠（2026-11-12）：`_ExpansionCard` 的展开状态原先只存在于条目 State 中，条目被重建时回到 `initiallyExpanded`。现改为通过 `expansionStorageKey` 存入路由级 `PageStorage`，待解锁、最近完成、已学完三个区段均接入；冷启动后仍默认折叠。未能在 widget 测试中稳定复现原场景，仅用探针验证 PageStorage 在组件销毁后可恢复状态。`flutter analyze` 无问题，`study_screen_test` 26 项全部通过。**待真机验证**：滚动与数据刷新后的展开状态。**完成时间**: 2026-11-12
 
 - [x] 推荐材料排除所有复习阶段材料（2026-11-12）：上次修复只排除了「待解锁」（`isReviewLockedAt`），已到时间的「待复习」材料仍会进入「为你推荐」，同一材料两处出现。现改为 `isInReviewStage` 整体排除，`selectStudyRecommendation` 去掉已无用途的 `now` 参数（`studyRecommendationProvider` 不再 watch `nowProvider`）。测试：`study_task_provider_test` 新增「已到时间的待复习材料也不推荐」用例，`study_task_provider_test` + `study_screen_test` 共 57 项通过；`flutter analyze` 无问题。**副作用**：暂停中的复习材料（不在任何分组里）也不再被推荐。**完成时间**: 2026-11-12

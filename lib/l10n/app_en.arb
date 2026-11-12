@@ -1389,10 +1389,6 @@
   "@upcomingReviews": {
     "placeholders": { "count": { "type": "int" } }
   },
-  "upcomingReviewsSummary": "{count} review tasks will unlock later",
-  "@upcomingReviewsSummary": {
-    "placeholders": { "count": { "type": "int" } }
-  },
   "recommendedForYou": "Recommended for you",
   "completedSection": "Completed Materials ({count})",
   "@completedSection": {
@@ -1786,7 +1782,6 @@
       "count": { "type": "int" }
     }
   },
-  "recentCompletionsSummary": "Past 24 hours",
   "timeAgoJustNow": "Just now",
   "timeAgoMinutes": "{minutes}m ago",
   "@timeAgoMinutes": {

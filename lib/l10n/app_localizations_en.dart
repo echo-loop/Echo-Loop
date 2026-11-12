@@ -2537,11 +2537,6 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String upcomingReviewsSummary(int count) {
-    return '$count review tasks will unlock later';
-  }
-
-  @override
   String get recommendedForYou => 'Recommended for you';
 
   @override
@@ -3388,9 +3383,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String recentCompletions(int count) {
     return 'Recently Completed Tasks ($count)';
   }
-
-  @override
-  String get recentCompletionsSummary => 'Past 24 hours';
 
   @override
   String get timeAgoJustNow => 'Just now';

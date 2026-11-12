@@ -1110,7 +1110,6 @@
   "weekStudyTimeShort": "本周",
   "readyToReview": "待复习 ({count})",
   "upcomingReviews": "待解锁 ({count})",
-  "upcomingReviewsSummary": "{count} 个复习任务将在稍后解锁",
   "recommendedForYou": "为你推荐",
   "completedSection": "已学完的材料 ({count})",
   "noStudyTasks": "暂无学习任务",
@@ -1422,7 +1421,6 @@
   "notificationNotGrantedBannerCta": "开启",
 
   "recentCompletions": "最近完成任务 ({count})",
-  "recentCompletionsSummary": "过去24小时",
   "timeAgoJustNow": "刚刚",
   "timeAgoMinutes": "{minutes}分钟前",
   "timeAgoHours": "{hours}小时前",
