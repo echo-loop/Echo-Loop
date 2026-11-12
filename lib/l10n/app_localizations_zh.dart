@@ -2410,6 +2410,9 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String get studyLookupEntry => '查词';
+
+  @override
   String get todayStudyTimeShort => '今日';
 
   @override
@@ -5249,6 +5252,36 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get dictionaryAutoSpeakOnLookup => '查词时自动播放发音';
+
+  @override
+  String get dictionaryAutoShowAiOnLookup => '自动展开 AI 查词';
+
+  @override
+  String get lookupSettingsTitle => '查词设置';
+
+  @override
+  String get lookupSettingsTooltip => '查词设置';
+
+  @override
+  String get lookupAutoSpeak => '自动发音';
+
+  @override
+  String get lookupSearchHint => '输入英文单词或短语';
+
+  @override
+  String get lookupRecentTitle => '最近查询';
+
+  @override
+  String get lookupClearHistory => '清空';
+
+  @override
+  String get lookupClearHistoryConfirm => '清空全部查询历史？';
+
+  @override
+  String get lookupHistoryEmpty => '查过的单词会显示在这里';
+
+  @override
+  String get lookupWordlistUnavailable => '词表暂不可用，仍可直接查询';
 
   @override
   String get dictionaryAdFilterTitle => '屏蔽网页词典广告';

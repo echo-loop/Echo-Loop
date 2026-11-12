@@ -74,6 +74,18 @@ class DictionarySettingsNotifier extends _$DictionarySettingsNotifier {
     await _persist(state.copyWith(autoSpeakOnLookup: enabled));
   }
 
+  /// 设置手动查词详情是否自动展开 AI 查词。
+  Future<void> setAutoShowAiOnLookup(bool enabled) async {
+    if (state.autoShowAiOnLookup == enabled) return;
+    await _persist(state.copyWith(autoShowAiOnLookup: enabled));
+  }
+
+  /// 设置查词页打开详情时是否自动朗读单词。
+  Future<void> setAutoSpeakOnLookupPage(bool enabled) async {
+    if (state.autoSpeakOnLookupPage == enabled) return;
+    await _persist(state.copyWith(autoSpeakOnLookupPage: enabled));
+  }
+
   /// 设置网页词典广告过滤开关。
   Future<void> setAdFilteringEnabled(bool enabled) async {
     if (state.adFilteringEnabled == enabled) return;

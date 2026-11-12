@@ -13287,6 +13287,266 @@ class DictionaryCacheCompanion extends UpdateCompanion<DictionaryCacheData> {
   }
 }
 
+class $LookupHistoriesTable extends LookupHistories
+    with TableInfo<$LookupHistoriesTable, LookupHistory> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $LookupHistoriesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _wordMeta = const VerificationMeta('word');
+  @override
+  late final GeneratedColumn<String> word = GeneratedColumn<String>(
+    'word',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways('UNIQUE'),
+  );
+  static const VerificationMeta _lookedUpAtMeta = const VerificationMeta(
+    'lookedUpAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> lookedUpAt = GeneratedColumn<DateTime>(
+    'looked_up_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [id, word, lookedUpAt];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'lookup_histories';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<LookupHistory> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('word')) {
+      context.handle(
+        _wordMeta,
+        word.isAcceptableOrUnknown(data['word']!, _wordMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_wordMeta);
+    }
+    if (data.containsKey('looked_up_at')) {
+      context.handle(
+        _lookedUpAtMeta,
+        lookedUpAt.isAcceptableOrUnknown(
+          data['looked_up_at']!,
+          _lookedUpAtMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_lookedUpAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  LookupHistory map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return LookupHistory(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      word: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}word'],
+      )!,
+      lookedUpAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}looked_up_at'],
+      )!,
+    );
+  }
+
+  @override
+  $LookupHistoriesTable createAlias(String alias) {
+    return $LookupHistoriesTable(attachedDatabase, alias);
+  }
+}
+
+class LookupHistory extends DataClass implements Insertable<LookupHistory> {
+  /// 自增主键
+  final int id;
+
+  /// 归一化后的查询词（小写），同一词只保留一条
+  final String word;
+
+  /// 最近一次成功查询的时间
+  final DateTime lookedUpAt;
+  const LookupHistory({
+    required this.id,
+    required this.word,
+    required this.lookedUpAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['word'] = Variable<String>(word);
+    map['looked_up_at'] = Variable<DateTime>(lookedUpAt);
+    return map;
+  }
+
+  LookupHistoriesCompanion toCompanion(bool nullToAbsent) {
+    return LookupHistoriesCompanion(
+      id: Value(id),
+      word: Value(word),
+      lookedUpAt: Value(lookedUpAt),
+    );
+  }
+
+  factory LookupHistory.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return LookupHistory(
+      id: serializer.fromJson<int>(json['id']),
+      word: serializer.fromJson<String>(json['word']),
+      lookedUpAt: serializer.fromJson<DateTime>(json['lookedUpAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'word': serializer.toJson<String>(word),
+      'lookedUpAt': serializer.toJson<DateTime>(lookedUpAt),
+    };
+  }
+
+  LookupHistory copyWith({int? id, String? word, DateTime? lookedUpAt}) =>
+      LookupHistory(
+        id: id ?? this.id,
+        word: word ?? this.word,
+        lookedUpAt: lookedUpAt ?? this.lookedUpAt,
+      );
+  LookupHistory copyWithCompanion(LookupHistoriesCompanion data) {
+    return LookupHistory(
+      id: data.id.present ? data.id.value : this.id,
+      word: data.word.present ? data.word.value : this.word,
+      lookedUpAt: data.lookedUpAt.present
+          ? data.lookedUpAt.value
+          : this.lookedUpAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('LookupHistory(')
+          ..write('id: $id, ')
+          ..write('word: $word, ')
+          ..write('lookedUpAt: $lookedUpAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(id, word, lookedUpAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is LookupHistory &&
+          other.id == this.id &&
+          other.word == this.word &&
+          other.lookedUpAt == this.lookedUpAt);
+}
+
+class LookupHistoriesCompanion extends UpdateCompanion<LookupHistory> {
+  final Value<int> id;
+  final Value<String> word;
+  final Value<DateTime> lookedUpAt;
+  const LookupHistoriesCompanion({
+    this.id = const Value.absent(),
+    this.word = const Value.absent(),
+    this.lookedUpAt = const Value.absent(),
+  });
+  LookupHistoriesCompanion.insert({
+    this.id = const Value.absent(),
+    required String word,
+    required DateTime lookedUpAt,
+  }) : word = Value(word),
+       lookedUpAt = Value(lookedUpAt);
+  static Insertable<LookupHistory> custom({
+    Expression<int>? id,
+    Expression<String>? word,
+    Expression<DateTime>? lookedUpAt,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (word != null) 'word': word,
+      if (lookedUpAt != null) 'looked_up_at': lookedUpAt,
+    });
+  }
+
+  LookupHistoriesCompanion copyWith({
+    Value<int>? id,
+    Value<String>? word,
+    Value<DateTime>? lookedUpAt,
+  }) {
+    return LookupHistoriesCompanion(
+      id: id ?? this.id,
+      word: word ?? this.word,
+      lookedUpAt: lookedUpAt ?? this.lookedUpAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (word.present) {
+      map['word'] = Variable<String>(word.value);
+    }
+    if (lookedUpAt.present) {
+      map['looked_up_at'] = Variable<DateTime>(lookedUpAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('LookupHistoriesCompanion(')
+          ..write('id: $id, ')
+          ..write('word: $word, ')
+          ..write('lookedUpAt: $lookedUpAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
 class $MemorySchedulesTable extends MemorySchedules
     with TableInfo<$MemorySchedulesTable, MemorySchedule> {
   @override
@@ -15643,6 +15903,9 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $DictionaryCacheTable dictionaryCache = $DictionaryCacheTable(
     this,
   );
+  late final $LookupHistoriesTable lookupHistories = $LookupHistoriesTable(
+    this,
+  );
   late final $MemorySchedulesTable memorySchedules = $MemorySchedulesTable(
     this,
   );
@@ -15685,6 +15948,9 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final DictionaryCacheDao dictionaryCacheDao = DictionaryCacheDao(
     this as AppDatabase,
   );
+  late final LookupHistoryDao lookupHistoryDao = LookupHistoryDao(
+    this as AppDatabase,
+  );
   late final MemoryScheduleDao memoryScheduleDao = MemoryScheduleDao(
     this as AppDatabase,
   );
@@ -15713,6 +15979,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     dailyStageStudyRecords,
     ttsCache,
     dictionaryCache,
+    lookupHistories,
     memorySchedules,
     memoryReviewEvents,
     memoryReviewQueueEntries,
@@ -23876,6 +24143,175 @@ typedef $$DictionaryCacheTableProcessedTableManager =
       DictionaryCacheData,
       PrefetchHooks Function()
     >;
+typedef $$LookupHistoriesTableCreateCompanionBuilder =
+    LookupHistoriesCompanion Function({
+      Value<int> id,
+      required String word,
+      required DateTime lookedUpAt,
+    });
+typedef $$LookupHistoriesTableUpdateCompanionBuilder =
+    LookupHistoriesCompanion Function({
+      Value<int> id,
+      Value<String> word,
+      Value<DateTime> lookedUpAt,
+    });
+
+class $$LookupHistoriesTableFilterComposer
+    extends Composer<_$AppDatabase, $LookupHistoriesTable> {
+  $$LookupHistoriesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get word => $composableBuilder(
+    column: $table.word,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get lookedUpAt => $composableBuilder(
+    column: $table.lookedUpAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$LookupHistoriesTableOrderingComposer
+    extends Composer<_$AppDatabase, $LookupHistoriesTable> {
+  $$LookupHistoriesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get word => $composableBuilder(
+    column: $table.word,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get lookedUpAt => $composableBuilder(
+    column: $table.lookedUpAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$LookupHistoriesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $LookupHistoriesTable> {
+  $$LookupHistoriesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get word =>
+      $composableBuilder(column: $table.word, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get lookedUpAt => $composableBuilder(
+    column: $table.lookedUpAt,
+    builder: (column) => column,
+  );
+}
+
+class $$LookupHistoriesTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $LookupHistoriesTable,
+          LookupHistory,
+          $$LookupHistoriesTableFilterComposer,
+          $$LookupHistoriesTableOrderingComposer,
+          $$LookupHistoriesTableAnnotationComposer,
+          $$LookupHistoriesTableCreateCompanionBuilder,
+          $$LookupHistoriesTableUpdateCompanionBuilder,
+          (
+            LookupHistory,
+            BaseReferences<_$AppDatabase, $LookupHistoriesTable, LookupHistory>,
+          ),
+          LookupHistory,
+          PrefetchHooks Function()
+        > {
+  $$LookupHistoriesTableTableManager(
+    _$AppDatabase db,
+    $LookupHistoriesTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$LookupHistoriesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$LookupHistoriesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$LookupHistoriesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<String> word = const Value.absent(),
+                Value<DateTime> lookedUpAt = const Value.absent(),
+              }) => LookupHistoriesCompanion(
+                id: id,
+                word: word,
+                lookedUpAt: lookedUpAt,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required String word,
+                required DateTime lookedUpAt,
+              }) => LookupHistoriesCompanion.insert(
+                id: id,
+                word: word,
+                lookedUpAt: lookedUpAt,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$LookupHistoriesTable, LookupHistory>(table),
+                  BaseReferences<
+                    _$AppDatabase,
+                    $LookupHistoriesTable,
+                    LookupHistory
+                  >(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$LookupHistoriesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $LookupHistoriesTable,
+      LookupHistory,
+      $$LookupHistoriesTableFilterComposer,
+      $$LookupHistoriesTableOrderingComposer,
+      $$LookupHistoriesTableAnnotationComposer,
+      $$LookupHistoriesTableCreateCompanionBuilder,
+      $$LookupHistoriesTableUpdateCompanionBuilder,
+      (
+        LookupHistory,
+        BaseReferences<_$AppDatabase, $LookupHistoriesTable, LookupHistory>,
+      ),
+      LookupHistory,
+      PrefetchHooks Function()
+    >;
 typedef $$MemorySchedulesTableCreateCompanionBuilder =
     MemorySchedulesCompanion Function({
       required String id,
@@ -25272,6 +25708,8 @@ class $AppDatabaseManager {
       $$TtsCacheTableTableManager(_db, _db.ttsCache);
   $$DictionaryCacheTableTableManager get dictionaryCache =>
       $$DictionaryCacheTableTableManager(_db, _db.dictionaryCache);
+  $$LookupHistoriesTableTableManager get lookupHistories =>
+      $$LookupHistoriesTableTableManager(_db, _db.lookupHistories);
   $$MemorySchedulesTableTableManager get memorySchedules =>
       $$MemorySchedulesTableTableManager(_db, _db.memorySchedules);
   $$MemoryReviewEventsTableTableManager get memoryReviewEvents =>

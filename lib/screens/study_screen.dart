@@ -32,6 +32,7 @@ import '../widgets/learning_progress_bar.dart';
 import '../widgets/audio_artwork.dart';
 import '../widgets/audio_meta_line.dart';
 import '../widgets/audio_list_tile.dart';
+import '../widgets/study/study_lookup_button.dart';
 import '../widgets/study/study_streak_badge.dart';
 import '../widgets/study/study_stats_header.dart';
 
@@ -170,7 +171,15 @@ class _StudyScreenState extends ConsumerState<StudyScreen> {
       child: Scaffold(
         appBar: AppBar(
           title: Text(l10n.studyTasks),
-          actions: [GuideTarget(step: stepStreakChip, child: streakChip)],
+          actions: [
+            Padding(
+              padding: const EdgeInsets.only(right: AppSpacing.s),
+              child: StudyLookupButton(
+                onTap: () => context.push(AppRoutes.dictionaryLookup),
+              ),
+            ),
+            GuideTarget(step: stepStreakChip, child: streakChip),
+          ],
         ),
         // 任务或推荐尚未加载且当前无内容时显示骨架，避免冷启动闪空态。
         body:

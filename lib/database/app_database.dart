@@ -4,7 +4,9 @@ import 'dart:io';
 import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
 import 'package:sqlite3/common.dart' as sqlite3;
+
 import '../utils/app_data_dir.dart';
+
 import 'package:path/path.dart' as p;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
@@ -32,6 +34,7 @@ import 'tables/daily_study_records.dart';
 import 'tables/daily_stage_study_records.dart';
 import 'tables/tts_cache.dart';
 import 'tables/dictionary_cache.dart';
+import 'tables/lookup_histories.dart';
 import 'tables/memory_schedules.dart';
 import 'tables/memory_review_events.dart';
 import 'tables/memory_review_queue_entries.dart';
@@ -52,6 +55,7 @@ import 'daos/daily_stage_study_record_dao.dart';
 import 'daos/study_statistics_dao.dart';
 import 'daos/tts_cache_dao.dart';
 import 'daos/dictionary_cache_dao.dart';
+import 'daos/lookup_history_dao.dart';
 import 'daos/memory_schedule_dao.dart';
 import 'daos/favorite_review_dao.dart';
 
@@ -81,6 +85,7 @@ part 'app_database.g.dart';
     DailyStageStudyRecords,
     TtsCache,
     DictionaryCache,
+    LookupHistories,
     MemorySchedules,
     MemoryReviewEvents,
     MemoryReviewQueueEntries,
@@ -102,6 +107,7 @@ part 'app_database.g.dart';
     StudyStatisticsDao,
     TtsCacheDao,
     DictionaryCacheDao,
+    LookupHistoryDao,
     MemoryScheduleDao,
     FavoriteReviewDao,
   ],
@@ -110,7 +116,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase(super.e);
 
   /// 当前 schema 版本（静态访问，用于导入前版本检查）
-  static const currentSchemaVersion = 66;
+  static const currentSchemaVersion = 67;
 
   @override
   int get schemaVersion => currentSchemaVersion;
@@ -929,6 +935,10 @@ class AppDatabase extends _$AppDatabase {
             'checked_in_goal_minutes',
             'INTEGER',
           );
+        }
+        // v66→v67：新增手动查词历史表。
+        if (from < 67) {
+          await m.createTable(lookupHistories);
         }
       },
     );

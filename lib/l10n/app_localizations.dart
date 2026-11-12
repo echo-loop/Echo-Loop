@@ -4412,6 +4412,12 @@ abstract class AppLocalizations {
   /// **'{count}d streak'**
   String streakDays(int count);
 
+  /// No description provided for @studyLookupEntry.
+  ///
+  /// In en, this message translates to:
+  /// **'Lookup'**
+  String get studyLookupEntry;
+
   /// No description provided for @todayStudyTimeShort.
   ///
   /// In en, this message translates to:
@@ -9661,6 +9667,66 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Auto-play Pronunciation'**
   String get dictionaryAutoSpeakOnLookup;
+
+  /// No description provided for @dictionaryAutoShowAiOnLookup.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto-show AI Lookup'**
+  String get dictionaryAutoShowAiOnLookup;
+
+  /// No description provided for @lookupSettingsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Lookup Settings'**
+  String get lookupSettingsTitle;
+
+  /// No description provided for @lookupSettingsTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Lookup settings'**
+  String get lookupSettingsTooltip;
+
+  /// No description provided for @lookupAutoSpeak.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto-play pronunciation'**
+  String get lookupAutoSpeak;
+
+  /// No description provided for @lookupSearchHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter an English word or phrase'**
+  String get lookupSearchHint;
+
+  /// No description provided for @lookupRecentTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Recent'**
+  String get lookupRecentTitle;
+
+  /// No description provided for @lookupClearHistory.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear'**
+  String get lookupClearHistory;
+
+  /// No description provided for @lookupClearHistoryConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear all lookup history?'**
+  String get lookupClearHistoryConfirm;
+
+  /// No description provided for @lookupHistoryEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'Words you look up will appear here'**
+  String get lookupHistoryEmpty;
+
+  /// No description provided for @lookupWordlistUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Word list unavailable. You can still look up words directly.'**
+  String get lookupWordlistUnavailable;
 
   /// No description provided for @dictionaryAdFilterTitle.
   ///

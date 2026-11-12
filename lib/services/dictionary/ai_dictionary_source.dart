@@ -19,6 +19,7 @@ import '../../database/daos/sentence_ai_cache_dao.dart';
 import '../../models/dictionary/dictionary_entry.dart';
 import '../../models/dictionary/dictionary_lookup_result.dart';
 import '../../utils/text_normalize.dart';
+import '../app_logger.dart';
 import '../sentence_ai_api_client.dart';
 import 'dictionary_source.dart';
 
@@ -88,6 +89,7 @@ class AiDictionarySource implements DictionarySource {
     // L1 内存（即时整块返回，不模拟流式）
     final mem = _memCache[key];
     if (mem != null) {
+      AppLogger.log('AI-Dict', '命中内存缓存 词=$cacheWord 语言=$language');
       yield AiDictResult(mem);
       return;
     }
@@ -103,18 +105,25 @@ class AiDictionarySource implements DictionarySource {
               ? MultiWordDictionaryEntry.fromJson(decoded)
               : DictionaryEntry.fromJson(decoded);
           _memCache[key] = entry;
+          AppLogger.log('AI-Dict', '命中数据库缓存 词=$cacheWord 语言=$language');
           yield AiDictResult(entry);
           return;
         }
-      } catch (_) {
+      } catch (error) {
         // 损坏数据，继续 L3
+        AppLogger.log('AI-Dict', '数据库缓存损坏，转网络请求 词=$cacheWord error=$error');
       }
     }
 
     // L3 网络请求需要登录；缓存读取不受登录状态限制。
     if (token == null || token.isEmpty) {
+      AppLogger.log('AI-Dict', '未命中缓存且未登录，跳过网络请求 词=$cacheWord');
       throw const DictionaryAuthRequiredException();
     }
+    AppLogger.log(
+      'AI-Dict',
+      '未命中缓存，发起流式请求 词=$cacheWord 类型=${isPhrase ? '词组' : '单词'} 语言=$language',
+    );
 
     // L3 流式 API：按 isPhrase 分流到单词/词组端点
     final apiClient = _apiClient();
@@ -134,19 +143,32 @@ class AiDictionarySource implements DictionarySource {
 
     AiDictionaryEntry? last;
     var sawFinal = false;
-    await for (final frame in stream) {
-      last = frame.entry;
-      sawFinal = sawFinal || frame.isFinal;
-      yield AiDictResult(frame.entry);
+    try {
+      await for (final frame in stream) {
+        last = frame.entry;
+        sawFinal = sawFinal || frame.isFinal;
+        yield AiDictResult(frame.entry);
+      }
+    } catch (error) {
+      // 取消、网络或协议错误：未完整完成，不落缓存。
+      AppLogger.log('AI-Dict', '流式中断，未写入缓存 词=$cacheWord error=$error');
+      rethrow;
     }
 
     // 只有显式 final 帧才落缓存；正常 EOF 但无 final 视为协议中断/损坏。
     if (last != null && !sawFinal) {
+      AppLogger.log('AI-Dict', '流式结束但缺少完成帧，未写入缓存 词=$cacheWord');
       throw const DictionaryStreamException();
     }
     if (last != null && sawFinal) {
       _memCache[key] = last;
       await cacheDao.upsert(key, _cacheType, jsonEncode(last.toJson()));
+      AppLogger.log(
+        'AI-Dict',
+        '完成并写入缓存 词=$cacheWord headword=${last.headword}',
+      );
+    } else {
+      AppLogger.log('AI-Dict', '流式结束但无任何结果 词=$cacheWord');
     }
   }
 

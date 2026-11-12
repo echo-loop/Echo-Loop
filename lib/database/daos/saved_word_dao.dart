@@ -200,6 +200,14 @@ class SavedWordDao extends DatabaseAccessor<AppDatabase>
         .distinct(const SetEquality<String>().equals);
   }
 
+  /// 流式监听单词的未删除收藏行（含来源句信息），未收藏时为 null。
+  Stream<SavedWord?> watchActiveByWord(String word) {
+    return (select(savedWords)
+          ..where((t) => t.word.equals(word) & t.deletedAt.isNull())
+          ..limit(1))
+        .watchSingleOrNull();
+  }
+
   /// 流式监听单词是否已收藏
   Stream<bool> watchIsWordSaved(String word) {
     return (select(savedWords)

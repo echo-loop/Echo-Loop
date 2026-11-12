@@ -21,7 +21,6 @@ import '../providers/dictionary/lookup_controller.dart';
 import '../providers/dictionary/dictionary_registry.dart';
 import '../providers/pronunciation/pronunciation_providers.dart';
 import '../providers/tts/tts_controller_provider.dart';
-import '../database/providers.dart';
 import '../models/dictionary/dictionary_lookup_result.dart';
 import '../models/dictionary/dict_speakable_texts.dart';
 import '../models/flashcard_item.dart';
@@ -30,12 +29,13 @@ import '../widgets/dictionary/ai_dict_result_view.dart';
 import '../widgets/dictionary/local_dict_result_view.dart';
 import '../widgets/dictionary/reading_text_scale.dart';
 import '../widgets/dictionary/dictionary_panel_host.dart';
-import '../widgets/practice/selectable_sentence_text.dart';
 import '../services/dictionary/dictionary_source.dart';
 import '../theme/app_theme.dart';
 import '../utils/time_format.dart';
 import '../utils/wakelock_mixin.dart';
 import '../widgets/bookmark_review/bookmark_review_settings_sheet.dart';
+import '../widgets/favorites/ai_lookup_toggle.dart';
+import '../widgets/favorites/source_sentence_card.dart';
 import '../widgets/review/review_status_bar.dart';
 import '../widgets/review/review_completion_summary.dart';
 import '../widgets/study/study_activity_detector.dart';
@@ -683,7 +683,7 @@ class _VocabularyBackState extends ConsumerState<_VocabularyBack> {
                 if (sourceSentenceText != null &&
                     sourceSentenceText.isNotEmpty) ...[
                   const SizedBox(height: AppSpacing.m),
-                  _SourceSentenceCard(
+                  SourceSentenceCard(
                     sentenceText: sourceSentenceText,
                     audioItemId: card.audioItemId,
                     sentenceIndex: card.sentenceIndex,
@@ -692,7 +692,7 @@ class _VocabularyBackState extends ConsumerState<_VocabularyBack> {
                   ),
                 ],
                 const SizedBox(height: AppSpacing.m),
-                _AiLookupToggle(
+                AiLookupToggle(
                   key: const Key('favorite-vocabulary-review-ai-toggle'),
                   expanded: _showAi,
                   onTap: () {
@@ -804,135 +804,6 @@ class _VocabularyBackState extends ConsumerState<_VocabularyBack> {
           ),
         ),
       ],
-    );
-  }
-}
-
-/// 来源句卡片：把可播放句子与学习语境标签组合成一个明确的内容入口。
-class _SourceSentenceCard extends StatelessWidget {
-  const _SourceSentenceCard({
-    required this.sentenceText,
-    required this.audioItemId,
-    required this.sentenceIndex,
-    required this.sentenceStartMs,
-    required this.sentenceEndMs,
-  });
-
-  final String sentenceText;
-  final String? audioItemId;
-  final int? sentenceIndex;
-  final int? sentenceStartMs;
-  final int? sentenceEndMs;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colors = theme.colorScheme;
-    return Material(
-      key: const Key('favorite-vocabulary-review-source'),
-      color: colors.surfaceContainerLow,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: colors.outlineVariant.withValues(alpha: 0.55)),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(AppSpacing.s, 8, AppSpacing.s, 10),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            SelectableSentenceText(
-              text: sentenceText,
-              style: theme.textTheme.bodyLarge?.copyWith(
-                fontSize: 16,
-                height: 1.35,
-                fontWeight: FontWeight.w400,
-              ),
-              origin: DictionaryLookupOrigin(
-                audioItemId: audioItemId,
-                sentenceIndex: sentenceIndex,
-                sentenceText: sentenceText,
-                sentenceStartMs: sentenceStartMs,
-                sentenceEndMs: sentenceEndMs,
-              ),
-            ),
-            if (audioItemId != null) ...[
-              const SizedBox(height: AppSpacing.xs),
-              _SourceMaterialLink(audioItemId: audioItemId!),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// AI 查词主入口：以整行卡片表达可展开内容，而不是普通次级按钮。
-class _AiLookupToggle extends StatelessWidget {
-  const _AiLookupToggle({
-    super.key,
-    required this.expanded,
-    required this.onTap,
-  });
-
-  final bool expanded;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colors = theme.colorScheme;
-    return Semantics(
-      button: true,
-      toggled: expanded,
-      label: expanded ? '收起 AI 查词' : '显示 AI 查词',
-      child: Material(
-        color: colors.primaryContainer.withValues(alpha: 0.55),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-          side: BorderSide(color: colors.primary.withValues(alpha: 0.35)),
-        ),
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: onTap,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.m,
-              vertical: 9,
-            ),
-            child: Row(
-              children: [
-                Icon(
-                  expanded ? Icons.auto_awesome : Icons.auto_awesome_outlined,
-                  color: colors.primary,
-                  size: 22,
-                ),
-                const SizedBox(width: AppSpacing.s),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'AI 查词',
-                        style: theme.textTheme.titleSmall?.copyWith(
-                          color: colors.onSurface,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Icon(
-                  expanded
-                      ? Icons.keyboard_arrow_up_rounded
-                      : Icons.chevron_right_rounded,
-                  color: colors.primary,
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
     );
   }
 }
@@ -1102,72 +973,4 @@ class _LocalDictionarySectionState
       },
     );
   }
-}
-
-/// 来源材料入口只读取标题；播放仍由来源句统一播放编排负责。
-class _SourceMaterialLink extends ConsumerWidget {
-  const _SourceMaterialLink({required this.audioItemId});
-
-  final String audioItemId;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) => FutureBuilder(
-    future: ref.read(audioItemDaoProvider).getById(audioItemId),
-    builder: (context, snapshot) {
-      final title = snapshot.data?.name ?? '来源材料';
-      final l10n = AppLocalizations.of(context)!;
-      final theme = Theme.of(context);
-      final colors = theme.colorScheme;
-      return Semantics(
-        button: true,
-        label: '打开来源材料 $title',
-        child: Align(
-          alignment: Alignment.centerRight,
-          child: Material(
-            color: Colors.transparent,
-            child: InkWell(
-              key: const Key('favorite-vocabulary-review-source-material'),
-              onTap: () =>
-                  context.push(AppRoutes.audioLearningPlan(audioItemId)),
-              borderRadius: BorderRadius.circular(10),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.xs,
-                  vertical: 3,
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      Icons.headphones_rounded,
-                      size: 16,
-                      color: colors.primary,
-                    ),
-                    const SizedBox(width: AppSpacing.xs),
-                    ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 220),
-                      child: Text(
-                        l10n.bookmarkReviewFromAudio(title),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: colors.onSurfaceVariant,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: AppSpacing.xs),
-                    Icon(
-                      Icons.chevron_right_rounded,
-                      size: 18,
-                      color: colors.onSurfaceVariant,
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ),
-      );
-    },
-  );
 }

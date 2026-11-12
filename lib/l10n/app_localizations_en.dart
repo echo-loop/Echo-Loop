@@ -2521,6 +2521,9 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get studyLookupEntry => 'Lookup';
+
+  @override
   String get todayStudyTimeShort => 'Today';
 
   @override
@@ -5516,6 +5519,37 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get dictionaryAutoSpeakOnLookup => 'Auto-play Pronunciation';
+
+  @override
+  String get dictionaryAutoShowAiOnLookup => 'Auto-show AI Lookup';
+
+  @override
+  String get lookupSettingsTitle => 'Lookup Settings';
+
+  @override
+  String get lookupSettingsTooltip => 'Lookup settings';
+
+  @override
+  String get lookupAutoSpeak => 'Auto-play pronunciation';
+
+  @override
+  String get lookupSearchHint => 'Enter an English word or phrase';
+
+  @override
+  String get lookupRecentTitle => 'Recent';
+
+  @override
+  String get lookupClearHistory => 'Clear';
+
+  @override
+  String get lookupClearHistoryConfirm => 'Clear all lookup history?';
+
+  @override
+  String get lookupHistoryEmpty => 'Words you look up will appear here';
+
+  @override
+  String get lookupWordlistUnavailable =>
+      'Word list unavailable. You can still look up words directly.';
 
   @override
   String get dictionaryAdFilterTitle => 'Block ads in web dictionaries';

@@ -51,7 +51,7 @@ void main() {
     final check = sqlite.sqlite3.open(file.path);
     try {
       final version = check.select('PRAGMA user_version').first.values.first;
-      expect(version, 66);
+      expect(version, greaterThanOrEqualTo(66));
     } finally {
       check.close();
     }

@@ -12,6 +12,7 @@ import 'daos/learning_progress_dao.dart';
 import 'daos/stage_completion_dao.dart';
 import 'daos/tag_dao.dart';
 import 'daos/dictionary_cache_dao.dart';
+import 'daos/lookup_history_dao.dart';
 import 'daos/sentence_ai_cache_dao.dart';
 import 'daos/saved_word_dao.dart';
 import 'daos/saved_sense_group_dao.dart';
@@ -180,6 +181,11 @@ final sentenceAiCacheDaoProvider = Provider<SentenceAiCacheDao>((ref) {
 /// DictionaryCache DAO Provider
 final dictionaryCacheDaoProvider = Provider<DictionaryCacheDao>((ref) {
   return ref.watch(appDatabaseProvider).dictionaryCacheDao;
+});
+
+/// 手动查词历史 DAO Provider
+final lookupHistoryDaoProvider = Provider<LookupHistoryDao>((ref) {
+  return ref.watch(appDatabaseProvider).lookupHistoryDao;
 });
 
 /// SavedWord DAO Provider

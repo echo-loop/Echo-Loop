@@ -24,6 +24,14 @@ class DictionarySettings {
   /// 是否在网页词典中启用通用广告过滤
   final bool adFilteringEnabled;
 
+  /// 手动查词详情是否自动展开 AI 查词。
+  ///
+  /// 默认关闭：AI 查词消耗免费额度，自动请求会在用户未主动要求时扣减额度。
+  final bool autoShowAiOnLookup;
+
+  /// 手动查词详情打开时是否自动朗读单词（仅作用于查词页，与词典面板的 [autoSpeakOnLookup] 独立）。
+  final bool autoSpeakOnLookupPage;
+
   /// 默认源 id 缺省值
   static const defaultId = 'local';
 
@@ -32,6 +40,8 @@ class DictionarySettings {
     Set<String> disabledIds = const {},
     this.autoSpeakOnLookup = true,
     this.adFilteringEnabled = false,
+    this.autoShowAiOnLookup = false,
+    this.autoSpeakOnLookupPage = true,
   }) : disabledIds = UnmodifiableSetView(Set.of(disabledIds));
 
   DictionarySettings copyWith({
@@ -39,11 +49,15 @@ class DictionarySettings {
     Set<String>? disabledIds,
     bool? autoSpeakOnLookup,
     bool? adFilteringEnabled,
+    bool? autoShowAiOnLookup,
+    bool? autoSpeakOnLookupPage,
   }) => DictionarySettings(
     defaultSourceId: defaultSourceId ?? this.defaultSourceId,
     disabledIds: disabledIds ?? this.disabledIds,
     autoSpeakOnLookup: autoSpeakOnLookup ?? this.autoSpeakOnLookup,
     adFilteringEnabled: adFilteringEnabled ?? this.adFilteringEnabled,
+    autoShowAiOnLookup: autoShowAiOnLookup ?? this.autoShowAiOnLookup,
+    autoSpeakOnLookupPage: autoSpeakOnLookupPage ?? this.autoSpeakOnLookupPage,
   );
 
   Map<String, dynamic> toJson() => {
@@ -51,6 +65,8 @@ class DictionarySettings {
     'disabledIds': disabledIds.toList(),
     'autoSpeakOnLookup': autoSpeakOnLookup,
     'adFilteringEnabled': adFilteringEnabled,
+    'autoShowAiOnLookup': autoShowAiOnLookup,
+    'autoSpeakOnLookupPage': autoSpeakOnLookupPage,
   };
 
   /// 防御性解析：字段缺失/类型不符回退缺省
@@ -59,6 +75,8 @@ class DictionarySettings {
     final rawDisabled = json['disabledIds'];
     final rawAutoSpeak = json['autoSpeakOnLookup'];
     final rawAdFilteringEnabled = json['adFilteringEnabled'];
+    final rawAutoShowAiOnLookup = json['autoShowAiOnLookup'];
+    final rawAutoSpeakOnLookupPage = json['autoSpeakOnLookupPage'];
     return DictionarySettings(
       defaultSourceId: rawDefault is String && rawDefault.isNotEmpty
           ? rawDefault
@@ -70,6 +88,12 @@ class DictionarySettings {
       adFilteringEnabled: rawAdFilteringEnabled is bool
           ? rawAdFilteringEnabled
           : false,
+      autoShowAiOnLookup: rawAutoShowAiOnLookup is bool
+          ? rawAutoShowAiOnLookup
+          : false,
+      autoSpeakOnLookupPage: rawAutoSpeakOnLookupPage is bool
+          ? rawAutoSpeakOnLookupPage
+          : true,
     );
   }
 
@@ -81,7 +105,9 @@ class DictionarySettings {
           defaultSourceId == other.defaultSourceId &&
           _setEquals(disabledIds, other.disabledIds) &&
           autoSpeakOnLookup == other.autoSpeakOnLookup &&
-          adFilteringEnabled == other.adFilteringEnabled;
+          adFilteringEnabled == other.adFilteringEnabled &&
+          autoShowAiOnLookup == other.autoShowAiOnLookup &&
+          autoSpeakOnLookupPage == other.autoSpeakOnLookupPage;
 
   @override
   int get hashCode => Object.hash(
@@ -89,6 +115,8 @@ class DictionarySettings {
     Object.hashAllUnordered(disabledIds),
     autoSpeakOnLookup,
     adFilteringEnabled,
+    autoShowAiOnLookup,
+    autoSpeakOnLookupPage,
   );
 
   static bool _setEquals(Set<String> a, Set<String> b) =>

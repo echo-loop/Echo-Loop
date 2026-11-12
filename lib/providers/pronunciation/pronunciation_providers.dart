@@ -142,18 +142,21 @@ class TextPlaybackController extends Notifier<TextPlaybackState> {
 
   Future<void> stop() async {
     _sessionId++;
-    await _player?.stop();
-    if (_disposed) return;
-    try {
-      await ref.read(ttsControllerProvider.notifier).stop();
-    } catch (error, stackTrace) {
-      // 页面销毁后的迟到清理可能先于 ProviderContainer 释放完成；此时媒体已经
-      // 被当前播放器会话作废，不能让二次清理异常反向污染页面收尾。
-      AppLogger.log(
-        'TextPlayback',
-        'TTS stop skipped during provider cleanup error=$error\n$stackTrace',
-      );
+    // 必须先作废 TTS 发音的代际再停止播放器：否则播放器停止会让在途的 TTS 发音
+    // 以仍然有效的代际返回 failed，被误记为「发音失败」。
+    if (!_disposed) {
+      try {
+        await ref.read(ttsControllerProvider.notifier).stop();
+      } catch (error, stackTrace) {
+        // 页面销毁后的迟到清理可能先于 ProviderContainer 释放完成；此时媒体已经
+        // 被当前播放器会话作废，不能让二次清理异常反向污染页面收尾。
+        AppLogger.log(
+          'TextPlayback',
+          'TTS stop skipped during provider cleanup error=$error\n$stackTrace',
+        );
+      }
     }
+    await _player?.stop();
     if (_disposed) return;
     state = const TextPlaybackState();
   }

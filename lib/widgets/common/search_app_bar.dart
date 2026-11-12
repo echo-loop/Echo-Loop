@@ -20,6 +20,9 @@ class SearchAppBar extends StatelessWidget implements PreferredSizeWidget {
     required this.onChanged,
     required this.onClear,
     required this.onCancel,
+    this.onSubmitted,
+    this.leading,
+    this.actions,
   });
 
   final TextEditingController controller;
@@ -32,6 +35,15 @@ class SearchAppBar extends StatelessWidget implements PreferredSizeWidget {
   final VoidCallback onClear;
   final VoidCallback onCancel;
 
+  /// 键盘搜索键的行为；默认只收起键盘，不退出搜索模式。
+  final ValueChanged<String>? onSubmitted;
+
+  /// 左侧入口（如返回键）；为空时不显示。
+  final Widget? leading;
+
+  /// 右侧操作；为空时使用「取消」按钮退出搜索。
+  final List<Widget>? actions;
+
   @override
   Size get preferredSize => const Size.fromHeight(kToolbarHeight);
 
@@ -43,6 +55,7 @@ class SearchAppBar extends StatelessWidget implements PreferredSizeWidget {
       bindings: {const SingleActivator(LogicalKeyboardKey.escape): onCancel},
       child: AppBar(
         automaticallyImplyLeading: false,
+        leading: leading,
         // 输入框做成带底色的圆角搜索框，让用户一眼看出这里可以输入。
         title: Container(
           height: 40,
@@ -76,8 +89,8 @@ class SearchAppBar extends StatelessWidget implements PreferredSizeWidget {
                     ),
                   ),
                   onChanged: onChanged,
-                  // 键盘上的搜索键只收起键盘，不退出搜索模式。
-                  onSubmitted: (_) => focusNode.unfocus(),
+                  // 默认键盘搜索键只收起键盘，不退出搜索模式。
+                  onSubmitted: onSubmitted ?? (_) => focusNode.unfocus(),
                 ),
               ),
               if (query.isNotEmpty)
@@ -90,10 +103,12 @@ class SearchAppBar extends StatelessWidget implements PreferredSizeWidget {
             ],
           ),
         ),
-        actions: [
-          TextButton(onPressed: onCancel, child: Text(l10n.cancel)),
-          const SizedBox(width: 8),
-        ],
+        actions:
+            actions ??
+            [
+              TextButton(onPressed: onCancel, child: Text(l10n.cancel)),
+              const SizedBox(width: 8),
+            ],
       ),
     );
   }

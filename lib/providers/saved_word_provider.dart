@@ -132,3 +132,11 @@ Future<Map<String, DictEntry>> savedWordDictEntries(Ref ref) async {
   final wordStrings = wordsAsync.map((w) => w.word).toList();
   return ref.watch(dictionaryServiceProvider).lookupAll(wordStrings);
 }
+
+/// 单个单词的未删除收藏行（含来源句），未收藏为 null。
+///
+/// 手写而非 `@Riverpod`：生成器无法解析 drift 数据类（见 [SavedWordList]）。
+final activeSavedWordProvider = StreamProvider.autoDispose
+    .family<db.SavedWord?, String>(
+      (ref, word) => ref.watch(savedWordDaoProvider).watchActiveByWord(word),
+    );

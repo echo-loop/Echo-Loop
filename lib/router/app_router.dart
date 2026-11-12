@@ -51,6 +51,7 @@ import '../screens/sentence_detail_screen.dart';
 import '../screens/pdf_preview_screen.dart';
 import '../screens/backup_restore_screen.dart';
 import '../screens/favorite_vocabulary_review_screen.dart';
+import '../screens/dictionary_lookup_screen.dart';
 import '../screens/activity_calendar_screen.dart';
 import '../screens/review_statistics_screen.dart';
 import 'main_shell.dart';
@@ -176,6 +177,9 @@ abstract class AppRoutes {
 
   /// 活动日历页路径
   static const activityCalendar = '/activity-calendar';
+
+  /// 手动查词页路径（全屏）
+  static const dictionaryLookup = '/dictionary-lookup';
   static const reviewStatistics = '/review-statistics';
 
   /// 难句补练页路径
@@ -611,6 +615,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/activity-calendar',
         parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) => const ActivityCalendarScreen(),
+      ),
+      // 手动查词（全屏）
+      GoRoute(
+        path: AppRoutes.dictionaryLookup,
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) => const DictionaryLookupScreen(),
       ),
       GoRoute(
         path: AppRoutes.reviewStatistics,

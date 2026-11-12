@@ -63,7 +63,10 @@ class DictionaryService {
     if (key == null || !_isDictionaryHeadwordKey(key)) return null;
 
     final cached = await _readCache(key);
-    if (cached != null) return cached;
+    if (cached != null) {
+      AppLogger.log('Dict', '命中本地缓存 word=$key headword=${cached.word}');
+      return cached;
+    }
     return _requestShared(key);
   }
 
@@ -202,7 +205,8 @@ class DictionaryService {
     await _cacheDao.upsert(_dictId, key, raw);
     AppLogger.log(
       'Dict',
-      '请求并缓存 word=$key elapsedMs=${stopwatch.elapsedMilliseconds}',
+      '请求并缓存 word=$key headword=${entry.word} '
+          'elapsedMs=${stopwatch.elapsedMilliseconds}',
     );
     return entry;
   }
