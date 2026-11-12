@@ -4,6 +4,7 @@ import 'package:audio_video_progress_bar/audio_video_progress_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../features/auth/providers/auth_providers.dart';
 import '../l10n/app_localizations.dart';
 import '../models/audio_item.dart';
 import '../models/listening_practice_state.dart';
@@ -28,6 +29,7 @@ import '../widgets/common/audio_app_bar_title.dart';
 import '../widgets/common/playback_controls.dart';
 import '../widgets/common/paragraph_sentence_list_card.dart';
 import '../widgets/common/free_player_sentence_pager.dart';
+import '../widgets/common/sentence_translation_text.dart';
 import '../widgets/common/media_visual_surface.dart';
 import '../widgets/common/managed_media_visual_surface.dart';
 import '../widgets/dictionary/dictionary_panel_host.dart';
@@ -533,6 +535,9 @@ class _MediaPlaybackScreenState extends ConsumerState<MediaPlaybackScreen>
     );
     final resolvedPlayingLocalIndex =
         playingLocalIndex ?? currentSentenceIndex ?? -1;
+    // 显示字幕时，收藏句原文下方附弱化译文；未登录不显示。
+    final showsBookmarkedTranslation =
+        state.settings.showTranscript && ref.watch(isAuthenticatedProvider);
 
     final singleSentencePane = FreePlayerSentencePager(
       key: PageStorageKey('media-single-sentence-${audioItem.id}-${mode.name}'),
@@ -581,6 +586,13 @@ class _MediaPlaybackScreenState extends ConsumerState<MediaPlaybackScreen>
       onSentencePlayFrom: onPlayFrom,
       onSentenceExplanationTap: _handleSentenceDetail,
       onSentenceBookmarkToggle: (s) => _handleBookmarkToggle(s.index),
+      sentenceSecondaryTextBuilder: showsBookmarkedTranslation
+          ? bookmarkedSentenceTranslationBuilder(
+              theme: Theme.of(context),
+              audioItemId: audioItem.id,
+              bookmarkedSentenceIndices: state.bookmarkedIndices,
+            )
+          : null,
     );
 
     return _MediaSentencePaneSwitcher(

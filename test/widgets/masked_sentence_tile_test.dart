@@ -519,5 +519,29 @@ void main() {
       await tester.pump();
       expect(playFromCount, 1);
     });
+
+    testWidgets('secondaryTextBuilder 返回 null 时只显示原文', (tester) async {
+      await tester.pumpWidget(
+        createTestApp(
+          MaskedSentenceTile(
+            sentence: _sentence('Hello world'),
+            displayMode: RetellDisplayMode.showAll,
+            keywordIndices: const {},
+            isPlayingSentence: false,
+            secondaryTextBuilder: (_) => null,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Hello'), findsOneWidget);
+      expect(
+        find.descendant(
+          of: find.byType(MaskedSentenceTile),
+          matching: find.byType(Column),
+        ),
+        findsNothing,
+      );
+    });
   });
 }

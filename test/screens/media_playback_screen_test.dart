@@ -18,6 +18,8 @@ import 'package:echo_loop/providers/media_playback/media_playback_provider.dart'
 import 'package:echo_loop/providers/favorite_sentence_lifecycle_provider.dart';
 import 'package:echo_loop/router/app_router.dart' show rootRouteObserver;
 import 'package:echo_loop/providers/sentence_ai_provider.dart';
+import 'package:echo_loop/providers/sentence_translation_provider.dart';
+import 'package:echo_loop/features/auth/providers/auth_providers.dart';
 import 'package:echo_loop/screens/media_playback_screen.dart';
 import 'package:echo_loop/screens/sentence_detail_screen.dart';
 import 'package:echo_loop/services/media_session_router.dart';
@@ -1503,6 +1505,37 @@ void main() {
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump(const Duration(seconds: 6));
   });
+  for (final isAuthenticated in [true, false]) {
+    testMediaWidgets('字幕列表中仅收藏句显示译文（已登录：$isAuthenticated）', (tester) async {
+      await tester.pumpWidget(
+        createTestApp(
+          MediaPlaybackScreen(audioItem: item),
+          overrides: [
+            ...mediaOverrides(withTranscript: true),
+            isAuthenticatedProvider.overrideWithValue(isAuthenticated),
+            sentenceTranslationProvider.overrideWith(
+              (ref, target) => Stream.value('译文:${target.sentenceIndex}'),
+            ),
+          ],
+        ),
+      );
+      await pumpMediaReady(tester);
+
+      final container = ProviderScope.containerOf(
+        tester.element(find.byType(MediaPlaybackScreen)),
+      );
+      await container.read(mediaPlaybackProvider.notifier).toggleBookmark(1);
+      await tester.pump();
+      await tester.pump();
+
+      expect(
+        find.text('译文:1'),
+        isAuthenticated ? findsOneWidget : findsNothing,
+      );
+      expect(find.text('译文:0'), findsNothing);
+    });
+  }
+
 
   testMediaWidgets('底部收藏按钮在全文与收藏列表间双向切换', (tester) async {
     await tester.pumpWidget(

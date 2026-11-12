@@ -566,6 +566,62 @@ void main() {
       expect(segmented().selected, {RetellDisplayMode.showAll});
     });
 
+    testWidgets('看英文全部显示：仅收藏句附译文，隐藏时不显示', (tester) async {
+      await tester.pumpWidget(
+        createTestWidget(
+          playerState: const RetellPlayerState(
+            currentParagraphIndex: 0,
+            totalParagraphs: 1,
+            phase: RetellPhase.retelling,
+            displayMode: RetellDisplayMode.showAll,
+            bookmarkedSentenceIndices: {1},
+          ),
+          extraOverrides: [
+            ...await _translationAvailableOverrides(),
+            sentenceTranslationProvider.overrideWith(
+              (ref, target) => Stream.value('译文 ${target.sentenceIndex}'),
+            ),
+          ],
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('译文 1'), findsOneWidget);
+      expect(find.text('译文 0'), findsNothing);
+      expect(find.text('译文 2'), findsNothing);
+
+      await tester.tap(find.text('Hidden'));
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(find.text('译文 1'), findsNothing);
+    });
+
+    testWidgets('看英文全部显示且未登录：收藏句不附译文', (tester) async {
+      await tester.pumpWidget(
+        createTestWidget(
+          playerState: const RetellPlayerState(
+            currentParagraphIndex: 0,
+            totalParagraphs: 1,
+            phase: RetellPhase.retelling,
+            displayMode: RetellDisplayMode.showAll,
+            bookmarkedSentenceIndices: {1},
+          ),
+          extraOverrides: [
+            isAuthenticatedProvider.overrideWithValue(false),
+            supabaseSessionProvider.overrideWithValue(
+              const AsyncData<Session?>(null),
+            ),
+            sentenceTranslationProvider.overrideWith(
+              (ref, target) => Stream.value('译文 ${target.sentenceIndex}'),
+            ),
+          ],
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('译文 1'), findsNothing);
+      expect(find.text('Sign In'), findsNothing);
+    });
+
     testWidgets('看译文模式：原文切回译文时直接显示译文，不闪骨架', (tester) async {
       await tester.pumpWidget(
         createTestWidget(

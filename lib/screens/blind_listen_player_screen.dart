@@ -9,9 +9,12 @@
 library;
 
 import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+
+import '../features/auth/providers/auth_providers.dart';
 import '../router/app_router.dart';
 import '../database/enums.dart';
 import '../utils/playback_speed.dart';
@@ -42,6 +45,7 @@ import '../widgets/common/countdown_chip.dart';
 import '../widgets/common/paragraph_practice_scaffold.dart';
 import '../widgets/common/playback_controls.dart';
 import '../widgets/common/paragraph_sentence_list_card.dart';
+import '../widgets/common/sentence_translation_text.dart';
 import '../widgets/dialogs/free_play_complete_dialog.dart';
 import '../widgets/guide_flow.dart';
 import '../widgets/player_hotkey_scope.dart';
@@ -789,6 +793,17 @@ class _BlindListenPlayerScreenState
               onSentenceBookmarkToggle: (sentence) => ref
                   .read(blindListenPlayerProvider.notifier)
                   .toggleBookmark(widget.audioItemId, sentence),
+              // 显示字幕时，收藏句原文下方附弱化译文；未登录不显示。
+              sentenceSecondaryTextBuilder:
+                  playerState.displayMode == BlindListenDisplayMode.showAll &&
+                      ref.watch(isAuthenticatedProvider)
+                  ? bookmarkedSentenceTranslationBuilder(
+                      theme: theme,
+                      audioItemId: widget.audioItemId,
+                      bookmarkedSentenceIndices:
+                          playerState.bookmarkedSentenceIndices,
+                    )
+                  : null,
               guideTargetLocalIdx: guideTargetLocalIdx,
               explanationAreaGuideStep: explanationStep,
               bodyAreaGuideStep: bodyStep,

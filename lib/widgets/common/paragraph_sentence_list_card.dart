@@ -87,8 +87,8 @@ class ParagraphSentenceListCard extends StatefulWidget {
   final Widget Function(Sentence sentence, TextStyle textStyle)?
   sentenceReplacementTextBuilder;
 
-  /// 句子正文下方附加文本的构建器（如原文下的弱化译文）；为空时不显示。
-  final Widget Function(Sentence sentence, TextStyle textStyle)?
+  /// 句子正文下方附加文本的构建器（如原文下的弱化译文）；为空或返回 null 时不显示。
+  final Widget? Function(Sentence sentence, TextStyle textStyle)?
   sentenceSecondaryTextBuilder;
 
   const ParagraphSentenceListCard({

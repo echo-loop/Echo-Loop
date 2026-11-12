@@ -98,7 +98,8 @@ class MaskedSentenceTile extends ConsumerWidget {
   /// 正文下方的附加文本构建器（如复述「看译文」原文档时的弱化译文），参数为正文样式。
   ///
   /// 与正文同在主体点击区内，点击仍从该句播放；附加文本自身可拦截点击（如订阅入口）。
-  final Widget Function(TextStyle textStyle)? secondaryTextBuilder;
+  /// 返回 null 时不显示附加文本（如仅收藏句显示译文）。
+  final Widget? Function(TextStyle textStyle)? secondaryTextBuilder;
 
   const MaskedSentenceTile({
     super.key,
@@ -154,17 +155,13 @@ class MaskedSentenceTile extends ConsumerWidget {
               activeWordIndex,
             ),
           );
-    final secondaryTextBuilder = this.secondaryTextBuilder;
-    final Widget sentenceText = secondaryTextBuilder == null
+    final secondaryText = secondaryTextBuilder?.call(textStyle);
+    final Widget sentenceText = secondaryText == null
         ? primaryText
         : Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
-            children: [
-              primaryText,
-              const SizedBox(height: 4),
-              secondaryTextBuilder(textStyle),
-            ],
+            children: [primaryText, const SizedBox(height: 4), secondaryText],
           );
 
     return AnimatedContainer(

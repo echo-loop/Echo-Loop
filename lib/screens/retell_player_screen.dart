@@ -352,14 +352,6 @@ class _RetellPlayerScreenState extends ConsumerState<RetellPlayerScreen>
   }
 
   /// 译文定位：与句子讲解页一致按全局句索引取前后句上下文，共用翻译缓存。
-  /// 原文下方译文的弱化样式：字号略小、次要文字色。
-  TextStyle _secondaryTranslationStyle(ThemeData theme, TextStyle textStyle) {
-    return textStyle.copyWith(
-      fontSize: (textStyle.fontSize ?? 16) * 0.875,
-      color: theme.colorScheme.onSurfaceVariant,
-    );
-  }
-
   SentenceAiPrewarmTarget _translationTarget(Sentence sentence) =>
       SentenceAiPrewarmTarget(
         text: sentence.text,
@@ -1842,17 +1834,27 @@ class _RetellPlayerScreenState extends ConsumerState<RetellPlayerScreen>
                             onSignInRequired: _handleTranslationSignInRequired,
                           )
                         : null,
-                    // 原文档下方附弱化译文，方便对照；额度用尽时就地提示订阅。
+                    // 全部显示时原文下方附弱化译文，额度用尽时就地提示订阅：
+                    // 看译文模式每句都附，方便对照；看英文模式仅收藏句附，
+                    // 未登录不显示。
                     sentenceSecondaryTextBuilder:
-                        isTranslationPrompt &&
-                            listDisplayMode == RetellDisplayMode.showAll
+                        listDisplayMode != RetellDisplayMode.showAll
+                        ? null
+                        : isTranslationPrompt
                         ? (sentence, textStyle) => SentenceTranslationText(
                             target: _translationTarget(sentence),
-                            textStyle: _secondaryTranslationStyle(
+                            textStyle: SentenceTranslationText.secondaryStyle(
                               theme,
                               textStyle,
                             ),
                             onSignInRequired: _handleTranslationSignInRequired,
+                          )
+                        : ref.watch(isAuthenticatedProvider)
+                        ? bookmarkedSentenceTranslationBuilder(
+                            theme: theme,
+                            audioItemId: widget.audioItemId,
+                            bookmarkedSentenceIndices:
+                                state.bookmarkedSentenceIndices,
                           )
                         : null,
                     keywordMap: keywords,
