@@ -51,7 +51,7 @@ import '../widgets/favorites/vocabulary_recycle_bin_sheet.dart';
 import '../widgets/bookmark_review/bookmark_review_settings_sheet.dart';
 import '../widgets/common/app_popup_menu.dart';
 import '../widgets/common/prewarm_visibility.dart';
-import '../widgets/dictionary/dict_source_presentation.dart';
+import '../widgets/dictionary/source_switcher.dart';
 import '../widgets/dictionary/dictionary_panel_host.dart';
 import '../widgets/guide_flow.dart';
 
@@ -1428,7 +1428,8 @@ class _FavoritePronunciationRow extends StatelessWidget {
   }
 }
 
-/// 词汇列表项的 AI 查词入口：紫色星芒 + 文案，点击在收藏页内打开查词面板并预选 AI 源。
+/// 词汇列表项的 AI 查词入口：直接复用查词面板的 [AiSourceButton]，样式保持一致。
+/// 点击在收藏页内打开查词面板并预选 AI 源；按钮本身不表达选中态，故 selectedId 传空。
 class _FavoriteAiLookupButton extends StatelessWidget {
   const _FavoriteAiLookupButton({
     required this.buttonKey,
@@ -1440,21 +1441,10 @@ class _FavoriteAiLookupButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
-    final accent = dictSourceColor(Theme.of(context).colorScheme, 'ai');
-    return TextButton.icon(
+    return AiSourceButton(
       key: buttonKey,
-      onPressed: onPressed,
-      icon: Icon(Icons.auto_awesome, size: 16, color: accent),
-      label: Text(
-        l10n.favoritesAiLookup,
-        style: TextStyle(color: accent, fontWeight: FontWeight.w600),
-      ),
-      style: TextButton.styleFrom(
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s),
-        minimumSize: const Size(0, 36),
-        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-      ),
+      selectedId: '',
+      onSelected: (_) => onPressed(),
     );
   }
 }

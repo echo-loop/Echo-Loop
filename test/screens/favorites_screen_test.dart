@@ -1562,7 +1562,14 @@ void main() {
 
       expect(find.byType(DictionaryPanel), findsOneWidget);
       expect(
-        tester.widget<AiSourceButton>(find.byType(AiSourceButton)).selectedId,
+        tester
+            .widget<AiSourceButton>(
+              find.descendant(
+                of: find.byType(DictionaryPanel),
+                matching: find.byType(AiSourceButton),
+              ),
+            )
+            .selectedId,
         AiDictionarySource.sourceId,
       );
     });
