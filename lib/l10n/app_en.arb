@@ -1448,6 +1448,7 @@
   "undo": "Undo",
   "favoritesSaveVocabulary": "Save",
   "favoritesUnsaveVocabulary": "Unsave",
+  "favoritesAiLookup": "AI",
 
   "bookmarkReviewTitle": "Review Saved Sentences",
   "bookmarkReviewStart": "Start Review",

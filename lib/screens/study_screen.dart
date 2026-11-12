@@ -340,7 +340,12 @@ class _TaskSection extends StatelessWidget {
           ],
         ),
         const SizedBox(height: AppSpacing.s),
-        ...tasks.map((task) => _TaskCard(task: task, l10n: l10n, now: now)),
+        ...tasks.map(
+          (task) => Padding(
+            padding: const EdgeInsets.only(bottom: AppSpacing.s),
+            child: _TaskCard(task: task, l10n: l10n, now: now),
+          ),
+        ),
       ],
     );
   }
@@ -372,8 +377,9 @@ class _StudyMaterialCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    // 卡片不自带外边距，纵向间距由调用方布局决定（折叠区末尾不留空白）。
     return Card(
-      margin: const EdgeInsets.only(bottom: AppSpacing.s),
+      margin: EdgeInsets.zero,
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onTap,
@@ -496,29 +502,32 @@ class _RecommendedMaterialCard extends ConsumerWidget {
           ],
         ),
         const SizedBox(height: AppSpacing.s),
-        _StudyMaterialCard(
-          title: material.name,
-          leading: AudioItemArtwork(
-            audioId: material.id,
-            size: _kStudyCardIconSize,
-          ),
-          subtitle: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              AudioMetaLine(audio: material),
-              const SizedBox(height: 3),
-              Text(
-                _stageSubStageLabel(l10n, stage, subStage),
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
+        Padding(
+          padding: const EdgeInsets.only(bottom: AppSpacing.s),
+          child: _StudyMaterialCard(
+            title: material.name,
+            leading: AudioItemArtwork(
+              audioId: material.id,
+              size: _kStudyCardIconSize,
+            ),
+            subtitle: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                AudioMetaLine(audio: material),
+                const SizedBox(height: 3),
+                Text(
+                  _stageSubStageLabel(l10n, stage, subStage),
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
+            progress: progress,
+            progressPercent: progressPercent,
+            onTap: () => context.push(AppRoutes.audioLearningPlan(material.id)),
           ),
-          progress: progress,
-          progressPercent: progressPercent,
-          onTap: () => context.push(AppRoutes.audioLearningPlan(material.id)),
         ),
       ],
     );
@@ -551,20 +560,21 @@ class _RecommendedMaterialCard extends ConsumerWidget {
 }
 
 /// 展开后的内容区：灰色底衬托出条目卡片，条目保持自身背景色。
+/// 左右不留内边距，条目卡片占满整行宽度；条目之间用间距分隔，末尾不留空白。
 Widget _buildExpandedArea(BuildContext context, List<Widget> items) {
   final theme = Theme.of(context);
   return ColoredBox(
     color: theme.colorScheme.surfaceContainerLowest,
     child: Padding(
-      padding: const EdgeInsets.only(
-        left: AppSpacing.m,
-        top: AppSpacing.s,
-        right: AppSpacing.m,
-        bottom: AppSpacing.s,
-      ),
+      padding: const EdgeInsets.only(top: AppSpacing.s),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: items,
+        children: [
+          for (var index = 0; index < items.length; index++) ...[
+            if (index > 0) const SizedBox(height: AppSpacing.s),
+            items[index],
+          ],
+        ],
       ),
     ),
   );
@@ -836,13 +846,21 @@ class _RecentCompletionTile extends ConsumerWidget {
           size: _kStudyCardIconSize,
         ),
       ),
-      subtitle: Text(
-        stageLabel,
-        style: theme.textTheme.bodySmall?.copyWith(
-          color: theme.colorScheme.onSurfaceVariant,
-        ),
+      // 完成时间放在第二行末尾，避免挤占标题行的音频名称。
+      subtitle: Row(
+        children: [
+          Expanded(
+            child: Text(
+              stageLabel,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ),
+          const SizedBox(width: AppSpacing.s),
+          _StatusBadge(text: timeAgo, isOverdue: false),
+        ],
       ),
-      statusBadge: _StatusBadge(text: timeAgo, isOverdue: false),
       progress: progress,
       progressPercent: progressPercent,
       onTap: () {

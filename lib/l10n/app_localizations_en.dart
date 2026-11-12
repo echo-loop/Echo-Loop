@@ -2641,6 +2641,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get favoritesUnsaveVocabulary => 'Unsave';
 
   @override
+  String get favoritesAiLookup => 'AI';
+
+  @override
   String get bookmarkReviewTitle => 'Review Saved Sentences';
 
   @override

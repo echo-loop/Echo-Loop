@@ -37,7 +37,9 @@ import '../providers/new_user_guide_provider.dart';
 import '../providers/saved_sense_group_provider.dart';
 import '../providers/saved_word_provider.dart';
 import '../providers/dictionary/dictionary_registry.dart';
+import '../providers/dictionary/visible_sources_provider.dart';
 import '../services/app_logger.dart';
+import '../services/dictionary/ai_dictionary_source.dart';
 import '../services/pronunciation/local_audio_clip_player.dart';
 import '../services/pronunciation/local_audio_range_player.dart';
 import '../services/pronunciation/source_sentence_player.dart';
@@ -49,6 +51,8 @@ import '../widgets/favorites/vocabulary_recycle_bin_sheet.dart';
 import '../widgets/bookmark_review/bookmark_review_settings_sheet.dart';
 import '../widgets/common/app_popup_menu.dart';
 import '../widgets/common/prewarm_visibility.dart';
+import '../widgets/dictionary/dict_source_presentation.dart';
+import '../widgets/dictionary/dictionary_panel_host.dart';
 import '../widgets/guide_flow.dart';
 
 /// 判断 tile 是否真实位于最近滚动视口内；`cacheExtent` 保留的离屏 widget 不预热。
@@ -445,30 +449,34 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen> {
             ),
 
             // 内容区域（Stack：列表 + 底部悬浮按钮）
+            // 词汇列表的 AI 查词面板挂在这里，层级高于底部悬浮按钮
             Expanded(
-              child: Stack(
-                children: [
-                  // 列表（IndexedStack 保留两个 tab 的状态，切换不重建）
-                  IndexedStack(
-                    index: _currentView.index,
-                    children: [
-                      const _SentencesView(),
-                      _WordsView(
-                        // 仅词汇 tab 激活时才预热（IndexedStack 会同时构建两个 tab，
-                        // 不门控则停在句子 tab 也会为词汇起引擎合成、浪费 CPU）。
-                        isActive:
-                            isMainTabActive &&
-                            _currentView == _FavoritesView.words,
-                      ),
-                    ],
-                  ),
+              child: DictionaryPanelHost(
+                handleBackButton: true,
+                child: Stack(
+                  children: [
+                    // 列表（IndexedStack 保留两个 tab 的状态，切换不重建）
+                    IndexedStack(
+                      index: _currentView.index,
+                      children: [
+                        const _SentencesView(),
+                        _WordsView(
+                          // 仅词汇 tab 激活时才预热（IndexedStack 会同时构建两个 tab，
+                          // 不门控则停在句子 tab 也会为词汇起引擎合成、浪费 CPU）。
+                          isActive:
+                              isMainTabActive &&
+                              _currentView == _FavoritesView.words,
+                        ),
+                      ],
+                    ),
 
-                  // 底部悬浮复习按钮
-                  if (_currentView == _FavoritesView.sentences)
-                    const _FloatingSentenceReviewButton()
-                  else if (_currentView == _FavoritesView.words)
-                    const _FloatingFlashcardButton(),
-                ],
+                    // 底部悬浮复习按钮
+                    if (_currentView == _FavoritesView.sentences)
+                      const _FloatingSentenceReviewButton()
+                    else if (_currentView == _FavoritesView.words)
+                      const _FloatingFlashcardButton(),
+                  ],
+                ),
               ),
             ),
           ],
@@ -1354,6 +1362,7 @@ class _FavoritePronunciationRow extends StatelessWidget {
     required this.text,
     this.phonetic,
     this.speakKey,
+    this.trailing,
   });
 
   final Key rowKey;
@@ -1361,6 +1370,9 @@ class _FavoritePronunciationRow extends StatelessWidget {
   final String text;
   final String? phonetic;
   final String? speakKey;
+
+  /// 行右侧的操作按钮（如 AI 查词），与发音行同高、靠右对齐
+  final Widget? trailing;
 
   @override
   Widget build(BuildContext context) {
@@ -1379,31 +1391,69 @@ class _FavoritePronunciationRow extends StatelessWidget {
       ),
     );
 
+    final pronunciation = Align(
+      alignment: Alignment.centerLeft,
+      child: normalizedPhonetic == null || normalizedPhonetic.isEmpty
+          ? speakButton
+          : Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Flexible(
+                  child: Text(
+                    '/$normalizedPhonetic/',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.xs),
+                speakButton,
+              ],
+            ),
+    );
+
     return SizedBox(
       key: rowKey,
       width: double.infinity,
       height: 44,
-      child: Align(
-        alignment: Alignment.centerLeft,
-        child: normalizedPhonetic == null || normalizedPhonetic.isEmpty
-            ? speakButton
-            : Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Flexible(
-                    child: Text(
-                      '/$normalizedPhonetic/',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: AppSpacing.xs),
-                  speakButton,
-                ],
-              ),
+      child: Row(
+        children: [
+          Expanded(child: pronunciation),
+          if (trailing != null) trailing!,
+        ],
+      ),
+    );
+  }
+}
+
+/// 词汇列表项的 AI 查词入口：紫色星芒 + 文案，点击在收藏页内打开查词面板并预选 AI 源。
+class _FavoriteAiLookupButton extends StatelessWidget {
+  const _FavoriteAiLookupButton({
+    required this.buttonKey,
+    required this.onPressed,
+  });
+
+  final Key buttonKey;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final accent = dictSourceColor(Theme.of(context).colorScheme, 'ai');
+    return TextButton.icon(
+      key: buttonKey,
+      onPressed: onPressed,
+      icon: Icon(Icons.auto_awesome, size: 16, color: accent),
+      label: Text(
+        l10n.favoritesAiLookup,
+        style: TextStyle(color: accent, fontWeight: FontWeight.w600),
+      ),
+      style: TextButton.styleFrom(
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s),
+        minimumSize: const Size(0, 36),
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
       ),
     );
   }
@@ -1498,6 +1548,23 @@ class _SavedPhraseTileState extends ConsumerState<_SavedPhraseTile> {
     }
   }
 
+  /// 以意群类型打开 AI 查词面板；来源句随查询传入，便于面板内再次收藏时保留出处。
+  void _lookupWithAi() {
+    final phrase = widget.savedPhrase;
+    DictionaryPanelHost.of(context).show(
+      DictionaryPanelQuery(
+        word: phrase.displayText,
+        preferredSourceId: AiDictionarySource.sourceId,
+        bookmarkKind: DictionaryBookmarkKind.senseGroup,
+        audioItemId: phrase.audioItemId,
+        sentenceIndex: phrase.sentenceIndex,
+        sentenceText: phrase.sentenceText,
+        sentenceStartMs: phrase.sentenceStartMs,
+        sentenceEndMs: phrase.sentenceEndMs,
+      ),
+    );
+  }
+
   /// 打开来源句讲解；历史收藏缺少定位字段时由共享解析器回填。
   Future<void> _openSourceSentenceDetail() {
     final phrase = widget.savedPhrase;
@@ -1555,6 +1622,9 @@ class _SavedPhraseTileState extends ConsumerState<_SavedPhraseTile> {
     final theme = Theme.of(context);
     final l10n = AppLocalizations.of(context)!;
     final phrase = widget.savedPhrase;
+    final aiLookupEnabled = ref
+        .watch(visibleDictionarySourcesProvider)
+        .any((source) => source.id == AiDictionarySource.sourceId);
 
     return Dismissible(
       key: ValueKey('phrase_${phrase.id}'),
@@ -1626,6 +1696,12 @@ class _SavedPhraseTileState extends ConsumerState<_SavedPhraseTile> {
                       buttonKey: const Key('favorite_phrase_speak'),
                       text: phrase.displayText,
                       speakKey: 'favorite-phrase:${phrase.id}',
+                      trailing: aiLookupEnabled
+                          ? _FavoriteAiLookupButton(
+                              buttonKey: const Key('favorite_phrase_ai_lookup'),
+                              onPressed: _lookupWithAi,
+                            )
+                          : null,
                     ),
                     const SizedBox(height: AppSpacing.xs),
                     // 来源句复用收藏句行：正文试听，箭头打开讲解。
@@ -1779,6 +1855,22 @@ class _SavedWordTileState extends ConsumerState<_SavedWordTile> {
     );
   }
 
+  /// 以单词类型打开 AI 查词面板；来源句随查询传入，便于面板内再次收藏时保留出处。
+  void _lookupWithAi() {
+    final word = widget.savedWord;
+    DictionaryPanelHost.of(context).show(
+      DictionaryPanelQuery(
+        word: word.word,
+        preferredSourceId: AiDictionarySource.sourceId,
+        audioItemId: word.audioItemId,
+        sentenceIndex: word.sentenceIndex,
+        sentenceText: word.sentenceText,
+        sentenceStartMs: word.sentenceStartMs,
+        sentenceEndMs: word.sentenceEndMs,
+      ),
+    );
+  }
+
   /// 播放来源句子的原声片段
   ///
   /// 优先使用冗余存储的 sentenceStartMs/sentenceEndMs（不依赖字幕文件），
@@ -1817,6 +1909,9 @@ class _SavedWordTileState extends ConsumerState<_SavedWordTile> {
     final l10n = AppLocalizations.of(context)!;
     final word = widget.savedWord;
     final previewText = _collapsedPreviewText(word, widget.dictEntry);
+    final aiLookupEnabled = ref
+        .watch(visibleDictionarySourcesProvider)
+        .any((source) => source.id == AiDictionarySource.sourceId);
     return Dismissible(
       key: ValueKey('word_${word.id}'),
       direction: DismissDirection.endToStart,
@@ -1885,6 +1980,12 @@ class _SavedWordTileState extends ConsumerState<_SavedWordTile> {
                       buttonKey: const Key('favorite_speak'),
                       text: word.word,
                       phonetic: widget.dictEntry?.phonetic,
+                      trailing: aiLookupEnabled
+                          ? _FavoriteAiLookupButton(
+                              buttonKey: const Key('favorite_word_ai_lookup'),
+                              onPressed: _lookupWithAi,
+                            )
+                          : null,
                     ),
                     // 完整释义仅在在线词典精确命中时展示。
                     if (widget.dictEntry != null) ...[

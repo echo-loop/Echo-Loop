@@ -29,9 +29,14 @@ import 'package:echo_loop/providers/learning_session/favorite_review_due_count_p
 import 'package:echo_loop/providers/new_user_guide_provider.dart';
 import 'package:echo_loop/features/onboarding_survey/providers/onboarding_survey_provider.dart'
     show sharedPreferencesProvider;
+import 'package:echo_loop/providers/dictionary/visible_sources_provider.dart';
 import 'package:echo_loop/providers/sentence_ai_provider.dart';
+import 'package:echo_loop/services/dictionary/ai_dictionary_source.dart';
+import 'package:echo_loop/services/dictionary/dictionary_source.dart';
 import 'package:echo_loop/services/sentence_ai_api_client.dart';
 import 'package:echo_loop/services/dictionary_service.dart';
+import 'package:echo_loop/widgets/dictionary/dictionary_panel.dart';
+import 'package:echo_loop/widgets/dictionary/source_switcher.dart';
 import 'package:echo_loop/theme/app_theme.dart';
 
 import '../helpers/mock_providers.dart';
@@ -42,6 +47,7 @@ class _MockCacheDao extends Mock implements SentenceAiCacheDao {}
 
 class _MockApiClient extends Mock implements SentenceAiApiClient {}
 
+class _MockAiDictionarySource extends Mock implements AiDictionarySource {}
 
 class _MockAudioItemDao extends Mock implements AudioItemDao {
   _MockAudioItemDao({AudioItem? audioItem, String? transcriptSrt}) {
@@ -232,6 +238,7 @@ void main() {
     Future<int>? vocabularyDueFuture,
     SharedPreferences? guidePrefs,
     DictionaryService? dictionaryService,
+    List<DictionarySource> visibleDictionarySources = const [],
   }) {
     final router = GoRouter(
       initialLocation: '/favorites',
@@ -270,6 +277,9 @@ void main() {
         analyticsOverride(),
         ...studyTimeOverrides(),
         dictionaryServiceOverride(dictionaryService),
+        visibleDictionarySourcesProvider.overrideWithValue(
+          visibleDictionarySources,
+        ),
         bookmarkDaoProvider.overrideWithValue(
           _TestBookmarkDao(bookmarkController),
         ),
@@ -1088,7 +1098,9 @@ void main() {
           },
         );
 
-        await tester.pumpWidget(createTestWidget(dictionaryService: dictionary));
+        await tester.pumpWidget(
+          createTestWidget(dictionaryService: dictionary),
+        );
         await tester.pump();
         await tester.tap(find.text('Vocabulary'));
         await tester.pump();
@@ -1391,8 +1403,7 @@ void main() {
       await tester.pumpWidget(
         createTestWidget(
           sourceAudio: sourceAudio,
-          sourceTranscriptSrt:
-              '1\n00:00:01,200 --> 00:00:03,600\nA researcher studies inherited traits.\n',
+          sourceTranscriptSrt: '1\n00:00:01,200 --> 00:00:03,600\nA researcher studies inherited traits.\n',
         ),
       );
       await tester.tap(find.text('Vocabulary'));
@@ -1515,6 +1526,45 @@ void main() {
       // 验证例句 Text widget 没有 maxLines 限制
       final textWidget = tester.widget<Text>(find.text(longSentence));
       expect(textWidget.maxLines, isNull, reason: '展开后的例句不应有 maxLines 限制');
+    });
+
+    testWidgets('单词 AI 查词按钮在收藏页内打开查词面板并走 AI 源', (tester) async {
+      final aiSource = _MockAiDictionarySource();
+      when(() => aiSource.id).thenReturn(AiDictionarySource.sourceId);
+      when(() => aiSource.canBeDisabled).thenReturn(true);
+      when(() => aiSource.requiresNetwork).thenReturn(true);
+      when(() => aiSource.icon).thenReturn(Icons.auto_awesome);
+
+      // 关闭新手引导，避免引导遮罩拦截点击
+      SharedPreferences.setMockInitialValues({'guide_enabled': false});
+      final prefs = await SharedPreferences.getInstance();
+      await tester.pumpWidget(
+        createTestWidget(
+          guidePrefs: prefs,
+          visibleDictionarySources: [aiSource],
+        ),
+      );
+      await tester.pump();
+
+      await tester.tap(find.text('Vocabulary'));
+      await tester.pump();
+      bookmarkController.add([]);
+      wordController.add([_createSavedWord(id: 1, word: 'encountered')]);
+      await tester.pump(const Duration(milliseconds: 500));
+
+      await tester.tap(find.text('encountered'));
+      await tester.pumpAndSettle();
+      expect(find.byType(DictionaryPanel), findsNothing);
+
+      await tester.tap(find.byKey(const Key('favorite_word_ai_lookup')));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+
+      expect(find.byType(DictionaryPanel), findsOneWidget);
+      expect(
+        tester.widget<AiSourceButton>(find.byType(AiSourceButton)).selectedId,
+        AiDictionarySource.sourceId,
+      );
     });
   });
 

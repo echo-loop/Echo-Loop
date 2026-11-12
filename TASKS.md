@@ -4,6 +4,12 @@
 
 ## 本次完成
 
+- [x] 最近完成任务的完成时间移到第二行末尾（2026-11-12）：`_RecentCompletionTile` 的副标题改为「阶段文案 + 时间角标」的行，不再放在标题行右侧，避免遮挡音频名称。`_StatusBadge` 仍用于待解锁与任务卡。`flutter analyze` 无问题，`study_screen_test` 26 项全部通过。**待真机验证**：第二行文案过长时的截断观感。**完成时间**: 2026-11-12
+
+- [x] 学习页折叠区展开后条目卡片占满整行宽度、末尾不留空白（2026-11-12）：`_CollapsibleSection`（待解锁任务、最近完成任务）的内容区 `_buildExpandedArea` 去掉左右内边距，条目间距改由布局提供（末尾无间距）；`_StudyMaterialCard` 不再自带 bottom margin，主列表任务卡与推荐卡在调用处用 `Padding(bottom: AppSpacing.s)` 补回原间距，视觉与原来一致。折叠头左右空白保留。`_CompletedSection`（已学完的材料）未改动。`flutter analyze` 无问题，`study_screen_test` 26 项全部通过。**待真机验证**：条目全宽与末尾间距观感。**完成时间**: 2026-11-12
+
+- [x] 收藏词汇列表项增加「AI」按钮（2026-11-12）：单词与意群展开后，发音行右侧新增紫色星芒「AI」入口，点击在收藏页内打开查词面板并预选 AI 源；来源句随查询传入，面板内再次收藏时保留出处。收藏页用 `DictionaryPanelHost` 包住内容区；AI 源被禁用时按钮隐藏。新增 l10n `favoritesAiLookup`。`flutter analyze` 无问题；`test/screens/favorites_screen_test.dart`、`favorites_prewarm_test.dart`、`test/widgets/dictionary`、`favorite_vocabulary_review_screen_test` 全部通过。**待真机验证**：面板弹出位置与深色模式下按钮观感；意群项的 AI 按钮未单独写测试。**完成时间**: 2026-11-12
+
 - [x] 修复学习页「待复习」区段标题图标在深色主题下不可见（2026-11-12）：`refresh.svg` 未声明填充色，`_TaskSection` 补充 `colorFilter` 跟随 `colorScheme.onSurface`（与标题文字同色）。`flutter analyze` 无问题，`test/screens/study_screen_test.dart` 通过。**完成时间**: 2026-11-12
 
 - [x] 设置页「显示设置」入口从「学习」分组移到「外观」分组末尾（2026-11-12）：抽出 `_buildDisplaySettingsTile`，与阅读文字等入口并列。`flutter analyze` 无问题，`test/screens/settings_screen_test.dart` 通过。**完成时间**: 2026-11-12

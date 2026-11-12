@@ -22,6 +22,7 @@ import 'package:echo_loop/models/dict_entry.dart';
 import 'package:echo_loop/l10n/app_localizations.dart';
 import 'package:echo_loop/providers/audio_engine/audio_engine_provider.dart';
 import 'package:echo_loop/providers/short_audio_player_provider.dart';
+import 'package:echo_loop/providers/dictionary/visible_sources_provider.dart';
 import 'package:echo_loop/providers/pronunciation/pronunciation_providers.dart';
 import 'package:echo_loop/providers/sentence_ai_provider.dart';
 import 'package:echo_loop/providers/tts/tts_controller_provider.dart';
@@ -373,6 +374,7 @@ void main() {
         analyticsOverride(),
         ...studyTimeOverrides(),
         dictionaryServiceOverride(dictionaryService),
+        visibleDictionarySourcesProvider.overrideWithValue(const []),
         bookmarkDaoProvider.overrideWithValue(_TestBookmarkDao(bookmarkC)),
         savedWordDaoProvider.overrideWithValue(_TestSavedWordDao(wordC)),
         savedSenseGroupDaoProvider.overrideWithValue(

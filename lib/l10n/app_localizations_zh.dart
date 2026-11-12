@@ -2528,6 +2528,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get favoritesUnsaveVocabulary => '取消收藏';
 
   @override
+  String get favoritesAiLookup => 'AI';
+
+  @override
   String get bookmarkReviewTitle => '收藏句复习';
 
   @override

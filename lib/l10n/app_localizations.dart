@@ -4604,6 +4604,12 @@ abstract class AppLocalizations {
   /// **'Unsave'**
   String get favoritesUnsaveVocabulary;
 
+  /// No description provided for @favoritesAiLookup.
+  ///
+  /// In en, this message translates to:
+  /// **'AI'**
+  String get favoritesAiLookup;
+
   /// No description provided for @bookmarkReviewTitle.
   ///
   /// In en, this message translates to:
