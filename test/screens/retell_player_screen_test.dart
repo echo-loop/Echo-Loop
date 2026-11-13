@@ -45,6 +45,7 @@ import 'package:echo_loop/providers/retell_recording_controller_provider.dart';
 import 'package:echo_loop/providers/retell_review_evaluation_provider.dart';
 import 'package:echo_loop/providers/sentence_ai_provider.dart';
 import 'package:echo_loop/services/notification_permission_service.dart';
+import 'package:echo_loop/services/speech_permission_service.dart';
 import 'package:echo_loop/services/sentence_ai_api_client.dart';
 import 'package:echo_loop/services/audio_playback_service.dart';
 import 'package:echo_loop/services/audio_preview_controller.dart';
@@ -80,6 +81,35 @@ class _TestBookmarkDao implements BookmarkDao {
   dynamic noSuchMethod(Invocation invocation) {
     return Future<void>.value();
   }
+}
+
+/// 录音权限替身：固定为支持录音，不依赖宿主系统。
+///
+/// 默认实现的 `isSupported` 只认 iOS / macOS / Android，Linux CI 上为 false，
+/// 会让页面在 initState 后直接 pop，导致弹窗相关用例找不到控件。
+class _FakeSpeechPermissionService implements SpeechPermissionService {
+  const _FakeSpeechPermissionService();
+
+  @override
+  bool get isSupported => true;
+
+  @override
+  Future<SpeechPracticePermissionState> getStatus() async =>
+      const SpeechPracticePermissionState(
+        microphone: SpeechPracticePermissionStatus.granted,
+        speech: SpeechPracticePermissionStatus.granted,
+      );
+
+  @override
+  Future<SpeechPracticePermissionState> request({
+    required bool onlyMic,
+  }) async => const SpeechPracticePermissionState(
+    microphone: SpeechPracticePermissionStatus.granted,
+    speech: SpeechPracticePermissionStatus.granted,
+  );
+
+  @override
+  Future<void> openAppSettings() async {}
 }
 
 class _StaticRetellPlayer extends TestRetellPlayer {
@@ -407,6 +437,9 @@ void main() {
           ),
         ),
         bookmarkDaoProvider.overrideWithValue(_TestBookmarkDao()),
+        speechPermissionServiceProvider.overrideWithValue(
+          const _FakeSpeechPermissionService(),
+        ),
         sentenceAiNotifierProvider.overrideWithValue(
           SentenceAiNotifier(
             cacheDao: _MockCacheDao(),

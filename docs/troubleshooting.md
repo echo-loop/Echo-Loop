@@ -671,3 +671,13 @@
 - 测试约定：`community_download_notifier_test.dart`「下载失败后重试会重新开始，不被残留的失败状态拦截」，先在未修复代码上复现 `StartResult.alreadyRunning`。
 - 相关代码：`lib/features/community_collections/download/community_download_notifier.dart`（`start`）。
 - 修复时间：2026-11-11。
+
+### 7.45 retell 播放器用例仅在 Linux CI 失败：录音权限默认实现的 `isSupported` 依赖宿主系统
+
+- 现象：GitHub CI（Ubuntu）上 `retell_player_screen_test.dart` 的「看译文模式未登录」「正常完成复述后记录任务完成」「自由练习完成后记录任务完成」三个用例稳定失败（`Found 0 widgets with text "Sign In"`、`Bad state: No element`、`Found 0 widgets with text "Done"`）；本机 macOS 全部通过。
+- 根因：`PermissionHandlerSpeechPermissionService.isSupported` 只认 iOS / macOS / Android。retell 页面 `initState` 的 post-frame 回调会调用 `ensureSpeechReadyForSubStage`，`isSupported` 为 false 时直接返回 false，随后 `context.pop()` 把页面弹掉，弹窗与「Done」按钮随之消失。测试文件未覆盖该 provider，结果取决于测试宿主系统。
+- 复现：在本机临时把替身的 `isSupported` 改为 false，同样三个用例得到与 CI 完全一致的异常。
+- 解法：测试文件注入 `_FakeSpeechPermissionService`（`isSupported => true`），与同类播放器测试（如 `listen_and_repeat_player_screen_test.dart`）保持一致。
+- 规则：测试里凡是读取 `Platform.*` 决定分支的依赖（权限、ASR、平台通道），都要在测试中显式替换，不能依赖运行测试的操作系统。
+- 相关代码：`lib/services/speech_permission_service.dart`（`isSupported`）、`lib/screens/retell_player_screen.dart`（`initState` post-frame）、`lib/widgets/speech_permission_dialog.dart`。
+- 修复时间：2026-11-13。
