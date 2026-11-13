@@ -29,9 +29,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get playbackFailedMessage => 'Please try again later.';
 
   @override
-  String get appTitle => 'Echo Loop';
-
-  @override
   String get premiumTitle => 'Echo Loop Premium';
 
   @override
@@ -390,12 +387,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get addAudio => 'Add Audio';
 
   @override
-  String get noAudioYet => 'No audio files yet';
-
-  @override
-  String get tapToAdd => 'Tap + to add your first audio';
-
-  @override
   String get added => 'Added';
 
   @override
@@ -411,18 +402,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get deleteAudio => 'Delete Audio';
 
   @override
-  String deleteConfirm(String name) {
-    return 'Are you sure you want to delete \"$name\"?';
-  }
-
-  @override
   String get cancel => 'Cancel';
 
   @override
   String get add => 'Add';
-
-  @override
-  String get importAction => 'Import';
 
   @override
   String get selectAudioFile => 'Select Audio File';
@@ -431,32 +414,16 @@ class AppLocalizationsEn extends AppLocalizations {
   String get subtitlePairedBadge => 'Subtitle matched, imported together';
 
   @override
-  String get audioFilePickerCloudDriveHint =>
-      'Before selecting files from cloud storage, install and sign in to the cloud storage app first. Some apps may not support direct file selection from the file picker.';
-
-  @override
   String get selectTranscript => 'Select Subtitles (Optional)';
 
   @override
   String get noTranscript => 'No subtitles available';
 
   @override
-  String get noBookmarked => 'No saved sentences';
-
-  @override
-  String get tapToBookmark => 'Tap ⭐ on sentences to bookmark them';
-
-  @override
   String get playbackMode => 'Playback Mode';
 
   @override
-  String get fullArticle => 'Full Article';
-
-  @override
   String get singleSentence => 'Single Sentence';
-
-  @override
-  String get bookmarkedOnly => 'saved Only';
 
   @override
   String get playbackSettings => 'Playback Settings';
@@ -484,16 +451,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get playbackSpeed => 'Playback Speed';
 
   @override
-  String get loopPlayback => 'Loop Playback';
-
-  @override
   String get loopCount => 'Loop Count';
 
   @override
   String get pauseInterval => 'Pause Interval';
-
-  @override
-  String get applySettings => 'Apply Settings';
 
   @override
   String get play => 'Play';
@@ -586,9 +547,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get save => 'Save';
 
   @override
-  String get enableLoop => 'Enable Loop';
-
-  @override
   String get loopSettings => 'Loop Settings';
 
   @override
@@ -610,16 +568,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get seconds => 'seconds';
 
   @override
-  String get infinite => '∞';
-
-  @override
   String get singleSentenceMode => 'Intensive Listening';
 
   @override
   String get singleSentenceModeDesc => 'Show only current sentence';
-
-  @override
-  String get autoPlayNextSentence => 'Auto-Play Next Sentence';
 
   @override
   String get repeatCount => 'Repeat Count';
@@ -669,12 +621,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get bookmarked => 'saved';
 
   @override
-  String get noSubtitle => 'No Subtitle';
-
-  @override
-  String get noSentenceSelected => 'No sentence selected';
-
-  @override
   String get noBookmarkedSentences => 'No saved sentences';
 
   @override
@@ -687,12 +633,6 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get bookmarksEmptyReturned =>
       'No bookmarked sentences remain. Switched to Full Text.';
-
-  @override
-  String get removeBookmarkTip => 'Remove bookmark';
-
-  @override
-  String get addBookmarkTip => 'Add bookmark';
 
   @override
   String get listMode => 'List Mode';
@@ -734,25 +674,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get sentenceDetailRetry => 'Retry';
 
   @override
-  String get hotkeyReplay => 'R: Replay';
-
-  @override
-  String get hotkeyPlayPause => 'Space: Play/Pause';
-
-  @override
-  String get hotkeyToggleTranscript => '↑: Show/Hide Subtitles';
-
-  @override
-  String get hotkeyNavigation => '←/→: Previous/Next Sentence';
-
-  @override
-  String get noAudioLoaded => 'No audio loaded';
-
-  @override
   String get enableAutoScroll => 'Enable auto-scroll';
-
-  @override
-  String get disableAutoScroll => 'Disable auto-scroll';
 
   @override
   String get audioFileNotFound =>
@@ -812,11 +734,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get fileExists => 'File Already Exists';
-
-  @override
-  String fileExistsMessage(String name) {
-    return 'An audio file named \"$name\" already exists. Please delete the original audio first.';
-  }
 
   @override
   String get back => 'Back';
@@ -950,14 +867,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get communityCollectionUnknownUploader => 'Unknown uploader';
 
   @override
-  String get communityCollectionUnknownPublishDate => 'Date unknown';
-
-  @override
-  String communityCollectionCover(String name) {
-    return '$name cover';
-  }
-
-  @override
   String get communityCollectionShowMore => 'More';
 
   @override
@@ -965,9 +874,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get sortCollections => 'Sort';
-
-  @override
-  String get gridView => 'Grid View';
 
   @override
   String get listView => 'List View';
@@ -1071,22 +977,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get audioName => 'Audio Name';
 
   @override
-  String get audioAlreadyInCollection => 'Duplicate Audio';
-
-  @override
-  String audioAlreadyInCollectionMessage(String name) {
-    return 'An audio named \"$name\" already exists in this collection.';
-  }
-
-  @override
-  String get audioAlreadyInLibrary => 'Duplicate Audio';
-
-  @override
-  String audioAlreadyInLibraryMessage(String name) {
-    return 'An audio named \"$name\" already exists in the library.';
-  }
-
-  @override
   String get study => 'Study';
 
   @override
@@ -1097,9 +987,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get studyComingSoon => 'Study features coming soon';
-
-  @override
-  String get favoritesComingSoon => 'Save features coming soon';
 
   @override
   String get firstStudy => 'First Round';
@@ -1185,9 +1072,6 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get reviewUnlocked => 'Unlocked';
-
-  @override
   String get unlockReviewNow => 'Unlock now';
 
   @override
@@ -1207,16 +1091,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get reviewReady => 'Ready to review';
-
-  @override
-  String reviewCountdown(int days) {
-    return 'Unlocked in $days days';
-  }
-
-  @override
-  String reviewCountdownHours(int hours) {
-    return 'Unlocked in $hours hours';
-  }
 
   @override
   String get blindListenBriefingTitle => 'Listen without subtitles';
@@ -1241,11 +1115,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get blindListenAppBarTitle => 'Listen without subtitles';
 
   @override
-  String blindListenPassLabel(int count) {
-    return 'Pass $count';
-  }
-
-  @override
   String get blindListenComplete => 'Listening without subtitles Complete';
 
   @override
@@ -1267,24 +1136,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get nextStage => 'Next';
-
-  @override
-  String get difficultyVeryEasy => 'Very Easy';
-
-  @override
-  String get difficultyEasy => 'Easy';
-
-  @override
-  String get difficultyMedium => 'Medium';
-
-  @override
-  String get difficultyHard => 'Hard';
-
-  @override
-  String get difficultyVeryHard => 'Very Hard';
-
-  @override
-  String get countdownNextPlay => 'Next play starts in';
 
   @override
   String get skipCountdown => 'Skip';
@@ -1325,9 +1176,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get audioTab => 'Audio';
 
   @override
-  String get uncategorized => 'Uncategorized';
-
-  @override
   String get manageCollections => 'Manage Collections';
 
   @override
@@ -1335,11 +1183,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get noAudioItemsHint => 'Import audio files to start practicing';
-
-  @override
-  String audioWillBeKept(int count) {
-    return '$count audio files in this collection will be kept in the library';
-  }
 
   @override
   String get done => 'Done';
@@ -1389,11 +1232,6 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String intensiveListenProgress(int current, int total) {
     return 'Sentence $current/$total';
-  }
-
-  @override
-  String intensiveListenPlayCount(int current, int total) {
-    return 'Round $current/$total';
   }
 
   @override
@@ -1449,25 +1287,12 @@ class AppLocalizationsEn extends AppLocalizations {
       'Listen again to help it stick';
 
   @override
-  String intensiveListenPauseBetweenPlays(int seconds) {
-    return 'Next play in ${seconds}s';
-  }
-
-  @override
-  String intensiveListenPauseBetweenSentences(int seconds) {
-    return 'Next sentence in ${seconds}s';
-  }
-
-  @override
   String get intensiveListenCompleteTitle =>
       'Listening sentence by sentence Complete';
 
   @override
   String get intensiveListenCompleteHint =>
       'Keep reviewing with spaced repetition to fully master it.';
-
-  @override
-  String get intensiveListenCompleteNext => 'Next Step';
 
   @override
   String get statSentences => 'Sentences';
@@ -1548,11 +1373,6 @@ class AppLocalizationsEn extends AppLocalizations {
       'Repeat as configured, tap next';
 
   @override
-  String intensiveListenPauseFixedUnit(int seconds) {
-    return '${seconds}s';
-  }
-
-  @override
   String intensiveListenPauseMultiplierValue(String value) {
     return '${value}x';
   }
@@ -1561,18 +1381,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get intensiveListenPauseMultiplierLabel => 'Multiplier';
 
   @override
-  String blindListenCountdown(int seconds) {
-    return 'Next play in ${seconds}s';
-  }
-
-  @override
   String difficultyLabel(String difficulty) {
     return 'Difficulty level: $difficulty';
-  }
-
-  @override
-  String continueToStep(String step) {
-    return 'Continue: $step';
   }
 
   @override
@@ -1621,46 +1431,13 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String listenAndRepeatPlayCount(int current, int total) {
-    return 'Round $current/$total';
-  }
-
-  @override
-  String listenAndRepeatPauseBetweenPlays(int seconds) {
-    return 'Repeat time ${seconds}s';
-  }
-
-  @override
-  String listenAndRepeatPauseBetweenSentences(int seconds) {
-    return 'Next sentence in ${seconds}s';
-  }
-
-  @override
   String get listenAndRepeatListenHint => 'Listen, then repeat';
-
-  @override
-  String get listenAndRepeatYourTurnHint => 'Repeat';
-
-  @override
-  String get listenAndRepeatRecordButton => 'Record';
-
-  @override
-  String get listenAndRepeatStopRecordingButton => 'Stop';
-
-  @override
-  String get listenAndRepeatPlayRecordingButton => 'Play My Recording';
 
   @override
   String get listenAndRepeatRecordingInProgress => 'Recording...';
 
   @override
-  String get listenAndRepeatStartSpeaking => 'Start speaking';
-
-  @override
   String get listenAndRepeatAnalyzing => 'Analyzing...';
-
-  @override
-  String get listenAndRepeatTapToRecord => 'Tap to record';
 
   @override
   String get listenAndRepeatRatingPerfect => 'Perfect!';
@@ -1676,27 +1453,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get listenAndRepeatRatingKeepGoing => 'Keep going';
-
-  @override
-  String get listenAndRepeatAwaitingFinalTranscript =>
-      'Confirming final transcription...';
-
-  @override
-  String get listenAndRepeatYourTakeLabel => 'Your transcrit';
-
-  @override
-  String get listenAndRepeatRecognitionInProgress =>
-      'Checking your recording...';
-
-  @override
-  String listenAndRepeatRecognitionPassed(int percent) {
-    return 'Matched $percent% of the target words.';
-  }
-
-  @override
-  String listenAndRepeatRecognitionBelowThreshold(int percent) {
-    return 'Matched $percent% of the target words.';
-  }
 
   @override
   String get listenAndRepeatRecognitionNoEnglish =>
@@ -1761,9 +1517,6 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get listenAndRepeatRemoveDifficult => 'Auto-saved, tap to undo';
-
-  @override
   String get listenAndRepeatSettings => 'Repeat Settings';
 
   @override
@@ -1819,25 +1572,7 @@ class AppLocalizationsEn extends AppLocalizations {
       'Listen and retell segment by segment. Follow the original transcript or use your own words. Visible words help you recall what you heard.';
 
   @override
-  String get retellBriefingTargetDuration => 'segment length';
-
-  @override
-  String retellBriefingParagraphCount(int count) {
-    return 'Split into $count segments';
-  }
-
-  @override
-  String retellBriefingSeconds(int seconds) {
-    return '${seconds}s';
-  }
-
-  @override
   String get retellBriefingSentenceLevel => 'Per Sentence';
-
-  @override
-  String retellBriefingSentenceCount(int count) {
-    return '$count sentences total';
-  }
 
   @override
   String get retellTitle => 'Listen & Retell';
@@ -1862,25 +1597,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get retellListeningPhase => 'Listen closely...';
-
-  @override
-  String get retellPromptToRetell => 'Retell what you heard';
-
-  @override
-  String retellRetellingCountdown(int seconds) {
-    return 'Retell ${seconds}s';
-  }
-
-  @override
-  String retellRepeatInfo(int current, int total) {
-    return 'Round $current/$total';
-  }
-
-  @override
-  String get retellCompleteFirstStudy => 'First Round Complete';
-
-  @override
-  String get retellCompleteReview => 'Review Complete';
 
   @override
   String get retellCompleteFreePlay => 'Practice Complete';
@@ -1969,10 +1685,6 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get retellNoDifficultSentences =>
-      'No sentences to retell. Listen sentence by sentence first.';
-
-  @override
   String get retellKeywordMethod => 'Visible words';
 
   @override
@@ -2041,9 +1753,6 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get reviewDifficultPracticeBlindListen => 'Listening...';
-
-  @override
   String get reviewDifficultPracticeCompleteTitle =>
       'Saved Sentences Practice Complete';
 
@@ -2055,20 +1764,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get exitReviewDifficultPracticeTitle => 'Exit Practice?';
 
   @override
-  String get exitReviewDifficultPracticeMessage =>
-      'Your progress will not be saved for this step.';
-
-  @override
   String get exitReviewDifficultPracticeConfirmMessage =>
       'Your progress will be saved and you can continue next time.';
-
-  @override
-  String reviewDifficultPracticeAdvancing(int seconds) {
-    return 'Next sentence in ${seconds}s';
-  }
-
-  @override
-  String get aiSectionTitle => 'AI';
 
   @override
   String get speechRecognition => 'Speech Recognition';
@@ -2102,11 +1799,6 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get asrBackendOfflineDescription =>
       'Use the app\'s AI model. It works offline after downloading';
-
-  @override
-  String asrModelTier(String tier) {
-    return 'Model: $tier (auto-selected for your device)';
-  }
 
   @override
   String get asrModelFastDescription => 'Fastest. Best for low-end devices.';
@@ -2179,19 +1871,6 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get disableSpeechRecognitionTitle => 'Disable Speech Recognition?';
-
-  @override
-  String get disableSpeechRecognitionMessage =>
-      'Speech scoring will be unavailable.';
-
-  @override
-  String get alsoDeleteModel => 'Also delete downloaded model';
-
-  @override
-  String get disableAction => 'Disable';
-
-  @override
   String get speechRecognitionRequiredMessage =>
       'Speech recognition is used to automatically evaluate your pronunciation and retelling. A model download is required before starting.';
 
@@ -2232,9 +1911,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get asrDownloadModel => 'Download model';
-
-  @override
-  String get downloadNow => 'Download Now';
 
   @override
   String get later => 'Later';
@@ -2306,9 +1982,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String localTranscriptionProgressPercent(int percent) {
     return '$percent% done';
   }
-
-  @override
-  String get localTranscriptionModelRequiredTitle => 'Speech model needed';
 
   @override
   String localTranscriptionModelRequiredMessage(String modelName) {
@@ -2494,26 +2167,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get transcriptionAudioUnknown => 'Not detected';
 
   @override
-  String get currentSubtitleExists => 'Current: Has Subtitle';
-
-  @override
-  String get currentSubtitleLocal => 'Current: Local Upload';
-
-  @override
-  String currentSubtitleAi(String language) {
-    return 'Current: AI ($language)';
-  }
-
-  @override
-  String get noSubtitleYet => 'No subtitle yet';
-
-  @override
-  String get addSubtitlePromptTitle => 'Add Subtitle?';
-
-  @override
-  String get addSubtitlePromptMessage => 'Add a subtitle now for learning?';
-
-  @override
   String get selectCollection => 'Collection (Optional)';
 
   @override
@@ -2524,16 +2177,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get retryTranscription => 'Retry';
-
-  @override
-  String transcriptionFailedMessage(String message) {
-    return 'Error: $message';
-  }
-
-  @override
-  String todayStudyTime(String time) {
-    return 'Today: $time';
-  }
 
   @override
   String studyTimeMinutes(int minutes) {
@@ -2547,9 +2190,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get studyTasks => 'Study Tasks';
-
-  @override
-  String get continueLearningHero => 'Continue Learning';
 
   @override
   String get startButton => 'Start';
@@ -2663,15 +2303,6 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get favoritesVocabularySaved => 'Saved';
-
-  @override
-  String get favoritesVocabularyRemoved => 'Removed';
-
-  @override
-  String get favoritesBookmarkRemoved => 'Bookmark removed';
-
-  @override
   String get undo => 'Undo';
 
   @override
@@ -2688,11 +2319,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get bookmarkReviewStart => 'Start Review';
-
-  @override
-  String bookmarkReviewStartCount(int count) {
-    return 'Start Review ($count)';
-  }
 
   @override
   String bookmarkReviewDueCount(int count) {
@@ -2712,9 +2338,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get bookmarkReviewComplete => 'Review Complete';
-
-  @override
-  String get bookmarkReviewAgain => 'Review Again';
 
   @override
   String get bookmarkReviewAudioSkipped =>
@@ -2763,13 +2386,6 @@ class AppLocalizationsEn extends AppLocalizations {
       'Couldn\'t unsave this sentence. Please try again.';
 
   @override
-  String get bookmarkReviewSettingsPlaceholderTitle => 'Review settings';
-
-  @override
-  String get bookmarkReviewSettingsPlaceholderBody =>
-      'More review controls will be available in a future update.';
-
-  @override
   String get bookmarkReviewSettingsTitle => 'Review settings';
 
   @override
@@ -2785,23 +2401,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get favoriteReviewShowVocabularyOnFront => 'Show vocabulary on front';
 
   @override
-  String get bookmarkReviewDailyGoal => 'Daily review goal';
-
-  @override
   String get favoriteReviewSentenceSettings => 'Saved sentence review';
 
   @override
   String get favoriteReviewVocabularySettings => 'Saved vocabulary review';
-
-  @override
-  String get favoriteReviewSentenceDailyGoal => 'Daily sentence review goal';
-
-  @override
-  String get favoriteReviewVocabularyDailyGoal =>
-      'Daily vocabulary review goal';
-
-  @override
-  String get bookmarkReviewUnlimited => 'Unlimited';
 
   @override
   String get bookmarkReviewOrder => 'Review order';
@@ -2850,10 +2453,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get favoriteVocabularyReviewRevealHint => 'Tap to reveal the back';
 
   @override
-  String get favoriteVocabularyReviewBackPlaceholder =>
-      'Back side is coming soon';
-
-  @override
   String get bookmarkReviewRatingEasy => 'Easy';
 
   @override
@@ -2891,9 +2490,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get learnedWordFormsShort => 'Vocab';
 
   @override
-  String get todayNewShort => 'Today';
-
-  @override
   String get learnedWordsEmptyHint =>
       'No words learned yet. Complete a listening session first.';
 
@@ -2904,142 +2500,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get learnedWordsSortTimeDesc => 'Recently Learned';
 
   @override
-  String bookmarkReviewProgress(int current, int total) {
-    return 'Sentence $current/$total';
-  }
-
-  @override
-  String get flashcardTitle => 'Flashcards';
-
-  @override
-  String get flashcardViewAnswer => 'Ready? View answer';
-
-  @override
-  String get flashcardTapToFlip => 'Tap to flip back';
-
-  @override
-  String get flashcardUnsaveHint => 'Unmark when mastered';
-
-  @override
-  String flashcardProgress(int current, int total) {
-    return '$current/$total';
-  }
-
-  @override
   String get flashcardComplete => 'Review Complete';
-
-  @override
-  String flashcardWordsReviewed(int count) {
-    return 'Reviewed $count words';
-  }
-
-  @override
-  String flashcardWordsRemoved(int count) {
-    return 'Unsaved $count words';
-  }
-
-  @override
-  String get flashcardPracticeAgain => 'Practice Again';
-
-  @override
-  String get flashcardFinish => 'Done';
-
-  @override
-  String get flashcardSettingsTitle => 'Flashcard Settings';
-
-  @override
-  String get flashcardSettingsSubtitle => 'Settings are saved automatically';
-
-  @override
-  String get flashcardControlModeLabel => 'Control Mode';
-
-  @override
-  String get flashcardControlModeAuto => 'Auto';
-
-  @override
-  String get flashcardControlModeManual => 'Manual';
-
-  @override
-  String get flashcardControlModeAutoDesc => 'Auto flip, auto advance';
-
-  @override
-  String get flashcardControlModeManualDesc => 'Manual flip, manual advance';
-
-  @override
-  String get flashcardTimerMode => 'Flashcard Advance Timer';
-
-  @override
-  String get flashcardTimerSmart => 'Auto';
-
-  @override
-  String get flashcardTimerSmartDesc =>
-      'Adjust based on word difficulty and practice count';
-
-  @override
-  String get flashcardTimerFixed => 'Fixed';
-
-  @override
-  String get flashcardTimerFixedDesc => 'Set fixed duration for front and back';
-
-  @override
-  String get flashcardTimerFrontDuration => 'Front';
-
-  @override
-  String get flashcardTimerBackDuration => 'Back';
-
-  @override
-  String get flashcardSortMode => 'Word List Order';
 
   @override
   String get flashcardSortAlphaAsc => 'A → Z';
 
   @override
   String get flashcardSortAlphaDesc => 'Z → A';
-
-  @override
-  String get flashcardSortTimeAsc => 'Oldest';
-
-  @override
-  String get flashcardSortTimeDesc => 'Newest';
-
-  @override
-  String get flashcardSortRandom => 'Random';
-
-  @override
-  String get flashcardSortSmart => 'Auto';
-
-  @override
-  String get flashcardSortSmartDesc => 'Order based on memory patterns';
-
-  @override
-  String get flashcardSortRandomDesc => 'Shuffle randomly each time';
-
-  @override
-  String get flashcardSortAlphaAscDesc => 'Sort A to Z';
-
-  @override
-  String get flashcardSortAlphaDescDesc => 'Sort Z to A';
-
-  @override
-  String get flashcardSortTimeAscDesc => 'Oldest saved first';
-
-  @override
-  String get flashcardSortTimeDescDesc => 'Newest saved first';
-
-  @override
-  String get flashcardNoDefinition => 'No definition';
-
-  @override
-  String get flashcardStartQuiz => 'Start Review';
-
-  @override
-  String get flashcardTts => 'Pronounce';
-
-  @override
-  String get flashcardAutoPlaySentence => 'Auto-play Sentence';
-
-  @override
-  String get flashcardAutoPlayWord => 'Auto-play Word';
 
   @override
   String get freePlay => 'Listen Your Way';
@@ -3108,10 +2575,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get joinCommunityInviteSubtitle => 'Learn, ask, and share';
 
   @override
-  String get networkError =>
-      'Unable to connect. Please check your network and try again.';
-
-  @override
   String get viewSourceCode => 'Open Source Project';
 
   @override
@@ -3154,34 +2617,16 @@ class AppLocalizationsEn extends AppLocalizations {
   String get demoMode => 'Demo Mode';
 
   @override
-  String get demoModeSubtitle => 'Use demo data for screenshots';
-
-  @override
   String get practiceRemoveMark => 'Unmark';
 
   @override
   String get practiceAddMark => 'Re-mark';
 
   @override
-  String blindListenSegmentProgress(int current, int total) {
-    return 'Segment $current/$total';
-  }
-
-  @override
-  String blindListenSegmentDuration(int duration) {
-    return '${duration}s';
-  }
-
-  @override
   String get blindListenListeningHint => 'Listen closely...';
 
   @override
   String get blindListenPreListenHint => 'Listen first, then recall';
-
-  @override
-  String blindListenRepeatInfo(int current, int total) {
-    return 'Round $current/$total';
-  }
 
   @override
   String get blindListenSettingsTitle => 'Listening Settings';
@@ -3194,9 +2639,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get blindListenDisplayHideAll => 'Hide Subtitles';
-
-  @override
-  String get blindListenDisplayShowAll => 'Show Subtitles';
 
   @override
   String get blindListenRecallHint => 'Recall what you just heard';
@@ -3352,9 +2794,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get chartLegendOtherHint => 'Thinking, pauses, etc.';
-
-  @override
-  String get reminderSectionTitle => 'Reminders';
 
   @override
   String get reminderSettings => 'Review Reminder';
@@ -3535,18 +2974,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get exportData => 'Export Data';
 
   @override
-  String get exportDataSubtitle => 'Export all data to a ZIP file';
-
-  @override
-  String get importData => 'Import Data';
-
-  @override
-  String get importDataSubtitle => 'Restore data from a backup file';
-
-  @override
-  String get exporting => 'Exporting...';
-
-  @override
   String get importing => 'Importing...';
 
   @override
@@ -3557,13 +2984,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get importSuccess => 'Import complete';
-
-  @override
-  String get importConfirmTitle => 'Confirm Import';
-
-  @override
-  String get importConfirmMessage =>
-      'This will replace all current data, including learning progress, saved items, and audio files. This action cannot be undone.';
 
   @override
   String get backupTime => 'Backup time';
@@ -3612,21 +3032,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get backupAndRestore => 'Backup & Restore';
 
   @override
-  String get backupAndRestoreSubtitle =>
-      'Restore your learning data after reinstalling or changing devices';
-
-  @override
   String get backupData => 'Back Up';
 
   @override
-  String get backupDataSubtitle =>
-      'Back up learning data, media, and offline dictionaries';
-
-  @override
   String get restoreData => 'Restore';
-
-  @override
-  String get restoreDataSubtitle => 'Restore all data from a local backup file';
 
   @override
   String get backupReadyTitle => 'Backup file is ready';
@@ -3662,9 +3071,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get activityCalendar => 'Activity Calendar';
-
-  @override
-  String get noActivityThisMonth => 'No learning activity this month';
 
   @override
   String get studyDurationNoRecords => 'No study records';
@@ -3789,9 +3195,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get reviewStatisticsTodayOverview => 'Today at a glance';
 
   @override
-  String get reviewStatisticsTodayReviewed => 'Reviewed today';
-
-  @override
   String get reviewStatisticsTodayCompleted => 'Completed today';
 
   @override
@@ -3804,16 +3207,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get reviewStatisticsDuration => 'Review time';
 
   @override
-  String get reviewStatisticsDue => 'Ready now';
-
-  @override
   String reviewStatisticsCurrentDue(String count) {
     return '$count ready to review';
   }
-
-  @override
-  String get reviewStatisticsCurrentDueExplanation =>
-      'Already due and ready to start';
 
   @override
   String reviewStatisticsCurrentDueBreakdown(Object overdue, Object today) {
@@ -3897,12 +3293,6 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get recycleBinRestore => 'Restore';
-
-  @override
-  String get recycleBinDelete => 'Delete';
-
-  @override
   String get recycleBinSortTimeDesc => 'Recently Removed';
 
   @override
@@ -3969,9 +3359,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get removeFile => 'Remove';
-
-  @override
-  String get goToSettings => 'Go to Settings';
 
   @override
   String get dictionaryLookupFailed =>
@@ -4109,10 +3496,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get resetNewUserGuide => 'Reset New User Guide';
 
   @override
-  String get resetNewUserGuideSubtitle =>
-      'Clear all guide seen states for testing';
-
-  @override
   String get resetNewUserGuideDone => 'New user guide has been reset';
 
   @override
@@ -4136,14 +3519,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get discoverPodcastEntryTitle => 'Apple Podcasts';
-
-  @override
-  String discoverPodcastEntrySubtitle(int count) {
-    return '$count podcasts. Subscribe to keep new episodes in your library.';
-  }
-
-  @override
-  String get discoverPodcastTitle => 'Curated Podcasts';
 
   @override
   String get discoverPodcastEmpty => 'No curated podcasts yet';
@@ -4215,13 +3590,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get removeFromMyCollections => 'Remove from My Collections';
 
   @override
-  String get enrollNeededTitle => 'Add Collection First';
-
-  @override
-  String get enrollNeededMessage =>
-      'Add this collection to My Collection, then you can start practicing.';
-
-  @override
   String get enrollSucceeded => 'Added to My Collections';
 
   @override
@@ -4261,14 +3629,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get downloadCancel => 'Cancel Download';
 
   @override
-  String get downloadLater => 'Later';
-
-  @override
-  String downloadCompleted(String name) {
-    return '$name downloaded';
-  }
-
-  @override
   String downloadFailed(String name) {
     return '$name download failed, please retry';
   }
@@ -4303,18 +3663,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get backgroundDownloadFailedTitle => 'Download failed';
 
   @override
-  String get audioListColumnName => 'Name';
-
-  @override
-  String get audioListColumnDuration => 'Duration';
-
-  @override
-  String get onboardingTitle => 'A few quick questions';
-
-  @override
-  String get onboardingSubtitle => 'Takes 10 seconds to tailor your practice';
-
-  @override
   String get onboardingBack => 'Back';
 
   @override
@@ -4341,24 +3689,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get onboardingExamOther => 'Other';
-
-  @override
-  String onboardingProgress(int current, int total) {
-    return '$current of $total';
-  }
-
-  @override
-  String get onboardingNext => 'Next';
-
-  @override
-  String get onboardingDone => 'Done';
-
-  @override
-  String get onboardingFinishedTitle => 'All set';
-
-  @override
-  String get onboardingFinishedHint =>
-      'We\'ll tailor practice to your goals and pace.';
 
   @override
   String get onboardingSummaryEyebrow => 'Did you know?';
@@ -4592,14 +3922,6 @@ class AppLocalizationsEn extends AppLocalizations {
       'Auto-skip retelling tasks in your learning plan';
 
   @override
-  String get autoExpandCachedAnnotationToggle =>
-      'Auto-expand Sentence Analysis';
-
-  @override
-  String get autoExpandCachedAnnotationSubtitle =>
-      'Auto-show cached translation, analysis and sense groups';
-
-  @override
   String get autoShowAiExplanationToggle => 'Auto-show AI explanation';
 
   @override
@@ -4756,9 +4078,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get authSignInTitle => 'Sign in to Echo Loop';
 
   @override
-  String get authChooseMethod => 'Choose how you\'d like to continue.';
-
-  @override
   String get authContinueWithEmail => 'Continue with Email Code';
 
   @override
@@ -4768,25 +4087,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get authContinueWithGoogle => 'Continue with Google';
 
   @override
-  String get authProviderComingSoon => 'Coming soon';
-
-  @override
   String get authGoogleUnavailable =>
       'Google sign-in is unavailable on this device. Use an email code instead.';
 
   @override
   String get authGoogleServicesOutdated =>
       'Google services are outdated. Please update and try again.';
-
-  @override
-  String get authPasswordlessHint =>
-      'No password needed. We will email you a one-time code.';
-
-  @override
-  String get authEmailTitle => 'Email sign in';
-
-  @override
-  String get authEmailOtpTitle => 'Continue with email';
 
   @override
   String get authEmailOtpDescription =>
@@ -4811,9 +4117,6 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get authOtpIncorrectOrExpired =>
       'Verification code is incorrect or expired.';
-
-  @override
-  String get authEnterOtpTitle => 'Enter code';
 
   @override
   String get authOtpHelpText => 'Check spam if you do not see the email.';
@@ -4845,63 +4148,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get authPasswordLabel => 'Password';
 
   @override
-  String get authConfirmPasswordLabel => 'Confirm Password';
-
-  @override
   String get authSignInButton => 'Sign In';
 
   @override
   String get authSigningIn => 'Signing in';
-
-  @override
-  String get authCreateAccount => 'Create Account';
-
-  @override
-  String get authCreateAccountTitle => 'Create your account';
-
-  @override
-  String get authCreatingAccount => 'Creating account';
-
-  @override
-  String get authAlreadyHaveAccount => 'Already have an account? Sign in';
-
-  @override
-  String get authForgotPassword => 'Forgot password?';
-
-  @override
-  String get authForgotPasswordTitle => 'Reset password';
-
-  @override
-  String get authForgotPasswordDescription =>
-      'Enter your email and we will send a password reset link.';
-
-  @override
-  String get authResetPasswordTitle => 'Set a new password';
-
-  @override
-  String get authResetPasswordDescription =>
-      'Enter your new password to finish password recovery.';
-
-  @override
-  String get authNewPasswordLabel => 'New Password';
-
-  @override
-  String get authConfirmNewPasswordLabel => 'Confirm New Password';
-
-  @override
-  String get authUpdatePasswordButton => 'Update Password';
-
-  @override
-  String get authUpdatingPassword => 'Updating password';
-
-  @override
-  String get authSendResetLink => 'Send Reset Link';
-
-  @override
-  String get authSendingResetLink => 'Sending link';
-
-  @override
-  String get authBackToSignIn => 'Back to sign in';
 
   @override
   String get authCheckEmailTitle => 'Check your email';
@@ -4910,10 +4160,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String authCheckEmailMessage(String email) {
     return 'We sent a 6-digit code to $email.';
   }
-
-  @override
-  String get authResetEmailSent =>
-      'If an account exists, a reset link has been sent.';
 
   @override
   String get authEmailRequired => 'Enter your email';
@@ -4928,26 +4174,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get authPasswordTooShort => 'Password must be at least 6 characters';
 
   @override
-  String get authConfirmPasswordRequired => 'Confirm your password';
-
-  @override
-  String get authConfirmPasswordMismatch => 'Passwords do not match';
-
-  @override
-  String get authShowPassword => 'Show password';
-
-  @override
-  String get authHidePassword => 'Hide password';
-
-  @override
   String get authUnavailable => 'Authentication is not configured yet.';
 
   @override
   String get authUnknownError => 'Something went wrong. Try again.';
-
-  @override
-  String get authAgreeRequired =>
-      'Please agree to the terms and privacy policy first.';
 
   @override
   String get authTermsAgreementPrefix => 'I have read and agree to the';
@@ -5045,10 +4275,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get importAudioFromFile => 'Import from File';
 
   @override
-  String get importAudioFromFileDescription =>
-      'Choose media files from your phone or cloud drive';
-
-  @override
   String get importAudioFromUrl => 'Import from Link';
 
   @override
@@ -5057,12 +4283,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get importAudioFromCloudDrive => 'Import from Cloud Storage';
-
-  @override
-  String get importAudioFromBaiduNetdisk => 'Import from Baidu Netdisk';
-
-  @override
-  String get cloudDriveSourceShort => 'Cloud Storage';
 
   @override
   String get baiduNetdisk => 'Baidu Netdisk';
@@ -5091,23 +4311,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get baiduNetdiskConnectAction => 'Connect Baidu Netdisk';
 
   @override
-  String get baiduNetdiskLogoutTooltip => 'Sign out of Baidu Netdisk';
-
-  @override
   String get baiduNetdiskSelectAllAction => 'Select';
 
   @override
   String get baiduNetdiskClearSelectionAction => 'Clear';
-
-  @override
-  String get baiduNetdiskLogoutTitle => 'Sign out of Baidu Netdisk?';
-
-  @override
-  String get baiduNetdiskLogoutMessage =>
-      'Echo Loop will clear the saved Baidu Netdisk authorization on this device.';
-
-  @override
-  String get baiduNetdiskLogoutConfirm => 'Sign Out';
 
   @override
   String get baiduNetdiskAccountTooltip => 'Baidu Netdisk account';
@@ -5125,17 +4332,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get baiduNetdiskMembership => 'Membership';
 
   @override
-  String get baiduNetdiskUserId => 'User ID';
-
-  @override
   String get baiduNetdiskUnavailable => 'Not provided';
 
   @override
   String get baiduNetdiskDisconnect => 'Disconnect Baidu Netdisk';
-
-  @override
-  String get baiduNetdiskNoSupportedAudio =>
-      'No supported media files found in this folder.';
 
   @override
   String get importAudioShort => 'Import';
@@ -5145,11 +4345,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get cancelingImport => 'Canceling Import…';
-
-  @override
-  String importAudioSelectedCount(int count) {
-    return 'Import $count';
-  }
 
   @override
   String importAudioAndSubtitleCount(int audioCount, int subtitleCount) {
@@ -5168,21 +4363,6 @@ class AppLocalizationsEn extends AppLocalizations {
       zero: '',
     );
     return 'Import ($_temp0$_temp1)';
-  }
-
-  @override
-  String baiduNetdiskImportingFile(String name) {
-    return 'Importing $name...';
-  }
-
-  @override
-  String baiduNetdiskImportedCount(int count) {
-    return 'Imported $count from Baidu Netdisk';
-  }
-
-  @override
-  String baiduNetdiskSkippedSummary(int duplicates, int failures) {
-    return 'Skipped duplicates: $duplicates · Failed: $failures';
   }
 
   @override
@@ -5401,9 +4581,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get ttsEngineEchoLoop => 'Echo Loop AI (Advanced)';
 
   @override
-  String get ttsEngineComingSoon => 'Coming soon';
-
-  @override
   String get ttsEngineEchoLoopDescription =>
       'Best sound quality. Needs a model download; recommended for high-performance devices.';
 
@@ -5612,9 +4789,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get dictSourceAi => 'AI Dictionary';
 
   @override
-  String get dictSourceCambridge => 'Cambridge';
-
-  @override
   String get dictSourceAlwaysOn => 'Always on';
 
   @override
@@ -5631,12 +4805,6 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get cambridgeNotFound => 'Not found in Cambridge';
-
-  @override
-  String get dictTryOtherSource => 'Try another dictionary';
-
-  @override
   String get dictCambridgeOpenInBrowser => 'Open in browser';
 
   @override
@@ -5648,12 +4816,6 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get dictPhraseTooLong =>
       'The phrase is too long. Select up to 8 words.';
-
-  @override
-  String get ttsPlayUk => 'Play UK pronunciation';
-
-  @override
-  String get ttsPlayUs => 'Play US pronunciation';
 
   @override
   String get dictAiSynonyms => 'Synonyms';
@@ -5905,9 +5067,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get pronunciationPlay => 'Play pronunciation';
-
-  @override
-  String get redownload => 'Download again';
 
   @override
   String get collapseSidebar => 'Collapse sidebar';

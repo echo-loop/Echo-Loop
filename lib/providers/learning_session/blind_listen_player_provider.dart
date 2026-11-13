@@ -237,7 +237,7 @@ class BlindListenPlayer extends _$BlindListenPlayer {
   BlindListenPlayerState build() {
     _studyTimeService = ref.read(studyTimeServiceProvider);
 
-    // 不再在进后台时暂停段间倒计时：后台连续性由静音保活（StudyBackgroundPlaybackMixin
+    // 不再在进后台时暂停段间倒计时：后台连续性由静音保活（SentencePlaybackDriver
     // 的 setSessionActive）保证，倒计时在后台照常推进，修复「分段只播第一段」。
     ref.onDispose(() {
       _positionSub?.cancel();

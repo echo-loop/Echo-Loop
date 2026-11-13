@@ -6,7 +6,6 @@
   "playbackFailedTitle": "Playback failed",
   "playbackFailedMessage": "Please try again later.",
   "@@locale": "en",
-  "appTitle": "Echo Loop",
   "premiumTitle": "Echo Loop Premium",
   "premiumTagline": "Unlimited AI to power your learning",
   "aiQuotaExceededGenericTitle": "This month's free AI quota is used up",
@@ -198,35 +197,19 @@
   "chinaRoutingIndicatorTooltip": "Using China region service routing",
   "settings": "Settings",
   "addAudio": "Add Audio",
-  "noAudioYet": "No audio files yet",
-  "tapToAdd": "Tap + to add your first audio",
   "added": "Added",
   "transcript": "subtitles",
   "playing": "Last",
   "delete": "Delete",
   "deleteAudio": "Delete Audio",
-  "deleteConfirm": "Are you sure you want to delete \"{name}\"?",
-  "@deleteConfirm": {
-    "placeholders": {
-      "name": {
-        "type": "String"
-      }
-    }
-  },
   "cancel": "Cancel",
   "add": "Add",
-  "importAction": "Import",
   "selectAudioFile": "Select Audio File",
   "subtitlePairedBadge": "Subtitle matched, imported together",
-  "audioFilePickerCloudDriveHint": "Before selecting files from cloud storage, install and sign in to the cloud storage app first. Some apps may not support direct file selection from the file picker.",
   "selectTranscript": "Select Subtitles (Optional)",
   "noTranscript": "No subtitles available",
-  "noBookmarked": "No saved sentences",
-  "tapToBookmark": "Tap ⭐ on sentences to bookmark them",
   "playbackMode": "Playback Mode",
-  "fullArticle": "Full Article",
   "singleSentence": "Single Sentence",
-  "bookmarkedOnly": "saved Only",
   "playbackSettings": "Playback Settings",
   "waveformZoom": "Zoom",
   "waveformLoading": "Loading waveform {progress}%",
@@ -241,10 +224,8 @@
   "waveformAudioMissing": "No audio found. You can still edit subtitles below.",
   "waveformRetry": "Retry",
   "playbackSpeed": "Playback Speed",
-  "loopPlayback": "Loop Playback",
   "loopCount": "Loop Count",
   "pauseInterval": "Pause Interval",
-  "applySettings": "Apply Settings",
   "play": "Play",
   "pause": "Pause",
   "stop": "Stop",
@@ -276,7 +257,6 @@
   "about": "About",
   "version": "Version",
   "save": "Save",
-  "enableLoop": "Enable Loop",
   "loopSettings": "Loop Settings",
   "wholeTextLoop": "loop entire media",
   "singleSentenceLoop": "Single-sentence loop",
@@ -284,10 +264,8 @@
   "showTranscript": "Show subtitles",
   "shortcutKey": "Shortcut",
   "seconds": "seconds",
-  "infinite": "∞",
   "singleSentenceMode": "Intensive Listening",
   "singleSentenceModeDesc": "Show only current sentence",
-  "autoPlayNextSentence": "Auto-Play Next Sentence",
   "repeatCount": "Repeat Count",
   "infiniteRepeat": "Infinite ∞",
   "intervalTime": "Interval Duration",
@@ -321,14 +299,10 @@
   },
   "fullText": "full playback",
   "bookmarked": "saved",
-  "noSubtitle": "No Subtitle",
-  "noSentenceSelected": "No sentence selected",
   "noBookmarkedSentences": "No saved sentences",
   "tapBookmarkIcon": "Tap bookmark icon to save",
   "noBookmarksHint": "No bookmarked sentences yet. Tap the bookmark icon beside a sentence to add one.",
   "bookmarksEmptyReturned": "No bookmarked sentences remain. Switched to Full Text.",
-  "removeBookmarkTip": "Remove bookmark",
-  "addBookmarkTip": "Add bookmark",
   "listMode": "List Mode",
   "copy": "Copy",
   "copied": "Copied to clipboard",
@@ -341,13 +315,7 @@
   "sentenceAudioUnavailable": "The audio file is unavailable, so it can't be played.",
   "sentenceDetailLoadFailed": "Couldn't load the transcript. Please try again.",
   "sentenceDetailRetry": "Retry",
-  "hotkeyReplay": "R: Replay",
-  "hotkeyPlayPause": "Space: Play/Pause",
-  "hotkeyToggleTranscript": "\u2191: Show/Hide Subtitles",
-  "hotkeyNavigation": "←/→: Previous/Next Sentence",
-  "noAudioLoaded": "No audio loaded",
   "enableAutoScroll": "Enable auto-scroll",
-  "disableAutoScroll": "Disable auto-scroll",
   "audioFileNotFound": "Audio file not found. The file may have been deleted.",
   "pickAudioFileFailed": "Failed to select audio file",
   "addAudioFailed": "Failed to add audio",
@@ -379,14 +347,6 @@
   "subtitleErrorEmptyTitle": "No subtitle entries found",
   "subtitleErrorGenericTitle": "Upload failed",
   "fileExists": "File Already Exists",
-  "fileExistsMessage": "An audio file named \"{name}\" already exists. Please delete the original audio first.",
-  "@fileExistsMessage": {
-    "placeholders": {
-      "name": {
-        "type": "String"
-      }
-    }
-  },
   "back": "Back",
   "ok": "OK",
   "addedOn": "Added: {date}",
@@ -475,17 +435,9 @@
     }
   },
   "communityCollectionUnknownUploader": "Unknown uploader",
-  "communityCollectionUnknownPublishDate": "Date unknown",
-  "communityCollectionCover": "{name} cover",
-  "@communityCollectionCover": {
-    "placeholders": {
-      "name": {"type": "String"}
-    }
-  },
   "communityCollectionShowMore": "More",
   "communityCollectionShowLess": "Less",
   "sortCollections": "Sort",
-  "gridView": "Grid View",
   "listView": "List View",
   "audioCount": "{count} items",
   "@audioCount": {
@@ -556,29 +508,10 @@
   "librarySearchEmpty": "No matching collections or audio",
   "renameAudio": "Rename",
   "audioName": "Audio Name",
-  "audioAlreadyInCollection": "Duplicate Audio",
-  "audioAlreadyInCollectionMessage": "An audio named \"{name}\" already exists in this collection.",
-  "@audioAlreadyInCollectionMessage": {
-    "placeholders": {
-      "name": {
-        "type": "String"
-      }
-    }
-  },
-  "audioAlreadyInLibrary": "Duplicate Audio",
-  "audioAlreadyInLibraryMessage": "An audio named \"{name}\" already exists in the library.",
-  "@audioAlreadyInLibraryMessage": {
-    "placeholders": {
-      "name": {
-        "type": "String"
-      }
-    }
-  },
   "study": "Study",
   "favorites": "Saved",
   "profile": "Profile",
   "studyComingSoon": "Study features coming soon",
-  "favoritesComingSoon": "Save features coming soon",
   "firstStudy": "First Round",
   "review": "Review",
   "stepProgress": "{completed}/{total}",
@@ -628,7 +561,6 @@
       "hours": { "type": "int" }
     }
   },
-  "reviewUnlocked": "Unlocked",
   "unlockReviewNow": "Unlock now",
   "@unlockReviewNow": {
     "description": "Button on the learning plan page to immediately unlock the locked current review round"
@@ -639,18 +571,6 @@
   "learningCompleted": "Completed",
   "learningNotStarted": "Not started",
   "reviewReady": "Ready to review",
-  "reviewCountdown": "Unlocked in {days} days",
-  "@reviewCountdown": {
-    "placeholders": {
-      "days": { "type": "int" }
-    }
-  },
-  "reviewCountdownHours": "Unlocked in {hours} hours",
-  "@reviewCountdownHours": {
-    "placeholders": {
-      "hours": { "type": "int" }
-    }
-  },
   "blindListenBriefingTitle": "Listen without subtitles",
   "blindListenBriefingSubtitle": "First Round - Listen without subtitles",
   "blindListenBriefingReviewSubtitle": "Review {round} - Listen without subtitles",
@@ -662,12 +582,6 @@
   "blindListenBriefingTip": "Challenge yourself: listen without subtitles and get the gist",
   "startPractice": "Start Practicing",
   "blindListenAppBarTitle": "Listen without subtitles",
-  "blindListenPassLabel": "Pass {count}",
-  "@blindListenPassLabel": {
-    "placeholders": {
-      "count": { "type": "int" }
-    }
-  },
   "blindListenComplete": "Listening without subtitles Complete",
   "blindListenPassInfo": "Listened {count} time(s)",
   "@blindListenPassInfo": {
@@ -680,12 +594,6 @@
   "listenAgain": "Listen Again",
   "practiceAgain": "Practice Again",
   "nextStage": "Next",
-  "difficultyVeryEasy": "Very Easy",
-  "difficultyEasy": "Easy",
-  "difficultyMedium": "Medium",
-  "difficultyHard": "Hard",
-  "difficultyVeryHard": "Very Hard",
-  "countdownNextPlay": "Next play starts in",
   "skipCountdown": "Skip",
   "audioDuration": "Duration: {duration}",
   "@audioDuration": {
@@ -707,16 +615,9 @@
   "myLibrary": "My Library",
   "collectionsTab": "Collections",
   "audioTab": "Audio",
-  "uncategorized": "Uncategorized",
   "manageCollections": "Manage Collections",
   "noAudioItems": "No audio files yet",
   "noAudioItemsHint": "Import audio files to start practicing",
-  "audioWillBeKept": "{count} audio files in this collection will be kept in the library",
-  "@audioWillBeKept": {
-    "placeholders": {
-      "count": { "type": "int" }
-    }
-  },
   "done": "Done",
   "sortAudio": "Sort",
   "deleteAudioConfirm": "Permanently delete \"{name}\"?",
@@ -756,13 +657,6 @@
       "total": { "type": "int" }
     }
   },
-  "intensiveListenPlayCount": "Round {current}/{total}",
-  "@intensiveListenPlayCount": {
-    "placeholders": {
-      "current": { "type": "int" },
-      "total": { "type": "int" }
-    }
-  },
   "intensiveListenPeek": "Peek at subtitles",
   "intensiveListenHideSubtitle": "Hide subtitles",
   "intensiveListenUnclear": "Unclear",
@@ -780,21 +674,8 @@
   "aiListening": "Listening tips",
   "intensiveListenWordDictNotFound": "Word not found in dictionary",
   "intensiveListenReplayingWithSubtitle": "Listen again to help it stick",
-  "intensiveListenPauseBetweenPlays": "Next play in {seconds}s",
-  "@intensiveListenPauseBetweenPlays": {
-    "placeholders": {
-      "seconds": { "type": "int" }
-    }
-  },
-  "intensiveListenPauseBetweenSentences": "Next sentence in {seconds}s",
-  "@intensiveListenPauseBetweenSentences": {
-    "placeholders": {
-      "seconds": { "type": "int" }
-    }
-  },
   "intensiveListenCompleteTitle": "Listening sentence by sentence Complete",
   "intensiveListenCompleteHint": "Keep reviewing with spaced repetition to fully master it.",
-  "intensiveListenCompleteNext": "Next Step",
   "statSentences": "Sentences",
   "statDifficultSentences": "challenging",
   "statParagraphs": "Segments",
@@ -827,12 +708,6 @@
   "intensiveListenPauseSmartDesc": "Auto-adjusted based on difficulty, sentence length, and learning stage",
   "intensiveListenControlModeAutoDesc": "Auto-loop, auto-pause, auto-next",
   "intensiveListenControlModeManualDesc": "Repeat as configured, tap next",
-  "intensiveListenPauseFixedUnit": "{seconds}s",
-  "@intensiveListenPauseFixedUnit": {
-    "placeholders": {
-      "seconds": { "type": "int" }
-    }
-  },
   "intensiveListenPauseMultiplierValue": "{value}x",
   "@intensiveListenPauseMultiplierValue": {
     "placeholders": {
@@ -840,22 +715,10 @@
     }
   },
   "intensiveListenPauseMultiplierLabel": "Multiplier",
-  "blindListenCountdown": "Next play in {seconds}s",
-  "@blindListenCountdown": {
-    "placeholders": {
-      "seconds": { "type": "int" }
-    }
-  },
   "difficultyLabel": "Difficulty level: {difficulty}",
   "@difficultyLabel": {
     "placeholders": {
       "difficulty": { "type": "String" }
-    }
-  },
-  "continueToStep": "Continue: {step}",
-  "@continueToStep": {
-    "placeholders": {
-      "step": { "type": "String" }
     }
   },
   "completeFirstStudy": "First Round Complete",
@@ -891,54 +754,14 @@
       "total": { "type": "int" }
     }
   },
-  "listenAndRepeatPlayCount": "Round {current}/{total}",
-  "@listenAndRepeatPlayCount": {
-    "placeholders": {
-      "current": { "type": "int" },
-      "total": { "type": "int" }
-    }
-  },
-  "listenAndRepeatPauseBetweenPlays": "Repeat time {seconds}s",
-  "@listenAndRepeatPauseBetweenPlays": {
-    "placeholders": {
-      "seconds": { "type": "int" }
-    }
-  },
-  "listenAndRepeatPauseBetweenSentences": "Next sentence in {seconds}s",
-  "@listenAndRepeatPauseBetweenSentences": {
-    "placeholders": {
-      "seconds": { "type": "int" }
-    }
-  },
   "listenAndRepeatListenHint": "Listen, then repeat",
-  "listenAndRepeatYourTurnHint": "Repeat",
-  "listenAndRepeatRecordButton": "Record",
-  "listenAndRepeatStopRecordingButton": "Stop",
-  "listenAndRepeatPlayRecordingButton": "Play My Recording",
   "listenAndRepeatRecordingInProgress": "Recording...",
-  "listenAndRepeatStartSpeaking": "Start speaking",
   "listenAndRepeatAnalyzing": "Analyzing...",
-  "listenAndRepeatTapToRecord": "Tap to record",
   "listenAndRepeatRatingPerfect": "Perfect!",
   "listenAndRepeatRatingExcellent": "Excellent",
   "listenAndRepeatRatingGood": "Good",
   "listenAndRepeatRatingFair": "Fair",
   "listenAndRepeatRatingKeepGoing": "Keep going",
-  "listenAndRepeatAwaitingFinalTranscript": "Confirming final transcription...",
-  "listenAndRepeatYourTakeLabel": "Your transcrit",
-  "listenAndRepeatRecognitionInProgress": "Checking your recording...",
-  "listenAndRepeatRecognitionPassed": "Matched {percent}% of the target words.",
-  "@listenAndRepeatRecognitionPassed": {
-    "placeholders": {
-      "percent": { "type": "int" }
-    }
-  },
-  "listenAndRepeatRecognitionBelowThreshold": "Matched {percent}% of the target words.",
-  "@listenAndRepeatRecognitionBelowThreshold": {
-    "placeholders": {
-      "percent": { "type": "int" }
-    }
-  },
   "listenAndRepeatRecognitionNoEnglish": "No spoken English detected",
   "listenAndRepeatRecognitionPermissionDenied": "Microphone or speech recognition permission is required.",
   "listenAndRepeatRecognitionUnavailable": "Speech recognition is unavailable on this device.",
@@ -971,7 +794,6 @@
       "count": { "type": "int" }
     }
   },
-  "listenAndRepeatRemoveDifficult": "Auto-saved, tap to undo",
   "listenAndRepeatSettings": "Repeat Settings",
   "listenAndRepeatSettingsTemporaryHint": "Settings apply to this session only",
   "listenAndRepeatControlModeLabel": "Control Mode",
@@ -1007,26 +829,7 @@
 
   "retellBriefingTitle": "Listen & Retell",
   "retellBriefingSubtitle": "Listen and retell segment by segment. Follow the original transcript or use your own words. Visible words help you recall what you heard.",
-  "retellBriefingTargetDuration": "segment length",
-  "retellBriefingParagraphCount": "Split into {count} segments",
-  "@retellBriefingParagraphCount": {
-    "placeholders": {
-      "count": { "type": "int" }
-    }
-  },
-  "retellBriefingSeconds": "{seconds}s",
-  "@retellBriefingSeconds": {
-    "placeholders": {
-      "seconds": { "type": "int" }
-    }
-  },
   "retellBriefingSentenceLevel": "Per Sentence",
-  "retellBriefingSentenceCount": "{count} sentences total",
-  "@retellBriefingSentenceCount": {
-    "placeholders": {
-      "count": { "type": "int" }
-    }
-  },
 
   "retellTitle": "Listen & Retell",
   "retellParagraphProgress": "Segment {current}/{total}",
@@ -1051,22 +854,6 @@
   },
   "retellPreListenHint": "Listen first, then retell",
   "retellListeningPhase": "Listen closely...",
-  "retellPromptToRetell": "Retell what you heard",
-  "retellRetellingCountdown": "Retell {seconds}s",
-  "@retellRetellingCountdown": {
-    "placeholders": {
-      "seconds": { "type": "int" }
-    }
-  },
-  "retellRepeatInfo": "Round {current}/{total}",
-  "@retellRepeatInfo": {
-    "placeholders": {
-      "current": { "type": "int" },
-      "total": { "type": "int" }
-    }
-  },
-  "retellCompleteFirstStudy": "First Round Complete",
-  "retellCompleteReview": "Review Complete",
   "retellCompleteFreePlay": "Practice Complete",
   "retellCompleteTitle": "Listen & Retell Complete",
   "retellPracticeAgain": "Practice Again",
@@ -1098,7 +885,6 @@
       "count": { "type": "int" }
     }
   },
-  "retellNoDifficultSentences": "No sentences to retell. Listen sentence by sentence first.",
 
   "retellKeywordMethod": "Visible words",
   "retellKeywordMethodOff": "Off",
@@ -1128,20 +914,11 @@
       "total": { "type": "int" }
     }
   },
-  "reviewDifficultPracticeBlindListen": "Listening...",
   "reviewDifficultPracticeCompleteTitle": "Saved Sentences Practice Complete",
   "reviewDifficultPracticeNone": "No saved sentences to practice. Auto-completed.",
   "exitReviewDifficultPracticeTitle": "Exit Practice?",
-  "exitReviewDifficultPracticeMessage": "Your progress will not be saved for this step.",
   "exitReviewDifficultPracticeConfirmMessage": "Your progress will be saved and you can continue next time.",
-  "reviewDifficultPracticeAdvancing": "Next sentence in {seconds}s",
-  "@reviewDifficultPracticeAdvancing": {
-    "placeholders": {
-      "seconds": { "type": "int" }
-    }
-  },
 
-  "aiSectionTitle": "AI",
   "speechRecognition": "Speech Recognition",
   "speechRecognitionNotConfigured": "Not configured",
   "speechRecognitionEnabled": "Enabled",
@@ -1152,12 +929,6 @@
   "asrBackendPlatformDescription": "Use the built-in system speech recognition.No download needed",
   "asrBackendOffline": "Echo Loop AI",
   "asrBackendOfflineDescription": "Use the app's AI model. It works offline after downloading",
-  "asrModelTier": "Model: {tier} (auto-selected for your device)",
-  "@asrModelTier": {
-    "placeholders": {
-      "tier": { "type": "String" }
-    }
-  },
   "asrModelFastDescription": "Fastest. Best for low-end devices.",
   "asrModelBalancedDescription": "Balanced accuracy and speed.",
   "asrModelAccurateDescription": "More accurate, but larger and slower.",
@@ -1206,10 +977,6 @@
       "size": { "type": "String" }
     }
   },
-  "disableSpeechRecognitionTitle": "Disable Speech Recognition?",
-  "disableSpeechRecognitionMessage": "Speech scoring will be unavailable.",
-  "alsoDeleteModel": "Also delete downloaded model",
-  "disableAction": "Disable",
   "speechRecognitionRequiredMessage": "Speech recognition is used to automatically evaluate your pronunciation and retelling. A model download is required before starting.",
   "asrModelDownloadRequiredTitle": "Speech Recognition Model Required",
   "asrModelDownloadEstimate": "Estimated download: ~{size}",
@@ -1240,7 +1007,6 @@
     }
   },
   "asrDownloadModel": "Download model",
-  "downloadNow": "Download Now",
   "later": "Later",
   "speechRecognitionNotEnabled": "Voice recognition not enabled. Enable in Settings.",
   "retryDownload": "Retry",
@@ -1268,7 +1034,6 @@
   "@localTranscriptionProgressPercent": {
     "placeholders": { "percent": { "type": "int" } }
   },
-  "localTranscriptionModelRequiredTitle": "Speech model needed",
   "localTranscriptionModelRequiredMessage": "On-device transcription requires downloading the {modelName} speech model once (offline afterwards).",
   "@localTranscriptionModelRequiredMessage": {
     "placeholders": { "modelName": { "type": "String" } }
@@ -1339,35 +1104,11 @@
     }
   },
   "transcriptionAudioUnknown": "Not detected",
-  "currentSubtitleExists": "Current: Has Subtitle",
-  "currentSubtitleLocal": "Current: Local Upload",
-  "currentSubtitleAi": "Current: AI ({language})",
-  "@currentSubtitleAi": {
-    "placeholders": {
-      "language": { "type": "String" }
-    }
-  },
-  "noSubtitleYet": "No subtitle yet",
-  "addSubtitlePromptTitle": "Add Subtitle?",
-  "addSubtitlePromptMessage": "Add a subtitle now for learning?",
   "selectCollection": "Collection (Optional)",
   "noCollection": "None",
   "addSubtitle": "Add Subtitle",
   "retryTranscription": "Retry",
-  "transcriptionFailedMessage": "Error: {message}",
-  "@transcriptionFailedMessage": {
-    "placeholders": {
-      "message": { "type": "String" }
-    }
-  },
 
-  "todayStudyTime": "Today: {time}",
-  "@todayStudyTime": {
-    "description": "Today's study time label",
-    "placeholders": {
-      "time": { "type": "String" }
-    }
-  },
   "studyTimeMinutes": "{minutes} min",
   "@studyTimeMinutes": {
     "description": "Study time in minutes",
@@ -1385,7 +1126,6 @@
   },
 
   "studyTasks": "Study Tasks",
-  "continueLearningHero": "Continue Learning",
   "startButton": "Start",
   "continueButton": "Continue",
   "streakDays": "{count}d streak",
@@ -1452,9 +1192,6 @@
   "@favoritesBookmarkCount": {
     "placeholders": { "count": { "type": "int" } }
   },
-  "favoritesVocabularySaved": "Saved",
-  "favoritesVocabularyRemoved": "Removed",
-  "favoritesBookmarkRemoved": "Bookmark removed",
   "undo": "Undo",
   "favoritesSaveVocabulary": "Save",
   "favoritesUnsaveVocabulary": "Unsave",
@@ -1462,10 +1199,6 @@
 
   "bookmarkReviewTitle": "Review Saved Sentences",
   "bookmarkReviewStart": "Start Review",
-  "bookmarkReviewStartCount": "Start Review ({count})",
-  "@bookmarkReviewStartCount": {
-    "placeholders": { "count": { "type": "int" } }
-  },
   "bookmarkReviewDueCount": "{count} due for review",
   "@bookmarkReviewDueCount": {
     "placeholders": { "count": { "type": "int" } }
@@ -1477,7 +1210,6 @@
   },
   "favoriteReviewNothingToReview": "All Done!",
   "bookmarkReviewComplete": "Review Complete",
-  "bookmarkReviewAgain": "Review Again",
   "bookmarkReviewAudioSkipped": "Audio unavailable, skip this sentence",
   "bookmarkReviewFromAudio": "From: {name}",
   "@bookmarkReviewFromAudio": {
@@ -1495,19 +1227,13 @@
   "bookmarkReviewRevealHint": "Tap to reveal the answer",
   "bookmarkReviewCompleted": "All Done!",
   "bookmarkReviewUnsaveFailed": "Couldn't unsave this sentence. Please try again.",
-  "bookmarkReviewSettingsPlaceholderTitle": "Review settings",
-  "bookmarkReviewSettingsPlaceholderBody": "More review controls will be available in a future update.",
   "bookmarkReviewSettingsTitle": "Review settings",
   "bookmarkReviewShowNextReviewTime": "Show next review time",
   "favoriteReviewAutoPlayFront": "Auto-play front",
   "favoriteReviewAutoPlayBack": "Auto-play back",
   "favoriteReviewShowVocabularyOnFront": "Show vocabulary on front",
-  "bookmarkReviewDailyGoal": "Daily review goal",
   "favoriteReviewSentenceSettings": "Saved sentence review",
   "favoriteReviewVocabularySettings": "Saved vocabulary review",
-  "favoriteReviewSentenceDailyGoal": "Daily sentence review goal",
-  "favoriteReviewVocabularyDailyGoal": "Daily vocabulary review goal",
-  "bookmarkReviewUnlimited": "Unlimited",
   "bookmarkReviewOrder": "Review order",
   "bookmarkReviewOrderSmart": "Auto",
   "bookmarkReviewOrderDueAt": "Earliest due first",
@@ -1524,7 +1250,6 @@
   "favoriteVocabularyReviewAudioSkipped": "Audio unavailable, tap to retry",
   "favoriteVocabularyReviewReadyTitle": "Flip when ready",
   "favoriteVocabularyReviewRevealHint": "Tap to reveal the back",
-  "favoriteVocabularyReviewBackPlaceholder": "Back side is coming soon",
   "bookmarkReviewRatingEasy": "Easy",
   "difficultPracticeSettings": "Practice Settings",
   "difficultPracticeSettingsHint": "Settings apply to this session only",
@@ -1548,73 +1273,14 @@
     }
   },
   "learnedWordFormsShort": "Vocab",
-  "todayNewShort": "Today",
   "learnedWordsEmptyHint": "No words learned yet. Complete a listening session first.",
   "learnedWordsSortTimeAsc": "Oldest Learned",
   "learnedWordsSortTimeDesc": "Recently Learned",
 
-  "bookmarkReviewProgress": "Sentence {current}/{total}",
-  "@bookmarkReviewProgress": {
-    "placeholders": {
-      "current": { "type": "int" },
-      "total": { "type": "int" }
-    }
-  },
 
-  "flashcardTitle": "Flashcards",
-  "flashcardViewAnswer": "Ready? View answer",
-  "flashcardTapToFlip": "Tap to flip back",
-  "flashcardUnsaveHint": "Unmark when mastered",
-  "flashcardProgress": "{current}/{total}",
-  "@flashcardProgress": {
-    "placeholders": {
-      "current": { "type": "int" },
-      "total": { "type": "int" }
-    }
-  },
   "flashcardComplete": "Review Complete",
-  "flashcardWordsReviewed": "Reviewed {count} words",
-  "@flashcardWordsReviewed": {
-    "placeholders": { "count": { "type": "int" } }
-  },
-  "flashcardWordsRemoved": "Unsaved {count} words",
-  "@flashcardWordsRemoved": {
-    "placeholders": { "count": { "type": "int" } }
-  },
-  "flashcardPracticeAgain": "Practice Again",
-  "flashcardFinish": "Done",
-  "flashcardSettingsTitle": "Flashcard Settings",
-  "flashcardSettingsSubtitle": "Settings are saved automatically",
-  "flashcardControlModeLabel": "Control Mode",
-  "flashcardControlModeAuto": "Auto",
-  "flashcardControlModeManual": "Manual",
-  "flashcardControlModeAutoDesc": "Auto flip, auto advance",
-  "flashcardControlModeManualDesc": "Manual flip, manual advance",
-  "flashcardTimerMode": "Flashcard Advance Timer",
-  "flashcardTimerSmart": "Auto",
-  "flashcardTimerSmartDesc": "Adjust based on word difficulty and practice count",
-  "flashcardTimerFixed": "Fixed",
-  "flashcardTimerFixedDesc": "Set fixed duration for front and back",
-  "flashcardTimerFrontDuration": "Front",
-  "flashcardTimerBackDuration": "Back",
-  "flashcardSortMode": "Word List Order",
   "flashcardSortAlphaAsc": "A → Z",
   "flashcardSortAlphaDesc": "Z → A",
-  "flashcardSortTimeAsc": "Oldest",
-  "flashcardSortTimeDesc": "Newest",
-  "flashcardSortRandom": "Random",
-  "flashcardSortSmart": "Auto",
-  "flashcardSortSmartDesc": "Order based on memory patterns",
-  "flashcardSortRandomDesc": "Shuffle randomly each time",
-  "flashcardSortAlphaAscDesc": "Sort A to Z",
-  "flashcardSortAlphaDescDesc": "Sort Z to A",
-  "flashcardSortTimeAscDesc": "Oldest saved first",
-  "flashcardSortTimeDescDesc": "Newest saved first",
-  "flashcardNoDefinition": "No definition",
-  "flashcardStartQuiz": "Start Review",
-  "flashcardTts": "Pronounce",
-  "flashcardAutoPlaySentence": "Auto-play Sentence",
-  "flashcardAutoPlayWord": "Auto-play Word",
   "freePlay": "Listen Your Way",
   "wordAiAnalysis": "AI Analysis",
   "wordAiContextMeaning": "Contextual Meaning",
@@ -1643,7 +1309,6 @@
   "joinCommunity": "Join Community",
   "aboutCommunity": "Join Community",
   "joinCommunityInviteSubtitle": "Learn, ask, and share",
-  "networkError": "Unable to connect. Please check your network and try again.",
   "viewSourceCode": "Open Source Project",
 
   "updateAvailable": "New Version v{version}",
@@ -1663,37 +1328,15 @@
   "alreadyLatest": "Already up to date",
   "checkUpdateFailed": "Check failed, please check your network",
   "demoMode": "Demo Mode",
-  "demoModeSubtitle": "Use demo data for screenshots",
   "practiceRemoveMark": "Unmark",
   "practiceAddMark": "Re-mark",
 
-  "blindListenSegmentProgress": "Segment {current}/{total}",
-  "@blindListenSegmentProgress": {
-    "placeholders": {
-      "current": {"type": "int"},
-      "total": {"type": "int"}
-    }
-  },
-  "blindListenSegmentDuration": "{duration}s",
-  "@blindListenSegmentDuration": {
-    "placeholders": {
-      "duration": {"type": "int"}
-    }
-  },
   "blindListenListeningHint": "Listen closely...",
   "blindListenPreListenHint": "Listen first, then recall",
-  "blindListenRepeatInfo": "Round {current}/{total}",
-  "@blindListenRepeatInfo": {
-    "placeholders": {
-      "current": {"type": "int"},
-      "total": {"type": "int"}
-    }
-  },
   "blindListenSettingsTitle": "Listening Settings",
   "blindListenPauseBetween": "Pause between segments",
   "blindListenTargetDuration": "Segment length",
   "blindListenDisplayHideAll": "Hide Subtitles",
-  "blindListenDisplayShowAll": "Show Subtitles",
   "blindListenRecallHint": "Recall what you just heard",
   "blindListenControlModeAutoDesc": "Auto-repeat, auto-pause, auto-next",
   "blindListenControlModeManualDesc": "Tap to replay, tap next",
@@ -1767,7 +1410,6 @@
   "chartLegendOther": "Other",
   "chartLegendOtherHint": "Thinking, pauses, etc.",
 
-  "reminderSectionTitle": "Reminders",
   "reminderSettings": "Review Reminder",
   "savedReviewReminderSection": "\u2018Saved\u2019 Review Reminder",
   "savedReviewReminderToggle": "Saved Content Reminder",
@@ -1886,16 +1528,10 @@
   },
 
   "exportData": "Export Data",
-  "exportDataSubtitle": "Export all data to a ZIP file",
-  "importData": "Import Data",
-  "importDataSubtitle": "Restore data from a backup file",
-  "exporting": "Exporting...",
   "importing": "Importing...",
   "exportSuccess": "Export complete",
   "downloadSuccess": "Download complete",
   "importSuccess": "Import complete",
-  "importConfirmTitle": "Confirm Import",
-  "importConfirmMessage": "This will replace all current data, including learning progress, saved items, and audio files. This action cannot be undone.",
   "backupTime": "Backup time",
   "backupVersion": "App version",
   "backupFileCount": "Media files",
@@ -1911,11 +1547,8 @@
   "importingDatabase": "Restoring database...",
   "importingPreferences": "Restoring preferences...",
   "backupAndRestore": "Backup & Restore",
-  "backupAndRestoreSubtitle": "Restore your learning data after reinstalling or changing devices",
   "backupData": "Back Up",
-  "backupDataSubtitle": "Back up learning data, media, and offline dictionaries",
   "restoreData": "Restore",
-  "restoreDataSubtitle": "Restore all data from a local backup file",
   "backupReadyTitle": "Backup file is ready",
   "backupFileName": "File name",
   "restoreOverwriteTitle": "Overwrite and restore all data?",
@@ -1929,7 +1562,6 @@
   "@restoreFailed": {"placeholders": {"error": {"type": "String"}}},
 
   "activityCalendar": "Activity Calendar",
-  "noActivityThisMonth": "No learning activity this month",
   "studyDurationNoRecords": "No study records",
   "monthlySummaryTitle": "{month} Statistics",
   "@monthlySummaryTitle": {
@@ -1978,17 +1610,14 @@
   "reviewStatisticsSentences": "Sentences",
   "reviewStatisticsVocabulary": "Vocabulary",
   "reviewStatisticsTodayOverview": "Today at a glance",
-  "reviewStatisticsTodayReviewed": "Reviewed today",
   "reviewStatisticsTodayCompleted": "Completed today",
   "reviewCompletionReviewed": "Reviewed",
   "reviewStatusRemaining": "Remaining",
   "reviewStatisticsDuration": "Review time",
-  "reviewStatisticsDue": "Ready now",
   "reviewStatisticsCurrentDue": "{count} ready to review",
   "@reviewStatisticsCurrentDue": {
     "placeholders": {"count": {"type": "String"}}
   },
-  "reviewStatisticsCurrentDueExplanation": "Already due and ready to start",
   "reviewStatisticsCurrentDueBreakdown": "{overdue} overdue, {today} due today",
   "reviewStatisticsStreak": "Review streak",
   "reviewStatisticsStreakExplanation": "Reviewed on {count} consecutive days",
@@ -2023,8 +1652,6 @@
       "count": {"type": "int"}
     }
   },
-  "recycleBinRestore": "Restore",
-  "recycleBinDelete": "Delete",
   "recycleBinSortTimeDesc": "Recently Removed",
   "recycleBinSortTimeAsc": "Oldest Removed",
   "recycleBinItemCount": "{count} items",
@@ -2098,7 +1725,6 @@
     }
   },
   "removeFile": "Remove",
-  "goToSettings": "Go to Settings",
   "dictionaryLookupFailed": "Lookup failed. Check your network and try again",
   "dictionaryBaseFormHint": "Showing results for base form “{lemma}”",
   "@dictionaryBaseFormHint": {
@@ -2143,7 +1769,6 @@
   "guideSentenceAnnotationSenseGroupDescription": "Break the sentence into sense groups to make long, complex lines easier to follow.",
   "guideSentenceAnnotationAnalysisDescription": "Check the grammar, key phrases and listening tips for this sentence.",
   "resetNewUserGuide": "Reset New User Guide",
-  "resetNewUserGuideSubtitle": "Clear all guide seen states for testing",
   "resetNewUserGuideDone": "New user guide has been reset",
   "resetOnboarding": "Reset Onboarding Survey",
   "resetOnboardingDone": "Onboarding reset; please restart the app to retake the survey",
@@ -2153,13 +1778,6 @@
   "discoverLoadFailed": "Failed to load, tap to retry",
   "discoverRetry": "Retry",
   "discoverPodcastEntryTitle": "Apple Podcasts",
-  "discoverPodcastEntrySubtitle": "{count} podcasts. Subscribe to keep new episodes in your library.",
-  "@discoverPodcastEntrySubtitle": {
-    "placeholders": {
-      "count": {"type": "int"}
-    }
-  },
-  "discoverPodcastTitle": "Curated Podcasts",
   "discoverPodcastEmpty": "No curated podcasts yet",
   "podcastSignInRequiredMessage": "Sign in to add curated podcasts to My Collections and keep learning future episodes.",
   "podcastPreviewSubscribeFailed": "Failed to add. Some RSS feeds or Apple Podcasts may be unavailable on the current network. Try again later or switch networks.",
@@ -2180,8 +1798,6 @@
   "goLearn": "Start Practicing",
   "communityCollectionAdded": "Added",
   "removeFromMyCollections": "Remove from My Collections",
-  "enrollNeededTitle": "Add Collection First",
-  "enrollNeededMessage": "Add this collection to My Collection, then you can start practicing.",
   "enrollSucceeded": "Added to My Collections",
   "enrollFailed": "Failed to add, please check your network and retry",
   "removeCommunityConfirmTitle": "Remove \"{name}\"?",
@@ -2202,13 +1818,6 @@
     }
   },
   "downloadCancel": "Cancel Download",
-  "downloadLater": "Later",
-  "downloadCompleted": "{name} downloaded",
-  "@downloadCompleted": {
-    "placeholders": {
-      "name": {"type": "String"}
-    }
-  },
   "downloadFailed": "{name} download failed, please retry",
   "@downloadFailed": {
     "placeholders": {
@@ -2224,10 +1833,6 @@
   "backgroundDownloadRunningTitle": "Downloading",
   "backgroundDownloadCompleteTitle": "Download complete",
   "backgroundDownloadFailedTitle": "Download failed",
-  "audioListColumnName": "Name",
-  "audioListColumnDuration": "Duration",
-  "onboardingTitle": "A few quick questions",
-  "onboardingSubtitle": "Takes 10 seconds to tailor your practice",
   "onboardingBack": "Back",
   "onboardingContinue": "Continue",
   "onboardingExamPrompt": "Which exam are you currently preparing for?",
@@ -2237,17 +1842,6 @@
   "onboardingExamIelts": "IELTS",
   "onboardingExamToefl": "TOEFL",
   "onboardingExamOther": "Other",
-  "onboardingProgress": "{current} of {total}",
-  "@onboardingProgress": {
-    "placeholders": {
-      "current": {"type": "int"},
-      "total": {"type": "int"}
-    }
-  },
-  "onboardingNext": "Next",
-  "onboardingDone": "Done",
-  "onboardingFinishedTitle": "All set",
-  "onboardingFinishedHint": "We'll tailor practice to your goals and pace.",
   "onboardingSummaryEyebrow": "Did you know?",
   "onboardingSummaryHeadline": "Improving listening & speaking\nisn't about practicing with more materials,\nit's about practicing more thoroughly.",
   "onboardingSummaryPoint1": "Practice with audio that matches your level",
@@ -2340,8 +1934,6 @@
   "speakingPracticeSection": "Speaking practice",
   "autoSkipRetellToggle": "Auto-skip retelling practice",
   "autoSkipRetellSubtitle": "Auto-skip retelling tasks in your learning plan",
-  "autoExpandCachedAnnotationToggle": "Auto-expand Sentence Analysis",
-  "autoExpandCachedAnnotationSubtitle": "Auto-show cached translation, analysis and sense groups",
   "autoShowAiExplanationToggle": "Auto-show AI explanation",
   "autoShowAiExplanationSubtitle": "Automatically show selected AI help when you enter sentence explanations",
   "autoShowAiAnalysisToggle": "AI Analysis",
@@ -2398,16 +1990,11 @@
   "speechPermActionOpenSettings": "Open Settings",
   "speechPermUnsupportedToast": "Recording is not supported on this platform",
   "authSignInTitle": "Sign in to Echo Loop",
-  "authChooseMethod": "Choose how you'd like to continue.",
   "authContinueWithEmail": "Continue with Email Code",
   "authContinueWithApple": "Continue with Apple",
   "authContinueWithGoogle": "Continue with Google",
-  "authProviderComingSoon": "Coming soon",
   "authGoogleUnavailable": "Google sign-in is unavailable on this device. Use an email code instead.",
   "authGoogleServicesOutdated": "Google services are outdated. Please update and try again.",
-  "authPasswordlessHint": "No password needed. We will email you a one-time code.",
-  "authEmailTitle": "Email sign in",
-  "authEmailOtpTitle": "Continue with email",
   "authEmailOtpDescription": "Enter your email and we will send a one-time code.",
   "authEmailOtpAutoCreateHint": "First-time use will create your account automatically.",
   "authEmailLabel": "Email",
@@ -2415,7 +2002,6 @@
   "authOtpRequired": "Enter the 6-digit code",
   "authOtpInvalid": "Enter a valid 6-digit code",
   "authOtpIncorrectOrExpired": "Verification code is incorrect or expired.",
-  "authEnterOtpTitle": "Enter code",
   "authOtpHelpText": "Check spam if you do not see the email.",
   "authSendOtpButton": "Send Code",
   "authSendingOtp": "Sending code",
@@ -2430,25 +2016,8 @@
   },
   "authOtpResent": "A new code has been sent.",
   "authPasswordLabel": "Password",
-  "authConfirmPasswordLabel": "Confirm Password",
   "authSignInButton": "Sign In",
   "authSigningIn": "Signing in",
-  "authCreateAccount": "Create Account",
-  "authCreateAccountTitle": "Create your account",
-  "authCreatingAccount": "Creating account",
-  "authAlreadyHaveAccount": "Already have an account? Sign in",
-  "authForgotPassword": "Forgot password?",
-  "authForgotPasswordTitle": "Reset password",
-  "authForgotPasswordDescription": "Enter your email and we will send a password reset link.",
-  "authResetPasswordTitle": "Set a new password",
-  "authResetPasswordDescription": "Enter your new password to finish password recovery.",
-  "authNewPasswordLabel": "New Password",
-  "authConfirmNewPasswordLabel": "Confirm New Password",
-  "authUpdatePasswordButton": "Update Password",
-  "authUpdatingPassword": "Updating password",
-  "authSendResetLink": "Send Reset Link",
-  "authSendingResetLink": "Sending link",
-  "authBackToSignIn": "Back to sign in",
   "authCheckEmailTitle": "Check your email",
   "authCheckEmailMessage": "We sent a 6-digit code to {email}.",
   "@authCheckEmailMessage": {
@@ -2456,18 +2025,12 @@
       "email": {"type": "String"}
     }
   },
-  "authResetEmailSent": "If an account exists, a reset link has been sent.",
   "authEmailRequired": "Enter your email",
   "authEmailInvalid": "Enter a valid email",
   "authPasswordRequired": "Enter your password",
   "authPasswordTooShort": "Password must be at least 6 characters",
-  "authConfirmPasswordRequired": "Confirm your password",
-  "authConfirmPasswordMismatch": "Passwords do not match",
-  "authShowPassword": "Show password",
-  "authHidePassword": "Hide password",
   "authUnavailable": "Authentication is not configured yet.",
   "authUnknownError": "Something went wrong. Try again.",
-  "authAgreeRequired": "Please agree to the terms and privacy policy first.",
   "authTermsAgreementPrefix": "I have read and agree to the",
   "authTermsContinuationPrefix": "By continuing, you agree to the",
   "authTermsJoiner": " and ",
@@ -2499,12 +2062,9 @@
   "discard": "Discard",
   "importAudio": "Import Audio",
   "importAudioFromFile": "Import from File",
-  "importAudioFromFileDescription": "Choose media files from your phone or cloud drive",
   "importAudioFromUrl": "Import from Link",
   "importAudioFromUrlDescription": "Paste a direct audio link and download it",
   "importAudioFromCloudDrive": "Import from Cloud Storage",
-  "importAudioFromBaiduNetdisk": "Import from Baidu Netdisk",
-  "cloudDriveSourceShort": "Cloud Storage",
   "baiduNetdisk": "Baidu Netdisk",
   "baiduNetdiskAllFiles": "All Files",
   "baiduNetdiskWaitingAuthorization": "Waiting for Baidu authorization...",
@@ -2513,54 +2073,23 @@
   "baiduNetdiskConnectTitle": "Connect Baidu Netdisk",
   "baiduNetdiskConnectDescription": "Authorize Echo Loop to browse your Baidu Netdisk and import selected media files.",
   "baiduNetdiskConnectAction": "Connect Baidu Netdisk",
-  "baiduNetdiskLogoutTooltip": "Sign out of Baidu Netdisk",
   "baiduNetdiskSelectAllAction": "Select",
   "baiduNetdiskClearSelectionAction": "Clear",
-  "baiduNetdiskLogoutTitle": "Sign out of Baidu Netdisk?",
-  "baiduNetdiskLogoutMessage": "Echo Loop will clear the saved Baidu Netdisk authorization on this device.",
-  "baiduNetdiskLogoutConfirm": "Sign Out",
   "baiduNetdiskAccountTooltip": "Baidu Netdisk account",
   "baiduNetdiskAccountTitle": "Baidu Netdisk account",
   "baiduNetdiskUsername": "Baidu username",
   "baiduNetdiskNetdiskName": "Netdisk nickname",
   "baiduNetdiskMembership": "Membership",
-  "baiduNetdiskUserId": "User ID",
   "baiduNetdiskUnavailable": "Not provided",
   "baiduNetdiskDisconnect": "Disconnect Baidu Netdisk",
-  "baiduNetdiskNoSupportedAudio": "No supported media files found in this folder.",
   "importAudioShort": "Import",
   "cancelImport": "Cancel Import",
   "cancelingImport": "Canceling Import…",
-  "importAudioSelectedCount": "Import {count}",
-  "@importAudioSelectedCount": {
-    "placeholders": {
-      "count": {"type": "int"}
-    }
-  },
   "importAudioAndSubtitleCount": "Import ({audioCount, plural, =0{} =1{1 item} other{{audioCount} items}}{subtitleCount, plural, =0{} =1{, 1 subtitle} other{, {subtitleCount} subtitles}})",
   "@importAudioAndSubtitleCount": {
     "placeholders": {
       "audioCount": {"type": "int"},
       "subtitleCount": {"type": "int"}
-    }
-  },
-  "baiduNetdiskImportingFile": "Importing {name}...",
-  "@baiduNetdiskImportingFile": {
-    "placeholders": {
-      "name": {"type": "String"}
-    }
-  },
-  "baiduNetdiskImportedCount": "Imported {count} from Baidu Netdisk",
-  "@baiduNetdiskImportedCount": {
-    "placeholders": {
-      "count": {"type": "int"}
-    }
-  },
-  "baiduNetdiskSkippedSummary": "Skipped duplicates: {duplicates} · Failed: {failures}",
-  "@baiduNetdiskSkippedSummary": {
-    "placeholders": {
-      "duplicates": {"type": "int"},
-      "failures": {"type": "int"}
     }
   },
   "audioUrlLabel": "Audio link",
@@ -2646,7 +2175,6 @@
   "ttsEnginePlatformApple": "Apple AI",
   "ttsEnginePlatformDescription": "Built into your device. Fast, no download required, average quality.",
   "ttsEngineEchoLoop": "Echo Loop AI (Advanced)",
-  "ttsEngineComingSoon": "Coming soon",
   "ttsEngineEchoLoopDescription": "Best sound quality. Needs a model download; recommended for high-performance devices.",
   "ttsEnginePiper": "Echo Loop AI (Balanced)",
   "ttsEnginePiperDescription": "Natural, smooth sound. Needs a model download; recommended for mid-range devices.",
@@ -2717,7 +2245,6 @@
   "dictionaryAdFilterTitle": "Block ads in web dictionaries",
   "dictSourceLocal": "Basic Dictionary",
   "dictSourceAi": "AI Dictionary",
-  "dictSourceCambridge": "Cambridge",
   "dictSourceAlwaysOn": "Always on",
   "dictSourceCannotDisable": "{name} is a base source and can't be disabled",
   "@dictSourceCannotDisable": {
@@ -2728,8 +2255,6 @@
   "@dictSwitcherSemantics": {
     "placeholders": { "name": { "type": "String" } }
   },
-  "cambridgeNotFound": "Not found in Cambridge",
-  "dictTryOtherSource": "Try another dictionary",
   "dictCambridgeOpenInBrowser": "Open in browser",
   "aiNoAnalysis": "No AI analysis available",
   "aiSignInRequired": "Sign in to use the AI dictionary",
@@ -2737,8 +2262,6 @@
   "@dictPhraseTooLong": {
     "description": "AI 词典查询词组超过单词数上限时的提示"
   },
-  "ttsPlayUk": "Play UK pronunciation",
-  "ttsPlayUs": "Play US pronunciation",
   "dictAiSynonyms": "Synonyms",
   "dictAiAntonyms": "Antonyms",
   "dictAiExpressions": "collocation ",
@@ -2827,7 +2350,6 @@
   "videoNoTranscript": "No transcript",
   "videoRetry": "Retry",
   "pronunciationPlay": "Play pronunciation",
-  "redownload": "Download again",
   "collapseSidebar": "Collapse sidebar",
   "expandSidebar": "Expand sidebar",
   "audioDetailTitle": "File details",

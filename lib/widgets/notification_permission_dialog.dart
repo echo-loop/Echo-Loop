@@ -15,7 +15,6 @@ import '../analytics/analytics_providers.dart';
 import '../analytics/models/event_names.dart';
 import '../l10n/app_localizations.dart';
 import '../providers/notification_permission_provider.dart';
-import '../services/notification_permission_service.dart';
 
 /// 显示 pre-prompt。返回 true 表示用户同意且系统授权成功。
 ///
