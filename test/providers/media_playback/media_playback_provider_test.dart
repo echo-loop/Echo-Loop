@@ -30,6 +30,7 @@ import 'package:mocktail/mocktail.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../helpers/mock_providers.dart';
+import '../../helpers/skewed_clock.dart';
 import '../../helpers/shared/fake_media_player_backend.dart';
 
 class _FailOnceStudyTimeService extends StudyTimeService {
@@ -219,15 +220,19 @@ void main() {
     fail('Timed out waiting for the asynchronous study duration write.');
   }
 
-  test('finishStudyPage 等待未 checkpoint 的最终学习时长写入', () async {
-    final controller = await loadController();
-    final generation = controller.beginStudyPage();
+  test('finishStudyPage 等待未 checkpoint 的最终学习时长写入', () {
+    return runWithSkewedClock((advance) async {
+      final controller = await loadController();
+      final generation = controller.beginStudyPage();
 
-    await Future<void>.delayed(const Duration(milliseconds: 1100));
-    await controller.finishStudyPage(generation: generation);
+      advance(const Duration(milliseconds: 1100));
+      await controller.finishStudyPage(generation: generation);
 
-    final record = await database.dailyStudyRecordDao.getByDate(DateTime.now());
-    expect(record?.studyTimeMilliseconds, greaterThanOrEqualTo(1000));
+      final record = await database.dailyStudyRecordDao.getByDate(
+        DateTime.now(),
+      );
+      expect(record?.studyTimeMilliseconds, greaterThanOrEqualTo(1000));
+    });
   });
 
   test('媒体锁屏控制统一为上一首、播放暂停、下一首并保留对应行为', () async {
@@ -1073,70 +1078,74 @@ void main() {
     await controller.pause();
   });
 
-  test('按句媒体播放自然完成后异步记录学习统计', () async {
-    final controller = await loadController();
-    final studyPageGeneration = controller.beginStudyPage();
-    await controller.updateSettings(
-      container
-          .read(mediaPlaybackProvider)
-          .settings
-          .copyWith(
-            loopSentence: true,
-            sentenceLoopCount: 1,
-            sentenceInterval: Duration.zero,
-          ),
-    );
+  test('按句媒体播放自然完成后异步记录学习统计', () {
+    return runWithSkewedClock((advance) async {
+      final controller = await loadController();
+      final studyPageGeneration = controller.beginStudyPage();
+      await controller.updateSettings(
+        container
+            .read(mediaPlaybackProvider)
+            .settings
+            .copyWith(
+              loopSentence: true,
+              sentenceLoopCount: 1,
+              sentenceInterval: Duration.zero,
+            ),
+      );
 
-    unawaited(controller.play());
-    await waitUntil(() => backend.playCalls == 1);
-    await Future<void>.delayed(const Duration(milliseconds: 1100));
-    // 区间播放以到达句尾位置作为自然完成信号；直接发整媒体完成事件会因
-    // fake backend 未同步到区间终点而被 MediaEngine 判为失败。
-    backend.emitPosition(const Duration(seconds: 50));
-    await waitForSentenceStatistics();
-    await controller.pause();
-    await controller.endStudyPage(studyPageGeneration);
-    await waitForStudyDuration();
-    await container.read(learnedVocabularyTrackerProvider).flush();
+      unawaited(controller.play());
+      await waitUntil(() => backend.playCalls == 1);
+      advance(const Duration(milliseconds: 1100));
+      // 区间播放以到达句尾位置作为自然完成信号；直接发整媒体完成事件会因
+      // fake backend 未同步到区间终点而被 MediaEngine 判为失败。
+      backend.emitPosition(const Duration(seconds: 50));
+      await waitForSentenceStatistics();
+      await controller.pause();
+      await controller.endStudyPage(studyPageGeneration);
+      await waitForStudyDuration();
+      await container.read(learnedVocabularyTrackerProvider).flush();
 
-    final record = await database.dailyStudyRecordDao.getByDate(DateTime.now());
-    expect(record?.studyTimeMilliseconds, greaterThanOrEqualTo(1000));
-    expect(record?.inputTimeMilliseconds, greaterThanOrEqualTo(1000));
-    expect(
-      record?.inputTimeMilliseconds,
-      lessThanOrEqualTo(record?.studyTimeMilliseconds ?? 0),
-    );
-    expect(record?.inputWords, 2);
-    final stageRecord = (await database.dailyStageStudyRecordDao.getByDate(
-      DateTime.now(),
-    )).singleWhere((item) => item.stage == StudyStage.freePlayer);
-    expect(stageRecord.studyTimeMilliseconds, greaterThanOrEqualTo(1000));
-    expect(
-      stageRecord.inputTimeMilliseconds,
-      lessThanOrEqualTo(stageRecord.studyTimeMilliseconds),
-    );
-    expect(await database.learnedWordFormDao.countAll(), 2);
+      final record = await database.dailyStudyRecordDao.getByDate(DateTime.now());
+      expect(record?.studyTimeMilliseconds, greaterThanOrEqualTo(1000));
+      expect(record?.inputTimeMilliseconds, greaterThanOrEqualTo(1000));
+      expect(
+        record?.inputTimeMilliseconds,
+        lessThanOrEqualTo(record?.studyTimeMilliseconds ?? 0),
+      );
+      expect(record?.inputWords, 2);
+      final stageRecord = (await database.dailyStageStudyRecordDao.getByDate(
+        DateTime.now(),
+      )).singleWhere((item) => item.stage == StudyStage.freePlayer);
+      expect(stageRecord.studyTimeMilliseconds, greaterThanOrEqualTo(1000));
+      expect(
+        stageRecord.inputTimeMilliseconds,
+        lessThanOrEqualTo(stageRecord.studyTimeMilliseconds),
+      );
+      expect(await database.learnedWordFormDao.countAll(), 2);
+    });
   });
 
-  test('连续媒体播放自然完成后异步记录所有已听句子的词数和词汇', () async {
-    final controller = await loadController();
-    final studyPageGeneration = controller.beginStudyPage();
+  test('连续媒体播放自然完成后异步记录所有已听句子的词数和词汇', () {
+    return runWithSkewedClock((advance) async {
+      final controller = await loadController();
+      final studyPageGeneration = controller.beginStudyPage();
 
-    unawaited(controller.play());
-    await waitUntil(() => backend.playCalls == 1);
-    await Future<void>.delayed(const Duration(milliseconds: 1100));
-    backend.emitPosition(const Duration(seconds: 120));
-    backend.emitCompleted();
+      unawaited(controller.play());
+      await waitUntil(() => backend.playCalls == 1);
+      advance(const Duration(milliseconds: 1100));
+      backend.emitPosition(const Duration(seconds: 120));
+      backend.emitCompleted();
 
-    await waitForSentenceStatistics(minimumWords: 8);
-    await controller.endStudyPage(studyPageGeneration);
-    await container.read(studyTimeServiceProvider).flush();
-    await waitForStudyDuration();
-    await container.read(learnedVocabularyTrackerProvider).flush();
+      await waitForSentenceStatistics(minimumWords: 8);
+      await controller.endStudyPage(studyPageGeneration);
+      await container.read(studyTimeServiceProvider).flush();
+      await waitForStudyDuration();
+      await container.read(learnedVocabularyTrackerProvider).flush();
 
-    final record = await database.dailyStudyRecordDao.getByDate(DateTime.now());
-    expect(record?.inputWords, 8);
-    expect(await database.learnedWordFormDao.countAll(), 5);
+      final record = await database.dailyStudyRecordDao.getByDate(DateTime.now());
+      expect(record?.inputWords, 8);
+      expect(await database.learnedWordFormDao.countAll(), 5);
+    });
   });
 
   test('releaseFromScreen 后迟到的底层播放事件不再污染状态且 backend 保留', () async {

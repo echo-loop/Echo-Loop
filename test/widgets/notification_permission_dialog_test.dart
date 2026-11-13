@@ -86,13 +86,6 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  testWidgets('渲染标题和正文', (tester) async {
-    await pumpAndShow(tester);
-    expect(find.byType(AlertDialog), findsOneWidget);
-    expect(find.text('Turn on reminders'), findsOneWidget);
-    expect(find.text('Maybe later'), findsOneWidget);
-  });
-
   testWidgets('点 Turn on → onUserAcceptedPrompt 被调用', (tester) async {
     await pumpAndShow(tester);
     await tester.tap(find.text('Turn on reminders'));

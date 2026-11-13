@@ -19,14 +19,17 @@ import 'package:echo_loop/models/playback_settings.dart';
 import 'package:echo_loop/models/sentence.dart';
 import 'package:echo_loop/models/study_stage.dart';
 import 'package:echo_loop/providers/audio_engine/audio_engine_provider.dart';
-import 'package:echo_loop/providers/listening_practice/listening_practice_provider.dart';
 import 'package:echo_loop/features/rating_prompt/data/rating_prompt_task_completion_store.dart';
 import 'package:echo_loop/features/rating_prompt/rating_prompt_providers.dart';
+import 'package:echo_loop/providers/listening_practice/listening_practice_provider.dart';
 import 'package:echo_loop/services/app_logger.dart';
 import 'package:echo_loop/services/study_activity_gate.dart';
 import 'package:echo_loop/services/study_time_service.dart';
-import '../../helpers/mock_providers.dart';
 
+import '../../helpers/mock_providers.dart';
+import '../../helpers/skewed_clock.dart';
+
+/// 可控 AudioEngine：真实 session 计数 + position/playerState 流 + 调用记录。
 /// 记录任务完成写入，用于断言随心听整篇自然播完时记为任务完成。
 class _RecordingCompletionStore extends RatingPromptTaskCompletionStore {
   _RecordingCompletionStore(super.preferences);
@@ -42,7 +45,6 @@ class _RecordingCompletionStore extends RatingPromptTaskCompletionStore {
 
 late _RecordingCompletionStore _completionStore;
 
-/// 可控 AudioEngine：真实 session 计数 + position/playerState 流 + 调用记录。
 class _FlowAudioEngine extends TestAudioEngine {
   int _sessionId = 0;
   int positionListenCount = 0;
@@ -403,19 +405,21 @@ void main() {
     await Future<void>.delayed(Duration.zero);
   });
 
-  test('finishStudyPage 等待未 checkpoint 的最终学习时长写入', () async {
-    await useRecordingStatisticsRecorder();
-    final generation = studyPageGeneration;
-    expect(generation, isNotNull);
+  test('finishStudyPage 等待未 checkpoint 的最终学习时长写入', () {
+    return runWithSkewedClock((advance) async {
+      await useRecordingStatisticsRecorder();
+      final generation = studyPageGeneration;
+      expect(generation, isNotNull);
 
-    await Future<void>.delayed(const Duration(milliseconds: 1100));
-    await lp.finishStudyPage(generation: generation);
-    studyPageGeneration = null;
+      advance(const Duration(milliseconds: 1100));
+      await lp.finishStudyPage(generation: generation);
+      studyPageGeneration = null;
 
-    final record = await statisticsDatabase!.dailyStudyRecordDao.getByDate(
-      DateTime.now(),
-    );
-    expect(record?.studyTimeMilliseconds, greaterThanOrEqualTo(1000));
+      final record = await statisticsDatabase!.dailyStudyRecordDao.getByDate(
+        DateTime.now(),
+      );
+      expect(record?.studyTimeMilliseconds, greaterThanOrEqualTo(1000));
+    });
   });
 
   test('统计 flush 失败时音频退出仍暂停并完成断点保存', () async {
@@ -488,47 +492,51 @@ void main() {
     expect(engine.lastClipStart, isNull);
   });
 
-  test('按句播放自然完成后异步记录时长、词数和词汇', () async {
-    await useRecordingStatisticsRecorder();
-    lp.seed(
-      sentences: sentences,
-      settings: const PlaybackSettings(
-        loopSentence: true,
-        sentenceLoopCount: 1,
-        sentenceInterval: Duration.zero,
-      ),
-    );
+  test('按句播放自然完成后异步记录时长、词数和词汇', () {
+    return runWithSkewedClock((advance) async {
+      await useRecordingStatisticsRecorder();
+      lp.seed(
+        sentences: sentences,
+        settings: const PlaybackSettings(
+          loopSentence: true,
+          sentenceLoopCount: 1,
+          sentenceInterval: Duration.zero,
+        ),
+      );
 
-    await start();
-    await Future<void>.delayed(const Duration(milliseconds: 1100));
-    await completeClip();
-    await lp.pause();
-    await finishStudyPage();
-    await waitForInputStatistics();
-    final database = statisticsDatabase;
-    final service = statisticsService;
-    if (service == null || database == null) {
-      throw StateError('Statistics service test fixture is unavailable.');
-    }
-    await service.flush();
+      await start();
+      advance(const Duration(milliseconds: 1100));
+      await completeClip();
+      await lp.pause();
+      await finishStudyPage();
+      await waitForInputStatistics();
+      final database = statisticsDatabase;
+      final service = statisticsService;
+      if (service == null || database == null) {
+        throw StateError('Statistics service test fixture is unavailable.');
+      }
+      await service.flush();
 
-    final record = await database.dailyStudyRecordDao.getByDate(DateTime.now());
-    expect(record?.studyTimeMilliseconds, greaterThanOrEqualTo(1000));
-    expect(record?.inputTimeMilliseconds, greaterThanOrEqualTo(1000));
-    expect(
-      record?.inputTimeMilliseconds,
-      lessThanOrEqualTo(record?.studyTimeMilliseconds ?? 0),
-    );
-    expect(record?.inputWords, 2);
-    final stageRecord = (await database.dailyStageStudyRecordDao.getByDate(
-      DateTime.now(),
-    )).singleWhere((item) => item.stage == StudyStage.freePlayer);
-    expect(stageRecord.studyTimeMilliseconds, greaterThanOrEqualTo(1000));
-    expect(
-      stageRecord.inputTimeMilliseconds,
-      lessThanOrEqualTo(stageRecord.studyTimeMilliseconds),
-    );
-    expect(await database.learnedWordFormDao.countAll(), 2);
+      final record = await database.dailyStudyRecordDao.getByDate(
+        DateTime.now(),
+      );
+      expect(record?.studyTimeMilliseconds, greaterThanOrEqualTo(1000));
+      expect(record?.inputTimeMilliseconds, greaterThanOrEqualTo(1000));
+      expect(
+        record?.inputTimeMilliseconds,
+        lessThanOrEqualTo(record?.studyTimeMilliseconds ?? 0),
+      );
+      expect(record?.inputWords, 2);
+      final stageRecord = (await database.dailyStageStudyRecordDao.getByDate(
+        DateTime.now(),
+      )).singleWhere((item) => item.stage == StudyStage.freePlayer);
+      expect(stageRecord.studyTimeMilliseconds, greaterThanOrEqualTo(1000));
+      expect(
+        stageRecord.inputTimeMilliseconds,
+        lessThanOrEqualTo(stageRecord.studyTimeMilliseconds),
+      );
+      expect(await database.learnedWordFormDao.countAll(), 2);
+    });
   });
 
   test('连续播放自然完成后记录总时长、听力时长、词数和词汇', () async {

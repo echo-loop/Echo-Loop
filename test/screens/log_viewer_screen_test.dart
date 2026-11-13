@@ -15,6 +15,17 @@ import 'package:share_plus/share_plus.dart';
 
 const _shareButtonKey = ValueKey('log_viewer_share_button');
 
+/// 轮询等待分享压缩等真实 I/O 完成，替代固定 sleep，避免慢机器上偶发失败。
+Future<void> _waitUntilShared(bool Function() isShared) async {
+  final deadline = DateTime.now().add(const Duration(seconds: 5));
+  while (!isShared()) {
+    if (DateTime.now().isAfter(deadline)) {
+      throw TestFailure('等待日志分享完成超时');
+    }
+    await Future<void>.delayed(const Duration(milliseconds: 10));
+  }
+}
+
 class _FakePathProvider extends PathProviderPlatform {
   _FakePathProvider(this.tempPath);
 
@@ -190,7 +201,7 @@ void main() {
 
     await tester.runAsync(() async {
       shareButton.onPressed!();
-      await Future<void>.delayed(const Duration(milliseconds: 500));
+      await _waitUntilShared(() => sharedPaths.isNotEmpty);
     });
     await tester.pump();
 
@@ -244,9 +255,7 @@ void main() {
     expect(sharedPaths, isEmpty);
 
     completer.complete(<String, Object?>{'model': 'DelayedPhone'});
-    await tester.runAsync(() async {
-      await Future<void>.delayed(const Duration(milliseconds: 500));
-    });
+    await tester.runAsync(() => _waitUntilShared(() => sharedPaths.isNotEmpty));
     await tester.pump();
 
     expect(sharedPaths, hasLength(1));

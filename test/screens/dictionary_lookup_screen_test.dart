@@ -311,8 +311,11 @@ void main() {
       await tester.testTextInput.receiveAction(TextInputAction.search);
       await _settle(tester);
 
-      final rows = await db.lookupHistoryDao.watchRecent().first;
-      expect(rows.map((row) => row.word), ['zyzzyva']);
+      // 真实 SQLite 的 stream 依赖真实异步 I/O，需跳出 FakeAsync 才能收到结果。
+      final rows = await tester.runAsync(
+        () => db.lookupHistoryDao.watchRecent().first,
+      );
+      expect(rows!.map((row) => row.word), ['zyzzyva']);
     });
 
     testWidgets('确认查词后立即后台预热标题发音', (tester) async {

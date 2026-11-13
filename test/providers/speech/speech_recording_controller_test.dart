@@ -8,6 +8,7 @@ import 'package:echo_loop/models/speech_practice_models.dart';
 import 'package:echo_loop/providers/offline_asr_settings_provider.dart';
 import 'package:echo_loop/providers/speech/speech_recording_controller.dart';
 import 'package:echo_loop/services/recording_service.dart';
+import 'package:echo_loop/services/speech_completion_detector.dart';
 import 'package:echo_loop/services/speech_practice_platform.dart';
 
 import '../../helpers/mock_providers.dart';
@@ -28,6 +29,23 @@ final _testAsrSettings = OfflineAsrSettingsState(
 class _FakeOfflineAsrSettingsNotifier extends OfflineAsrSettingsNotifier {
   @override
   OfflineAsrSettingsState build() => _testAsrSettings;
+}
+
+/// 返回固定停滞阈值的启发式，用于隔离验证计时器本身的行为。
+class _FixedThresholdHeuristic extends SpeechPracticeCompletionHeuristic {
+  const _FixedThresholdHeuristic(this.threshold);
+
+  final Duration threshold;
+
+  @override
+  DetectionResult computeSilenceThresholdDetailed({
+    required String referenceText,
+    required String partialTranscript,
+    Duration? voicedDuration,
+    Duration? referenceDuration,
+  }) {
+    return DetectionResult(threshold: threshold, description: '固定阈值');
+  }
 }
 
 class _FakeSpeechPracticeBackend implements SpeechPracticeBackend {
@@ -700,6 +718,7 @@ void main() {
       _FakeSpeechPracticeBackend? backend;
       SpeechRecordingController? controller;
 
+      // 固定 1s 停滞阈值，只验证计时器的重置行为；阈值规则由检测器单测覆盖。
       await tester.runAsync(() async {
         backend = _FakeSpeechPracticeBackend(autoEmitFinal: false);
         container = ProviderContainer(
@@ -710,6 +729,9 @@ void main() {
             recommendedAsrModelProvider.overrideWithValue(_testAsrModel),
             offlineAsrSettingsProvider.overrideWith(
               () => _FakeOfflineAsrSettingsNotifier(),
+            ),
+            speechPracticeCompletionHeuristicProvider.overrideWithValue(
+              const _FixedThresholdHeuristic(Duration(seconds: 1)),
             ),
           ]),
         );
@@ -722,30 +744,21 @@ void main() {
           referenceText: 'Anyhow I noticed your name on the door',
         );
 
+        // 首个转录在 t≈0 启动 1s 计时器，t≈0.5s 的更新应把它重置到 t≈1.5s。
         backend!.emitSpeechStarted();
         backend!.emitPartial('Anyhow');
-        await Future<void>.delayed(const Duration(milliseconds: 10));
-
-        // 4s 后更新转录 → 重置计时器
-        await Future<void>.delayed(const Duration(seconds: 4));
-        expect(
-          container!.read(speechRecordingControllerProvider).phase,
-          SpeechRecordingPhase.speaking,
-        );
+        await Future<void>.delayed(const Duration(milliseconds: 500));
         backend!.emitPartial('Anyhow I noticed');
-        await Future<void>.delayed(const Duration(milliseconds: 10));
 
-        // 再过 4s 仍在 speaking（计时器已重置）
-        await Future<void>.delayed(const Duration(seconds: 4));
+        // t≈1.2s：越过原计时器的 1s，但未越过重置后的 1.5s。
+        await Future<void>.delayed(const Duration(milliseconds: 700));
         expect(
           container!.read(speechRecordingControllerProvider).phase,
           SpeechRecordingPhase.speaking,
         );
 
-        // 再过 1s（共 5s 无更新）→ 触发
-        await Future<void>.delayed(
-          const Duration(seconds: 1, milliseconds: 50),
-        );
+        // t≈1.8s：已越过重置后的计时器。
+        await Future<void>.delayed(const Duration(milliseconds: 600));
         expect(
           container!.read(speechRecordingControllerProvider).phase,
           SpeechRecordingPhase.processing,
@@ -863,7 +876,9 @@ void main() {
       final controller = container.read(
         speechRecordingControllerProvider.notifier,
       );
-      // 默认 maxRecordingDuration = 30s
+      // 缩短最大时长到 1s：停止链路依赖真实异步，无法用 FakeAsync 推进，
+      // 真实等待 30s 会拖慢整个测试套件。
+      controller.setMaxRecordingDuration(const Duration(seconds: 1));
       await controller.startRecording(
         promptId: 'shadowing:a1:0',
         referenceText: 'Hello world',
@@ -873,16 +888,16 @@ void main() {
       backend.emitSpeechStarted();
       await Future<void>.delayed(const Duration(milliseconds: 10));
 
-      // 29s 时仍在录音
-      await Future<void>.delayed(const Duration(seconds: 29));
+      // 1s 前仍在录音
+      await Future<void>.delayed(const Duration(milliseconds: 900));
       final midState = container.read(speechRecordingControllerProvider);
       expect(midState.phase, SpeechRecordingPhase.speaking);
 
-      // 30s 时触发最大时长兜底
-      await Future<void>.delayed(const Duration(seconds: 1, milliseconds: 50));
+      // 超过 1s 后触发最大时长兜底
+      await Future<void>.delayed(const Duration(milliseconds: 150));
       final finalState = container.read(speechRecordingControllerProvider);
       expect(finalState.phase, SpeechRecordingPhase.processing);
-    }, timeout: const Timeout(Duration(seconds: 60)));
+    });
 
     test('手动模式不启动等待计时器和自动停止', () async {
       final backend = _FakeSpeechPracticeBackend(autoEmitFinal: false);

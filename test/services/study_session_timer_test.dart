@@ -16,6 +16,7 @@ class _RecordingStudyTimeService extends StudyTimeService {
 
   final List<Duration> recordedStudy = <Duration>[];
   final List<Duration> recordedInput = <Duration>[];
+  final List<StudyStage> recordedStages = <StudyStage>[];
   bool failNextRecord = false;
 
   @override
@@ -27,6 +28,7 @@ class _RecordingStudyTimeService extends StudyTimeService {
   }) async {
     recordedStudy.add(studyDuration);
     recordedInput.add(inputDuration);
+    recordedStages.add(stage);
     if (failNextRecord) {
       failNextRecord = false;
       throw StateError('simulated statistics write failure');
@@ -51,105 +53,110 @@ void main() {
     await db.close();
   });
 
-  test('stop persists foreground duration under the requested stage', () async {
-    final timer = StudySessionTimer(
-      studyTimeService: StudyTimeService(
-        db.dailyStudyRecordDao,
-        db.dailyStageStudyRecordDao,
-      ),
-      stage: StudyStage.savedSentencesReview,
-      activityGate: activityGate,
-    );
+  test('stop persists foreground duration under the requested stage', () {
+    fakeAsync((async) {
+      withClock(async.getClock(DateTime(2026, 9, 8)), () {
+        final service = _RecordingStudyTimeService(db);
+        final timer = StudySessionTimer(
+          studyTimeService: service,
+          stage: StudyStage.savedSentencesReview,
+          activityGate: activityGate,
+        );
 
-    timer.start();
-    await Future<void>.delayed(const Duration(milliseconds: 1100));
-    await timer.stop();
+        timer.start();
+        async.elapse(const Duration(milliseconds: 1100));
+        timer.stop();
+        async.flushMicrotasks();
 
-    final records = await db.dailyStageStudyRecordDao.getByDate(DateTime.now());
-    final record = records.singleWhere(
-      (item) => item.stage == StudyStage.savedSentencesReview,
-    );
-    expect(record.studyTimeMilliseconds, greaterThanOrEqualTo(1000));
-    await timer.dispose();
+        expect(service.recordedStudy, [const Duration(milliseconds: 1100)]);
+        expect(service.recordedStages, [StudyStage.savedSentencesReview]);
+        timer.dispose();
+        async.flushMicrotasks();
+      });
+    });
   });
 
-  test('播放时长单独计入输入时长', () async {
-    final timer = StudySessionTimer(
-      studyTimeService: StudyTimeService(
-        db.dailyStudyRecordDao,
-        db.dailyStageStudyRecordDao,
-      ),
-      stage: StudyStage.freePlayer,
-      activityGate: activityGate,
-    );
+  test('播放时长单独计入输入时长', () {
+    fakeAsync((async) {
+      withClock(async.getClock(DateTime(2026, 9, 8)), () {
+        final service = _RecordingStudyTimeService(db);
+        final timer = StudySessionTimer(
+          studyTimeService: service,
+          stage: StudyStage.freePlayer,
+          activityGate: activityGate,
+        );
 
-    timer.start();
-    timer.setPlaybackActive(true);
-    await Future<void>.delayed(const Duration(milliseconds: 1100));
-    timer.setPlaybackActive(false);
-    await timer.stop();
+        timer.start();
+        timer.setPlaybackActive(true);
+        async.elapse(const Duration(milliseconds: 1100));
+        timer.setPlaybackActive(false);
+        timer.stop();
+        async.flushMicrotasks();
 
-    final record = await db.dailyStudyRecordDao.getByDate(DateTime.now());
-    expect(record?.studyTimeMilliseconds, greaterThanOrEqualTo(1000));
-    expect(record?.inputTimeMilliseconds, greaterThanOrEqualTo(1000));
-    expect(
-      record?.inputTimeMilliseconds,
-      lessThanOrEqualTo(record?.studyTimeMilliseconds ?? 0),
-    );
-    await timer.dispose();
+        expect(service.recordedStudy, [const Duration(milliseconds: 1100)]);
+        expect(service.recordedInput, [const Duration(milliseconds: 1100)]);
+        timer.dispose();
+        async.flushMicrotasks();
+      });
+    });
   });
 
-  test('后台启动时不计时，回到前台后才开始计时', () async {
-    binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
-    binding.handleAppLifecycleStateChanged(AppLifecycleState.hidden);
+  test('后台启动时不计时，回到前台后才开始计时', () {
+    fakeAsync((async) {
+      withClock(async.getClock(DateTime(2026, 9, 8)), () {
+        binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+        binding.handleAppLifecycleStateChanged(AppLifecycleState.hidden);
 
-    final timer = StudySessionTimer(
-      studyTimeService: StudyTimeService(
-        db.dailyStudyRecordDao,
-        db.dailyStageStudyRecordDao,
-      ),
-      stage: StudyStage.freePlayer,
-      activityGate: activityGate,
-    );
+        final service = _RecordingStudyTimeService(db);
+        final timer = StudySessionTimer(
+          studyTimeService: service,
+          stage: StudyStage.freePlayer,
+          activityGate: activityGate,
+        );
 
-    timer.start();
-    expect(timer.elapsed, Duration.zero);
+        timer.start();
+        expect(timer.elapsed, Duration.zero);
 
-    binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
-    binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
-    await Future<void>.delayed(const Duration(milliseconds: 1100));
-    await timer.stop();
+        binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+        binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+        async.elapse(const Duration(milliseconds: 1100));
+        timer.stop();
+        async.flushMicrotasks();
 
-    final record = await db.dailyStudyRecordDao.getByDate(DateTime.now());
-    expect(record?.studyTimeMilliseconds, greaterThanOrEqualTo(1000));
-    await timer.dispose();
+        expect(service.recordedStudy, [const Duration(milliseconds: 1100)]);
+        timer.dispose();
+        async.flushMicrotasks();
+      });
+    });
   });
 
-  test('切到后台暂停计时，回到前台后恢复计时', () async {
-    final timer = StudySessionTimer(
-      studyTimeService: StudyTimeService(
-        db.dailyStudyRecordDao,
-        db.dailyStageStudyRecordDao,
-      ),
-      stage: StudyStage.freePlayer,
-      activityGate: activityGate,
-    );
+  test('切到后台暂停计时，回到前台后恢复计时', () {
+    fakeAsync((async) {
+      withClock(async.getClock(DateTime(2026, 9, 8)), () {
+        final timer = StudySessionTimer(
+          studyTimeService: _RecordingStudyTimeService(db),
+          stage: StudyStage.freePlayer,
+          activityGate: activityGate,
+        );
 
-    timer.start();
-    await Future<void>.delayed(const Duration(milliseconds: 1100));
-    binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
-    binding.handleAppLifecycleStateChanged(AppLifecycleState.hidden);
-    final elapsedInForeground = timer.elapsed;
-    await Future<void>.delayed(const Duration(milliseconds: 100));
-    expect(timer.elapsed, elapsedInForeground);
+        timer.start();
+        async.elapse(const Duration(milliseconds: 1100));
+        binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+        binding.handleAppLifecycleStateChanged(AppLifecycleState.hidden);
+        final elapsedInForeground = timer.elapsed;
+        async.elapse(const Duration(milliseconds: 100));
+        expect(timer.elapsed, elapsedInForeground);
 
-    binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
-    binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
-    await Future<void>.delayed(const Duration(milliseconds: 100));
-    expect(timer.elapsed, greaterThan(elapsedInForeground));
+        binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+        binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+        async.elapse(const Duration(milliseconds: 100));
+        expect(timer.elapsed, greaterThan(elapsedInForeground));
 
-    await timer.stop();
-    await timer.dispose();
+        timer.stop();
+        timer.dispose();
+        async.flushMicrotasks();
+      });
+    });
   });
 
   test('允许后台播放的任务在后台继续累计学习和输入时长', () {
