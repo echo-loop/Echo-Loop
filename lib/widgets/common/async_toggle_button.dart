@@ -13,6 +13,30 @@ import 'package:flutter/material.dart';
 /// 与意群 badge 同色系，清爽不发雾。浅色仍用 primaryContainer。
 const _activeFillDark = Color(0xFF1A3A5C);
 
+/// 按钮的自定义配色，用于区分不同类型的按钮。
+///
+/// - 选中态与加载态：文字、图标、描边用 [foreground]，底色用 [background]。
+/// - 未选中态：图标仍用 [foreground] 以保留类型标识，底色与文字使用中性色。
+///
+/// 深色主题下由 [forBrightness] 提亮前景色、降低底色透明度，浅色底在纯黑上会刺眼。
+class AsyncToggleButtonTone {
+  final Color foreground;
+  final Color background;
+
+  const AsyncToggleButtonTone({
+    required this.foreground,
+    required this.background,
+  });
+
+  AsyncToggleButtonTone forBrightness(Brightness brightness) {
+    if (brightness != Brightness.dark) return this;
+    return AsyncToggleButtonTone(
+      foreground: Color.lerp(foreground, Colors.white, 0.35)!,
+      background: foreground.withValues(alpha: 0.16),
+    );
+  }
+}
+
 /// 异步 toggle 按钮
 ///
 /// 按钮最小高度 32dp，宽度随文字自适应，圆角 8dp，图标 16dp + labelMedium 文字。
@@ -35,9 +59,8 @@ class AsyncToggleButton extends StatefulWidget {
   /// 自动触发请求时，按钮没有经过内部点击路径，但仍需要显示加载并禁止重复点击。
   final bool isLoading;
 
-  /// 默认状态下的图标颜色（未激活、未禁用时使用）
-  /// 为 null 时使用 foregroundColor（与文字同色）
-  final Color? iconColor;
+  /// 自定义配色。为 null 时使用 M3 默认配色（选中用 primaryContainer，未选中用灰底）
+  final AsyncToggleButtonTone? tone;
 
   /// 点击回调，返回 Future；按钮自动管理 loading 状态
   final Future<void> Function() onPressed;
@@ -49,7 +72,7 @@ class AsyncToggleButton extends StatefulWidget {
     this.isActive = false,
     this.isDisabled = false,
     this.isLoading = false,
-    this.iconColor,
+    this.tone,
     required this.onPressed,
   });
 
@@ -81,6 +104,7 @@ class _AsyncToggleButtonState extends State<AsyncToggleButton> {
     // 纯黑深色主题下：底色压暗后几乎贴黑，需满底色 + 细描边才能看清芯片边界；
     // 选中态的亮 primary 描边在纯黑上过曝，需柔化。浅色主题保持原样。
     final isDark = theme.brightness == Brightness.dark;
+    final tone = widget.tone?.forBrightness(theme.brightness);
 
     // 根据状态决定颜色
     final Color backgroundColor;
@@ -98,6 +122,21 @@ class _AsyncToggleButtonState extends State<AsyncToggleButton> {
               width: 1,
             )
           : null;
+    } else if (tone != null && (widget.isActive || _effectiveLoading)) {
+      backgroundColor = tone.background;
+      foregroundColor = tone.foreground;
+      // 描边用前景色的淡化版本，避免满色描边在卡片上过重
+      border = Border.all(
+        color: tone.foreground.withValues(alpha: 0.3),
+        width: 1,
+      );
+    } else if (tone != null) {
+      backgroundColor = colorScheme.surface;
+      foregroundColor = colorScheme.onSurfaceVariant;
+      border = Border.all(
+        color: colorScheme.outlineVariant.withValues(alpha: 0.5),
+        width: 1,
+      );
     } else if (widget.isActive || _effectiveLoading) {
       backgroundColor = isDark ? _activeFillDark : colorScheme.primaryContainer;
       foregroundColor = colorScheme.primary;
@@ -148,7 +187,7 @@ class _AsyncToggleButtonState extends State<AsyncToggleButton> {
                   size: 16,
                   color: widget.isDisabled
                       ? foregroundColor
-                      : (widget.iconColor ?? foregroundColor),
+                      : (tone?.foreground ?? foregroundColor),
                 ),
               const SizedBox(width: 4),
               Flexible(

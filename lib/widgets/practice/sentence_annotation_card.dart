@@ -36,6 +36,20 @@ enum ContentLoadState { idle, loading, loaded, error }
 /// 意群显示模式
 enum SenseGroupMode { off, medium, fine }
 
+/// 工具栏按钮配色：解析（紫）、翻译（蓝）、意群（橙），用于区分三类内容。
+const _analysisButtonTone = AsyncToggleButtonTone(
+  foreground: Color(0xFF8E44AD),
+  background: Color(0xFFF3ECFC),
+);
+const _translationButtonTone = AsyncToggleButtonTone(
+  foreground: Color(0xFF3B7DD8),
+  background: Color(0xFFEAF3FD),
+);
+const _senseGroupButtonTone = AsyncToggleButtonTone(
+  foreground: Color(0xFFB86A2B),
+  background: Color(0xFFFDF1E4),
+);
+
 /// 紧凑工具栏后的句子顶部留白。
 const double _sentenceTopPadding = AppSpacing.xs;
 
@@ -887,7 +901,7 @@ class SentenceAnnotationCardState
       key: const ValueKey('analysis'),
       label: l10n.annotationBtnAnalysis,
       icon: Icons.auto_awesome,
-      iconColor: Colors.purple.shade400,
+      tone: _analysisButtonTone,
       isActive: _analysisExpanded && _analysisState != ContentLoadState.idle,
       isDisabled: !_hasAnalysis,
       isLoading: _analysisState == ContentLoadState.loading,
@@ -897,7 +911,7 @@ class SentenceAnnotationCardState
       key: const ValueKey('translation'),
       label: l10n.annotationBtnTranslation,
       icon: Icons.translate,
-      iconColor: Colors.blue.shade600,
+      tone: _translationButtonTone,
       isActive:
           _translationExpanded && _translationState != ContentLoadState.idle,
       isDisabled: !_hasTranslation,
@@ -908,7 +922,7 @@ class SentenceAnnotationCardState
       key: const ValueKey('senseGroup'),
       label: senseGroupLabel,
       icon: Icons.auto_fix_high,
-      iconColor: Colors.orange.shade700,
+      tone: _senseGroupButtonTone,
       isActive: showSenseGroupBlocks,
       isDisabled: !_isSenseGroupEnabled,
       isLoading: _senseGroupState == ContentLoadState.loading,

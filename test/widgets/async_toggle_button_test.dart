@@ -209,6 +209,39 @@ void main() {
       expect(decoration?.border, isNotNull);
     });
 
+    testWidgets('tone：未选中时图标保留配色，选中时底色与描边使用 tone', (tester) async {
+      const tone = AsyncToggleButtonTone(
+        foreground: Color(0xFF8E44AD),
+        background: Color(0xFFF3ECFC),
+      );
+      Widget buildButton({required bool isActive}) => createTestApp(
+        AsyncToggleButton(
+          label: 'Tone',
+          icon: Icons.star,
+          isActive: isActive,
+          tone: tone,
+          onPressed: () async {},
+        ),
+      );
+
+      await tester.pumpWidget(buildButton(isActive: false));
+      expect(tester.widget<Icon>(find.byIcon(Icons.star)).color, tone.foreground);
+
+      await tester.pumpWidget(buildButton(isActive: true));
+      final container = tester.widget<Container>(
+        find.descendant(
+          of: find.byType(AsyncToggleButton),
+          matching: find.byType(Container),
+        ),
+      );
+      final decoration = container.decoration as BoxDecoration;
+      expect(decoration.color, tone.background);
+      expect(
+        (decoration.border as Border).top.color,
+        tone.foreground.withValues(alpha: 0.3),
+      );
+    });
+
     testWidgets('同步完成的 onPressed 不闪烁 loading', (tester) async {
       await tester.pumpWidget(
         createTestApp(
