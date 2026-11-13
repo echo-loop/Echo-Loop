@@ -2288,6 +2288,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get favoriteReviewShowVocabularyOnFront => '正面显示词汇';
 
   @override
+  String get favoriteReviewShowWordDefinitionOnFront => '正面显示释义';
+
+  @override
+  String get favoriteReviewShowWordDefinitionOnFrontHint => '仅对单词有效';
+
+  @override
   String get favoriteReviewSentenceSettings => '收藏句子复习';
 
   @override

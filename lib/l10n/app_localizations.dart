@@ -4238,6 +4238,18 @@ abstract class AppLocalizations {
   /// **'Show vocabulary on front'**
   String get favoriteReviewShowVocabularyOnFront;
 
+  /// No description provided for @favoriteReviewShowWordDefinitionOnFront.
+  ///
+  /// In en, this message translates to:
+  /// **'Show definition on front'**
+  String get favoriteReviewShowWordDefinitionOnFront;
+
+  /// No description provided for @favoriteReviewShowWordDefinitionOnFrontHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Words only'**
+  String get favoriteReviewShowWordDefinitionOnFrontHint;
+
   /// No description provided for @favoriteReviewSentenceSettings.
   ///
   /// In en, this message translates to:

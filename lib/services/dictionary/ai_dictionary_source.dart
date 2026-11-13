@@ -67,6 +67,57 @@ class AiDictionarySource implements DictionarySource {
   /// 内存这层必须显式清，否则清缓存后重查仍命中 L1 返回旧结果。
   void clearMemoryCache() => _memCache.clear();
 
+  /// 只读缓存（L1 内存 → L2 SQLite）：不发起网络请求，也不要求登录。
+  ///
+  /// 供只读展示使用（如收藏单词正面释义），调用方借此不会消耗 AI 额度；未命中返回 null。
+  Future<AiDictionaryEntry?> readCachedEntry(
+    String word, {
+    String? targetLanguage,
+  }) {
+    final cacheWord = normalizeWord(word);
+    final language = targetLanguage ?? _defaultLanguage;
+    return _readCachedEntry(
+      _cacheKey(cacheWord, language),
+      cacheWord: cacheWord,
+      language: language,
+      isPhrase: cacheWord.contains(' '),
+    );
+  }
+
+  String _cacheKey(String cacheWord, String language) =>
+      hashText('$cacheWord|$language');
+
+  /// L1 内存 → L2 SQLite；L2 命中时回填 L1，JSON 损坏视为未命中。
+  Future<AiDictionaryEntry?> _readCachedEntry(
+    String key, {
+    required String cacheWord,
+    required String language,
+    required bool isPhrase,
+  }) async {
+    final mem = _memCache[key];
+    if (mem != null) {
+      AppLogger.log('AI-Dict', '命中内存缓存 词=$cacheWord 语言=$language');
+      return mem;
+    }
+    final cached = await _cacheDao().getByHash(key, _cacheType);
+    if (cached == null) return null;
+    try {
+      final decoded = jsonDecode(cached);
+      if (decoded is Map<String, dynamic>) {
+        final entry = isPhrase
+            ? MultiWordDictionaryEntry.fromJson(decoded)
+            : DictionaryEntry.fromJson(decoded);
+        _memCache[key] = entry;
+        AppLogger.log('AI-Dict', '命中数据库缓存 词=$cacheWord 语言=$language');
+        return entry;
+      }
+    } catch (error) {
+      // 损坏数据，按未命中处理（调用方决定是否继续走网络）
+      AppLogger.log('AI-Dict', '数据库缓存损坏，按未命中处理 词=$cacheWord error=$error');
+    }
+    return null;
+  }
+
   /// 流式查词：按 L1 内存 → L2 SQLite → L3 登录/API 的顺序查找。
   /// L1/L2 命中即时单帧返回；未命中且已登录时走 L3 流式，逐帧 yield，
   /// 收到 final 帧（完整完成）才写 L1+L2。取消/异常在写入前抛出 → 不落缓存。
@@ -81,39 +132,23 @@ class AiDictionarySource implements DictionarySource {
     // 确保 NASA/nasa 复用同一 L1/L2/L3 缓存。
     final word = request.word;
     final cacheWord = normalizeWord(word);
-    final key = hashText('$cacheWord|$language');
+    final key = _cacheKey(cacheWord, language);
     // 单词 / 词组是两条独立功能，类型仅由查询是否含空白决定（同后端 resolveQueryType）；
     // 缓存读取与端点路由都据此选择具体模型，不靠 originalExpression 结构嗅探。
     final isPhrase = cacheWord.contains(' ');
 
-    // L1 内存（即时整块返回，不模拟流式）
-    final mem = _memCache[key];
-    if (mem != null) {
-      AppLogger.log('AI-Dict', '命中内存缓存 词=$cacheWord 语言=$language');
-      yield AiDictResult(mem);
+    final cachedEntry = await _readCachedEntry(
+      key,
+      cacheWord: cacheWord,
+      language: language,
+      isPhrase: isPhrase,
+    );
+    if (cachedEntry != null) {
+      yield AiDictResult(cachedEntry);
       return;
     }
 
-    // L2 SQLite（JSON 损坏则跳过，fallthrough 到 L3）
     final cacheDao = _cacheDao();
-    final cached = await cacheDao.getByHash(key, _cacheType);
-    if (cached != null) {
-      try {
-        final decoded = jsonDecode(cached);
-        if (decoded is Map<String, dynamic>) {
-          final entry = isPhrase
-              ? MultiWordDictionaryEntry.fromJson(decoded)
-              : DictionaryEntry.fromJson(decoded);
-          _memCache[key] = entry;
-          AppLogger.log('AI-Dict', '命中数据库缓存 词=$cacheWord 语言=$language');
-          yield AiDictResult(entry);
-          return;
-        }
-      } catch (error) {
-        // 损坏数据，继续 L3
-        AppLogger.log('AI-Dict', '数据库缓存损坏，转网络请求 词=$cacheWord error=$error');
-      }
-    }
 
     // L3 网络请求需要登录；缓存读取不受登录状态限制。
     if (token == null || token.isEmpty) {

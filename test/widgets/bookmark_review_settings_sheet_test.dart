@@ -107,6 +107,31 @@ void main() {
     );
   });
 
+  testWidgets('单词释义开关写入共用复习设置', (tester) async {
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+
+    await tester.pumpWidget(
+      buildSheet(container, FavoriteReviewSettingsTask.vocabulary),
+    );
+    await tester.pumpAndSettle();
+
+    final showDefinitionSwitch = find.descendant(
+      of: find.byKey(
+        const Key('favorite-review-show-word-definition-on-front'),
+      ),
+      matching: find.byType(Switch),
+    );
+    await tester.ensureVisible(showDefinitionSwitch);
+    await tester.tap(showDefinitionSwitch);
+    await tester.pump();
+
+    expect(
+      container.read(favoriteReviewSettingsProvider).showWordDefinitionOnFront,
+      isTrue,
+    );
+  });
+
   testWidgets('两个专属设置都展开时，固定关闭按钮仍可关闭弹窗', (tester) async {
     final container = ProviderContainer();
     addTearDown(container.dispose);

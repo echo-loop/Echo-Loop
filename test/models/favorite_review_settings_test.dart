@@ -63,4 +63,24 @@ void main() {
       isTrue,
     );
   });
+
+  test('正面显示单词释义默认关闭且能序列化和恢复', () {
+    expect(
+      FavoriteReviewSettings.fromJson(const {}).showWordDefinitionOnFront,
+      isFalse,
+    );
+    expect(
+      FavoriteReviewSettings.fromJson(const {
+        'showWordDefinitionOnFront': 'yes',
+      }).showWordDefinitionOnFront,
+      isFalse,
+    );
+    const settings = FavoriteReviewSettings(showWordDefinitionOnFront: true);
+
+    expect(
+      FavoriteReviewSettings.fromJson(settings.toJson())
+          .showWordDefinitionOnFront,
+      isTrue,
+    );
+  });
 }

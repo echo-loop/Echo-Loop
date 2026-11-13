@@ -22,6 +22,7 @@ import '../providers/dictionary/lookup_controller.dart';
 import '../providers/dictionary/dictionary_registry.dart';
 import '../providers/pronunciation/pronunciation_providers.dart';
 import '../providers/tts/tts_controller_provider.dart';
+import '../models/dictionary/dictionary_entry.dart';
 import '../models/dictionary/dictionary_lookup_result.dart';
 import '../models/dictionary/dict_speakable_texts.dart';
 import '../models/flashcard_item.dart';
@@ -33,6 +34,7 @@ import '../widgets/dictionary/dictionary_panel_host.dart';
 import '../services/app_logger.dart';
 import '../services/dictionary/ai_dictionary_source.dart';
 import '../services/dictionary/dictionary_source.dart';
+import '../services/dictionary/local_dictionary_source.dart';
 import '../theme/app_theme.dart';
 import '../utils/time_format.dart';
 import '../utils/wakelock_mixin.dart';
@@ -336,6 +338,14 @@ class _FavoriteVocabularyReviewScreenState
                                           settings.showVocabularyOnFront,
                                     ),
                                   ),
+                                  showWordDefinition:
+                                      _isSingleWordCard(card) &&
+                                      ref.watch(
+                                        favoriteReviewSettingsProvider.select(
+                                          (settings) => settings
+                                              .showWordDefinitionOnFront,
+                                        ),
+                                      ),
                                   playbackState: state.wordPlaybackState,
                                   hasError: state.mediaError != null,
                                   onReplay: () =>
@@ -417,10 +427,16 @@ class _ReviewProgress extends StatelessWidget {
   }
 }
 
+/// 收藏卡是否为单词（非词组）。词组判定与背面 AI 查词一致：文本含空白即为词组。
+bool _isSingleWordCard(FlashcardItem card) =>
+    card is FlashcardWordItem &&
+    !card.displayText.trim().contains(RegExp(r'\s'));
+
 class _VocabularyFront extends StatelessWidget {
   const _VocabularyFront({
     required this.vocabulary,
     required this.showVocabulary,
+    required this.showWordDefinition,
     required this.playbackState,
     required this.hasError,
     required this.onReplay,
@@ -429,6 +445,7 @@ class _VocabularyFront extends StatelessWidget {
 
   final String vocabulary;
   final bool showVocabulary;
+  final bool showWordDefinition;
   final FavoriteVocabularyReviewPlaybackState playbackState;
   final bool hasError;
   final VoidCallback onReplay;
@@ -479,6 +496,9 @@ class _VocabularyFront extends StatelessWidget {
                       child: SizedBox.expand(
                         child: _CenteredPrompt(
                           vocabulary: showVocabulary ? vocabulary : null,
+                          definition: showWordDefinition
+                              ? _FrontWordDefinition(word: vocabulary)
+                              : null,
                           icon: hasError
                               ? Icons.refresh_rounded
                               : Icons.volume_up_rounded,
@@ -528,15 +548,131 @@ class _VocabularyFront extends StatelessWidget {
   }
 }
 
+/// 收藏单词正面的释义，按顺序取：基础在线词典（本地缓存 → API），未查到时只读 AI 查词缓存。
+/// AI 只读缓存未命中也不发起请求；两者都没有则不占位，释义只是辅助信息，不阻断复习。
+class _FrontWordDefinition extends ConsumerWidget {
+  const _FrontWordDefinition({required this.word});
+
+  final String word;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final lookup = ref.watch(
+      dictionaryLookupControllerProvider(
+        word,
+        preferredSourceId: LocalDictionarySource.sourceId,
+      ),
+    );
+    final current = lookup.current;
+    if (current is LookupLoaded) {
+      final translation = _basicTranslation(current.result);
+      return translation == null
+          ? const SizedBox.shrink()
+          : _DefinitionText(translation);
+    }
+    if (current is LookupNotFound || current is LookupError) {
+      // 按词区分 State：卡片切换时复用同一 State 会沿用上一张词的缓存结果。
+      return _AiCachedDefinition(key: ValueKey(word), word: word);
+    }
+    return const SizedBox.shrink();
+  }
+}
+
+/// 基础词典的中文释义（每个义项一行，原样展示）。
+String? _basicTranslation(DictionaryLookupResult result) {
+  if (result is! LocalDictResult) return null;
+  final translation = result.entry.translation?.trim();
+  return translation == null || translation.isEmpty ? null : translation;
+}
+
+/// 读取 AI 查词的本地缓存（只读，绝不请求 AI）并取第一项释义。
+class _AiCachedDefinition extends ConsumerStatefulWidget {
+  const _AiCachedDefinition({super.key, required this.word});
+
+  final String word;
+
+  @override
+  ConsumerState<_AiCachedDefinition> createState() =>
+      _AiCachedDefinitionState();
+}
+
+class _AiCachedDefinitionState extends ConsumerState<_AiCachedDefinition> {
+  late final Future<String?> _definition = _readDefinition();
+
+  Future<String?> _readDefinition() async {
+    final entry = await ref
+        .read(aiDictionarySourceProvider)
+        .readCachedEntry(
+          widget.word,
+          targetLanguage: ref
+              .read(dictionaryLookupContextProvider)
+              .targetLanguage,
+        );
+    return _aiFirstMeaningText(entry);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<String?>(
+      future: _definition,
+      builder: (context, snapshot) {
+        final definition = snapshot.data;
+        return definition == null
+            ? const SizedBox.shrink()
+            : _DefinitionText(definition);
+      },
+    );
+  }
+}
+
+/// AI 单词结果的第一项释义：词性 + 目标语言对译，无对译时回退英文释义。
+String? _aiFirstMeaningText(AiDictionaryEntry? entry) {
+  if (entry is! DictionaryEntry || entry.meanings.isEmpty) return null;
+  final meaning = entry.meanings.first;
+  final gloss = meaning.translation.isNotEmpty
+      ? meaning.translation.join('；')
+      : meaning.definition;
+  final text = [
+    meaning.partOfSpeech,
+    gloss,
+  ].where((part) => part.trim().isNotEmpty).join(' ');
+  return text.isEmpty ? null : text;
+}
+
+/// 正面释义文本，居中展示并与下方内容保持间距。
+class _DefinitionText extends StatelessWidget {
+  const _DefinitionText(this.text);
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Text(
+          text,
+          key: const Key('favorite-vocabulary-review-front-definition'),
+          textAlign: TextAlign.center,
+          style: Theme.of(context).textTheme.bodyLarge
+              ?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
+        ),
+        const SizedBox(height: AppSpacing.m),
+      ],
+    );
+  }
+}
+
 class _CenteredPrompt extends StatelessWidget {
   const _CenteredPrompt({
     this.vocabulary,
+    this.definition,
     required this.icon,
     required this.title,
     required this.body,
     required this.accent,
   });
   final String? vocabulary;
+  final Widget? definition;
   final IconData icon;
   final String title;
   final String body;
@@ -570,6 +706,7 @@ class _CenteredPrompt extends StatelessWidget {
                 ),
                 const SizedBox(height: AppSpacing.m),
               ],
+              if (definition case final definitionWidget?) definitionWidget,
               DecoratedBox(
                 decoration: BoxDecoration(
                   color: accent.withValues(alpha: 0.1),
@@ -675,10 +812,6 @@ class _VocabularyBackState extends ConsumerState<_VocabularyBack> {
       '翻面 AI 查词状态 word=$word status=$status',
     );
   }
-
-  bool get _isSingleWord =>
-      !widget.card.displayText.trim().contains(RegExp(r'\s')) &&
-      widget.card is FlashcardWordItem;
 
   Future<void> _toggleSourcePlayback() async {
     await ref
@@ -820,7 +953,7 @@ class _VocabularyBackState extends ConsumerState<_VocabularyBack> {
                     ),
                   ],
                 ),
-                if (_isSingleWord) ...[
+                if (_isSingleWordCard(widget.card)) ...[
                   const SizedBox(height: AppSpacing.s),
                   _LocalDictionarySection(word: card.displayText),
                 ],

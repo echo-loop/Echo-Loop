@@ -14,6 +14,7 @@ class FavoriteReviewSettings {
     this.autoPlayBack = true,
     this.autoShowAiLookup = false,
     this.showVocabularyOnFront = false,
+    this.showWordDefinitionOnFront = false,
     this.order = FavoriteReviewOrder.smart,
   });
 
@@ -31,6 +32,9 @@ class FavoriteReviewSettings {
   /// 收藏词汇复习正面是否显示当前词汇。
   final bool showVocabularyOnFront;
 
+  /// 收藏单词复习正面是否显示 AI 释义（仅单词生效，词组不受影响）。
+  final bool showWordDefinitionOnFront;
+
   final FavoriteReviewOrder order;
 
   FavoriteReviewSettings copyWith({
@@ -39,6 +43,7 @@ class FavoriteReviewSettings {
     bool? autoPlayBack,
     bool? autoShowAiLookup,
     bool? showVocabularyOnFront,
+    bool? showWordDefinitionOnFront,
     FavoriteReviewOrder? order,
   }) => FavoriteReviewSettings(
     showNextReviewTime: showNextReviewTime ?? this.showNextReviewTime,
@@ -46,6 +51,8 @@ class FavoriteReviewSettings {
     autoPlayBack: autoPlayBack ?? this.autoPlayBack,
     autoShowAiLookup: autoShowAiLookup ?? this.autoShowAiLookup,
     showVocabularyOnFront: showVocabularyOnFront ?? this.showVocabularyOnFront,
+    showWordDefinitionOnFront:
+        showWordDefinitionOnFront ?? this.showWordDefinitionOnFront,
     order: order ?? this.order,
   );
 
@@ -55,6 +62,7 @@ class FavoriteReviewSettings {
     'autoPlayBack': autoPlayBack,
     'autoShowAiLookup': autoShowAiLookup,
     'showVocabularyOnFront': showVocabularyOnFront,
+    'showWordDefinitionOnFront': showWordDefinitionOnFront,
     'order': order.name,
   };
 
@@ -79,6 +87,9 @@ class FavoriteReviewSettings {
           : false,
       showVocabularyOnFront: json['showVocabularyOnFront'] is bool
           ? json['showVocabularyOnFront'] == true
+          : false,
+      showWordDefinitionOnFront: json['showWordDefinitionOnFront'] is bool
+          ? json['showWordDefinitionOnFront'] == true
           : false,
       order: rawOrder is String
           ? FavoriteReviewOrder.values.firstWhereOrNull(

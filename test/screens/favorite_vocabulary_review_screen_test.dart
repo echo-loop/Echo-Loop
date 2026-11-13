@@ -1,5 +1,8 @@
 import 'dart:async';
 
+import 'package:echo_loop/services/dictionary/ai_dictionary_source.dart';
+import 'package:echo_loop/models/dictionary/dictionary_entry.dart';
+
 import 'package:echo_loop/features/rating_prompt/data/rating_prompt_task_completion_store.dart';
 import 'package:echo_loop/features/rating_prompt/rating_prompt_providers.dart';
 import 'package:echo_loop/database/app_database.dart';
@@ -17,6 +20,7 @@ import 'package:echo_loop/models/dictionary/dictionary_lookup_result.dart';
 import 'package:echo_loop/models/flashcard_item.dart';
 import 'package:echo_loop/models/favorite_review_settings.dart';
 import 'package:echo_loop/providers/dictionary/dictionary_registry.dart';
+import 'package:echo_loop/providers/dictionary/lookup_controller.dart';
 import 'package:echo_loop/providers/favorite_review_settings_provider.dart';
 import 'package:echo_loop/providers/learning_settings_provider.dart';
 import 'package:echo_loop/providers/learning_session/favorite_vocabulary_review_provider.dart';
@@ -78,18 +82,114 @@ class _TestFavoriteReviewSettings extends FavoriteReviewSettingsNotifier {
     this.showNextReviewTime, {
     this.autoShowAiLookup = false,
     this.showVocabularyOnFront = false,
+    this.showWordDefinitionOnFront = false,
   });
+
+  /// 最近一次创建的实例，供测试切换设置。
+  static _TestFavoriteReviewSettings? lastCreated;
 
   final bool showNextReviewTime;
   final bool autoShowAiLookup;
   final bool showVocabularyOnFront;
+  final bool showWordDefinitionOnFront;
 
   @override
-  FavoriteReviewSettings build() => FavoriteReviewSettings(
-    showNextReviewTime: showNextReviewTime,
-    autoShowAiLookup: autoShowAiLookup,
-    showVocabularyOnFront: showVocabularyOnFront,
-  );
+  FavoriteReviewSettings build() {
+    lastCreated = this;
+    return FavoriteReviewSettings(
+      showNextReviewTime: showNextReviewTime,
+      autoShowAiLookup: autoShowAiLookup,
+      showVocabularyOnFront: showVocabularyOnFront,
+      showWordDefinitionOnFront: showWordDefinitionOnFront,
+    );
+  }
+
+  void setAutoShowAiLookup(bool value) {
+    state = state.copyWith(autoShowAiLookup: value);
+  }
+}
+
+/// 正面释义的三种结果：基础词典命中、基础未命中但 AI 有缓存、两者都没有。
+enum _WordDefinitionFixture { basicHit, aiCacheHit, miss }
+
+DictionaryEntry _aiEntry(
+  String headword,
+  String partOfSpeech,
+  List<String> translation,
+) => DictionaryEntry(
+  headword: headword,
+  pronunciation: const Pronunciation(uk: '', us: ''),
+  meanings: [
+    WordMeaning(
+      partOfSpeech: partOfSpeech,
+      translation: translation,
+      definition: 'english gloss',
+      usageNote: '',
+      examples: const [],
+      synonyms: const [],
+      antonyms: const [],
+    ),
+  ],
+  commonExpressions: const [],
+  wordFamily: const [],
+  forms: const [],
+  etymology: '',
+  learnerTips: const [],
+);
+
+/// 基础词典控制器：按场景返回命中或未收录。
+/// 记录每次查询的「词|源」与被查询的词，用于验证预热源与词组不查询。
+class _FakeBasicLookup extends DictionaryLookupController {
+  _FakeBasicLookup(this.fixture);
+
+  final _WordDefinitionFixture fixture;
+  static final List<String> builtWords = [];
+  static final List<String> requests = [];
+
+  @override
+  DictionaryLookupState build(String word, {String? preferredSourceId}) {
+    builtWords.add(word);
+    requests.add('$word|${preferredSourceId ?? ''}');
+    final SourceLookupState state = fixture == _WordDefinitionFixture.basicHit
+        ? LookupLoaded(
+            LocalDictResult(
+              DictEntry(word: word, phonetic: '', translation: 'n. 苹果\nn. 苹果树'),
+            ),
+          )
+        : const LookupNotFound();
+    return DictionaryLookupState(
+      selectedSourceId: LocalDictionarySource.sourceId,
+      bySource: {LocalDictionarySource.sourceId: state},
+    );
+  }
+}
+
+/// AI 查词源：只读缓存按词返回预置条目；统计 lookupStream（网络请求）被调用的次数。
+class _FakeAiDictionarySource extends AiDictionarySource {
+  _FakeAiDictionarySource(this._cachedEntries)
+    : super(
+        cacheDao: () => throw UnimplementedError(),
+        apiClient: () => throw UnimplementedError(),
+      );
+
+  static int networkLookups = 0;
+
+  final Map<String, AiDictionaryEntry> _cachedEntries;
+
+  @override
+  Future<AiDictionaryEntry?> readCachedEntry(
+    String word, {
+    String? targetLanguage,
+  }) async => _cachedEntries[word];
+
+  @override
+  Stream<DictionaryLookupResult?> lookupStream(
+    DictionaryLookupRequest request, {
+    CancelToken? cancelToken,
+  }) {
+    networkLookups++;
+    return const Stream.empty();
+  }
 }
 
 class _TestFavoriteVocabularyReview extends FavoriteVocabularyReview {
@@ -105,6 +205,7 @@ class _TestFavoriteVocabularyReview extends FavoriteVocabularyReview {
 
   @override
   FavoriteVocabularyReviewState build() {
+    lastCreated = this;
     final now = DateTime.now().toUtc();
     return FavoriteVocabularyReviewState(
       currentCard: FlashcardWordItem(
@@ -127,6 +228,18 @@ class _TestFavoriteVocabularyReview extends FavoriteVocabularyReview {
         hard: _preview(MemoryRating.hard, now.add(const Duration(hours: 1))),
         good: _preview(MemoryRating.good, now.add(const Duration(hours: 3))),
         easy: _preview(MemoryRating.easy, now.add(const Duration(days: 16))),
+      ),
+    );
+  }
+
+  /// 最近一次创建的实例，供测试切换当前卡片。
+  static _TestFavoriteVocabularyReview? lastCreated;
+
+  /// 切换到另一张单词卡，模拟复习中进入下一张。
+  void showCard(String word) {
+    state = state.copyWith(
+      currentCard: FlashcardWordItem(
+        savedWord: _word(word, memorySubjectId: 'w-next'),
       ),
     );
   }
@@ -220,6 +333,8 @@ Widget _app({
   bool showNextReviewTime = false,
   bool autoShowAiLookup = false,
   bool showVocabularyOnFront = false,
+  bool showWordDefinitionOnFront = false,
+  _WordDefinitionFixture? wordDefinition,
   bool withSource = false,
   String vocabulary = 'apple',
   GoRouter? router,
@@ -264,6 +379,7 @@ Widget _app({
           showNextReviewTime,
           autoShowAiLookup: autoShowAiLookup,
           showVocabularyOnFront: showVocabularyOnFront,
+          showWordDefinitionOnFront: showWordDefinitionOnFront,
         ),
       ),
       sharedPreferencesProvider.overrideWithValue(_sharedPreferences),
@@ -280,6 +396,24 @@ Widget _app({
       localDictionarySourceProvider.overrideWithValue(
         _TestLocalDictionarySource(),
       ),
+      if (wordDefinition != null) ...[
+        dictionaryLookupControllerProvider.overrideWith(
+          () => _FakeBasicLookup(wordDefinition),
+        ),
+        aiDictionarySourceProvider.overrideWithValue(
+          _FakeAiDictionarySource(
+            wordDefinition == _WordDefinitionFixture.aiCacheHit
+                ? {
+                    'apple': _aiEntry('apple', 'n.', ['苹果', '苹果树']),
+                    'pear': _aiEntry('pear', 'n.', ['梨']),
+                  }
+                : const <String, AiDictionaryEntry>{},
+          ),
+        ),
+        dictionaryLookupContextProvider.overrideWith(
+          (ref) => const DictionaryLookupContext(targetLanguage: 'zh-CN'),
+        ),
+      ],
     ]),
     child: child,
   );
@@ -361,6 +495,129 @@ void main() {
       findsOneWidget,
     );
     expect(find.text('apple'), findsOneWidget);
+  });
+
+  testWidgets('front hides word definition by default', (tester) async {
+    await tester.pumpWidget(_app(wordDefinition: _WordDefinitionFixture.miss));
+    await tester.pump();
+    expect(
+      find.byKey(const Key('favorite-vocabulary-review-front-definition')),
+      findsNothing,
+    );
+  });
+
+  testWidgets(
+    'front shows the basic dictionary translation of a word when enabled',
+    (tester) async {
+      await tester.pumpWidget(
+        _app(
+          showWordDefinitionOnFront: true,
+          wordDefinition: _WordDefinitionFixture.basicHit,
+        ),
+      );
+      await tester.pump();
+      expect(
+        find.byKey(const Key('favorite-vocabulary-review-front-definition')),
+        findsOneWidget,
+      );
+      expect(find.text('n. 苹果\nn. 苹果树'), findsOneWidget);
+      expect(
+        find.byKey(const Key('favorite-vocabulary-review-front-word')),
+        findsNothing,
+      );
+    },
+  );
+
+  testWidgets('front falls back to the AI cache and shows its first meaning', (
+    tester,
+  ) async {
+    _FakeAiDictionarySource.networkLookups = 0;
+    await tester.pumpWidget(
+      _app(
+        showWordDefinitionOnFront: true,
+        wordDefinition: _WordDefinitionFixture.aiCacheHit,
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+    expect(find.text('n. 苹果；苹果树'), findsOneWidget);
+    expect(_FakeAiDictionarySource.networkLookups, 0);
+  });
+
+  testWidgets('front shows nothing and never requests AI without any cache', (
+    tester,
+  ) async {
+    _FakeAiDictionarySource.networkLookups = 0;
+    await tester.pumpWidget(
+      _app(
+        showWordDefinitionOnFront: true,
+        wordDefinition: _WordDefinitionFixture.miss,
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+    expect(
+      find.byKey(const Key('favorite-vocabulary-review-front-definition')),
+      findsNothing,
+    );
+    expect(_FakeAiDictionarySource.networkLookups, 0);
+  });
+
+  testWidgets(
+    'switching to another word never shows the previous AI cached definition',
+    (tester) async {
+      _FakeAiDictionarySource.networkLookups = 0;
+      await tester.pumpWidget(
+        _app(
+          showWordDefinitionOnFront: true,
+          wordDefinition: _WordDefinitionFixture.aiCacheHit,
+        ),
+      );
+      await tester.pump();
+      await tester.pump();
+      expect(find.text('n. 苹果；苹果树'), findsOneWidget);
+
+      _TestFavoriteVocabularyReview.lastCreated!.showCard('pear');
+      await tester.pump();
+      await tester.pump();
+      expect(find.text('n. 苹果；苹果树'), findsNothing);
+      expect(find.text('n. 梨'), findsOneWidget);
+      expect(_FakeAiDictionarySource.networkLookups, 0);
+    },
+  );
+
+  testWidgets('turning on auto AI lookup prewarms the current word', (
+    tester,
+  ) async {
+    _FakeBasicLookup.requests.clear();
+    await tester.pumpWidget(
+      _app(wordDefinition: _WordDefinitionFixture.basicHit),
+    );
+    await tester.pump();
+    expect(_FakeBasicLookup.requests, isNot(contains('apple|ai')));
+
+    _TestFavoriteReviewSettings.lastCreated!.setAutoShowAiLookup(true);
+    await tester.pump();
+    expect(_FakeBasicLookup.requests, contains('apple|ai'));
+  });
+
+  testWidgets('front word definition ignores phrases and never looks them up', (
+    tester,
+  ) async {
+    _FakeBasicLookup.builtWords.clear();
+    await tester.pumpWidget(
+      _app(
+        vocabulary: 'apple pie',
+        showWordDefinitionOnFront: true,
+        wordDefinition: _WordDefinitionFixture.basicHit,
+      ),
+    );
+    await tester.pump();
+    expect(
+      find.byKey(const Key('favorite-vocabulary-review-front-definition')),
+      findsNothing,
+    );
+    expect(_FakeBasicLookup.builtWords, isNot(contains('apple pie')));
   });
 
   testWidgets('front playback icon uses neutral and active colors', (

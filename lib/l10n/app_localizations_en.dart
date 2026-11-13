@@ -2401,6 +2401,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get favoriteReviewShowVocabularyOnFront => 'Show vocabulary on front';
 
   @override
+  String get favoriteReviewShowWordDefinitionOnFront =>
+      'Show definition on front';
+
+  @override
+  String get favoriteReviewShowWordDefinitionOnFrontHint => 'Words only';
+
+  @override
   String get favoriteReviewSentenceSettings => 'Saved sentence review';
 
   @override

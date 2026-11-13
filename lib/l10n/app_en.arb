@@ -1232,6 +1232,8 @@
   "favoriteReviewAutoPlayFront": "Auto-play front",
   "favoriteReviewAutoPlayBack": "Auto-play back",
   "favoriteReviewShowVocabularyOnFront": "Show vocabulary on front",
+  "favoriteReviewShowWordDefinitionOnFront": "Show definition on front",
+  "favoriteReviewShowWordDefinitionOnFrontHint": "Words only",
   "favoriteReviewSentenceSettings": "Saved sentence review",
   "favoriteReviewVocabularySettings": "Saved vocabulary review",
   "bookmarkReviewOrder": "Review order",

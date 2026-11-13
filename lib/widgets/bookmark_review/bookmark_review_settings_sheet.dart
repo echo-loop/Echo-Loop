@@ -3,6 +3,7 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../l10n/app_localizations.dart';
 import '../../models/favorite_review_settings.dart';
 import '../../providers/bookmark_review_settings_provider.dart';
@@ -151,6 +152,15 @@ class _BookmarkReviewSettingsSheetState
                   settings.copyWith(showVocabularyOnFront: value),
                 ),
               ),
+              _SettingsSwitch(
+                key: const Key('favorite-review-show-word-definition-on-front'),
+                title: l10n.favoriteReviewShowWordDefinitionOnFront,
+                subtitle: l10n.favoriteReviewShowWordDefinitionOnFrontHint,
+                value: settings.showWordDefinitionOnFront,
+                onChanged: (value) => notifier.update(
+                  settings.copyWith(showWordDefinitionOnFront: value),
+                ),
+              ),
             ],
           ),
         ],
@@ -223,16 +233,29 @@ class _SettingsSwitch extends StatelessWidget {
     required this.title,
     required this.value,
     required this.onChanged,
+    this.subtitle,
   });
 
   final String title;
   final bool value;
   final ValueChanged<bool> onChanged;
 
+  /// 标题下方的补充说明，如适用范围；为空时不占位。
+  final String? subtitle;
+
   @override
   Widget build(BuildContext context) => SwitchListTile(
     contentPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
     title: Text(title),
+    subtitle: subtitle == null
+        ? null
+        : Text(
+            subtitle!,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: Theme.of(context).colorScheme.onSurfaceVariant
+                  .withValues(alpha: 0.7),
+            ),
+          ),
     value: value,
     onChanged: onChanged,
   );

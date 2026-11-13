@@ -13,12 +13,15 @@ import 'dictionary_source.dart';
 
 /// 在线词典源（源 id 沿用 `local`，它是持久化与缓存的稳定标识）
 class LocalDictionarySource implements DictionarySource {
+  /// 源 id 即持久化与缓存的稳定标识，业务侧引用时使用此常量
+  static const sourceId = 'local';
+
   final DictionaryService _service;
 
   LocalDictionarySource(this._service);
 
   @override
-  String get id => 'local';
+  String get id => sourceId;
 
   @override
   IconData get icon => Icons.menu_book_rounded;

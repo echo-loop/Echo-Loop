@@ -973,6 +973,8 @@
   "favoriteReviewAutoPlayFront": "自动播放正面",
   "favoriteReviewAutoPlayBack": "自动播放背面",
   "favoriteReviewShowVocabularyOnFront": "正面显示词汇",
+  "favoriteReviewShowWordDefinitionOnFront": "正面显示释义",
+  "favoriteReviewShowWordDefinitionOnFrontHint": "仅对单词有效",
   "favoriteReviewSentenceSettings": "收藏句子复习",
   "favoriteReviewVocabularySettings": "收藏词汇复习",
   "bookmarkReviewOrder": "复习顺序",
