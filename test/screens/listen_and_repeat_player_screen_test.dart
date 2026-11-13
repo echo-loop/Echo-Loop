@@ -1,3 +1,5 @@
+import 'package:shared_preferences/shared_preferences.dart';
+
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -7,6 +9,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mocktail/mocktail.dart';
 
+import 'package:echo_loop/features/rating_prompt/data/rating_prompt_task_completion_store.dart';
+import 'package:echo_loop/features/rating_prompt/rating_prompt_providers.dart';
 import 'package:echo_loop/database/daos/audio_item_dao.dart';
 import 'package:echo_loop/database/providers.dart';
 import 'package:echo_loop/models/speech_practice_models.dart';
@@ -373,6 +377,18 @@ class _StaticSpeechRecordingController extends SpeechRecordingController {
   void setRecordingCompletionHandler(
     void Function(Duration duration)? handler,
   ) {}
+}
+
+class _RecordingCompletionStore extends RatingPromptTaskCompletionStore {
+  _RecordingCompletionStore(super.preferences);
+
+  final List<DateTime> records = [];
+
+  @override
+  Future<bool> recordCompletion(DateTime time) {
+    records.add(time);
+    return super.recordCompletion(time);
+  }
 }
 
 void main() {
@@ -791,6 +807,44 @@ void main() {
       expect(find.byType(RecordingButton), findsOneWidget);
     });
 
+    testWidgets('自由练习完成后记录任务完成，供评分提醒判断', (tester) async {
+      SharedPreferences.setMockInitialValues({});
+      final store = _RecordingCompletionStore(
+        await SharedPreferences.getInstance(),
+      );
+      final controller = _TestListenAndRepeatController(
+        createState(sentenceIndex: 2, totalSentences: 3, isFreePlay: true),
+        createTestSentences(count: 3),
+        startPlayingNoop: true,
+      );
+
+      await tester.pumpWidget(
+        _createTestWidget(
+          controller: controller,
+          startAtHome: true,
+          extraOverrides: [
+            ratingPromptTaskCompletionStoreProvider.overrideWithValue(store),
+          ],
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Open player'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byIcon(Icons.check_circle_rounded));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 200));
+      expect(store.records, isEmpty, reason: '未确认完成弹窗前不记录');
+
+      await tester.tap(find.text('Done'));
+      for (var i = 0; i < 5; i++) {
+        await tester.pump(const Duration(milliseconds: 100));
+        // 测试环境收尾阶段的 pop 会抛出 GoError，与本断言无关。
+        tester.takeException();
+      }
+      expect(store.records, hasLength(1));
+    });
+
     testWidgets('完成后不再检查学习版通知提示', (tester) async {
       final notificationService = _MockNotificationPermissionService();
       when(
@@ -824,7 +878,11 @@ void main() {
       verifyNever(() => notificationService.canShowPrompt());
     });
 
-    testWidgets('点完成返回后不触发退出确认且主界面仍可点击', (tester) async {
+    testWidgets('点完成返回后记录任务完成，供评分提醒判断', (tester) async {
+      SharedPreferences.setMockInitialValues({});
+      final store = _RecordingCompletionStore(
+        await SharedPreferences.getInstance(),
+      );
       final controller = _TestListenAndRepeatController(
         createState(),
         createTestSentences(count: 3),
@@ -832,7 +890,13 @@ void main() {
       );
 
       await tester.pumpWidget(
-        _createTestWidget(controller: controller, startAtHome: true),
+        _createTestWidget(
+          controller: controller,
+          startAtHome: true,
+          extraOverrides: [
+            ratingPromptTaskCompletionStoreProvider.overrideWithValue(store),
+          ],
+        ),
       );
       await tester.pumpAndSettle();
 
@@ -853,6 +917,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byType(ListenAndRepeatPlayerScreen), findsOneWidget);
+      expect(store.records, hasLength(1));
     });
 
     testWidgets('修改重复次数后当前句遍数标签立即刷新', (tester) async {

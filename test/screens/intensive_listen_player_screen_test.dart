@@ -1,3 +1,8 @@
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:echo_loop/features/rating_prompt/data/rating_prompt_task_completion_store.dart';
+import 'package:echo_loop/features/onboarding_survey/providers/onboarding_survey_provider.dart';
+import 'package:echo_loop/features/rating_prompt/rating_prompt_providers.dart';
+
 // 精听播放器页面测试
 import 'dart:async';
 
@@ -163,6 +168,18 @@ class _MutableIntensiveListenPlayer extends TestIntensiveListenPlayer {
 
   void emit(IntensiveListenState nextState) {
     state = nextState;
+  }
+}
+
+class _RecordingCompletionStore extends RatingPromptTaskCompletionStore {
+  _RecordingCompletionStore(super.preferences);
+
+  final List<DateTime> records = [];
+
+  @override
+  Future<bool> recordCompletion(DateTime time) {
+    records.add(time);
+    return super.recordCompletion(time);
   }
 }
 
@@ -908,6 +925,86 @@ void main() {
             .first,
       );
       expect(opacity.opacity, 0.15);
+    });
+
+    testWidgets('正常完成精听后记录任务完成，供评分提醒判断', (tester) async {
+      SharedPreferences.setMockInitialValues({});
+      final prefs = await SharedPreferences.getInstance();
+      final store = _RecordingCompletionStore(prefs);
+      await tester.pumpWidget(
+        createTestWidget(
+          playerState: createPlayerState(
+            currentSentenceIndex: 4,
+            totalSentences: 5,
+          ),
+          startAtHome: true,
+          extraOverrides: [
+            ratingPromptTaskCompletionStoreProvider.overrideWithValue(store),
+            sharedPreferencesProvider.overrideWithValue(prefs),
+          ],
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Open player'));
+      await tester.pumpAndSettle();
+      expect(store.records, isEmpty);
+
+      // 最后一句点击完成图标，触发完成对话框。
+      await tester.tap(find.byIcon(Icons.check_circle_rounded));
+      await tester.pump(const Duration(milliseconds: 700));
+      expect(store.records, isEmpty, reason: '未确认完成对话框前不记录');
+
+      await tester.tap(
+        find
+            .descendant(
+              of: find.byType(Dialog),
+              matching: find.byType(FilledButton),
+            )
+            .last,
+      );
+      for (var i = 0; i < 5; i++) {
+        await tester.pump(const Duration(milliseconds: 100));
+        // 测试环境收尾阶段的 pop 会抛出 GoError，与本断言无关。
+        tester.takeException();
+      }
+      expect(store.records, hasLength(1));
+    });
+
+    testWidgets('自由练习完成后记录任务完成，供评分提醒判断', (tester) async {
+      SharedPreferences.setMockInitialValues({});
+      final prefs = await SharedPreferences.getInstance();
+      final store = _RecordingCompletionStore(prefs);
+      await tester.pumpWidget(
+        createTestWidget(
+          playerState: createPlayerState(
+            currentSentenceIndex: 4,
+            totalSentences: 5,
+          ),
+          sessionState: const LearningSessionState(isFreePlay: true),
+          startAtHome: true,
+          extraOverrides: [
+            ratingPromptTaskCompletionStoreProvider.overrideWithValue(store),
+            sharedPreferencesProvider.overrideWithValue(prefs),
+          ],
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Open player'));
+      await tester.pumpAndSettle();
+      expect(store.records, isEmpty);
+
+      // 最后一句点击完成图标，触发完成对话框。
+      await tester.tap(find.byIcon(Icons.check_circle_rounded));
+      await tester.pump(const Duration(milliseconds: 700));
+      expect(store.records, isEmpty, reason: '未确认完成对话框前不记录');
+
+      await tester.tap(find.text('Done'));
+      for (var i = 0; i < 5; i++) {
+        await tester.pump(const Duration(milliseconds: 100));
+        // 测试环境收尾阶段的 pop 会抛出 GoError，与本断言无关。
+        tester.takeException();
+      }
+      expect(store.records, hasLength(1));
     });
 
     testWidgets('最后一句时下一句按钮变为完成图标且可点击', (tester) async {

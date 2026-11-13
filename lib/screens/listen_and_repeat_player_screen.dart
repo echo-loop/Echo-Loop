@@ -20,6 +20,7 @@ import '../database/enums.dart';
 import '../models/practice_completion_result.dart';
 import '../features/chatbot/widgets/sentence_chat_button.dart';
 import '../features/chatbot/sentence_passage.dart';
+import '../features/rating_prompt/rating_prompt_providers.dart';
 import '../models/intensive_listen_settings.dart';
 import '../models/media_learning_startup.dart';
 import '../models/word_highlight_binding.dart';
@@ -377,6 +378,9 @@ class _ListenAndRepeatPlayerScreenState
               .recordCatchUpCompletionIfAny(widget.audioItemId);
           await ctrl.clearBreakpoint(isFreePlay: true);
           await ctrl.exitLearningMode();
+          await recordRatingTaskCompletion(
+            () => ref.read(ratingPromptTaskCompletionStoreProvider),
+          );
           if (mounted) context.pop(PracticeCompletionResult.completed);
         },
       );
@@ -415,6 +419,9 @@ class _ListenAndRepeatPlayerScreenState
     _isExiting = true;
     await ctrl.clearBreakpoint(isFreePlay: false);
     await ctrl.completeSubStage();
+    await recordRatingTaskCompletion(
+      () => ref.read(ratingPromptTaskCompletionStoreProvider),
+    );
     await ctrl.exitLearningMode();
     if (!mounted) return;
 

@@ -7,6 +7,10 @@ class RouteTransitionObserver extends RouteObserver<ModalRoute<void>> {
   final Set<RoutePopTransition> _pendingTransitions = {};
   bool _lastPushedIsPopup = false;
   bool _lastPoppedIsPopup = false;
+  Route<dynamic>? _lastPoppedRoute;
+
+  /// 最近一次弹出的路由。语义同 [lastPoppedIsPopup]，供 RouteAware 的 didPopNext 读取。
+  Route<dynamic>? get lastPoppedRoute => _lastPoppedRoute;
 
   /// 最近一次推入的路由是否为弹窗类（菜单、对话框、底部面板）。
   ///
@@ -41,6 +45,7 @@ class RouteTransitionObserver extends RouteObserver<ModalRoute<void>> {
   @override
   void didPop(Route<dynamic> route, Route<dynamic>? previousRoute) {
     _lastPoppedIsPopup = route is PopupRoute<dynamic>;
+    _lastPoppedRoute = route;
     for (final transition in List<RoutePopTransition>.of(_pendingTransitions)) {
       transition._onPop(route, previousRoute);
     }

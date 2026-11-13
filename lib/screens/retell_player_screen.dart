@@ -40,6 +40,7 @@ import '../providers/media_engine/media_engine_provider.dart';
 import '../providers/media_engine/media_sense_group_range_playback.dart';
 import '../providers/new_user_guide_provider.dart';
 import '../features/auth/providers/auth_providers.dart';
+import '../features/rating_prompt/rating_prompt_providers.dart';
 import '../providers/sentence_ai_prewarm.dart';
 import '../providers/sentence_translation_provider.dart';
 import '../widgets/common/recording_button.dart' show RecordingButtonMode;
@@ -1295,6 +1296,9 @@ class _RetellPlayerScreenState extends ConsumerState<RetellPlayerScreen>
                 null,
                 isFreePlay: true,
               );
+          await recordRatingTaskCompletion(
+            () => ref.read(ratingPromptTaskCompletionStoreProvider),
+          );
           await _exit(result: PracticeCompletionResult.completed);
         },
       );
@@ -1331,6 +1335,9 @@ class _RetellPlayerScreenState extends ConsumerState<RetellPlayerScreen>
       await ref
           .read(learningProgressProvider.notifier)
           .completeCurrentSubStage(widget.audioItemId);
+      await recordRatingTaskCompletion(
+        () => ref.read(ratingPromptTaskCompletionStoreProvider),
+      );
       await _exit(result: PracticeCompletionResult.completed);
     } else {
       // 关闭弹窗 → 留在页面，恢复页面级学习计时。

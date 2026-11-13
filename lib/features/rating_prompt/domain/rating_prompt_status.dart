@@ -1,26 +1,28 @@
 import 'rating_prompt_policy.dart';
 
-/// 评分邀请条件在某一时刻的只读快照，供开发者选项查看。
+/// 评分提醒条件在某一时刻的只读快照，供开发者选项查看，也供协调器判定。
 ///
-/// 快照由协调器用与实际判定相同的数据组装，[allowsEvent] 复用
-/// [RatingPromptPolicy.allows]，保证展示结论与真实触发行为一致。
+/// 展示的结论与真实请求使用同一个 [blockReason]，两者不会出现分歧。
 class RatingPromptStatus {
-  /// 创建评分邀请条件快照。
+  /// 创建评分提醒条件快照。
   const RatingPromptStatus({
     required this.now,
+    required this.rules,
     required this.isRemoteEnabled,
     required this.isStoreInstall,
     required this.installerStore,
     required this.installTime,
     required this.lastAttempt,
-    required this.cooldownRemaining,
     required this.countedFrom,
-    required this.effectiveStudyDays,
-    required this.policy,
+    required this.checkInDays,
+    required this.lastTaskCompletedAt,
   });
 
   /// 快照计算时间。
   final DateTime now;
+
+  /// 本次判定使用的规则。
+  final RatingPromptRules rules;
 
   /// 远程开关是否开启。
   final bool isRemoteEnabled;
@@ -37,17 +39,14 @@ class RatingPromptStatus {
   /// 上次发起系统评分请求的时间；从未请求时为 `null`。
   final DateTime? lastAttempt;
 
-  /// 冷却剩余时长；不在冷却期内时为 `null`。
-  final Duration? cooldownRemaining;
-
-  /// 有效学习天数统计的起始自然日。
+  /// 打卡天数统计的起始自然日：从未请求时为安装日，否则为上次请求的次日。
   final DateTime countedFrom;
 
-  /// 统计范围内的有效学习天数。
-  final int effectiveStudyDays;
+  /// 统计范围内完成每日目标打卡的天数。
+  final int checkInDays;
 
-  /// 当前生效的评分邀请策略。
-  final RatingPromptPolicy policy;
+  /// 最近一次正常完成学习任务的时间；从未完成过时为 `null`。
+  final DateTime? lastTaskCompletedAt;
 
   /// 距安装的时长；安装时间未知时为 `null`。
   Duration? get installAge {
@@ -55,17 +54,22 @@ class RatingPromptStatus {
     return installedAt == null ? null : now.difference(installedAt);
   }
 
-  /// 完成某个练习事件后是否会请求系统评分（不含页面可见性等运行时检查）。
-  bool allowsEvent(RatingPromptEvent event) =>
-      isRemoteEnabled &&
-      cooldownRemaining == null &&
-      policy.allows(
-        RatingPromptFacts(
-          now: now,
-          installTime: installTime,
-          effectiveStudyDays: effectiveStudyDays,
-          event: event,
-          isStoreInstall: isStoreInstall,
-        ),
-      );
+  /// 冷却剩余时长；不在冷却期内时为 `null`。
+  Duration? get cooldownRemaining => ratingPromptCooldownRemaining(
+    rules: rules,
+    now: now,
+    lastAttempt: lastAttempt,
+  );
+
+  /// 不请求的原因；为 `null` 表示条件已满足。
+  RatingPromptBlockReason? get blockReason => evaluateRatingPrompt(
+    rules: rules,
+    now: now,
+    isRemoteEnabled: isRemoteEnabled,
+    isStoreInstall: isStoreInstall,
+    installTime: installTime,
+    lastAttempt: lastAttempt,
+    checkInDays: checkInDays,
+    lastTaskCompletedAt: lastTaskCompletedAt,
+  );
 }

@@ -12,6 +12,7 @@ import '../features/chatbot/sentence_passage.dart';
 import '../features/memory_scheduler/domain/memory_rating.dart';
 import '../features/memory_scheduler/domain/memory_scheduler_results.dart';
 import '../features/scheduled_flashcard/widgets/flashcard_rating_action_bar.dart';
+import '../features/rating_prompt/rating_prompt_providers.dart';
 import '../l10n/app_localizations.dart';
 import '../database/providers.dart';
 import '../models/bookmark_sentence.dart';
@@ -56,6 +57,18 @@ class _BookmarkReviewScreenState extends ConsumerState<BookmarkReviewScreen>
   void initState() {
     super.initState();
     _review = ref.read(bookmarkReviewProvider.notifier);
+    // 只有显式完成摘要才代表本次复习正常结束，中途退出不记为任务完成。
+    ref.listenManual(
+      bookmarkReviewProvider.select((state) => state.completionSummary),
+      (_, next) {
+        if (next == null) return;
+        unawaited(
+          recordRatingTaskCompletion(
+            () => ref.read(ratingPromptTaskCompletionStoreProvider),
+          ),
+        );
+      },
+    );
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         unawaited(_review.startCurrentCard());

@@ -51,12 +51,14 @@ import '../services/review_reminder_time_calculator.dart';
 import '../screens/log_viewer_screen.dart';
 import '../providers/new_user_guide_provider.dart';
 import '../features/subscription/widgets/member_tab_badge.dart';
+import '../features/rating_prompt/rating_prompt_presentation_guard.dart';
+import '../features/rating_prompt/rating_prompt_request.dart';
 import '../theme/app_theme.dart';
 import '../widgets/app_update_dialog.dart';
 import '../widgets/notification_permission_dialog.dart';
 import '../widgets/common/prewarm_visibility.dart';
 import '../widgets/startup_splash_screen.dart';
-import 'app_router.dart' show rootNavigatorKey, rootRouteObserver;
+import 'app_router.dart' show AppRoutes, rootNavigatorKey, rootRouteObserver;
 import 'widgets/main_shell_navigation_rail.dart';
 
 /// 主导航壳组件 — 包含 NavigationRail / NavigationBar + 内容区域
@@ -108,9 +110,23 @@ class _MainShellState extends ConsumerState<MainShell>
     setState(() => _rootRouteVisible = false);
   }
 
+  /// 评分提醒只在学习和收藏首页检查；练习、计划、设置等路径不弹出。
+  static const _ratingPromptHomePaths = {AppRoutes.study, AppRoutes.favorites};
+
+  @override
+  void didUpdateWidget(MainShell oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.navigationShell.currentIndex !=
+        widget.navigationShell.currentIndex) {
+      unawaited(_maybeRequestRatingOnHome());
+    }
+  }
+
   @override
   void didPopNext() {
-    if (!mounted || _rootRouteVisible) return;
+    if (!mounted) return;
+    unawaited(_maybeRequestRatingAfterPop());
+    if (_rootRouteVisible) return;
     AppLogger.log(
       'PrewarmVisibility',
       'MainShell uncovered by root route: rootRouteVisible=true',
@@ -119,6 +135,33 @@ class _MainShellState extends ConsumerState<MainShell>
     if (widget.navigationShell.currentIndex == 1) {
       unawaited(_finishFreePlayerSessionsThenRefreshStudyData());
     }
+  }
+
+  /// 从覆盖在主导航壳之上的页面返回时，等被弹出的路由退场动画结束后再检查。
+  Future<void> _maybeRequestRatingAfterPop() async {
+    final poppedRoute = rootRouteObserver.lastPoppedRoute;
+    if (poppedRoute is TransitionRoute<dynamic>) {
+      await poppedRoute.completed;
+    }
+    if (!mounted) return;
+    await _maybeRequestRatingOnHome();
+  }
+
+  /// 主导航壳可见、App 在前台且当前路径是学习或收藏首页时，才检查评分提醒。
+  ///
+  /// 练习页或计划页覆盖在主导航壳之上时，导航壳不是当前路由，因此学习过程中不会弹出。
+  /// 是否达标由协调器判定；达标且未在冷却期内才会请求一次。
+  Future<void> _maybeRequestRatingOnHome() async {
+    if (!mounted) return;
+    final path = GoRouter.of(context)
+        .routerDelegate
+        .currentConfiguration
+        .uri
+        .path;
+    if (!_ratingPromptHomePaths.contains(path)) return;
+    final presentation = RatingPromptPresentationGuard(context: context);
+    if (!presentation.canPresent) return;
+    await requestRatingOnHome(ref, canPresent: () => presentation.canPresent);
   }
 
   /// 返回 Study 前等待随心听页面完成后台收尾，再刷新统计数据。
@@ -250,6 +293,8 @@ class _MainShellState extends ConsumerState<MainShell>
 
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
+      // 冷启动即落在学习首页时也检查一次，覆盖“上次未弹出就被杀掉”的情况。
+      unawaited(_maybeRequestRatingOnHome());
 
       // 启动时同步系统通知权限状态到 SP，防止已授权设备误弹 pre-prompt
       ref
@@ -634,6 +679,7 @@ class _MainShellState extends ConsumerState<MainShell>
     unawaited(cleanupStaleDailyShareExportTemp());
     AppLogger.log('AppUpdate', 'onAppResume: trigger checkInBackground');
     unawaited(_refreshStudyData(source: 'app-resume'));
+    unawaited(_maybeRequestRatingOnHome());
     if (ref.read(thirdPartyStartupProvider).hasValue) {
       unawaited(ref.read(appUpdateProvider.notifier).checkInBackground());
     } else {

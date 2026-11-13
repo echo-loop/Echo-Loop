@@ -15,6 +15,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../features/auth/providers/auth_providers.dart';
+import '../features/rating_prompt/rating_prompt_providers.dart';
 import '../router/app_router.dart';
 import '../database/enums.dart';
 import '../utils/playback_speed.dart';
@@ -379,6 +380,10 @@ class _BlindListenPlayerScreenState
       await ref
           .read(learningProgressProvider.notifier)
           .completeCurrentSubStage(widget.audioItemId);
+      // 仅用户确认完成对话框后的正常结束才记为任务完成，供评分提醒判断。
+      await recordRatingTaskCompletion(
+        () => ref.read(ratingPromptTaskCompletionStoreProvider),
+      );
     } catch (e) {
       debugPrint('盲听完成处理出错: $e');
     }

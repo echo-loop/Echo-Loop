@@ -5,10 +5,9 @@ import 'package:go_router/go_router.dart';
 import 'package:echo_loop/features/rating_prompt/rating_prompt_presentation_guard.dart';
 
 void main() {
-  testWidgets('保留挂载的计划页在切 Tab、后台、root 覆盖及卸载时不可展示', (tester) async {
+  testWidgets('保留挂载的页面在切 Tab、后台及卸载时不可展示', (tester) async {
     RatingPromptPresentationGuard? guard;
     BuildContext? planContext;
-    var rootCurrent = true;
     final router = GoRouter(
       initialLocation: '/plan',
       routes: [
@@ -23,10 +22,7 @@ void main() {
                     planContext = context;
                     return TextButton(
                       onPressed: () {
-                        guard = RatingPromptPresentationGuard(
-                          context: context,
-                          isRootRouteCurrent: () => rootCurrent,
-                        );
+                        guard = RatingPromptPresentationGuard(context: context);
                       },
                       child: const Text('完成返回'),
                     );
@@ -66,9 +62,6 @@ void main() {
     expect(presentation.canPresent, isFalse);
     tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
     expect(presentation.canPresent, isTrue);
-    rootCurrent = false;
-    expect(presentation.canPresent, isFalse);
-    rootCurrent = true;
     await tester.pumpWidget(const SizedBox());
     expect(presentation.canPresent, isFalse);
   });

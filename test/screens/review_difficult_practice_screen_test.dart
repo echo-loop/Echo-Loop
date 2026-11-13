@@ -1,3 +1,7 @@
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:echo_loop/features/rating_prompt/data/rating_prompt_task_completion_store.dart';
+import 'package:echo_loop/features/rating_prompt/rating_prompt_providers.dart';
+
 // 难句补练页面 Widget 测试
 //
 // 验证盲听模式和跟读模式的 UI 渲染、按钮交互、状态切换。
@@ -197,6 +201,18 @@ class _TestBookmarkDao implements BookmarkDao {
   @override
   dynamic noSuchMethod(Invocation invocation) {
     return Future<void>.value();
+  }
+}
+
+class _RecordingCompletionStore extends RatingPromptTaskCompletionStore {
+  _RecordingCompletionStore(super.preferences);
+
+  final List<DateTime> records = [];
+
+  @override
+  Future<bool> recordCompletion(DateTime time) {
+    records.add(time);
+    return super.recordCompletion(time);
   }
 }
 
@@ -1219,8 +1235,16 @@ void main() {
 
   group('ReviewDifficultPracticeScreen — 完成弹窗', () {
     testWidgets('非自由练习模式完成弹窗显示步骤完成对话框', (tester) async {
+      SharedPreferences.setMockInitialValues({});
+      final store = _RecordingCompletionStore(
+        await SharedPreferences.getInstance(),
+      );
       await tester.pumpWidget(
         createTestWidget(
+          startAtHome: true,
+          extraOverrides: [
+            ratingPromptTaskCompletionStoreProvider.overrideWithValue(store),
+          ],
           sessionState: const LearningSessionState(isFreePlay: false),
           playerState: createPlayerState(
             currentSentenceIndex: 4,
@@ -1230,6 +1254,9 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
+      // 从首页进入练习页，使完成后的 pop 有可返回的页面。
+      await tester.tap(find.text('Open player'));
+      await tester.pumpAndSettle();
 
       // 最后一句显示完成按钮（check_circle_rounded），点击触发完成弹窗
       await tester.tap(find.byIcon(Icons.check_circle_rounded));
@@ -1238,6 +1265,75 @@ void main() {
 
       // 完成弹窗应显示步骤完成对话框
       expect(find.text('Saved Sentences Practice Complete'), findsOneWidget);
+
+      // 用户确认完成对话框后，正常结束记为任务完成。
+      expect(store.records, isEmpty);
+      // 步骤完成对话框的主按钮（末步骤为唯一的 FilledButton）。
+      final dialogButtons = find.descendant(
+        of: find.byType(Dialog),
+        matching: find.byType(FilledButton),
+      );
+      await tester.tap(dialogButtons.last);
+      await tester.pump();
+      expect(store.records, hasLength(1));
+      await tester.pumpAndSettle();
+      expect(find.text('Open player'), findsOneWidget);
+      // 测试环境没有外层路由栈，收尾阶段的 context.pop() 会抛出 GoError，与本断言无关。
+      for (var i = 0; i < 5; i++) {
+        await tester.pump(const Duration(milliseconds: 100));
+        tester.takeException();
+      }
+    });
+
+    testWidgets('自由练习完成后记录任务完成，供评分提醒判断', (tester) async {
+      SharedPreferences.setMockInitialValues({});
+      final store = _RecordingCompletionStore(
+        await SharedPreferences.getInstance(),
+      );
+      await tester.pumpWidget(
+        createTestWidget(
+          startAtHome: true,
+          extraOverrides: [
+            ratingPromptTaskCompletionStoreProvider.overrideWithValue(store),
+          ],
+          sessionState: const LearningSessionState(isFreePlay: true),
+          playerState: createPlayerState(
+            currentSentenceIndex: 4,
+            totalSentences: 5,
+            isPlaying: false,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      // 从首页进入练习页，使完成后的 pop 有可返回的页面。
+      await tester.tap(find.text('Open player'));
+      await tester.pumpAndSettle();
+
+      // 最后一句显示完成按钮（check_circle_rounded），点击触发完成弹窗
+      await tester.tap(find.byIcon(Icons.check_circle_rounded));
+      // 完成页庆祝动画循环播放，不能等待 settle；推进一帧让弹窗完成挂载。
+      await tester.pump(const Duration(milliseconds: 700));
+
+      // 完成弹窗应显示步骤完成对话框
+      expect(find.text('Saved Sentences Practice Complete'), findsOneWidget);
+
+      // 用户确认完成对话框后，正常结束记为任务完成。
+      expect(store.records, isEmpty);
+      // 步骤完成对话框的主按钮（末步骤为唯一的 FilledButton）。
+      final dialogButtons = find.descendant(
+        of: find.byType(Dialog),
+        matching: find.byType(FilledButton),
+      );
+      await tester.tap(dialogButtons.last);
+      await tester.pump();
+      expect(store.records, hasLength(1));
+      await tester.pumpAndSettle();
+      expect(find.text('Open player'), findsOneWidget);
+      // 测试环境没有外层路由栈，收尾阶段的 context.pop() 会抛出 GoError，与本断言无关。
+      for (var i = 0; i < 5; i++) {
+        await tester.pump(const Duration(milliseconds: 100));
+        tester.takeException();
+      }
     });
 
     testWidgets('完成后不再检查学习版通知提示', (tester) async {

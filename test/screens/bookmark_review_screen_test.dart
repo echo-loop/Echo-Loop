@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:echo_loop/database/daos/bookmark_dao.dart';
 import 'package:echo_loop/database/providers.dart';
+import 'package:echo_loop/features/rating_prompt/data/rating_prompt_task_completion_store.dart';
+import 'package:echo_loop/features/rating_prompt/rating_prompt_providers.dart';
 import 'package:echo_loop/features/remote_config/remote_config.dart';
 import 'package:echo_loop/features/user_region/user_region_bootstrapper.dart';
 import 'package:echo_loop/features/user_region/user_region_providers.dart';
@@ -204,6 +206,21 @@ class _TestDao implements BookmarkDao {
 }
 
 late final SharedPreferences _sharedPreferences;
+
+/// 记录任务完成写入，用于断言“正常完成复习才记为任务完成”。
+class _RecordingCompletionStore extends RatingPromptTaskCompletionStore {
+  _RecordingCompletionStore(super.preferences);
+
+  final List<DateTime> records = [];
+
+  @override
+  Future<bool> recordCompletion(DateTime time) {
+    records.add(time);
+    return super.recordCompletion(time);
+  }
+}
+
+_RecordingCompletionStore? _lastCompletionStore;
 final _dictionarySource = _EchoDictionarySource();
 
 Finder get _bookmarkReviewPopScope =>
@@ -256,6 +273,9 @@ Widget _app({
       analyticsOverride(),
       dictionaryServiceOverride(),
       sharedPreferencesProvider.overrideWithValue(_sharedPreferences),
+      ratingPromptTaskCompletionStoreProvider.overrideWithValue(
+        _lastCompletionStore = _RecordingCompletionStore(_sharedPreferences),
+      ),
       userRegionBootstrapProvider.overrideWith(
         (ref) async => const UserRegionBootstrapResult(
           isChinaUser: false,
@@ -361,6 +381,8 @@ void main() {
 
     expect(find.byType(ReviewCompletionSummary), findsOneWidget);
     expect(find.text('本次复习已没有收藏句。'), findsNothing);
+    // 正常完成复习（含取消最后一张收藏）记为任务完成，供评分提醒判断。
+    expect(_lastCompletionStore!.records, hasLength(1));
   });
 
   testWidgets(
@@ -397,6 +419,8 @@ void main() {
       await tester.pump();
 
       expect(find.byType(ReviewCompletionSummary), findsNothing);
+      // 中途退出不算完成，不记录任务完成。
+      expect(_lastCompletionStore!.records, isEmpty);
 
       disposeGate.complete();
       await tester.pumpAndSettle();

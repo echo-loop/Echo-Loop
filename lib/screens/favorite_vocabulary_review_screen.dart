@@ -15,6 +15,7 @@ import '../features/subscription/widgets/feature_gate.dart';
 import '../features/memory_scheduler/domain/memory_rating.dart';
 import '../features/memory_scheduler/domain/memory_scheduler_results.dart';
 import '../features/scheduled_flashcard/widgets/flashcard_rating_action_bar.dart';
+import '../features/rating_prompt/rating_prompt_providers.dart';
 import '../providers/learning_session/favorite_vocabulary_review_provider.dart';
 import '../providers/favorite_review_settings_provider.dart';
 import '../providers/dictionary/lookup_controller.dart';
@@ -74,6 +75,20 @@ class _FavoriteVocabularyReviewScreenState
   void initState() {
     super.initState();
     _review = ref.read(favoriteVocabularyReviewProvider.notifier);
+    // 只有显式完成摘要才代表本次复习正常结束，中途退出不记为任务完成。
+    ref.listenManual(
+      favoriteVocabularyReviewProvider.select(
+        (state) => state.completionSummary,
+      ),
+      (_, next) {
+        if (next == null) return;
+        unawaited(
+          recordRatingTaskCompletion(
+            () => ref.read(ratingPromptTaskCompletionStoreProvider),
+          ),
+        );
+      },
+    );
     ref.listenManual(
       favoriteVocabularyReviewProvider.select(
         (state) => (state.currentCard, state.upcomingCards),

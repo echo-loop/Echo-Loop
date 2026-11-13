@@ -1,3 +1,7 @@
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:echo_loop/features/rating_prompt/data/rating_prompt_task_completion_store.dart';
+import 'package:echo_loop/features/rating_prompt/rating_prompt_providers.dart';
+
 // 复述播放器页面 Widget 测试
 //
 // 验证 SegmentedButton 位置和显示模式切换功能。
@@ -284,6 +288,18 @@ Future<List<Override>> _translationAvailableOverrides() async {
   ];
 }
 
+class _RecordingCompletionStore extends RatingPromptTaskCompletionStore {
+  _RecordingCompletionStore(super.preferences);
+
+  final List<DateTime> records = [];
+
+  @override
+  Future<bool> recordCompletion(DateTime time) {
+    records.add(time);
+    return super.recordCompletion(time);
+  }
+}
+
 void main() {
   /// 创建测试段落
   List<List<Sentence>> createTestParagraphs() {
@@ -303,6 +319,7 @@ void main() {
     )?
     playerFactory,
     List<Override> extraOverrides = const [],
+    bool startAtHome = false,
   }) {
     final testParagraphs = paragraphs ?? createTestParagraphs();
     final testKeywords = keywords ?? {};
@@ -318,8 +335,19 @@ void main() {
         );
 
     final router = GoRouter(
-      initialLocation: '/collections/c1/a1/retell',
+      initialLocation: startAtHome ? '/' : '/collections/c1/a1/retell',
       routes: [
+        GoRoute(
+          path: '/',
+          builder: (context, state) => Scaffold(
+            body: Center(
+              child: FilledButton(
+                onPressed: () => context.push('/collections/c1/a1/retell'),
+                child: const Text('Open player'),
+              ),
+            ),
+          ),
+        ),
         GoRoute(
           path: '/collections/:collectionId/:audioId/retell',
           builder: (context, state) {
@@ -773,6 +801,122 @@ void main() {
       await tester.pump(const Duration(milliseconds: 700));
 
       verifyNever(() => notificationService.canShowPrompt());
+    });
+
+    testWidgets('正常完成复述后记录任务完成，供评分提醒判断', (tester) async {
+      SharedPreferences.setMockInitialValues({});
+      final store = _RecordingCompletionStore(
+        await SharedPreferences.getInstance(),
+      );
+      final testParagraphs = createTestParagraphs();
+      final initialState = RetellPlayerState(
+        currentParagraphIndex: 0,
+        totalParagraphs: testParagraphs.length,
+        phase: RetellPhase.listening,
+        isPlaying: true,
+        playingSentenceIndex: 0,
+        displayMode: RetellDisplayMode.showAll,
+        settings: const RetellSettings(keywordMethod: KeywordMethod.random),
+      );
+      final trackingPlayer = _TrackingRetellPlayer(
+        initialState,
+        testParagraphs,
+        const {},
+      );
+
+      await tester.pumpWidget(
+        createTestWidget(
+          playerState: initialState,
+          paragraphs: testParagraphs,
+          playerFactory: (_, __, ___) => trackingPlayer,
+          startAtHome: true,
+          extraOverrides: [
+            ratingPromptTaskCompletionStoreProvider.overrideWithValue(store),
+          ],
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Open player'));
+      await tester.pumpAndSettle();
+
+      trackingPlayer.emit(
+        trackingPlayer.state.copyWith(stepFinished: true, isPlaying: false),
+      );
+      await tester.pump(const Duration(milliseconds: 700));
+      expect(store.records, isEmpty, reason: '未确认完成对话框前不记录');
+
+      // 步骤完成对话框的主按钮（末步骤为唯一的 FilledButton）。
+      await tester.tap(
+        find
+            .descendant(
+              of: find.byType(Dialog),
+              matching: find.byType(FilledButton),
+            )
+            .last,
+      );
+      for (var i = 0; i < 5; i++) {
+        await tester.pump(const Duration(milliseconds: 100));
+        // 测试环境收尾阶段的 pop 会抛出 GoError，与本断言无关。
+        tester.takeException();
+      }
+      expect(store.records, hasLength(1));
+    });
+
+    testWidgets('自由练习完成后记录任务完成，供评分提醒判断', (tester) async {
+      SharedPreferences.setMockInitialValues({});
+      final store = _RecordingCompletionStore(
+        await SharedPreferences.getInstance(),
+      );
+      final testParagraphs = createTestParagraphs();
+      final initialState = RetellPlayerState(
+        currentParagraphIndex: 0,
+        totalParagraphs: testParagraphs.length,
+        phase: RetellPhase.listening,
+        isPlaying: true,
+        playingSentenceIndex: 0,
+        displayMode: RetellDisplayMode.showAll,
+        settings: const RetellSettings(keywordMethod: KeywordMethod.random),
+      );
+      final trackingPlayer = _TrackingRetellPlayer(
+        initialState,
+        testParagraphs,
+        const {},
+      );
+
+      await tester.pumpWidget(
+        createTestWidget(
+          playerState: initialState,
+          paragraphs: testParagraphs,
+          playerFactory: (_, __, ___) => trackingPlayer,
+          startAtHome: true,
+          extraOverrides: [
+            ratingPromptTaskCompletionStoreProvider.overrideWithValue(store),
+            learningSessionProvider.overrideWith(
+              () => TestLearningSession(
+                const LearningSessionState(isFreePlay: true),
+              ),
+            ),
+          ],
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Open player'));
+      await tester.pumpAndSettle();
+
+      trackingPlayer.emit(
+        trackingPlayer.state.copyWith(stepFinished: true, isPlaying: false),
+      );
+      await tester.pump(const Duration(milliseconds: 700));
+      expect(store.records, isEmpty, reason: '未确认完成对话框前不记录');
+
+      // 步骤完成对话框的主按钮（末步骤为唯一的 FilledButton）。
+      await tester.tap(find.text('Done'));
+      for (var i = 0; i < 5; i++) {
+        await tester.pump(const Duration(milliseconds: 100));
+        // 测试环境收尾阶段的 pop 会抛出 GoError，与本断言无关。
+        tester.takeException();
+      }
+      expect(store.records, hasLength(1));
     });
 
     testWidgets('不同选中态下 SegmentedButton 总宽度保持不变', (tester) async {

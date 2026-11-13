@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'package:echo_loop/features/rating_prompt/data/rating_prompt_task_completion_store.dart';
+import 'package:echo_loop/features/rating_prompt/rating_prompt_providers.dart';
 import 'package:echo_loop/database/app_database.dart';
 import 'package:echo_loop/features/memory_scheduler/domain/memory_rating.dart';
 import 'package:echo_loop/features/memory_scheduler/domain/memory_model_adapter.dart';
@@ -196,6 +198,21 @@ class _TestLocalDictionarySource extends LocalDictionarySource {
 
 late SharedPreferences _sharedPreferences;
 
+/// 记录任务完成写入，用于断言“正常完成复习才记为任务完成”。
+class _RecordingCompletionStore extends RatingPromptTaskCompletionStore {
+  _RecordingCompletionStore(super.preferences);
+
+  final List<DateTime> records = [];
+
+  @override
+  Future<bool> recordCompletion(DateTime time) {
+    records.add(time);
+    return super.recordCompletion(time);
+  }
+}
+
+_RecordingCompletionStore? _lastCompletionStore;
+
 Finder get _favoriteVocabularyReviewPopScope =>
     find.byWidgetPredicate((widget) => widget is PopScope);
 
@@ -250,6 +267,9 @@ Widget _app({
         ),
       ),
       sharedPreferencesProvider.overrideWithValue(_sharedPreferences),
+      ratingPromptTaskCompletionStoreProvider.overrideWithValue(
+        _lastCompletionStore = _RecordingCompletionStore(_sharedPreferences),
+      ),
       userRegionBootstrapProvider.overrideWith(
         (ref) async => const UserRegionBootstrapResult(
           isChinaUser: false,
@@ -367,6 +387,24 @@ void main() {
       tester.widget<Icon>(find.byIcon(Icons.volume_up_rounded)).color,
       theme.colorScheme.primary,
     );
+  });
+
+  testWidgets('取消最后一个收藏词汇后显示完成摘要，并记为任务完成', (tester) async {
+    await tester.pumpWidget(_app());
+    await tester.pump();
+    expect(_lastCompletionStore!.records, isEmpty);
+
+    await tester.tap(
+      find.byKey(const Key('favorite-vocabulary-review-reveal-zone')),
+    );
+    await tester.pump();
+    await tester.tap(
+      find.byKey(const Key('favorite-vocabulary-review-unsave')),
+    );
+    await tester.pump();
+
+    expect(find.byType(ReviewCompletionSummary), findsOneWidget);
+    expect(_lastCompletionStore!.records, hasLength(1));
   });
 
   testWidgets('back groups vocabulary playback separately from unsave', (

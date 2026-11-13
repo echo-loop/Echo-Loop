@@ -26,6 +26,7 @@ import '../widgets/speech_permission_dialog.dart';
 import '../database/enums.dart';
 import '../features/chatbot/widgets/sentence_chat_button.dart';
 import '../features/chatbot/sentence_passage.dart';
+import '../features/rating_prompt/rating_prompt_providers.dart';
 import '../l10n/app_localizations.dart';
 import '../utils/playback_speed.dart';
 import '../providers/learning_plan_provider.dart';
@@ -390,6 +391,9 @@ class _ReviewDifficultPracticeScreenState
               .read(learningSessionProvider.notifier)
               .recordCatchUpCompletionIfAny(widget.audioItemId);
           await ref.read(learningSessionProvider.notifier).exitLearningMode();
+          await recordRatingTaskCompletion(
+            () => ref.read(ratingPromptTaskCompletionStoreProvider),
+          );
           if (mounted) context.pop();
         },
       );
@@ -440,6 +444,10 @@ class _ReviewDifficultPracticeScreenState
       await ref
           .read(learningProgressProvider.notifier)
           .completeCurrentSubStage(widget.audioItemId);
+      // 仅用户确认完成对话框后的正常结束才记为任务完成，供评分提醒判断。
+      await recordRatingTaskCompletion(
+        () => ref.read(ratingPromptTaskCompletionStoreProvider),
+      );
     } catch (e) {
       debugPrint('难句补练完成处理出错: $e');
     }

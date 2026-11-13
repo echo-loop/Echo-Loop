@@ -17,13 +17,10 @@ import '../database/enums.dart';
 import '../models/practice_completion_result.dart';
 import '../features/community_collections/models/community_collection_models.dart';
 import '../features/community_collections/widgets/community_difficulty_badge.dart';
-import '../features/rating_prompt/domain/rating_prompt_policy.dart';
-import '../features/rating_prompt/rating_prompt_providers.dart';
 import '../features/media_readiness/media_provisioner.dart';
 import '../features/media_readiness/media_readiness.dart';
 import '../features/media_readiness/media_readiness_provider.dart';
 import '../features/media_readiness/widgets/media_preparing_view.dart';
-import '../features/rating_prompt/rating_prompt_presentation_guard.dart';
 import '../models/audio_item.dart';
 import '../models/collection.dart';
 import '../models/learning_plan.dart';
@@ -150,11 +147,9 @@ Future<void> _openRetellPractice({
 }) async {
   final session = ref.read(learningSessionProvider.notifier);
   if (!context.mounted) return;
-  await _pushPracticeAndWaitForTransition(
+  await _pushPractice(
     context,
     AppRoutes.retellPlayer(collectionId, audioItem.id),
-    ref: ref,
-    event: RatingPromptEvent.retellCompleted,
     extra: MediaLearningStartup(
       loadKey: loadKey,
       showVideoLoading: audioItem.isVideo,
@@ -170,54 +165,13 @@ Future<void> _openRetellPractice({
   );
 }
 
-/// 推入练习页，等待 root 退场完成后在原计划页仍可见时检查评分资格。
-Future<void> _pushPracticeAndWaitForTransition(
+/// 推入练习页。评分提醒不在练习完成时触发，而由回到主页面时统一检查。
+Future<void> _pushPractice(
   BuildContext context,
   String route, {
   Object? extra,
-  required WidgetRef ref,
-  required RatingPromptEvent event,
 }) async {
-  final transition = rootRouteObserver.watchNextPop();
-  final presentation = RatingPromptPresentationGuard(
-    context: context,
-    isRootRouteCurrent: () => transition.returnedToPreviousRoute,
-  );
-  try {
-    final result = await context.push<PracticeCompletionResult>(
-      route,
-      extra: extra,
-    );
-    if (result == PracticeCompletionResult.completed) {
-      await transition.completed;
-      if (!context.mounted) return;
-      await _requestRatingAfterPractice(
-        ref,
-        event,
-        canPresent: () => presentation.canPresent,
-      );
-    }
-  } finally {
-    transition.cancel();
-  }
-}
-
-/// 评分邀请失败由独立协调器处理，不改变练习完成后的导航行为。
-Future<void> _requestRatingAfterPractice(
-  WidgetRef ref,
-  RatingPromptEvent event, {
-  required bool Function() canPresent,
-}) async {
-  try {
-    await ref
-        .read(ratingPromptCoordinatorProvider)
-        .maybeRequest(event, canPresent: canPresent);
-  } catch (error, stackTrace) {
-    AppLogger.log(
-      'RatingPrompt',
-      'coordinator unavailable error=$error\n$stackTrace',
-    );
-  }
+  await context.push<PracticeCompletionResult>(route, extra: extra);
 }
 
 /// 学习计划大阶段完成标记图标。
@@ -1643,14 +1597,12 @@ class _LearningPlanScreenState extends ConsumerState<LearningPlanScreen> {
           );
           return;
         }
-        await _pushPracticeAndWaitForTransition(
+        await _pushPractice(
           context,
           AppRoutes.listenAndRepeatPlayer(
             widget.collectionId,
             widget.audioItemId,
           ),
-          ref: ref,
-          event: RatingPromptEvent.shadowingCompleted,
           extra: MediaLearningStartup(
             loadKey: '${audioItem.id}:listen-and-repeat:planned',
             showVideoLoading: audioItem.isVideo,
@@ -3017,11 +2969,9 @@ class _FirstStudySection extends ConsumerWidget {
           );
           return;
         }
-        await _pushPracticeAndWaitForTransition(
+        await _pushPractice(
           context,
           AppRoutes.listenAndRepeatPlayer(collectionId, audioItemId),
-          ref: ref,
-          event: RatingPromptEvent.shadowingCompleted,
           extra: MediaLearningStartup(
             loadKey: '${audioItem.id}:listen-and-repeat:free-play',
             load: () async {
