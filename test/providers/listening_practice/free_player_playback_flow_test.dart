@@ -20,10 +20,27 @@ import 'package:echo_loop/models/sentence.dart';
 import 'package:echo_loop/models/study_stage.dart';
 import 'package:echo_loop/providers/audio_engine/audio_engine_provider.dart';
 import 'package:echo_loop/providers/listening_practice/listening_practice_provider.dart';
+import 'package:echo_loop/features/rating_prompt/data/rating_prompt_task_completion_store.dart';
+import 'package:echo_loop/features/rating_prompt/rating_prompt_providers.dart';
 import 'package:echo_loop/services/app_logger.dart';
 import 'package:echo_loop/services/study_activity_gate.dart';
 import 'package:echo_loop/services/study_time_service.dart';
 import '../../helpers/mock_providers.dart';
+
+/// 记录任务完成写入，用于断言随心听整篇自然播完时记为任务完成。
+class _RecordingCompletionStore extends RatingPromptTaskCompletionStore {
+  _RecordingCompletionStore(super.preferences);
+
+  final List<DateTime> records = [];
+
+  @override
+  Future<bool> recordCompletion(DateTime time) {
+    records.add(time);
+    return super.recordCompletion(time);
+  }
+}
+
+late _RecordingCompletionStore _completionStore;
 
 /// 可控 AudioEngine：真实 session 计数 + position/playerState 流 + 调用记录。
 class _FlowAudioEngine extends TestAudioEngine {
@@ -363,6 +380,9 @@ void main() {
 
   setUp(() async {
     SharedPreferences.setMockInitialValues({});
+    _completionStore = _RecordingCompletionStore(
+      await SharedPreferences.getInstance(),
+    );
     engine = _FlowAudioEngine();
     activityGate = StudyActivityGate();
     studyTimeService = _FailOnceStudyTimeService();
@@ -372,6 +392,9 @@ void main() {
         studyTimeServiceProvider.overrideWithValue(studyTimeService),
         studyActivityGateProvider.overrideWithValue(activityGate),
         listeningPracticeProvider.overrideWith(() => _FlowListeningPractice()),
+        ratingPromptTaskCompletionStoreProvider.overrideWithValue(
+          _completionStore,
+        ),
       ]),
     );
     lp =
@@ -1322,6 +1345,7 @@ void main() {
     );
 
     await completeWhole(); // 第 2 遍完成 → 第 3 遍
+    expect(_completionStore.records, isEmpty, reason: '未播满全部遍数，不记为任务完成');
     expect(engine.playCount, 3);
     expect(engine.stopCount, 0);
     s = container.read(listeningPracticeProvider);
@@ -1333,6 +1357,7 @@ void main() {
     expect(engine.pauseKeepSessionCount, 1);
     expect(engine.stopCount, 0);
     expect(container.read(listeningPracticeProvider).isPlaying, isFalse);
+    expect(_completionStore.records, hasLength(1), reason: '整篇播满全部遍数记为任务完成');
   });
 
   test('整篇循环：同一遍内重复 completed 事件不会多计数提前停止', () async {
