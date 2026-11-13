@@ -1159,8 +1159,8 @@ class SentenceAnnotationCardState
 ///
 /// 直接读取结构化 [SentenceAnalysis]（grammar / vocabulary / listening 三组要点
 /// 对象），无 `label: value` 文本解析。每段带 icon 标题与彩色 IconBox，段间以极浅
-/// 分割线区隔；每条要点为「标签加粗 + 详解」，详解中的反引号引用高亮、IPA 音标
-/// （如 /tə/）以 monospace chip 形式高亮。支持流式渐显：字段随帧到达逐条出现。
+/// 分割线区隔；每条要点为「标签加粗 + 详解」，详解中的反引号引用以主色文字高亮。
+/// 支持流式渐显：字段随帧到达逐条出现。
 class _AnalysisContent extends StatelessWidget {
   final SentenceAnalysis analysis;
 
@@ -1169,20 +1169,12 @@ class _AnalysisContent extends StatelessWidget {
 
   const _AnalysisContent({required this.analysis, required this.textPrefs});
 
-  /// 匹配文本中的内联标记：反引号引用 `xxx` 或 IPA 音标 /tə/。
+  /// 匹配文本中的反引号引用 `xxx`（group(1)，不含反引号），用来标注被强调的词、
+  /// 短语或例子。长度 ≤ 80，不跨行。
   ///
-  /// - group(1)：反引号包裹的文本（不含反引号本身）。允许任意非反引号、非换行
-  ///   字符，长度 ≤ 80；用来标注被强调的词、短语或例子。
-  /// - group(2)：完整 IPA 音标片段（含两侧 `/`）。识别策略：
-  ///   - 起始 `/` 紧跟非空白字符，结束 `/` 紧贴非空白字符——
-  ///     用来与表示"或者"的斜杠（两侧通常有空格，如 `and / or`）区分。
-  ///   - 中间至少出现一个 IPA 专属字符（U+0250–U+02FF，如 ɪ ə ʃ ɡ ˈ ˌ ː），
-  ///     用来排除 `/path/to/file`、`1/2`、`a/an` 这类无 IPA 字符的斜杠。
-  ///   - 中间允许任意非斜杠非换行字符，长度 ≤ 60，覆盖音节分界 `.`、合成词
-  ///     连字符 `-`、组合附加符、希腊字母等常见 IPA 邻接字符。
-  static final _inlineMarkerRegex = RegExp(
-    r'`([^`\n]{1,80})`|(/(?=\S)(?=[^/\n]*[ɐ-˿])[^/\n]{1,60}(?<=\S)/)',
-  );
+  /// IPA 音标（如 /tə/）不再单独识别、不加 chip：与正文同样式渲染，避免 monospace
+  /// 与中文正文混排时突兀。
+  static final _backtickRegex = RegExp(r'`([^`\n]{1,80})`');
 
   @override
   Widget build(BuildContext context) {
@@ -1245,7 +1237,9 @@ class _AnalysisContent extends StatelessWidget {
             style: textPrefs.applyTo(
               theme.textTheme.titleMedium?.copyWith(
                     color: cs.onSurface,
-                    fontWeight: FontWeight.w600,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w500,
+                    letterSpacing: 0,
                   ) ??
                   const TextStyle(),
             ),
@@ -1258,10 +1252,10 @@ class _AnalysisContent extends StatelessWidget {
   /// 段落正文：把结构化要点逐条渲染为 bullet（标签加粗 + 详解）。
   Widget _buildSectionBody(ThemeData theme, List<(String, String)> items) {
     final cs = theme.colorScheme;
-    // 解析正文与译文同一套参数：14pt、字间距 0、行高 1.5
+    // 解析正文：14pt、字间距 0；行高 1.6，中英混排需要比译文更宽的行距
     final rawBody = theme.textTheme.bodyMedium?.copyWith(
       color: cs.onSurfaceVariant,
-      height: 1.5,
+      height: 1.6,
       letterSpacing: 0,
     );
     final body = rawBody == null ? null : textPrefs.applyTo(rawBody);
@@ -1285,7 +1279,12 @@ class _AnalysisContent extends StatelessWidget {
     return key.replaceAll('`', '').replaceAll(RegExp(r'\s+'), ' ').trim();
   }
 
-  /// 统一 bullet 条目：• + 可选加粗标签 + "：" + 详解（详解含反引号高亮/IPA chip）。
+  /// 标签与详解之间的分隔符：英文标签用半角 `: `（全角 `：` 紧跟英文单词显得松散），
+  /// 中文标签保留全角 `：`。
+  static String _labelSeparator(String key) =>
+      RegExp(r'[A-Za-z]$').hasMatch(key) ? ': ' : '：';
+
+  /// 统一 bullet 条目：• + 可选加粗标签 + 分隔符 + 详解（详解含反引号高亮）。
   /// 流式渐显时详解可能暂为空，此时只显示标签。
   Widget _buildBulletItem(
     ThemeData theme,
@@ -1314,11 +1313,11 @@ class _AnalysisContent extends StatelessWidget {
     final Widget content;
     if (key == null) {
       // 无标签，整条作为详解
-      content = _richWithIpa(theme, value, body);
+      content = _richText(theme, value, body);
     } else {
       final keyStyle = body?.copyWith(
         color: cs.onSurface,
-        fontWeight: FontWeight.w600,
+        fontWeight: FontWeight.w500,
       );
       content = Text.rich(
         TextSpan(
@@ -1327,8 +1326,8 @@ class _AnalysisContent extends StatelessWidget {
             TextSpan(text: key, style: keyStyle),
             // 详解暂未到达（流式中）时不加冒号，只显示标签
             if (value.isNotEmpty) ...[
-              const TextSpan(text: '：'),
-              ..._inlineSpans(theme, value, body),
+              TextSpan(text: _labelSeparator(key)),
+              ..._inlineSpans(theme, value),
             ],
           ],
         ),
@@ -1344,54 +1343,20 @@ class _AnalysisContent extends StatelessWidget {
     );
   }
 
-  /// 将文本中的 `xxx` 反引号引用和 /xxx/ IPA 音标拆分为普通 TextSpan + chip WidgetSpan
-  List<InlineSpan> _inlineSpans(ThemeData theme, String text, TextStyle? body) {
+  /// 将文本中的 `xxx` 反引号引用拆分为普通 TextSpan + 主色文字 TextSpan。
+  ///
+  /// 高亮只改文字颜色、不加背景：色块面积大会抢标签的视觉权重；且 TextStyle.background
+  /// 无法做圆角，WidgetSpan 盒子又会强制断行，所以都不用。字重沿用正文，以保留用户的
+  /// 字重偏好。
+  List<InlineSpan> _inlineSpans(ThemeData theme, String text) {
     final cs = theme.colorScheme;
     final spans = <InlineSpan>[];
     var last = 0;
-    for (final m in _inlineMarkerRegex.allMatches(text)) {
+    for (final m in _backtickRegex.allMatches(text)) {
       if (m.start > last) {
         spans.add(TextSpan(text: text.substring(last, m.start)));
       }
-      final codeContent = m.group(1);
-      if (codeContent != null) {
-        // 反引号引用：用 primaryContainer 作为字形背后的扁平高亮色，沿文本流
-        // 自然换行；不使用 WidgetSpan 盒子，避免长短语撑出强制断行。
-        spans.add(
-          TextSpan(
-            text: codeContent,
-            style: TextStyle(
-              background: Paint()..color = cs.primaryContainer,
-              color: cs.onPrimaryContainer,
-            ),
-          ),
-        );
-      } else {
-        // IPA 音标：保留 chip 盒子（monospace），但用中性灰色背景，不喧宾夺主
-        spans.add(
-          WidgetSpan(
-            alignment: PlaceholderAlignment.middle,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-              decoration: BoxDecoration(
-                color: cs.surfaceContainerHighest,
-                borderRadius: BorderRadius.circular(4),
-              ),
-              child: Text(
-                m.group(2)!,
-                style: TextStyle(
-                  fontFamily: 'monospace',
-                  fontFamilyFallback: const ['Menlo', 'Courier'],
-                  // 音标与正文同字号，行高跟随正文，避免比正文挤
-                  fontSize: body?.fontSize ?? 14,
-                  color: cs.onSurface,
-                  height: body?.height,
-                ),
-              ),
-            ),
-          ),
-        );
-      }
+      spans.add(TextSpan(text: m.group(1), style: TextStyle(color: cs.primary)));
       last = m.end;
     }
     if (last < text.length) {
@@ -1400,10 +1365,10 @@ class _AnalysisContent extends StatelessWidget {
     return spans;
   }
 
-  /// 整段文本（含反引号高亮 badge 和 IPA 斜体）渲染为 Text.rich
-  Widget _richWithIpa(ThemeData theme, String text, TextStyle? body) {
+  /// 整段文本（含反引号高亮）渲染为 Text.rich
+  Widget _richText(ThemeData theme, String text, TextStyle? body) {
     return Text.rich(
-      TextSpan(style: body, children: _inlineSpans(theme, text, body)),
+      TextSpan(style: body, children: _inlineSpans(theme, text)),
     );
   }
 }

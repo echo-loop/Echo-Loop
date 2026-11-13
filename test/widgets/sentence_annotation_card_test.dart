@@ -699,7 +699,7 @@ void main() {
           ?.style;
       // 字号和行高相同，两行的行框高度一致，首行基线才会对齐
       expect(bullet?.fontSize, 14);
-      expect(bullet?.height, 1.5);
+      expect(bullet?.height, 1.6);
       expect(bullet?.fontSize, content?.fontSize);
       expect(bullet?.height, content?.height);
     });
@@ -726,8 +726,8 @@ void main() {
         tester.element(find.byType(SentenceAnnotationCard)),
       )!;
       final title = tester.widget<Text>(find.text(l10n.aiVocabulary));
-      // 标题基准 16pt，与解析正文一样乘以 150% 倍率
-      expect(title.style?.fontSize, 16 * 1.5);
+      // 标题基准 15pt，与解析正文一样乘以 150% 倍率
+      expect(title.style?.fontSize, 15 * 1.5);
     });
   });
 
@@ -828,8 +828,8 @@ void main() {
   });
 
   group('SentenceAnnotationCard — 内联标记渲染', () {
-    /// 查找符合反引号样式的 TextSpan：文本匹配 + 设置了 background Paint
-    bool hasBadgeSpan(String content) {
+    /// 查找反引号高亮的 TextSpan：文本匹配 + 设置了主色文字，且没有背景块
+    bool hasHighlightSpan(String content) {
       bool found = false;
       for (final el in find.byType(Text).evaluate()) {
         final w = el.widget as Text;
@@ -838,7 +838,8 @@ void main() {
         root.visitChildren((span) {
           if (span is TextSpan &&
               span.text == content &&
-              span.style?.background != null) {
+              span.style?.color != null &&
+              span.style?.background == null) {
             found = true;
             return false;
           }
@@ -849,14 +850,8 @@ void main() {
       return found;
     }
 
-    /// 找到 IPA chip 内的 monospace Text
-    Finder findIpaChip(String content) => find.byWidgetPredicate(
-      (w) =>
-          w is Text && w.style?.fontFamily == 'monospace' && w.data == content,
-    );
-
-    /// 找到任意 monospace Text，用于断言"没有任何 IPA chip"
-    final anyIpaChipFinder = find.byWidgetPredicate(
+    /// 任意 monospace Text，用于断言 IPA 不再使用 chip 样式
+    final anyMonospaceFinder = find.byWidgetPredicate(
       (w) => w is Text && w.style?.fontFamily == 'monospace',
     );
 
@@ -881,50 +876,33 @@ void main() {
       // cachedAnalysis 在 initState 中自动展开，无需额外点击
     }
 
-    cardTest('IPA 识别 — 含音节分界点', (tester) async {
+    cardTest('IPA 音标不加 chip，与正文同样式渲染', (tester) async {
       await pumpAnalysisCard(tester, '音标', '/ˈɪŋ.ɡlɪʃ/ 是英语的发音');
-      expect(findIpaChip('/ˈɪŋ.ɡlɪʃ/'), findsOneWidget);
+      expect(anyMonospaceFinder, findsNothing);
+      expect(_renderedRichText(), contains('/ˈɪŋ.ɡlɪʃ/ 是英语的发音'));
+      expect(hasHighlightSpan('/ˈɪŋ.ɡlɪʃ/'), isFalse);
     });
 
-    cardTest('IPA 识别 — 含连字符', (tester) async {
-      await pumpAnalysisCard(tester, '音标', '/pre-ˈfɪks/ 是前缀');
-      expect(findIpaChip('/pre-ˈfɪks/'), findsOneWidget);
-    });
-
-    cardTest('IPA 识别 — 单音节弱读', (tester) async {
-      await pumpAnalysisCard(tester, '音标', '/tə/ 是弱读形式');
-      expect(findIpaChip('/tə/'), findsOneWidget);
-    });
-
-    cardTest('IPA 否决 — 表示或者的斜杠两侧带空格', (tester) async {
-      await pumpAnalysisCard(tester, '或者', 'and / or 表示选择');
-      expect(anyIpaChipFinder, findsNothing);
-    });
-
-    cardTest('IPA 否决 — 含中文与斜杠', (tester) async {
-      await pumpAnalysisCard(tester, '搭配', 'English / 英语 互译');
-      expect(anyIpaChipFinder, findsNothing);
-    });
-
-    cardTest('IPA 否决 — 路径不被误判', (tester) async {
-      await pumpAnalysisCard(tester, '路径', '/path/to/file 是文件路径');
-      expect(anyIpaChipFinder, findsNothing);
-    });
-
-    cardTest('IPA 否决 — 冠词 a/an', (tester) async {
-      await pumpAnalysisCard(tester, '冠词', 'a/an 视下一词首音决定');
-      expect(anyIpaChipFinder, findsNothing);
-    });
-
-    cardTest('反引号渲染为内联 badge（背景色 + 自然换行）', (tester) async {
+    cardTest('反引号渲染为主色文字，不加背景块', (tester) async {
       await pumpAnalysisCard(tester, '词义', '`run` 表示经营');
-      expect(hasBadgeSpan('run'), isTrue);
+      expect(hasHighlightSpan('run'), isTrue);
     });
 
-    cardTest('反引号与 IPA 同一行混排：前者 badge，后者灰色 chip', (tester) async {
+    cardTest('反引号与 IPA 同一行混排：前者高亮，后者保持正文样式', (tester) async {
       await pumpAnalysisCard(tester, '弱读', '`have` 常听起来像 /əv/ 这样');
-      expect(hasBadgeSpan('have'), isTrue);
-      expect(findIpaChip('/əv/'), findsOneWidget);
+      expect(hasHighlightSpan('have'), isTrue);
+      expect(hasHighlightSpan('/əv/'), isFalse);
+      expect(_renderedRichText(), contains('/əv/ 这样'));
+    });
+
+    cardTest('英文标签后使用半角冒号分隔', (tester) async {
+      await pumpAnalysisCard(tester, 'shy children', '害羞的孩子');
+      expect(_renderedRichText(), contains('shy children: 害羞的孩子'));
+    });
+
+    cardTest('中文标签后保留全角冒号', (tester) async {
+      await pumpAnalysisCard(tester, '词汇', '害羞的孩子');
+      expect(_renderedRichText(), contains('词汇：害羞的孩子'));
     });
 
     cardTest('标签中的反引号被剥离后再渲染', (tester) async {
@@ -934,8 +912,8 @@ void main() {
       expect(rendered.contains('`helped to`'), isFalse);
       // 清洗后的标签文本应当出现在渲染结果中
       expect(rendered.contains('helped to 的弱读'), isTrue);
-      // 详解中的 IPA chip 不受影响
-      expect(findIpaChip('/tə/'), findsOneWidget);
+      // 详解中的 IPA 音标保持正文样式
+      expect(rendered.contains('/tə/'), isTrue);
     });
   });
 }
