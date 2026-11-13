@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'package:echo_loop/analytics/analytics_providers.dart';
 import 'package:echo_loop/analytics/analytics_service.dart';
 import 'package:echo_loop/analytics/models/event_names.dart';
+import 'package:echo_loop/features/account_usage/providers/account_usage_provider.dart';
+import 'package:echo_loop/features/account_usage/screens/account_usage_screen.dart';
 import 'package:echo_loop/features/auth/screens/email_sign_in_screen.dart';
 import 'package:echo_loop/features/auth/screens/login_screen.dart';
 import 'package:echo_loop/features/auth/screens/account_screen.dart';
@@ -15,6 +17,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_sign_in/google_sign_in.dart';
@@ -861,6 +864,77 @@ void main() {
     expect(find.text('Apple account'), findsOneWidget);
     expect(find.text('mbfpw8sdy7@privaterelay.appleid.com'), findsOneWidget);
     expect(find.text('mbfpw8sd...@erelay.appleid.com'), findsNothing);
+  });
+
+  testWidgets('账号页点击用量入口进入用量页', (tester) async {
+    final session = Session(
+      accessToken: 'token',
+      tokenType: 'bearer',
+      user: User(
+        id: 'user-1',
+        appMetadata: const {
+          'provider': 'apple',
+          'providers': ['apple'],
+        },
+        userMetadata: const {},
+        aud: 'authenticated',
+        email: 'mbfpw8sdy7@privaterelay.appleid.com',
+        createdAt: '2026-06-04T00:00:00.000Z',
+      ),
+      refreshToken: 'refresh',
+    );
+    final router = GoRouter(
+      initialLocation: AppRoutes.account,
+      routes: [
+        GoRoute(
+          path: AppRoutes.account,
+          builder: (context, state) => const AccountScreen(),
+        ),
+        GoRoute(
+          path: AppRoutes.accountUsage,
+          builder: (context, state) => const AccountUsageScreen(),
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: dedupeOverrides([
+          supabaseSessionProvider.overrideWith((ref) => Stream.value(session)),
+          accountUsageProvider.overrideWith((ref) => Future.value(null)),
+        ]),
+        child: MaterialApp.router(
+          locale: const Locale('en'),
+          supportedLocales: const [Locale('en'), Locale('zh')],
+          localizationsDelegates: const [
+            AppLocalizations.delegate,
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+          ],
+          theme: AppTheme.light(),
+          routerConfig: router,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // 账户页头像区也有 SVG，因此按资源名精确匹配 gauge 图标。
+    expect(
+      find.byWidgetPredicate(
+        (widget) =>
+            widget is SvgPicture &&
+            widget.bytesLoader is SvgAssetLoader &&
+            (widget.bytesLoader as SvgAssetLoader).assetName ==
+                'assets/icon/gauge.svg',
+      ),
+      findsOneWidget,
+    );
+
+    await tester.tap(find.text("This month's usage"));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(AccountUsageScreen), findsOneWidget);
   });
 
   testWidgets('账号页长按或右键邮箱弹出复制菜单，复制完整邮箱并提示', (tester) async {

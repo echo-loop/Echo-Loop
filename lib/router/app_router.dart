@@ -13,6 +13,7 @@ import 'package:go_router/go_router.dart';
 
 import '../analytics/analytics_observer.dart';
 import '../analytics/analytics_providers.dart';
+import '../features/account_usage/screens/account_usage_screen.dart';
 import '../features/auth/screens/account_screen.dart';
 import '../features/subscription/screens/paywall_screen.dart';
 import '../features/auth/screens/check_email_screen.dart';
@@ -79,6 +80,7 @@ abstract class AppRoutes {
   /// 隐藏的邮箱密码登录入口（App Store / Google Play 审核员专用）。
   static const passwordSignIn = '/login/password';
   static const account = '/account';
+  static const accountUsage = '/account/usage';
 
   /// Podcast 搜索与订阅统一页，位于资源库主导航壳中。
   static const podcastSubscribeSegment = 'podcast-subscribe';
@@ -325,7 +327,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       if (isAuthenticated && isAuthRoute) {
         return AppRoutes.settings;
       }
-      if (!isAuthenticated && state.uri.path == AppRoutes.account) {
+      if (!isAuthenticated &&
+          (state.uri.path == AppRoutes.account ||
+              state.uri.path == AppRoutes.accountUsage)) {
         return AppRoutes.settings;
       }
       // /onboarding/survey 自身路径必须早返，否则在拦截路径上产生死循环
@@ -590,6 +594,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.account,
         parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) => const AccountScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.accountUsage,
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) => const AccountUsageScreen(),
       ),
       GoRoute(
         path: AppRoutes.paywall,

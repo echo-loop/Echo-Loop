@@ -9092,6 +9092,108 @@ abstract class AppLocalizations {
   /// **'Couldn\'t load your profile. Tap to retry.'**
   String get profileLoadFailed;
 
+  /// No description provided for @usageTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Usage & limits'**
+  String get usageTitle;
+
+  /// No description provided for @usageEntryTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'This month\'s usage'**
+  String get usageEntryTitle;
+
+  /// No description provided for @usageEntrySubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'See progress for each feature'**
+  String get usageEntrySubtitle;
+
+  /// No description provided for @usagePlanFree.
+  ///
+  /// In en, this message translates to:
+  /// **'Free plan'**
+  String get usagePlanFree;
+
+  /// No description provided for @usageMonthlyQuota.
+  ///
+  /// In en, this message translates to:
+  /// **'{month} quota'**
+  String usageMonthlyQuota(String month);
+
+  /// No description provided for @usageResetsOn.
+  ///
+  /// In en, this message translates to:
+  /// **'Resets {date}'**
+  String usageResetsOn(String date);
+
+  /// No description provided for @usagePercentLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'{percent}%'**
+  String usagePercentLabel(String percent);
+
+  /// No description provided for @usageUnlimited.
+  ///
+  /// In en, this message translates to:
+  /// **'Unlimited'**
+  String get usageUnlimited;
+
+  /// No description provided for @usageLoadFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t load usage. Tap to retry.'**
+  String get usageLoadFailed;
+
+  /// No description provided for @usageFeatureDictionary.
+  ///
+  /// In en, this message translates to:
+  /// **'AI Lookup'**
+  String get usageFeatureDictionary;
+
+  /// No description provided for @usageFeatureTranslate.
+  ///
+  /// In en, this message translates to:
+  /// **'AI Translation'**
+  String get usageFeatureTranslate;
+
+  /// No description provided for @usageFeatureAnalyze.
+  ///
+  /// In en, this message translates to:
+  /// **'AI Analysis'**
+  String get usageFeatureAnalyze;
+
+  /// No description provided for @usageFeatureSenseGroups.
+  ///
+  /// In en, this message translates to:
+  /// **'AI Sense Groups'**
+  String get usageFeatureSenseGroups;
+
+  /// No description provided for @usageFeatureTranscription.
+  ///
+  /// In en, this message translates to:
+  /// **'AI Transcription'**
+  String get usageFeatureTranscription;
+
+  /// No description provided for @usageFeatureChat.
+  ///
+  /// In en, this message translates to:
+  /// **'AI Chat'**
+  String get usageFeatureChat;
+
+  /// No description provided for @usageFeatureRetellReview.
+  ///
+  /// In en, this message translates to:
+  /// **'AI Retell Review'**
+  String get usageFeatureRetellReview;
+
+  /// No description provided for @usageFeatureTts.
+  ///
+  /// In en, this message translates to:
+  /// **'AI Text-to-Speech'**
+  String get usageFeatureTts;
+
   /// No description provided for @autoShowDailyShareToggle.
   ///
   /// In en, this message translates to:

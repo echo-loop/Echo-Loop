@@ -245,6 +245,8 @@ flutter:
     - assets/dictionary/wordlist-en_US.txt
     - assets/icon/sort.svg
     - assets/icon/plus.svg
+    # 账户页用量入口图标（currentColor 由 colorFilter 按 IconTheme 着色）
+    - assets/icon/gauge.svg
     # PDF 导出品牌角标（96px 小图，1024 原图 190KB 直接嵌会撑大每份 PDF）
     - assets/icon/app-icon-96.png
     # chatbot 气泡操作栏图标（复刻 ChatGPT 线条风格，currentColor 随主题着色）

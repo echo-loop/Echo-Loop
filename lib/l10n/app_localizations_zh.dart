@@ -4884,6 +4884,63 @@ class AppLocalizationsZh extends AppLocalizations {
   String get profileLoadFailed => '资料加载失败，点击重试';
 
   @override
+  String get usageTitle => '用量与额度';
+
+  @override
+  String get usageEntryTitle => '本月用量';
+
+  @override
+  String get usageEntrySubtitle => '查看各项功能的使用进度';
+
+  @override
+  String get usagePlanFree => '免费版';
+
+  @override
+  String usageMonthlyQuota(String month) {
+    return '$month额度';
+  }
+
+  @override
+  String usageResetsOn(String date) {
+    return '$date 重置';
+  }
+
+  @override
+  String usagePercentLabel(String percent) {
+    return '$percent%';
+  }
+
+  @override
+  String get usageUnlimited => '不限量';
+
+  @override
+  String get usageLoadFailed => '用量加载失败，点击重试';
+
+  @override
+  String get usageFeatureDictionary => 'AI 查词';
+
+  @override
+  String get usageFeatureTranslate => 'AI 翻译';
+
+  @override
+  String get usageFeatureAnalyze => 'AI 解析';
+
+  @override
+  String get usageFeatureSenseGroups => 'AI 意群划分';
+
+  @override
+  String get usageFeatureTranscription => 'AI 转写';
+
+  @override
+  String get usageFeatureChat => 'AI 对话';
+
+  @override
+  String get usageFeatureRetellReview => 'AI 复述点评';
+
+  @override
+  String get usageFeatureTts => 'AI 语音朗读';
+
+  @override
   String get autoShowDailyShareToggle => '自动显示今日一刻';
 
   @override

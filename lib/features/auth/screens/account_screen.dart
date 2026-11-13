@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -179,6 +180,9 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
               email: email,
               provider: authDisplayProviderForSession(session),
             ),
+            const SizedBox(height: AppSpacing.l),
+            _SectionHeader(title: l10n.usageTitle),
+            const _UsageEntryCard(),
             // 退出登录与账号信息分开放置，避免误触。
             const SizedBox(height: AppSpacing.xl),
             _SignOutCard(isSigningOut: _isSigningOut, onSignOut: _signOut),
@@ -266,6 +270,48 @@ class _SignInMethodCard extends StatelessWidget {
         overlayState: Overlay.of(context, rootOverlay: true),
         message: l10n.copied,
         icon: Icons.check,
+      ),
+    );
+  }
+}
+
+/// 用量入口只负责跳转，用量数据在子页进入时加载，账户页不发起额外请求。
+class _UsageEntryCard extends StatelessWidget {
+  const _UsageEntryCard();
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    return Card(
+      child: ListTile(
+        leading: const _UsageGaugeIcon(),
+        title: Text(l10n.usageEntryTitle),
+        subtitle: Text(l10n.usageEntrySubtitle),
+        trailing: const Icon(Icons.chevron_right),
+        onTap: () => context.push(AppRoutes.accountUsage),
+      ),
+    );
+  }
+}
+
+/// 用量入口的 gauge 图标。SVG 使用 currentColor，颜色与尺寸取自所在 ListTile 的 IconTheme，
+/// 与同一列表中的 Material 图标保持一致。
+class _UsageGaugeIcon extends StatelessWidget {
+  const _UsageGaugeIcon();
+
+  static const _asset = 'assets/icon/gauge.svg';
+
+  @override
+  Widget build(BuildContext context) {
+    final iconTheme = IconTheme.of(context);
+    final size = iconTheme.size ?? 24;
+    return SvgPicture.asset(
+      _asset,
+      width: size,
+      height: size,
+      colorFilter: ColorFilter.mode(
+        iconTheme.color ?? Theme.of(context).colorScheme.onSurfaceVariant,
+        BlendMode.srcIn,
       ),
     );
   }

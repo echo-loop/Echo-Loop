@@ -1,6 +1,6 @@
 # Echo Loop 项目规划
 
-> 最后更新：2026-11-12（新增手动查词页）
+> 最后更新：2026-11-13（账户页新增用量与额度进度条）
 > 当前焦点：录音 + 识别功能；首要阻塞为 Android 离线 ASR 结束录音闪退
 
 ## 产品目标
@@ -61,7 +61,7 @@ Echo Loop 是一个围绕“音频输入 + 句子级学习 + 间隔复习 + AI �
 
 当前状态：
 
-- 已完成：客户端 RevenueCat 接入、订阅页、平台/渠道识别、direct Paddle Checkout 与 Customer Portal、AI 配额后端裁决、release 渠道注入、权益单一来源重构 P0（后端 `/api/entitlements` 唯一权威 + forceReconcile 成交收敛，见 [docs/subscription-single-source-plan.md](./docs/subscription-single-source-plan.md)）。
+- 已完成：客户端 RevenueCat 接入、订阅页、平台/渠道识别、direct Paddle Checkout 与 Customer Portal、AI 配额后端裁决、release 渠道注入、权益单一来源重构 P0（后端 `/api/entitlements` 唯一权威 + forceReconcile 成交收敛，见 [docs/subscription-single-source-plan.md](./docs/subscription-single-source-plan.md)）、账户页「用量与额度」进度条（后端 `/api/v1/me/usage`，2026-11-13）。
 - 待继续：真实生产环境验证（Paddle 会员在商店包手动回归，见 plan §11；P0+P1 需后端同步部署）、退款/撤销回退、多设备/换机验证、更多渠道回归。P1 智能刷新（E7/E6/E8）已全部完成（2026-07-23）；E9 Realtime 推送为可选项未实现。
 
 参考文档：

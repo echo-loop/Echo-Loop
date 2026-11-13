@@ -2000,6 +2000,38 @@
   "profileSaveFailed": "保存失败，请稍后重试",
   "profileImageUnsupported": "无法使用这张图片，请换一张 JPEG、PNG 或 WebP 格式的照片",
   "profileLoadFailed": "资料加载失败，点击重试",
+  "usageTitle": "用量与额度",
+  "usageEntryTitle": "本月用量",
+  "usageEntrySubtitle": "查看各项功能的使用进度",
+  "usagePlanFree": "免费版",
+  "usageMonthlyQuota": "{month}额度",
+  "@usageMonthlyQuota": {
+    "placeholders": {
+      "month": {"type": "String"}
+    }
+  },
+  "usageResetsOn": "{date} 重置",
+  "@usageResetsOn": {
+    "placeholders": {
+      "date": {"type": "String"}
+    }
+  },
+  "usagePercentLabel": "{percent}%",
+  "@usagePercentLabel": {
+    "placeholders": {
+      "percent": {"type": "String"}
+    }
+  },
+  "usageUnlimited": "不限量",
+  "usageLoadFailed": "用量加载失败，点击重试",
+  "usageFeatureDictionary": "AI 查词",
+  "usageFeatureTranslate": "AI 翻译",
+  "usageFeatureAnalyze": "AI 解析",
+  "usageFeatureSenseGroups": "AI 意群划分",
+  "usageFeatureTranscription": "AI 转写",
+  "usageFeatureChat": "AI 对话",
+  "usageFeatureRetellReview": "AI 复述点评",
+  "usageFeatureTts": "AI 语音朗读",
   "autoShowDailyShareToggle": "自动显示今日一刻",
   "autoShowDailyShareSubtitle": "完成每日目标后，返回学习页时自动展示卡片",
   "shareCardTitle": "今日一刻",

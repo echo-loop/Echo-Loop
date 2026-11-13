@@ -5137,6 +5137,63 @@ class AppLocalizationsEn extends AppLocalizations {
   String get profileLoadFailed => 'Couldn\'t load your profile. Tap to retry.';
 
   @override
+  String get usageTitle => 'Usage & limits';
+
+  @override
+  String get usageEntryTitle => 'This month\'s usage';
+
+  @override
+  String get usageEntrySubtitle => 'See progress for each feature';
+
+  @override
+  String get usagePlanFree => 'Free plan';
+
+  @override
+  String usageMonthlyQuota(String month) {
+    return '$month quota';
+  }
+
+  @override
+  String usageResetsOn(String date) {
+    return 'Resets $date';
+  }
+
+  @override
+  String usagePercentLabel(String percent) {
+    return '$percent%';
+  }
+
+  @override
+  String get usageUnlimited => 'Unlimited';
+
+  @override
+  String get usageLoadFailed => 'Couldn\'t load usage. Tap to retry.';
+
+  @override
+  String get usageFeatureDictionary => 'AI Lookup';
+
+  @override
+  String get usageFeatureTranslate => 'AI Translation';
+
+  @override
+  String get usageFeatureAnalyze => 'AI Analysis';
+
+  @override
+  String get usageFeatureSenseGroups => 'AI Sense Groups';
+
+  @override
+  String get usageFeatureTranscription => 'AI Transcription';
+
+  @override
+  String get usageFeatureChat => 'AI Chat';
+
+  @override
+  String get usageFeatureRetellReview => 'AI Retell Review';
+
+  @override
+  String get usageFeatureTts => 'AI Text-to-Speech';
+
+  @override
   String get autoShowDailyShareToggle => 'Auto-show Today’s Moment';
 
   @override

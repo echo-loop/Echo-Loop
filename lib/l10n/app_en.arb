@@ -2376,6 +2376,38 @@
   "profileSaveFailed": "Couldn't save your profile. Please try again.",
   "profileImageUnsupported": "This image can't be used. Try a JPEG, PNG or WebP photo.",
   "profileLoadFailed": "Couldn't load your profile. Tap to retry.",
+  "usageTitle": "Usage & limits",
+  "usageEntryTitle": "This month's usage",
+  "usageEntrySubtitle": "See progress for each feature",
+  "usagePlanFree": "Free plan",
+  "usageMonthlyQuota": "{month} quota",
+  "@usageMonthlyQuota": {
+    "placeholders": {
+      "month": {"type": "String"}
+    }
+  },
+  "usageResetsOn": "Resets {date}",
+  "@usageResetsOn": {
+    "placeholders": {
+      "date": {"type": "String"}
+    }
+  },
+  "usagePercentLabel": "{percent}%",
+  "@usagePercentLabel": {
+    "placeholders": {
+      "percent": {"type": "String"}
+    }
+  },
+  "usageUnlimited": "Unlimited",
+  "usageLoadFailed": "Couldn't load usage. Tap to retry.",
+  "usageFeatureDictionary": "AI Lookup",
+  "usageFeatureTranslate": "AI Translation",
+  "usageFeatureAnalyze": "AI Analysis",
+  "usageFeatureSenseGroups": "AI Sense Groups",
+  "usageFeatureTranscription": "AI Transcription",
+  "usageFeatureChat": "AI Chat",
+  "usageFeatureRetellReview": "AI Retell Review",
+  "usageFeatureTts": "AI Text-to-Speech",
   "autoShowDailyShareToggle": "Auto-show Today’s Moment",
   "autoShowDailyShareSubtitle": "Automatically show your card when returning to Study after reaching your daily goal",
   "shareCardTitle": "Today’s Moment",
