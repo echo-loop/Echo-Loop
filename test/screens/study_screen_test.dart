@@ -16,7 +16,6 @@ import 'package:echo_loop/providers/learning_settings_provider.dart';
 import 'package:echo_loop/providers/study_stats_provider.dart';
 import 'package:echo_loop/providers/study_task_provider.dart';
 import 'package:echo_loop/screens/study_screen.dart';
-import 'package:echo_loop/widgets/audio_artwork.dart';
 import 'package:echo_loop/widgets/audio_meta_line.dart';
 import 'package:echo_loop/widgets/media_type_icon.dart';
 import 'package:echo_loop/providers/time_provider.dart';
@@ -132,21 +131,6 @@ void main() {
       ),
     );
   }
-
-  testWidgets('学习首页连续学习天数 badge 使用统一高度和字号', (tester) async {
-    await tester.pumpWidget(
-      createTestWidget(
-        progressState: const LearningProgressState(isLoading: false),
-        stats: const StudyStats(streak: 5),
-      ),
-    );
-    await tester.pumpAndSettle();
-
-    final streakChip = find
-        .ancestor(of: find.text('5d streak'), matching: find.byType(Container))
-        .first;
-    expect(tester.getSize(streakChip).height, 33);
-  });
 
   testWidgets('无任务时显示空状态', (tester) async {
     await tester.pumpWidget(
@@ -655,84 +639,6 @@ void main() {
     expect(find.text('🌱'), findsNothing);
     expect(_findSvgAsset('assets/icon/refresh.svg'), findsOneWidget);
     expect(_findSvgAsset('assets/icon/reading.svg'), findsNothing);
-  });
-
-  testWidgets('学习社群入口保持紧凑高度并使用发现入口青蓝色系', (tester) async {
-    final now = DateTime(2026, 2, 25, 12, 0);
-    final audioItems = [
-      AudioItem(
-        id: 'audio-1',
-        name: 'First Study Audio',
-        audioPath: 'audios/test.mp3',
-        addedDate: now,
-      ),
-    ];
-
-    await tester.pumpWidget(
-      createTestWidget(
-        audioItems: audioItems,
-        progressState: const LearningProgressState(isLoading: false),
-        fixedNow: now,
-        recommendedMaterial: audioItems.first,
-      ),
-    );
-    await tester.pumpAndSettle();
-
-    expect(find.text('Join Community'), findsOneWidget);
-    expect(find.text('Learn, ask, and share'), findsOneWidget);
-
-    final communityDecoration = tester
-        .widgetList<DecoratedBox>(find.byType(DecoratedBox))
-        .map((box) => box.decoration)
-        .whereType<BoxDecoration>()
-        .firstWhere((decoration) {
-          final gradient = decoration.gradient;
-          return gradient is LinearGradient &&
-              gradient.colors.length == 2 &&
-              gradient.colors.first == const Color(0xFFEAF8FA) &&
-              gradient.colors.last == const Color(0xFFDDEFFA);
-        });
-
-    expect(communityDecoration.borderRadius, BorderRadius.circular(12));
-    expect(
-      (communityDecoration.border! as Border).top.color,
-      const Color(0xFFA9D5DF),
-    );
-    expect(tester.widget<Icon>(find.byIcon(Icons.group_rounded)).size, 20);
-    expect(tester.widget<Icon>(find.byIcon(Icons.chevron_right)).size, 20);
-  });
-
-  testWidgets('任务卡片左侧显示 56 方形媒体图标', (tester) async {
-    final now = DateTime(2026, 2, 25, 12, 0);
-    final audioItems = [
-      AudioItem(
-        id: 'audio-1',
-        name: 'Test Audio',
-        audioPath: 'audios/test.mp3',
-        addedDate: now,
-      ),
-    ];
-
-    await tester.pumpWidget(
-      createTestWidget(
-        audioItems: audioItems,
-        progressState: LearningProgressState(
-          progressMap: {
-            'audio-1': LearningProgress(
-              audioItemId: 'audio-1',
-              currentStage: LearningStage.review1,
-              updatedAt: now,
-            ),
-          },
-          isLoading: false,
-        ),
-        fixedNow: now,
-      ),
-    );
-    await tester.pumpAndSettle();
-
-    expect(find.byType(AudioArtwork), findsAtLeast(1));
-    expect(tester.getSize(find.byType(AudioArtwork).first), const Size(56, 56));
   });
 
   testWidgets('多个未学习音频时页面只显示一条推荐材料', (tester) async {

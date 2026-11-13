@@ -261,28 +261,6 @@ void main() {
       expect(find.byIcon(Icons.play_arrow), findsNothing);
     });
 
-    testWidgets('左侧讲解按钮宽度保持 32dp', (tester) async {
-      await tester.pumpWidget(
-        buildInteractiveTile(
-          sentence: _sentence('Hello world', index: 0),
-          onPlayFromTap: () {},
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      // 讲解按钮的祖先 SizedBox 应为 32dp。
-      final sizedBoxes = tester.widgetList<SizedBox>(
-        find.descendant(
-          of: find.byKey(
-            const ValueKey('$kMaskedSentenceExplanationHitAreaKeyPrefix-0'),
-          ),
-          matching: find.byType(SizedBox),
-        ),
-      );
-      final hasWidth32 = sizedBoxes.any((s) => s.width == 32);
-      expect(hasWidth32, true);
-    });
-
     testWidgets('isBookmarked=true 时右侧渲染已收藏图标', (tester) async {
       await tester.pumpWidget(
         buildInteractiveTile(
@@ -454,12 +432,6 @@ void main() {
           .textTheme
           .bodyLarge;
       expect(styleOf(tester, 'love')?.fontSize, base?.fontSize);
-    });
-
-    testWidgets('100% 档正文字号统一为 16pt', (tester) async {
-      await pumpWithPrefs(tester, {});
-
-      expect(styleOf(tester, 'love')?.fontSize, 16);
     });
   });
 

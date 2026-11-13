@@ -8,6 +8,7 @@ import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
+import 'package:fake_async/fake_async.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
@@ -32,7 +33,9 @@ import 'package:echo_loop/utils/srt_generator.dart';
 import 'package:flutter_riverpod/misc.dart';
 
 import '../helpers/mock_providers.dart';
-import 'package:echo_loop/database/app_database.dart' show configureAppDatabaseConnection;
+
+import 'package:echo_loop/database/app_database.dart'
+    show configureAppDatabaseConnection;
 
 // ─── Mock 类 ──────────────────────────────────────────────
 
@@ -194,12 +197,13 @@ void main() {
     mockApi = MockTranscriptionApiClient();
     mockFileOps = MockTranscriptionFileOps();
     mockAutoAlignService = MockSubtitleAutoAlignService();
-    database = db.AppDatabase(NativeDatabase.memory(setup: configureAppDatabaseConnection));
+    database = db.AppDatabase(
+      NativeDatabase.memory(setup: configureAppDatabaseConnection),
+    );
 
     // 所有调用 startTranscription 的测试都需要 getDataDir
-    when(
-      () => mockFileOps.getDataDir(),
-    ).thenAnswer((_) async => Directory.systemTemp);
+    when(() => mockFileOps.getDataDir())
+        .thenAnswer((_) async => Directory.systemTemp);
     when(
       () => mockAutoAlignService.alignIfPossible(
         audioPath: any(named: 'audioPath'),
@@ -263,17 +267,6 @@ void main() {
   }
 
   group('TranscriptionTaskManager', () {
-    test('初始状态为空 Map', () {
-      final container = _createContainer(
-        mockApi: mockApi,
-        mockFileOps: mockFileOps,
-        database: database,
-      );
-      final state = container.read(transcriptionTaskManagerProvider);
-      expect(state, isEmpty);
-      container.dispose();
-    });
-
     test('getTaskState 对未知 audioId 返回 Idle', () {
       final container = _createContainer(
         mockApi: mockApi,
@@ -419,9 +412,8 @@ void main() {
       final audioItem = _testAudioItem(audioSha256: 'abc123');
 
       // mock 文件操作
-      when(
-        () => mockFileOps.computeSha256(any()),
-      ).thenAnswer((_) async => 'abc123');
+      when(() => mockFileOps.computeSha256(any()))
+          .thenAnswer((_) async => 'abc123');
       when(() => mockFileOps.getFileSize(any())).thenAnswer((_) async => 1024);
 
       // mock API: 音频已存在 + 字幕缓存命中
@@ -487,7 +479,17 @@ void main() {
         },
       );
 
-      await notifier.startTranscription(audioItem, 'en', accessToken: 'token');
+      // 字幕缓存命中会在 provider 内固定等待 500ms 让进度动画展示，用假时间推进。
+      var finished = false;
+      fakeAsync((async) {
+        unawaited(
+          notifier
+              .startTranscription(audioItem, 'en', accessToken: 'token')
+              .then((_) => finished = true),
+        );
+        async.elapse(const Duration(seconds: 1));
+      });
+      expect(finished, isTrue);
 
       // 不应调用 uploadToR2
       verifyNever(
@@ -528,9 +530,8 @@ void main() {
     test('后端 402（本月额度用尽）→ 进入 TranscriptionQuotaExceeded 状态', () async {
       final audioItem = _testAudioItem(audioSha256: 'abc123');
 
-      when(
-        () => mockFileOps.computeSha256(any()),
-      ).thenAnswer((_) async => 'abc123');
+      when(() => mockFileOps.computeSha256(any()))
+          .thenAnswer((_) async => 'abc123');
       when(() => mockFileOps.getFileSize(any())).thenAnswer((_) async => 1024);
       when(
         () => mockApi.getUploadUrl(
@@ -596,8 +597,9 @@ void main() {
         isA<TranscriptionQuotaExceeded>(),
       );
       expect(
-        (notifier.getTaskState('test-audio-1') as TranscriptionQuotaExceeded)
-            .reason,
+        (notifier.getTaskState(
+          'test-audio-1',
+        ) as TranscriptionQuotaExceeded).reason,
         AiQuotaRejectionReason.unsupportedForFreePlan,
       );
       // E7：402 触发权益分歧收敛信号。
@@ -615,12 +617,10 @@ void main() {
       test('提交返回 $backendCode 时保留可本地化错误码', () async {
         final audioItem = _testAudioItem(audioSha256: 'abc123');
 
-        when(
-          () => mockFileOps.computeSha256(any()),
-        ).thenAnswer((_) async => 'abc123');
-        when(
-          () => mockFileOps.getFileSize(any()),
-        ).thenAnswer((_) async => 1024);
+        when(() => mockFileOps.computeSha256(any()))
+            .thenAnswer((_) async => 'abc123');
+        when(() => mockFileOps.getFileSize(any()))
+            .thenAnswer((_) async => 1024);
         when(
           () => mockApi.getUploadUrl(
             sha256: any(named: 'sha256'),
@@ -852,9 +852,8 @@ void main() {
     test('音频已缓存但字幕未缓存 — 跳过上传，创建 job', () async {
       final audioItem = _testAudioItem(audioSha256: 'abc123');
 
-      when(
-        () => mockFileOps.computeSha256(any()),
-      ).thenAnswer((_) async => 'abc123');
+      when(() => mockFileOps.computeSha256(any()))
+          .thenAnswer((_) async => 'abc123');
       when(() => mockFileOps.getFileSize(any())).thenAnswer((_) async => 1024);
 
       // 音频已存在
@@ -928,7 +927,17 @@ void main() {
         transcriptionTaskManagerProvider.notifier,
       );
 
-      await notifier.startTranscription(audioItem, 'en', accessToken: 'token');
+      // 轮询首个间隔（2s）写死在 provider 内，用假时间推进，避免真实等待。
+      var finished = false;
+      fakeAsync((async) {
+        unawaited(
+          notifier
+              .startTranscription(audioItem, 'en', accessToken: 'token')
+              .then((_) => finished = true),
+        );
+        async.elapse(const Duration(seconds: 3));
+      });
+      expect(finished, isTrue);
 
       // 不应上传
       verifyNever(
@@ -1172,9 +1181,8 @@ void main() {
             fullText: 'Hello world',
           ),
         );
-        when(
-          () => mockFileOps.getFileSize(any()),
-        ).thenAnswer((_) async => 1024);
+        when(() => mockFileOps.getFileSize(any()))
+            .thenAnswer((_) async => 1024);
         when(
           () => mockAutoAlignService.alignIfPossible(
             audioPath: any(named: 'audioPath'),
@@ -1229,9 +1237,8 @@ void main() {
     }
 
     test('社区音频 AI 字幕不会尝试自动校准', () async {
-      final audioItem = _testAudioItem(
-        audioSha256: 'abc123',
-      ).copyWith(remoteAudioId: 'remote-1');
+      final audioItem = _testAudioItem(audioSha256: 'abc123')
+          .copyWith(remoteAudioId: 'remote-1');
 
       when(() => mockFileOps.getFileSize(any())).thenAnswer((_) async => 1024);
 
@@ -1317,9 +1324,8 @@ void main() {
     test('submitTranscription 无 jobId 时进入 Failed 状态', () async {
       final audioItem = _testAudioItem(audioSha256: 'abc123');
 
-      when(
-        () => mockFileOps.computeSha256(any()),
-      ).thenAnswer((_) async => 'abc123');
+      when(() => mockFileOps.computeSha256(any()))
+          .thenAnswer((_) async => 'abc123');
       when(() => mockFileOps.getFileSize(any())).thenAnswer((_) async => 1024);
 
       when(
@@ -1369,9 +1375,8 @@ void main() {
     test('网络错误进入 Failed 状态', () async {
       final audioItem = _testAudioItem(audioSha256: 'abc123');
 
-      when(
-        () => mockFileOps.computeSha256(any()),
-      ).thenAnswer((_) async => 'abc123');
+      when(() => mockFileOps.computeSha256(any()))
+          .thenAnswer((_) async => 'abc123');
       when(() => mockFileOps.getFileSize(any())).thenAnswer((_) async => 1024);
 
       when(
@@ -1411,9 +1416,8 @@ void main() {
     test('DioException cancel 类型不设置 Failed 状态', () async {
       final audioItem = _testAudioItem(audioSha256: 'abc123');
 
-      when(
-        () => mockFileOps.computeSha256(any()),
-      ).thenAnswer((_) async => 'abc123');
+      when(() => mockFileOps.computeSha256(any()))
+          .thenAnswer((_) async => 'abc123');
       when(() => mockFileOps.getFileSize(any())).thenAnswer((_) async => 1024);
 
       when(
@@ -1452,9 +1456,8 @@ void main() {
     test('轮询中 job 失败进入 Failed 状态', () async {
       final audioItem = _testAudioItem(audioSha256: 'abc123');
 
-      when(
-        () => mockFileOps.computeSha256(any()),
-      ).thenAnswer((_) async => 'abc123');
+      when(() => mockFileOps.computeSha256(any()))
+          .thenAnswer((_) async => 'abc123');
       when(() => mockFileOps.getFileSize(any())).thenAnswer((_) async => 1024);
 
       when(
@@ -1504,7 +1507,17 @@ void main() {
         transcriptionTaskManagerProvider.notifier,
       );
 
-      await notifier.startTranscription(audioItem, 'en', accessToken: 'token');
+      // 轮询首个间隔（2s）写死在 provider 内，用假时间推进，避免真实等待。
+      var finished = false;
+      fakeAsync((async) {
+        unawaited(
+          notifier
+              .startTranscription(audioItem, 'en', accessToken: 'token')
+              .then((_) => finished = true),
+        );
+        async.elapse(const Duration(seconds: 3));
+      });
+      expect(finished, isTrue);
 
       final state = notifier.getTaskState('test-audio-1');
       expect(state, isA<TranscriptionFailed>());

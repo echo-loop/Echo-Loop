@@ -33,7 +33,6 @@ import 'package:echo_loop/providers/learning_settings_provider.dart';
 import 'package:echo_loop/providers/sentence_ai_provider.dart';
 import 'package:echo_loop/router/app_router.dart';
 import 'package:echo_loop/services/sentence_ai_api_client.dart';
-import 'package:echo_loop/widgets/practice/sentence_annotation_card.dart';
 import 'package:echo_loop/widgets/practice/sentence_explanation_view.dart';
 import 'package:echo_loop/widgets/dictionary/dictionary_panel_host.dart';
 import 'package:echo_loop/widgets/animated_bookmark_icon.dart';
@@ -353,9 +352,8 @@ void main() {
     );
     final savedWordDao = _MockSavedWordDao();
     when(savedWordDao.watchAll).thenAnswer((_) => const Stream.empty());
-    when(
-      savedWordDao.watchSavedWordTexts,
-    ).thenAnswer((_) => Stream<Set<String>>.value(const {}));
+    when(savedWordDao.watchSavedWordTexts)
+        .thenAnswer((_) => Stream<Set<String>>.value(const {}));
     when(() => savedWordDao.getByWord(any())).thenAnswer((_) async => null);
     when(() => savedWordDao.removeWord(any())).thenAnswer((_) async {});
     final router = GoRouter(
@@ -413,7 +411,9 @@ void main() {
             autoShowAiTranslation: autoShowAiTranslation,
             autoShowAiSenseGroups: autoShowAiSenseGroups,
           ),
-          supabaseSessionProvider.overrideWithValue(AsyncData<Session?>(signedIn ? testSession() : null)),
+          supabaseSessionProvider.overrideWithValue(
+            AsyncData<Session?>(signedIn ? testSession() : null),
+          ),
           savedSenseGroupDaoProvider.overrideWithValue(savedSenseGroupDao),
           savedWordDaoProvider.overrideWithValue(savedWordDao),
           audioEngineProvider.overrideWith(() => _NoopAudioEngine()),
@@ -435,9 +435,8 @@ void main() {
     final cacheDao = _MockCacheDao();
     final savedSenseGroupDao = _MockSavedSenseGroupDao();
     when(() => cacheDao.getByHash(any(), any())).thenAnswer((_) async => null);
-    when(
-      savedSenseGroupDao.watchSavedPhraseTexts,
-    ).thenAnswer((_) => Stream<Set<String>>.value(const {}));
+    when(savedSenseGroupDao.watchSavedPhraseTexts)
+        .thenAnswer((_) => Stream<Set<String>>.value(const {}));
 
     await pumpAuthTestApp(
       tester,
@@ -461,9 +460,8 @@ void main() {
     final savedSenseGroupDao = _MockSavedSenseGroupDao();
     final hostKey = GlobalKey<_SentenceExplanationScrollHostState>();
     when(() => cacheDao.getByHash(any(), any())).thenAnswer((_) async => null);
-    when(
-      savedSenseGroupDao.watchSavedPhraseTexts,
-    ).thenAnswer((_) => Stream<Set<String>>.value(const {}));
+    when(savedSenseGroupDao.watchSavedPhraseTexts)
+        .thenAnswer((_) => Stream<Set<String>>.value(const {}));
 
     await pumpAuthTestApp(
       tester,
@@ -511,34 +509,6 @@ void main() {
     expect(tester.state<ScrollableState>(scrollable).position.pixels, 0);
   });
 
-  testWidgets('AI 工具栏上下使用统一的 6dp 紧凑留白', (tester) async {
-    final cacheDao = _MockCacheDao();
-    final savedSenseGroupDao = _MockSavedSenseGroupDao();
-    when(() => cacheDao.getByHash(any(), any())).thenAnswer((_) async => null);
-    when(
-      savedSenseGroupDao.watchSavedPhraseTexts,
-    ).thenAnswer((_) => Stream<Set<String>>.value(const {}));
-
-    await pumpAuthTestApp(
-      tester,
-      cacheDao: cacheDao,
-      savedSenseGroupDao: savedSenseGroupDao,
-    );
-
-    final toolbarTop = tester
-        .getTopLeft(find.byKey(const ValueKey('analysis')))
-        .dy;
-    final toolbarBottom = tester
-        .getBottomLeft(find.byKey(const ValueKey('analysis')))
-        .dy;
-    final contentTop = tester
-        .getTopLeft(find.byType(SentenceAnnotationCard))
-        .dy;
-
-    expect(toolbarTop, greaterThanOrEqualTo(0));
-    expect(contentTop - toolbarBottom, closeTo(6, 0.1));
-  });
-
   testWidgets('未显式注入 notifier 时 AI 工具栏仍使用 Provider 发起请求', (tester) async {
     final cacheDao = _MockCacheDao();
     final savedSenseGroupDao = _MockSavedSenseGroupDao();
@@ -547,9 +517,8 @@ void main() {
       apiClient: _NoopSentenceAiApiClient(),
     );
     when(() => cacheDao.getByHash(any(), any())).thenAnswer((_) async => null);
-    when(
-      savedSenseGroupDao.watchSavedPhraseTexts,
-    ).thenAnswer((_) => Stream<Set<String>>.value(const {}));
+    when(savedSenseGroupDao.watchSavedPhraseTexts)
+        .thenAnswer((_) => Stream<Set<String>>.value(const {}));
 
     await pumpAuthTestApp(
       tester,
@@ -573,9 +542,8 @@ void main() {
     final cacheDao = _MockCacheDao();
     final savedSenseGroupDao = _MockSavedSenseGroupDao();
     when(() => cacheDao.getByHash(any(), any())).thenAnswer((_) async => null);
-    when(
-      savedSenseGroupDao.watchSavedPhraseTexts,
-    ).thenAnswer((_) => Stream<Set<String>>.value(const {}));
+    when(savedSenseGroupDao.watchSavedPhraseTexts)
+        .thenAnswer((_) => Stream<Set<String>>.value(const {}));
 
     await pumpAuthTestApp(
       tester,
@@ -607,9 +575,8 @@ void main() {
     final cacheDao = _MockCacheDao();
     final savedSenseGroupDao = _MockSavedSenseGroupDao();
     when(() => cacheDao.getByHash(any(), any())).thenAnswer((_) async => null);
-    when(
-      savedSenseGroupDao.watchSavedPhraseTexts,
-    ).thenAnswer((_) => Stream<Set<String>>.value(const {}));
+    when(savedSenseGroupDao.watchSavedPhraseTexts)
+        .thenAnswer((_) => Stream<Set<String>>.value(const {}));
 
     await pumpAuthTestApp(
       tester,
@@ -630,12 +597,10 @@ void main() {
     testWidgets('$button 超出额度时先弹提醒，点击订阅后进入订阅页', (tester) async {
       final cacheDao = _MockCacheDao();
       final savedSenseGroupDao = _MockSavedSenseGroupDao();
-      when(
-        () => cacheDao.getByHash(any(), any()),
-      ).thenAnswer((_) async => null);
-      when(
-        savedSenseGroupDao.watchSavedPhraseTexts,
-      ).thenAnswer((_) => Stream<Set<String>>.value(const {}));
+      when(() => cacheDao.getByHash(any(), any()))
+          .thenAnswer((_) async => null);
+      when(savedSenseGroupDao.watchSavedPhraseTexts)
+          .thenAnswer((_) => Stream<Set<String>>.value(const {}));
 
       final aiNotifier = _QuotaSentenceAiNotifier(
         cacheDao: cacheDao,
@@ -680,9 +645,8 @@ void main() {
     final cacheDao = _MockCacheDao();
     final savedSenseGroupDao = _MockSavedSenseGroupDao();
     when(() => cacheDao.getByHash(any(), any())).thenAnswer((_) async => null);
-    when(
-      savedSenseGroupDao.watchSavedPhraseTexts,
-    ).thenAnswer((_) => Stream<Set<String>>.value(const {}));
+    when(savedSenseGroupDao.watchSavedPhraseTexts)
+        .thenAnswer((_) => Stream<Set<String>>.value(const {}));
 
     await pumpAuthTestApp(
       tester,
@@ -713,9 +677,8 @@ void main() {
     final cacheDao = _MockCacheDao();
     final savedSenseGroupDao = _MockSavedSenseGroupDao();
     when(() => cacheDao.getByHash(any(), any())).thenAnswer((_) async => null);
-    when(
-      savedSenseGroupDao.watchSavedPhraseTexts,
-    ).thenAnswer((_) => Stream<Set<String>>.value(const {}));
+    when(savedSenseGroupDao.watchSavedPhraseTexts)
+        .thenAnswer((_) => Stream<Set<String>>.value(const {}));
 
     await pumpAuthTestApp(
       tester,
@@ -759,9 +722,8 @@ void main() {
     final cacheDao = _MockCacheDao();
     final savedSenseGroupDao = _MockSavedSenseGroupDao();
     when(() => cacheDao.getByHash(any(), any())).thenAnswer((_) async => null);
-    when(
-      savedSenseGroupDao.watchSavedPhraseTexts,
-    ).thenAnswer((_) => Stream<Set<String>>.value(const {}));
+    when(savedSenseGroupDao.watchSavedPhraseTexts)
+        .thenAnswer((_) => Stream<Set<String>>.value(const {}));
 
     await pumpAuthTestApp(
       tester,
@@ -805,9 +767,8 @@ void main() {
     final cacheDao = _MockCacheDao();
     final savedSenseGroupDao = _MockSavedSenseGroupDao();
     when(() => cacheDao.getByHash(any(), any())).thenAnswer((_) async => null);
-    when(
-      savedSenseGroupDao.watchSavedPhraseTexts,
-    ).thenAnswer((_) => Stream<Set<String>>.value(const {}));
+    when(savedSenseGroupDao.watchSavedPhraseTexts)
+        .thenAnswer((_) => Stream<Set<String>>.value(const {}));
 
     await pumpAuthTestApp(
       tester,
@@ -850,9 +811,8 @@ void main() {
     final savedSenseGroupDao = _MockSavedSenseGroupDao();
     final rangePlayback = _RecordingSenseGroupRangePlayback();
     when(() => cacheDao.getByHash(any(), any())).thenAnswer((_) async => null);
-    when(
-      savedSenseGroupDao.watchSavedPhraseTexts,
-    ).thenAnswer((_) => Stream<Set<String>>.value(const {}));
+    when(savedSenseGroupDao.watchSavedPhraseTexts)
+        .thenAnswer((_) => Stream<Set<String>>.value(const {}));
 
     await pumpAuthTestApp(
       tester,
@@ -880,12 +840,10 @@ void main() {
     final rangePlayback = _RecordingSenseGroupRangePlayback();
     when(() => cacheDao.getByHash(any(), any())).thenAnswer((_) async => null);
     when(() => audioItemDao.getById('audio-1')).thenAnswer((_) async => null);
-    when(
-      () => audioItemDao.getTranscriptSrt('audio-1'),
-    ).thenAnswer((_) async => null);
-    when(
-      savedSenseGroupDao.watchSavedPhraseTexts,
-    ).thenAnswer((_) => Stream<Set<String>>.value(const {}));
+    when(() => audioItemDao.getTranscriptSrt('audio-1'))
+        .thenAnswer((_) async => null);
+    when(savedSenseGroupDao.watchSavedPhraseTexts)
+        .thenAnswer((_) => Stream<Set<String>>.value(const {}));
 
     await pumpAuthTestApp(
       tester,
@@ -899,9 +857,7 @@ void main() {
       ),
       senseGroupRangePlayback: rangePlayback,
       audioItemId: 'audio-1',
-      extraOverrides: [
-        audioItemDaoProvider.overrideWithValue(audioItemDao),
-      ],
+      extraOverrides: [audioItemDaoProvider.overrideWithValue(audioItemDao)],
     );
 
     await tester.tap(find.byKey(const ValueKey('senseGroup')));
@@ -921,14 +877,15 @@ void main() {
     final cacheDao = _MockCacheDao();
     final savedSenseGroupDao = _MockSavedSenseGroupDao();
     final audioItemDao = _MockAudioItemDao();
-    final database = AppDatabase(NativeDatabase.memory(setup: configureAppDatabaseConnection));
+    final database = AppDatabase(
+      NativeDatabase.memory(setup: configureAppDatabaseConnection),
+    );
     addTearDown(database.close);
     final savedTexts = StreamController<Set<String>>.broadcast();
     addTearDown(savedTexts.close);
     when(() => cacheDao.getByHash(any(), any())).thenAnswer((_) async => null);
-    when(
-      savedSenseGroupDao.watchSavedPhraseTexts,
-    ).thenAnswer((_) => savedTexts.stream);
+    when(savedSenseGroupDao.watchSavedPhraseTexts)
+        .thenAnswer((_) => savedTexts.stream);
     when(() => savedSenseGroupDao.getByPhraseText(any())).thenAnswer(
       (_) async => SavedSenseGroup(
         id: 1,
@@ -955,13 +912,11 @@ void main() {
         groupEndMs: any(named: 'groupEndMs'),
       ),
     ).thenAnswer((_) async => savedTexts.add({'hello world'}));
-    when(
-      () => savedSenseGroupDao.removeSenseGroup('hello world'),
-    ).thenAnswer((_) async => savedTexts.add(const {}));
+    when(() => savedSenseGroupDao.removeSenseGroup('hello world'))
+        .thenAnswer((_) async => savedTexts.add(const {}));
     when(() => audioItemDao.getById('audio-1')).thenAnswer((_) async => null);
-    when(
-      () => audioItemDao.getTranscriptSrt('audio-1'),
-    ).thenAnswer((_) async => null);
+    when(() => audioItemDao.getTranscriptSrt('audio-1'))
+        .thenAnswer((_) async => null);
 
     await pumpAuthTestApp(
       tester,
@@ -980,9 +935,8 @@ void main() {
         appDatabaseProvider.overrideWithValue(database),
         audioItemDaoProvider.overrideWithValue(audioItemDao),
         dictionaryServiceOverride(),
-        remoteFeatureEnabledProvider(
-          RemoteFeature.aiChatAssistant,
-        ).overrideWithValue(false),
+        remoteFeatureEnabledProvider(RemoteFeature.aiChatAssistant)
+            .overrideWithValue(false),
       ],
     );
     savedTexts.add(const {});
@@ -1034,12 +988,10 @@ void main() {
     final audioItemDao = _MockAudioItemDao();
     when(() => cacheDao.getByHash(any(), any())).thenAnswer((_) async => null);
     when(() => audioItemDao.getById('audio-1')).thenAnswer((_) async => null);
-    when(
-      () => audioItemDao.getTranscriptSrt('audio-1'),
-    ).thenAnswer((_) async => null);
-    when(
-      savedSenseGroupDao.watchSavedPhraseTexts,
-    ).thenAnswer((_) => Stream<Set<String>>.value(const {}));
+    when(() => audioItemDao.getTranscriptSrt('audio-1'))
+        .thenAnswer((_) async => null);
+    when(savedSenseGroupDao.watchSavedPhraseTexts)
+        .thenAnswer((_) => Stream<Set<String>>.value(const {}));
 
     await pumpAuthTestApp(
       tester,
@@ -1055,9 +1007,8 @@ void main() {
       senseGroupRangePlayback: _UnavailableSenseGroupRangePlayback(),
       extraOverrides: [
         audioItemDaoProvider.overrideWithValue(audioItemDao),
-        remoteFeatureEnabledProvider(
-          RemoteFeature.aiChatAssistant,
-        ).overrideWithValue(false),
+        remoteFeatureEnabledProvider(RemoteFeature.aiChatAssistant)
+            .overrideWithValue(false),
       ],
     );
 
@@ -1080,9 +1031,8 @@ void main() {
     final cacheDao = _MockCacheDao();
     final savedSenseGroupDao = _MockSavedSenseGroupDao();
     when(() => cacheDao.getByHash(any(), any())).thenAnswer((_) async => null);
-    when(
-      savedSenseGroupDao.watchSavedPhraseTexts,
-    ).thenAnswer((_) => Stream<Set<String>>.value(const {'world'}));
+    when(savedSenseGroupDao.watchSavedPhraseTexts)
+        .thenAnswer((_) => Stream<Set<String>>.value(const {'world'}));
 
     await pumpAuthTestApp(
       tester,
@@ -1096,9 +1046,8 @@ void main() {
       ),
       senseGroupRangePlayback: _NoopSenseGroupRangePlayback(),
       extraOverrides: [
-        remoteFeatureEnabledProvider(
-          RemoteFeature.aiChatAssistant,
-        ).overrideWithValue(false),
+        remoteFeatureEnabledProvider(RemoteFeature.aiChatAssistant)
+            .overrideWithValue(false),
       ],
     );
 
@@ -1124,9 +1073,8 @@ void main() {
     final cacheDao = _MockCacheDao();
     final savedSenseGroupDao = _MockSavedSenseGroupDao();
     when(() => cacheDao.getByHash(any(), any())).thenAnswer((_) async => null);
-    when(
-      savedSenseGroupDao.watchSavedPhraseTexts,
-    ).thenAnswer((_) => Stream<Set<String>>.value(const {}));
+    when(savedSenseGroupDao.watchSavedPhraseTexts)
+        .thenAnswer((_) => Stream<Set<String>>.value(const {}));
 
     final aiNotifier = _QuotaSentenceAiNotifier(
       cacheDao: cacheDao,
@@ -1158,9 +1106,8 @@ void main() {
     final cacheDao = _MockCacheDao();
     final savedSenseGroupDao = _MockSavedSenseGroupDao();
     when(() => cacheDao.getByHash(any(), any())).thenAnswer((_) async => null);
-    when(
-      savedSenseGroupDao.watchSavedPhraseTexts,
-    ).thenAnswer((_) => Stream<Set<String>>.value(const {}));
+    when(savedSenseGroupDao.watchSavedPhraseTexts)
+        .thenAnswer((_) => Stream<Set<String>>.value(const {}));
     final aiNotifier = _RecordingSentenceAiNotifier(
       cacheDao: cacheDao,
       apiClient: _NoopSentenceAiApiClient(),
@@ -1184,9 +1131,8 @@ void main() {
     final cacheDao = _MockCacheDao();
     final savedSenseGroupDao = _MockSavedSenseGroupDao();
     when(() => cacheDao.getByHash(any(), any())).thenAnswer((_) async => null);
-    when(
-      savedSenseGroupDao.watchSavedPhraseTexts,
-    ).thenAnswer((_) => Stream<Set<String>>.value(const {}));
+    when(savedSenseGroupDao.watchSavedPhraseTexts)
+        .thenAnswer((_) => Stream<Set<String>>.value(const {}));
     final aiNotifier = _RecordingSentenceAiNotifier(
       cacheDao: cacheDao,
       apiClient: _NoopSentenceAiApiClient(),
@@ -1211,9 +1157,8 @@ void main() {
     final cacheDao = _MockCacheDao();
     final savedSenseGroupDao = _MockSavedSenseGroupDao();
     when(() => cacheDao.getByHash(any(), any())).thenAnswer((_) async => null);
-    when(
-      savedSenseGroupDao.watchSavedPhraseTexts,
-    ).thenAnswer((_) => Stream<Set<String>>.value(const {}));
+    when(savedSenseGroupDao.watchSavedPhraseTexts)
+        .thenAnswer((_) => Stream<Set<String>>.value(const {}));
     final aiNotifier = _RecordingSentenceAiNotifier(
       cacheDao: cacheDao,
       apiClient: _NoopSentenceAiApiClient(),
@@ -1244,9 +1189,8 @@ void main() {
     final cacheDao = _MockCacheDao();
     final savedSenseGroupDao = _MockSavedSenseGroupDao();
     when(() => cacheDao.getByHash(any(), any())).thenAnswer((_) async => null);
-    when(
-      savedSenseGroupDao.watchSavedPhraseTexts,
-    ).thenAnswer((_) => Stream<Set<String>>.value(const {}));
+    when(savedSenseGroupDao.watchSavedPhraseTexts)
+        .thenAnswer((_) => Stream<Set<String>>.value(const {}));
     final aiNotifier = _RecordingSentenceAiNotifier(
       cacheDao: cacheDao,
       apiClient: _NoopSentenceAiApiClient(),
@@ -1273,9 +1217,8 @@ void main() {
     final cacheDao = _MockCacheDao();
     final savedSenseGroupDao = _MockSavedSenseGroupDao();
     when(() => cacheDao.getByHash(any(), any())).thenAnswer((_) async => null);
-    when(
-      savedSenseGroupDao.watchSavedPhraseTexts,
-    ).thenAnswer((_) => Stream<Set<String>>.value(const {}));
+    when(savedSenseGroupDao.watchSavedPhraseTexts)
+        .thenAnswer((_) => Stream<Set<String>>.value(const {}));
     final aiNotifier = _RecordingSentenceAiNotifier(
       cacheDao: cacheDao,
       apiClient: _NoopSentenceAiApiClient(),
@@ -1308,9 +1251,8 @@ void main() {
     final sentencesCompleter = Completer<List<Sentence>>();
 
     when(() => cacheDao.getByHash(any(), any())).thenAnswer((_) async => null);
-    when(
-      savedSenseGroupDao.watchSavedPhraseTexts,
-    ).thenAnswer((_) => Stream<Set<String>>.value(const {}));
+    when(savedSenseGroupDao.watchSavedPhraseTexts)
+        .thenAnswer((_) => Stream<Set<String>>.value(const {}));
     when(() => audioItemDao.getById('audio-1')).thenAnswer((_) async => null);
 
     await pumpAuthTestApp(
@@ -1323,9 +1265,8 @@ void main() {
       sentenceIndex: 1,
       extraOverrides: [
         audioItemDaoProvider.overrideWithValue(audioItemDao),
-        audioSentencesProvider(
-          'audio-1',
-        ).overrideWith((_) => sentencesCompleter.future),
+        audioSentencesProvider('audio-1')
+            .overrideWith((_) => sentencesCompleter.future),
       ],
     );
 

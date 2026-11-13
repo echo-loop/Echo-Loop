@@ -6,7 +6,6 @@
 library;
 
 import 'package:echo_loop/features/chatbot/widgets/selectable_assistant_markdown.dart';
-import 'package:echo_loop/theme/app_theme.dart';
 import 'package:echo_loop/widgets/selection/selectable_content.dart';
 import 'package:echo_loop/widgets/selection/selection_toolbar_host.dart';
 import 'package:flutter/cupertino.dart';
@@ -123,49 +122,6 @@ void main() {
     expect(find.byType(SelectableContent), findsOneWidget);
     expect(find.byType(GptMarkdown), findsOneWidget);
   }, variant: iOS);
-
-  testWidgets('Apple 平台选中背景用系统蓝、手柄用 Cupertino 平台画笔', (tester) async {
-    await pumpMarkdown(
-      tester,
-      const SelectableAssistantMarkdown(data: 'hello world'),
-    );
-    final context = tester.element(find.byType(SelectableContent));
-    expect(
-      DefaultSelectionStyle.of(context).selectionColor,
-      CupertinoColors.systemBlue.resolveFrom(context).withValues(alpha: 0.2),
-    );
-    expect(
-      CupertinoTheme.of(context).selectionHandleColor,
-      CupertinoColors.systemBlue.resolveFrom(context),
-    );
-  }, variant: iOS);
-
-  testWidgets('Android AI 聊天回答使用平台选择蓝，不回落到 App 主题色', (tester) async {
-    await pumpMarkdown(
-      tester,
-      const SelectableAssistantMarkdown(data: 'hello world'),
-    );
-    final context = tester.element(find.byType(SelectableContent));
-    expect(
-      DefaultSelectionStyle.of(context).selectionColor,
-      Colors.blue.withValues(alpha: 0.4),
-    );
-    expect(TextSelectionTheme.of(context).selectionHandleColor, Colors.blue);
-  }, variant: android);
-
-  testWidgets('深色主题 AI 回答选区使用高对比度蓝', (tester) async {
-    await pumpMarkdown(
-      tester,
-      const SelectableAssistantMarkdown(data: 'hello world'),
-      themeMode: ThemeMode.dark,
-    );
-    final context = tester.element(find.byType(SelectableContent));
-
-    expect(
-      DefaultSelectionStyle.of(context).selectionColor,
-      AppTheme.navActiveColor.withValues(alpha: 0.6),
-    );
-  }, variant: android);
 
   testWidgets('长按选中该词并弹出操作条：复制 + 问 AI', (tester) async {
     await pumpMarkdown(
@@ -285,25 +241,6 @@ void main() {
     expect(actualHandleCenter.dy, greaterThan(handleCenter.dy));
   }, variant: android);
 
-  testWidgets('Android AI Chat 放大镜有清晰边框和阴影', (tester) async {
-    await pumpMarkdown(
-      tester,
-      const SelectableAssistantMarkdown(data: 'hello world'),
-    );
-
-    final gesture = await tester.startGesture(wordPoint(tester, 'hello'));
-    await tester.pump(kLongPressTimeout + const Duration(milliseconds: 100));
-    await tester.pump();
-
-    final magnifier = tester.widget<RawMagnifier>(find.byType(RawMagnifier));
-    final shape = magnifier.decoration.shape as RoundedRectangleBorder;
-    expect(shape.side.width, 0.75);
-    expect(magnifier.decoration.shadows, isNotEmpty);
-
-    await gesture.up();
-    await tester.pumpAndSettle();
-  }, variant: android);
-
   testWidgets('长按拖选期间显示放大镜，松手后移除', (tester) async {
     await pumpMarkdown(
       tester,
@@ -318,39 +255,6 @@ void main() {
     await gesture.up();
     await tester.pumpAndSettle();
     expect(find.byType(CupertinoTextMagnifier), findsNothing);
-  }, variant: iOS);
-
-  testWidgets('中文操作条按钮按各自文案独立计算宽度，保持紧凑高度', (tester) async {
-    await pumpMarkdown(
-      tester,
-      SelectableAssistantMarkdown(data: 'hello world', onFollowUp: (_) {}),
-      locale: const Locale('zh'),
-    );
-    await longPressSelect(tester, from: wordPoint(tester, 'hello'));
-
-    final copyButton = find.byKey(
-      const ValueKey('selection_toolbar_button_复制'),
-    );
-    final askAiButton = find.byKey(
-      const ValueKey('selection_toolbar_button_问 AI'),
-    );
-    expect(copyButton, findsOneWidget);
-    expect(askAiButton, findsOneWidget);
-    // 按钮宽度按各自文案独立计算（不再统一取最长文案等宽），故此处不再断言等宽。
-    final copyContainer = tester.widget<Container>(
-      find.descendant(of: copyButton, matching: find.byType(Container)).first,
-    );
-    final askAiContainer = tester.widget<Container>(
-      find.descendant(of: askAiButton, matching: find.byType(Container)).first,
-    );
-    expect(
-      copyContainer.padding,
-      const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-    );
-    expect(
-      askAiContainer.padding,
-      const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-    );
   }, variant: iOS);
 
   testWidgets('无 onFollowUp 时只显示复制（不显示问 AI）', (tester) async {

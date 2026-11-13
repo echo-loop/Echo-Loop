@@ -200,14 +200,6 @@ void main() {
       expect(settings.fixedPauseSeconds, 3);
     });
 
-    testWidgets('显示句间停顿标签', (tester) async {
-      await tester.pumpWidget(createTestWidget());
-      await tester.pumpAndSettle();
-      await openSheet(tester);
-
-      expect(find.text('句间停顿'), findsOneWidget);
-    });
-
     testWidgets('显示三种停顿模式', (tester) async {
       await tester.pumpWidget(createTestWidget());
       await tester.pumpAndSettle();

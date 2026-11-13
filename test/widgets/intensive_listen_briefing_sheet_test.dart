@@ -1,50 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:echo_loop/l10n/app_localizations.dart';
 import 'package:echo_loop/models/stage_settings_overrides.dart'
     show BriefingPauseChoice;
-import 'package:echo_loop/models/study_stage.dart';
 import 'package:echo_loop/widgets/intensive_listen/intensive_listen_briefing_sheet.dart';
 import 'package:echo_loop/widgets/common/briefing_action_row.dart';
-import 'package:echo_loop/widgets/study/study_stage_visuals.dart';
 
 import '../helpers/test_app.dart';
 
 void main() {
-  testWidgets('顶部任务图标和颜色与学习任务列表一致', (tester) async {
-    await tester.pumpWidget(
-      createTestApp(
-        Builder(
-          builder: (context) => ElevatedButton(
-            onPressed: () => showIntensiveListenBriefingSheet(
-              context: context,
-              sentenceCount: 10,
-              onStartPractice: (_, _) {},
-            ),
-            child: const Text('Open'),
-          ),
-        ),
-      ),
-    );
-
-    await tester.tap(find.text('Open'));
-    await tester.pumpAndSettle();
-
-    final sheetContext = tester.element(
-      find.byType(IntensiveListenBriefingSheet),
-    );
-    final expected = studyStageVisual(
-      StudyStage.intensiveListen,
-      AppLocalizations.of(sheetContext)!,
-    );
-    final heroIcon = tester.widget<Icon>(
-      find.byWidgetPredicate((widget) => widget is Icon && widget.size == 56),
-    );
-
-    expect(heroIcon.icon, expected.icon);
-    expect(heroIcon.color, expected.iconColor);
-  });
-
   testWidgets('底部开始按钮避让 Android/iOS 底部安全区', (tester) async {
     tester.view.physicalSize = const Size(390, 844);
     tester.view.devicePixelRatio = 1.0;

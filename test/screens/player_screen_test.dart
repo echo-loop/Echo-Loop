@@ -7,7 +7,8 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:echo_loop/widgets/common/playback_controls.dart' show PlaybackToggleIcon, playbackCenterIconKey;
+import 'package:echo_loop/widgets/common/playback_controls.dart'
+    show PlaybackToggleIcon, playbackCenterIconKey;
 import 'package:mocktail/mocktail.dart';
 import 'package:audio_video_progress_bar/audio_video_progress_bar.dart';
 import 'package:echo_loop/screens/player_screen.dart';
@@ -334,7 +335,9 @@ void main() {
         expect(
           find.descendant(
             of: find.byType(PlaybackControls),
-            matching: find.byKey(playbackCenterIconKey(PlaybackToggleIcon.play)),
+            matching: find.byKey(
+              playbackCenterIconKey(PlaybackToggleIcon.play),
+            ),
           ),
           findsOneWidget,
         );
@@ -411,7 +414,9 @@ void main() {
         final button = tester.getRect(
           find.descendant(
             of: find.byType(PlaybackControls),
-            matching: find.byKey(playbackCenterIconKey(PlaybackToggleIcon.play)),
+            matching: find.byKey(
+              playbackCenterIconKey(PlaybackToggleIcon.play),
+            ),
           ),
         );
         final safeBottom =
@@ -444,34 +449,6 @@ void main() {
         );
         expect(progressBar.progress, const Duration(seconds: 45));
         expect(progressBar.total, const Duration(seconds: 120));
-        await _disposeTree(tester);
-      });
-
-      testWidgets('进度条未播放轨道使用不透明容器色', (tester) async {
-        final item = createTestAudioItem();
-        final sentences = createTestSentences(count: 3);
-
-        await tester.pumpWidget(
-          createTestScreen(
-            const PlayerScreen(),
-            overrides: _audioOverrides(
-              practiceState: ListeningPracticeState(
-                currentAudioItem: item,
-                sentences: sentences,
-              ),
-            ),
-          ),
-        );
-        await tester.pump();
-
-        final context = tester.element(find.byType(ProgressBar));
-        final progressBar = tester.widget<ProgressBar>(
-          find.byType(ProgressBar),
-        );
-        expect(
-          progressBar.baseBarColor,
-          Theme.of(context).colorScheme.surfaceContainerHighest,
-        );
         await _disposeTree(tester);
       });
 

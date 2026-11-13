@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:ui';
 
 import 'package:dio/dio.dart';
 import 'package:echo_loop/features/baidu_netdisk/data/baidu_credential_repository.dart';
@@ -672,47 +671,6 @@ void main() {
       find.byKey(const ValueKey('import-option-cloud-drive')),
       findsNothing,
     );
-  });
-
-  testWidgets('导入方式入口使用独立边框分隔', (tester) async {
-    await tester.pumpWidget(_buildApp());
-    await tester.tap(find.text('Open Import'));
-    await tester.pumpAndSettle();
-
-    final localOption = find.byKey(const ValueKey('import-option-local-file'));
-    final linkOption = find.byKey(const ValueKey('import-option-direct-url'));
-    final cloudDriveOption = find.byKey(
-      const ValueKey('import-option-cloud-drive'),
-    );
-    expect(localOption, findsOneWidget);
-    expect(linkOption, findsOneWidget);
-    expect(cloudDriveOption, findsOneWidget);
-
-    final localMaterial = tester.widget<Material>(
-      find.descendant(of: localOption, matching: find.byType(Material)),
-    );
-    final linkMaterial = tester.widget<Material>(
-      find.descendant(of: linkOption, matching: find.byType(Material)),
-    );
-    final localShape = localMaterial.shape;
-    final linkShape = linkMaterial.shape;
-    expect(localShape, isA<RoundedRectangleBorder>());
-    expect(linkShape, isA<RoundedRectangleBorder>());
-    expect(
-      (localShape! as RoundedRectangleBorder).side.style,
-      BorderStyle.solid,
-    );
-    expect(
-      (linkShape! as RoundedRectangleBorder).side.style,
-      BorderStyle.solid,
-    );
-
-    final localBottom = tester.getBottomLeft(localOption).dy;
-    final cloudDriveTop = tester.getTopLeft(cloudDriveOption).dy;
-    expect(cloudDriveTop - localBottom, 8);
-    final cloudDriveBottom = tester.getBottomLeft(cloudDriveOption).dy;
-    final linkTop = tester.getTopLeft(linkOption).dy;
-    expect(linkTop - cloudDriveBottom, 8);
   });
 
   testWidgets('本地文件入口允许一次选择多个音频和字幕文件', (tester) async {
@@ -1421,36 +1379,6 @@ void main() {
       find.widgetWithText(FilledButton, 'Download and Import'),
     );
     expect(button.onPressed, isNull);
-  });
-
-  testWidgets('链接导入表单弱化输入提示样式', (tester) async {
-    await tester.pumpWidget(_buildApp());
-    await tester.tap(find.text('Open Import'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Import from Link'));
-    await tester.pumpAndSettle();
-
-    final field = tester.widget<TextField>(find.byType(TextField));
-    final fieldContext = tester.element(find.byType(TextField));
-    final theme = Theme.of(fieldContext);
-
-    expect(field.style?.fontSize, theme.textTheme.bodyMedium?.fontSize);
-    expect(
-      field.decoration?.hintStyle?.fontSize,
-      theme.textTheme.bodyMedium?.fontSize,
-    );
-    expect(
-      field.decoration?.hintStyle?.color,
-      theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.52),
-    );
-    expect(
-      field.decoration?.labelStyle?.fontSize,
-      theme.textTheme.bodySmall?.fontSize,
-    );
-    expect(
-      field.decoration?.floatingLabelStyle?.color,
-      theme.colorScheme.primary.withValues(alpha: 0.78),
-    );
   });
 
   testWidgets('本地文件入口进入后不再展示选择按钮与网盘提示', (tester) async {

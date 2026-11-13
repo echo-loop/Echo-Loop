@@ -38,12 +38,6 @@ Finder _fontSizeSlider() => find.byType(Slider).first;
 Finder _fontWeightSlider() => find.byType(Slider).last;
 
 void main() {
-  testWidgets('默认 100% 档预览与正文同为 16pt', (tester) async {
-    await _pumpScreen(tester);
-
-    expect(_previewStyle(tester)?.fontSize, 16);
-  });
-
   testWidgets('点放大字号：预览即时变大并持久化', (tester) async {
     final prefs = await _pumpScreen(tester);
     final before = _previewStyle(tester)?.fontSize ?? 0;

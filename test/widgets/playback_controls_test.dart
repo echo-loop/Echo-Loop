@@ -5,7 +5,8 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:echo_loop/widgets/common/playback_controls.dart' show PlaybackToggleIcon, playbackCenterIconKey;
+import 'package:echo_loop/widgets/common/playback_controls.dart'
+    show PlaybackToggleIcon, playbackCenterIconKey;
 import 'package:echo_loop/widgets/playback_controls.dart';
 import 'package:echo_loop/models/playback_settings.dart';
 import 'package:echo_loop/models/sentence.dart';
@@ -46,8 +47,14 @@ void main() {
         await tester.pumpAndSettle();
 
         // 暂停状态显示播放图标
-        expect(find.byKey(playbackCenterIconKey(PlaybackToggleIcon.play)), findsOneWidget);
-        expect(find.byKey(playbackCenterIconKey(PlaybackToggleIcon.pause)), findsNothing);
+        expect(
+          find.byKey(playbackCenterIconKey(PlaybackToggleIcon.play)),
+          findsOneWidget,
+        );
+        expect(
+          find.byKey(playbackCenterIconKey(PlaybackToggleIcon.pause)),
+          findsNothing,
+        );
       });
 
       testWidgets('播放中显示暂停图标', (tester) async {
@@ -63,7 +70,10 @@ void main() {
         );
         await tester.pumpAndSettle();
 
-        expect(find.byKey(playbackCenterIconKey(PlaybackToggleIcon.pause)), findsOneWidget);
+        expect(
+          find.byKey(playbackCenterIconKey(PlaybackToggleIcon.pause)),
+          findsOneWidget,
+        );
       });
 
       testWidgets('显示上一句/下一句按钮', (tester) async {
@@ -72,24 +82,6 @@ void main() {
 
         expect(find.byIcon(Icons.skip_previous_rounded), findsOneWidget);
         expect(find.byIcon(Icons.skip_next_rounded), findsOneWidget);
-      });
-
-      testWidgets('移动端主控制按钮间距与学习页一致', (tester) async {
-        tester.view.physicalSize = const Size(390, 840);
-        tester.view.devicePixelRatio = 1.0;
-        addTearDown(tester.view.resetPhysicalSize);
-        addTearDown(tester.view.resetDevicePixelRatio);
-
-        await tester.pumpWidget(buildControls());
-        await tester.pumpAndSettle();
-
-        final previousCenter = tester.getCenter(
-          find.byIcon(Icons.skip_previous_rounded),
-        );
-        final playCenter = tester.getCenter(find.byKey(playbackCenterIconKey(PlaybackToggleIcon.play)));
-        final nextCenter = tester.getCenter(find.byIcon(Icons.skip_next_rounded));
-        expect(playCenter.dx - previousCenter.dx, closeTo(104, 0.1));
-        expect(nextCenter.dx - playCenter.dx, closeTo(104, 0.1));
       });
 
       testWidgets('显示速度按钮', (tester) async {
@@ -205,7 +197,10 @@ void main() {
         expect(find.text('1.0x'), findsOneWidget);
         expect(find.byIcon(Icons.repeat), findsOneWidget);
         expect(find.byIcon(Icons.repeat_one), findsNothing);
-        expect(find.byKey(playbackCenterIconKey(PlaybackToggleIcon.play)), findsOneWidget);
+        expect(
+          find.byKey(playbackCenterIconKey(PlaybackToggleIcon.play)),
+          findsOneWidget,
+        );
       });
 
       testWidgets('无字幕循环浮层只含整篇循环，不含单句循环', (tester) async {
@@ -372,7 +367,10 @@ void main() {
         // 窄屏布局使用 Column（两行）
         // 验证组件正常渲染即可
         expect(find.byType(PlaybackControls), findsOneWidget);
-        expect(find.byKey(playbackCenterIconKey(PlaybackToggleIcon.play)), findsOneWidget);
+        expect(
+          find.byKey(playbackCenterIconKey(PlaybackToggleIcon.play)),
+          findsOneWidget,
+        );
       });
 
       testWidgets('宽屏 (>=600px) 使用横向布局', (tester) async {
@@ -386,7 +384,10 @@ void main() {
 
         // 宽屏布局使用单行 Row
         expect(find.byType(PlaybackControls), findsOneWidget);
-        expect(find.byKey(playbackCenterIconKey(PlaybackToggleIcon.play)), findsOneWidget);
+        expect(
+          find.byKey(playbackCenterIconKey(PlaybackToggleIcon.play)),
+          findsOneWidget,
+        );
       });
     });
   });

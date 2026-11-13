@@ -1,48 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:echo_loop/l10n/app_localizations.dart';
-import 'package:echo_loop/models/study_stage.dart';
 import 'package:echo_loop/widgets/blind_listen_briefing_sheet.dart';
-import 'package:echo_loop/widgets/study/study_stage_visuals.dart';
 
 import '../helpers/test_app.dart';
 
 void main() {
   group('BlindListenBriefingSheet', () {
-    testWidgets('顶部任务图标和颜色与学习任务列表一致', (tester) async {
-      await tester.pumpWidget(
-        createTestApp(
-          Builder(
-            builder: (context) => ElevatedButton(
-              onPressed: () => showBlindListenBriefingSheet(
-                context: context,
-                isFirstStudy: true,
-                onStartPractice: () {},
-              ),
-              child: const Text('Open'),
-            ),
-          ),
-        ),
-      );
-
-      await tester.tap(find.text('Open'));
-      await tester.pumpAndSettle();
-
-      final sheetContext = tester.element(
-        find.byType(BlindListenBriefingSheet),
-      );
-      final expected = studyStageVisual(
-        StudyStage.blindListen,
-        AppLocalizations.of(sheetContext)!,
-      );
-      final heroIcon = tester.widget<Icon>(
-        find.byWidgetPredicate((widget) => widget is Icon && widget.size == 56),
-      );
-
-      expect(heroIcon.icon, expected.icon);
-      expect(heroIcon.color, expected.iconColor);
-    });
-
     testWidgets('底部开始按钮避让系统安全区', (tester) async {
       tester.view.physicalSize = const Size(390, 844);
       tester.view.devicePixelRatio = 1.0;

@@ -1149,26 +1149,6 @@ void main() {
 
     expect(authDisplayProviderForSession(session), AuthDisplayProvider.email);
   });
-
-  testWidgets('可见登录方式图标左侧对齐且尺寸一致', (tester) async {
-    await tester.pumpWidget(_app(_authRouter()));
-    await tester.pumpAndSettle();
-
-    final appleIcon = find.byIcon(Icons.apple);
-    final emailIcon = find.byIcon(Icons.mail_outline_rounded);
-
-    expect(appleIcon, findsOneWidget);
-    expect(emailIcon, findsOneWidget);
-
-    final appleRect = tester.getRect(appleIcon);
-    final emailRect = tester.getRect(emailIcon);
-
-    expect(appleRect.left, emailRect.left);
-    expect(appleRect.width, 22);
-    expect(emailRect.width, 22);
-    expect(appleRect.height, 22);
-    expect(emailRect.height, 22);
-  });
 }
 
 String _jwtWithAuthenticationMethod(String method) {

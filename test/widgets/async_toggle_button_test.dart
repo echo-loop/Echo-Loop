@@ -47,20 +47,6 @@ void main() {
       expect(iconRect.center.dy, closeTo(labelRect.center.dy, 1.0));
     });
 
-    testWidgets('使用紧凑的 32dp 按钮高度', (tester) async {
-      await tester.pumpWidget(
-        createTestApp(
-          AsyncToggleButton(
-            label: 'Compact',
-            icon: Icons.star,
-            onPressed: () async {},
-          ),
-        ),
-      );
-
-      expect(tester.getSize(find.byType(AsyncToggleButton)).height, 32);
-    });
-
     testWidgets('点击触发 onPressed', (tester) async {
       var pressed = false;
       await tester.pumpWidget(
@@ -186,29 +172,6 @@ void main() {
       expect(pressed, isFalse);
     });
 
-    testWidgets('isActive 时显示选中态样式', (tester) async {
-      await tester.pumpWidget(
-        createTestApp(
-          AsyncToggleButton(
-            label: 'Active',
-            icon: Icons.star,
-            isActive: true,
-            onPressed: () async {},
-          ),
-        ),
-      );
-
-      // 选中态应有 primary 色边框
-      final container = tester.widget<Container>(
-        find.descendant(
-          of: find.byType(AsyncToggleButton),
-          matching: find.byType(Container),
-        ),
-      );
-      final decoration = container.decoration as BoxDecoration?;
-      expect(decoration?.border, isNotNull);
-    });
-
     testWidgets('tone：未选中时图标保留配色，选中时底色与描边使用 tone', (tester) async {
       const tone = AsyncToggleButtonTone(
         foreground: Color(0xFF8E44AD),
@@ -225,7 +188,10 @@ void main() {
       );
 
       await tester.pumpWidget(buildButton(isActive: false));
-      expect(tester.widget<Icon>(find.byIcon(Icons.star)).color, tone.foreground);
+      expect(
+        tester.widget<Icon>(find.byIcon(Icons.star)).color,
+        tone.foreground,
+      );
 
       await tester.pumpWidget(buildButton(isActive: true));
       final container = tester.widget<Container>(

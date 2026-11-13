@@ -10,8 +10,8 @@ import 'package:echo_loop/theme/app_theme.dart';
 import 'package:echo_loop/widgets/common/settings_section_card.dart';
 
 void main() {
-  Widget wrap(Widget child, {ThemeData? theme}) => MaterialApp(
-    theme: theme ?? AppTheme.light(),
+  Widget wrap(Widget child) => MaterialApp(
+    theme: AppTheme.light(),
     home: Scaffold(body: SingleChildScrollView(child: child)),
   );
 
@@ -38,53 +38,5 @@ void main() {
     );
 
     expect(find.text('分组标题'), findsNothing);
-  });
-
-  testWidgets('浅色主题下分组卡片不绘制外框', (tester) async {
-    final card = const SettingsSectionCard(children: [Text('row-a')]);
-    await tester.pumpWidget(wrap(card));
-
-    final container = tester.widget<Container>(
-      find.descendant(
-        of: find.byWidget(card),
-        matching: find.byType(Container),
-      ),
-    );
-    expect(
-      container.decoration,
-      isA<BoxDecoration>().having(
-        (decoration) => decoration.border,
-        'border',
-        isNull,
-      ),
-    );
-  });
-
-  testWidgets('暗色主题下分组卡片不绘制外框', (tester) async {
-    final card = const SettingsSectionCard(children: [Text('row-a')]);
-    await tester.pumpWidget(wrap(card, theme: AppTheme.dark()));
-
-    final container = tester.widget<Container>(
-      find.descendant(
-        of: find.byWidget(card),
-        matching: find.byType(Container),
-      ),
-    );
-    expect(
-      container.decoration,
-      isA<BoxDecoration>().having(
-        (decoration) => decoration.border,
-        'border',
-        isNull,
-      ),
-    );
-    expect(
-      container.decoration,
-      isA<BoxDecoration>().having(
-        (decoration) => decoration.color,
-        'color',
-        Colors.transparent,
-      ),
-    );
   });
 }

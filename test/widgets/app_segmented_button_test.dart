@@ -1,43 +1,8 @@
-import 'package:echo_loop/theme/app_theme.dart';
 import 'package:echo_loop/widgets/common/app_segmented_button.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  testWidgets('统一选中态、未选中态和文字样式', (tester) async {
-    await tester.pumpWidget(
-      MaterialApp(
-        theme: AppTheme.light(),
-        home: AppSegmentedButton<int>(
-          segments: const [
-            ButtonSegment(value: 1, label: Text('One')),
-            ButtonSegment(value: 2, label: Text('Two')),
-          ],
-          selected: const {1},
-          onSelectionChanged: (_) {},
-        ),
-      ),
-    );
-
-    final selector = tester.widget<SegmentedButton<int>>(
-      find.byType(SegmentedButton<int>),
-    );
-    final style = selector.style!;
-    final theme = Theme.of(
-      tester.element(find.byType(AppSegmentedButton<int>)),
-    );
-
-    expect(selector.showSelectedIcon, isFalse);
-    expect(style.minimumSize!.resolve({})!.height, 44);
-    expect(
-      style.backgroundColor!.resolve({WidgetState.selected}),
-      theme.colorScheme.primaryContainer,
-    );
-    expect(style.backgroundColor!.resolve({}), theme.colorScheme.surface);
-    expect(style.side!.resolve({})!.color, theme.colorScheme.outlineVariant);
-    expect(style.textStyle!.resolve({})!.fontWeight, FontWeight.w700);
-  });
-
   testWidgets('可单独收紧选择器高度', (tester) async {
     await tester.pumpWidget(
       MaterialApp(

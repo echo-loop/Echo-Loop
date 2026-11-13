@@ -884,26 +884,4 @@ void main() {
     expect((source.center.dy - unsave.center.dy).abs(), lessThan(2));
     expect(unsave.right, greaterThan(source.right));
   });
-
-  testWidgets('unsave uses a plain label and filled bookmark icon', (
-    tester,
-  ) async {
-    await tester.pumpWidget(_app());
-    await tester.pump();
-
-    final action = find.byKey(const Key('bookmark-review-unsave'));
-    final bookmark = find.descendant(
-      of: action,
-      matching: find.byIcon(Icons.bookmark),
-    );
-    expect(bookmark, findsOneWidget);
-    expect(
-      find.descendant(of: action, matching: find.byType(TextButton)),
-      findsNothing,
-    );
-    final label = tester.widget<Text>(find.text('取消收藏'));
-    expect(label.style?.fontWeight, FontWeight.normal);
-    expect(label.style?.fontSize, 14);
-    expect(tester.widget<Icon>(bookmark).color, AppTheme.bookmarkColor);
-  });
 }

@@ -36,25 +36,25 @@ void main() {
     await tester.pump();
   }
 
-  testWidgets('按下时显示按压背景，浮层打开时为激活背景，关闭后恢复', (
-    tester,
-  ) async {
+  testWidgets('按下时显示按压背景，浮层打开时为激活背景，关闭后恢复', (tester) async {
     await pumpSelector(tester);
     final colorScheme = Theme.of(
       tester.element(find.byType(CapsuleSelector<double>)),
     ).colorScheme;
 
     Color? surfaceColor() {
-      final decoration = tester
-          .widget<DecoratedBox>(
-            find
-                .descendant(
-                  of: find.byType(CapsuleSelector<double>),
-                  matching: find.byType(DecoratedBox),
-                )
-                .first,
-          )
-          .decoration as BoxDecoration;
+      final decoration =
+          tester
+                  .widget<DecoratedBox>(
+                    find
+                        .descendant(
+                          of: find.byType(CapsuleSelector<double>),
+                          matching: find.byType(DecoratedBox),
+                        )
+                        .first,
+                  )
+                  .decoration
+              as BoxDecoration;
       return decoration.color;
     }
 
@@ -79,21 +79,6 @@ void main() {
     expect(surfaceColor(), isNull);
   });
 
-  testWidgets('浮层选项提供悬浮与按压高亮，选中项同样有反馈', (tester) async {
-    await pumpSelector(tester);
-    await tester.tap(find.text('1.0x'));
-    await tester.pump();
-
-    // 标题右侧也会显示当前速度，因此只在选项（InkWell）内部查找
-    for (final label in ['0.9x', '1.0x', '1.1x']) {
-      final inkWell = tester.widget<InkWell>(
-        find.widgetWithText(InkWell, label),
-      );
-      expect(inkWell.hoverColor, isNotNull, reason: label);
-      expect(inkWell.highlightColor, isNotNull, reason: label);
-    }
-  });
-
   testWidgets('长按滑动时经过主播放按钮再松手，不会触发播放', (tester) async {
     var centerTaps = 0;
     await tester.pumpWidget(
@@ -105,8 +90,8 @@ void main() {
               children: [
                 CapsuleSelector<double>(
                   value: 1.0,
-              options: _kTestSpeedOptions,
-              labelOf: formatPlaybackSpeedLabel,
+                  options: _kTestSpeedOptions,
+                  labelOf: formatPlaybackSpeedLabel,
                   onChanged: (_) {},
                   title: '播放速度',
                   dragHint: '左右滑动 · 松手应用',

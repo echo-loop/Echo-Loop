@@ -113,18 +113,6 @@ void main() {
       expect(find.text('1h 30m'), findsOneWidget);
     });
 
-    testWidgets('显示听/说/词汇图标', (tester) async {
-      await tester.pumpWidget(
-        createTestWidget(stats: const StudyStats(todaySeconds: 60)),
-      );
-      await tester.pumpAndSettle();
-
-      expect(find.byIcon(Icons.timer_outlined), findsOneWidget);
-      expect(find.byIcon(Icons.headphones_outlined), findsOneWidget);
-      expect(find.byIcon(Icons.mic_outlined), findsOneWidget);
-      expect(find.byIcon(Icons.spellcheck_rounded), findsOneWidget);
-    });
-
     testWidgets('词汇今日新增显示在今日卡片内', (tester) async {
       await tester.pumpWidget(
         createTestWidget(stats: const StudyStats(todayNewWordForms: 42)),

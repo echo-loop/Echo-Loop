@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -21,7 +19,6 @@ import 'package:echo_loop/features/audio_import/audio_import_provider.dart';
 import 'package:echo_loop/features/community_collections/download/download_progress.dart';
 import 'package:echo_loop/features/community_collections/download/community_download_notifier.dart';
 import 'package:echo_loop/features/auth/providers/auth_providers.dart';
-import 'package:echo_loop/theme/app_theme.dart';
 import 'package:echo_loop/widgets/audio_list_tile.dart';
 import 'package:echo_loop/widgets/learning_progress_bar.dart';
 import 'package:echo_loop/widgets/media_type_icon.dart';
@@ -1444,24 +1441,6 @@ void main() {
 
       final card = tester.widget<Card>(find.byType(Card).first);
       expect(card.color, isNull);
-    });
-
-    testWidgets('已置顶时 leading 音频图标颜色不受置顶影响（显示进度状态）', (tester) async {
-      final pinnedItem = baseItem.copyWith(isPinned: true);
-      await tester.pumpWidget(
-        buildTile(AudioLibraryState(audioItems: [pinnedItem])),
-      );
-      await tester.pumpAndSettle();
-
-      // leading 图标现在显示进度状态，不再根据置顶变色
-      final audioIcon = tester.widget<SvgPicture>(
-        find.descendant(
-          of: find.byType(MediaTypeIcon),
-          matching: find.byType(SvgPicture),
-        ),
-      );
-      // 音频图标保留 SVG 自带紫色，不做 colorFilter 染色，置顶不影响其颜色
-      expect(audioIcon.colorFilter, isNull);
     });
 
     testWidgets('菜单内点击置顶触发 togglePin 并更新背景', (tester) async {

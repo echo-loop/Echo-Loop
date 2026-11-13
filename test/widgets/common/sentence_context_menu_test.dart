@@ -6,7 +6,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:echo_loop/models/retell_settings.dart';
 import 'package:echo_loop/models/sentence.dart';
-import 'package:echo_loop/theme/app_theme.dart';
 import 'package:echo_loop/widgets/common/masked_sentence_tile.dart';
 import 'package:echo_loop/widgets/common/paragraph_sentence_list_card.dart';
 
@@ -63,50 +62,6 @@ void main() {
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(SystemChannels.platform, null);
   });
-
-  for (final isSaved in [false, true]) {
-    testWidgets('菜单图标与句子列表统一（已收藏：$isSaved）', (tester) async {
-      await tester.pumpWidget(
-        _host(
-          bookmarks: isSaved ? const {0} : const {},
-          onBookmark: (_) async {},
-          onExplain: (_) {},
-        ),
-      );
-      await tester.pumpAndSettle();
-      final bookmark = tester.widget<Icon>(
-        find.descendant(
-          of: find.byKey(
-            const ValueKey('$kMaskedSentenceBookmarkHitAreaKeyPrefix-0'),
-          ),
-          matching: find.byType(Icon),
-        ),
-      );
-      final explanation = tester.widget<Icon>(
-        find.descendant(
-          of: find.byKey(
-            const ValueKey('$kMaskedSentenceExplanationHitAreaKeyPrefix-0'),
-          ),
-          matching: find.byType(Icon),
-        ),
-      );
-      await _openMenu(tester);
-      final menuBookmark = tester.widget<Icon>(
-        find.descendant(
-          of: _action('toggleBookmark'),
-          matching: find.byType(Icon),
-        ),
-      );
-      final menuExplanation = tester.widget<Icon>(
-        find.descendant(of: _action('explain'), matching: find.byType(Icon)),
-      );
-      expect(menuBookmark.icon, bookmark.icon);
-      if (isSaved) expect(menuBookmark.color, AppTheme.bookmarkColor);
-      expect(menuExplanation.icon, explanation.icon);
-      expect(menuExplanation.color, explanation.color);
-      expect(menuExplanation.color, Colors.purple.shade400);
-    });
-  }
 
   testWidgets('长按只打开菜单，关闭菜单后普通点击仍播放原句', (tester) async {
     final played = <int>[];

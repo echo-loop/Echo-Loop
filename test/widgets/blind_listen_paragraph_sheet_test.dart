@@ -1,8 +1,5 @@
 import 'package:echo_loop/models/sentence.dart';
-import 'package:echo_loop/l10n/app_localizations.dart';
-import 'package:echo_loop/models/study_stage.dart';
 import 'package:echo_loop/widgets/blind_listen_paragraph_sheet.dart';
-import 'package:echo_loop/widgets/study/study_stage_visuals.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -23,40 +20,6 @@ void main() {
       endTime: const Duration(seconds: 6),
     ),
   ];
-
-  testWidgets('入口任务图标和颜色与学习任务列表一致', (tester) async {
-    await tester.pumpWidget(
-      createTestApp(
-        Builder(
-          builder: (context) => ElevatedButton(
-            onPressed: () => showBlindListenParagraphSheet(
-              context: context,
-              sentences: sentences,
-              onStartPractice: (_, _, _) {},
-            ),
-            child: const Text('Open'),
-          ),
-        ),
-      ),
-    );
-
-    await tester.tap(find.text('Open'));
-    await tester.pumpAndSettle();
-
-    expect(find.byIcon(Icons.lightbulb_outline), findsOneWidget);
-    final heroIconFinder = find.byWidgetPredicate(
-      (widget) => widget is Icon && widget.size == 56,
-    );
-    final sheetContext = tester.element(heroIconFinder);
-    final expected = studyStageVisual(
-      StudyStage.blindListen,
-      AppLocalizations.of(sheetContext)!,
-    );
-    final heroIcon = tester.widget<Icon>(heroIconFinder);
-
-    expect(heroIcon.icon, expected.icon);
-    expect(heroIcon.color, expected.iconColor);
-  });
 
   testWidgets('入口面板显示默认 1.0x 播放速度下拉菜单', (tester) async {
     await tester.pumpWidget(

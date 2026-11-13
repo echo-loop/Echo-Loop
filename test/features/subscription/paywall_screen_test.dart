@@ -1360,6 +1360,9 @@ void main() {
       _harness(state: const EntitlementState.free(), plans: promoPlans),
     );
     await tester.pumpAndSettle();
+
+    // 优惠价不低于续费价时没有真实优惠，顶部优惠条必须隐藏。
+    expect(find.byKey(const ValueKey('paywall_special_offer')), findsNothing);
   });
 
   testWidgets('小屏购买区保持紧凑，CTA 可见且法律链接弱化显示', (tester) async {

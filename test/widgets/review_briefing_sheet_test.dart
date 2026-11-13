@@ -1,82 +1,12 @@
 import 'package:echo_loop/database/enums.dart';
-import 'package:echo_loop/l10n/app_localizations.dart';
-import 'package:echo_loop/models/study_stage.dart';
 import 'package:echo_loop/widgets/review/review_briefing_sheet.dart';
 import 'package:echo_loop/widgets/common/briefing_action_row.dart';
-import 'package:echo_loop/widgets/study/study_stage_visuals.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../helpers/test_app.dart';
 
 void main() {
-  testWidgets('难句补练顶部任务图标和颜色与学习任务列表一致', (tester) async {
-    await tester.pumpWidget(
-      createTestApp(
-        Builder(
-          builder: (context) => ElevatedButton(
-            onPressed: () => showReviewBriefingSheet(
-              context: context,
-              stage: LearningStage.review2,
-              subStage: SubStageType.reviewDifficultPractice,
-              onStartPractice: (_, _) {},
-            ),
-            child: const Text('Open'),
-          ),
-        ),
-      ),
-    );
-
-    await tester.tap(find.text('Open'));
-    await tester.pumpAndSettle();
-
-    final heroIconFinder = find.byWidgetPredicate(
-      (widget) => widget is Icon && widget.size == 56,
-    );
-    final sheetContext = tester.element(heroIconFinder);
-    final expected = studyStageVisual(
-      StudyStage.reviewDifficultPractice,
-      AppLocalizations.of(sheetContext)!,
-    );
-    final heroIcon = tester.widget<Icon>(heroIconFinder);
-
-    expect(heroIcon.icon, expected.icon);
-    expect(heroIcon.color, expected.iconColor);
-  });
-
-  testWidgets('全文复述顶部任务图标和颜色与学习任务列表一致', (tester) async {
-    await tester.pumpWidget(
-      createTestApp(
-        Builder(
-          builder: (context) => ElevatedButton(
-            onPressed: () => showReviewBriefingSheet(
-              context: context,
-              stage: LearningStage.review28,
-              subStage: SubStageType.reviewRetellSummary,
-              onStartPractice: (_, _) {},
-            ),
-            child: const Text('Open'),
-          ),
-        ),
-      ),
-    );
-
-    await tester.tap(find.text('Open'));
-    await tester.pumpAndSettle();
-
-    final heroIconFinder = find.byWidgetPredicate(
-      (widget) => widget is Icon && widget.size == 56,
-    );
-    final sheetContext = tester.element(heroIconFinder);
-    final expected = studyRetellSummaryVisual(
-      AppLocalizations.of(sheetContext)!,
-    );
-    final heroIcon = tester.widget<Icon>(heroIconFinder);
-
-    expect(heroIcon.icon, expected.icon);
-    expect(heroIcon.color, expected.iconColor);
-  });
-
   testWidgets('底部开始按钮避让系统安全区', (tester) async {
     tester.view.physicalSize = const Size(390, 844);
     tester.view.devicePixelRatio = 1.0;

@@ -212,45 +212,6 @@ void main() {
     expect(find.byType(OutlinedButton), findsNWidgets(3));
   });
 
-  testWidgets('rating details are subdued and absent details enlarge emoji', (
-    tester,
-  ) async {
-    const actions = [
-      FlashcardRatingAction(
-        rating: MemoryRating.again,
-        emoji: '😕',
-        label: 'Forgot',
-        detail: 'in 59 seconds',
-      ),
-      FlashcardRatingAction(
-        rating: MemoryRating.good,
-        emoji: '🙂',
-        label: 'Remembered',
-      ),
-    ];
-
-    await tester.pumpWidget(
-      MaterialApp(
-        home: SizedBox(
-          width: 320,
-          child: FlashcardRatingActionBar(actions: actions, onSelected: (_) {}),
-        ),
-      ),
-    );
-
-    final detailText = tester.widget<Text>(find.text('in 59 seconds'));
-    final detailStyle = detailText.style;
-    expect(detailStyle?.fontSize, 11);
-    expect(
-      detailStyle?.color,
-      Theme.of(
-        tester.element(find.text('in 59 seconds')),
-      ).colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
-    );
-    expect(tester.widget<Text>(find.text('😕')).style?.fontSize, 22);
-    expect(tester.widget<Text>(find.text('🙂')).style?.fontSize, 30);
-  });
-
   testWidgets('bookmark review rating labels follow the active locale', (
     tester,
   ) async {

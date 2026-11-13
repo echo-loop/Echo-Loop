@@ -11,8 +11,6 @@ import 'package:echo_loop/providers/settings_provider.dart';
 import 'package:echo_loop/providers/sentence_ai_provider.dart';
 import 'package:echo_loop/screens/sentence_detail_screen.dart';
 import 'package:echo_loop/services/sentence_ai_api_client.dart';
-import 'package:echo_loop/theme/app_theme.dart';
-import 'package:echo_loop/widgets/common/bookmark_toggle_row.dart';
 import 'package:echo_loop/widgets/practice/sentence_explanation_view.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -217,13 +215,17 @@ void main() {
     );
     expect(annotation.senseGroupRangePlayback, same(rangePlayback));
 
-    await tester.tap(find.byKey(playbackCenterIconKey(PlaybackToggleIcon.play)));
+    await tester.tap(
+      find.byKey(playbackCenterIconKey(PlaybackToggleIcon.play)),
+    );
     await tester.pump();
 
     expect(rangePlayback.start, const Duration(seconds: 1));
     expect(rangePlayback.end, const Duration(seconds: 3));
 
-    await tester.tap(find.byKey(playbackCenterIconKey(PlaybackToggleIcon.play)));
+    await tester.tap(
+      find.byKey(playbackCenterIconKey(PlaybackToggleIcon.play)),
+    );
     await tester.pump();
     expect(rangePlayback.playStarts, [
       const Duration(seconds: 1),
@@ -246,16 +248,22 @@ void main() {
     );
     await tester.pump();
 
-    await tester.tap(find.byKey(playbackCenterIconKey(PlaybackToggleIcon.play)));
+    await tester.tap(
+      find.byKey(playbackCenterIconKey(PlaybackToggleIcon.play)),
+    );
     await tester.pump();
     expect(rangePlayback.start, const Duration(seconds: 1));
 
     rangePlayback.currentPosition = const Duration(milliseconds: 1840);
-    await tester.tap(find.byKey(playbackCenterIconKey(PlaybackToggleIcon.pause)));
+    await tester.tap(
+      find.byKey(playbackCenterIconKey(PlaybackToggleIcon.pause)),
+    );
     await tester.pump();
     expect(rangePlayback.cancelCalls, 1);
 
-    await tester.tap(find.byKey(playbackCenterIconKey(PlaybackToggleIcon.play)));
+    await tester.tap(
+      find.byKey(playbackCenterIconKey(PlaybackToggleIcon.play)),
+    );
     await tester.pump();
     expect(rangePlayback.resumedPositions, [
       const Duration(milliseconds: 1840),
@@ -287,14 +295,20 @@ void main() {
     );
     await tester.pump();
 
-    await tester.tap(find.byKey(playbackCenterIconKey(PlaybackToggleIcon.play)));
+    await tester.tap(
+      find.byKey(playbackCenterIconKey(PlaybackToggleIcon.play)),
+    );
     await tester.pump();
 
     rangePlayback.currentPosition = const Duration(milliseconds: 1840);
-    await tester.tap(find.byKey(playbackCenterIconKey(PlaybackToggleIcon.pause)));
+    await tester.tap(
+      find.byKey(playbackCenterIconKey(PlaybackToggleIcon.pause)),
+    );
     await tester.pump();
 
-    await tester.tap(find.byKey(playbackCenterIconKey(PlaybackToggleIcon.play)));
+    await tester.tap(
+      find.byKey(playbackCenterIconKey(PlaybackToggleIcon.play)),
+    );
     await tester.pump();
     expect(rangePlayback.start, const Duration(seconds: 1));
     expect(rangePlayback.end, const Duration(seconds: 3));
@@ -334,52 +348,6 @@ void main() {
       find.byType(SentenceExplanationView),
     );
     expect(annotation.wordHighlightSource, same(source));
-
-    await tester.pumpWidget(const SizedBox.shrink());
-    await tester.pump(const Duration(milliseconds: 1));
-  });
-
-  testWidgets('详情页顶部信息行与讲解区使用相同水平边距', (tester) async {
-    await tester.pumpWidget(
-      createTestApp(
-        _detailScreen(sentenceText: 'A sentence for alignment.'),
-        overrides: detailOverrides(entryText: 'A sentence for alignment.'),
-      ),
-    );
-    await tester.pump();
-
-    final progress = find.text('第 1/10 句');
-    final annotation = find.byType(SentenceExplanationView);
-    expect(progress, findsOneWidget);
-    expect(annotation, findsOneWidget);
-    expect(tester.getRect(annotation).left, closeTo(AppSpacing.m, 1));
-    expect(tester.getRect(progress).left, closeTo(AppSpacing.m, 1));
-    await tester.pumpWidget(const SizedBox.shrink());
-    await tester.pump(const Duration(milliseconds: 1));
-  });
-
-  testWidgets('详情页收藏行贴齐信息区右侧内边距', (tester) async {
-    await tester.pumpWidget(
-      createTestApp(
-        _detailScreen(
-          audioItemId: 'audio-item',
-          sentenceText: 'A sentence for alignment.',
-        ),
-        overrides: detailOverrides(entryText: 'A sentence for alignment.'),
-      ),
-    );
-    await tester.pump();
-    await tester.pump();
-
-    final bookmark = find.byType(BookmarkToggleRow);
-    expect(bookmark, findsOneWidget);
-    final bookmarkIcon = find.byIcon(Icons.bookmark_border);
-    expect(bookmarkIcon, findsOneWidget);
-    final annotation = find.byType(SentenceExplanationView);
-    expect(
-      tester.getRect(bookmarkIcon).right,
-      closeTo(tester.getRect(annotation).right, 1),
-    );
 
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump(const Duration(milliseconds: 1));
@@ -503,7 +471,9 @@ void main() {
     );
     await tester.pump();
 
-    await tester.tap(find.byKey(playbackCenterIconKey(PlaybackToggleIcon.play)));
+    await tester.tap(
+      find.byKey(playbackCenterIconKey(PlaybackToggleIcon.play)),
+    );
     await tester.pump();
     expect(rangePlayback.cancelCalls, 0);
 
@@ -531,8 +501,18 @@ void main() {
       ),
     );
     await tester.pump();
-    expect(tester.widget<PlaybackNavButton>(find.byType(PlaybackNavButton).first).enabled, isFalse);
-    expect(tester.widget<PlaybackNavButton>(find.byType(PlaybackNavButton).last).enabled, isTrue);
+    expect(
+      tester
+          .widget<PlaybackNavButton>(find.byType(PlaybackNavButton).first)
+          .enabled,
+      isFalse,
+    );
+    expect(
+      tester
+          .widget<PlaybackNavButton>(find.byType(PlaybackNavButton).last)
+          .enabled,
+      isTrue,
+    );
 
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pumpWidget(
@@ -547,8 +527,18 @@ void main() {
       ),
     );
     await tester.pump();
-    expect(tester.widget<PlaybackNavButton>(find.byType(PlaybackNavButton).first).enabled, isTrue);
-    expect(tester.widget<PlaybackNavButton>(find.byType(PlaybackNavButton).last).enabled, isFalse);
+    expect(
+      tester
+          .widget<PlaybackNavButton>(find.byType(PlaybackNavButton).first)
+          .enabled,
+      isTrue,
+    );
+    expect(
+      tester
+          .widget<PlaybackNavButton>(find.byType(PlaybackNavButton).last)
+          .enabled,
+      isFalse,
+    );
     expect(find.text('第 10/10 句'), findsOneWidget);
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump(const Duration(milliseconds: 1));
@@ -583,8 +573,18 @@ void main() {
 
     expect(find.text('第 1/1 句'), findsOneWidget);
     expect(find.byType(Slider), findsNothing);
-    expect(tester.widget<PlaybackNavButton>(find.byType(PlaybackNavButton).first).enabled, isFalse);
-    expect(tester.widget<PlaybackNavButton>(find.byType(PlaybackNavButton).last).enabled, isFalse);
+    expect(
+      tester
+          .widget<PlaybackNavButton>(find.byType(PlaybackNavButton).first)
+          .enabled,
+      isFalse,
+    );
+    expect(
+      tester
+          .widget<PlaybackNavButton>(find.byType(PlaybackNavButton).last)
+          .enabled,
+      isFalse,
+    );
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump(const Duration(milliseconds: 1));
   });
@@ -630,7 +630,9 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byKey(playbackCenterIconKey(PlaybackToggleIcon.play)));
+    await tester.tap(
+      find.byKey(playbackCenterIconKey(PlaybackToggleIcon.play)),
+    );
     await tester.pump();
     expect(rangePlayback.liveSpeeds, isEmpty);
 

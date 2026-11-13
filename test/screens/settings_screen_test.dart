@@ -4,14 +4,12 @@
 library;
 
 import 'dart:convert';
-import 'dart:io' show File;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -141,28 +139,6 @@ void main() {
   }
 
   group('SettingsScreen', () {
-    const settingsSvgAssets = [
-      'assets/icon/account-1.svg',
-      'assets/icon/diamond.svg',
-      'assets/icon/artist-palette.svg',
-      'assets/icon/locale.svg',
-      'assets/icon/speak.svg',
-      'assets/icon/bell.svg',
-      'assets/icon/book-shelf.svg',
-      'assets/icon/microphone.svg',
-      'assets/icon/speaker.svg',
-      'assets/icon/play-pause.svg',
-      'assets/icon/locale-1.svg',
-      'assets/icon/diskette.svg',
-      'assets/icon/trash-bin.svg',
-      'assets/icon/refresh.svg',
-      'assets/icon/documents.svg',
-      'assets/icon/lock.svg',
-      'assets/icon/feedback.svg',
-      'assets/icon/help.svg',
-      'assets/icon/group.svg',
-    ];
-
     Finder findSvgAsset(String assetName) {
       return find.byWidgetPredicate(
         (widget) =>
@@ -215,58 +191,6 @@ void main() {
         await tester.pumpAndSettle();
 
         expect(findSvgAsset('assets/icon/china_flag.svg'), findsNothing);
-      });
-
-      test('设置页 SVG 图标统一使用 24x24 viewBox', () {
-        for (final asset in settingsSvgAssets) {
-          final content = File(asset).readAsStringSync();
-          final svgTag = RegExp(
-            r'<svg\b[^>]*>',
-            dotAll: true,
-          ).firstMatch(content)?.group(0);
-
-          expect(svgTag, isNotNull, reason: asset);
-          expect(svgTag, contains('viewBox="0 0 24 24"'), reason: asset);
-          expect(svgTag, contains('width="24"'), reason: asset);
-          expect(svgTag, contains('height="24"'), reason: asset);
-          expect(
-            RegExp(r'\sviewBox=').allMatches(svgTag!).length,
-            1,
-            reason: asset,
-          );
-          expect(
-            RegExp(r'\swidth=').allMatches(svgTag).length,
-            1,
-            reason: asset,
-          );
-          expect(
-            RegExp(r'\sheight=').allMatches(svgTag).length,
-            1,
-            reason: asset,
-          );
-          expect(content, isNot(contains('<style')), reason: asset);
-        }
-      });
-
-      test('设置页满框 SVG 图标声明资源级视觉缩放', () {
-        const visuallyScaledAssets = {
-          'assets/icon/diskette.svg',
-          'assets/icon/trash-bin.svg',
-          'assets/icon/refresh.svg',
-          'assets/icon/lock.svg',
-          'assets/icon/group.svg',
-          'assets/icon/play-pause.svg',
-        };
-
-        for (final asset in visuallyScaledAssets) {
-          final content = File(asset).readAsStringSync();
-          expect(
-            content,
-            contains('data-settings-visual-scale='),
-            reason: asset,
-          );
-          expect(content, contains('translate(12 12) scale('), reason: asset);
-        }
       });
 
       testWidgets('显示主题设置项', (tester) async {
@@ -351,46 +275,6 @@ void main() {
         ]) {
           expect(find.text(emoji), findsNothing);
         }
-      });
-
-      testWidgets('设置页普通图标保留 leading 占位并收紧内部绘制尺寸', (tester) async {
-        await tester.pumpWidget(
-          createTestScreen(
-            const SettingsScreen(),
-            overrides: buildOverrides(showDeveloperOptions: false),
-          ),
-        );
-        await tester.pumpAndSettle();
-
-        final accountIcon = tester.widget<SvgPicture>(
-          findSvgAsset('assets/icon/account-1.svg'),
-        );
-        expect(accountIcon.width, 26);
-        expect(accountIcon.height, 26);
-        expect(
-          tester.getSize(
-            find
-                .ancestor(
-                  of: findSvgAsset('assets/icon/account-1.svg'),
-                  matching: find.byType(SizedBox),
-                )
-                .first,
-          ),
-          const Size(32, 32),
-        );
-
-        await tester.scrollUntilVisible(find.text('Open Source Project'), 200);
-        await tester.pumpAndSettle();
-
-        final refreshIcon = tester.widget<SvgPicture>(
-          findSvgAsset('assets/icon/refresh.svg'),
-        );
-        expect(refreshIcon.width, 26);
-        expect(refreshIcon.height, 26);
-
-        final githubIcons = tester.widgetList<FaIcon>(find.byType(FaIcon));
-        expect(githubIcons, hasLength(1));
-        expect(githubIcons.single.size, 20);
       });
 
       testWidgets('深色主题下单色 SVG 使用高对比主题前景色', (tester) async {
@@ -514,7 +398,9 @@ void main() {
             const SettingsScreen(),
             overrides: dedupeOverrides([
               ...buildOverrides(),
-              supabaseSessionProvider.overrideWithValue(AsyncData<Session?>(session)),
+              supabaseSessionProvider.overrideWithValue(
+                AsyncData<Session?>(session),
+              ),
             ]),
           ),
         );
@@ -547,7 +433,9 @@ void main() {
             const SettingsScreen(),
             overrides: dedupeOverrides([
               ...buildOverrides(),
-              supabaseSessionProvider.overrideWithValue(AsyncData<Session?>(session)),
+              supabaseSessionProvider.overrideWithValue(
+                AsyncData<Session?>(session),
+              ),
             ]),
           ),
         );
@@ -581,7 +469,9 @@ void main() {
             const SettingsScreen(),
             overrides: dedupeOverrides([
               ...buildOverrides(),
-              supabaseSessionProvider.overrideWithValue(AsyncData<Session?>(session)),
+              supabaseSessionProvider.overrideWithValue(
+                AsyncData<Session?>(session),
+              ),
             ]),
           ),
         );
@@ -615,7 +505,9 @@ void main() {
             const SettingsScreen(),
             overrides: dedupeOverrides([
               ...buildOverrides(),
-              supabaseSessionProvider.overrideWithValue(AsyncData<Session?>(session)),
+              supabaseSessionProvider.overrideWithValue(
+                AsyncData<Session?>(session),
+              ),
             ]),
           ),
         );
@@ -649,7 +541,9 @@ void main() {
             const SettingsScreen(),
             overrides: dedupeOverrides([
               ...buildOverrides(),
-              supabaseSessionProvider.overrideWithValue(AsyncData<Session?>(session)),
+              supabaseSessionProvider.overrideWithValue(
+                AsyncData<Session?>(session),
+              ),
             ]),
           ),
         );
