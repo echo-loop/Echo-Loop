@@ -1141,12 +1141,14 @@ void main() {
   group('selectStudyRecommendation', () {
     final now = DateTime(2026, 10, 11, 12);
 
-    AudioItem material(String id, String name) => AudioItem(
-      id: id,
-      name: name,
-      audioPath: 'materials/$id.mp3',
-      addedDate: now,
-    );
+    AudioItem material(String id, String name, {bool hasSubtitle = true}) =>
+        AudioItem(
+          id: id,
+          name: name,
+          audioPath: 'materials/$id.mp3',
+          addedDate: now,
+          transcriptSource: hasSubtitle ? TranscriptSource.local : null,
+        );
 
     RecentCompletion completion(String audioId, DateTime completedAt) =>
         RecentCompletion(
@@ -1199,6 +1201,24 @@ void main() {
       );
 
       expect(result?.id, 'planned');
+    });
+
+    test('没有字幕的材料不推荐，即使它是最近学习的材料', () {
+      final result = selectStudyRecommendation(
+        materials: [
+          material('no-subtitle', 'No Subtitle', hasSubtitle: false),
+          material('with-subtitle', 'With Subtitle'),
+        ],
+        progressByAudioId: {},
+        playbackSavedAtByAudioId: {
+          'no-subtitle': now.add(const Duration(hours: 5)),
+          'with-subtitle': now.add(const Duration(hours: 1)),
+        },
+        latestCompletionAtByAudioId: const {},
+        recentCompletions: const [],
+      );
+
+      expect(result?.id, 'with-subtitle');
     });
 
     test('待解锁的复习材料不推荐，即使它是最近学习的材料', () {

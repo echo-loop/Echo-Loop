@@ -95,6 +95,9 @@ class AudioListTile extends ConsumerWidget {
   /// 是否展示右侧菜单按钮。只读展示场景（如学习页已完成折叠区）传 false。
   final bool showMenu;
 
+  /// 是否显示字幕 CC 徽章；学习页的已完成列表不需要展示。
+  final bool showTranscriptBadge;
+
   /// 标题最多显示行数。默认 2 行，与合集详情页、搜索结果保持一致；
   /// 空间紧凑的只读列表（如学习页已完成折叠区）可传 1。
   final int titleMaxLines;
@@ -117,6 +120,7 @@ class AudioListTile extends ConsumerWidget {
     this.onSelectToggle,
     this.searchQuery = '',
     this.showMenu = true,
+    this.showTranscriptBadge = true,
     this.titleMaxLines = 2,
     this.outerPadding = const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
   });
@@ -131,9 +135,8 @@ class AudioListTile extends ConsumerWidget {
     final pinnedHighlightColor = theme.colorScheme.primary.withValues(
       alpha: 0.06,
     );
-    final difficulty = audioItem.isCommunity
-        ? CommunityDifficulty.fromCode(audioItem.difficulty)
-        : null;
+    // 难度是通用属性：只要有值就显示，不再区分是否仍关联社区合集。
+    final difficulty = CommunityDifficulty.fromCode(audioItem.difficulty);
 
     // 已订阅合集（社区 / 播客）的下载状态在元信息行展示。
     final subscribedCollection = _subscribedCollection(ref);
@@ -418,7 +421,8 @@ class AudioListTile extends ConsumerWidget {
       audioItem.contentStatus,
     );
     // CC 徽章已下沉到元信息行（与时长/日期同排），不再触发标签行。
-    final hasCc = audioItem.hasTranscript && !isTranscribing;
+    final hasCc =
+        showTranscriptBadge && audioItem.hasTranscript && !isTranscribing;
     final hasBadgeRow =
         isTranscribing ||
         contentWarningLabel != null ||

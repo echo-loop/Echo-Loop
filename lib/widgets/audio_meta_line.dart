@@ -95,15 +95,21 @@ String formatAudioDuration(int totalSeconds) {
 class AudioMetaLine extends StatelessWidget {
   final AudioItem audio;
 
-  const AudioMetaLine({super.key, required this.audio});
+  /// 是否显示字幕 CC 徽章；学习页的已完成/推荐区域不需要展示。
+  final bool showTranscriptBadge;
+
+  const AudioMetaLine({
+    super.key,
+    required this.audio,
+    this.showTranscriptBadge = true,
+  });
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final theme = Theme.of(context);
-    final difficulty = audio.isCommunity
-        ? CommunityDifficulty.fromCode(audio.difficulty)
-        : null;
+    // 难度是通用属性：只要有值就显示，不再区分是否仍关联社区合集。
+    final difficulty = CommunityDifficulty.fromCode(audio.difficulty);
     final meta = buildAudioMetaParts(context, audio);
     final metaText = Text.rich(
       TextSpan(children: meta.spans),
@@ -116,7 +122,7 @@ class AudioMetaLine extends StatelessWidget {
 
     return Row(
       children: [
-        if (audio.hasTranscript) ...[
+        if (showTranscriptBadge && audio.hasTranscript) ...[
           TranscriptCcBadge(
             containerKey: const Key('audio_meta_line_transcript_badge'),
             label: l10n.transcript,

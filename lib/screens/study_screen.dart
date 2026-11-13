@@ -541,7 +541,7 @@ class _RecommendedMaterialCard extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                AudioMetaLine(audio: material),
+                AudioMetaLine(audio: material, showTranscriptBadge: false),
                 const SizedBox(height: 3),
                 Text(
                   _stageSubStageLabel(l10n, stage, subStage),
@@ -835,6 +835,7 @@ class _CompletedSection extends StatelessWidget {
                 (audio) => AudioListTile(
                   audioItem: audio,
                   showMenu: false,
+                  showTranscriptBadge: false,
                   titleMaxLines: 1,
                   outerPadding: EdgeInsets.zero,
                 ),

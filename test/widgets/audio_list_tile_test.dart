@@ -218,7 +218,7 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('资源库全局列表不显示合集专属难度徽章', (tester) async {
+    testWidgets('全局列表（搜索结果、已完成列表）同样显示社区难度徽章', (tester) async {
       final item = createTestAudioItem().copyWith(
         remoteAudioId: 'remote-1',
         difficulty: 'B1',
@@ -227,7 +227,22 @@ void main() {
       await tester.pumpWidget(buildTile(item));
       await tester.pumpAndSettle();
 
-      expect(find.byKey(const Key('community_difficulty_badge')), findsNothing);
+      expect(
+        find.byKey(const Key('community_difficulty_badge')),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('已解除社区关联的本地音频保留难度并显示徽章', (tester) async {
+      final item = createTestAudioItem().copyWith(difficulty: 'B1');
+
+      await tester.pumpWidget(buildTile(item));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const Key('community_difficulty_badge')),
+        findsOneWidget,
+      );
     });
 
     testWidgets('全局搜索结果长标题同样最多显示两行', (tester) async {

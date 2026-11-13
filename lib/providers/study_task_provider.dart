@@ -391,9 +391,11 @@ AudioItem? selectStudyRecommendation({
   final recentCompletionIds = recentCompletions
       .map((completion) => completion.audioId)
       .toSet();
+  // 推荐的材料必须有字幕，否则学习页推荐的入口无法进入逐句学习。
   bool isEligibleForRecommendation(AudioItem material) {
     final progress = progressByAudioId[material.id];
-    return !recentCompletionIds.contains(material.id) &&
+    return material.hasTranscript &&
+        !recentCompletionIds.contains(material.id) &&
         progress?.isCompleted != true &&
         progress?.isInReviewStage != true;
   }

@@ -2115,7 +2115,8 @@ void main() {
       expect(find.text('100%'), findsOneWidget);
       // 卡片不再显示状态文案
       expect(find.text('Completed'), findsNothing);
-      expect(find.text('4/4'), findsOneWidget);
+      // 首次学习卡片与已完成的复习轮次各显示一次 4/4
+      expect(find.text('4/4'), findsNWidgets(2));
       expect(find.text('4/4 completed'), findsNothing);
       expect(find.text('✅'), findsNothing);
       expect(
