@@ -117,7 +117,7 @@ void main() {
 
     expect(find.text('AI Analysis'), findsOneWidget);
     expect(find.text('AI Translation'), findsOneWidget);
-    expect(find.text('AI Sense Groups'), findsOneWidget);
+    expect(find.text('AI Chunking'), findsOneWidget);
     expect(find.byIcon(Icons.psychology_alt_outlined), findsOneWidget);
     expect(find.byIcon(Icons.translate), findsOneWidget);
     expect(find.byIcon(Icons.account_tree_outlined), findsOneWidget);
@@ -171,14 +171,14 @@ void main() {
     expect(tester.widget<SwitchListTile>(autoShowFinder).value, isFalse);
     expect(find.text('AI Analysis'), findsNothing);
     expect(find.text('AI Translation'), findsNothing);
-    expect(find.text('AI Sense Groups'), findsNothing);
+    expect(find.text('AI Chunking'), findsNothing);
   });
 
   testWidgets('点击 AI 讲解子开关 → 翻转 state + 写 SP', (tester) async {
     await tester.pumpWidget(await buildApp());
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('AI Sense Groups'));
+    await tester.tap(find.text('AI Chunking'));
     await tester.pumpAndSettle();
 
     final prefs = await SharedPreferences.getInstance();

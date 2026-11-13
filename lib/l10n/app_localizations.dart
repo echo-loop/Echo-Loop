@@ -5501,19 +5501,19 @@ abstract class AppLocalizations {
   /// No description provided for @senseGroupSplit.
   ///
   /// In en, this message translates to:
-  /// **'Split into Sense Groups'**
+  /// **'Split into Chunks'**
   String get senseGroupSplit;
 
   /// No description provided for @senseGroupLoading.
   ///
   /// In en, this message translates to:
-  /// **'Splitting...'**
+  /// **'Chunking...'**
   String get senseGroupLoading;
 
   /// No description provided for @senseGroupSingleGroup.
   ///
   /// In en, this message translates to:
-  /// **'This sentence is a single sense group'**
+  /// **'This sentence is a single chunk'**
   String get senseGroupSingleGroup;
 
   /// No description provided for @senseGroupSave.
@@ -5531,19 +5531,19 @@ abstract class AppLocalizations {
   /// No description provided for @annotationBtnSenseGroup.
   ///
   /// In en, this message translates to:
-  /// **'Sense Groups'**
+  /// **'Chunks'**
   String get annotationBtnSenseGroup;
 
   /// No description provided for @annotationBtnSenseGroupMedium.
   ///
   /// In en, this message translates to:
-  /// **'Larger chunks'**
+  /// **'Major Chunks'**
   String get annotationBtnSenseGroupMedium;
 
   /// No description provided for @annotationBtnSenseGroupFine.
   ///
   /// In en, this message translates to:
-  /// **'Smaller chunks'**
+  /// **'Minor Chunks'**
   String get annotationBtnSenseGroupFine;
 
   /// No description provided for @annotationBtnTranslation.
@@ -5561,7 +5561,7 @@ abstract class AppLocalizations {
   /// No description provided for @senseGroupLoadFailed.
   ///
   /// In en, this message translates to:
-  /// **'Sense group splitting failed, please retry'**
+  /// **'Chunking failed, please retry'**
   String get senseGroupLoadFailed;
 
   /// No description provided for @senseGroupSignInRequiredTitle.
@@ -5585,7 +5585,7 @@ abstract class AppLocalizations {
   /// No description provided for @senseGroupSyntheticTimingNoticeMessage.
   ///
   /// In en, this message translates to:
-  /// **'This sense group playback timing is estimated from your uploaded subtitles and may be inaccurate.'**
+  /// **'Playback timing for this chunk is estimated from your uploaded subtitles and may be inaccurate.'**
   String get senseGroupSyntheticTimingNoticeMessage;
 
   /// No description provided for @transcriptionSignInRequiredTitle.
@@ -5603,7 +5603,7 @@ abstract class AppLocalizations {
   /// No description provided for @senseGroupNotAvailable.
   ///
   /// In en, this message translates to:
-  /// **'Sense group playback is not available for this audio yet'**
+  /// **'Chunk playback isn\'t available for this audio yet'**
   String get senseGroupNotAvailable;
 
   /// No description provided for @wordTimestampsNotFound.
@@ -6065,7 +6065,7 @@ abstract class AppLocalizations {
   /// No description provided for @guideFavoritesVocabularyListDescription.
   ///
   /// In en, this message translates to:
-  /// **'Your saved words, phrases, and sense groups.'**
+  /// **'Your saved words, phrases, and chunks.'**
   String get guideFavoritesVocabularyListDescription;
 
   /// No description provided for @guideSentenceTileBodyDescription.
@@ -6113,7 +6113,7 @@ abstract class AppLocalizations {
   /// No description provided for @guideSentenceAnnotationSenseGroupDescription.
   ///
   /// In en, this message translates to:
-  /// **'Break the sentence into sense groups to make long, complex lines easier to follow.'**
+  /// **'Break the sentence into chunks to make long, complex lines easier to follow.'**
   String get guideSentenceAnnotationSenseGroupDescription;
 
   /// No description provided for @guideSentenceAnnotationAnalysisDescription.
@@ -6917,7 +6917,7 @@ abstract class AppLocalizations {
   /// No description provided for @autoShowAiSenseGroupsToggle.
   ///
   /// In en, this message translates to:
-  /// **'AI Sense Groups'**
+  /// **'AI Chunking'**
   String get autoShowAiSenseGroupsToggle;
 
   /// No description provided for @autoPlayRetellRecordingToggle.
@@ -9167,7 +9167,7 @@ abstract class AppLocalizations {
   /// No description provided for @usageFeatureSenseGroups.
   ///
   /// In en, this message translates to:
-  /// **'AI Sense Groups'**
+  /// **'AI Chunking'**
   String get usageFeatureSenseGroups;
 
   /// No description provided for @usageFeatureTranscription.

@@ -3113,13 +3113,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get monthlyBestStreak => 'Best streak';
 
   @override
-  String get senseGroupSplit => 'Split into Sense Groups';
+  String get senseGroupSplit => 'Split into Chunks';
 
   @override
-  String get senseGroupLoading => 'Splitting...';
+  String get senseGroupLoading => 'Chunking...';
 
   @override
-  String get senseGroupSingleGroup => 'This sentence is a single sense group';
+  String get senseGroupSingleGroup => 'This sentence is a single chunk';
 
   @override
   String get senseGroupSave => 'Save';
@@ -3128,13 +3128,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get senseGroupSaved => 'Saved';
 
   @override
-  String get annotationBtnSenseGroup => 'Sense Groups';
+  String get annotationBtnSenseGroup => 'Chunks';
 
   @override
-  String get annotationBtnSenseGroupMedium => 'Larger chunks';
+  String get annotationBtnSenseGroupMedium => 'Major Chunks';
 
   @override
-  String get annotationBtnSenseGroupFine => 'Smaller chunks';
+  String get annotationBtnSenseGroupFine => 'Minor Chunks';
 
   @override
   String get annotationBtnTranslation => 'Translation';
@@ -3143,8 +3143,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get annotationBtnAnalysis => 'Analysis';
 
   @override
-  String get senseGroupLoadFailed =>
-      'Sense group splitting failed, please retry';
+  String get senseGroupLoadFailed => 'Chunking failed, please retry';
 
   @override
   String get senseGroupSignInRequiredTitle => 'Sign in to use AI features';
@@ -3158,7 +3157,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get senseGroupSyntheticTimingNoticeMessage =>
-      'This sense group playback timing is estimated from your uploaded subtitles and may be inaccurate.';
+      'Playback timing for this chunk is estimated from your uploaded subtitles and may be inaccurate.';
 
   @override
   String get transcriptionSignInRequiredTitle =>
@@ -3170,7 +3169,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get senseGroupNotAvailable =>
-      'Sense group playback is not available for this audio yet';
+      'Chunk playback isn\'t available for this audio yet';
 
   @override
   String get wordTimestampsNotFound =>
@@ -3455,7 +3454,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get guideFavoritesVocabularyListDescription =>
-      'Your saved words, phrases, and sense groups.';
+      'Your saved words, phrases, and chunks.';
 
   @override
   String get guideSentenceTileBodyDescription =>
@@ -3486,7 +3485,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get guideSentenceAnnotationSenseGroupDescription =>
-      'Break the sentence into sense groups to make long, complex lines easier to follow.';
+      'Break the sentence into chunks to make long, complex lines easier to follow.';
 
   @override
   String get guideSentenceAnnotationAnalysisDescription =>
@@ -3935,7 +3934,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get autoShowAiTranslationToggle => 'AI Translation';
 
   @override
-  String get autoShowAiSenseGroupsToggle => 'AI Sense Groups';
+  String get autoShowAiSenseGroupsToggle => 'AI Chunking';
 
   @override
   String get autoPlayRetellRecordingToggle => 'Auto-play retelling recording';
@@ -5179,7 +5178,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get usageFeatureAnalyze => 'AI Analysis';
 
   @override
-  String get usageFeatureSenseGroups => 'AI Sense Groups';
+  String get usageFeatureSenseGroups => 'AI Chunking';
 
   @override
   String get usageFeatureTranscription => 'AI Transcription';

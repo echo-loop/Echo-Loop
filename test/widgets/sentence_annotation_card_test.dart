@@ -114,7 +114,7 @@ void main() {
       expect(find.byIcon(Icons.auto_fix_high), findsOneWidget);
       expect(find.byIcon(Icons.translate), findsOneWidget);
       expect(find.byIcon(Icons.auto_awesome), findsOneWidget);
-      expect(find.text('Sense Groups'), findsOneWidget);
+      expect(find.text('Chunks'), findsOneWidget);
       expect(find.text('Translation'), findsOneWidget);
       expect(find.text('Analysis'), findsOneWidget);
     });
@@ -135,10 +135,10 @@ void main() {
         ),
       );
 
-      expect(find.text('Sense Groups'), findsOneWidget);
+      expect(find.text('Chunks'), findsOneWidget);
 
       // 点击拆意群按钮可正常触发请求
-      await tester.tap(find.text('Sense Groups'));
+      await tester.tap(find.text('Chunks'));
       await tester.pump();
       expect(requested, isTrue);
     });
@@ -747,7 +747,7 @@ void main() {
         ),
       );
 
-      await tester.tap(find.text('Sense Groups'));
+      await tester.tap(find.text('Chunks'));
       await tester.pump();
       expect(requested, isTrue);
     });
@@ -812,7 +812,7 @@ void main() {
       );
 
       // 点击意群按钮触发请求
-      await tester.tap(find.text('Sense Groups'));
+      await tester.tap(find.text('Chunks'));
       await tester.pump();
 
       // 请求进行中应显示 CircularProgressIndicator

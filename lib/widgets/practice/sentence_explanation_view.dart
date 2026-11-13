@@ -623,7 +623,7 @@ class _SentenceExplanationViewState
                 SnackBar(
                   content: Text(
                     l10n?.senseGroupLoadFailed ??
-                        'Failed to load sense groups, please retry',
+                        'Chunking failed, please retry',
                   ),
                 ),
               );
@@ -805,7 +805,7 @@ class _SentenceExplanationViewState
           ),
           content: Text(
             l10n?.senseGroupSyntheticTimingNoticeMessage ??
-                'This sense group playback timing is estimated from your uploaded subtitles and may be inaccurate.',
+                'Playback timing for this chunk is estimated from your uploaded subtitles and may be inaccurate.',
           ),
           actions: [
             FilledButton(
