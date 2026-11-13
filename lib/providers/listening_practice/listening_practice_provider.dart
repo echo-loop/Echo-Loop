@@ -5,7 +5,6 @@ import '../../analytics/analytics_providers.dart';
 import '../../analytics/models/event_names.dart';
 import '../../features/usage/usage_event.dart';
 import '../../features/usage/usage_providers.dart';
-import '../../features/rating_prompt/rating_prompt_providers.dart';
 import '../../database/providers.dart';
 import '../../models/audio_item.dart';
 import '../../models/sentence.dart';
@@ -506,13 +505,6 @@ class ListeningPractice extends _$ListeningPractice {
     }
   }
 
-  /// 整篇按设定遍数播完（自然结束）时记为随心听任务完成，供评分提醒判断。
-  /// 用户中途停止、切换音频不会走到这里。
-  Future<void> _recordTaskCompletionOnNaturalEnd() =>
-      recordRatingTaskCompletion(
-        () => ref.read(ratingPromptTaskCompletionStoreProvider),
-      );
-
   /// 整篇 gapless 下「当前句播完后暂停」：回到刚播完的句子句首暂停，使解析/翻译面板
   /// 停留在用户点击的句子上（而非随高亮滑到下一句），续播时从本句继续。
   Future<void> _pauseGaplessHoldingSentence(int finishedIndex) async {
@@ -703,7 +695,6 @@ class ListeningPractice extends _$ListeningPractice {
           'Player',
           '⏹ 整篇循环结束（已播满 $_wholeLoopsDone 遍）→ 暂停保留会话，等待用户重播',
         );
-        await _recordTaskCompletionOnNaturalEnd();
         _awaitingReplayFromStart = true;
         _setLogicalPlaying(false);
         // 不 stop：保留媒体会话与锁屏 Now Playing（暂停态），用户可在锁屏直接重播。
@@ -811,7 +802,6 @@ class ListeningPractice extends _$ListeningPractice {
 
       final s = state.settings;
       if (!shouldLoopWhole(s.loopWhole, s.wholeLoopCount, _wholeLoopsDone)) {
-        await _recordTaskCompletionOnNaturalEnd();
         _awaitingReplayFromStart = true;
         _setLogicalPlaying(false);
         // 不 stop：保留媒体会话与锁屏 Now Playing（暂停态），用户可在锁屏直接重播。

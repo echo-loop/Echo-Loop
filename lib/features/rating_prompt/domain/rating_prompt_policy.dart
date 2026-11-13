@@ -99,3 +99,6 @@ RatingPromptBlockReason? evaluateRatingPrompt({
   }
   return null;
 }
+
+/// 随心听返回时，本次页面有效学习时长超过该值才记为一次任务完成。
+const ratingFreeListenMinimumDuration = Duration(minutes: 2);

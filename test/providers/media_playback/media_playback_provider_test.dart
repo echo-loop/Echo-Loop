@@ -4,6 +4,9 @@ import 'dart:io';
 import 'package:audio_service/audio_service.dart' hide PlaybackState;
 import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:echo_loop/features/rating_prompt/data/rating_prompt_task_completion_store.dart';
+import 'package:echo_loop/features/rating_prompt/rating_prompt_providers.dart';
 import 'package:echo_loop/database/app_database.dart' hide AudioItem;
 import 'package:echo_loop/database/daos/playback_state_dao.dart';
 import 'package:echo_loop/models/audio_item.dart';
@@ -67,6 +70,21 @@ class _FailOnceStudyTimeService extends StudyTimeService {
   }
 }
 
+/// 记录任务完成写入，用于断言随心听返回时的任务完成判定。
+class _RecordingCompletionStore extends RatingPromptTaskCompletionStore {
+  _RecordingCompletionStore(super.preferences);
+
+  final List<DateTime> records = [];
+
+  @override
+  Future<bool> recordCompletion(DateTime time) {
+    records.add(time);
+    return super.recordCompletion(time);
+  }
+}
+
+late _RecordingCompletionStore _completionStore;
+
 void main() {
   late Directory appDir;
   late File mediaFile;
@@ -109,6 +127,10 @@ void main() {
 
   setUp(() async {
     SharedPreferences.setMockInitialValues({});
+    _completionStore = _RecordingCompletionStore(
+      await SharedPreferences.getInstance(),
+    );
+    SharedPreferences.setMockInitialValues({});
     appDir = await Directory.systemTemp.createTemp('echo-loop-media-playback-');
     appDataDirectoryOverride = appDir;
     mediaFile = File('${appDir.path}/echo-loop-media-playback.mp4');
@@ -136,6 +158,9 @@ void main() {
         bookmarkDaoProvider.overrideWithValue(bookmarkDao),
         playbackStateDaoProvider.overrideWithValue(playbackStateDao),
         studyTimeServiceProvider.overrideWithValue(studyTimeService),
+        ratingPromptTaskCompletionStoreProvider.overrideWithValue(
+          _completionStore,
+        ),
         audioEngineProvider.overrideWith(
           () => _TranscriptAudioEngine(transcriptSentences),
         ),
@@ -219,6 +244,30 @@ void main() {
     }
     fail('Timed out waiting for the asynchronous study duration write.');
   }
+
+  test('随心听返回时有效学习超过 2 分钟记为任务完成', () {
+    return runWithSkewedClock((advance) async {
+      final controller = await loadController();
+      final generation = controller.beginStudyPage();
+      advance(const Duration(minutes: 3));
+
+      await controller.finishStudyPage(generation: generation);
+
+      expect(_completionStore.records, hasLength(1));
+    });
+  });
+
+  test('随心听返回时有效学习不足 2 分钟不记为任务完成', () {
+    return runWithSkewedClock((advance) async {
+      final controller = await loadController();
+      final generation = controller.beginStudyPage();
+      advance(const Duration(seconds: 90));
+
+      await controller.finishStudyPage(generation: generation);
+
+      expect(_completionStore.records, isEmpty);
+    });
+  });
 
   test('finishStudyPage 等待未 checkpoint 的最终学习时长写入', () {
     return runWithSkewedClock((advance) async {

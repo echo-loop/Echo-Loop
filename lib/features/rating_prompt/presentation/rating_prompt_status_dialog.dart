@@ -73,6 +73,7 @@ class _StatusBody extends StatelessWidget {
 
   static final _dateTimeFormat = DateFormat('yyyy-MM-dd HH:mm');
   static final _dateFormat = DateFormat('yyyy-MM-dd');
+  static final _timeFormat = DateFormat('HH:mm');
   static const _maxLogLines = 20;
 
   final RatingPromptStatus status;
@@ -202,25 +203,18 @@ class _StatusBody extends StatelessWidget {
 
   Widget _recentTaskTile() {
     final completedAt = status.lastTaskCompletedAt;
-    final window = status.rules.recentTaskWindow.inMinutes;
+    if (completedAt == null) {
+      return const _ConditionTile(ok: false, label: '最近完成任务', value: '无记录');
+    }
     final isRecent = isRecentTaskCompletion(
       rules: status.rules,
       now: status.now,
       completedAt: completedAt,
     );
-    if (completedAt == null) {
-      return _ConditionTile(
-        ok: false,
-        label: '最近完成任务',
-        value: '无记录',
-        caption: '需在 $window 分钟内完成过一个任务',
-      );
-    }
     return _ConditionTile(
       ok: isRecent,
       label: '最近完成任务',
-      value: isRecent ? '刚刚' : '已超过 $window 分钟',
-      caption: '完成于 ${_dateTimeFormat.format(completedAt)}',
+      value: _timeFormat.format(completedAt),
     );
   }
 
