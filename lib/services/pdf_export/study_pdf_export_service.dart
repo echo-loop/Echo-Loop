@@ -2,35 +2,23 @@
 ///
 /// 拆成两个可独立复用的步骤（预览页按选项多次生成字节、仅分享时才落盘）：
 /// - [StudyPdfExportService.buildBytes]「读字体 → isolate 生成 PDF 字节」：
-///   字体经 rootBundle 读取（只能在主 isolate），static 缓存避免二次导出重读 ~12MB；
+///   字体经 [PdfAssetsLoader] 读取（只能在主 isolate，会话内缓存），
 ///   PDF 生成（字体解析 + 子集化，数百 ms 级 CPU）放 `compute` isolate；
-/// - [StudyPdfExportService.writeTempPdf]「字节写临时文件」：
-///   产物写入 `pdf_export_<ts>` 临时目录（前缀已登记 temp_cleanup_service 白名单）。
-///   分享方**不可**在 `shareXFiles` 返回后立即删除——macOS 在用户点选
-///   AirDrop 时 Future 即 resolve、传输未开始；由清理服务统一回收。
+/// - [StudyPdfExportService.writeTempPdf]「字节写临时文件」，委托共用实现
+///   [writePdfTempFile]（分享后不可立即删除，见其注释）。
 library;
 
-import 'dart:io';
-
 import 'package:flutter/foundation.dart';
-import 'package:flutter/services.dart' show rootBundle;
-import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
 
 import '../../models/pdf_export/study_pdf_data.dart';
 import '../app_logger.dart';
-import '../audio_export_service.dart';
+import 'common/pdf_assets.dart';
+import 'common/pdf_document_shell.dart';
+import 'common/pdf_file_actions.dart';
 import 'study_pdf_builder.dart';
 
 /// 学习材料 PDF 导出服务
 class StudyPdfExportService {
-  /// 字体字节缓存（同会话多次导出免重读 assets）
-  static Uint8List? _latinRegular;
-  static Uint8List? _latinBold;
-  static Uint8List? _latinItalic;
-  static Uint8List? _cjkRegular;
-  static Uint8List? _appIconPng;
-
   /// 生成 PDF 字节（预览 / 下载 / 分享共用同一份产物）
   ///
   /// [labels] 为按当前 locale 组装好的 PDF 内文案（isolate 内拿不到 l10n）。
@@ -38,39 +26,18 @@ class StudyPdfExportService {
     StudyPdfDocument document, {
     required StudyPdfLabels labels,
   }) async {
-    // 阶段耗时打点：total 为整个 buildBytes 墙钟耗时，sw 分「读字体」「PDF 生成」
     final total = Stopwatch()..start();
     final sw = Stopwatch()..start();
-    final fontsCached = _latinRegular != null;
-    _latinRegular ??= await _loadAsset('assets/fonts/pdf/NotoSans-Regular.ttf');
-    _latinBold ??= await _loadAsset('assets/fonts/pdf/NotoSans-Bold.ttf');
-    _latinItalic ??= await _loadAsset('assets/fonts/pdf/NotoSans-Italic.ttf');
-    _cjkRegular ??= await _loadAsset('assets/fonts/pdf/NotoSansSC-Regular.ttf');
-    // 品牌图标仅为装饰：加载失败（如旧构建未含该 asset）降级为纯文字角标，
-    // 不让整个导出失败
-    try {
-      _appIconPng ??= await _loadAsset('assets/icon/app-icon-96.png');
-    } catch (_) {
-      _appIconPng = null;
-    }
-    AppLogger.log(
-      'PdfExport',
-      '读字体 ${sw.elapsedMilliseconds}ms (${fontsCached ? '缓存命中' : '首次读 assets'})',
-    );
+    final assets = await PdfAssetsLoader().load();
+    AppLogger.log('PdfExport', '读字体 ${sw.elapsedMilliseconds}ms');
     sw
       ..reset()
       ..start();
 
-    final now = DateTime.now();
     final request = StudyPdfBuildRequest(
       document: document,
-      latinRegular: _latinRegular!,
-      latinBold: _latinBold!,
-      latinItalic: _latinItalic!,
-      cjkRegular: _cjkRegular!,
-      appIconPng: _appIconPng,
-      exportDate:
-          '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}',
+      assets: assets,
+      exportDate: pdfDateText(DateTime.now()),
       labels: labels,
     );
 
@@ -84,32 +51,6 @@ class StudyPdfExportService {
   }
 
   /// 把生成好的 PDF 字节写入临时目录（分享路径用），返回文件完整路径
-  ///
-  /// 文件名取净化后的 [title]。调用方分享完成后负责删除临时文件。
-  Future<String> writeTempPdf(Uint8List bytes, String title) async {
-    final safeName = AudioExportService().sanitizeFileName(title);
-    final tempDir = await _createTempDir();
-    final pdfPath = p.join(tempDir.path, '$safeName.pdf');
-    await File(pdfPath).writeAsBytes(bytes);
-    return pdfPath;
-  }
-
-  /// 从 assets 读原始字节（字体 / 品牌图标）
-  Future<Uint8List> _loadAsset(String assetPath) async {
-    final data = await rootBundle.load(assetPath);
-    return Uint8List.sublistView(data);
-  }
-
-  /// 创建临时目录（前缀 `pdf_export_`，见 temp_cleanup_service 白名单）
-  Future<Directory> _createTempDir() async {
-    final systemTemp = await getTemporaryDirectory();
-    final dir = Directory(
-      p.join(
-        systemTemp.path,
-        'pdf_export_${DateTime.now().millisecondsSinceEpoch}',
-      ),
-    );
-    await dir.create(recursive: true);
-    return dir;
-  }
+  Future<String> writeTempPdf(Uint8List bytes, String title) =>
+      writePdfTempFile(bytes, title);
 }

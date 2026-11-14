@@ -9,16 +9,11 @@
 library;
 
 import 'dart:async';
-import 'dart:math' as math;
+import 'dart:typed_data';
 
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/cupertino.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:pdf/pdf.dart';
-import 'package:printing/printing.dart';
-import 'package:share_plus/share_plus.dart';
 import 'package:universal_io/io.dart';
 
 import '../database/providers.dart';
@@ -30,15 +25,20 @@ import '../providers/dictionary/dictionary_registry.dart';
 import '../providers/learning_settings_provider.dart';
 import '../providers/settings_provider.dart';
 import '../services/app_logger.dart';
-import '../services/audio_export_service.dart';
+import '../services/pdf_export/common/pdf_file_actions.dart';
 import '../services/pdf_export/study_pdf_export_service.dart';
 import '../services/pdf_export/study_pdf_loader.dart';
 import '../widgets/common/anchored_bubble.dart';
+import '../utils/route_entrance_transition.dart';
+import '../widgets/pdf/pdf_bytes_preview.dart';
 
 /// 预览区构造器（测试注入缝：`PdfPreview` 走 method channel，widget 测试
 /// 中会 MissingPluginException，注入替身即可绕开）
-typedef PdfPreviewBuilder =
-    Widget Function(BuildContext context, Uint8List bytes, int optionsBitmask);
+typedef PdfPreviewBuilder = Widget Function(
+  BuildContext context,
+  Uint8List bytes,
+  int optionsBitmask,
+);
 
 /// 学习材料 PDF 导出预览页
 class PdfPreviewScreen extends ConsumerStatefulWidget {
@@ -112,7 +112,7 @@ class _PdfPreviewScreenState extends ConsumerState<PdfPreviewScreen> {
     // 序列化大对象（字幕解析 / 逐句组装 / PDF 生成），在转场动画期间抢占
     // 主 isolate 会让转场和 loading 动画掉帧。等页面稳定后再开工。
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      await _awaitEntranceTransition();
+      await awaitRouteEntranceTransition(context);
       if (!mounted) return;
       await _maybeShowExportReminder();
       if (!mounted) return;
@@ -147,23 +147,6 @@ class _PdfPreviewScreenState extends ConsumerState<PdfPreviewScreen> {
     await ref
         .read(learningSettingsProvider.notifier)
         .markPdfExportReminderShown();
-  }
-
-  /// 等待进场路由转场动画结束（无动画 / 已完成 / 被中断时立即返回）
-  Future<void> _awaitEntranceTransition() {
-    final animation = ModalRoute.of(context)?.animation;
-    if (animation == null || animation.isCompleted) return Future<void>.value();
-    final completer = Completer<void>();
-    void listener(AnimationStatus status) {
-      if (status == AnimationStatus.completed ||
-          status == AnimationStatus.dismissed) {
-        animation.removeStatusListener(listener);
-        if (!completer.isCompleted) completer.complete();
-      }
-    }
-
-    animation.addStatusListener(listener);
-    return completer.future;
   }
 
   /// 加载文档（仅首次）并按当前选项生成字节
@@ -265,32 +248,20 @@ class _PdfPreviewScreenState extends ConsumerState<PdfPreviewScreen> {
     if (bytes == null || document == null) return;
     final l10n = AppLocalizations.of(context)!;
 
-    final safeName = AudioExportService().sanitizeFileName(document.title);
     try {
-      final isMobile = Platform.isIOS || Platform.isAndroid;
-      final home = Platform.environment['HOME'];
-      final savePath = await FilePicker.platform.saveFile(
-        dialogTitle: l10n.exportPdf,
-        fileName: '$safeName.pdf',
+      final saved = await savePdfBytes(
         bytes: bytes,
-        initialDirectory: !isMobile && home != null ? '$home/Downloads' : null,
-        type: FileType.custom,
-        allowedExtensions: ['pdf'],
+        title: document.title,
+        dialogTitle: l10n.exportPdf,
       );
-      if (savePath == null) return; // 用户取消
-      if (!isMobile) {
-        // 桌面端 saveFile 只返回路径，不写内容
-        await File(savePath).writeAsBytes(bytes);
-      }
+      if (!saved) return; // 用户取消
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(l10n.exportSuccess)));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(l10n.exportSuccess)));
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(l10n.pdfExportFailed('$e'))));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(l10n.pdfExportFailed('$e'))));
     }
   }
 
@@ -307,24 +278,19 @@ class _PdfPreviewScreenState extends ConsumerState<PdfPreviewScreen> {
     final l10n = AppLocalizations.of(context)!;
 
     try {
-      final pdfPath = await _exportService.writeTempPdf(bytes, document.title);
-      if (!mounted) return;
       // iPad 弹出框 / macOS 分享 popover 需要锚点位置
       final box = context.findRenderObject() as RenderBox?;
-      await Share.shareXFiles(
-        [XFile(pdfPath, mimeType: 'application/pdf')],
-        // subject 决定 iOS 分享面板 LinkPresentation 卡片的标题（不传则
-        // metadata.title 为 nil，卡片只剩「PDF · 71 KB」副标题、无文件名）
-        subject: document.title,
+      await sharePdfBytes(
+        bytes: bytes,
+        title: document.title,
         sharePositionOrigin: box != null
             ? box.localToGlobal(Offset.zero) & box.size
             : Rect.zero,
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(l10n.pdfExportFailed('$e'))));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(l10n.pdfExportFailed('$e'))));
     }
   }
 
@@ -503,45 +469,6 @@ class _PdfPreviewScreenState extends ConsumerState<PdfPreviewScreen> {
     if (builder != null) {
       return builder(context, bytes, _options.bitmask);
     }
-    final mq = MediaQuery.of(context);
-    final targetPixelWidth = math.min(
-      mq.size.width * mq.devicePixelRatio * 1.75,
-      2800.0,
-    );
-    final dpi = targetPixelWidth / PdfPageFormat.a4.width * PdfPageFormat.inch;
-    return InteractiveViewer(
-      maxScale: 4,
-      child: PdfPreview(
-        key: ValueKey(bytes),
-        build: _stableBuildFor(bytes),
-        useActions: false,
-        allowPrinting: false,
-        allowSharing: false,
-        canChangePageFormat: false,
-        canChangeOrientation: false,
-        canDebug: false,
-        dpi: dpi,
-        padding: EdgeInsets.zero,
-        previewPageMargin: EdgeInsets.zero,
-        scrollViewDecoration: const BoxDecoration(color: Colors.white),
-        pdfPreviewPageDecoration: const BoxDecoration(color: Colors.white),
-      ),
-    );
-  }
-
-  /// 当前缓存的 build 回调对应的字节（identity 比较）
-  Uint8List? _buildFnBytes;
-
-  /// 稳定的 build 回调（仅在字节变化时重建，见 [_buildPreview] 说明）
-  Future<Uint8List> Function(PdfPageFormat)? _buildFn;
-
-  /// 返回绑定到 [bytes] 的稳定 build 回调：同一字节对象跨重建返回同一引用，
-  /// 使 `PdfPreview` 不因父级重建而重复栅格化。
-  Future<Uint8List> Function(PdfPageFormat) _stableBuildFor(Uint8List bytes) {
-    if (!identical(_buildFnBytes, bytes) || _buildFn == null) {
-      _buildFnBytes = bytes;
-      _buildFn = (_) async => bytes;
-    }
-    return _buildFn!;
+    return PdfBytesPreview(bytes: bytes);
   }
 }

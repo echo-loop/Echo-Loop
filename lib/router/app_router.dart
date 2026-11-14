@@ -36,6 +36,8 @@ import '../services/app_logger.dart';
 import '../screens/library_screen.dart';
 import '../screens/collection_detail_screen.dart';
 import '../screens/study_screen.dart';
+import '../models/favorites_export/favorites_export_options.dart';
+import '../screens/favorites_export_preview_screen.dart';
 import '../screens/favorites_screen.dart';
 import '../screens/settings_screen.dart';
 import '../screens/learning_plan_screen.dart';
@@ -170,6 +172,9 @@ abstract class AppRoutes {
   /// 学习材料 PDF 导出预览页路径段（挂在计划页 / 合集页之下的相对子路由）
   static const pdfPreviewSegment = 'pdf-preview';
 
+  /// 收藏导出预览页路径段（挂在收藏页之下的相对子路由）
+  static const favoritesExportPreviewSegment = 'favorites-export-preview';
+
   /// 音频详情页路径段（挂在计划页之下的相对子路由）
   static const audioDetailSegment = 'audio-detail';
   static const backupRestore = '/backup-restore';
@@ -292,6 +297,17 @@ GoRoute _pdfPreviewRoute() => GoRoute(
     final item = state.extra;
     if (item is! AudioItem) return const _RestoredRoutePopper();
     return PdfPreviewScreen(audioItem: item);
+  },
+);
+
+/// 收藏导出预览页子路由工厂。挂在收藏页之下，同 _pdfPreviewRoute 的防塌栈说明。
+GoRoute _favoritesExportPreviewRoute() => GoRoute(
+  path: AppRoutes.favoritesExportPreviewSegment,
+  parentNavigatorKey: rootNavigatorKey,
+  builder: (context, state) {
+    final request = state.extra;
+    if (request is! FavoritesExportRequest) return const _RestoredRoutePopper();
+    return FavoritesExportPreviewScreen(request: request);
   },
 );
 
@@ -537,7 +553,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               GoRoute(
                 path: '/favorites',
                 builder: (context, state) => const FavoritesScreen(),
-                routes: [_sentenceDetailRoute()],
+                routes: [
+                  _sentenceDetailRoute(),
+                  _favoritesExportPreviewRoute(),
+                ],
               ),
             ],
           ),

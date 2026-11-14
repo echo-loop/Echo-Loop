@@ -715,7 +715,7 @@ class _LearningPlanScreenState extends ConsumerState<LearningPlanScreen> {
         appPopupMenuItem(
           context,
           value: 'exportPdf',
-          icon: const Icon(Icons.picture_as_pdf_outlined, size: 20),
+          icon: const Icon(Icons.ios_share, size: 20),
           label: l10n.exportPdf,
         ),
       // 与音频列表菜单保持一致：仅在已有实际学习进度时提供危险的重置操作。

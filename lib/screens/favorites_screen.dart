@@ -41,6 +41,8 @@ import '../services/pronunciation/local_audio_range_player.dart';
 import '../services/pronunciation/source_sentence_player.dart';
 import '../router/app_router.dart';
 import '../theme/app_theme.dart';
+import '../models/favorites_export/favorites_export_options.dart';
+import '../widgets/favorites/favorites_export_dialog.dart';
 import '../widgets/favorites/sentence_recycle_bin_sheet.dart';
 import '../widgets/favorites/source_sentence_detail_navigation.dart';
 import '../widgets/favorites/vocabulary_recycle_bin_sheet.dart';
@@ -195,7 +197,7 @@ class _FavoritesSegment extends StatelessWidget {
 }
 
 /// 收藏页 AppBar 的更多操作。
-enum _FavoritesMoreAction { recycleBin, reviewSettings }
+enum _FavoritesMoreAction { recycleBin, reviewSettings, export }
 
 Future<AudioPlaybackResult> _playSourceSentence(
   WidgetRef ref, {
@@ -275,6 +277,30 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen> {
       ),
       builder: (context) => BookmarkReviewSettingsSheet(
         task: FavoriteReviewSettingsTask.favorites,
+      ),
+    );
+  }
+
+  /// 导出收藏：先在弹窗中选择内容（句子 / 词汇），确认后进入预览页生成 PDF。
+  ///
+  /// 数量取自全部收藏（不区分当前子 tab），两类都可单独或同时导出。
+  Future<void> _exportFavorites() async {
+    final sentenceCount = ref.read(bookmarkListProvider).value?.length ?? 0;
+    final wordCount =
+        (ref.read(savedWordListProvider).value?.length ?? 0) +
+        (ref.read(savedSenseGroupListProvider).value?.length ?? 0);
+    final options = await showFavoritesExportDialog(
+      context,
+      sentenceCount: sentenceCount,
+      wordCount: wordCount,
+    );
+    if (options == null || !mounted) return;
+    await AppRoutes.pushNested<void>(
+      context,
+      AppRoutes.favoritesExportPreviewSegment,
+      extra: FavoritesExportRequest(
+        options: options,
+        format: FavoritesExportFormat.pdf,
       ),
     );
   }
@@ -369,6 +395,8 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen> {
                     unawaited(_openRecycleBin());
                   case _FavoritesMoreAction.reviewSettings:
                     unawaited(_openReviewSettings());
+                  case _FavoritesMoreAction.export:
+                    unawaited(_exportFavorites());
                 }
               },
               itemBuilder: (context) => [
@@ -377,6 +405,12 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen> {
                   value: _FavoritesMoreAction.reviewSettings,
                   icon: const Icon(Icons.tune),
                   label: l10n.bookmarkReviewSettingsTitle,
+                ),
+                appPopupMenuItem(
+                  context,
+                  value: _FavoritesMoreAction.export,
+                  icon: const Icon(Icons.ios_share),
+                  label: l10n.favoritesExportMenu,
                 ),
                 appPopupMenuItem(
                   context,

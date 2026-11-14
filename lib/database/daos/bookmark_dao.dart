@@ -178,28 +178,33 @@ class BookmarkDao extends DatabaseAccessor<AppDatabase>
   ///
   /// JOIN audio_items 获取音频名称，用于 Favorites 页面展示。
   /// 音频已删除（CASCADE）的书签不会出现在结果中。
-  Stream<List<BookmarkWithAudio>> watchAllWithAudioName() {
-    final query =
-        select(bookmarks).join([
-            innerJoin(
-              audioItems,
-              audioItems.id.equalsExp(bookmarks.audioItemId),
-            ),
-          ])
-          ..where(bookmarks.deletedAt.isNull() & audioItems.deletedAt.isNull())
-          ..orderBy([
-            OrderingTerm.asc(audioItems.name),
-            OrderingTerm.asc(bookmarks.sentenceIndex),
-          ]);
+  Stream<List<BookmarkWithAudio>> watchAllWithAudioName() =>
+      _activeWithAudioQuery().watch().map(_toBookmarksWithAudio);
 
-    return query.watch().map((rows) {
-      return rows.map((row) {
-        return BookmarkWithAudio(
-          bookmark: row.readTable(bookmarks),
-          audioName: row.readTable(audioItems).name,
-        );
-      }).toList();
-    });
+  /// 一次性读取所有未删除书签（含音频名称），口径同 [watchAllWithAudioName]
+  ///
+  /// 供导出等非流式场景使用。
+  Future<List<BookmarkWithAudio>> getAllWithAudioName() async =>
+      _toBookmarksWithAudio(await _activeWithAudioQuery().get());
+
+  JoinedSelectStatement<HasResultSet, dynamic> _activeWithAudioQuery() {
+    return select(bookmarks).join([
+        innerJoin(audioItems, audioItems.id.equalsExp(bookmarks.audioItemId)),
+      ])
+      ..where(bookmarks.deletedAt.isNull() & audioItems.deletedAt.isNull())
+      ..orderBy([
+        OrderingTerm.asc(audioItems.name),
+        OrderingTerm.asc(bookmarks.sentenceIndex),
+      ]);
+  }
+
+  List<BookmarkWithAudio> _toBookmarksWithAudio(List<TypedResult> rows) {
+    return rows.map((row) {
+      return BookmarkWithAudio(
+        bookmark: row.readTable(bookmarks),
+        audioName: row.readTable(audioItems).name,
+      );
+    }).toList();
   }
 
   /// 获取所有已软删除的书签（含音频名称）

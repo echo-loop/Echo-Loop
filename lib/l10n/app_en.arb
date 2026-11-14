@@ -2424,5 +2424,47 @@
   "shareCardSaved": "Image saved",
   "shareCardActionFailed": "Could not complete the action. Please try again.",
   "shareCardPermissionDenied": "Allow photo access in system settings to save your card.",
-  "shareCardNotSignedIn": "Sign in to share your card."
+  "shareCardNotSignedIn": "Sign in to share your card.",
+  "favoritesExportMenu": "Export PDF",
+  "@favoritesExportMenu": {
+    "description": "Favorites tab overflow menu item that opens the export dialog"
+  },
+  "favoritesExportDialogTitle": "Export saved items",
+  "@favoritesExportDialogTitle": {
+    "description": "Title of the favorites export options dialog"
+  },
+  "favoritesExportSentencesOption": "Saved sentences ({count})",
+  "@favoritesExportSentencesOption": {
+    "description": "Checkbox to include saved sentences in the favorites export",
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "favoritesExportWordsOption": "Saved vocabulary ({count})",
+  "@favoritesExportWordsOption": {
+    "description": "Checkbox to include saved words and phrases in the favorites export",
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "favoritesExportConfirm": "Export",
+  "@favoritesExportConfirm": {
+    "description": "Confirm button of the favorites export options dialog"
+  },
+  "favoritesExportTitle": "Saved Items",
+  "@favoritesExportTitle": {
+    "description": "Document title of the exported favorites PDF"
+  },
+  "favoritesExportSentencesSection": "Sentences",
+  "@favoritesExportSentencesSection": {
+    "description": "Section heading of saved sentences in the favorites PDF"
+  },
+  "favoritesExportWordsSection": "Vocabulary",
+  "@favoritesExportWordsSection": {
+    "description": "Section heading of saved words in the favorites PDF"
+  },
+  "favoritesExportUnknownSource": "Unknown source",
+  "@favoritesExportUnknownSource": {
+    "description": "Placeholder for a favorite whose source material was deleted"
+  }
 }

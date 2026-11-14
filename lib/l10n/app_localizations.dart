@@ -9295,6 +9295,60 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Sign in to share your card.'**
   String get shareCardNotSignedIn;
+
+  /// Favorites tab overflow menu item that opens the export dialog
+  ///
+  /// In en, this message translates to:
+  /// **'Export PDF'**
+  String get favoritesExportMenu;
+
+  /// Title of the favorites export options dialog
+  ///
+  /// In en, this message translates to:
+  /// **'Export saved items'**
+  String get favoritesExportDialogTitle;
+
+  /// Checkbox to include saved sentences in the favorites export
+  ///
+  /// In en, this message translates to:
+  /// **'Saved sentences ({count})'**
+  String favoritesExportSentencesOption(int count);
+
+  /// Checkbox to include saved words and phrases in the favorites export
+  ///
+  /// In en, this message translates to:
+  /// **'Saved vocabulary ({count})'**
+  String favoritesExportWordsOption(int count);
+
+  /// Confirm button of the favorites export options dialog
+  ///
+  /// In en, this message translates to:
+  /// **'Export'**
+  String get favoritesExportConfirm;
+
+  /// Document title of the exported favorites PDF
+  ///
+  /// In en, this message translates to:
+  /// **'Saved Items'**
+  String get favoritesExportTitle;
+
+  /// Section heading of saved sentences in the favorites PDF
+  ///
+  /// In en, this message translates to:
+  /// **'Sentences'**
+  String get favoritesExportSentencesSection;
+
+  /// Section heading of saved words in the favorites PDF
+  ///
+  /// In en, this message translates to:
+  /// **'Vocabulary'**
+  String get favoritesExportWordsSection;
+
+  /// Placeholder for a favorite whose source material was deleted
+  ///
+  /// In en, this message translates to:
+  /// **'Unknown source'**
+  String get favoritesExportUnknownSource;
 }
 
 class _AppLocalizationsDelegate

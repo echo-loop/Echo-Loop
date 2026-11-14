@@ -4990,4 +4990,35 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get shareCardNotSignedIn => '请先登录后分享';
+
+  @override
+  String get favoritesExportMenu => '导出 PDF';
+
+  @override
+  String get favoritesExportDialogTitle => '导出收藏';
+
+  @override
+  String favoritesExportSentencesOption(int count) {
+    return '收藏句子（$count）';
+  }
+
+  @override
+  String favoritesExportWordsOption(int count) {
+    return '收藏词汇（$count）';
+  }
+
+  @override
+  String get favoritesExportConfirm => '导出';
+
+  @override
+  String get favoritesExportTitle => '收藏清单';
+
+  @override
+  String get favoritesExportSentencesSection => '句子';
+
+  @override
+  String get favoritesExportWordsSection => '词汇';
+
+  @override
+  String get favoritesExportUnknownSource => '未知来源';
 }

@@ -29,6 +29,9 @@
   - [x] 云端偏好同步接入字幕文字字号与粗细：本地键 `subtitle_font_size_percent` / `subtitle_font_weight_percent`，云端字段 `appearance.subtitleFontSizePercent` / `appearance.subtitleFontWeightPercent`（后端按域名校验、域内字段自由，无需改后端）；云端缺失或非法时保留本地值。**完成时间**: 2026-11-12
 - [x] 收藏词汇复习设置新增「正面显示释义」（默认关闭，仅对单词有效，先取基础在线词典（本地缓存 → API），未查到时只读 AI 查词缓存，经偏好同步跨平台）。**完成时间**: 2026-11-13
   - 未完成的验证：真机确认正面释义的加载/占位观感，以及两台设备切换后同步生效。
+- [x] 收藏导出 PDF：收藏页右上角「导出」弹窗选择句子 / 词汇（可同时导出），句子按来源材料分组并附本地译文，词汇按字母序并附本地释义（AI 查词首义项与首例句，单词回落基础词典首行释义）与来源句。全部只读本地缓存，不发起任何 API 请求。PDF 底层（字体、版式外壳、保存 / 分享、预览）与学习材料导出共用（`services/pdf_export/common/`、`widgets/pdf/`）；导出数据与格式解耦，新增格式只需加 `FavoritesExportFormat` 枚举值并补渲染分支。**完成时间**: 2026-11-14
+  - 未完成的验证：真机确认收藏 PDF 的中文字体、分页与长词条观感，以及下载 / 分享流程（iOS / Android / macOS）。
+- [ ] 学习材料 PDF 读取 AI 词典缓存时仍使用旧类型 `ai_dictionary`，而当前写入类型为 `ai_dictionary_v2`，导致学习材料 PDF 读不到 AI 查词结果；收藏导出已改用 `AiDictionarySource.readCachedEntry`。需确认后统一修正。
 - [ ] 查词归一化 Unicode 化，并迁移已有收藏 key（需产品与数据决策）。
 - [ ] 计算并展示每个学习任务的预计/实际耗时。
 - [ ] 学习 Tab 点击学习/复习后直接进入学习页面，跳过学习计划页。

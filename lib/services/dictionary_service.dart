@@ -75,12 +75,7 @@ class DictionaryService {
   /// 先一次性读取缓存，只对缺失的词发请求（最多 [_maxConcurrentRequests] 路并发）。
   /// 单个词请求失败只记日志并跳过，不影响其它词的结果。
   Future<Map<String, DictEntry>> lookupAll(List<String> words) async {
-    final keyToWords = <String, List<String>>{};
-    for (final word in words) {
-      final key = dictionaryQueryKey(word);
-      if (key == null || !_isDictionaryHeadwordKey(key)) continue;
-      (keyToWords[key] ??= []).add(word);
-    }
+    final keyToWords = _groupWordsByKey(words);
     if (keyToWords.isEmpty) return {};
 
     final keys = keyToWords.keys.toList();
@@ -109,6 +104,38 @@ class DictionaryService {
       }
     }
     return result;
+  }
+
+  /// 只读本地缓存的批量查询：不发起任何网络请求，未缓存或无效的词不在结果中。
+  ///
+  /// 供导出等只读场景使用，调用方借此不会触发在线查词。
+  Future<Map<String, DictEntry>> readCachedAll(List<String> words) async {
+    final keyToWords = _groupWordsByKey(words);
+    if (keyToWords.isEmpty) return {};
+
+    final keys = keyToWords.keys.toList();
+    final cachedRaw = await _cacheDao.getMany(_dictId, keys);
+    final result = <String, DictEntry>{};
+    for (final key in keys) {
+      final raw = cachedRaw[key];
+      final entry = raw == null ? null : _decodeCached(key, raw);
+      if (entry == null) continue;
+      for (final word in keyToWords[key]!) {
+        result[word] = entry;
+      }
+    }
+    return result;
+  }
+
+  /// 原始输入词按查询键分组；无效词（空 / 超长 / 多词）被丢弃
+  Map<String, List<String>> _groupWordsByKey(List<String> words) {
+    final keyToWords = <String, List<String>>{};
+    for (final word in words) {
+      final key = dictionaryQueryKey(word);
+      if (key == null || !_isDictionaryHeadwordKey(key)) continue;
+      (keyToWords[key] ??= []).add(word);
+    }
+    return keyToWords;
   }
 
   /// 滑动窗口并发：最多 [_maxConcurrentRequests] 个 worker 从队列取词，

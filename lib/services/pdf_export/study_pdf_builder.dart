@@ -29,26 +29,16 @@ import 'package:pdf/widgets.dart' as pw;
 import '../../models/pdf_export/study_pdf_data.dart';
 import '../../widgets/practice/sentence_word_selection.dart'
     show charMaskFromRanges, splitByMask;
+import 'common/pdf_assets.dart';
+import 'common/pdf_document_shell.dart';
 
 /// PDF 生成请求（compute 入口参数，只含可跨 isolate 的类型）
 class StudyPdfBuildRequest {
   /// 文档数据
   final StudyPdfDocument document;
 
-  /// 英文正文字体（NotoSans-Regular，TrueType）
-  final Uint8List latinRegular;
-
-  /// 英文粗体字体（NotoSans-Bold）
-  final Uint8List latinBold;
-
-  /// 英文斜体字体（NotoSans-Italic，词性渲染用）
-  final Uint8List latinItalic;
-
-  /// CJK 回退字体（NotoSansSC-Regular）
-  final Uint8List cjkRegular;
-
-  /// 应用图标 PNG 字节（96px 小图，品牌角标用；null 则只渲染品牌文字）
-  final Uint8List? appIconPng;
+  /// 字体与应用图标字节（共用渲染资源）
+  final PdfAssets assets;
 
   /// 导出日期（yyyy-MM-dd，由调用方生成，isolate 内不取时钟）
   final String exportDate;
@@ -58,32 +48,13 @@ class StudyPdfBuildRequest {
 
   const StudyPdfBuildRequest({
     required this.document,
-    required this.latinRegular,
-    required this.latinBold,
-    required this.latinItalic,
-    required this.cjkRegular,
-    this.appIconPng,
+    required this.assets,
     required this.exportDate,
     required this.labels,
   });
 }
 
 // ---------- 版式常量（固定浅色系，与 App 主题无关） ----------
-
-/// 正文色
-const _inkColor = PdfColor.fromInt(0xFF1A1A1A);
-
-/// 弱化文字色（翻译/音标/页眉页脚/日期）
-const _mutedColor = PdfColor.fromInt(0xFF757575);
-
-/// 收藏标记橙（= App 浅色 `Colors.orange.shade400`，收藏词下划线 + 书签图标）
-const _savedMarkColor = PdfColor.fromInt(0xFFFFA726);
-
-/// 词汇笔记词条色
-const _vocabTermColor = PdfColor.fromInt(0xFF2B4C7E);
-
-/// 分隔线色
-const _hairlineColor = PdfColors.grey400;
 
 /// 附录解析字段标签 badge 底色（语法/词汇/听力）
 const _fieldBadgeBgColor = PdfColor.fromInt(0xFFE3E3E3);
@@ -98,9 +69,6 @@ const _inlineHighlightBgColor = PdfColor.fromInt(0xFFF0F0F0);
 /// 无底色深色文本，防撑破版面（附录整行宽 ~510pt，48 个 CJK ≈ 380pt）
 const _maxHighlightChars = 48;
 
-/// 品牌字样（首页标题上方 + 次页起 running header）
-const _brandText = 'ECHO LOOP';
-
 /// 正文左右栏 flex 比例（学术旁注版式，左栏 ~71%）
 const _bodyFlex = 5;
 const _notesFlex = 2;
@@ -108,77 +76,22 @@ const _notesFlex = 2;
 /// 左右栏间距
 const _columnGap = 16.0;
 
-/// 单个文本字段的字符数硬上限（防脏数据把单块撑超一页高度抛异常）
-///
-/// 左栏宽约 350pt，8.5pt 字号一页约可容 5000 字符，取 3000 留足余量。
-const _maxFieldChars = 3000;
-
 /// 书签图标（Material bookmark 形状，收藏句句末标记）
 const _bookmarkSvg =
     '<svg viewBox="0 0 24 24"><path d="M6 2h12v20l-6-5-6 5z" fill="#FFA726"/></svg>';
 
 /// 生成学习材料 PDF 字节（compute 入口）
 Future<Uint8List> buildStudyPdfBytes(StudyPdfBuildRequest request) async {
-  final latin = pw.Font.ttf(ByteData.sublistView(request.latinRegular));
-  final latinBold = pw.Font.ttf(ByteData.sublistView(request.latinBold));
-  final latinItalic = pw.Font.ttf(ByteData.sublistView(request.latinItalic));
-  final cjk = pw.Font.ttf(ByteData.sublistView(request.cjkRegular));
-
-  final doc = pw.Document(
-    theme: pw.ThemeData.withFont(
-      base: latin,
-      bold: latinBold,
-      italic: latinItalic,
-      fontFallback: [cjk],
-    ),
-  );
-
-  final title = _sanitize(request.document.title);
-  final appIcon = request.appIconPng == null
-      ? null
-      : pw.MemoryImage(request.appIconPng!);
+  final doc = createPdfDocument(request.assets);
+  final appIcon = pdfAppIconProvider(request.assets.appIconPng);
   doc.addPage(
-    pw.MultiPage(
-      pageFormat: PdfPageFormat.a4,
-      margin: const pw.EdgeInsets.symmetric(horizontal: 42, vertical: 48),
-      maxPages: 400,
-      header: (context) => context.pageNumber == 1
-          ? pw.SizedBox()
-          : _runningHeader(title, appIcon),
-      footer: (context) => pw.Align(
-        alignment: pw.Alignment.center,
-        child: pw.Text(
-          '${context.pageNumber} / ${context.pagesCount}',
-          style: const pw.TextStyle(fontSize: 8, color: _mutedColor),
-        ),
-      ),
+    pdfMultiPage(
+      title: request.document.title,
+      appIcon: appIcon,
       build: (context) => _buildBlocks(request, appIcon),
     ),
   );
-
   return doc.save();
-}
-
-/// 品牌角标：应用图标 + `ECHO LOOP` 文字（图标缺失时只渲染文字）
-pw.Widget _brandMark(pw.ImageProvider? appIcon, {double iconSize = 11}) {
-  return pw.Row(
-    mainAxisSize: pw.MainAxisSize.min,
-    crossAxisAlignment: pw.CrossAxisAlignment.center,
-    children: [
-      if (appIcon != null) ...[
-        pw.Image(appIcon, width: iconSize, height: iconSize),
-        pw.SizedBox(width: 3),
-      ],
-      pw.Text(
-        _brandText,
-        style: const pw.TextStyle(
-          fontSize: 7.5,
-          letterSpacing: 2,
-          color: _mutedColor,
-        ),
-      ),
-    ],
-  );
 }
 
 /// 组装 MultiPage 顶层块列表（块间可断页）：标题 → 正文 → 附录
@@ -204,8 +117,20 @@ List<pw.Widget> _buildBlocks(
   // 全文无任何词汇旁注时不分栏（句子占满整行）
   final twoColumn = hasVocabNotes;
 
+  // 元信息行：时长未知（0）/词数为 0 时省略对应项。
+  // 时长文案带前缀（如「时长 05:32」）——紧跟日期的裸 mm:ss 会被误读成导出时刻
+  final labels = request.labels;
   final blocks = <pw.Widget>[
-    _titleBlock(document, request.exportDate, request.labels, appIcon),
+    pdfTitleBlock(
+      title: document.title,
+      metaParts: [
+        request.exportDate,
+        if (document.durationSeconds > 0) labels.metaDuration,
+        labels.metaSentences,
+        if (document.wordCount > 0) labels.metaWords,
+      ],
+      appIcon: appIcon,
+    ),
     pw.SizedBox(height: 18),
   ];
 
@@ -227,81 +152,6 @@ List<pw.Widget> _buildBlocks(
     blocks.addAll(_appendixBlocks(document, noteNumbers, request.labels));
   }
   return blocks;
-}
-
-/// 次页起的 running header：左品牌角标、右文档标题 + 底部 hairline
-pw.Widget _runningHeader(String title, pw.ImageProvider? appIcon) {
-  return pw.Container(
-    margin: const pw.EdgeInsets.only(bottom: 12),
-    padding: const pw.EdgeInsets.only(bottom: 4),
-    decoration: const pw.BoxDecoration(
-      border: pw.Border(
-        bottom: pw.BorderSide(width: 0.5, color: _hairlineColor),
-      ),
-    ),
-    child: pw.Row(
-      mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-      crossAxisAlignment: pw.CrossAxisAlignment.center,
-      children: [
-        _brandMark(appIcon, iconSize: 9),
-        pw.Text(
-          title,
-          style: const pw.TextStyle(fontSize: 7, color: _mutedColor),
-        ),
-      ],
-    ),
-  );
-}
-
-/// 首页标题块：右上角品牌角标（图标+文字，不显眼）→ 标题居中 →
-/// 元信息行居中（日期 · 时长 · 句数 · 词数）→ 分隔线
-pw.Widget _titleBlock(
-  StudyPdfDocument document,
-  String exportDate,
-  StudyPdfLabels labels,
-  pw.ImageProvider? appIcon,
-) {
-  // 元信息行：时长未知（0）/词数为 0 时省略对应项。
-  // 时长文案带前缀（如「时长 05:32」）——紧跟日期的裸 mm:ss 会被误读成导出时刻
-  final metaParts = [
-    exportDate,
-    if (document.durationSeconds > 0) labels.metaDuration,
-    labels.metaSentences,
-    if (document.wordCount > 0) labels.metaWords,
-  ];
-  return pw.Container(
-    width: double.infinity,
-    padding: const pw.EdgeInsets.only(bottom: 10),
-    decoration: const pw.BoxDecoration(
-      border: pw.Border(
-        bottom: pw.BorderSide(width: 0.5, color: _hairlineColor),
-      ),
-    ),
-    child: pw.Column(
-      crossAxisAlignment: pw.CrossAxisAlignment.center,
-      children: [
-        pw.Align(
-          alignment: pw.Alignment.centerRight,
-          child: _brandMark(appIcon),
-        ),
-        pw.SizedBox(height: 6),
-        pw.Text(
-          _sanitize(document.title),
-          textAlign: pw.TextAlign.center,
-          style: pw.TextStyle(
-            fontSize: 16,
-            fontWeight: pw.FontWeight.bold,
-            color: _inkColor,
-          ),
-        ),
-        pw.SizedBox(height: 5),
-        pw.Text(
-          metaParts.join('  ·  '),
-          style: const pw.TextStyle(fontSize: 8, color: _mutedColor),
-        ),
-      ],
-    ),
-  );
 }
 
 /// 一个句子展开成的顶层块序列：左栏（句子 + 弱化翻译）+ 右栏词汇旁注
@@ -412,7 +262,7 @@ pw.InlineSpan _savedWordSpan(
     padding: const pw.EdgeInsets.only(bottom: _savedUnderlineGap),
     decoration: const pw.BoxDecoration(
       border: pw.Border(
-        bottom: pw.BorderSide(color: _savedMarkColor, width: 0.7),
+        bottom: pw.BorderSide(color: pdfSavedMarkColor, width: 0.7),
       ),
     ),
     child: pw.Text(word, style: style),
@@ -449,7 +299,7 @@ pw.TextSpan _vocabMarkerSpan(int number, {String? destination}) {
     style: pw.TextStyle(
       fontSize: 5.5,
       fontWeight: pw.FontWeight.bold,
-      color: _vocabTermColor,
+      color: pdfVocabTermColor,
     ),
     annotation: destination == null ? null : pw.AnnotationLink(destination),
   );
@@ -459,13 +309,13 @@ pw.TextSpan _vocabMarkerSpan(int number, {String? destination}) {
 /// 加橙色细下划线，命中词后放词条标号（链接到右栏词条锚点）；收藏句句末
 /// 加书签图标；有解析的句子加尾注标记 [n]（链接到附录条目锚点）
 pw.Widget _sentenceText(StudyPdfSentence sentence, int? noteNumber) {
-  final text = _sanitize(sentence.text);
+  final text = pdfSanitize(sentence.text);
   // 收藏句：整句文字改为词条蓝（与右栏收藏词条同色），突出显示；
   // 与句末书签图标、句内收藏词橙色下划线并存。
   final baseStyle = pw.TextStyle(
     fontSize: 10.5,
     lineSpacing: 3,
-    color: sentence.isBookmarked ? _vocabTermColor : _inkColor,
+    color: sentence.isBookmarked ? pdfVocabTermColor : pdfInkColor,
   );
 
   // 词条标号插入点（loader 已按全文档词条逐句算好并升序：同一收藏词
@@ -572,7 +422,7 @@ pw.Widget _sentenceText(StudyPdfSentence sentence, int? noteNumber) {
         text: ' [$noteNumber]',
         // 小号标记基线对齐时视觉中心偏低，微升与正文行居中
         baseline: 0.6,
-        style: const pw.TextStyle(fontSize: 6.5, color: _mutedColor),
+        style: const pw.TextStyle(fontSize: 6.5, color: pdfMutedColor),
         annotation: pw.AnnotationLink('note-$noteNumber'),
       ),
   ]);
@@ -619,11 +469,11 @@ pw.Widget _vocabColumn(List<StudyPdfVocabNote> notes) {
                           const pw.TextSpan(text: ' '),
                         ],
                         pw.TextSpan(
-                          text: _sanitize(note.term),
+                          text: pdfSanitize(note.term),
                           style: pw.TextStyle(
                             fontSize: 9,
                             fontWeight: pw.FontWeight.bold,
-                            color: _vocabTermColor,
+                            color: pdfVocabTermColor,
                           ),
                         ),
                         if (note.phonetic.isNotEmpty)
@@ -631,11 +481,11 @@ pw.Widget _vocabColumn(List<StudyPdfVocabNote> notes) {
                             // 音标可能已自带首尾斜杠（AI 词典 pronunciation
                             // 常含 `/.../`），剥掉后统一补一层，避免双斜线
                             text:
-                                '  /${_stripPhoneticSlashes(_sanitize(note.phonetic))}/',
+                                '  /${pdfStripPhoneticSlashes(pdfSanitize(note.phonetic))}/',
                             style: pw.TextStyle(
                               fontSize: 8,
                               fontStyle: pw.FontStyle.italic,
-                              color: _mutedColor,
+                              color: pdfMutedColor,
                             ),
                           ),
                       ],
@@ -649,20 +499,20 @@ pw.Widget _vocabColumn(List<StudyPdfVocabNote> notes) {
                           style: const pw.TextStyle(
                             fontSize: 8,
                             lineSpacing: 2,
-                            color: _inkColor,
+                            color: pdfInkColor,
                           ),
                           children: [
                             const pw.TextSpan(text: '· '),
                             // 词性斜体（弱化色），与释义文本分离
                             if (gloss.pos.isNotEmpty)
                               pw.TextSpan(
-                                text: '${_sanitize(gloss.pos)} ',
+                                text: '${pdfSanitize(gloss.pos)} ',
                                 style: pw.TextStyle(
                                   fontStyle: pw.FontStyle.italic,
-                                  color: _mutedColor,
+                                  color: pdfMutedColor,
                                 ),
                               ),
-                            pw.TextSpan(text: _sanitize(gloss.text)),
+                            pw.TextSpan(text: pdfSanitize(gloss.text)),
                           ],
                         ),
                       ),
@@ -681,11 +531,11 @@ pw.Widget _translationText(String text) {
   return pw.Padding(
     padding: const pw.EdgeInsets.only(top: 1, bottom: 2),
     child: pw.Text(
-      _sanitize(text),
+      pdfSanitize(text),
       style: const pw.TextStyle(
         fontSize: 9,
         lineSpacing: 2.5,
-        color: _mutedColor,
+        color: pdfMutedColor,
       ),
     ),
   );
@@ -705,7 +555,7 @@ List<pw.Widget> _appendixBlocks(
       padding: const pw.EdgeInsets.only(bottom: 6),
       decoration: const pw.BoxDecoration(
         border: pw.Border(
-          bottom: pw.BorderSide(width: 0.5, color: _hairlineColor),
+          bottom: pw.BorderSide(width: 0.5, color: pdfHairlineColor),
         ),
       ),
       child: pw.Text(
@@ -713,7 +563,7 @@ List<pw.Widget> _appendixBlocks(
         style: pw.TextStyle(
           fontSize: 12,
           fontWeight: pw.FontWeight.bold,
-          color: _inkColor,
+          color: pdfInkColor,
         ),
       ),
     ),
@@ -734,7 +584,7 @@ List<pw.Widget> _appendixBlocks(
               style: const pw.TextStyle(
                 fontSize: 9.5,
                 lineSpacing: 2.5,
-                color: _inkColor,
+                color: pdfInkColor,
               ),
               children: [
                 pw.TextSpan(
@@ -744,12 +594,12 @@ List<pw.Widget> _appendixBlocks(
                   style: pw.TextStyle(
                     fontSize: 8.5,
                     fontWeight: pw.FontWeight.bold,
-                    color: _mutedColor,
+                    color: pdfMutedColor,
                   ),
                   annotation: pw.AnnotationLink('sent-${sentence.index}'),
                 ),
                 pw.TextSpan(
-                  text: _sanitize(sentence.text),
+                  text: pdfSanitize(sentence.text),
                   style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
                 ),
               ],
@@ -784,7 +634,7 @@ pw.Widget _analysisField(String label, String text) {
         style: const pw.TextStyle(
           fontSize: 8.5,
           lineSpacing: 2.5,
-          color: _inkColor,
+          color: pdfInkColor,
         ),
         children: [
           // baseline = -(下内边距 + 字号×NotoSans descent 0.293)，
@@ -813,7 +663,7 @@ pw.Widget _analysisField(String label, String text) {
             ),
           ),
           const pw.TextSpan(text: '  '),
-          ..._inlineHighlightSpans(_sanitize(text)),
+          ..._inlineHighlightSpans(pdfSanitize(text)),
         ],
       ),
     ),
@@ -892,7 +742,7 @@ List<pw.InlineSpan> _inlineHighlightSpans(String text) {
               ),
               child: pw.Text(
                 content,
-                style: const pw.TextStyle(fontSize: 8, color: _inkColor),
+                style: const pw.TextStyle(fontSize: 8, color: pdfInkColor),
               ),
             ),
           ),
@@ -911,22 +761,4 @@ List<pw.InlineSpan> _inlineHighlightSpans(String text) {
     spans.addAll(_textWithPhonetics(text.substring(cursor)));
   }
   return spans;
-}
-
-/// 剥去音标首尾的斜杠/方括号与空白：不同词典源音标形态不一
-/// （`/.../`、`[...]`、裸音标），统一后由渲染层补一层 `/.../`。
-String _stripPhoneticSlashes(String phonetic) {
-  return phonetic.replaceAll(RegExp(r'^[\s/\[\]]+|[\s/\[\]]+$'), '');
-}
-
-/// 文本清洗：剔除控制字符（如 SentenceAnalysis.fieldSeparator U+001F），
-/// 并截断超长字段防单块超一页高度抛异常。
-///
-/// 控制字符替换为空格保持等长（收藏命中掩码按原文偏移计算，不能错位）。
-String _sanitize(String text) {
-  var cleaned = text.replaceAll(RegExp(r'[\x00-\x1F\x7F]'), ' ');
-  if (cleaned.length > _maxFieldChars) {
-    cleaned = '${cleaned.substring(0, _maxFieldChars)}…';
-  }
-  return cleaned;
 }

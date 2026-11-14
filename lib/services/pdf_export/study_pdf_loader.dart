@@ -23,19 +23,21 @@ import '../../models/pdf_export/study_pdf_data.dart';
 import '../../models/sentence.dart';
 import '../../models/sentence_ai_result.dart';
 import '../../services/app_logger.dart';
-import '../../services/subtitle_parser.dart';
 import '../../utils/paragraph_grouping.dart';
 import '../../utils/saved_text_index.dart';
 import '../../utils/text_normalize.dart';
 import '../../widgets/practice/sentence_word_selection.dart'
     show WordToken, savedCharRanges, tokenizeSentence;
+import 'common/pdf_ai_cache.dart';
+import 'common/pdf_transcript.dart';
 
 /// 在线词典**批量**查询函数签名（注入 `DictionaryService.lookupAll`）
 ///
 /// 一次性批量查：先读本地缓存，缺失的词并发请求后端。返回 `原始输入词 → 词条`
 /// 映射，未收录或失败的词不含。
-typedef LocalDictLookup =
-    Future<Map<String, DictEntry>> Function(List<String> words);
+typedef LocalDictLookup = Future<Map<String, DictEntry>> Function(
+  List<String> words,
+);
 
 /// 词条笔记中间记录：笔记 + 查询键（全局标记计算 / 标号分配用）
 ///
@@ -92,7 +94,7 @@ const _paragraphTargetDuration = Duration(seconds: 30);
 /// 主 isolate 负责 DB 读取与词条编号（在线词典仅主 isolate 可用），把
 /// O(句数×收藏词数) 的分词/命中区间计算连同段落分组、词数统计打包到本
 /// 请求里，交由 [_assembleStudyPdfDocument] 在 isolate 中执行，避免占用
-/// 主 isolate（字幕解析已单独走 [_parseStudyPdfSrt]）。
+/// 主 isolate（字幕解析已单独走 [parsePdfTranscript]）。
 class _AssembleRequest {
   final List<Sentence> sentences;
   final Set<int> bookmarkedIndices;
@@ -126,10 +128,6 @@ class _AssembleRequest {
   });
 }
 
-/// compute 入口：字幕解析（数百 ms 级 CPU，放 isolate 不占主 isolate）
-Future<List<Sentence>> _parseStudyPdfSrt(String srt) =>
-    SubtitleParser.parseSubtitleString(srt);
-
 /// compute 入口：逐句组装 PDF 文档
 ///
 /// 纯函数：分词 + 收藏命中区间 + 词条标号 + 段落分组 + 词数统计，
@@ -145,7 +143,7 @@ StudyPdfDocument _assembleStudyPdfDocument(_AssembleRequest req) {
 
   final pdfSentences = <StudyPdfSentence>[];
   for (final s in sentences) {
-    final translation = _decodeTranslation(req.translationJson[s.index]);
+    final translation = decodeCachedTranslation(req.translationJson[s.index]);
     final analysis = _decodeAnalysis(req.analysisJson[s.index]);
     final tokens = savedIndex.isEmpty ? null : tokenizeSentence(s.text);
     pdfSentences.add(
@@ -192,20 +190,6 @@ StudyPdfDocument _assembleStudyPdfDocument(_AssembleRequest req) {
     durationSeconds: durationSeconds,
     wordCount: wordCount,
   );
-}
-
-/// 解码句子翻译 JSON（非空 translation 才返回）
-String? _decodeTranslation(String? raw) {
-  if (raw == null) return null;
-  try {
-    final decoded = jsonDecode(raw);
-    if (decoded is Map<String, dynamic>) {
-      return _nonEmptyOrNull(SentenceTranslation.fromJson(decoded).translation);
-    }
-  } catch (_) {
-    // 损坏数据视作未命中
-  }
-  return null;
 }
 
 /// 解码句子解析 JSON
@@ -305,7 +289,7 @@ class StudyPdfLoader {
       ..reset()
       ..start();
     // 字幕解析（数百 ms 级 CPU）放 isolate，避免进预览页时卡住主 isolate
-    final sentences = await compute(_parseStudyPdfSrt, srt);
+    final sentences = await compute(parsePdfTranscript, srt);
     if (sentences.isEmpty) {
       throw StateError('字幕解析为空: $audioItemId');
     }
@@ -326,7 +310,7 @@ class StudyPdfLoader {
     // 收藏句索引集合
     final bookmarkedIndices = <int>{};
     for (final b in await _bookmarkDao.getByAudioId(audioItemId)) {
-      final idx = _resolveSentenceIndex(
+      final idx = resolvePdfSentenceIndex(
         storedIndex: b.sentenceIndex,
         storedText: b.sentenceText,
         sentences: sentences,
@@ -346,7 +330,7 @@ class StudyPdfLoader {
     //    （编号排序对同位并列依赖此序，见下方 numbering）。
     final candidates = <_VocabCandidate>[];
     for (final w in savedWords) {
-      final idx = _resolveSentenceIndex(
+      final idx = resolvePdfSentenceIndex(
         storedIndex: w.sentenceIndex,
         storedText: w.sentenceText,
         sentences: sentences,
@@ -365,7 +349,7 @@ class StudyPdfLoader {
     }
     final wordCandidateCount = candidates.length;
     for (final g in savedGroups) {
-      final idx = _resolveSentenceIndex(
+      final idx = resolvePdfSentenceIndex(
         storedIndex: g.sentenceIndex,
         storedText: g.sentenceText,
         sentences: sentences,
@@ -549,33 +533,6 @@ class StudyPdfLoader {
     AppLogger.log('PdfExport', '逐句组装 ${sw.elapsedMilliseconds}ms');
     AppLogger.log('PdfExport', '数据加载总耗时 ${total.elapsedMilliseconds}ms');
     return document;
-  }
-
-  /// 解析存储的句子归属（索引 + 文本双重校验，防字幕重解析后索引错位）
-  ///
-  /// 1. 索引有效且文本匹配（或无存储文本）→ 用索引；
-  /// 2. 否则按文本精确匹配兜底；
-  /// 3. 都失败返回 null（调用方丢弃该条目）。
-  int? _resolveSentenceIndex({
-    required int? storedIndex,
-    required String? storedText,
-    required List<Sentence> sentences,
-    required Map<String, int> textIndex,
-  }) {
-    final trimmedText = storedText?.trim();
-    if (storedIndex != null &&
-        storedIndex >= 0 &&
-        storedIndex < sentences.length) {
-      if (trimmedText == null ||
-          trimmedText.isEmpty ||
-          sentences[storedIndex].text.trim() == trimmedText) {
-        return storedIndex;
-      }
-    }
-    if (trimmedText != null && trimmedText.isNotEmpty) {
-      return textIndex[trimmedText];
-    }
-    return null;
   }
 
   /// 收集词条候选：句中命中区间（查询键即收藏词/意群本身）

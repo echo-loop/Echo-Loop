@@ -7,6 +7,9 @@ part 'audio_item_dao.g.dart';
 
 /// 音频元数据 DAO
 /// 提供音频项的 CRUD 操作
+/// 未删除音频的来源信息（名称 + 路径，媒体类型由路径扩展名判定）
+typedef ActiveAudioSource = ({String name, String? audioPath});
+
 @DriftAccessor(tables: [AudioItems])
 class AudioItemDao extends DatabaseAccessor<AppDatabase>
     with _$AudioItemDaoMixin {
@@ -39,6 +42,24 @@ class AudioItemDao extends DatabaseAccessor<AppDatabase>
     return (select(
       audioItems,
     )..where((t) => t.id.equals(id))).getSingleOrNull();
+  }
+
+  /// 批量获取未软删除音频的来源信息（audioItemId → 名称与路径）
+  ///
+  /// 已删除或不存在的 ID 不在结果中，调用方据此显示「未知来源」。
+  /// 媒体类型由调用方按 audioPath 判定，DAO 只返回数据。
+  Future<Map<String, ActiveAudioSource>> getActiveSourcesByIds(
+    Iterable<String> ids,
+  ) async {
+    final idList = ids.toList();
+    if (idList.isEmpty) return {};
+    final rows = await (select(
+      audioItems,
+    )..where((t) => t.id.isIn(idList) & t.deletedAt.isNull())).get();
+    return {
+      for (final row in rows)
+        row.id: (name: row.name, audioPath: row.audioPath),
+    };
   }
 
   /// 根据社区合集中的 remoteAudioId 反查本地行。

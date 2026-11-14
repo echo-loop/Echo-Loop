@@ -801,7 +801,7 @@ class AudioListTile extends ConsumerWidget {
             appPopupMenuItem(
               context,
               value: 'exportPdf',
-              icon: const Icon(Icons.picture_as_pdf_outlined, size: 20),
+              icon: const Icon(Icons.ios_share, size: 20),
               label: l10n.exportPdf,
             ),
           // 仅在已开始学习时显示「暂停 / 恢复」与「重置」

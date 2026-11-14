@@ -2048,5 +2048,14 @@
   "shareCardSaved": "图片已保存",
   "shareCardActionFailed": "操作失败，请稍后重试",
   "shareCardPermissionDenied": "没有保存图片的权限，请在系统设置中允许访问相册",
-  "shareCardNotSignedIn": "请先登录后分享"
+  "shareCardNotSignedIn": "请先登录后分享",
+  "favoritesExportMenu": "导出 PDF",
+  "favoritesExportDialogTitle": "导出收藏",
+  "favoritesExportSentencesOption": "收藏句子（{count}）",
+  "favoritesExportWordsOption": "收藏词汇（{count}）",
+  "favoritesExportConfirm": "导出",
+  "favoritesExportTitle": "收藏清单",
+  "favoritesExportSentencesSection": "句子",
+  "favoritesExportWordsSection": "词汇",
+  "favoritesExportUnknownSource": "未知来源"
 }

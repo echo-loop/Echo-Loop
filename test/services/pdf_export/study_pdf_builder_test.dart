@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:echo_loop/models/pdf_export/study_pdf_data.dart';
+import 'package:echo_loop/services/pdf_export/common/pdf_assets.dart';
 import 'package:echo_loop/services/pdf_export/study_pdf_builder.dart';
 
 /// 统计 PDF 字节里的页对象数量（附录另起一页的断言用）
@@ -11,35 +12,26 @@ int _pageCount(Uint8List bytes) =>
     RegExp(r'/Type\s*/Page[^s]').allMatches(String.fromCharCodes(bytes)).length;
 
 void main() {
-  late Uint8List latinRegular;
-  late Uint8List latinBold;
-  late Uint8List latinItalic;
-  late Uint8List cjkRegular;
-  late Uint8List appIconPng;
+  late PdfAssets assets;
 
   setUpAll(() async {
     // VM 测试直接从工程 assets 读字体（无需 rootBundle）
-    latinRegular = await File(
-      'assets/fonts/pdf/NotoSans-Regular.ttf',
-    ).readAsBytes();
-    latinBold = await File('assets/fonts/pdf/NotoSans-Bold.ttf').readAsBytes();
-    latinItalic = await File(
-      'assets/fonts/pdf/NotoSans-Italic.ttf',
-    ).readAsBytes();
-    cjkRegular = await File(
-      'assets/fonts/pdf/NotoSansSC-Regular.ttf',
-    ).readAsBytes();
-    appIconPng = await File('assets/icon/app-icon-96.png').readAsBytes();
+    assets = PdfAssets(
+      latinRegular: await File('assets/fonts/pdf/NotoSans-Regular.ttf')
+          .readAsBytes(),
+      latinBold: await File('assets/fonts/pdf/NotoSans-Bold.ttf').readAsBytes(),
+      latinItalic: await File('assets/fonts/pdf/NotoSans-Italic.ttf')
+          .readAsBytes(),
+      cjkRegular: await File('assets/fonts/pdf/NotoSansSC-Regular.ttf')
+          .readAsBytes(),
+      appIconPng: await File('assets/icon/app-icon-96.png').readAsBytes(),
+    );
   });
 
   StudyPdfBuildRequest buildRequest(StudyPdfDocument document) {
     return StudyPdfBuildRequest(
       document: document,
-      latinRegular: latinRegular,
-      latinBold: latinBold,
-      latinItalic: latinItalic,
-      cjkRegular: cjkRegular,
-      appIconPng: appIconPng,
+      assets: assets,
       exportDate: '2026-07-02',
       labels: StudyPdfLabels(
         metaDuration: '时长 ${formatStudyPdfDuration(document.durationSeconds)}',
@@ -241,10 +233,12 @@ void main() {
     final bytes = await buildStudyPdfBytes(
       StudyPdfBuildRequest(
         document: doc,
-        latinRegular: latinRegular,
-        latinBold: latinBold,
-        latinItalic: latinItalic,
-        cjkRegular: cjkRegular,
+        assets: PdfAssets(
+          latinRegular: assets.latinRegular,
+          latinBold: assets.latinBold,
+          latinItalic: assets.latinItalic,
+          cjkRegular: assets.cjkRegular,
+        ),
         exportDate: '2026-07-02',
         labels: const StudyPdfLabels(
           metaDuration: '时长 00:00',
