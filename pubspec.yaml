@@ -234,6 +234,8 @@ flutter:
     - assets/icon/download.svg
     # 列表项字幕徽章（TranscriptCcBadge）
     - assets/icon/closed-captions.svg
+    # 视频画面字幕遮罩开关图标（currentColor 由开关态着色，关闭态叠加斜线）
+    - assets/icon/subtitle_mask.svg
     - assets/icon/share.svg
     - assets/icon/share-android.svg
     - assets/icon/search.svg

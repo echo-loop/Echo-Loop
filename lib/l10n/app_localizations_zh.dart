@@ -4804,6 +4804,15 @@ class AppLocalizationsZh extends AppLocalizations {
   String get mediaShowVideoSubtitles => '显示视频内字幕';
 
   @override
+  String get mediaShowSubtitleMask => '遮挡画面字幕';
+
+  @override
+  String get mediaHideSubtitleMask => '取消字幕遮挡';
+
+  @override
+  String get mediaSubtitleMaskLabel => '字幕遮挡块，拖动可移动，双指捏合或拖动边缘手柄可调整大小';
+
+  @override
   String get videoLoopWhole => '整篇循环';
 
   @override

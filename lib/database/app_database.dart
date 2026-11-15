@@ -38,6 +38,7 @@ import 'tables/lookup_histories.dart';
 import 'tables/memory_schedules.dart';
 import 'tables/memory_review_events.dart';
 import 'tables/memory_review_queue_entries.dart';
+import 'tables/video_subtitle_masks.dart';
 import '../models/study_stage.dart';
 import 'daos/audio_item_dao.dart';
 import 'daos/collection_dao.dart';
@@ -58,6 +59,7 @@ import 'daos/dictionary_cache_dao.dart';
 import 'daos/lookup_history_dao.dart';
 import 'daos/memory_schedule_dao.dart';
 import 'daos/favorite_review_dao.dart';
+import 'daos/video_subtitle_mask_dao.dart';
 
 part 'app_database.g.dart';
 
@@ -89,6 +91,7 @@ part 'app_database.g.dart';
     MemorySchedules,
     MemoryReviewEvents,
     MemoryReviewQueueEntries,
+    VideoSubtitleMasks,
   ],
   daos: [
     AudioItemDao,
@@ -110,13 +113,14 @@ part 'app_database.g.dart';
     LookupHistoryDao,
     MemoryScheduleDao,
     FavoriteReviewDao,
+    VideoSubtitleMaskDao,
   ],
 )
 class AppDatabase extends _$AppDatabase {
   AppDatabase(super.e);
 
   /// 当前 schema 版本（静态访问，用于导入前版本检查）
-  static const currentSchemaVersion = 67;
+  static const currentSchemaVersion = 68;
 
   @override
   int get schemaVersion => currentSchemaVersion;
@@ -939,6 +943,10 @@ class AppDatabase extends _$AppDatabase {
         // v66→v67：新增手动查词历史表。
         if (from < 67) {
           await m.createTable(lookupHistories);
+        }
+        // v67→v68：新增按视频保存的字幕遮罩设置表。
+        if (from < 68) {
+          await m.createTable(videoSubtitleMasks);
         }
       },
     );

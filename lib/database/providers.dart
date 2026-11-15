@@ -8,6 +8,7 @@ import 'daos/audio_item_dao.dart';
 import 'daos/collection_dao.dart';
 import 'daos/bookmark_dao.dart';
 import 'daos/playback_state_dao.dart';
+import 'daos/video_subtitle_mask_dao.dart';
 import 'daos/learning_progress_dao.dart';
 import 'daos/stage_completion_dao.dart';
 import 'daos/tag_dao.dart';
@@ -156,6 +157,11 @@ final bookmarkDaoProvider = Provider<BookmarkDao>((ref) {
 /// PlaybackState DAO Provider
 final playbackStateDaoProvider = Provider<PlaybackStateDao>((ref) {
   return ref.watch(appDatabaseProvider).playbackStateDao;
+});
+
+/// VideoSubtitleMask DAO Provider
+final videoSubtitleMaskDaoProvider = Provider<VideoSubtitleMaskDao>((ref) {
+  return ref.watch(appDatabaseProvider).videoSubtitleMaskDao;
 });
 
 /// LearningProgress DAO Provider

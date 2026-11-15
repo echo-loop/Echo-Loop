@@ -18,6 +18,7 @@ import '../providers/media_engine/media_engine_provider.dart';
 import '../providers/media_engine/media_sense_group_range_playback.dart';
 import '../providers/media_playback/media_playback_provider.dart';
 import '../providers/media_playback/media_sleep_timer_provider.dart';
+import '../providers/video_subtitle_mask_provider.dart';
 import '../router/app_router.dart';
 import '../services/app_logger.dart';
 import '../services/media_fullscreen_service.dart';
@@ -349,12 +350,18 @@ class _MediaPlaybackScreenState extends ConsumerState<MediaPlaybackScreen>
       );
     }
     final controller = ref.read(mediaPlaybackProvider.notifier);
+    final subtitleMaskProvider = videoSubtitleMaskProvider(widget.audioItem.id);
+    // 加载完成前为 null：不显示遮罩，避免先在默认位置闪现再跳到已保存位置。
+    final subtitleMask = ref.watch(subtitleMaskProvider).value;
+    final subtitleMaskNotifier = ref.read(subtitleMaskProvider.notifier);
     return MediaVisualSurface(
       state: MediaVisualSurfaceState(
         visible: state.visualTrackVisible,
         expanded: state.visualTrackExpanded,
         isPlaying: state.isPlaying,
         subtitleVisible: state.videoSubtitleVisible,
+        subtitleMask: subtitleMask,
+        videoAspectRatio: state.videoAspectRatio,
       ),
       actions: MediaVisualSurfaceActions(
         onShow: () => unawaited(controller.setVisualTrackVisible(true)),
@@ -366,6 +373,10 @@ class _MediaPlaybackScreenState extends ConsumerState<MediaPlaybackScreen>
         ),
         onFullscreenToggle: () =>
             unawaited(_setVisualTrackExpanded(!state.visualTrackExpanded)),
+        onSubtitleMaskToggle: () =>
+            unawaited(subtitleMaskNotifier.toggleEnabled()),
+        onSubtitleMaskRectChanged: (rect) =>
+            unawaited(subtitleMaskNotifier.setRect(rect)),
       ),
       fillAvailableHeight: fillAvailableHeight,
       buildVideoView: (size) => ref

@@ -681,3 +681,22 @@
 - 规则：测试里凡是读取 `Platform.*` 决定分支的依赖（权限、ASR、平台通道），都要在测试中显式替换，不能依赖运行测试的操作系统。
 - 相关代码：`lib/services/speech_permission_service.dart`（`isSupported`）、`lib/screens/retell_player_screen.dart`（`initState` post-frame）、`lib/widgets/speech_permission_dialog.dart`。
 - 修复时间：2026-11-13。
+
+### 7.46 视频字幕遮罩拖动发卡：Scale 手势默认 36px 判定阈值，与外层点按竞争时才生效
+
+- 现象：Android 低端机（Galaxy A06）上拖动 / 缩放字幕遮罩手感发卡，按住要拖一段才开始跟手；右下角手柄也有类似滞后。
+- 根因：`ScaleGestureRecognizer` 在触屏下需焦点移动超过 `kPanSlop`（= 2 × `kTouchSlop` = 36 逻辑像素）才接受手势，`onScaleStart` 给出的是判定通过时的当前焦点，这段位移直接丢失；视频画面只有约 200px 高，36px 接近画面的 1/5。手柄的 Pan 手势同理有 18px 死区。阈值只在竞技场里有其他成员（外层画面的 `onTap`）时生效，单独测试遮罩时竞技场只有一个成员会立即胜出，测不出问题。
+- 排查：profile 包 + VM timeline 对比。把遮罩换成纯色（完全不做模糊）后拖动掉帧与模糊版本相当，说明 `BackdropFilter` 不是瓶颈；拖动时页面按 vsync 满帧率出帧，该机型播放页每帧光栅约 10ms，GPU 满载时偶发掉帧，属于播放页基础开销。
+- 解法：遮罩子树用 `MediaQuery.gestureSettings` 设 `DeviceGestureSettings(touchSlop: 4)`（Scale 阈值降到 8px）；手柄 Pan 手势用 `DragStartBehavior.down`，越过阈值的位移也计入。
+- 规则：小面积可拖动控件要显式调低触摸阈值；手势测试需带上与真实页面相同的外层竞争手势，否则阈值相关问题测不出来。
+- 相关代码：`lib/widgets/common/video_subtitle_mask_overlay.dart`、`test/widgets/common/video_subtitle_mask_overlay_test.dart`。
+- 修复时间：2026-11-15。
+
+### 7.47 字幕遮罩手柄拖动抛 ArgumentError：clamp 下限随画面尺寸变化后大于上限
+
+- 现象：竖屏视频在全屏时把遮罩缩窄并贴边，退出全屏后拖动该侧手柄，手势抛 `ArgumentError` 失效。
+- 根因：遮罩最小尺寸按像素换算成归一化值（`56px / 画面宽`）。小窗口里竖屏视频画面只有约 114px 宽，下限 ≈ 0.49，已大于全屏里调出的遮罩宽度；`(left + dx).clamp(0, right - minWidth)` 的上限变成负数，`num.clamp` 在下限大于上限时直接抛错。
+- 解法：最小尺寸取“规则下限”和“当前尺寸”中的较小者（只能放大、不能再缩小），保证 clamp 区间始终有效。
+- 规则：凡是由运行时尺寸推导出的 clamp 上下限，都要确认不会出现下限大于上限；回归测试要让手柄互不重叠，否则拖动会落到别的手柄上，测不出问题。
+- 相关代码：`lib/widgets/common/video_subtitle_mask_overlay.dart`（`_minNormalizedSizeFor`）、`test/widgets/common/video_subtitle_mask_overlay_test.dart`。
+- 修复时间：2026-11-15。

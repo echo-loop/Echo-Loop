@@ -8936,6 +8936,24 @@ abstract class AppLocalizations {
   /// **'Show video subtitles'**
   String get mediaShowVideoSubtitles;
 
+  /// No description provided for @mediaShowSubtitleMask.
+  ///
+  /// In en, this message translates to:
+  /// **'Cover on-screen subtitles'**
+  String get mediaShowSubtitleMask;
+
+  /// No description provided for @mediaHideSubtitleMask.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove subtitle cover'**
+  String get mediaHideSubtitleMask;
+
+  /// No description provided for @mediaSubtitleMaskLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Subtitle cover. Drag to move, pinch or drag an edge handle to resize'**
+  String get mediaSubtitleMaskLabel;
+
   /// No description provided for @videoLoopWhole.
   ///
   /// In en, this message translates to:

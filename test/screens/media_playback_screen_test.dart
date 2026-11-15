@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:audio_service/audio_service.dart' hide PlaybackState;
 import 'package:drift/drift.dart' show Value;
+import 'package:drift/native.dart';
 import 'package:echo_loop/database/app_database.dart' hide AudioItem;
 import 'package:echo_loop/database/daos/playback_state_dao.dart';
 import 'package:echo_loop/database/providers.dart';
@@ -318,6 +319,70 @@ void main() {
       findsOneWidget,
     );
     expect(backend.videoTrackCalls, contains(false));
+  });
+
+  testMediaWidgets('画面按钮开关字幕遮罩', (tester) async {
+    // 遮罩设置按视频存库并受外键约束，测试库里需先有这条视频。
+    final database = AppDatabase(
+      NativeDatabase.memory(setup: configureAppDatabaseConnection),
+    );
+    addTearDown(database.close);
+    await tester.runAsync(
+      () => database
+          .into(database.audioItems)
+          .insert(
+            AudioItemsCompanion.insert(
+              id: item.id,
+              name: item.name,
+              addedDate: item.addedDate,
+              updatedAt: item.addedDate,
+              audioPath: Value(item.audioPath),
+            ),
+          ),
+    );
+    await tester.pumpWidget(
+      createTestApp(
+        MediaPlaybackScreen(audioItem: item),
+        overrides: dedupeOverrides([
+          mediaBackendFactoryProvider.overrideWithValue(() => backend),
+          mediaSessionRouterProvider.overrideWithValue(router),
+          appDatabaseProvider.overrideWithValue(database),
+        ]),
+      ),
+    );
+    await pumpMediaReady(tester);
+    final mask = find.byKey(const ValueKey('video-subtitle-mask'));
+    final maskButton = find.byKey(const ValueKey('media-subtitle-mask-button'));
+    expect(mask, findsNothing);
+
+    await tester.tap(find.byKey(const ValueKey('media-visual-surface')));
+    await tester.pump();
+    await tester.tap(maskButton);
+    await tester.pump();
+    expect(mask, findsOneWidget);
+    // 默认遮罩位于画面底部。
+    final surfaceRect = tester.getRect(
+      find.byKey(const ValueKey('media-video-canvas')),
+    );
+    expect(tester.getRect(mask).center.dy, greaterThan(surfaceRect.center.dy));
+    // 开启遮罩后收起播放控件，避免播放按钮压住遮罩手柄。
+    expect(
+      tester
+          .widget<IgnorePointer>(
+            find
+                .ancestor(of: maskButton, matching: find.byType(IgnorePointer))
+                .first,
+          )
+          .ignoring,
+      isTrue,
+    );
+
+    await tester.tap(find.byKey(const ValueKey('media-visual-surface')));
+    await tester.pump();
+    await tester.tap(maskButton);
+    await tester.pump();
+    expect(mask, findsNothing);
+    await tester.pump(const Duration(seconds: 3));
   });
 
   testMediaWidgets('音频随心听使用媒体引擎且只隐藏视频画面', (tester) async {
