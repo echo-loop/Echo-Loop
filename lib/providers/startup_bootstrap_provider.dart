@@ -25,6 +25,7 @@ import '../config/paddle_config.dart' as paddle_config;
 import '../config/revenuecat_config.dart' as revenuecat_config;
 import '../database/app_database.dart';
 import '../database/providers.dart';
+import '../features/auth/supabase_session_storage.dart';
 import '../features/onboarding_survey/providers/onboarding_survey_provider.dart'
     show sharedPreferencesProvider;
 import '../features/user_region/user_region_providers.dart';
@@ -280,6 +281,15 @@ class DefaultStartupBootstrapper implements StartupBootstrapper {
     );
     if (selectedSupabaseUrl != null &&
         auth_config.isAuthConfiguredForUrl(selectedSupabaseUrl)) {
+      // 迁移失败时不会恢复任何旧会话，启动为未登录；绝不回退到其他端点的会话。
+      await _runBestEffort(
+        issues,
+        'supabase_session_storage_migration',
+        () => migrateSupabaseSessionStorage(
+          prefs: _prefs,
+          currentUrl: selectedSupabaseUrl,
+        ),
+      );
       AppLogger.log(
         'Supabase',
         'initialize start endpoint=$supabaseEndpointLabel',
@@ -289,6 +299,7 @@ class DefaultStartupBootstrapper implements StartupBootstrapper {
           return Supabase.initialize(
             url: selectedSupabaseUrl,
             publishableKey: auth_config.supabasePublishableKey,
+            authOptions: supabaseAuthClientOptions(),
           );
         });
         supabaseReady = true;
