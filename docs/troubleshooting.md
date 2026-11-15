@@ -711,3 +711,13 @@
 - 规则：判断"画面已是新媒体"必须以原生绘制相关的信号为准，并用原生日志时间戳对照验证；解码层信号不等于已上屏。
 - 相关代码：`lib/services/video_frame_gate.dart`、`lib/services/media_kit_player_backend.dart`（`_startVideoFrameGate`）、`test/services/video_frame_gate_test.dart`；日志标签 `[VideoFrame]`。
 - 修复时间：2026-11-15。
+
+### 7.49 字幕遮罩手柄在挂载时自动弹出：激发态绑在组件生命周期上，布局切换与打开视频都会重建
+
+- 现象：打开视频、窗口宽高比跨过 1、进出全屏时，已开启的遮罩自动显示边框与手柄约 2 秒；鼠标悬浮遮罩时反而不显示。
+- 根因：`initState` 无条件设置“保持显示 2 秒”。遮罩在数据库读出后才挂载（provider 为 autoDispose，每次进入都重新读库）；`media_playback_screen.dart` 的单列 / 双列布局是带不同 key 的 `Column` / `Row`，跨过 `width / height > 1` 时整个画面子树被替换，全屏分支也会换父节点。两种情况都会让遮罩 `State` 重建，于是每次都被当成“刚开启”。悬浮显示此前并未实现，`MouseRegion` 只设置了光标。
+- 解法：挂载不激发；遮罩组件在数据加载后常驻，由 `isEnabled` 驱动，只有 `didUpdateWidget` 中从关到开才保持 2 秒；悬浮用覆盖整个组件的 `MouseRegion(opaque: false)`，判定区域取遮罩外扩手柄触控区的范围，鼠标从遮罩移到手柄上不会丢失激发态。
+- 排查：日志标签 `[VideoSubtitleMask]`。`遮罩组件挂载` 后紧跟 `遮罩激发态开启 原因=…` 且原因不是用户操作（点按 / 开始拖动 / 鼠标悬浮 / 遮罩开启），即为重建误弹出。正常路径下激发开启的原因只能是这四种之一，关闭的原因是 `保持时间结束` 或 `鼠标移出`。
+- 规则：激发类 UI 状态只能由用户操作或状态切换触发，不能放在 `initState`；与重建无关的显示状态要么提升到不会因布局切换而重建的父级，要么像这里一样由“变化”触发而不是由“挂载”触发。
+- 相关代码：`lib/widgets/common/video_subtitle_mask_overlay.dart`、`lib/widgets/common/media_visual_surface.dart`、`test/widgets/common/video_subtitle_mask_overlay_test.dart`。
+- 修复时间：2026-11-15。

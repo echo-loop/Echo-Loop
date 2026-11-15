@@ -175,10 +175,13 @@ class _MediaVisualSurfaceState extends State<MediaVisualSurface> {
                       color: Colors.black,
                       child: widget.buildVideoView(Size(width, height)),
                     ),
-                    if (subtitleMask != null && subtitleMask.enabled)
+                    // 数据加载后即挂载，开关只改变 isEnabled：开启才会激发手柄，
+                    // 挂载本身（打开视频、布局切换）不会。
+                    if (subtitleMask != null)
                       Positioned.fill(
                         child: VideoSubtitleMaskOverlay(
                           normalizedRect: subtitleMask.rect,
+                          isEnabled: subtitleMask.enabled,
                           contentRect: videoContentRect(
                             Size(width, height),
                             state.videoAspectRatio,
@@ -258,12 +261,10 @@ class _MediaVisualSurfaceState extends State<MediaVisualSurface> {
                                 ),
                                 active: state.subtitleVisible,
                                 tooltip: state.subtitleVisible
-                                    ? AppLocalizations.of(
-                                        context,
-                                      )!.mediaHideVideoSubtitles
-                                    : AppLocalizations.of(
-                                        context,
-                                      )!.mediaShowVideoSubtitles,
+                                    ? AppLocalizations.of(context)!
+                                          .mediaHideVideoSubtitles
+                                    : AppLocalizations.of(context)!
+                                          .mediaShowVideoSubtitles,
                                 onPressed: widget.actions.onSubtitleToggle,
                               ),
                               const SizedBox(width: 8),
@@ -276,12 +277,10 @@ class _MediaVisualSurfaceState extends State<MediaVisualSurface> {
                                 ),
                                 active: true,
                                 tooltip: state.expanded
-                                    ? AppLocalizations.of(
-                                        context,
-                                      )!.mediaExitFullscreen
-                                    : AppLocalizations.of(
-                                        context,
-                                      )!.mediaEnterFullscreen,
+                                    ? AppLocalizations.of(context)!
+                                          .mediaExitFullscreen
+                                    : AppLocalizations.of(context)!
+                                          .mediaEnterFullscreen,
                                 onPressed: widget.actions.onFullscreenToggle,
                               ),
                             ],
@@ -303,9 +302,8 @@ class _MediaVisualSurfaceState extends State<MediaVisualSurface> {
                               key: const ValueKey('media-hide-visual-button'),
                               icon: const Icon(Icons.visibility_off),
                               active: true,
-                              tooltip: AppLocalizations.of(
-                                context,
-                              )!.videoHideTrack,
+                              tooltip: AppLocalizations.of(context)!
+                                  .videoHideTrack,
                               onPressed: widget.actions.onHide,
                             ),
                           ),

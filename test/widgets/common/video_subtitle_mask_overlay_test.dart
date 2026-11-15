@@ -1,5 +1,7 @@
 import 'package:echo_loop/l10n/app_localizations.dart';
+import 'package:echo_loop/services/app_logger.dart';
 import 'package:echo_loop/widgets/common/video_subtitle_mask_overlay.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -8,11 +10,13 @@ void main() {
   const contentRect = Rect.fromLTWH(0, 100, 400, 200);
   const initialRect = Rect.fromLTWH(0.25, 0.5, 0.5, 0.25);
 
+  /// 挂载遮罩组件；[isEnabled] 对应字幕遮罩开关。
   Future<List<Rect>> pumpOverlay(
     WidgetTester tester, {
     VoidCallback? onInteractionStart,
     Rect startRect = initialRect,
     Rect content = contentRect,
+    bool isEnabled = true,
   }) async {
     final committed = <Rect>[];
     var rect = startRect;
@@ -31,6 +35,7 @@ void main() {
                 builder: (context, setState) => VideoSubtitleMaskOverlay(
                   normalizedRect: rect,
                   contentRect: content,
+                  isEnabled: isEnabled,
                   onInteractionStart: onInteractionStart ?? () {},
                   onRectChanged: (next) {
                     committed.add(next);
@@ -44,6 +49,12 @@ void main() {
       ),
     );
     return committed;
+  }
+
+  /// 点按遮罩，让手柄显示（手柄只在激发态下出现）。
+  Future<void> revealFrame(WidgetTester tester) async {
+    await tester.tap(find.byKey(const ValueKey('video-subtitle-mask')));
+    await tester.pump();
   }
 
   test('videoContentRect 按 contain 计算去黑边后的画面区域', () {
@@ -127,6 +138,7 @@ void main() {
 
   testWidgets('拖动下边手柄只改变高度，上边与左右保持不动', (tester) async {
     final committed = await pumpOverlay(tester);
+    await revealFrame(tester);
 
     await tester.drag(grip('bottom'), const Offset(30, 20));
     await tester.pump();
@@ -140,6 +152,7 @@ void main() {
 
   testWidgets('拖动左边手柄只改变左边，右边保持不动', (tester) async {
     final committed = await pumpOverlay(tester);
+    await revealFrame(tester);
 
     await tester.drag(grip('left'), const Offset(-40, 15));
     await tester.pump();
@@ -153,6 +166,7 @@ void main() {
 
   testWidgets('上边手柄不能把遮罩压到小于最小高度', (tester) async {
     final committed = await pumpOverlay(tester);
+    await revealFrame(tester);
 
     await tester.drag(grip('top'), const Offset(0, 300));
     await tester.pump();
@@ -162,21 +176,73 @@ void main() {
     expect(rect.height * contentRect.height, greaterThanOrEqualTo(23.9));
   });
 
-  testWidgets('遮罩出现时短暂提示手柄，点按遮罩后再次显示并通知收起控件', (tester) async {
-    var interactions = 0;
-    await pumpOverlay(tester, onInteractionStart: () => interactions++);
+  testWidgets('打开视频或窗口重建时，已开启的遮罩不自动弹出手柄', (tester) async {
+    // 视频加载完成后遮罩从无到有挂载，布局切换也会重建组件；两者都不是用户操作。
+    await pumpOverlay(tester);
+    expect(grip('bottom'), findsNothing);
+    expect(find.byKey(const ValueKey('video-subtitle-mask')), findsOneWidget);
+  });
+
+  testWidgets('遮罩从关闭切换为开启时短暂显示手柄，之后自动收起', (tester) async {
+    await pumpOverlay(tester, isEnabled: false);
+    expect(find.byKey(const ValueKey('video-subtitle-mask')), findsNothing);
+
+    await pumpOverlay(tester, isEnabled: true);
     expect(grip('bottom'), findsOneWidget);
 
     await tester.pump(const Duration(seconds: 3));
     expect(grip('bottom'), findsNothing);
+  });
 
-    await tester.tap(find.byKey(const ValueKey('video-subtitle-mask')));
+  testWidgets('鼠标悬浮在遮罩上显示手柄，移出后收起', (tester) async {
+    await pumpOverlay(tester);
+    final mask = find.byKey(const ValueKey('video-subtitle-mask'));
+    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    await mouse.addPointer(location: const Offset(10, 10));
     await tester.pump();
+    expect(grip('bottom'), findsNothing);
+
+    await mouse.moveTo(tester.getCenter(mask));
+    await tester.pump();
+    expect(grip('bottom'), findsOneWidget);
+
+    await mouse.moveTo(const Offset(10, 10));
+    await tester.pump();
+    expect(grip('bottom'), findsNothing);
+  });
+
+  testWidgets('鼠标从遮罩移到底边手柄上时手柄保持显示', (tester) async {
+    await pumpOverlay(tester);
+    final mask = find.byKey(const ValueKey('video-subtitle-mask'));
+    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    await mouse.addPointer(location: tester.getCenter(mask));
+    await tester.pump();
+
+    // 底边手柄的触控区伸到遮罩外侧，越过遮罩边界后仍应视为悬浮。
+    await mouse.moveTo(tester.getRect(mask).bottomCenter + const Offset(0, 12));
+    await tester.pump();
+    expect(grip('bottom'), findsOneWidget);
+  });
+
+  testWidgets('点按遮罩显示手柄并通知收起控件，激发态变化写入日志', (tester) async {
+    var interactions = 0;
+    final logCountBefore = AppLogger.instance.entries.length;
+    await pumpOverlay(tester, onInteractionStart: () => interactions++);
+    expect(grip('bottom'), findsNothing);
+
+    await revealFrame(tester);
     expect(grip('bottom'), findsOneWidget);
     expect(interactions, 1);
 
     await tester.pump(const Duration(seconds: 3));
     expect(grip('bottom'), findsNothing);
+
+    final messages = AppLogger.instance.entries
+        .skip(logCountBefore)
+        .where((entry) => entry.tag == 'VideoSubtitleMask')
+        .map((entry) => entry.message);
+    expect(messages, contains('遮罩激发态开启 原因=点按遮罩'));
+    expect(messages, contains('遮罩激发态关闭 原因=保持时间结束'));
   });
 
   testWidgets('遮罩窄于当前画面的像素下限时，拖四边手柄不抛异常且保持有效', (tester) async {
@@ -189,6 +255,7 @@ void main() {
       startRect: narrowRect,
       content: smallContent,
     );
+    await revealFrame(tester);
 
     for (final edge in ['left', 'right', 'top', 'bottom']) {
       await tester.drag(grip(edge), const Offset(-30, -30));

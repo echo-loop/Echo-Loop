@@ -7,6 +7,9 @@ import 'package:flutter/material.dart';
 
 import '../../l10n/app_localizations.dart';
 import '../../models/video_subtitle_mask.dart';
+import '../../services/app_logger.dart';
+
+const _logTag = 'VideoSubtitleMask';
 
 /// 计算视频按 [BoxFit.contain] 绘制后在视口中的实际画面区域（不含黑边）。
 ///
@@ -34,11 +37,16 @@ enum VideoSubtitleMaskEdge { left, top, right, bottom }
 /// 单指拖动移动、双指捏合等比缩放、拖动四边中点的手柄调整对应边。拖动过程
 /// 只更新本地草稿，松手后通过 [onRectChanged] 提交一次，避免每帧写持久化。
 /// 必须放在与 [contentRect] 同坐标系的全尺寸 Stack 中。
+///
+/// 边框与手柄只在“激发态”下显示，激发来源有三种：开关从关到开、点按或拖动
+/// 之后保持 2 秒、鼠标悬浮。挂载本身（打开视频、窗口跨越布局断点导致重建）
+/// 不是用户操作，不会激发。
 class VideoSubtitleMaskOverlay extends StatefulWidget {
   const VideoSubtitleMaskOverlay({
     super.key,
     required this.normalizedRect,
     required this.contentRect,
+    required this.isEnabled,
     required this.onRectChanged,
     required this.onInteractionStart,
   });
@@ -48,6 +56,9 @@ class VideoSubtitleMaskOverlay extends StatefulWidget {
 
   /// 视频实际画面区域（像素）。
   final Rect contentRect;
+
+  /// 字幕遮罩开关；为 false 时不渲染任何内容。
+  final bool isEnabled;
 
   final ValueChanged<Rect> onRectChanged;
 
@@ -88,10 +99,19 @@ class _VideoSubtitleMaskOverlayState extends State<VideoSubtitleMaskOverlay> {
   Rect? _draftRect;
   Rect _gestureStartRect = Rect.zero;
   Offset _gestureStartFocal = Offset.zero;
+
+  /// 定时保持：开关打开、点按或拖动结束后显示 [_frameHoldDuration]。
   bool _isFrameHeld = false;
   Timer? _frameHoldTimer;
 
+  /// 鼠标是否悬浮在遮罩及手柄区域内；触屏设备不会产生悬浮事件。
+  bool _isPointerInside = false;
+
   Rect get _currentRect => _draftRect ?? widget.normalizedRect;
+
+  /// 激发态：边框与手柄是否显示，由定时保持、悬浮与拖动三种来源共同决定。
+  bool get _isFrameActive =>
+      _isFrameHeld || _isPointerInside || _draftRect != null;
 
   Size get _contentSize => widget.contentRect.size;
 
@@ -123,9 +143,26 @@ class _VideoSubtitleMaskOverlayState extends State<VideoSubtitleMaskOverlay> {
   @override
   void initState() {
     super.initState();
-    // 遮罩出现时短暂显示手柄，提示可以拖动和调整大小。
-    _isFrameHeld = true;
-    _frameHoldTimer = Timer(_frameHoldDuration, _releaseFrame);
+    // 挂载不是用户操作，不显示手柄。打开视频、窗口跨越布局断点都会重建本组件，
+    // 日志里的挂载记录用于判断手柄异常出现是否由重建引起。
+    AppLogger.log(_logTag, '遮罩组件挂载 enabled=${widget.isEnabled}');
+  }
+
+  @override
+  void didUpdateWidget(VideoSubtitleMaskOverlay oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.isEnabled == widget.isEnabled) return;
+    // 开关变化是唯一由状态切换激发手柄的入口；关闭时清空全部激发来源。
+    final wasActive = _isFrameActive;
+    if (widget.isEnabled) {
+      _holdFrame();
+    } else {
+      _frameHoldTimer?.cancel();
+      _isFrameHeld = false;
+      _isPointerInside = false;
+      _draftRect = null;
+    }
+    _logFrameActiveChange(wasActive, widget.isEnabled ? '遮罩开启' : '遮罩关闭');
   }
 
   @override
@@ -134,28 +171,57 @@ class _VideoSubtitleMaskOverlayState extends State<VideoSubtitleMaskOverlay> {
     super.dispose();
   }
 
-  void _releaseFrame() {
-    if (mounted) setState(() => _isFrameHeld = false);
+  /// 修改激发态相关字段并刷新界面，激发态真正变化时记录原因。
+  void _updateFrameState(String reason, VoidCallback change) {
+    final wasActive = _isFrameActive;
+    setState(change);
+    _logFrameActiveChange(wasActive, reason);
   }
 
-  /// 点按或操作遮罩后短暂显示边框与手柄。
+  void _logFrameActiveChange(bool wasActive, String reason) {
+    final isActive = _isFrameActive;
+    if (isActive == wasActive) return;
+    AppLogger.log(_logTag, '遮罩激发态${isActive ? '开启' : '关闭'} 原因=$reason');
+  }
+
+  /// 保持显示并重新计时；须在 [_updateFrameState] 或 didUpdateWidget 中调用。
   void _holdFrame() {
+    _isFrameHeld = true;
     _frameHoldTimer?.cancel();
-    setState(() => _isFrameHeld = true);
     _frameHoldTimer = Timer(_frameHoldDuration, _releaseFrame);
+  }
+
+  void _releaseFrame() {
+    if (!mounted) return;
+    _updateFrameState('保持时间结束', () => _isFrameHeld = false);
   }
 
   void _handleTap() {
     widget.onInteractionStart();
-    _holdFrame();
+    _updateFrameState('点按遮罩', _holdFrame);
+  }
+
+  void _setPointerInside(bool isInside) {
+    if (isInside == _isPointerInside) return;
+    _updateFrameState(
+      isInside ? '鼠标悬浮' : '鼠标移出',
+      () => _isPointerInside = isInside,
+    );
+  }
+
+  /// 悬浮判定区域是遮罩外扩手柄触控区的部分，鼠标从遮罩移到手柄上不会丢失激发态。
+  void _updatePointerPosition(Offset localPosition) {
+    final hoverZone = _maskRectFor(_currentRect)
+        .inflate(_gripTouchThickness - _gripInset);
+    _setPointerInside(hoverZone.contains(localPosition));
   }
 
   void _startGesture(Offset focalPoint) {
     widget.onInteractionStart();
-    _frameHoldTimer?.cancel();
     _gestureStartRect = _currentRect;
     _gestureStartFocal = focalPoint;
-    setState(() {
+    _updateFrameState('开始拖动', () {
+      _frameHoldTimer?.cancel();
       _isFrameHeld = true;
       _draftRect = _gestureStartRect;
     });
@@ -221,62 +287,78 @@ class _VideoSubtitleMaskOverlayState extends State<VideoSubtitleMaskOverlay> {
     final draft = _draftRect;
     if (draft == null) return;
     widget.onRectChanged(draft);
-    setState(() => _draftRect = null);
-    _holdFrame();
+    _updateFrameState('拖动结束', () {
+      _draftRect = null;
+      _holdFrame();
+    });
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final normalized = _currentRect;
+  /// 归一化位置对应的遮罩像素区域（相对本组件左上角）。
+  Rect _maskRectFor(Rect normalized) {
     final content = widget.contentRect;
-    final maskRect = Rect.fromLTWH(
+    return Rect.fromLTWH(
       content.left + normalized.left * content.width,
       content.top + normalized.top * content.height,
       normalized.width * content.width,
       normalized.height * content.height,
     );
-    final showFrame = _isFrameHeld || _draftRect != null;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!widget.isEnabled) return const SizedBox.shrink();
+    final maskRect = _maskRectFor(_currentRect);
+    final showFrame = _isFrameActive;
     // 全屏时字幕字号更大，模糊半径随遮罩高度放大，确保文字轮廓不可辨认。
     final blurSigma = (maskRect.height * 0.2).clamp(10.0, 24.0);
     return LayoutBuilder(
       builder: (context, constraints) {
         final bounds = Offset.zero & constraints.biggest;
-        return MediaQuery(
-          data: MediaQuery.of(context)
-              .copyWith(gestureSettings: _maskGestureSettings),
-          child: Stack(
-            children: [
-              Positioned.fromRect(
-                rect: maskRect,
-                child: Semantics(
-                  key: const ValueKey('video-subtitle-mask'),
-                  label: AppLocalizations.of(context)!.mediaSubtitleMaskLabel,
-                  child: MouseRegion(
-                    cursor: SystemMouseCursors.move,
-                    child: GestureDetector(
-                      behavior: HitTestBehavior.opaque,
-                      onTap: _handleTap,
-                      onScaleStart: (details) =>
-                          _startGesture(details.focalPoint),
-                      onScaleUpdate: _updateMoveOrPinch,
-                      onScaleEnd: (_) => _commit(),
-                      child: ClipRRect(
-                        borderRadius: _borderRadius,
-                        child: BackdropFilter(
-                          filter: ImageFilter.blur(
-                            sigmaX: blurSigma,
-                            sigmaY: blurSigma,
-                          ),
-                          child: AnimatedContainer(
-                            duration: const Duration(milliseconds: 160),
-                            decoration: BoxDecoration(
-                              color: Colors.black.withValues(alpha: _tintAlpha),
-                              borderRadius: _borderRadius,
-                              border: Border.all(
-                                color: Colors.white.withValues(
-                                  alpha: showFrame ? 0.85 : 0.0,
+        // opaque: false 让悬浮判定不吞掉画面上的其他悬浮事件（控件显示等）。
+        return MouseRegion(
+          opaque: false,
+          onEnter: (event) => _updatePointerPosition(event.localPosition),
+          onHover: (event) => _updatePointerPosition(event.localPosition),
+          onExit: (_) => _setPointerInside(false),
+          child: MediaQuery(
+            data: MediaQuery.of(context)
+                .copyWith(gestureSettings: _maskGestureSettings),
+            child: Stack(
+              children: [
+                Positioned.fromRect(
+                  rect: maskRect,
+                  child: Semantics(
+                    key: const ValueKey('video-subtitle-mask'),
+                    label: AppLocalizations.of(context)!.mediaSubtitleMaskLabel,
+                    child: MouseRegion(
+                      cursor: SystemMouseCursors.move,
+                      child: GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onTap: _handleTap,
+                        onScaleStart: (details) =>
+                            _startGesture(details.focalPoint),
+                        onScaleUpdate: _updateMoveOrPinch,
+                        onScaleEnd: (_) => _commit(),
+                        child: ClipRRect(
+                          borderRadius: _borderRadius,
+                          child: BackdropFilter(
+                            filter: ImageFilter.blur(
+                              sigmaX: blurSigma,
+                              sigmaY: blurSigma,
+                            ),
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 160),
+                              decoration: BoxDecoration(
+                                color: Colors.black.withValues(
+                                  alpha: _tintAlpha,
                                 ),
-                                width: 1.5,
+                                borderRadius: _borderRadius,
+                                border: Border.all(
+                                  color: Colors.white.withValues(
+                                    alpha: showFrame ? 0.85 : 0.0,
+                                  ),
+                                  width: 1.5,
+                                ),
                               ),
                             ),
                           ),
@@ -285,11 +367,11 @@ class _VideoSubtitleMaskOverlayState extends State<VideoSubtitleMaskOverlay> {
                     ),
                   ),
                 ),
-              ),
-              if (showFrame)
-                for (final edge in VideoSubtitleMaskEdge.values)
-                  _buildGrip(edge, maskRect, bounds),
-            ],
+                if (showFrame)
+                  for (final edge in VideoSubtitleMaskEdge.values)
+                    _buildGrip(edge, maskRect, bounds),
+              ],
+            ),
           ),
         );
       },
