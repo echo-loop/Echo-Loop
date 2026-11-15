@@ -33,7 +33,9 @@ void main() {
         ),
       ),
     );
-    return (view as Builder).builder(context) as Video;
+    final frameGate =
+        (view as Builder).builder(context) as ValueListenableBuilder<bool>;
+    return frameGate.child! as Video;
   }
 
   testWidgets('视频随心听进入后台时不自动暂停播放器', (tester) async {

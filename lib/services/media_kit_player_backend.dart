@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
@@ -5,10 +6,13 @@ import 'package:flutter/widgets.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
 
+import 'package:path/path.dart' as p;
+
 import 'media_subtitle_style.dart';
 import 'app_logger.dart';
 import 'media_kit_debug_initializer.dart';
 import 'media_player_backend.dart';
+import 'video_frame_gate.dart';
 
 /// media_kit 播放后端。只负责原生播放器适配，不承载业务播放流程。
 ///
@@ -17,6 +21,7 @@ class MediaKitPlayerBackend implements MediaPlayerBackend {
   MediaKitPlayerBackend({Player? player})
     : _player = player ?? _createPlayer() {
     _controller = VideoController(_player);
+    _startVideoFrameGate();
   }
 
   static Player _createPlayer() {
@@ -27,6 +32,22 @@ class MediaKitPlayerBackend implements MediaPlayerBackend {
   final Player _player;
   Player? _keepAlivePlayer;
   late final VideoController _controller;
+  StreamSubscription<VideoParams>? _videoParamsSubscription;
+
+  /// 纹理随 [VideoController] 跨 [open] 复用，新媒体出帧前原生纹理仍是上一个
+  /// 媒体的最后一帧；门控未放行前视频视图不绘制纹理，避免切换时闪现旧画面。
+  final VideoFrameGate _frameGate = VideoFrameGate();
+
+  /// 视频视图是否绘制纹理；仅由 [_frameGate] 驱动。
+  final ValueNotifier<bool> _isTextureVisible = ValueNotifier(false);
+
+  /// 当前打开媒体的代次与名称，用于日志区分"正在加载"和"纹理里是谁"。
+  int _mediaGeneration = 0;
+  String? _currentMediaName;
+
+  /// 纹理中实际画着的媒体；新媒体通过门控后才更新。
+  String? _textureMediaName;
+  DateTime? _openStartedAt;
   bool _disposed = false;
   Future<void>? _disposeFuture;
 
@@ -89,6 +110,8 @@ class MediaKitPlayerBackend implements MediaPlayerBackend {
       'open begin backend=${identityHashCode(this)} '
           'position=${initialPosition.inMilliseconds}ms',
     );
+    // 必须先于 _player.open：新媒体的出帧信号可能在 open 返回前到达。
+    _resetVideoFrameGate(filePath);
     // mpv 的 end 是全局选项，会延续到下一个文件，换媒体前必须撤销。
     await setPlaybackEnd(null);
     await _player.open(
@@ -104,6 +127,103 @@ class MediaKitPlayerBackend implements MediaPlayerBackend {
           'duration=${duration?.inMilliseconds}ms position=${position.inMilliseconds}ms '
           'playing=$playing',
     );
+  }
+
+  /// 订阅门控所需的三个输入：VO 配置状态、媒体显示尺寸、纹理尺寸。
+  ///
+  /// 非原生播放器（测试替身）无法观察 mpv 属性，不做门控。
+  void _startVideoFrameGate() {
+    final platform = _player.platform;
+    if (platform is! NativePlayer) {
+      _isTextureVisible.value = true;
+      return;
+    }
+    _videoParamsSubscription = _player.stream.videoParams.listen(
+      (params) => _applyFrameGateInput(
+        'video-size',
+        _displaySize(params),
+        () => _frameGate.updateVideoSize(_displaySize(params)),
+      ),
+    );
+    _controller.rect.addListener(_onTextureRectChanged);
+    unawaited(
+      platform
+          .observeProperty('vo-configured', (value) async {
+            _applyFrameGateInput(
+              'vo-configured',
+              value,
+              () => _frameGate.updateVoConfigured(value == 'yes'),
+            );
+          })
+          .catchError((Object error) {
+            // 无法观察时宁可回到旧行为（可能闪旧帧），也不能让视频永远黑屏。
+            AppLogger.log('VideoFrame', 'event=gate_unavailable error=$error');
+            if (!_disposed) _isTextureVisible.value = true;
+          }),
+    );
+  }
+
+  void _onTextureRectChanged() {
+    final rect = _controller.rect.value;
+    _applyFrameGateInput(
+      'texture-size',
+      rect?.size,
+      () => _frameGate.updateTextureSize(rect?.size),
+    );
+  }
+
+  void _resetVideoFrameGate(String filePath) {
+    _mediaGeneration += 1;
+    _currentMediaName = p.basename(filePath);
+    _openStartedAt = DateTime.now();
+    _frameGate.resetForNewMedia();
+    _isTextureVisible.value = false;
+    AppLogger.log(
+      'VideoFrame',
+      'event=media_open generation=$_mediaGeneration '
+          'media=$_currentMediaName textureHolds=${_textureMediaName ?? 'empty'} '
+          'texture=${_frameGate.textureSize} visible=false',
+    );
+  }
+
+  void _applyFrameGateInput(
+    String input,
+    Object? value,
+    bool Function() update,
+  ) {
+    if (_disposed) return;
+    final becameVisible = update();
+    AppLogger.log(
+      'VideoFrame',
+      'event=gate_input input=$input value=$value '
+          'generation=$_mediaGeneration media=$_currentMediaName '
+          'textureHolds=${_textureMediaName ?? 'empty'} '
+          'voConfigured=${_frameGate.isVoConfigured} '
+          'video=${_frameGate.videoSize} texture=${_frameGate.textureSize} '
+          'visible=${_frameGate.isCurrentMediaVisible}',
+    );
+    if (!becameVisible) return;
+    _textureMediaName = _currentMediaName;
+    _isTextureVisible.value = true;
+    final startedAt = _openStartedAt;
+    AppLogger.log(
+      'VideoFrame',
+      'event=current_media_visible generation=$_mediaGeneration '
+          'media=$_currentMediaName trigger=$input '
+          'texture=${_frameGate.textureSize} elapsedSinceOpenMs='
+          '${startedAt == null ? 'n/a' : DateTime.now().difference(startedAt).inMilliseconds}',
+    );
+  }
+
+  /// 与原生纹理尺寸算法一致：使用显示尺寸，90/270 度旋转时交换宽高。
+  static Size? _displaySize(VideoParams params) {
+    final dw = params.dw;
+    final dh = params.dh;
+    if (dw == null || dh == null || dw <= 0 || dh <= 0) return null;
+    final rotate = params.rotate ?? 0;
+    return rotate == 90 || rotate == 270
+        ? Size(dh.toDouble(), dw.toDouble())
+        : Size(dw.toDouble(), dh.toDouble());
   }
 
   @override
@@ -195,30 +315,40 @@ class MediaKitPlayerBackend implements MediaPlayerBackend {
     final subtitleStyle = MediaSubtitleStyle.forViewport(viewportSize);
     // 字幕跟随系统文字缩放：需要 BuildContext 读取 MediaQuery，故包一层 Builder。
     return Builder(
-      builder: (context) => Video(
-        controller: _controller,
-        controls: NoVideoControls,
-        // 视频随心听的音轨需要在锁屏后继续播放；media_kit_video 默认会在后台暂停 Player。
-        pauseUponEnteringBackgroundMode: false,
-        fit: BoxFit.contain,
-        subtitleViewConfiguration: SubtitleViewConfiguration(
-          style: TextStyle(
-            height: 1.32,
-            fontSize: subtitleStyle.fontSize,
-            letterSpacing: 0,
-            wordSpacing: 0,
-            color: const Color(0xffffffff),
-            fontWeight: FontWeight.w600,
-            backgroundColor: const Color(0xaa000000),
-          ),
-          textAlign: TextAlign.center,
-          textScaler: MediaQuery.textScalerOf(context),
-          padding: EdgeInsets.fromLTRB(
-            subtitleStyle.horizontalPadding,
-            0,
-            subtitleStyle.horizontalPadding,
-            subtitleStyle.bottomPadding,
-          ),
+      builder: (context) => ValueListenableBuilder<bool>(
+        valueListenable: _isTextureVisible,
+        // 保留 Video 子树，出帧后直接恢复绘制，不重建纹理绑定。
+        builder: (context, isVisible, video) =>
+            Visibility(visible: isVisible, maintainState: true, child: video!),
+        child: _buildVideo(context, subtitleStyle),
+      ),
+    );
+  }
+
+  Widget _buildVideo(BuildContext context, MediaSubtitleStyle subtitleStyle) {
+    return Video(
+      controller: _controller,
+      controls: NoVideoControls,
+      // 视频随心听的音轨需要在锁屏后继续播放；media_kit_video 默认会在后台暂停 Player。
+      pauseUponEnteringBackgroundMode: false,
+      fit: BoxFit.contain,
+      subtitleViewConfiguration: SubtitleViewConfiguration(
+        style: TextStyle(
+          height: 1.32,
+          fontSize: subtitleStyle.fontSize,
+          letterSpacing: 0,
+          wordSpacing: 0,
+          color: const Color(0xffffffff),
+          fontWeight: FontWeight.w600,
+          backgroundColor: const Color(0xaa000000),
+        ),
+        textAlign: TextAlign.center,
+        textScaler: MediaQuery.textScalerOf(context),
+        padding: EdgeInsets.fromLTRB(
+          subtitleStyle.horizontalPadding,
+          0,
+          subtitleStyle.horizontalPadding,
+          subtitleStyle.bottomPadding,
         ),
       ),
     );
@@ -255,9 +385,12 @@ class MediaKitPlayerBackend implements MediaPlayerBackend {
     try {
       await _player.stop();
     } catch (_) {}
+    await _videoParamsSubscription?.cancel();
+    _controller.rect.removeListener(_onTextureRectChanged);
     await _player.dispose();
     await _keepAlivePlayer?.dispose();
     _keepAlivePlayer = null;
+    _isTextureVisible.dispose();
     _disposed = true;
     AppLogger.log(
       'MediaKitBackend',

@@ -700,3 +700,14 @@
 - 规则：凡是由运行时尺寸推导出的 clamp 上下限，都要确认不会出现下限大于上限；回归测试要让手柄互不重叠，否则拖动会落到别的手柄上，测不出问题。
 - 相关代码：`lib/widgets/common/video_subtitle_mask_overlay.dart`（`_minNormalizedSizeFor`）、`test/widgets/common/video_subtitle_mask_overlay_test.dart`。
 - 修复时间：2026-11-15。
+
+### 7.48 打开视频时先闪现上一个视频的画面：原生纹理跨视频复用，`video-params` 早于原生出帧
+
+- 现象：打开视频 A 后退出，再打开视频 B，加载遮罩消失后先显示 A 的画面，随后才切到 B。
+- 根因：`MediaKitPlayerBackend` 跨视频复用同一个 `Player` / `VideoController`，原生纹理也随之复用。打开新文件时原生端在 `video-out-params` 不可用前不绘制，纹理保留上一视频的最后一帧；而页面 ready 只等时长，早于新视频出帧，遮罩一撤就露出旧帧。画面没有其他缓存来源。
+- 踩坑：第一次用 `video-params`（解码器输出参数）作为出帧信号无效。日志显示它比 `TextureGL: resize`（原生实际绘制）早 100~400ms，且先后不稳定。`VideoController.waitUntilFirstFrameRendered` 只完成一次，controller 复用后无效。
+- 排查：临时观察 mpv `vo-configured`、`video-out-params` 与纹理 `rect`，对照原生 `TextureGL: resize` 时间戳，`vo-configured=yes` 与纹理尺寸变化都在原生出帧前后 30ms 内。
+- 解法：`VideoFrameGate`：本次 open 后 `vo-configured=yes` 且纹理尺寸等于新视频显示尺寸（尺寸不同时原生先重建纹理再绘制）才绘制纹理，此前露出黑色画布；无法观察 mpv 属性时退回直接显示，避免永久黑屏。
+- 规则：判断"画面已是新媒体"必须以原生绘制相关的信号为准，并用原生日志时间戳对照验证；解码层信号不等于已上屏。
+- 相关代码：`lib/services/video_frame_gate.dart`、`lib/services/media_kit_player_backend.dart`（`_startVideoFrameGate`）、`test/services/video_frame_gate_test.dart`；日志标签 `[VideoFrame]`。
+- 修复时间：2026-11-15。
