@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../providers/practice_media_split_provider.dart';
 import '../../services/app_logger.dart';
+import 'media_startup_canvas.dart';
+import 'media_startup_status.dart';
 import 'practice_media_split_geometry.dart';
 
 /// 学习任务页「视频 + 学习内容」的自适应分栏。
@@ -10,6 +12,9 @@ import 'practice_media_split_geometry.dart';
 /// 根据实际可用空间在上下 / 左右布局间切换（规则见
 /// [PracticeMediaSplitGeometry]），中间的分隔条可拖动调整视频高度或宽度，
 /// 松手后按方向记住比例。双击分隔条恢复默认尺寸。
+///
+/// 视频任务加载期间传入 [startupStatus]：加载 / 失败占位画在视频槽内，
+/// 学习内容保持真实布局但淡化且不可交互，ready 后布局不跳变。
 class PracticeMediaSplitLayout extends ConsumerStatefulWidget {
   const PracticeMediaSplitLayout({
     super.key,
@@ -18,6 +23,7 @@ class PracticeMediaSplitLayout extends ConsumerStatefulWidget {
     required this.videoAspectRatio,
     required this.content,
     this.panelHostBuilder,
+    this.startupStatus,
   });
 
   /// 视频画面；null 表示纯音频任务，只显示学习内容。
@@ -36,6 +42,12 @@ class PracticeMediaSplitLayout extends ConsumerStatefulWidget {
   /// 左右布局只包右侧学习内容，面板不会盖住视频。
   final Widget Function(Widget child)? panelHostBuilder;
 
+  /// 视频任务的启动状态；null 表示没有托管加载（音频任务或已直接可用）。
+  ///
+  /// 加载期间学习会话可能尚未初始化，[media] 往往为 null，因此视频槽由占位
+  /// 自己撑起，并强制按可分栏处理，否则会退化为无视频的单栏（troubleshooting 7.50）。
+  final MediaStartupStatus? startupStatus;
+
   @override
   ConsumerState<PracticeMediaSplitLayout> createState() =>
       _PracticeMediaSplitLayoutState();
@@ -51,17 +63,36 @@ class _PracticeMediaSplitLayoutState
   /// 拖动中的视频尺寸，只存在于拖动期间；松手后写入偏好并清空。
   double? _dragExtent;
 
+  /// 上一次排版使用的分栏方向，仅用于在方向切换时记录一次日志。
+  PracticeMediaSplitAxis? _loggedAxis;
+
   Widget _wrapPanelHost(Widget child) =>
       widget.panelHostBuilder?.call(child) ?? child;
 
   @override
   Widget build(BuildContext context) {
-    final content = KeyedSubtree(key: _contentKey, child: widget.content);
-    final media = widget.media;
+    final status = widget.startupStatus;
+    final loadingStatus = status != null && !status.isReady ? status : null;
+    final content = KeyedSubtree(
+      key: _contentKey,
+      child: _StartupContentGate(
+        isReady: loadingStatus == null,
+        child: widget.content,
+      ),
+    );
+    final media = loadingStatus == null
+        ? widget.media
+        : Stack(
+            fit: StackFit.expand,
+            children: [
+              ?widget.media,
+              MediaStartupCanvas(status: loadingStatus),
+            ],
+          );
     if (media == null) return _wrapPanelHost(content);
 
     final keyedMedia = KeyedSubtree(key: _mediaKey, child: media);
-    if (!widget.isMediaResizable) {
+    if (!widget.isMediaResizable && loadingStatus == null) {
       return _wrapPanelHost(
         Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -78,6 +109,7 @@ class _PracticeMediaSplitLayoutState
       builder: (context, constraints) {
         final size = constraints.biggest;
         final axis = PracticeMediaSplitGeometry.resolveAxis(size);
+        _logAxisChange(axis, size);
         final range = PracticeMediaSplitGeometry.extentRange(
           axis: axis,
           size: size,
@@ -132,6 +164,18 @@ class _PracticeMediaSplitLayoutState
     );
   }
 
+  /// 窗口缩放或旋转跨越断点时记录方向切换，便于把视频重建等现象对应到布局变化。
+  void _logAxisChange(PracticeMediaSplitAxis axis, Size size) {
+    if (_loggedAxis == axis) return;
+    AppLogger.log(
+      'PracticeMediaLayout',
+      '分栏方向: ${_loggedAxis?.name ?? 'initial'} → ${axis.name}, '
+          'size=${size.width.toStringAsFixed(0)}x'
+          '${size.height.toStringAsFixed(0)}',
+    );
+    _loggedAxis = axis;
+  }
+
   /// 画面容器按视频比例贴合，居中放在分给视频的区域里。
   Widget _fitMedia(Widget media, Size box) => Center(
     child: SizedBox.fromSize(
@@ -152,6 +196,13 @@ class _PracticeMediaSplitLayoutState
     if (dragExtent == null) return;
     final fraction = range.fractionOf(range.clamp(dragExtent));
     if (fraction == null) return;
+    // 拖到上下限后再次拖动时比例不变，跳过重复写入。
+    final savedFraction = ref
+        .read(practiceMediaSplitProvider)
+        .fractionFor(axis);
+    if (savedFraction != null && (savedFraction - fraction).abs() < 0.001) {
+      return;
+    }
     AppLogger.log(
       'PracticeMediaLayout',
       '保存视频尺寸: axis=${axis.name}, '
@@ -165,6 +216,30 @@ class _PracticeMediaSplitLayoutState
   void _resetExtent(PracticeMediaSplitAxis axis) {
     AppLogger.log('PracticeMediaLayout', '恢复默认视频尺寸: axis=${axis.name}');
     ref.read(practiceMediaSplitProvider.notifier).setVideoFraction(axis, null);
+  }
+}
+
+/// 视频加载期间保留学习内容的真实布局，但淡化并禁止点击，避免媒体未就绪时切句或播放。
+class _StartupContentGate extends StatelessWidget {
+  const _StartupContentGate({required this.isReady, required this.child});
+
+  final bool isReady;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final disableAnimations =
+        MediaQuery.maybeOf(context)?.disableAnimations ?? false;
+    return IgnorePointer(
+      ignoring: !isReady,
+      child: AnimatedOpacity(
+        opacity: isReady ? 1 : 0.5,
+        duration: disableAnimations
+            ? Duration.zero
+            : const Duration(milliseconds: 180),
+        child: child,
+      ),
+    );
   }
 }
 

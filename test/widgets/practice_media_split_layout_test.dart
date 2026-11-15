@@ -1,5 +1,6 @@
 import 'package:echo_loop/features/onboarding_survey/providers/onboarding_survey_provider.dart';
 import 'package:echo_loop/providers/practice_media_split_provider.dart';
+import 'package:echo_loop/services/app_logger.dart';
 import 'package:echo_loop/widgets/common/practice_media_split_geometry.dart';
 import 'package:echo_loop/widgets/common/practice_media_split_layout.dart';
 import 'package:flutter/material.dart';
@@ -118,6 +119,29 @@ void main() {
       preferences.containsKey(PracticeMediaSplitNotifier.sideBySideStorageKey),
       isFalse,
     );
+  });
+
+  // 回归：拖到上限后再次拖动比例不变，不应重复写入偏好（日志曾出现连续相同的保存）。
+  testWidgets('拖到上限后再次拖动不重复保存相同比例', (tester) async {
+    await pumpLayout(tester, size: const Size(1200, 800));
+    final divider = find.byKey(const ValueKey('practice-media-split-divider'));
+    int saveCount() => AppLogger.instance.entries
+        .where(
+          (entry) =>
+              entry.tag == 'PracticeMediaLayout' &&
+              entry.message.startsWith('保存视频尺寸'),
+        )
+        .length;
+    final before = saveCount();
+
+    await tester.drag(divider, const Offset(600, 0));
+    await tester.pumpAndSettle();
+    final maxWidth = tester.getSize(find.byKey(_mediaKey)).width;
+    await tester.drag(divider, const Offset(600, 0));
+    await tester.pumpAndSettle();
+
+    expect(tester.getSize(find.byKey(_mediaKey)).width, maxWidth);
+    expect(saveCount() - before, 1);
   });
 
   testWidgets('视频隐藏时不显示分隔条，内容占满剩余空间', (tester) async {

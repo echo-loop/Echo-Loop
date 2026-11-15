@@ -419,6 +419,7 @@ Widget createTestApp() {
 Widget createTestAppWithAudio({
   LearningProgress? progressOverride,
   AudioItem? audioItemOverride,
+  List<Override> extraOverrides = const [],
 }) {
   final audioItem = audioItemOverride ?? createTestAudioItem();
   final collection = createTestCollection();
@@ -472,6 +473,7 @@ Widget createTestAppWithAudio({
         TestReviewReminderService(),
       ),
       savedWordDaoProvider.overrideWithValue(TestSavedWordDao()),
+      ...extraOverrides,
     ],
     child: _AudioPreloadWrapper(
       audioItem: audioItem,

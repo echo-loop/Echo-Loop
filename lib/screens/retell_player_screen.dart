@@ -58,7 +58,6 @@ import '../widgets/common/speech_rating_badge.dart';
 import '../widgets/common/countdown_chip.dart';
 import '../widgets/common/repeat_practice_panel.dart';
 import '../widgets/common/paragraph_practice_scaffold.dart';
-import '../widgets/common/managed_media_visual_surface.dart';
 import '../widgets/common/practice_media_presentation_host.dart';
 import '../widgets/common/paragraph_sentence_list_card.dart';
 import '../widgets/common/sentence_translation_text.dart';
@@ -237,19 +236,6 @@ class _RetellPlayerScreenState extends ConsumerState<RetellPlayerScreen>
       return;
     }
     await _handleExit();
-  }
-
-  Widget _wrapMediaStartup(Widget child) {
-    final startup = widget.mediaStartup;
-    if (startup == null) return child;
-    return ManagedMediaVisualSurface(
-      loadKey: startup.loadKey,
-      load: startup.load,
-      cancel: startup.cancel,
-      onReady: _handleMediaStartupReady,
-      showVideoLoading: startup.showVideoLoading,
-      child: child,
-    );
   }
 
   @override
@@ -1797,6 +1783,7 @@ class _RetellPlayerScreenState extends ConsumerState<RetellPlayerScreen>
           isPlaying: state.isPlaying,
           onPlayPause: () => unawaited(_handleMainPlaybackTap()),
           onSessionChanged: (session) => _mediaPresentationSession = session,
+          fillVisualSurface: true,
           builder: (context, presentation, mediaSurface) => LearningHotkeyScope(
             onPlayPause: _handleMainPlaybackTap,
             onPrevious: _goToPreviousParagraph,
@@ -1827,8 +1814,11 @@ class _RetellPlayerScreenState extends ConsumerState<RetellPlayerScreen>
                   onSeekToIndex: isMultiParagraph
                       ? (p) => notifier.seekToParagraph(p)
                       : (i) => notifier.seekToSentence(i),
-                  topContent: presentation.enabled ? mediaSurface : null,
-                  bodyWrapper: _wrapMediaStartup,
+                  media: presentation.enabled ? mediaSurface : null,
+                  isMediaResizable: presentation.visualTrackVisible,
+                  videoAspectRatio: presentation.videoAspectRatio,
+                  mediaStartup: mediaStartup,
+                  onMediaStartupReady: _handleMediaStartupReady,
                   fullscreenBody: presentation.expanded ? mediaSurface : null,
                   paragraphContent: ParagraphSentenceListCard(
                     sentences: sentences,

@@ -1,4 +1,5 @@
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:echo_loop/providers/practice_media_split_provider.dart';
 import 'package:echo_loop/features/rating_prompt/data/rating_prompt_task_completion_store.dart';
 import 'package:echo_loop/features/rating_prompt/rating_prompt_providers.dart';
 
@@ -172,6 +173,10 @@ void main() {
         ...learningSettingsOverrides(
           showPlaybackSpeedButton: showPlaybackSpeedButton,
         ),
+        // 视频分栏只需默认尺寸；不全局注入 SharedPreferences，以免改变其他设置的读取来源。
+        practiceMediaSplitProvider.overrideWithBuild(
+          (ref, notifier) => PracticeMediaSplit.empty,
+        ),
         ...extraOverrides,
       ]),
       child: MaterialApp.router(
@@ -217,9 +222,7 @@ void main() {
       // 加载层只覆盖 Scaffold.body，不能像整页遮罩一样吞掉盲听的 AppBar。
       expect(find.text('Listen without subtitles'), findsOneWidget);
       final canvasTop = tester
-          .getTopLeft(
-            find.byKey(const ValueKey('managed-media-overlay-canvas')),
-          )
+          .getTopLeft(find.byKey(const ValueKey('media-startup-canvas')))
           .dy;
       expect(canvasTop, greaterThan(0));
       expect(starts, 0);
@@ -230,6 +233,68 @@ void main() {
       expect(find.byKey(const ValueKey('media-video-canvas')), findsOneWidget);
       expect(starts, 1);
     });
+
+    // 回归：段落任务共享骨架也要让加载占位按分栏排版，ready 前后布局不跳变。
+    for (final (label, size, splitKey) in [
+      ('宽屏', const Size(1200, 700), 'practice-media-split-side-by-side'),
+      ('窄屏', const Size(390, 844), 'practice-media-split-stacked'),
+    ]) {
+      testWidgets('$label视频加载中占位位于视频槽，内容区不可交互', (tester) async {
+        tester.view.physicalSize = size;
+        tester.view.devicePixelRatio = 1;
+        addTearDown(tester.view.reset);
+        final load = Completer<MediaLoadResult>();
+        final session = TestLearningSession(
+          const LearningSessionState(
+            learningMode: LearningMode.blindListen,
+            playbackChain: LearningPlaybackChain.mediaEngine,
+          ),
+        );
+        await tester.pumpWidget(
+          createTestWidget(
+            mediaStartup: MediaLearningStartup(
+              loadKey: 'video-1',
+              load: () => load.future,
+              cancel: () async {},
+            ),
+            extraOverrides: [
+              learningSessionProvider.overrideWith(() => session),
+            ],
+          ),
+        );
+        await tester.pump();
+
+        expect(find.byKey(ValueKey(splitKey)), findsOneWidget);
+        final canvas = find.byKey(const ValueKey('media-startup-canvas'));
+        final progress = find.byType(PracticeProgressBar);
+        final isSideBySide = size.width > size.height;
+        if (isSideBySide) {
+          expect(
+            tester.getTopRight(canvas).dx,
+            lessThanOrEqualTo(tester.getTopLeft(progress).dx),
+          );
+        } else {
+          expect(
+            tester.getBottomLeft(canvas).dy,
+            lessThanOrEqualTo(tester.getTopLeft(progress).dy),
+          );
+        }
+        final isProgressIgnored = tester
+            .widgetList<IgnorePointer>(
+              find.ancestor(of: progress, matching: find.byType(IgnorePointer)),
+            )
+            .any((w) => w.ignoring);
+        expect(isProgressIgnored, isTrue);
+        expect(tester.takeException(), isNull);
+
+        load.complete(MediaLoadResult.ready);
+        await tester.pumpAndSettle();
+
+        expect(find.byKey(ValueKey(splitKey)), findsOneWidget);
+        expect(canvas, findsNothing);
+        expect(tester.takeException(), isNull);
+      });
+    }
 
     testWidgets('音频启动复用加载托管层且不展示视频画布', (tester) async {
       final load = Completer<MediaLoadResult>();

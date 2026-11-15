@@ -6,9 +6,12 @@ library;
 import 'package:flutter/material.dart';
 
 import '../../l10n/app_localizations.dart';
+import '../../models/media_learning_startup.dart';
 import '../../theme/app_theme.dart';
 import '../practice/practice_progress_section.dart';
 import 'playback_controls.dart';
+import 'practice_media_split_layout.dart';
+import 'practice_media_startup_host.dart';
 import 'practice_playback_footer.dart';
 
 /// 段落练习页共享骨架
@@ -38,11 +41,20 @@ class ParagraphPracticeScaffold extends StatelessWidget {
 
   final Widget paragraphContent;
 
-  /// 视频段落任务的画面插槽；音频任务保持 null。
-  final Widget? topContent;
+  /// 视频段落任务的画面；音频任务保持 null。与段落内容按可用空间自适应分栏。
+  final Widget? media;
 
-  /// 包装页面 body 的可选宿主，例如视频加载状态托管层。
-  final Widget Function(Widget child)? bodyWrapper;
+  /// 视频轨可见时才可分栏和拖动，见 [PracticeMediaSplitLayout.isMediaResizable]。
+  final bool isMediaResizable;
+
+  /// 已解码视频的宽高比；未知时为 null。
+  final double? videoAspectRatio;
+
+  /// 进入页面后才执行的媒体准备任务；null 表示无需托管加载。
+  final MediaLearningStartup? mediaStartup;
+
+  /// [mediaStartup] 首次 ready 后回调。
+  final VoidCallback? onMediaStartupReady;
 
   /// 全屏时替换普通段落内容的 body；传入后同时隐藏 AppBar。
   final Widget? fullscreenBody;
@@ -80,8 +92,11 @@ class ParagraphPracticeScaffold extends StatelessWidget {
     this.remaining,
     this.onSeekToIndex,
     required this.paragraphContent,
-    this.topContent,
-    this.bodyWrapper,
+    this.media,
+    this.isMediaResizable = false,
+    this.videoAspectRatio,
+    this.mediaStartup,
+    this.onMediaStartupReady,
     this.fullscreenBody,
     this.contentControls,
     this.practiceControls,
@@ -102,9 +117,8 @@ class ParagraphPracticeScaffold extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final body = Column(
+    final content = Column(
       children: [
-        if (topContent != null) topContent!,
         PracticeProgressBar(
           current: current,
           total: total,
@@ -150,7 +164,6 @@ class ParagraphPracticeScaffold extends StatelessWidget {
       ],
     );
     final isFullscreen = fullscreenBody != null;
-    final pageBody = fullscreenBody ?? body;
     return Scaffold(
       appBar: isFullscreen
           ? null
@@ -169,7 +182,19 @@ class ParagraphPracticeScaffold extends StatelessWidget {
                 ),
               ],
             ),
-      body: bodyWrapper?.call(pageBody) ?? pageBody,
+      body: PracticeMediaStartupHost(
+        startup: mediaStartup,
+        onReady: onMediaStartupReady,
+        buildBody: (status) =>
+            fullscreenBody ??
+            PracticeMediaSplitLayout(
+              media: media,
+              isMediaResizable: isMediaResizable,
+              videoAspectRatio: videoAspectRatio,
+              startupStatus: status,
+              content: content,
+            ),
+      ),
     );
   }
 }

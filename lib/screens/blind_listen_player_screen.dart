@@ -51,7 +51,6 @@ import '../widgets/dialogs/free_play_complete_dialog.dart';
 import '../widgets/guide_flow.dart';
 import '../widgets/player_hotkey_scope.dart';
 import '../widgets/practice/practice_play_count_label.dart';
-import '../widgets/common/managed_media_visual_surface.dart';
 import '../widgets/common/practice_media_presentation_host.dart';
 import '../widgets/study/study_activity_detector.dart';
 
@@ -151,19 +150,6 @@ class _BlindListenPlayerScreenState
   Future<void> _handleMediaStartupExit() async {
     await widget.mediaStartup?.cancel();
     if (mounted) context.pop();
-  }
-
-  Widget _wrapMediaStartup(Widget child) {
-    final startup = widget.mediaStartup;
-    if (startup == null) return child;
-    return ManagedMediaVisualSurface(
-      loadKey: startup.loadKey,
-      load: startup.load,
-      cancel: startup.cancel,
-      onReady: _handleMediaStartupReady,
-      showVideoLoading: startup.showVideoLoading,
-      child: child,
-    );
   }
 
   @override
@@ -625,14 +611,16 @@ class _BlindListenPlayerScreenState
                 : unawaited(player.resume());
           },
           onSessionChanged: (session) => _mediaPresentationSession = session,
+          fillVisualSurface: true,
           builder: (context, presentation, mediaSurface) => _buildParagraphMode(
             context,
             l10n,
             theme,
             playerState,
             showPlaybackSpeedButton: showPlaybackSpeedButton,
-            topContent: presentation.enabled ? mediaSurface : null,
-            bodyWrapper: _wrapMediaStartup,
+            media: presentation.enabled ? mediaSurface : null,
+            isMediaResizable: presentation.visualTrackVisible,
+            videoAspectRatio: presentation.videoAspectRatio,
             fullscreenBody: presentation.expanded ? mediaSurface : null,
           ),
         ),
@@ -681,8 +669,9 @@ class _BlindListenPlayerScreenState
     ThemeData theme,
     BlindListenPlayerState playerState, {
     required bool showPlaybackSpeedButton,
-    Widget? topContent,
-    Widget Function(Widget child)? bodyWrapper,
+    Widget? media,
+    bool isMediaResizable = false,
+    double? videoAspectRatio,
     Widget? fullscreenBody,
   }) {
     final player = ref.read(blindListenPlayerProvider.notifier);
@@ -814,8 +803,11 @@ class _BlindListenPlayerScreenState
               explanationAreaGuideStep: explanationStep,
               bodyAreaGuideStep: bodyStep,
             ),
-            topContent: topContent,
-            bodyWrapper: bodyWrapper,
+            media: media,
+            isMediaResizable: isMediaResizable,
+            videoAspectRatio: videoAspectRatio,
+            mediaStartup: widget.mediaStartup,
+            onMediaStartupReady: _handleMediaStartupReady,
             fullscreenBody: fullscreenBody,
             contentControls: ConstrainedBox(
               constraints: const BoxConstraints(minHeight: 36),

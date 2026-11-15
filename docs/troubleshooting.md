@@ -730,3 +730,12 @@
 - 规则：加载占位属于布局的一部分，应由布局决定位置，不应由托管层用全页遮罩覆盖；“是否有视频”要区分会话状态与加载状态，布局判断不能只依赖会话已初始化的字段。
 - 相关代码：`lib/widgets/common/managed_media_visual_surface.dart`、`lib/widgets/common/media_startup_canvas.dart`、`lib/widgets/common/media_startup_status.dart`、`lib/screens/intensive_listen_player_screen.dart`（`_wrapMediaStartup`）。
 - 修复时间：2026-11-15。
+
+### 7.51 macOS 集成测试卡在首个用例：测试窗口被遮挡或隐藏后不再出帧
+
+- 现象：`flutter test integration_test/practice_media_split_test.dart -d macos` 编译启动后停在第一个用例，几分钟无任何 App 日志；上一轮在末尾用例出现 `[Lifecycle] state=hidden` 后同样停住。
+- 根因：macOS 窗口被最小化、切到其他桌面或完全遮挡时进入 hidden，引擎不再调度帧，`tester.pump` 一直等不到下一帧。
+- 解法：运行期间保持测试窗口在前台、不要最小化；已卡住时可用 `osascript -e 'tell application "System Events" to set frontmost of (first process whose unix id is <pid>) to true'` 把窗口切回前台，测试会继续。
+- 规则：Maestro 不支持 macOS 桌面应用，macOS 上的点按测试用 integration_test。冷启动期间立即 `push` 可能丢失，进入页面要按页面类型有界重试（见 `_openTask`）。
+- 相关代码：`integration_test/practice_media_split_test.dart`。
+- 记录时间：2026-11-15。

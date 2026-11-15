@@ -57,7 +57,8 @@ import '../widgets/common/recording_button.dart' show RecordingButtonMode;
 import '../widgets/common/repeat_practice_panel.dart';
 import '../widgets/practice/practice_progress_section.dart';
 import '../widgets/practice/practice_play_count_label.dart';
-import '../widgets/common/managed_media_visual_surface.dart';
+import '../widgets/common/practice_media_split_layout.dart';
+import '../widgets/common/practice_media_startup_host.dart';
 import '../widgets/common/practice_media_presentation_host.dart';
 import '../widgets/practice/practice_sentence_pager.dart';
 import '../widgets/study/study_activity_detector.dart';
@@ -177,20 +178,6 @@ class _ListenAndRepeatPlayerScreenState
   Future<void> _handleMediaStartupExit() async {
     await widget.mediaStartup?.cancel();
     if (mounted) context.pop();
-  }
-
-  /// 使用共享托管组件统一渲染媒体加载、失败重试和取消状态。
-  Widget _wrapMediaStartup(Widget child) {
-    final startup = widget.mediaStartup;
-    if (startup == null) return child;
-    return ManagedMediaVisualSurface(
-      loadKey: startup.loadKey,
-      load: startup.load,
-      cancel: startup.cancel,
-      showVideoLoading: startup.showVideoLoading,
-      onReady: _handleMediaStartupReady,
-      child: child,
-    );
   }
 
   @override
@@ -619,6 +606,7 @@ class _ListenAndRepeatPlayerScreenState
               audioItemId: widget.audioItemId,
               isPlaying: isPlaying,
               onPlayPause: _handleCenter,
+              fillVisualSurface: true,
               builder: (context, presentation, mediaSurface) => Scaffold(
                 appBar: presentation.expanded
                     ? null
@@ -670,14 +658,22 @@ class _ListenAndRepeatPlayerScreenState
                         ],
                       ),
                 // 词典面板宿主：面板内嵌 body、非 modal（显示期间正文可继续点词）
-                body: _wrapMediaStartup(
-                  presentation.expanded
+                body: PracticeMediaStartupHost(
+                  startup: widget.mediaStartup,
+                  onReady: _handleMediaStartupReady,
+                  buildBody: (status) => presentation.expanded
                       ? mediaSurface
-                      : DictionaryPanelHost(
-                          key: _dictPanelHostKey,
-                          child: Column(
+                      : PracticeMediaSplitLayout(
+                          media: ctrlState.hasVideo ? mediaSurface : null,
+                          isMediaResizable: presentation.visualTrackVisible,
+                          videoAspectRatio: presentation.videoAspectRatio,
+                          startupStatus: status,
+                          panelHostBuilder: (child) => DictionaryPanelHost(
+                            key: _dictPanelHostKey,
+                            child: child,
+                          ),
+                          content: Column(
                             children: [
-                              if (ctrlState.hasVideo) mediaSurface,
                               PracticeProgressBar(
                                 current: ctrlState.sentenceIndex + 1,
                                 total: ctrlState.totalSentences,

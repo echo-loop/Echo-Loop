@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../services/app_logger.dart';
 import '../../database/providers.dart';
 import '../../providers/media_engine/media_engine_provider.dart';
 import '../../providers/video_subtitle_mask_provider.dart';
@@ -187,6 +188,10 @@ class _PracticeMediaPresentationHostState
   }
 
   Future<void> _setVisible(bool visible) async {
+    AppLogger.log(
+      'PracticeMediaLayout',
+      '视频轨${visible ? '显示' : '隐藏'}: audio=${widget.audioItemId}',
+    );
     await ref.read(mediaEngineProvider.notifier).setVideoTrackEnabled(visible);
     if (mounted) setState(() => _visible = visible);
   }

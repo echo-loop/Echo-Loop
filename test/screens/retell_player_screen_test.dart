@@ -1,4 +1,5 @@
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:echo_loop/providers/practice_media_split_provider.dart';
 import 'package:echo_loop/features/rating_prompt/data/rating_prompt_task_completion_store.dart';
 import 'package:echo_loop/features/rating_prompt/rating_prompt_providers.dart';
 
@@ -445,6 +446,10 @@ void main() {
             cacheDao: _MockCacheDao(),
             apiClient: _MockApiClient(),
           ),
+        ),
+        // 视频分栏只需默认尺寸；不全局注入 SharedPreferences，以免改变其他设置的读取来源。
+        practiceMediaSplitProvider.overrideWithBuild(
+          (ref, notifier) => PracticeMediaSplit.empty,
         ),
         ...extraOverrides,
       ]),
