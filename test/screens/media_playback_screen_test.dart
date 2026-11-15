@@ -17,6 +17,7 @@ import 'package:echo_loop/providers/audio_engine/audio_engine_provider.dart';
 import 'package:echo_loop/providers/media_engine/media_engine_provider.dart';
 import 'package:echo_loop/providers/media_playback/media_playback_provider.dart';
 import 'package:echo_loop/providers/favorite_sentence_lifecycle_provider.dart';
+import 'package:echo_loop/providers/practice_media_split_provider.dart';
 import 'package:echo_loop/router/app_router.dart' show rootRouteObserver;
 import 'package:echo_loop/providers/sentence_ai_provider.dart';
 import 'package:echo_loop/providers/sentence_translation_provider.dart';
@@ -28,7 +29,9 @@ import 'package:echo_loop/services/sentence_ai_api_client.dart';
 import 'package:echo_loop/theme/app_theme.dart';
 import 'package:echo_loop/utils/app_data_dir.dart';
 import 'package:echo_loop/widgets/common/capsule_selector.dart';
+import 'package:echo_loop/widgets/common/media_visual_surface.dart';
 import 'package:echo_loop/widgets/common/paragraph_sentence_list_card.dart';
+import 'package:echo_loop/widgets/common/practice_media_split_geometry.dart';
 import 'package:echo_loop/widgets/common/masked_sentence_tile.dart';
 import 'package:echo_loop/widgets/common/free_player_sentence_pager.dart';
 import 'package:echo_loop/widgets/practice/sentence_explanation_view.dart';
@@ -38,7 +41,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:echo_loop/widgets/common/playback_controls.dart' show PlaybackToggleIcon, playbackCenterIconKey;
+import 'package:echo_loop/widgets/common/playback_controls.dart'
+    show PlaybackToggleIcon, playbackCenterIconKey;
 import 'package:go_router/go_router.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:echo_loop/services/app_logger.dart';
@@ -102,22 +106,28 @@ void main() {
     );
   });
 
+  /// 视频分栏尺寸偏好不落盘，避免用例之间互相影响。
+  Override mediaSplitOverride([
+    PracticeMediaSplit mediaSplit = PracticeMediaSplit.empty,
+  ]) => practiceMediaSplitProvider.overrideWithBuild(
+    (ref, notifier) => mediaSplit,
+  );
+
   List<Override> mediaOverrides({
     bool withTranscript = false,
     Future<List<Sentence>>? transcriptFuture,
     List<Sentence>? transcriptOverride,
     PlaybackStateDao? playbackStateDao,
+    PracticeMediaSplit mediaSplit = PracticeMediaSplit.empty,
   }) {
     final isolatedPlaybackStateDao =
         playbackStateDao ?? _MockPlaybackStateDao();
     final bookmarkDao = TestBookmarkDao();
     if (playbackStateDao == null) {
-      when(
-        () => isolatedPlaybackStateDao.getByAudioId(any()),
-      ).thenAnswer((_) async => null);
-      when(
-        () => isolatedPlaybackStateDao.saveState(any()),
-      ).thenAnswer((_) async {});
+      when(() => isolatedPlaybackStateDao.getByAudioId(any()))
+          .thenAnswer((_) async => null);
+      when(() => isolatedPlaybackStateDao.saveState(any()))
+          .thenAnswer((_) async {});
     }
     return [
       mediaBackendFactoryProvider.overrideWithValue(() => backend),
@@ -127,6 +137,7 @@ void main() {
       favoriteSentenceLifecycleProvider.overrideWithValue(
         _TestFavoriteSentenceLifecycle(bookmarkDao),
       ),
+      mediaSplitOverride(mediaSplit),
       if (withTranscript) ...[
         audioItemDaoProvider.overrideWithValue(audioItemDao),
         audioEngineProvider.overrideWith(
@@ -208,6 +219,10 @@ void main() {
                       .evaluate()
                       .isEmpty &&
                   find
+                      .byKey(const ValueKey('media-startup-canvas'))
+                      .evaluate()
+                      .isEmpty &&
+                  find
                       .byKey(const ValueKey('media-progress-elapsed-label'))
                       .evaluate()
                       .isNotEmpty)) &&
@@ -268,6 +283,7 @@ void main() {
         overrides: dedupeOverrides([
           mediaBackendFactoryProvider.overrideWithValue(() => backend),
           mediaSessionRouterProvider.overrideWithValue(router),
+          mediaSplitOverride(),
         ]),
       ),
     );
@@ -346,6 +362,7 @@ void main() {
         overrides: dedupeOverrides([
           mediaBackendFactoryProvider.overrideWithValue(() => backend),
           mediaSessionRouterProvider.overrideWithValue(router),
+          mediaSplitOverride(),
           appDatabaseProvider.overrideWithValue(database),
         ]),
       ),
@@ -398,6 +415,7 @@ void main() {
         overrides: dedupeOverrides([
           mediaBackendFactoryProvider.overrideWithValue(() => backend),
           mediaSessionRouterProvider.overrideWithValue(router),
+          mediaSplitOverride(),
         ]),
       ),
     );
@@ -425,6 +443,7 @@ void main() {
         overrides: dedupeOverrides([
           mediaBackendFactoryProvider.overrideWithValue(() => backend),
           mediaSessionRouterProvider.overrideWithValue(router),
+          mediaSplitOverride(),
         ]),
       ),
     );
@@ -470,9 +489,9 @@ void main() {
     await pumpMediaReady(tester);
 
     final context = tester.element(find.byType(MediaPlaybackScreen));
-    ProviderScope.containerOf(
-      context,
-    ).read(mediaPlaybackProvider.notifier).senseGroupRangePlayback;
+    ProviderScope.containerOf(context)
+        .read(mediaPlaybackProvider.notifier)
+        .senseGroupRangePlayback;
 
     await releaseMediaPage(tester);
     await tester.pumpWidget(const SizedBox.shrink());
@@ -639,7 +658,7 @@ void main() {
     );
     await tester.pump(const Duration(milliseconds: 10));
 
-    expect(find.byKey(const ValueKey('managed-media-loading')), findsOneWidget);
+    expect(find.byKey(const ValueKey('media-startup-canvas')), findsOneWidget);
     expect(
       find.byKey(const ValueKey('media-transcript-loading-indicator')),
       findsOneWidget,
@@ -764,6 +783,7 @@ void main() {
         overrides: dedupeOverrides([
           mediaBackendFactoryProvider.overrideWithValue(() => backend),
           mediaSessionRouterProvider.overrideWithValue(router),
+          mediaSplitOverride(),
         ]),
       ),
     );
@@ -1601,7 +1621,6 @@ void main() {
     });
   }
 
-
   testMediaWidgets('底部收藏按钮在全文与收藏列表间双向切换', (tester) async {
     await tester.pumpWidget(
       createTestApp(
@@ -2009,239 +2028,311 @@ void main() {
     await tester.pump();
   });
 
-  testMediaWidgets('宽横屏将视频控制区和字幕区自然拆为左右两栏', (tester) async {
+  /// 在指定视口尺寸下运行用例；结束时先卸载页面再恢复视口，避免旧树按
+  /// 恢复后的尺寸重布局产生迟到异常，污染下一个用例。
+  Future<void> runWithViewSize(
+    WidgetTester tester,
+    Size size,
+    Future<void> Function() body,
+  ) async {
     final originalPhysicalSize = tester.view.physicalSize;
     final originalDevicePixelRatio = tester.view.devicePixelRatio;
     tester.view.devicePixelRatio = 1;
-    tester.view.physicalSize = const Size(360, 800);
-
-    await tester.pumpWidget(
-      createTestApp(
-        MediaPlaybackScreen(audioItem: item),
-        overrides: mediaOverrides(withTranscript: true),
-      ),
-    );
-    await pumpMediaReady(tester);
-
-    final singleControlPanelHeight = tester
-        .getSize(find.byKey(const ValueKey('media-control-panel')))
-        .height;
-
-    tester.view.physicalSize = const Size(1200, 800);
-    await tester.pump();
-
-    expect(
-      find.byKey(const ValueKey('media-playback-wide-layout')),
-      findsOneWidget,
-    );
-    expect(
-      find.byKey(const ValueKey('media-playback-single-layout')),
-      findsNothing,
-    );
-
-    final videoRect = tester.getRect(
-      find.byKey(const ValueKey('fake-video-view')),
-    );
-    final transcriptRect = tester.getRect(
-      find.byType(ParagraphSentenceListCard),
-    );
-    final dividerRect = tester.getRect(
-      find.byKey(const ValueKey('media-visual-transcript-divider')),
-    );
-    final wideLayoutRect = tester.getRect(
-      find.byKey(const ValueKey('media-playback-wide-layout')),
-    );
-    final controlPanelRect = tester.getRect(
-      find.byKey(const ValueKey('media-control-panel')),
-    );
-    final infoBarRect = tester.getRect(
-      find.byKey(const ValueKey('media-info-bar')),
-    );
-    expect(videoRect.width, closeTo(dividerRect.left, 0.1));
-    // 控制区与单列一致，其余左栏高度全部交给黑色观看画布。
-    expect(controlPanelRect.height, closeTo(singleControlPanelHeight, 0.5));
-    expect(
-      videoRect.height,
-      closeTo(wideLayoutRect.height - controlPanelRect.height, 0.1),
-    );
-    expect(videoRect.bottom, closeTo(controlPanelRect.top, 0.1));
-    expect(transcriptRect.left, greaterThan(videoRect.left));
-    expect(dividerRect.width, 1);
-    expect(dividerRect.height, greaterThan(videoRect.height));
-    expect(controlPanelRect.bottom, closeTo(wideLayoutRect.bottom, 0.1));
-    expect(infoBarRect.center.dx, closeTo(controlPanelRect.center.dx, 0.1));
-    expect(videoRect.left, closeTo(0, 0.1));
-
+    tester.view.physicalSize = size;
+    await body();
     await releaseMediaPage(tester);
     await tester.pumpWidget(const SizedBox.shrink());
     tester.view.devicePixelRatio = originalDevicePixelRatio;
     tester.view.physicalSize = originalPhysicalSize;
     await tester.pump();
-  });
+  }
 
-  testMediaWidgets('大尺寸竖屏保持单列，宽高比大于一时立即切为双栏', (tester) async {
-    final originalPhysicalSize = tester.view.physicalSize;
-    final originalDevicePixelRatio = tester.view.devicePixelRatio;
-    tester.view.devicePixelRatio = 1;
-    tester.view.physicalSize = const Size(1200, 1500);
+  const stackedLayoutKey = ValueKey('practice-media-split-stacked');
+  const sideBySideLayoutKey = ValueKey('practice-media-split-side-by-side');
 
-    await tester.pumpWidget(
-      createTestApp(
-        MediaPlaybackScreen(audioItem: item),
-        overrides: mediaOverrides(withTranscript: true),
-      ),
-    );
-    await pumpMediaReady(tester);
-
-    expect(
-      find.byKey(const ValueKey('media-playback-single-layout')),
-      findsOneWidget,
-    );
-
-    tester.view.physicalSize = const Size(1200, 450);
-    await tester.pump();
-    expect(
-      find.byKey(const ValueKey('media-playback-wide-layout')),
-      findsOneWidget,
-    );
-
-    tester.view.physicalSize = const Size(1200, 800);
-    await tester.pump();
-    expect(
-      find.byKey(const ValueKey('media-playback-wide-layout')),
-      findsOneWidget,
-    );
-
-    final context = tester.element(find.byType(MediaPlaybackScreen));
-    final controller = ProviderScope.containerOf(
-      context,
-    ).read(mediaPlaybackProvider.notifier);
-    await controller.setVisualTrackVisible(false);
-    await tester.pump(const Duration(milliseconds: 600));
-    expect(
-      find.byKey(const ValueKey('media-playback-single-layout')),
-      findsOneWidget,
-    );
-    expect(
-      find.byKey(const ValueKey('media-visual-collapsed-bar')),
-      findsOneWidget,
-    );
-
-    await releaseMediaPage(tester);
-    await tester.pumpWidget(const SizedBox.shrink());
-    tester.view.devicePixelRatio = originalDevicePixelRatio;
-    tester.view.physicalSize = originalPhysicalSize;
-    await tester.pump();
-  });
-
-  testMediaWidgets('横向视频画布占满控制区之外的左栏余高', (tester) async {
-    final originalPhysicalSize = tester.view.physicalSize;
-    final originalDevicePixelRatio = tester.view.devicePixelRatio;
-    tester.view.devicePixelRatio = 1;
-    tester.view.physicalSize = const Size(1200, 800);
-
-    await tester.pumpWidget(
-      createTestApp(
-        MediaPlaybackScreen(audioItem: item),
-        overrides: mediaOverrides(withTranscript: true),
-      ),
-    );
-    await pumpMediaReady(tester);
-    backend.emitVideoAspectRatio(4 / 3);
-    await tester.pump();
-
-    final videoRect = tester.getRect(
-      find.byKey(const ValueKey('fake-video-view')),
-    );
-    final dividerRect = tester.getRect(
-      find.byKey(const ValueKey('media-visual-transcript-divider')),
-    );
-    final controlPanelRect = tester.getRect(
-      find.byKey(const ValueKey('media-control-panel')),
-    );
-    expect(videoRect.width, closeTo(dividerRect.left, 0.1));
-    expect(videoRect.height, greaterThan(videoRect.width * 3 / 4));
-    expect(controlPanelRect.top, closeTo(videoRect.bottom, 0.1));
-
-    await releaseMediaPage(tester);
-    await tester.pumpWidget(const SizedBox.shrink());
-    tester.view.devicePixelRatio = originalDevicePixelRatio;
-    tester.view.physicalSize = originalPhysicalSize;
-    await tester.pump();
-  });
-
-  testMediaWidgets('单列竖向视频保持固定画面高度并在画布内留黑边', (tester) async {
-    final originalPhysicalSize = tester.view.physicalSize;
-    final originalDevicePixelRatio = tester.view.devicePixelRatio;
-    tester.view.devicePixelRatio = 1;
-    tester.view.physicalSize = const Size(800, 1400);
-
-    await tester.pumpWidget(
-      createTestApp(
-        MediaPlaybackScreen(audioItem: item),
-        overrides: mediaOverrides(withTranscript: true),
-      ),
-    );
-    await pumpMediaReady(tester);
-    final canvasBeforeMetadata = tester.getSize(
-      find.byKey(const ValueKey('media-video-canvas')),
-    );
-    backend.emitVideoAspectRatio(9 / 16);
-    await tester.pump();
-
-    expect(
-      find.byKey(const ValueKey('media-playback-single-layout')),
-      findsOneWidget,
-    );
-
-    final canvasRect = tester.getRect(
-      find.byKey(const ValueKey('media-video-canvas')),
-    );
-    expect(
-      tester.getSize(find.byKey(const ValueKey('media-video-canvas'))),
-      canvasBeforeMetadata,
-    );
-    expect(canvasRect.width, closeTo(800, 0.1));
-    expect(canvasRect.height, 260);
-
-    await releaseMediaPage(tester);
-    await tester.pumpWidget(const SizedBox.shrink());
-    tester.view.devicePixelRatio = originalDevicePixelRatio;
-    tester.view.physicalSize = originalPhysicalSize;
-    await tester.pump();
-  });
-
-  testMediaWidgets('字幕加载中已按宽高比直接显示双栏', (tester) async {
-    final originalPhysicalSize = tester.view.physicalSize;
-    final originalDevicePixelRatio = tester.view.devicePixelRatio;
-    final transcriptCompleter = Completer<List<Sentence>>();
-    tester.view.devicePixelRatio = 1;
-    tester.view.physicalSize = const Size(1200, 800);
-
-    await tester.pumpWidget(
-      createTestApp(
-        MediaPlaybackScreen(audioItem: item),
-        overrides: mediaOverrides(
-          withTranscript: true,
-          transcriptFuture: transcriptCompleter.future,
+  testMediaWidgets('宽横屏视频独占左列，字幕与控制面板在右栏', (tester) async {
+    await runWithViewSize(tester, const Size(360, 800), () async {
+      await tester.pumpWidget(
+        createTestApp(
+          MediaPlaybackScreen(audioItem: item),
+          overrides: mediaOverrides(withTranscript: true),
         ),
-      ),
-    );
-    await pumpMediaReady(tester, waitForPlaybackReady: false);
+      );
+      await pumpMediaReady(tester);
+      final narrowControlPanelHeight = tester
+          .getSize(find.byKey(const ValueKey('media-control-panel')))
+          .height;
 
-    expect(
-      find.byKey(const ValueKey('media-playback-wide-layout')),
-      findsOneWidget,
-    );
-    expect(
-      find.byKey(const ValueKey('media-transcript-loading-indicator')),
-      findsOneWidget,
-    );
+      tester.view.physicalSize = const Size(1200, 800);
+      await tester.pump();
 
-    await tester.pumpWidget(const SizedBox.shrink());
-    tester.view.devicePixelRatio = originalDevicePixelRatio;
-    tester.view.physicalSize = originalPhysicalSize;
-    await tester.pump();
+      expect(tester.takeException(), isNull);
+      expect(find.byKey(sideBySideLayoutKey), findsOneWidget);
+      final layoutRect = tester.getRect(find.byKey(sideBySideLayoutKey));
+      final videoRect = tester.getRect(
+        find.byKey(const ValueKey('media-video-canvas')),
+      );
+      final dividerRect = tester.getRect(
+        find.byKey(const ValueKey('practice-media-split-divider')),
+      );
+      final transcriptRect = tester.getRect(
+        find.byType(ParagraphSentenceListCard),
+      );
+      final controlPanelRect = tester.getRect(
+        find.byKey(const ValueKey('media-control-panel')),
+      );
+      final infoBarRect = tester.getRect(
+        find.byKey(const ValueKey('media-info-bar')),
+      );
+      expect(videoRect.right, lessThanOrEqualTo(dividerRect.left + 0.1));
+      expect(transcriptRect.left, closeTo(dividerRect.right, 0.1));
+      expect(controlPanelRect.left, closeTo(dividerRect.right, 0.1));
+      expect(controlPanelRect.right, closeTo(layoutRect.right, 0.1));
+      expect(controlPanelRect.bottom, closeTo(layoutRect.bottom, 0.1));
+      expect(transcriptRect.bottom, closeTo(controlPanelRect.top, 0.1));
+      // 右栏较窄时控制面板与手机单列一样紧凑。
+      expect(controlPanelRect.height, closeTo(narrowControlPanelHeight, 0.5));
+      expect(infoBarRect.center.dx, closeTo(controlPanelRect.center.dx, 0.1));
+      // 视频不再与控制面板共享左列，画面按比例在左列垂直居中。
+      expect(videoRect.center.dy, closeTo(layoutRect.center.dy, 0.5));
+      expect(videoRect.width / videoRect.height, closeTo(16 / 9, 0.01));
+    });
+  });
+
+  testMediaWidgets('布局方向按统一断点切换，隐藏视频轨时回到单列', (tester) async {
+    await runWithViewSize(tester, const Size(1200, 1500), () async {
+      await tester.pumpWidget(
+        createTestApp(
+          MediaPlaybackScreen(audioItem: item),
+          overrides: mediaOverrides(withTranscript: true),
+        ),
+      );
+      await pumpMediaReady(tester);
+      expect(find.byKey(stackedLayoutKey), findsOneWidget);
+
+      tester.view.physicalSize = const Size(1200, 450);
+      await tester.pump();
+      expect(find.byKey(sideBySideLayoutKey), findsOneWidget);
+
+      // 宽度不足 720 时即使是横向窗口也保持上下布局，保证右栏字幕可读。
+      tester.view.physicalSize = const Size(700, 480);
+      await tester.pump();
+      expect(tester.takeException(), isNull);
+      expect(find.byKey(stackedLayoutKey), findsOneWidget);
+
+      tester.view.physicalSize = const Size(1200, 800);
+      await tester.pump();
+      expect(find.byKey(sideBySideLayoutKey), findsOneWidget);
+
+      final context = tester.element(find.byType(MediaPlaybackScreen));
+      final controller = ProviderScope.containerOf(context)
+          .read(mediaPlaybackProvider.notifier);
+      await controller.setVisualTrackVisible(false);
+      await tester.pump(const Duration(milliseconds: 600));
+      expect(find.byKey(sideBySideLayoutKey), findsNothing);
+      expect(find.byKey(stackedLayoutKey), findsNothing);
+      expect(
+        find.byKey(const ValueKey('practice-media-split-divider')),
+        findsNothing,
+      );
+      expect(
+        find.byKey(const ValueKey('media-visual-collapsed-bar')),
+        findsOneWidget,
+      );
+    });
+  });
+
+  // 回归：视频拉到最大时，字幕区与控制面板仍完整可见。
+  testMediaWidgets('视频拉到最大时字幕区与控制面板不溢出', (tester) async {
+    await runWithViewSize(tester, const Size(700, 700), () async {
+      await tester.pumpWidget(
+        createTestApp(
+          MediaPlaybackScreen(audioItem: item),
+          overrides: mediaOverrides(
+            withTranscript: true,
+            mediaSplit: const PracticeMediaSplit(
+              stackedVideoFraction: 0.95,
+              sideBySideVideoFraction: 0.95,
+            ),
+          ),
+        ),
+      );
+      await pumpMediaReady(tester);
+      // 竖向视频的自然高度超过可用高度，视频高度只受学习区下限约束。
+      backend.emitVideoAspectRatio(9 / 16);
+      await tester.pump();
+
+      expect(tester.takeException(), isNull);
+      expect(find.byKey(stackedLayoutKey), findsOneWidget);
+      var videoRect = tester.getRect(
+        find.byKey(const ValueKey('media-video-canvas')),
+      );
+      var transcriptRect = tester.getRect(
+        find.byType(ParagraphSentenceListCard),
+      );
+      var controlPanelRect = tester.getRect(
+        find.byKey(const ValueKey('media-control-panel')),
+      );
+      expect(videoRect.bottom, lessThanOrEqualTo(transcriptRect.top));
+      expect(transcriptRect.height, greaterThan(0));
+      expect(controlPanelRect.bottom, lessThanOrEqualTo(700));
+
+      tester.view.physicalSize = const Size(1200, 800);
+      await tester.pump();
+      backend.emitVideoAspectRatio(16 / 9);
+      await tester.pump();
+
+      expect(tester.takeException(), isNull);
+      expect(find.byKey(sideBySideLayoutKey), findsOneWidget);
+      videoRect = tester.getRect(
+        find.byKey(const ValueKey('media-video-canvas')),
+      );
+      transcriptRect = tester.getRect(find.byType(ParagraphSentenceListCard));
+      controlPanelRect = tester.getRect(
+        find.byKey(const ValueKey('media-control-panel')),
+      );
+      expect(videoRect.right, lessThanOrEqualTo(transcriptRect.left));
+      expect(
+        controlPanelRect.width,
+        greaterThanOrEqualTo(
+          PracticeMediaSplitGeometry.sideBySideMinContentExtent,
+        ),
+      );
+    });
+  });
+
+  testMediaWidgets('上下布局竖向视频按比例贴合，不铺满整行黑边', (tester) async {
+    await runWithViewSize(tester, const Size(800, 1400), () async {
+      await tester.pumpWidget(
+        createTestApp(
+          MediaPlaybackScreen(audioItem: item),
+          overrides: mediaOverrides(withTranscript: true),
+        ),
+      );
+      await pumpMediaReady(tester);
+      backend.emitVideoAspectRatio(9 / 16);
+      await tester.pump();
+
+      expect(find.byKey(stackedLayoutKey), findsOneWidget);
+      final canvasRect = tester.getRect(
+        find.byKey(const ValueKey('media-video-canvas')),
+      );
+      expect(canvasRect.width / canvasRect.height, closeTo(9 / 16, 0.01));
+      expect(canvasRect.center.dx, closeTo(400, 0.5));
+      expect(canvasRect.height, greaterThan(260));
+    });
+  });
+
+  // 回归（troubleshooting 7.50）：加载占位必须画在最终布局的视频槽内。
+  for (final (label, size, layoutKey) in const [
+    ('宽屏', Size(1200, 800), sideBySideLayoutKey),
+    ('窄屏', Size(390, 844), stackedLayoutKey),
+  ]) {
+    testMediaWidgets('$label加载中占位位于视频槽，内容区不可交互', (tester) async {
+      await runWithViewSize(tester, size, () async {
+        final transcriptCompleter = Completer<List<Sentence>>();
+        await tester.pumpWidget(
+          createTestApp(
+            MediaPlaybackScreen(audioItem: item),
+            overrides: mediaOverrides(
+              withTranscript: true,
+              transcriptFuture: transcriptCompleter.future,
+            ),
+          ),
+        );
+        await tester.pump(const Duration(milliseconds: 10));
+
+        final canvas = find.byKey(const ValueKey('media-startup-canvas'));
+        final controlPanel = find.byKey(const ValueKey('media-control-panel'));
+        expect(find.byKey(layoutKey), findsOneWidget);
+        expect(canvas, findsOneWidget);
+        expect(
+          find.byKey(const ValueKey('media-transcript-loading-indicator')),
+          findsOneWidget,
+        );
+        if (layoutKey == sideBySideLayoutKey) {
+          expect(
+            tester.getRect(canvas).right,
+            lessThanOrEqualTo(tester.getRect(controlPanel).left),
+          );
+        } else {
+          expect(
+            tester.getRect(canvas).bottom,
+            lessThanOrEqualTo(tester.getRect(controlPanel).top),
+          );
+        }
+        final ignoringAncestors = find.ancestor(
+          of: controlPanel,
+          matching: find.byWidgetPredicate(
+            (widget) => widget is IgnorePointer && widget.ignoring,
+          ),
+        );
+        expect(ignoringAncestors, findsWidgets);
+        final loadingSurfaceState = tester.state(
+          find.byType(MediaVisualSurface),
+        );
+
+        transcriptCompleter.complete(transcriptSentences);
+        await pumpMediaReady(tester);
+        expect(find.byKey(layoutKey), findsOneWidget);
+        expect(canvas, findsNothing);
+        // 回归：ready 去掉占位后视频画面原样保留，不重建纹理与遮罩。
+        expect(
+          tester.state(find.byType(MediaVisualSurface)),
+          same(loadingSurfaceState),
+        );
+      });
+    });
+  }
+
+  testMediaWidgets('跨断点保留字幕列表、视频画面与词典面板状态', (tester) async {
+    await runWithViewSize(tester, const Size(390, 844), () async {
+      await tester.pumpWidget(
+        createTestApp(
+          MediaPlaybackScreen(audioItem: item),
+          overrides: mediaOverrides(withTranscript: true),
+        ),
+      );
+      await pumpMediaReady(tester);
+      expect(find.byKey(stackedLayoutKey), findsOneWidget);
+      final listState = tester.state(find.byType(ParagraphSentenceListCard));
+      final surfaceState = tester.state(find.byType(MediaVisualSurface));
+      final panelHostState = tester.state(find.byType(DictionaryPanelHost));
+
+      tester.view.physicalSize = const Size(1200, 800);
+      await tester.pump();
+      expect(find.byKey(sideBySideLayoutKey), findsOneWidget);
+      // State 实例不变即说明滚动位置、遮罩与视频纹理、已打开的词典面板都被保留。
+      expect(
+        tester.state(find.byType(ParagraphSentenceListCard)),
+        same(listState),
+      );
+      expect(tester.state(find.byType(MediaVisualSurface)), same(surfaceState));
+      expect(
+        tester.state(find.byType(DictionaryPanelHost)),
+        same(panelHostState),
+      );
+      // 左右布局下词典面板只覆盖右栏，不遮挡视频。
+      expect(
+        find.ancestor(
+          of: find.byType(MediaVisualSurface),
+          matching: find.byType(DictionaryPanelHost),
+        ),
+        findsNothing,
+      );
+
+      tester.view.physicalSize = const Size(390, 844);
+      await tester.pump();
+      expect(find.byKey(stackedLayoutKey), findsOneWidget);
+      expect(
+        tester.state(find.byType(ParagraphSentenceListCard)),
+        same(listState),
+      );
+      expect(
+        tester.state(find.byType(DictionaryPanelHost)),
+        same(panelHostState),
+      );
+    });
   });
 
   testMediaWidgets('macOS 未确认原生全屏时不进入窗口内伪全屏', (tester) async {
@@ -2251,6 +2342,7 @@ void main() {
         overrides: dedupeOverrides([
           mediaBackendFactoryProvider.overrideWithValue(() => backend),
           mediaSessionRouterProvider.overrideWithValue(router),
+          mediaSplitOverride(),
         ]),
       ),
     );
@@ -2280,6 +2372,7 @@ void main() {
         overrides: dedupeOverrides([
           mediaBackendFactoryProvider.overrideWithValue(() => backend),
           mediaSessionRouterProvider.overrideWithValue(router),
+          mediaSplitOverride(),
         ]),
       ),
     );
@@ -2307,6 +2400,7 @@ void main() {
         overrides: dedupeOverrides([
           mediaBackendFactoryProvider.overrideWithValue(() => backend),
           mediaSessionRouterProvider.overrideWithValue(router),
+          mediaSplitOverride(),
         ]),
       ),
     );
@@ -2336,6 +2430,7 @@ void main() {
         overrides: dedupeOverrides([
           mediaBackendFactoryProvider.overrideWithValue(() => backend),
           mediaSessionRouterProvider.overrideWithValue(router),
+          mediaSplitOverride(),
         ]),
       ),
     );
@@ -2461,6 +2556,7 @@ void main() {
         overrides: dedupeOverrides([
           mediaBackendFactoryProvider.overrideWithValue(() => backend),
           mediaSessionRouterProvider.overrideWithValue(router),
+          mediaSplitOverride(),
         ]),
       ),
     );
@@ -2592,6 +2688,7 @@ void main() {
         overrides: dedupeOverrides([
           mediaBackendFactoryProvider.overrideWithValue(() => backend),
           mediaSessionRouterProvider.overrideWithValue(router),
+          mediaSplitOverride(),
         ]),
       ),
     );
@@ -2619,9 +2716,10 @@ void main() {
     await tester.pump();
     final context = tester.element(find.byType(MediaPlaybackScreen));
     expect(
-      ProviderScope.containerOf(
-        context,
-      ).read(mediaPlaybackProvider).settings.wholeInterval,
+      ProviderScope.containerOf(context)
+          .read(mediaPlaybackProvider)
+          .settings
+          .wholeInterval,
       const Duration(seconds: 6),
     );
   });
@@ -2641,6 +2739,7 @@ void main() {
         overrides: dedupeOverrides([
           mediaBackendFactoryProvider.overrideWithValue(() => backend),
           mediaSessionRouterProvider.overrideWithValue(router),
+          mediaSplitOverride(),
         ]),
       ),
     );

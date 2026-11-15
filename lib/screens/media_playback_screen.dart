@@ -8,6 +8,7 @@ import '../features/auth/providers/auth_providers.dart';
 import '../l10n/app_localizations.dart';
 import '../models/audio_item.dart';
 import '../models/listening_practice_state.dart';
+import '../models/media_learning_startup.dart';
 import '../models/media_playback_state.dart';
 import '../models/playback_settings.dart';
 import '../models/retell_settings.dart';
@@ -32,7 +33,9 @@ import '../widgets/common/paragraph_sentence_list_card.dart';
 import '../widgets/common/free_player_sentence_pager.dart';
 import '../widgets/common/sentence_translation_text.dart';
 import '../widgets/common/media_visual_surface.dart';
-import '../widgets/common/managed_media_visual_surface.dart';
+import '../widgets/common/media_startup_status.dart';
+import '../widgets/common/practice_media_split_layout.dart';
+import '../widgets/common/practice_media_startup_host.dart';
 import '../widgets/dictionary/dictionary_panel_host.dart';
 import '../widgets/player_hotkey_scope.dart';
 import '../widgets/study/study_activity_detector.dart';
@@ -55,11 +58,11 @@ class MediaPlaybackScreen extends ConsumerStatefulWidget {
 
 class _MediaPlaybackScreenState extends ConsumerState<MediaPlaybackScreen>
     with SingleTickerProviderStateMixin, RouteAware {
-  /// 单列播放器控制区的紧凑基准高度。
-  ///
-  /// 双栏复用同一基准，避免宽屏时把视频下方的控制区人为拉高。
-  static const _singleColumnControlPanelHeight = 176.0;
+  /// 内容区窄于该宽度时控制面板使用紧凑排布，与 [_MediaControls] 的手机判定一致。
+  static const _compactControlPanelMaxWidth = 600.0;
   static const _progressTimeLabelWidth = 48.0;
+
+  final _dictPanelHostKey = GlobalKey(debugLabel: 'media-dict-panel-host');
 
   late final TabController _playlistViewController;
   final _fullSentencePagerController = FreePlayerSentencePagerController();
@@ -230,15 +233,14 @@ class _MediaPlaybackScreenState extends ConsumerState<MediaPlaybackScreen>
                   title: _buildAppBarTitle(state, l10n),
                   actions: const [SleepTimerButton.mediaPlayback()],
                 ),
-          body: ManagedMediaVisualSurface(
-            loadKey: widget.audioItem.id,
-            load: () => _controller.load(widget.audioItem),
-            cancel: _controller.cancelLoad,
-            showVideoLoading: widget.audioItem.isVideo,
-            child: DictionaryPanelHost(
-              handleBackButton: true,
-              child: _buildBody(context, state, l10n),
+          body: PracticeMediaStartupHost(
+            startup: MediaLearningStartup(
+              loadKey: widget.audioItem.id,
+              load: () => _controller.load(widget.audioItem),
+              cancel: _controller.cancelLoad,
+              showVideoLoading: widget.audioItem.isVideo,
             ),
+            buildBody: (status) => _buildBody(context, state, l10n, status),
           ),
         ),
       ),
@@ -267,79 +269,67 @@ class _MediaPlaybackScreenState extends ConsumerState<MediaPlaybackScreen>
     );
   }
 
+  /// 页面正文。视频材料与学习任务页共用 [PracticeMediaSplitLayout]：
+  /// 字幕与控制面板作为一个整体的内容区，宽屏时位于右侧，视频独占左列全高；
+  /// 加载期间 [startupStatus] 让占位画在视频槽内（troubleshooting 7.50）。
   Widget _buildBody(
     BuildContext context,
     MediaPlaybackState state,
     AppLocalizations l10n,
+    MediaStartupStatus? startupStatus,
   ) {
     final hasVideoTrack = widget.audioItem.isVideo;
-    if (hasVideoTrack && state.visualTrackExpanded) {
-      return _buildMediaVisualSurface(state);
-    }
-
     if (!hasVideoTrack) {
-      return Column(
-        key: const ValueKey('media-playback-audio-layout'),
-        children: [
-          Expanded(child: _buildTranscriptView(context, state, l10n)),
-          _buildControlPanel(context, state),
-        ],
+      return DictionaryPanelHost(
+        key: _dictPanelHostKey,
+        handleBackButton: true,
+        child: Column(
+          key: const ValueKey('media-playback-audio-layout'),
+          children: [
+            Expanded(child: _buildTranscriptView(context, state, l10n)),
+            _buildControlPanel(context, state),
+          ],
+        ),
       );
     }
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final useWideLayout = _useWideMediaLayout(constraints, state);
-        if (!useWideLayout) {
-          return Column(
-            key: const ValueKey('media-playback-single-layout'),
-            children: [
-              _buildMediaVisualSurface(state),
-              const _MediaContentDivider(),
-              Expanded(child: _buildTranscriptView(context, state, l10n)),
-              _buildControlPanel(context, state),
-            ],
-          );
-        }
+    if (state.visualTrackExpanded) {
+      return _wrapDictionaryPanelHost(_buildMediaVisualSurface(state));
+    }
 
-        return Row(
-          key: const ValueKey('media-playback-wide-layout'),
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+    return PracticeMediaSplitLayout(
+      media: _buildMediaVisualSurface(state),
+      isMediaResizable: state.visualTrackVisible,
+      videoAspectRatio: state.videoAspectRatio,
+      startupStatus: startupStatus,
+      panelHostBuilder: _wrapDictionaryPanelHost,
+      // 控制面板按内容区实际宽度决定是否紧凑：左右布局的右栏较窄时收起上下留白。
+      content: LayoutBuilder(
+        builder: (context, constraints) => Column(
           children: [
-            Expanded(
-              flex: 3,
-              child: Column(
-                children: [
-                  Expanded(
-                    child: _buildMediaVisualSurface(
-                      state,
-                      fillAvailableHeight: true,
-                    ),
-                  ),
-                  _buildControlPanel(
-                    context,
-                    state,
-                    minimumHeight: _singleColumnControlPanelHeight,
-                    compact: true,
-                  ),
-                ],
-              ),
-            ),
-            const _MediaContentDivider(vertical: true),
-            Expanded(
-              flex: 2,
-              child: _buildTranscriptView(context, state, l10n),
+            Expanded(child: _buildTranscriptView(context, state, l10n)),
+            _buildControlPanel(
+              context,
+              state,
+              compact: constraints.maxWidth < _compactControlPanelMaxWidth,
             ),
           ],
-        );
-      },
+        ),
+      ),
     );
   }
 
-  Widget _buildMediaVisualSurface(
-    MediaPlaybackState state, {
-    bool fillAvailableHeight = false,
-  }) {
+  /// 词典面板宿主在全屏 / 上下 / 左右布局间移动时用同一个 GlobalKey 保留面板状态。
+  Widget _wrapDictionaryPanelHost(Widget child) => DictionaryPanelHost(
+    key: _dictPanelHostKey,
+    handleBackButton: true,
+    child: child,
+  );
+
+  Widget _buildMediaVisualSurface(MediaPlaybackState state) {
+    // 分栏布局按视频比例给出画面槽位，画面铺满槽位；隐藏视频轨时是一条恢复条，
+    // 父级高度不受约束，不能铺满。
+    final fillAvailableHeight = state.visualTrackVisible;
     // 讲解子路由正在显示同一个 media_kit 会话时，父路由不再同时创建第二个
     // Video 纹理；但必须保留同尺寸黑色画布，避免路由交接首帧露出下方字幕区。
     // 返回后由本页面恢复唯一画面宿主。
@@ -383,23 +373,6 @@ class _MediaPlaybackScreenState extends ConsumerState<MediaPlaybackScreen>
           .read(mediaEngineProvider.notifier)
           .buildVideoView(viewportSize: size),
     );
-  }
-
-  /// 根据页面实际可用空间决定是否采用视频与字幕双栏。
-  ///
-  /// 此策略刻意只存在于 UI 层：窗口缩放不应影响媒体会话、播放进度或字幕状态。
-  /// 画面可见时，仅按实际内容区宽高比决定布局，避免等待字幕异步加载后再跳变。
-  bool _useWideMediaLayout(
-    BoxConstraints constraints,
-    MediaPlaybackState state,
-  ) {
-    final width = constraints.maxWidth;
-    final height = constraints.maxHeight;
-    return state.visualTrackVisible &&
-        width.isFinite &&
-        height.isFinite &&
-        height > 0 &&
-        width / height > 1;
   }
 
   Widget _buildTranscriptView(
@@ -708,7 +681,6 @@ class _MediaPlaybackScreenState extends ConsumerState<MediaPlaybackScreen>
   Widget _buildControlPanel(
     BuildContext context,
     MediaPlaybackState state, {
-    double? minimumHeight,
     bool compact = false,
   }) {
     final controls = _MediaControls(
@@ -718,32 +690,29 @@ class _MediaPlaybackScreenState extends ConsumerState<MediaPlaybackScreen>
           unawaited(_handleSentenceNavigation(-1, trigger: 'button')),
       onNext: () => unawaited(_handleSentenceNavigation(1, trigger: 'button')),
     );
-    return ConstrainedBox(
-      constraints: BoxConstraints(minHeight: minimumHeight ?? 0),
-      child: Container(
-        key: const ValueKey('media-control-panel'),
-        decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surface,
-          border: Border(
-            top: BorderSide(
-              color: Theme.of(context).colorScheme.outlineVariant,
-              width: 0.5,
-            ),
+    return Container(
+      key: const ValueKey('media-control-panel'),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
+        border: Border(
+          top: BorderSide(
+            color: Theme.of(context).colorScheme.outlineVariant,
+            width: 0.5,
           ),
         ),
-        child: SafeArea(
-          top: false,
-          bottom: true,
-          maintainBottomViewPadding: true,
-          minimum: const EdgeInsets.only(bottom: AppSpacing.s),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _buildProgressBar(state),
-              controls,
-              _MediaInfoBar(state: state),
-            ],
-          ),
+      ),
+      child: SafeArea(
+        top: false,
+        bottom: true,
+        maintainBottomViewPadding: true,
+        minimum: const EdgeInsets.only(bottom: AppSpacing.s),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _buildProgressBar(state),
+            controls,
+            _MediaInfoBar(state: state),
+          ],
         ),
       ),
     );
@@ -966,26 +935,6 @@ class _MediaVisualHandoffCanvas extends StatelessWidget {
           child: const ColoredBox(color: Colors.black),
         );
       },
-    );
-  }
-}
-
-/// 在视频画面和字幕阅读区之间提供不占空间的细分割线。
-class _MediaContentDivider extends StatelessWidget {
-  const _MediaContentDivider({this.vertical = false});
-
-  static const _opacity = 0.45;
-
-  final bool vertical;
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    return Container(
-      key: const ValueKey('media-visual-transcript-divider'),
-      height: vertical ? double.infinity : 1,
-      width: vertical ? 1 : double.infinity,
-      color: colorScheme.outlineVariant.withValues(alpha: _opacity),
     );
   }
 }

@@ -7,7 +7,7 @@ import 'media_startup_canvas.dart';
 import 'media_startup_status.dart';
 import 'practice_media_split_geometry.dart';
 
-/// 学习任务页「视频 + 学习内容」的自适应分栏。
+/// 学习任务页与随心听「视频 + 学习内容」的自适应分栏。
 ///
 /// 根据实际可用空间在上下 / 左右布局间切换（规则见
 /// [PracticeMediaSplitGeometry]），中间的分隔条可拖动调整视频高度或宽度，
@@ -59,6 +59,9 @@ class _PracticeMediaSplitLayoutState
   // 保留状态（视频纹理、句子分页位置、词典面板）而不是销毁重建。
   final _mediaKey = GlobalKey(debugLabel: 'practice-media-split-media');
   final _contentKey = GlobalKey(debugLabel: 'practice-media-split-content');
+  final _mediaSurfaceKey = GlobalKey(
+    debugLabel: 'practice-media-split-media-surface',
+  );
 
   /// 拖动中的视频尺寸，只存在于拖动期间；松手后写入偏好并清空。
   double? _dragExtent;
@@ -80,12 +83,18 @@ class _PracticeMediaSplitLayoutState
         child: widget.content,
       ),
     );
+    // 加载期间视频外层多一个叠放占位的 Stack；单独的 GlobalKey 让视频画面在
+    // ready 去掉 Stack 时原样保留，而不是销毁重建（纹理、遮罩重新挂载）。
+    final rawMedia = widget.media;
+    final stableMedia = rawMedia == null
+        ? null
+        : KeyedSubtree(key: _mediaSurfaceKey, child: rawMedia);
     final media = loadingStatus == null
-        ? widget.media
+        ? stableMedia
         : Stack(
             fit: StackFit.expand,
             children: [
-              ?widget.media,
+              ?stableMedia,
               MediaStartupCanvas(status: loadingStatus),
             ],
           );
@@ -109,7 +118,7 @@ class _PracticeMediaSplitLayoutState
       builder: (context, constraints) {
         final size = constraints.biggest;
         final axis = PracticeMediaSplitGeometry.resolveAxis(size);
-        _logAxisChange(axis, size);
+        _logAxisChange(axis, size, split.fractionFor(axis));
         final range = PracticeMediaSplitGeometry.extentRange(
           axis: axis,
           size: size,
@@ -164,14 +173,20 @@ class _PracticeMediaSplitLayoutState
     );
   }
 
-  /// 窗口缩放或旋转跨越断点时记录方向切换，便于把视频重建等现象对应到布局变化。
-  void _logAxisChange(PracticeMediaSplitAxis axis, Size size) {
+  /// 窗口缩放或旋转跨越断点时记录方向切换，便于把视频重建等现象对应到布局变化；
+  /// 同时记录该方向恢复的视频比例（default 表示未调整过）。
+  void _logAxisChange(
+    PracticeMediaSplitAxis axis,
+    Size size,
+    double? savedFraction,
+  ) {
     if (_loggedAxis == axis) return;
     AppLogger.log(
       'PracticeMediaLayout',
       '分栏方向: ${_loggedAxis?.name ?? 'initial'} → ${axis.name}, '
           'size=${size.width.toStringAsFixed(0)}x'
-          '${size.height.toStringAsFixed(0)}',
+          '${size.height.toStringAsFixed(0)}, '
+          'fraction=${savedFraction?.toStringAsFixed(3) ?? 'default'}',
     );
     _loggedAxis = axis;
   }

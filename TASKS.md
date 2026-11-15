@@ -46,6 +46,10 @@
   - macOS 交互测试 `integration_test/practice_media_split_test.dart`（5 个任务 × 4 个用例全部通过）：5 种窗口尺寸的布局方向与不重叠 / 不溢出、鼠标拖动分隔条记住比例与双击恢复、上下布局拖到底学习区完整、宽屏加载占位位于左侧视频槽。运行期间测试窗口须保持前台（troubleshooting 7.51）。
   - 未完成的验证：真实视频文件（竖屏视频宽高比）下的手感、iPad / Android 真机。
   - 复查 macOS 实机日志后补充：`[PracticeMediaLayout]` 记录分栏方向切换（含尺寸）与视频轨显示 / 隐藏，便于把视频纹理重建、遮罩重挂载对应到用户操作；拖到上下限后再次拖动比例不变时不再重复写入偏好。**完成时间**: 2026-11-15
+- [x] 随心听视频自适应分栏：随心听视频页改用 `PracticeMediaSplitLayout` 与统一断点（替换原先「宽高比 > 1 即双栏、3:2 固定比例」的自写布局），字幕与控制面板作为整体内容区，宽屏时在右栏、视频独占左列全高；分隔条可拖动、双击恢复，视频尺寸与学习任务共用同一份偏好。加载改走 `PracticeMediaStartupHost`，视频加载占位画在视频槽内（7.50），音频仍为全页遮罩、布局不变。词典面板宿主用 GlobalKey 在全屏 / 上下 / 左右间保留；控制面板按内容区实际宽度（< 600）决定紧凑排布。`[PracticeMediaLayout]` 分栏方向日志补充该方向恢复的比例。**完成时间**: 2026-11-15
+  - 组件回归测试：左右布局位置关系、统一断点与隐藏视频轨、视频拉到最大不溢出、竖向视频按比例贴合、宽 / 窄屏加载占位位于视频槽且内容区不可交互、跨断点保留字幕列表 / 视频画面 / 词典面板状态。macOS 交互测试 `integration_test/media_playback_split_test.dart`（4 个用例通过）；`createTestAppWithAudio` 的 extraOverrides 改为可替换默认替身。
+  - 复查 macOS 实机日志后修复：加载 ready 时视频画面被重建（`[VideoSubtitleMask] 遮罩组件挂载` 出现两次）。原因是分栏组件加载期间在视频外包了一层叠放占位的 Stack，ready 去掉后元素树变化；改为视频自身再用一个 GlobalKey 保留（学习任务页同样受益），回归测试守护。**完成时间**: 2026-11-15
+  - 未完成的验证：真实竖屏视频手感、iPad / Android 真机。
 - [ ] 学习材料 PDF 读取 AI 词典缓存时仍使用旧类型 `ai_dictionary`，而当前写入类型为 `ai_dictionary_v2`，导致学习材料 PDF 读不到 AI 查词结果；收藏导出已改用 `AiDictionarySource.readCachedEntry`。需确认后统一修正。
 - [ ] 查词归一化 Unicode 化，并迁移已有收藏 key（需产品与数据决策）。
 - [ ] 计算并展示每个学习任务的预计/实际耗时。

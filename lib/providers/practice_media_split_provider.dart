@@ -8,7 +8,7 @@ import '../services/app_logger.dart';
 
 export '../models/practice_media_split.dart';
 
-/// 学习任务页视频尺寸的本地偏好；所有学习任务共用一份，调整一次处处生效。
+/// 视频尺寸的本地偏好；所有学习任务与随心听共用一份，调整一次处处生效。
 class PracticeMediaSplitNotifier extends Notifier<PracticeMediaSplit> {
   static const stackedStorageKey = 'practice_media_split_stacked_fraction';
   static const sideBySideStorageKey =

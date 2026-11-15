@@ -3,7 +3,7 @@ import 'package:flutter/widgets.dart';
 import '../../models/media_learning_startup.dart';
 import 'managed_media_visual_surface.dart';
 
-/// 学习任务页的媒体启动托管入口，统一各任务页对 [MediaLearningStartup] 的接入。
+/// 学习任务页与随心听的媒体启动托管入口，统一各页面对 [MediaLearningStartup] 的接入。
 ///
 /// 视频任务的加载占位需要和分栏布局同位置，因此正文以 [buildBody] 接收启动状态，
 /// 交给 [PracticeMediaSplitLayout] 画在视频槽内；音频任务与无启动任务时
