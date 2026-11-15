@@ -158,9 +158,8 @@ void main() {
     await tester.pumpWidget(
       createTestApp(
         MediaQuery(
-          data: MediaQueryData.fromView(
-            tester.view,
-          ).copyWith(textScaler: const TextScaler.linear(4)),
+          data: MediaQueryData.fromView(tester.view)
+              .copyWith(textScaler: const TextScaler.linear(4)),
           child: ManagedMediaVisualSurface(
             loadKey: 'video-1',
             load: () => completer.future,
@@ -275,5 +274,74 @@ void main() {
     completer.complete(MediaLoadResult.ready);
     await tester.pump();
     expect(readyCalls, 0);
+  });
+
+  group('builder 用法', () {
+    testWidgets('按加载阶段重建内容，ready 后回调一次且不绘制全页遮罩', (tester) async {
+      final completer = Completer<MediaLoadResult>();
+      var readyCalls = 0;
+
+      await tester.pumpWidget(
+        createTestApp(
+          Scaffold(
+            body: ManagedMediaVisualSurface.builder(
+              loadKey: 'video-1',
+              load: () => completer.future,
+              cancel: () async {},
+              onReady: () => readyCalls += 1,
+              builder: (context, status) =>
+                  Text(status.phase.name, key: const ValueKey('phase')),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      expect(find.text('loading'), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('managed-media-overlay-canvas')),
+        findsNothing,
+      );
+
+      completer.complete(MediaLoadResult.ready);
+      await tester.pumpAndSettle();
+
+      expect(find.text('ready'), findsOneWidget);
+      expect(readyCalls, 1);
+    });
+
+    testWidgets('失败后 retry 原地重新加载并回到 ready', (tester) async {
+      var loadCalls = 0;
+
+      await tester.pumpWidget(
+        createTestApp(
+          Scaffold(
+            body: ManagedMediaVisualSurface.builder(
+              loadKey: 'video-1',
+              load: () async {
+                loadCalls += 1;
+                return loadCalls == 1
+                    ? MediaLoadResult.failure
+                    : MediaLoadResult.ready;
+              },
+              cancel: () async {},
+              builder: (context, status) => TextButton(
+                key: const ValueKey('retry'),
+                onPressed: status.retry,
+                child: Text(status.phase.name),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('failure'), findsOneWidget);
+
+      await tester.tap(find.byKey(const ValueKey('retry')));
+      await tester.pumpAndSettle();
+
+      expect(loadCalls, 2);
+      expect(find.text('ready'), findsOneWidget);
+    });
   });
 }

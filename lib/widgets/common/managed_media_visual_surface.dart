@@ -3,11 +3,25 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
-import '../../l10n/app_localizations.dart';
 import '../../models/media_load_result.dart';
 import '../../services/app_logger.dart';
+import 'media_startup_canvas.dart';
+import 'media_startup_status.dart';
+
+export 'media_startup_status.dart';
+
+/// 按启动状态构建内容，用于由使用方自行决定加载占位的位置（如分栏视频槽）。
+typedef MediaStartupBuilder = Widget Function(
+  BuildContext context,
+  MediaStartupStatus status,
+);
 
 /// 自动管理媒体准备、失败重试与迟到结果隔离的可复用画面托管层。
+///
+/// 两种用法二选一：
+/// - 默认构造：[child] 之上叠加全页加载 / 失败遮罩。
+/// - [ManagedMediaVisualSurface.builder]：不绘制遮罩，由 [builder] 按
+///   [MediaStartupStatus] 自行放置占位，加载态与最终布局占同一位置。
 ///
 /// [load] 与 [cancel] 由 feature controller 注入，组件不直接依赖 Provider 或
 /// MediaEngine。每次加载都会分配 generation；切换 [loadKey] 或销毁组件后，旧
@@ -18,10 +32,20 @@ class ManagedMediaVisualSurface extends StatefulWidget {
     required this.loadKey,
     required this.load,
     required this.cancel,
-    required this.child,
+    required Widget this.child,
     this.onReady,
     this.showVideoLoading = true,
-  });
+  }) : builder = null;
+
+  const ManagedMediaVisualSurface.builder({
+    super.key,
+    required this.loadKey,
+    required this.load,
+    required this.cancel,
+    required MediaStartupBuilder this.builder,
+    this.onReady,
+  }) : child = null,
+       showVideoLoading = true;
 
   /// 标识当前媒体准备任务；变化时取消旧任务并加载新媒体。
   final Object loadKey;
@@ -32,13 +56,16 @@ class ManagedMediaVisualSurface extends StatefulWidget {
   /// 使当前业务加载 generation 失效；实现必须幂等。
   final Future<void> Function() cancel;
 
-  /// 媒体 ready 后展示的业务内容。
-  final Widget child;
+  /// 媒体 ready 后展示的业务内容；与 [builder] 互斥。
+  final Widget? child;
+
+  /// 按启动状态构建内容；与 [child] 互斥。
+  final MediaStartupBuilder? builder;
 
   /// 当前 generation 首次 ready 后调用一次。
   final VoidCallback? onReady;
 
-  /// 是否使用视频加载样式；音频任务使用普通页面加载遮罩。
+  /// 是否使用视频加载样式；音频任务使用普通页面加载遮罩。仅对 [child] 用法生效。
   final bool showVideoLoading;
 
   @override
@@ -46,10 +73,8 @@ class ManagedMediaVisualSurface extends StatefulWidget {
       _ManagedMediaVisualSurfaceState();
 }
 
-enum _ManagedMediaPhase { loading, ready, failure, cancelled }
-
 class _ManagedMediaVisualSurfaceState extends State<ManagedMediaVisualSurface> {
-  var _phase = _ManagedMediaPhase.loading;
+  var _phase = ManagedMediaPhase.loading;
   var _generation = 0;
 
   @override
@@ -70,7 +95,7 @@ class _ManagedMediaVisualSurfaceState extends State<ManagedMediaVisualSurface> {
   @override
   void dispose() {
     _generation += 1;
-    if (_phase != _ManagedMediaPhase.ready) {
+    if (_phase != ManagedMediaPhase.ready) {
       unawaited(widget.cancel());
     }
     super.dispose();
@@ -80,7 +105,7 @@ class _ManagedMediaVisualSurfaceState extends State<ManagedMediaVisualSurface> {
   void _startLoad() {
     final generation = ++_generation;
     if (mounted) {
-      setState(() => _phase = _ManagedMediaPhase.loading);
+      setState(() => _phase = ManagedMediaPhase.loading);
     }
     // 首次加载可能同步写入 Provider，必须等当前 widget tree 完成本帧构建。
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -112,53 +137,52 @@ class _ManagedMediaVisualSurfaceState extends State<ManagedMediaVisualSurface> {
           'ManagedMedia',
           'event=startup_ready generation=$generation loadKey=${widget.loadKey}',
         );
-        setState(() => _phase = _ManagedMediaPhase.ready);
+        setState(() => _phase = ManagedMediaPhase.ready);
         widget.onReady?.call();
       case MediaLoadResult.failure:
         AppLogger.log(
           'ManagedMedia',
           'event=startup_failed generation=$generation loadKey=${widget.loadKey}',
         );
-        setState(() => _phase = _ManagedMediaPhase.failure);
+        setState(() => _phase = ManagedMediaPhase.failure);
       case MediaLoadResult.cancelled:
         AppLogger.log(
           'ManagedMedia',
           'event=startup_cancelled generation=$generation loadKey=${widget.loadKey}',
         );
-        setState(() => _phase = _ManagedMediaPhase.cancelled);
+        setState(() => _phase = ManagedMediaPhase.cancelled);
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final status = MediaStartupStatus(phase: _phase, retry: _startLoad);
+    final builder = widget.builder;
+    if (builder != null) return builder(context, status);
+
     final disableAnimations =
         MediaQuery.maybeOf(context)?.disableAnimations ?? false;
     final overlay = switch (_phase) {
-      _ManagedMediaPhase.loading => _MediaLoadingOverlay(
-        key: ValueKey('managed-media-loading'),
-        showVideoLoading: widget.showVideoLoading,
-      ),
-      _ManagedMediaPhase.failure => _MediaFailureOverlay(
-        key: const ValueKey('managed-media-failure'),
-        onRetry: _startLoad,
-        showVideoLoading: widget.showVideoLoading,
-      ),
-      _ManagedMediaPhase.cancelled => _MediaLoadingOverlay(
-        key: ValueKey('managed-media-cancelled'),
-        showVideoLoading: widget.showVideoLoading,
-      ),
-      _ManagedMediaPhase.ready => const SizedBox.shrink(
+      ManagedMediaPhase.ready => const SizedBox.shrink(
         key: ValueKey('managed-media-ready'),
+      ),
+      _ => _MediaOverlayFrame(
+        key: ValueKey('managed-media-${_phase.name}'),
+        showVideoCanvas: widget.showVideoLoading,
+        child: MediaStartupStatusContent(
+          status: status,
+          videoStyle: widget.showVideoLoading,
+        ),
       ),
     };
 
     return Stack(
       fit: StackFit.expand,
       children: [
-        widget.child,
+        widget.child!,
         Positioned.fill(
           child: IgnorePointer(
-            ignoring: _phase == _ManagedMediaPhase.ready,
+            ignoring: _phase == ManagedMediaPhase.ready,
             child: AnimatedSwitcher(
               duration: disableAnimations
                   ? Duration.zero
@@ -172,86 +196,10 @@ class _ManagedMediaVisualSurfaceState extends State<ManagedMediaVisualSurface> {
   }
 }
 
-class _MediaLoadingOverlay extends StatelessWidget {
-  const _MediaLoadingOverlay({super.key, required this.showVideoLoading});
-
-  final bool showVideoLoading;
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
-    final theme = Theme.of(context);
-    // 音频任务使用主题色提示，避免在普通页面背景上显示视频样式的黑色画布。
-    // 文字跟随系统字体缩放，与失败态保持一致。
-    return _MediaOverlayFrame(
-      showVideoCanvas: showVideoLoading,
-      child: Semantics(
-        label: showVideoLoading ? l10n.videoLoading : null,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            CircularProgressIndicator(
-              color: showVideoLoading
-                  ? Colors.white
-                  : theme.colorScheme.primary,
-            ),
-            const SizedBox(height: 12),
-            if (showVideoLoading)
-              Text(
-                l10n.videoLoading,
-                style: const TextStyle(color: Colors.white),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _MediaFailureOverlay extends StatelessWidget {
-  const _MediaFailureOverlay({
-    super.key,
-    required this.onRetry,
-    required this.showVideoLoading,
-  });
-
-  final VoidCallback onRetry;
-  final bool showVideoLoading;
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
-    final theme = Theme.of(context);
-    return _MediaOverlayFrame(
-      showVideoCanvas: showVideoLoading,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            Icons.error_outline,
-            size: 40,
-            color: showVideoLoading ? Colors.white : theme.colorScheme.error,
-          ),
-          const SizedBox(height: 12),
-          if (showVideoLoading)
-            Text(
-              l10n.videoLoadFailed,
-              textAlign: TextAlign.center,
-              style: const TextStyle(color: Colors.white),
-            ),
-          const SizedBox(height: 16),
-          FilledButton(onPressed: onRetry, child: Text(l10n.videoRetry)),
-        ],
-      ),
-    );
-  }
-}
-
 /// 根据媒体类型绘制视频画布或普通页面遮罩。
 class _MediaOverlayFrame extends StatelessWidget {
   const _MediaOverlayFrame({
+    super.key,
     required this.child,
     required this.showVideoCanvas,
   });

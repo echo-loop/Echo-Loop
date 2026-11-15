@@ -36,16 +36,16 @@ class PracticeMediaPresentationState {
 }
 
 /// 构建学习页内容，并注入统一媒体状态和视频画面。
-typedef PracticeMediaPresentationBuilder =
-    Widget Function(
-      BuildContext context,
-      PracticeMediaPresentationState state,
-      Widget visualSurface,
-    );
+typedef PracticeMediaPresentationBuilder = Widget Function(
+  BuildContext context,
+  PracticeMediaPresentationState state,
+  Widget visualSurface,
+);
 
 /// 通知父任务当前可借用的视频会话；null 表示宿主已释放。
-typedef PracticeMediaPresentationSessionChanged =
-    void Function(PracticeMediaPresentationSession? session);
+typedef PracticeMediaPresentationSessionChanged = void Function(
+  PracticeMediaPresentationSession? session,
+);
 
 /// 任务页面与句子讲解页共享的视频呈现控制。
 ///
@@ -81,6 +81,7 @@ class PracticeMediaPresentationHost extends ConsumerStatefulWidget {
     required this.builder,
     this.onSessionChanged,
     this.suppressVisualView = false,
+    this.fillVisualSurface = false,
   });
 
   /// 是否启用媒体呈现；音频任务保持 false，不创建视频资源。
@@ -103,6 +104,10 @@ class PracticeMediaPresentationHost extends ConsumerStatefulWidget {
 
   /// 子路由借用同一视频纹理期间，父页保留等比例黑色画布而不创建第二个纹理。
   final bool suppressVisualView;
+
+  /// 视频画面铺满父级给定的尺寸；由分栏布局决定尺寸时使用，
+  /// 否则画面按宽度自适应并限制最大高度。
+  final bool fillVisualSurface;
 
   @override
   ConsumerState<PracticeMediaPresentationHost> createState() =>
@@ -291,7 +296,7 @@ class _PracticeMediaPresentationHostState
         onSubtitleMaskRectChanged: (rect) =>
             unawaited(subtitleMaskNotifier.setRect(rect)),
       ),
-      fillAvailableHeight: _expanded,
+      fillAvailableHeight: _expanded || widget.fillVisualSurface,
       buildVideoView: (size) => ref
           .read(mediaEngineProvider.notifier)
           .buildVideoView(viewportSize: size),

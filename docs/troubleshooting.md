@@ -721,3 +721,12 @@
 - 规则：激发类 UI 状态只能由用户操作或状态切换触发，不能放在 `initState`；与重建无关的显示状态要么提升到不会因布局切换而重建的父级，要么像这里一样由“变化”触发而不是由“挂载”触发。
 - 相关代码：`lib/widgets/common/video_subtitle_mask_overlay.dart`、`lib/widgets/common/media_visual_surface.dart`、`test/widgets/common/video_subtitle_mask_overlay_test.dart`。
 - 修复时间：2026-11-15。
+
+### 7.50 宽屏视频加载中仍是上下结构：全页加载遮罩硬编码顶部通栏，且会话未初始化时分栏无视频槽
+
+- 现象：宽屏进入视频精听，ready 前是顶部通栏的黑色加载块加全页遮罩，ready 后才变成左右分栏。
+- 根因：两层叠加。其一，`ManagedMediaVisualSurface` 在整个 body 外盖一层不透明遮罩，`_MediaOverlayFrame` 把画布固定为顶部 16:9 通栏，不感知分栏布局。其二，startup 模式下 `hasVideo` 在 `load()` 内的 `initialize` 才置为 true，加载期间 `PracticeMediaSplitLayout.media` 为 null、`visualTrackVisible` 为 false，于是分栏退回无视频的固定高度单栏。只改遮罩位置而不处理第二点，加载态仍无法左右排布。
+- 解法：托管组件新增 `builder` 用法，把启动状态交给使用方，加载占位画在视频槽内（`MediaStartupCanvas`），加载期间 `isMediaResizable` 强制为 true，视频槽由占位撑起；内容区用 `_StartupContentGate` 淡化并 `IgnorePointer`。全页遮罩路径保留给音频任务与其他页面。
+- 规则：加载占位属于布局的一部分，应由布局决定位置，不应由托管层用全页遮罩覆盖；“是否有视频”要区分会话状态与加载状态，布局判断不能只依赖会话已初始化的字段。
+- 相关代码：`lib/widgets/common/managed_media_visual_surface.dart`、`lib/widgets/common/media_startup_canvas.dart`、`lib/widgets/common/media_startup_status.dart`、`lib/screens/intensive_listen_player_screen.dart`（`_wrapMediaStartup`）。
+- 修复时间：2026-11-15。

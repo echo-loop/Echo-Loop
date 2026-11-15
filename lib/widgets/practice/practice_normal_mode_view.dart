@@ -187,122 +187,199 @@ class PracticeNormalModeView extends StatelessWidget {
 
     return Padding(
       padding: horizontalPadding,
-      child: Column(
-        children: [
-          const SizedBox(height: AppSpacing.s),
+      child: LayoutBuilder(
+        builder: (context, constraints) =>
+            constraints.maxHeight < compactLayoutMaxHeight
+            ? _buildCompactLayout(subtitleContent, peekLabel)
+            : _buildRegularLayout(subtitleContent, peekLabel),
+      ),
+    );
+  }
 
-          // 难句/收藏标记行
-          if (showBookmarkRow)
-            TappableWrapper(
-              onTap: onToggleMark,
-              feedbackType: TapFeedback.opacity,
-              pressedOpacity: 0.4,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  Flexible(
-                    child: Text(
-                      isDifficult
-                          ? l10n.intensiveListenMarkedDifficult
-                          : l10n.intensiveListenNotDifficult,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
-                      ),
-                      overflow: TextOverflow.ellipsis,
+  /// 可用高度低于该值时切换为紧凑排布（如视频被拉高后学习区变矮）。
+  static const compactLayoutMaxHeight = 300.0;
+
+  /// 紧凑排布中倒计时与偷看入口所在行。
+  static const compactPeekRowKey = ValueKey('practice-compact-peek-row');
+
+  /// 紧凑排布：倒计时并入偷看入口所在行，正文区可滚动，压缩上下留白，
+  /// 保证「听不懂」等按钮在矮空间内仍完整可用。
+  Widget _buildCompactLayout(Widget subtitleContent, Widget peekLabel) {
+    return Column(
+      children: [
+        if (showBookmarkRow) _buildBookmarkRow(),
+        Expanded(
+          child: GestureDetector(
+            key: subtitleRegionKey,
+            behavior: HitTestBehavior.opaque,
+            onTap: onPeekToggle,
+            child: LayoutBuilder(
+              builder: (context, constraints) => SingleChildScrollView(
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                  child: Center(
+                    child: KeyedSubtree(
+                      key: subtitleContentGroupKey,
+                      child: subtitleContent,
                     ),
                   ),
-                  const SizedBox(width: AppSpacing.xs),
-                  Icon(
-                    isDifficult ? Icons.bookmark : Icons.bookmark_border,
-                    color: isDifficult ? AppTheme.bookmarkColor : Colors.grey,
-                    size: 18,
-                  ),
-                ],
+                ),
               ),
             ),
+          ),
+        ),
+        GestureDetector(
+          key: compactPeekRowKey,
+          behavior: HitTestBehavior.opaque,
+          onTap: onPeekToggle,
+          child: SizedBox(
+            width: double.infinity,
+            height: 56,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                // 左侧等宽占位，使偷看入口保持水平居中。
+                const SizedBox(width: 56),
+                const SizedBox(width: AppSpacing.s),
+                peekLabel,
+                const SizedBox(width: AppSpacing.s),
+                SizedBox(width: 56, height: 56, child: countdown),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: AppSpacing.xs),
+        _buildActionButtons(),
+        const SizedBox(height: AppSpacing.s),
+      ],
+    );
+  }
 
-          // 字幕交互区分为互不影响的两个语义区域：主要内容占上方 2/3，
-          // 显隐入口占下方 1/3。正文高度和标签位置不再互相牵动。
-          Expanded(
-            child: SizedBox(
-              key: subtitleRegionKey,
-              child: GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onTap: onPeekToggle,
-                child: Column(
-                  children: [
-                    Expanded(
-                      flex: 2,
-                      child: SizedBox(
-                        key: subtitleMainRegionKey,
-                        child: LayoutBuilder(
-                          builder: (context, constraints) =>
-                              SingleChildScrollView(
-                                child: ConstrainedBox(
-                                  constraints: BoxConstraints(
-                                    minHeight: constraints.maxHeight,
-                                  ),
-                                  child: Center(
-                                    child: KeyedSubtree(
-                                      key: subtitleContentGroupKey,
-                                      child: subtitleContent,
-                                    ),
+  Widget _buildRegularLayout(Widget subtitleContent, Widget peekLabel) {
+    return Column(
+      children: [
+        const SizedBox(height: AppSpacing.s),
+
+        // 难句/收藏标记行
+        if (showBookmarkRow) _buildBookmarkRow(),
+
+        // 字幕交互区分为互不影响的两个语义区域：主要内容占上方 2/3，
+        // 显隐入口占下方 1/3。正文高度和标签位置不再互相牵动。
+        Expanded(
+          child: SizedBox(
+            key: subtitleRegionKey,
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: onPeekToggle,
+              child: Column(
+                children: [
+                  Expanded(
+                    flex: 2,
+                    child: SizedBox(
+                      key: subtitleMainRegionKey,
+                      child: LayoutBuilder(
+                        builder: (context, constraints) =>
+                            SingleChildScrollView(
+                              child: ConstrainedBox(
+                                constraints: BoxConstraints(
+                                  minHeight: constraints.maxHeight,
+                                ),
+                                child: Center(
+                                  child: KeyedSubtree(
+                                    key: subtitleContentGroupKey,
+                                    child: subtitleContent,
                                   ),
                                 ),
                               ),
-                        ),
+                            ),
                       ),
                     ),
-                    Expanded(
-                      child: SizedBox(
-                        key: subtitleLabelRegionKey,
-                        child: Center(child: peekLabel),
-                      ),
+                  ),
+                  Expanded(
+                    child: SizedBox(
+                      key: subtitleLabelRegionKey,
+                      child: Center(child: peekLabel),
                     ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+
+        // 底部固定区：倒计时 + 按钮行
+        Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // 倒计时预留区与其下方间距在空白状态下也属于字幕显隐入口，
+            // 避免视觉上连续的大块空白无法点击。
+            GestureDetector(
+              key: subtitleTrailingTapRegionKey,
+              behavior: HitTestBehavior.opaque,
+              onTap: onPeekToggle,
+              child: SizedBox(
+                width: double.infinity,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // 固定 56 高度占位，避免字幕区随倒计时显隐跳动。
+                    SizedBox(height: 56, child: countdown),
+                    const SizedBox(height: AppSpacing.m),
                   ],
                 ),
               ),
             ),
-          ),
+            _buildActionButtons(),
+          ],
+        ),
 
-          // 底部固定区：倒计时 + 按钮行
-          Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // 倒计时预留区与其下方间距在空白状态下也属于字幕显隐入口，
-              // 避免视觉上连续的大块空白无法点击。
-              GestureDetector(
-                key: subtitleTrailingTapRegionKey,
-                behavior: HitTestBehavior.opaque,
-                onTap: onPeekToggle,
-                child: SizedBox(
-                  width: double.infinity,
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      // 固定 56 高度占位，避免字幕区随倒计时显隐跳动。
-                      SizedBox(height: 56, child: countdown),
-                      const SizedBox(height: AppSpacing.m),
-                    ],
-                  ),
-                ),
-              ),
-              // 取消标记 + 听不懂按钮（并排，主次随 isDifficult 翻转）
-              // 不固定高度：按钮最小 48dp，大字号下随文字增高，避免文字被裁切
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  if (alwaysShowToggleButton || isDifficult) ...[
-                    _buildToggleMarkButton(),
-                    const SizedBox(width: AppSpacing.m),
-                  ],
-                  _buildUnclearButton(),
-                ],
-              ),
-            ],
-          ),
+        const SizedBox(height: AppSpacing.l),
+      ],
+    );
+  }
 
-          const SizedBox(height: AppSpacing.l),
+  /// 取消标记 + 听不懂按钮（并排，主次随 isDifficult 翻转）。
+  ///
+  /// 不固定高度：按钮最小 48dp，大字号下随文字增高，避免文字被裁切。
+  Widget _buildActionButtons() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        if (alwaysShowToggleButton || isDifficult) ...[
+          _buildToggleMarkButton(),
+          const SizedBox(width: AppSpacing.m),
+        ],
+        _buildUnclearButton(),
+      ],
+    );
+  }
+
+  /// 难句/收藏标记行
+  Widget _buildBookmarkRow() {
+    return TappableWrapper(
+      onTap: onToggleMark,
+      feedbackType: TapFeedback.opacity,
+      pressedOpacity: 0.4,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          Flexible(
+            child: Text(
+              isDifficult
+                  ? l10n.intensiveListenMarkedDifficult
+                  : l10n.intensiveListenNotDifficult,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          const SizedBox(width: AppSpacing.xs),
+          Icon(
+            isDifficult ? Icons.bookmark : Icons.bookmark_border,
+            color: isDifficult ? AppTheme.bookmarkColor : Colors.grey,
+            size: 18,
+          ),
         ],
       ),
     );
