@@ -130,6 +130,23 @@ void main() {
     );
   });
 
+  testWidgets('默认开启自动显示今日一刻，关闭后写入 SP 且不影响其他开关', (tester) async {
+    final prefs = await pumpScreen(tester);
+
+    final toggle = find.widgetWithText(
+      SwitchListTile,
+      'Auto-show Today’s Moment',
+    );
+    expect(tester.widget<SwitchListTile>(toggle).value, isTrue);
+
+    await tester.tap(toggle);
+    await tester.pumpAndSettle();
+
+    expect(tester.widget<SwitchListTile>(toggle).value, isFalse);
+    expect(playbackSpeedButtonSwitchValue(tester), isTrue);
+    expect(prefs.getBool(LearningSettingsKeys.autoShowDailyShare), isFalse);
+  });
+
   testWidgets('点击字幕文字入口进入字幕文字设置页', (tester) async {
     await pumpScreen(tester);
 

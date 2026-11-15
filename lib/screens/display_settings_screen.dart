@@ -30,6 +30,9 @@ class DisplaySettingsScreen extends ConsumerWidget {
     final showPlaybackSpeedButton = ref.watch(
       learningSettingsProvider.select((s) => s.showPlaybackSpeedButton),
     );
+    final autoShowDailyShare = ref.watch(
+      learningSettingsProvider.select((s) => s.autoShowDailyShare),
+    );
     final fontSizePercent = ref.watch(
       subtitleTextPrefsProvider.select((s) => s.fontSizePercent),
     );
@@ -168,6 +171,37 @@ class DisplaySettingsScreen extends ConsumerWidget {
                 await ref
                     .read(learningSettingsProvider.notifier)
                     .setShowPlaybackSpeedButton(value);
+              },
+            ),
+          ),
+          const SizedBox(height: AppSpacing.s),
+          Card(
+            child: SwitchListTile(
+              secondary: Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: colorScheme.primary.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(
+                  Icons.photo_outlined,
+                  size: 20,
+                  color: colorScheme.primary,
+                ),
+              ),
+              title: Text(l10n.autoShowDailyShareToggle),
+              subtitle: Text(
+                l10n.autoShowDailyShareSubtitle,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
+                ),
+              ),
+              value: autoShowDailyShare,
+              onChanged: (value) async {
+                await ref
+                    .read(learningSettingsProvider.notifier)
+                    .setAutoShowDailyShare(value);
               },
             ),
           ),

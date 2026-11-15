@@ -28,17 +28,17 @@ void main() {
   bool soundEffectsSwitchValue(WidgetTester tester) =>
       tester.widget<SwitchListTile>(find.byType(SwitchListTile)).value;
 
-  testWidgets('音效开关默认开启，关闭后持久化', (tester) async {
+  testWidgets('音效开关默认关闭，开启后持久化', (tester) async {
     SharedPreferences.setMockInitialValues({});
     await pumpScreen(tester);
-    expect(soundEffectsSwitchValue(tester), isTrue);
+    expect(soundEffectsSwitchValue(tester), isFalse);
 
     await tester.tap(find.byType(SwitchListTile));
     await tester.pumpAndSettle();
 
-    expect(soundEffectsSwitchValue(tester), isFalse);
+    expect(soundEffectsSwitchValue(tester), isTrue);
     final prefs = await SharedPreferences.getInstance();
-    expect(prefs.getBool('sound_effects_enabled'), isFalse);
+    expect(prefs.getBool('sound_effects_enabled'), isTrue);
   });
 
   testWidgets('读取已保存的关闭状态', (tester) async {

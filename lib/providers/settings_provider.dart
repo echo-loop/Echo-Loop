@@ -150,7 +150,7 @@ class AppSettingsState {
   /// 关闭时各播放入口从暂停的精确位置继续；开启时从暂停所在句的句首重新播放。
   final bool resumeFromSentenceStartEnabled;
 
-  /// 全局界面音效开关（默认开启），控制达成目标等提示音。
+  /// 全局界面音效开关（默认关闭），控制达成目标等提示音。
   ///
   /// 仅保存在本机：云端偏好文档尚未定义该字段。
   final bool soundEffectsEnabled;
@@ -167,7 +167,7 @@ class AppSettingsState {
     this.aiTranscriptionAutoMergeEnabled = true,
     this.wordHighlightEnabled = true,
     this.resumeFromSentenceStartEnabled = false,
-    this.soundEffectsEnabled = true,
+    this.soundEffectsEnabled = false,
   });
 
   AppSettingsState copyWith({
@@ -306,7 +306,7 @@ class AppSettings extends _$AppSettings {
         prefs.getBool(_wordHighlightEnabledKey) ?? true;
     final resumeFromSentenceStartEnabled =
         prefs.getBool(_resumeFromSentenceStartEnabledKey) ?? false;
-    final soundEffectsEnabled = prefs.getBool(_soundEffectsEnabledKey) ?? true;
+    final soundEffectsEnabled = prefs.getBool(_soundEffectsEnabledKey) ?? false;
 
     // 异步间隙后 notifier 可能已销毁或被新一轮加载取代，过期则丢弃。
     if (!ref.mounted || generation != _settingsLoadGeneration) return;
@@ -493,7 +493,7 @@ class AppSettings extends _$AppSettings {
     userPreferencesSyncEvents.notifyLocalChange();
   }
 
-  /// 设置全局界面音效开关（默认开启）。仅存本机，不触发云端偏好同步。
+  /// 设置全局界面音效开关（默认关闭）。仅存本机，不触发云端偏好同步。
   Future<void> setSoundEffectsEnabled(bool enabled) async {
     state = state.copyWith(soundEffectsEnabled: enabled);
 
