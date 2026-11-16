@@ -383,23 +383,7 @@
       }
     }
   },
-  "deleteCollectionAlsoDeleteAudio": "Also delete audio file(s)?",
-  "deleteCollectionKeepAudioHint": "{count} audio file(s) in this collection will be kept.",
-  "@deleteCollectionKeepAudioHint": {
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
-  "deleteCollectionDeleteAudioHint": "{count} audio file(s) in this collection will also be deleted.",
-  "@deleteCollectionDeleteAudioHint": {
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
+  "deleteCollectionDeleteAudioHint": "Materials in this collection and their learning records will also be deleted. Materials that are also in other collections won't be affected.",
   "renameCollection": "Rename",
   "editCollection": "Edit",
   "editCollectionTitle": "Edit Collection",

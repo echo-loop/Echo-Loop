@@ -25,7 +25,6 @@ import '../theme/list_item_text_styles.dart';
 import '../utils/time_format.dart';
 import '../widgets/common/app_popup_menu.dart';
 import '../widgets/common/svg_action_icon.dart';
-import '../widgets/audio_list_view.dart';
 import '../widgets/dialogs/confirm_dialog.dart';
 import '../widgets/dialogs/text_input_dialog.dart';
 import '../widgets/guide_flow.dart';
@@ -721,54 +720,39 @@ void _showRenameCollectionDialog(
   }
 }
 
-/// 删除确认对话框（local 合集专用）
-///
-/// 提供「同时删除音频文件」复选框（默认不勾）：勾选则彻底删除合集内音频（含文件），
-/// 否则仅删合集、保留音频。默认不勾以避免误删共享音频。
+/// 删除本地合集，并彻底删除只属于该合集的音频；其他合集中也有的音频保留。
 void _showDeleteConfirmDialog(
   BuildContext context,
   WidgetRef ref,
   Collection collection,
 ) async {
-  final audioCount = ref
+  final hasAudio = ref
       .read(collectionListProvider)
       .getAudioIds(collection.id)
-      .length;
-  final alsoDeleteAudio = await showDialog<bool>(
+      .isNotEmpty;
+  final confirmed = await showDialog<bool>(
     context: context,
     builder: (_) =>
-        _DeleteCollectionDialog(name: collection.name, audioCount: audioCount),
+        _DeleteCollectionDialog(name: collection.name, hasAudio: hasAudio),
   );
 
-  if (alsoDeleteAudio == null) return;
-  final notifier = ref.read(collectionListProvider.notifier);
-  if (alsoDeleteAudio) {
-    notifier.deleteCollectionWithAudios(collection.id);
-  } else {
-    notifier.deleteCollection(collection.id);
-  }
+  if (confirmed != true) return;
+  await ref
+      .read(collectionListProvider.notifier)
+      .deleteCollectionWithAudios(collection.id);
 }
 
-/// 合集删除确认弹窗：默认仅删合集，勾选「同时删除音频文件」后主按钮切换为破坏色。
+/// 合集删除确认弹窗：合集非空时提醒材料及学习记录会一并删除，其他合集不受影响。
 ///
-/// 返回值：`true` 表示同时删除音频，`false` 表示仅删合集，`null` 表示取消。
+/// 返回值：`true` 表示确认删除，`null` 表示取消。
 /// 风格与合集详情页批量删除弹窗（[_BatchDeleteDialog]）保持一致。
-class _DeleteCollectionDialog extends StatefulWidget {
-  const _DeleteCollectionDialog({required this.name, required this.audioCount});
+class _DeleteCollectionDialog extends StatelessWidget {
+  const _DeleteCollectionDialog({required this.name, required this.hasAudio});
 
   final String name;
 
-  /// 合集内音频数量，展示在选项文案里。
-  final int audioCount;
-
-  @override
-  State<_DeleteCollectionDialog> createState() =>
-      _DeleteCollectionDialogState();
-}
-
-class _DeleteCollectionDialogState extends State<_DeleteCollectionDialog> {
-  // 默认勾选：删合集通常意在清理音频，勾掉才退化为仅删合集。
-  bool _alsoDeleteAudio = true;
+  /// 合集内是否有音频；空合集无需提示音频去留。
+  final bool hasAudio;
 
   @override
   Widget build(BuildContext context) {
@@ -783,24 +767,16 @@ class _DeleteCollectionDialogState extends State<_DeleteCollectionDialog> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(l10n.deleteCollectionConfirm(widget.name)),
-          const SizedBox(height: 10),
-          // 弱化提示：随选择切换，说明音频文件的去留。
-          Text(
-            _alsoDeleteAudio
-                ? l10n.deleteCollectionDeleteAudioHint(widget.audioCount)
-                : l10n.deleteCollectionKeepAudioHint(widget.audioCount),
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: colorScheme.onSurfaceVariant,
+          Text(l10n.deleteCollectionConfirm(name)),
+          if (hasAudio) ...[
+            const SizedBox(height: 10),
+            Text(
+              l10n.deleteCollectionDeleteAudioHint,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: colorScheme.onSurfaceVariant,
+              ),
             ),
-          ),
-          const SizedBox(height: 12),
-          // 同时删除音频文件选项：复用删除弹窗的紧凑可点整行。
-          PermanentlyDeleteOption(
-            value: _alsoDeleteAudio,
-            label: l10n.deleteCollectionAlsoDeleteAudio,
-            onChanged: (v) => setState(() => _alsoDeleteAudio = v),
-          ),
+          ],
         ],
       ),
       actions: [
@@ -809,7 +785,7 @@ class _DeleteCollectionDialogState extends State<_DeleteCollectionDialog> {
           child: Text(l10n.cancel),
         ),
         FilledButton(
-          onPressed: () => Navigator.pop(context, _alsoDeleteAudio),
+          onPressed: () => Navigator.pop(context, true),
           style: FilledButton.styleFrom(
             backgroundColor: colorScheme.error,
             foregroundColor: colorScheme.onError,

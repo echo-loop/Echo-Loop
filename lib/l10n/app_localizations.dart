@@ -1484,23 +1484,11 @@ abstract class AppLocalizations {
   /// **'Are you sure you want to delete \"{name}\"?'**
   String deleteCollectionConfirm(String name);
 
-  /// No description provided for @deleteCollectionAlsoDeleteAudio.
-  ///
-  /// In en, this message translates to:
-  /// **'Also delete audio file(s)?'**
-  String get deleteCollectionAlsoDeleteAudio;
-
-  /// No description provided for @deleteCollectionKeepAudioHint.
-  ///
-  /// In en, this message translates to:
-  /// **'{count} audio file(s) in this collection will be kept.'**
-  String deleteCollectionKeepAudioHint(int count);
-
   /// No description provided for @deleteCollectionDeleteAudioHint.
   ///
   /// In en, this message translates to:
-  /// **'{count} audio file(s) in this collection will also be deleted.'**
-  String deleteCollectionDeleteAudioHint(int count);
+  /// **'Materials in this collection and their learning records will also be deleted. Materials that are also in other collections won\'t be affected.'**
+  String get deleteCollectionDeleteAudioHint;
 
   /// No description provided for @renameCollection.
   ///

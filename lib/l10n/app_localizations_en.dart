@@ -787,17 +787,8 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get deleteCollectionAlsoDeleteAudio => 'Also delete audio file(s)?';
-
-  @override
-  String deleteCollectionKeepAudioHint(int count) {
-    return '$count audio file(s) in this collection will be kept.';
-  }
-
-  @override
-  String deleteCollectionDeleteAudioHint(int count) {
-    return '$count audio file(s) in this collection will also be deleted.';
-  }
+  String get deleteCollectionDeleteAudioHint =>
+      'Materials in this collection and their learning records will also be deleted. Materials that are also in other collections won\'t be affected.';
 
   @override
   String get renameCollection => 'Rename';

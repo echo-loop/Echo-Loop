@@ -365,15 +365,21 @@ class CollectionList extends _$CollectionList {
     }
   }
 
-  /// 删除合集并彻底删除其中的音频（DB 记录 + 文件 + 关联数据）。
+  /// 删除合集，并清理没有被其它合集引用的音频。
   ///
-  /// 用于「我的合集」列表删除时用户勾选「同时删除音频文件」的分支。音频可能被多个
-  /// 合集共享，故通过 [AudioLibrary.removeAudioItems] 逐条按引用检查删文件，避免误删
-  /// 仍被其它条目使用的资源；最后调用 [deleteCollection] 删合集行。
+  /// 被其它合集引用的音频仍保留在音频库中；其余音频通过
+  /// [AudioLibrary.removeAudioItems] 清理记录、文件和关联数据。
   Future<void> deleteCollectionWithAudios(String id) async {
     final audioIds = state.getAudioIds(id).toSet();
-    if (audioIds.isNotEmpty) {
-      await ref.read(audioLibraryProvider.notifier).removeAudioItems(audioIds);
+    final audioIdsInOtherCollections = state.audioIdsMap.entries
+        .where((entry) => entry.key != id)
+        .expand((entry) => entry.value)
+        .toSet();
+    final unsharedAudioIds = audioIds.difference(audioIdsInOtherCollections);
+    if (unsharedAudioIds.isNotEmpty) {
+      await ref
+          .read(audioLibraryProvider.notifier)
+          .removeAudioItems(unsharedAudioIds);
     }
     await deleteCollection(id);
   }

@@ -759,17 +759,8 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String get deleteCollectionAlsoDeleteAudio => '同时删除音频文件';
-
-  @override
-  String deleteCollectionKeepAudioHint(int count) {
-    return '合集中共 $count 个音频文件，将保留。';
-  }
-
-  @override
-  String deleteCollectionDeleteAudioHint(int count) {
-    return '合集中共 $count 个音频文件，将一并删除。';
-  }
+  String get deleteCollectionDeleteAudioHint =>
+      '合集内的材料及其学习记录将一并删除，同时在其他合集中的材料不受影响。';
 
   @override
   String get renameCollection => '重命名';
