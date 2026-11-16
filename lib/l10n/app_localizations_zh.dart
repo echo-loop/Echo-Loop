@@ -2273,6 +2273,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get bookmarkReviewSettingsTitle => '复习设置';
 
   @override
+  String get bookmarkReviewShowVideo => '显示视频画面';
+
+  @override
   String get bookmarkReviewShowNextReviewTime => '显示下次复习时间';
 
   @override

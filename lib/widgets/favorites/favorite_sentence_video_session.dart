@@ -1,6 +1,9 @@
+import 'package:flutter/foundation.dart';
+
 import '../../database/daos/audio_item_dao.dart';
 import '../../models/audio_item.dart';
 import '../../models/sense_group_range_playback.dart';
+import '../../models/sentence_playback_result.dart';
 import '../../models/word_highlight_binding.dart';
 import '../../providers/audio_engine/audio_engine_provider.dart';
 import '../../providers/media_engine/media_engine_provider.dart';
@@ -26,6 +29,9 @@ enum FavoriteVideoOpenResult {
 /// 收藏页本身不播放视频，因此由会话把材料加载进 [MediaEngine]：加载时直接
 /// 定位到句首，关闭时只解绑页面并保留 backend。生命周期与随心听、盲听、复述
 /// 的媒体会话保持一致。
+///
+/// 收藏句复习在一次复习内复用同一个会话：逐张卡片调用 [open]，同一材料只
+/// 定位不重新加载，画面显示 / 隐藏状态跨卡片保留。
 class FavoriteSentenceVideoSession {
   FavoriteSentenceVideoSession({
     required MediaEngine engine,
@@ -42,6 +48,34 @@ class FavoriteSentenceVideoSession {
   MediaPresentationController? _presentation;
   bool _isClosed = false;
 
+  /// 最近一次成功加载的材料；加载失败或被取代时清空。
+  String? _loadedAudioItemId;
+
+  /// [audioItemId] 是否已加载在本会话持有的引擎会话中，可直接定位复用。
+  bool isLoaded(String audioItemId) {
+    final sessionId = _mediaSessionId;
+    return !_isClosed &&
+        _loadedAudioItemId == audioItemId &&
+        sessionId != null &&
+        _engine.isActiveSession(sessionId);
+  }
+
+  /// 画面显示 / 隐藏等呈现状态变化的通知源；首次 [open] 成功前为 null。
+  Listenable? get presentationChanges => _presentation;
+
+  /// 显示或隐藏画面（只影响视频轨，声音照常）；须在 [open] 成功后调用。
+  Future<void> setVisualTrackVisible(bool visible) =>
+      _requirePresentation().setVisualTrackVisible(visible);
+
+  /// 用户是否选择显示画面；隐藏后仍保留声音。
+  bool get visualTrackVisible => _presentation?.visualTrackVisible ?? true;
+
+  /// 已解码视频的宽高比；未知时为 null。
+  double? get videoAspectRatio => _engine.videoAspectRatio;
+
+  /// 视频宽高比变化（解码出首帧尺寸后）的通知流。
+  Stream<double?> get videoAspectRatioStream => _engine.videoAspectRatioStream;
+
   /// 加载视频并定位到 [sentenceStart]。
   ///
   /// 同一入口连续触发时，后一次 [MediaEngine.newSession] 会让前一次失效。前一次
@@ -55,6 +89,7 @@ class FavoriteSentenceVideoSession {
     if (_audioEngine.isPlaying) await _audioEngine.pause();
     final sessionId = _engine.newSession();
     _mediaSessionId = sessionId;
+    _loadedAudioItemId = null;
     // 讲解页的区间播放自带速度；加载速度只作为首次打开的默认值。
     final duration = await _engine.loadMedia(
       item,
@@ -73,13 +108,40 @@ class FavoriteSentenceVideoSession {
       );
       return FavoriteVideoOpenResult.failed;
     }
-    _presentation = MediaPresentationController(
-      engine: _engine,
-      readTranscriptSrt: _audioItemDao.getTranscriptSrt,
-      audioItemId: item.id,
-    )..start();
+    _loadedAudioItemId = item.id;
+    final presentation = _presentation;
+    if (presentation == null) {
+      _presentation = MediaPresentationController(
+        engine: _engine,
+        readTranscriptSrt: _audioItemDao.getTranscriptSrt,
+        audioItemId: item.id,
+      )..start();
+    } else {
+      // 复用时保留画面显示 / 隐藏状态；新引擎会话的视频轨默认开启，需与之对齐。
+      presentation.switchAudioItem(item.id);
+      if (!presentation.visualTrackVisible) {
+        await _engine.setVideoTrackEnabled(false);
+      }
+    }
     return FavoriteVideoOpenResult.opened;
   }
+
+  /// 暂停中把画面移到 [position]，不触发逐词高亮。
+  Future<void> previewPosition(Duration position) =>
+      _engine.seekForPreview(position);
+
+  /// 在本会话的引擎会话中播放一个区间；会话已被取代时返回 cancelled。
+  Future<SentencePlaybackResult> playRange(Duration start, Duration end) {
+    final sessionId = _mediaSessionId;
+    if (_isClosed || sessionId == null) {
+      return Future.value(SentencePlaybackResult.cancelled);
+    }
+    return _engine.playRange(start, end, speed: 1.0, sessionId: sessionId);
+  }
+
+  /// 取消正在进行的区间播放，画面停在当前帧。
+  Future<void> cancelPlayback() =>
+      _engine.cancelActiveRange(reason: 'favorite-video-cancel');
 
   /// 讲解页借用的视频会话；只能在 [open] 成功后、[close] 之前使用。
   PracticeMediaPresentationSession get mediaSession {
@@ -124,6 +186,7 @@ class FavoriteSentenceVideoSession {
   Future<void> close() async {
     if (_isClosed) return;
     _isClosed = true;
+    _loadedAudioItemId = null;
     final presentation = _presentation;
     _presentation = null;
     if (presentation != null) {

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:echo_loop/database/app_database.dart' as db;
+import 'package:echo_loop/database/daos/audio_item_dao.dart';
 import 'package:echo_loop/database/daos/bookmark_dao.dart';
 import 'package:echo_loop/database/providers.dart';
 import 'package:echo_loop/features/memory_scheduler/domain/memory_rating.dart';
@@ -13,18 +14,27 @@ import 'package:echo_loop/features/memory_scheduler/providers/memory_scheduler_p
 import 'package:echo_loop/models/favorite_review_settings.dart';
 import 'package:echo_loop/providers/audio_engine/audio_engine_provider.dart';
 import 'package:echo_loop/providers/audio_engine/foreground_audio_engine_provider.dart';
+import 'package:echo_loop/models/bookmark_review_settings.dart';
+import 'package:echo_loop/providers/bookmark_review_settings_provider.dart';
 import 'package:echo_loop/providers/favorite_review_settings_provider.dart';
+import 'package:echo_loop/providers/media_engine/media_engine_provider.dart';
+import 'package:echo_loop/models/audio_item.dart';
+import 'package:echo_loop/models/sentence_playback_result.dart';
+import 'package:flutter/foundation.dart' show VoidCallback;
 import 'package:echo_loop/providers/learning_session/bookmark_review_provider.dart';
 import 'package:echo_loop/providers/short_audio_player_provider.dart';
 import 'package:echo_loop/services/pronunciation/local_audio_clip_player.dart';
 import 'package:echo_loop/utils/app_data_dir.dart' as app_data_dir;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:drift/native.dart';
 import 'package:drift/drift.dart' hide isNotNull, isNull;
 
 import '../../helpers/mock_providers.dart';
-import 'package:echo_loop/database/app_database.dart' show configureAppDatabaseConnection;
+
+import 'package:echo_loop/database/app_database.dart'
+    show configureAppDatabaseConnection;
 
 class _TestBookmarkDao implements BookmarkDao {
   _TestBookmarkDao({this.fail = false});
@@ -139,6 +149,22 @@ class _RecordingForegroundAudioEngine extends TestForegroundAudioEngine {
   }
 }
 
+/// 固定「显示视频画面」开关；原有用例只验证音频路径，默认关闭。
+class _TestBookmarkReviewSettings extends BookmarkReviewSettingsNotifier {
+  _TestBookmarkReviewSettings({required this.showVideo});
+
+  final bool showVideo;
+
+  @override
+  BookmarkReviewSettings build() =>
+      BookmarkReviewSettings(showVideo: showVideo);
+
+  @override
+  Future<void> update(BookmarkReviewSettings settings) async {
+    state = settings;
+  }
+}
+
 class _TestFavoriteReviewSettings extends FavoriteReviewSettingsNotifier {
   _TestFavoriteReviewSettings({
     required this.autoPlayFront,
@@ -177,6 +203,8 @@ ProviderContainer _container(
   required _FakeShortAudioPlayer shortAudioPlayer,
   bool autoPlayFront = false,
   bool autoPlayBack = false,
+  bool showVideo = false,
+  List<Override> extraOverrides = const [],
 }) => ProviderContainer(
   overrides: dedupeOverrides([
     appDatabaseProvider.overrideWithValue(database),
@@ -192,9 +220,127 @@ ProviderContainer _container(
         autoPlayBack: autoPlayBack,
       ),
     ),
+    bookmarkReviewSettingsProvider.overrideWith(
+      () => _TestBookmarkReviewSettings(showVideo: showVideo),
+    ),
     analyticsOverride(),
+    ...extraOverrides,
   ]),
 );
+
+/// 可控的媒体引擎：记录加载 / 定位 / 区间播放，不触达原生播放器。
+/// 可控的材料读取：测试里让指定材料的读取挂起或失败，复现切卡窗口期与同步异常。
+class _ControlledAudioItemDao extends AudioItemDao {
+  _ControlledAudioItemDao(super.db);
+
+  final gates = <String, Completer<void>>{};
+
+  /// 下一次读取这些材料时抛错，之后恢复正常（音频播放也会读取同一张表）。
+  final failingIds = <String>{};
+
+  @override
+  Future<db.AudioItem?> getById(String id) async {
+    if (failingIds.remove(id)) throw StateError('audio item read failed');
+    await gates[id]?.future;
+    return super.getById(id);
+  }
+}
+
+class _FakeVideoEngine extends MediaEngine {
+  bool loadSucceeds = true;
+  final loads = <String>[];
+  final previews = <Duration>[];
+  final ranges = <(Duration, Duration)>[];
+  final videoTrackCalls = <bool>[];
+  int releaseCalls = 0;
+  int cancelCalls = 0;
+  Completer<SentencePlaybackResult>? pendingRange;
+
+  @override
+  Future<Duration?> loadMedia(
+    AudioItem item,
+    double speed, {
+    Duration initialPosition = Duration.zero,
+    bool publishToSystemMediaSession = true,
+  }) async {
+    loads.add(item.id);
+    return loadSucceeds ? const Duration(minutes: 1) : null;
+  }
+
+  @override
+  double? get videoAspectRatio => 16 / 9;
+
+  @override
+  Stream<double?> get videoAspectRatioStream => const Stream.empty();
+
+  @override
+  Future<void> seekForPreview(Duration pos) async => previews.add(pos);
+
+  @override
+  Future<SentencePlaybackResult> playRange(
+    Duration start,
+    Duration end, {
+    required double speed,
+    VoidCallback? onRangeReady,
+    int? sessionId,
+  }) {
+    ranges.add((start, end));
+    return (pendingRange = Completer<SentencePlaybackResult>()).future;
+  }
+
+  @override
+  Future<void> cancelActiveRange({String reason = 'caller-cancel'}) async {
+    cancelCalls++;
+    pendingRange?.complete(SentencePlaybackResult.cancelled);
+    pendingRange = null;
+  }
+
+  @override
+  Future<void> releaseFromScreen() async {
+    releaseCalls++;
+    newSession();
+  }
+
+  @override
+  Future<void> setVideoTrackEnabled(bool enabled) async =>
+      videoTrackCalls.add(enabled);
+
+  @override
+  Future<void> setSubtitleTrackData(String? srt) async {}
+}
+
+/// 打开「显示视频画面」并注入可控引擎的复习容器。
+({
+  ProviderContainer container,
+  db.AppDatabase database,
+  _FakeShortAudioPlayer player,
+  _FakeVideoEngine engine,
+  _ControlledAudioItemDao audioItemDao,
+})
+_videoScope({bool showVideo = true}) {
+  final database = db.AppDatabase(
+    NativeDatabase.memory(setup: configureAppDatabaseConnection),
+  );
+  final player = _FakeShortAudioPlayer();
+  final audioItemDao = _ControlledAudioItemDao(database);
+  final container = _container(
+    _TestBookmarkDao(),
+    database,
+    shortAudioPlayer: player,
+    showVideo: showVideo,
+    extraOverrides: [
+      mediaEngineProvider.overrideWith(_FakeVideoEngine.new),
+      audioItemDaoProvider.overrideWithValue(audioItemDao),
+    ],
+  );
+  return (
+    container: container,
+    database: database,
+    player: player,
+    engine: container.read(mediaEngineProvider.notifier) as _FakeVideoEngine,
+    audioItemDao: audioItemDao,
+  );
+}
 
 Future<void> _disposeBookmarkContainer(ProviderContainer container) async {
   await container.read(bookmarkReviewProvider.notifier).disposeSession();
@@ -211,7 +357,9 @@ _testScope(
   bool autoPlayFront = false,
   bool autoPlayBack = false,
 }) {
-  final database = db.AppDatabase(NativeDatabase.memory(setup: configureAppDatabaseConnection));
+  final database = db.AppDatabase(
+    NativeDatabase.memory(setup: configureAppDatabaseConnection),
+  );
   final player = _FakeShortAudioPlayer();
   return (
     container: _container(
@@ -390,9 +538,9 @@ void main() {
         await _disposeBookmarkContainer(container);
         await scope.database.close();
       });
-      final foreground =
-          container.read(foregroundAudioEngineProvider.notifier)
-              as _RecordingForegroundAudioEngine;
+      final foreground = container.read(
+        foregroundAudioEngineProvider.notifier,
+      ) as _RecordingForegroundAudioEngine;
       final notifier = container.read(bookmarkReviewProvider.notifier);
 
       await _initializeBookmarkReview(container, [_bookmark(1)]);
@@ -410,9 +558,9 @@ void main() {
       await _disposeBookmarkContainer(container);
       await scope.database.close();
     });
-    final foreground =
-        container.read(foregroundAudioEngineProvider.notifier)
-            as _RecordingForegroundAudioEngine;
+    final foreground = container.read(
+      foregroundAudioEngineProvider.notifier,
+    ) as _RecordingForegroundAudioEngine;
     final notifier = container.read(bookmarkReviewProvider.notifier);
 
     foreground.isPlaying = true;
@@ -694,4 +842,270 @@ void main() {
     expect(state.removeError, isNotNull);
     expect(state.isRemoving, isFalse);
   });
+
+  group('视频材料', () {
+    test('显示画面时加载视频并由媒体引擎播放，不再走短音频', () async {
+      final scope = _videoScope();
+      addTearDown(() async {
+        await _disposeBookmarkContainer(scope.container);
+        await scope.database.close();
+      });
+      final notifier = scope.container.read(bookmarkReviewProvider.notifier);
+      await _initializeBookmarkReview(scope.container, [_bookmark(1)]);
+      await notifier.startCurrentCard();
+
+      final state = scope.container.read(bookmarkReviewProvider);
+      expect(scope.engine.loads, ['audio-1']);
+      expect(state.videoPhase, BookmarkReviewVideoPhase.ready);
+      expect(state.videoAspectRatio, closeTo(16 / 9, 0.001));
+      expect(notifier.videoSession, isNotNull);
+
+      final playback = notifier.replayCurrent();
+      await Future<void>.delayed(Duration.zero);
+      expect(scope.engine.ranges, [
+        (const Duration(seconds: 1), const Duration(seconds: 2)),
+      ]);
+      expect(scope.player.rangePlays, 0);
+      scope.engine.pendingRange!.complete(SentencePlaybackResult.completed);
+      await playback;
+      expect(
+        scope.container.read(bookmarkReviewProvider).playbackState,
+        BookmarkReviewPlaybackState.idle,
+      );
+    });
+
+    test('打断播放会取消媒体引擎的区间播放', () async {
+      final scope = _videoScope();
+      addTearDown(() async {
+        await _disposeBookmarkContainer(scope.container);
+        await scope.database.close();
+      });
+      final notifier = scope.container.read(bookmarkReviewProvider.notifier);
+      await _initializeBookmarkReview(scope.container, [_bookmark(1)]);
+      await notifier.startCurrentCard();
+      final playback = notifier.replayCurrent();
+      await Future<void>.delayed(Duration.zero);
+
+      await notifier.interruptPlayback();
+      await playback;
+
+      expect(scope.engine.cancelCalls, greaterThan(0));
+      expect(
+        scope.container.read(bookmarkReviewProvider).playbackState,
+        BookmarkReviewPlaybackState.idle,
+      );
+    });
+
+    test('设置关闭时不加载视频，仍用短音频播放', () async {
+      final scope = _videoScope(showVideo: false);
+      addTearDown(() async {
+        await _disposeBookmarkContainer(scope.container);
+        await scope.database.close();
+      });
+      final notifier = scope.container.read(bookmarkReviewProvider.notifier);
+      await _initializeBookmarkReview(scope.container, [_bookmark(1)]);
+      await notifier.startCurrentCard();
+
+      expect(scope.engine.loads, isEmpty);
+      expect(
+        scope.container.read(bookmarkReviewProvider).videoPhase,
+        BookmarkReviewVideoPhase.none,
+      );
+      unawaited(notifier.replayCurrent());
+      await scope.player.waitForRangePlaybackStart();
+      expect(scope.player.rangePlays, 1);
+    });
+
+    test('视频加载失败时退回音频播放', () async {
+      final scope = _videoScope();
+      scope.engine.loadSucceeds = false;
+      addTearDown(() async {
+        await _disposeBookmarkContainer(scope.container);
+        await scope.database.close();
+      });
+      final notifier = scope.container.read(bookmarkReviewProvider.notifier);
+      await _initializeBookmarkReview(scope.container, [_bookmark(1)]);
+      await notifier.startCurrentCard();
+
+      expect(scope.engine.loads, ['audio-1']);
+      expect(
+        scope.container.read(bookmarkReviewProvider).videoPhase,
+        BookmarkReviewVideoPhase.none,
+      );
+      expect(notifier.videoSession, isNull);
+      unawaited(notifier.replayCurrent());
+      await scope.player.waitForRangePlaybackStart();
+      expect(scope.player.rangePlays, 1);
+      expect(scope.engine.ranges, isEmpty);
+    });
+
+    test('同一材料的下一张卡只定位到句首，不重新加载；隐藏画面跨卡保留', () async {
+      final scope = _videoScope();
+      addTearDown(() async {
+        await _disposeBookmarkContainer(scope.container);
+        await scope.database.close();
+      });
+      final notifier = scope.container.read(bookmarkReviewProvider.notifier);
+      await _initializeBookmarkReview(scope.container, [
+        _bookmark(1),
+        _bookmark(2),
+      ]);
+      await notifier.startCurrentCard();
+      await notifier.videoSession!.setVisualTrackVisible(false);
+      expect(
+        scope.container.read(bookmarkReviewProvider).isVideoVisualVisible,
+        isFalse,
+      );
+
+      await notifier.removeCurrentBookmark();
+      await Future<void>.delayed(Duration.zero);
+
+      final state = scope.container.read(bookmarkReviewProvider);
+      final next = state.currentCard!;
+      expect(scope.engine.loads, ['audio-1']);
+      expect(scope.engine.previews.last, next.sentence.startTime);
+      expect(state.videoPhase, BookmarkReviewVideoPhase.ready);
+      expect(state.isVideoVisualVisible, isFalse);
+    });
+
+    test('复习中关闭设置立即释放视频并回到音频', () async {
+      final scope = _videoScope();
+      addTearDown(() async {
+        await _disposeBookmarkContainer(scope.container);
+        await scope.database.close();
+      });
+      final notifier = scope.container.read(bookmarkReviewProvider.notifier);
+      await _initializeBookmarkReview(scope.container, [_bookmark(1)]);
+      await notifier.startCurrentCard();
+      final settings = scope.container.read(
+        bookmarkReviewSettingsProvider.notifier,
+      );
+
+      await settings.update(
+        scope.container
+            .read(bookmarkReviewSettingsProvider)
+            .copyWith(showVideo: false),
+      );
+      await Future<void>.delayed(Duration.zero);
+
+      expect(
+        scope.container.read(bookmarkReviewProvider).videoPhase,
+        BookmarkReviewVideoPhase.none,
+      );
+      expect(notifier.videoSession, isNull);
+      expect(scope.engine.releaseCalls, 1);
+    });
+
+    test('退出复习释放视频会话', () async {
+      final scope = _videoScope();
+      addTearDown(() async {
+        scope.container.dispose();
+        await scope.database.close();
+      });
+      final notifier = scope.container.read(bookmarkReviewProvider.notifier);
+      await _initializeBookmarkReview(scope.container, [_bookmark(1)]);
+      await notifier.startCurrentCard();
+
+      await notifier.disposeSession();
+
+      expect(scope.engine.releaseCalls, 1);
+      expect(notifier.videoSession, isNull);
+    });
+
+    test('切到其它材料的卡片时，旧视频会话不再对外可用', () async {
+      final scope = _videoScope();
+      addTearDown(() async {
+        await _disposeBookmarkContainer(scope.container);
+        await scope.database.close();
+      });
+      await _addAudioOnlyMedia(scope.database);
+      final notifier = scope.container.read(bookmarkReviewProvider.notifier);
+      await _initializeBookmarkReview(scope.container, [
+        _bookmark(1),
+        _bookmarkOf('audio-2', 2),
+      ]);
+      await notifier.startCurrentCard();
+      expect(
+        scope.container.read(bookmarkReviewProvider).currentCard?.audioItemId,
+        'audio-1',
+      );
+      expect(notifier.videoSession, isNotNull);
+
+      final gate = scope.audioItemDao.gates['audio-2'] = Completer<void>();
+      // 断言失败时也要放行挂起的读取，否则拆除阶段会一直等待。
+      addTearDown(() {
+        if (!gate.isCompleted) gate.complete();
+      });
+
+      // 音频材料的读取挂起期间，页面不得继续拿到上一份视频的会话。
+      await notifier.removeCurrentBookmark();
+      expect(
+        scope.container.read(bookmarkReviewProvider).currentCard?.audioItemId,
+        'audio-2',
+      );
+      expect(notifier.videoSession, isNull);
+
+      gate.complete();
+      await Future<void>.delayed(Duration.zero);
+      expect(
+        scope.container.read(bookmarkReviewProvider).videoPhase,
+        BookmarkReviewVideoPhase.none,
+      );
+      expect(scope.engine.releaseCalls, 1);
+    });
+
+    test('视频同步异常时退回音频，仍可自动播放当前句', () async {
+      final scope = _videoScope();
+      addTearDown(() async {
+        await _disposeBookmarkContainer(scope.container);
+        await scope.database.close();
+      });
+      scope.audioItemDao.failingIds.add('audio-1');
+      final notifier = scope.container.read(bookmarkReviewProvider.notifier);
+      await _initializeBookmarkReview(scope.container, [_bookmark(1)]);
+
+      await notifier.startCurrentCard();
+
+      expect(
+        scope.container.read(bookmarkReviewProvider).videoPhase,
+        BookmarkReviewVideoPhase.none,
+      );
+      expect(notifier.videoSession, isNull);
+      unawaited(notifier.replayCurrent());
+      await scope.player.waitForRangePlaybackStart();
+      expect(scope.player.rangePlays, 1);
+      expect(scope.engine.ranges, isEmpty);
+    });
+  });
+}
+
+/// 指定材料的书签；供需要多份材料的视频测试使用。
+BookmarkWithAudio _bookmarkOf(String audioItemId, int id) => BookmarkWithAudio(
+  bookmark: db.Bookmark(
+    id: id,
+    audioItemId: audioItemId,
+    memorySubjectId: 'test-subject-$audioItemId-$id',
+    sentenceIndex: id,
+    sentenceText: 'Sentence $id',
+    startTime: id.toDouble(),
+    endTime: id + 1.0,
+    // 晚于 _bookmark 的书签，保证视频材料的卡片先被复习。
+    createdAt: DateTime(2026, 1, 20 + id),
+    updatedAt: DateTime(2026, 1, 20 + id),
+    syncStatus: 0,
+  ),
+  audioName: 'Audio only',
+);
+
+Future<void> _addAudioOnlyMedia(db.AppDatabase database) {
+  final now = DateTime.now();
+  return database.audioItemDao.upsert(
+    db.AudioItemsCompanion(
+      id: const Value('audio-2'),
+      name: const Value('Audio only'),
+      audioPath: const Value('media/audio.mp3'),
+      addedDate: Value(now),
+      updatedAt: Value(now),
+    ),
+  );
 }

@@ -1227,6 +1227,7 @@
   "bookmarkReviewCompleted": "All Done!",
   "bookmarkReviewUnsaveFailed": "Couldn't unsave this sentence. Please try again.",
   "bookmarkReviewSettingsTitle": "Review settings",
+  "bookmarkReviewShowVideo": "Show video",
   "bookmarkReviewShowNextReviewTime": "Show next review time",
   "favoriteReviewAutoPlayFront": "Auto-play front",
   "favoriteReviewAutoPlayBack": "Auto-play back",

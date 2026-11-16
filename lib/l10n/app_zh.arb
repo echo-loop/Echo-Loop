@@ -968,6 +968,7 @@
   "bookmarkReviewCompleted": "全部完成！",
   "bookmarkReviewUnsaveFailed": "取消收藏失败，请重试。",
   "bookmarkReviewSettingsTitle": "复习设置",
+  "bookmarkReviewShowVideo": "显示视频画面",
   "bookmarkReviewShowNextReviewTime": "显示下次复习时间",
   "favoriteReviewAutoPlayFront": "自动播放正面",
   "favoriteReviewAutoPlayBack": "自动播放背面",

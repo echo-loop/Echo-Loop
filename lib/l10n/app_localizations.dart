@@ -4208,6 +4208,12 @@ abstract class AppLocalizations {
   /// **'Review settings'**
   String get bookmarkReviewSettingsTitle;
 
+  /// No description provided for @bookmarkReviewShowVideo.
+  ///
+  /// In en, this message translates to:
+  /// **'Show video'**
+  String get bookmarkReviewShowVideo;
+
   /// No description provided for @bookmarkReviewShowNextReviewTime.
   ///
   /// In en, this message translates to:

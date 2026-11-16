@@ -54,6 +54,17 @@ class MediaVisualSurfaceActions {
   final ValueChanged<Rect> onSubtitleMaskRectChanged;
 }
 
+/// 画面右上角可用的控件；默认全部可用，个别页面按需收起。
+class MediaVisualControls {
+  const MediaVisualControls({
+    this.showSubtitleTrackButton = true,
+    this.showFullscreenButton = true,
+  });
+
+  final bool showSubtitleTrackButton;
+  final bool showFullscreenButton;
+}
+
 /// media_kit 视频画面的共享外壳。
 ///
 /// 隐藏、CC、全屏和悬浮控制行为只有这一份实现；播放器实例通过
@@ -65,12 +76,14 @@ class MediaVisualSurface extends StatefulWidget {
     required this.actions,
     required this.buildVideoView,
     this.fillAvailableHeight = false,
+    this.controls = const MediaVisualControls(),
   });
 
   final MediaVisualSurfaceState state;
   final MediaVisualSurfaceActions actions;
   final Widget Function(Size viewportSize) buildVideoView;
   final bool fillAvailableHeight;
+  final MediaVisualControls controls;
 
   @override
   State<MediaVisualSurface> createState() => _MediaVisualSurfaceState();
@@ -145,6 +158,7 @@ class _MediaVisualSurfaceState extends State<MediaVisualSurface> {
         final controlsVisible = state.expanded || _controlsVisible;
         final subtitleMask = state.subtitleMask;
         final isSubtitleMaskEnabled = subtitleMask?.enabled ?? false;
+        final controls = widget.controls;
         final width = constraints.maxWidth.isFinite
             ? constraints.maxWidth
             : MediaQuery.sizeOf(context).width;
@@ -235,7 +249,7 @@ class _MediaVisualSurfaceState extends State<MediaVisualSurface> {
                           ignoring: !controlsVisible,
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
-                            children: [
+                            children: _spaced([
                               _VisualControlButton(
                                 key: const ValueKey(
                                   'media-subtitle-mask-button',
@@ -251,39 +265,41 @@ class _MediaVisualSurfaceState extends State<MediaVisualSurface> {
                                           .mediaShowSubtitleMask,
                                 onPressed: _toggleSubtitleMask,
                               ),
-                              const SizedBox(width: 8),
-                              _VisualControlButton(
-                                key: const ValueKey(
-                                  'media-subtitle-track-button',
+                              if (controls.showSubtitleTrackButton)
+                                _VisualControlButton(
+                                  key: const ValueKey(
+                                    'media-subtitle-track-button',
+                                  ),
+                                  icon: _CcTrackIcon(
+                                    enabled: state.subtitleVisible,
+                                  ),
+                                  active: state.subtitleVisible,
+                                  tooltip: state.subtitleVisible
+                                      ? AppLocalizations.of(context)!
+                                            .mediaHideVideoSubtitles
+                                      : AppLocalizations.of(context)!
+                                            .mediaShowVideoSubtitles,
+                                  onPressed: widget.actions.onSubtitleToggle,
                                 ),
-                                icon: _CcTrackIcon(
-                                  enabled: state.subtitleVisible,
+                              if (controls.showFullscreenButton)
+                                _VisualControlButton(
+                                  key: const ValueKey(
+                                    'media-fullscreen-button',
+                                  ),
+                                  icon: Icon(
+                                    state.expanded
+                                        ? Icons.fullscreen_exit
+                                        : Icons.fullscreen,
+                                  ),
+                                  active: true,
+                                  tooltip: state.expanded
+                                      ? AppLocalizations.of(context)!
+                                            .mediaExitFullscreen
+                                      : AppLocalizations.of(context)!
+                                            .mediaEnterFullscreen,
+                                  onPressed: widget.actions.onFullscreenToggle,
                                 ),
-                                active: state.subtitleVisible,
-                                tooltip: state.subtitleVisible
-                                    ? AppLocalizations.of(context)!
-                                          .mediaHideVideoSubtitles
-                                    : AppLocalizations.of(context)!
-                                          .mediaShowVideoSubtitles,
-                                onPressed: widget.actions.onSubtitleToggle,
-                              ),
-                              const SizedBox(width: 8),
-                              _VisualControlButton(
-                                key: const ValueKey('media-fullscreen-button'),
-                                icon: Icon(
-                                  state.expanded
-                                      ? Icons.fullscreen_exit
-                                      : Icons.fullscreen,
-                                ),
-                                active: true,
-                                tooltip: state.expanded
-                                    ? AppLocalizations.of(context)!
-                                          .mediaExitFullscreen
-                                    : AppLocalizations.of(context)!
-                                          .mediaEnterFullscreen,
-                                onPressed: widget.actions.onFullscreenToggle,
-                              ),
-                            ],
+                            ]),
                           ),
                         ),
                       ),
@@ -320,6 +336,14 @@ class _MediaVisualSurfaceState extends State<MediaVisualSurface> {
     );
   }
 }
+
+/// 在按钮之间插入固定间距，个别按钮被收起时不残留多余空隙。
+List<Widget> _spaced(List<Widget> buttons) => [
+  for (var i = 0; i < buttons.length; i++) ...[
+    if (i > 0) const SizedBox(width: 8),
+    buttons[i],
+  ],
+];
 
 class _VisualControlButton extends StatelessWidget {
   const _VisualControlButton({

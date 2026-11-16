@@ -29,7 +29,12 @@ import '../router/app_router.dart';
 import '../theme/app_theme.dart';
 import '../utils/time_format.dart';
 import '../utils/wakelock_mixin.dart';
+import '../widgets/common/media_startup_status.dart';
+import '../widgets/common/media_visual_surface.dart';
+import '../widgets/common/practice_media_presentation_host.dart';
+import '../widgets/common/practice_media_split_layout.dart';
 import '../widgets/dictionary/dictionary_panel_host.dart';
+import '../widgets/favorites/favorite_sentence_video_session.dart';
 import '../widgets/practice/sentence_explanation_view.dart';
 import '../widgets/bookmark_review/bookmark_review_settings_sheet.dart';
 import '../widgets/review/review_status_bar.dart';
@@ -53,6 +58,9 @@ class _BookmarkReviewScreenState extends ConsumerState<BookmarkReviewScreen>
   bool _isDictionaryPanelOpen = false;
   final GlobalKey<DictionaryPanelHostState> _dictionaryHostKey =
       GlobalKey<DictionaryPanelHostState>();
+  final GlobalKey _reviewContentKey = GlobalKey(
+    debugLabel: 'bookmark-review-content',
+  );
 
   @override
   void initState() {
@@ -211,104 +219,152 @@ class _BookmarkReviewScreenState extends ConsumerState<BookmarkReviewScreen>
                   )
                 : card == null
                 ? const SizedBox.shrink()
-                : DictionaryPanelHost(
-                    key: _dictionaryHostKey,
-                    onOpenStateChanged: _handleDictionaryPanelOpenStateChanged,
-                    // 宽屏下整页（进度条、卡面、评分栏、状态栏）限宽居中，避免正文与评分按钮被拉满整窗。
-                    child: Align(
-                      alignment: Alignment.topCenter,
-                      child: ConstrainedBox(
-                        constraints: const BoxConstraints(maxWidth: 720),
-                        child: Column(
-                          children: [
-                            _ReviewProgress(
-                              progress: state.progress,
-                              source: l10n.bookmarkReviewFromAudio(
-                                card.audioName,
-                              ),
-                              duration: l10n.sentenceDuration(
-                                (card.sentence.duration.inMilliseconds / 1000)
-                                    .toStringAsFixed(1),
-                              ),
-                              isRemoving: state.isRemoving,
-                              onRemove: _removeCurrent,
-                            ),
-                            Expanded(
-                              child: state.face == BookmarkReviewFace.front
-                                  ? _ListeningFront(
-                                      playbackState: state.playbackState,
-                                      hasError: state.mediaError != null,
-                                      onReplay: () =>
-                                          unawaited(player.replayCurrent()),
-                                      onReveal: () =>
-                                          unawaited(player.revealBack()),
-                                    )
-                                  : ProviderScope(
-                                      overrides: [
-                                        senseGroupRangePlaybackProvider
-                                            .overrideWith(
-                                              (ref) =>
-                                                  LocalAudioSenseGroupRangePlayback(
-                                                    audioItemDao: ref.read(
-                                                      audioItemDaoProvider,
-                                                    ),
-                                                    audioClipPlayer: ref.read(
-                                                      shortAudioPlayerProvider,
-                                                    ),
-                                                  ),
-                                            ),
-                                      ],
-                                      child: _ReviewAnswer(
-                                        card: card,
-                                        upcomingCards: state.upcomingCards,
-                                        preview: state.preview,
-                                        showNextReviewTime: ref.watch(
-                                          favoriteReviewSettingsProvider.select(
-                                            (settings) =>
-                                                settings.showNextReviewTime,
-                                          ),
-                                        ),
-                                        isSubmitting: state.isSubmittingRating,
-                                        playbackState: state.playbackState,
-                                        onTogglePlayback: () => unawaited(
-                                          player.toggleCurrentPlayback(),
-                                        ),
-                                        onRating: (rating) => unawaited(
-                                          player.selectRating(rating),
-                                        ),
-                                      ),
-                                    ),
-                            ),
-                            ReviewStatusBar(
-                              key: const Key('bookmark-review-status-bar'),
-                              elapsed: () => player.elapsed,
-                              reviewedCount: state.reviewedCount,
-                              remainingCount: state.remainingCount,
-                              elapsedLabel:
-                                  Localizations.localeOf(context)
-                                          .languageCode ==
-                                      'zh'
-                                  ? '学习时长'
-                                  : 'Study time',
-                              reviewedLabel:
-                                  Localizations.localeOf(context)
-                                          .languageCode ==
-                                      'zh'
-                                  ? '已复习'
-                                  : 'Reviewed',
-                              remainingLabel: l10n.reviewStatusRemaining,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
+                : _buildReviewBody(context, state, card),
           ),
         ),
       ),
     );
   }
+
+  /// 复习主体：当前卡片有视频画面时套用学习任务的自适应分栏（竖屏上下、
+  /// 宽屏左右），否则保持纯音频的单栏布局。
+  ///
+  /// 卡片内容挂在固定 GlobalKey 下，切换有无画面时讲解视图等状态原样保留。
+  Widget _buildReviewBody(
+    BuildContext context,
+    BookmarkReviewState state,
+    BookmarkSentence card,
+  ) {
+    final l10n = AppLocalizations.of(context)!;
+    final player = _review;
+    final videoSession = player.videoSession;
+    final isPlaying =
+        state.playbackState == BookmarkReviewPlaybackState.loading ||
+        state.playbackState == BookmarkReviewPlaybackState.playing;
+    final content = KeyedSubtree(
+      key: _reviewContentKey,
+      // 宽屏下整页（进度条、卡面、评分栏、状态栏）限宽居中，避免正文与评分按钮被拉满整窗。
+      child: Align(
+        alignment: Alignment.topCenter,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 720),
+          child: Column(
+            children: [
+              _ReviewProgress(
+                progress: state.progress,
+                source: l10n.bookmarkReviewFromAudio(card.audioName),
+                duration: l10n.sentenceDuration(
+                  (card.sentence.duration.inMilliseconds / 1000)
+                      .toStringAsFixed(1),
+                ),
+                isRemoving: state.isRemoving,
+                onRemove: _removeCurrent,
+              ),
+              Expanded(
+                child: state.face == BookmarkReviewFace.front
+                    ? _ListeningFront(
+                        playbackState: state.playbackState,
+                        hasError: state.mediaError != null,
+                        onReplay: () => unawaited(player.replayCurrent()),
+                        onReveal: () => unawaited(player.revealBack()),
+                      )
+                    : ProviderScope(
+                        // 意群播放与讲解视图创建时绑定播放器；视频 / 音频切换时整体
+                        // 重建背面，避免沿用另一条播放链路。
+                        key: ValueKey('answer-${videoSession != null}'),
+                        overrides: [
+                          senseGroupRangePlaybackProvider.overrideWith(
+                            (ref) => videoSession != null
+                                ? videoSession.rangePlaybackBuilder(() => 1.0)
+                                : LocalAudioSenseGroupRangePlayback(
+                                    audioItemDao: ref.read(
+                                      audioItemDaoProvider,
+                                    ),
+                                    audioClipPlayer: ref.read(
+                                      shortAudioPlayerProvider,
+                                    ),
+                                  ),
+                          ),
+                        ],
+                        child: _ReviewAnswer(
+                          card: card,
+                          upcomingCards: state.upcomingCards,
+                          preview: state.preview,
+                          showNextReviewTime: ref.watch(
+                            favoriteReviewSettingsProvider.select(
+                              (settings) => settings.showNextReviewTime,
+                            ),
+                          ),
+                          isSubmitting: state.isSubmittingRating,
+                          playbackState: state.playbackState,
+                          videoSession: videoSession,
+                          onTogglePlayback: () =>
+                              unawaited(player.toggleCurrentPlayback()),
+                          onRating: (rating) =>
+                              unawaited(player.selectRating(rating)),
+                        ),
+                      ),
+              ),
+              ReviewStatusBar(
+                key: const Key('bookmark-review-status-bar'),
+                elapsed: () => player.elapsed,
+                reviewedCount: state.reviewedCount,
+                remainingCount: state.remainingCount,
+                elapsedLabel:
+                    Localizations.localeOf(context).languageCode == 'zh'
+                    ? '学习时长'
+                    : 'Study time',
+                reviewedLabel:
+                    Localizations.localeOf(context).languageCode == 'zh'
+                    ? '已复习'
+                    : 'Reviewed',
+                remainingLabel: l10n.reviewStatusRemaining,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    Widget wrapDictionaryPanelHost(Widget child) => DictionaryPanelHost(
+      key: _dictionaryHostKey,
+      onOpenStateChanged: _handleDictionaryPanelOpenStateChanged,
+      child: child,
+    );
+    if (state.videoPhase == BookmarkReviewVideoPhase.none) {
+      return wrapDictionaryPanelHost(content);
+    }
+    return PracticeMediaSplitLayout(
+      media: videoSession == null
+          ? null
+          : PracticeMediaVisualSurface(
+              audioItemId: card.audioItemId,
+              session: videoSession.mediaSession,
+              isPlaying: isPlaying,
+              onPlayPause: () => unawaited(player.toggleCurrentPlayback()),
+              // 尺寸由分栏决定，画面铺满分给视频的区域。
+              fillAvailableHeight: true,
+              // 复习不显示字幕、不全屏；遮罩照常可开关。
+              controls: const MediaVisualControls(
+                showSubtitleTrackButton: false,
+                showFullscreenButton: false,
+              ),
+            ),
+      isMediaResizable: state.isVideoVisualVisible,
+      videoAspectRatio: state.videoAspectRatio,
+      panelHostBuilder: wrapDictionaryPanelHost,
+      startupStatus: state.videoPhase == BookmarkReviewVideoPhase.loading
+          ? const MediaStartupStatus(
+              phase: ManagedMediaPhase.loading,
+              retry: _noop,
+            )
+          : null,
+      content: content,
+    );
+  }
 }
+
+/// 复习的视频加载失败会直接退回音频，不提供重试入口。
+void _noop() {}
 
 class _ReviewProgress extends StatelessWidget {
   const _ReviewProgress({
@@ -479,11 +535,15 @@ class _ReviewAnswer extends ConsumerWidget {
     required this.showNextReviewTime,
     required this.isSubmitting,
     required this.playbackState,
+    required this.videoSession,
     required this.onTogglePlayback,
     required this.onRating,
   });
 
   final BookmarkSentence card;
+
+  /// 当前卡片画面就绪时的视频会话；逐词高亮改为跟随媒体引擎时间轴。
+  final FavoriteSentenceVideoSession? videoSession;
 
   /// 当前卡之后即将展示的收藏句，答案面展示期间后台预热其 AI 内容。
   final List<BookmarkSentence> upcomingCards;
@@ -547,21 +607,23 @@ class _ReviewAnswer extends ConsumerWidget {
               sentenceIndex: card.originalSentenceIndex,
               sentenceStartMs: card.sentence.startTime.inMilliseconds,
               sentenceEndMs: card.sentence.endTime.inMilliseconds,
-              wordHighlightSource: WordHighlightSource(
-                audioItemId: card.audioItemId,
-                positionStream: ref
-                    .read(shortAudioPlayerProvider)
-                    .positionStream,
-                currentPosition: ref
-                    .read(shortAudioPlayerProvider)
-                    .currentPosition,
-                playbackStatus: ref
-                    .read(shortAudioPlayerProvider)
-                    .wordHighlightPlaybackStatus,
-                playbackStatusStream: ref
-                    .read(shortAudioPlayerProvider)
-                    .wordHighlightPlaybackStatusStream,
-              ),
+              wordHighlightSource:
+                  videoSession?.wordHighlightSource(card.audioItemId) ??
+                  WordHighlightSource(
+                    audioItemId: card.audioItemId,
+                    positionStream: ref
+                        .read(shortAudioPlayerProvider)
+                        .positionStream,
+                    currentPosition: ref
+                        .read(shortAudioPlayerProvider)
+                        .currentPosition,
+                    playbackStatus: ref
+                        .read(shortAudioPlayerProvider)
+                        .wordHighlightPlaybackStatus,
+                    playbackStatusStream: ref
+                        .read(shortAudioPlayerProvider)
+                        .wordHighlightPlaybackStatusStream,
+                  ),
               senseGroupRangePlayback: ref.read(
                 senseGroupRangePlaybackProvider,
               ),

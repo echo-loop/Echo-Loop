@@ -2386,6 +2386,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get bookmarkReviewSettingsTitle => 'Review settings';
 
   @override
+  String get bookmarkReviewShowVideo => 'Show video';
+
+  @override
   String get bookmarkReviewShowNextReviewTime => 'Show next review time';
 
   @override

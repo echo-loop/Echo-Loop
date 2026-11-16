@@ -254,6 +254,7 @@ class PracticeMediaVisualSurface extends ConsumerWidget {
     required this.onPlayPause,
     required this.fillAvailableHeight,
     this.onPresentationChanged,
+    this.controls = const MediaVisualControls(),
   });
 
   final String audioItemId;
@@ -269,6 +270,9 @@ class PracticeMediaVisualSurface extends ConsumerWidget {
   /// 会话操作完成后通知持有方重建。会话状态不可监听的借用方（句子讲解页）
   /// 需要传入；宿主与随心听由各自的状态源驱动重建，无需传入。
   final VoidCallback? onPresentationChanged;
+
+  /// 画面上可用的控件，默认全部可用。
+  final MediaVisualControls controls;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -302,6 +306,7 @@ class PracticeMediaVisualSurface extends ConsumerWidget {
       ),
       fillAvailableHeight: state.expanded || fillAvailableHeight,
       buildVideoView: session.buildVideoView,
+      controls: controls,
     );
   }
 

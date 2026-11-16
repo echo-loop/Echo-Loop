@@ -58,4 +58,15 @@ void main() {
     expect(settings.autoShowAiTranslation, isTrue);
     expect(settings.autoShowAiSenseGroups, isFalse);
   });
+
+  test('显示视频画面默认开启，旧数据缺字段时也开启，并可往返序列化', () {
+    expect(const BookmarkReviewSettings().showVideo, isTrue);
+    expect(BookmarkReviewSettings.fromJson({}).showVideo, isTrue);
+    expect(
+      BookmarkReviewSettings.fromJson({'showVideo': 'x'}).showVideo,
+      isTrue,
+    );
+    final off = const BookmarkReviewSettings().copyWith(showVideo: false);
+    expect(BookmarkReviewSettings.fromJson(off.toJson()).showVideo, isFalse);
+  });
 }

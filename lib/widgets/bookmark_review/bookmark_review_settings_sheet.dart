@@ -98,6 +98,14 @@ class _BookmarkReviewSettingsSheetState
                 setState(() => _sentenceExpanded = expanded),
             children: [
               _SettingsSwitch(
+                key: const Key('bookmark-review-show-video'),
+                title: l10n.bookmarkReviewShowVideo,
+                value: sentenceSettings.showVideo,
+                onChanged: (value) => sentenceNotifier.update(
+                  sentenceSettings.copyWith(showVideo: value),
+                ),
+              ),
+              _SettingsSwitch(
                 title: l10n.autoShowAiExplanationToggle,
                 value: sentenceSettings.autoShowAiExplanation,
                 onChanged: (value) => sentenceNotifier.update(

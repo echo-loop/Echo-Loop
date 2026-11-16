@@ -14,6 +14,7 @@ class BookmarkReviewSettings {
     this.autoShowAiAnalysis = false,
     this.autoShowAiTranslation = true,
     this.autoShowAiSenseGroups = false,
+    this.showVideo = true,
   });
 
   final bool showNextReviewTime;
@@ -23,6 +24,9 @@ class BookmarkReviewSettings {
   final bool autoShowAiAnalysis;
   final bool autoShowAiTranslation;
   final bool autoShowAiSenseGroups;
+
+  /// 来源材料是视频时是否显示视频画面；关闭后完全按音频复习，不加载视频。
+  final bool showVideo;
 
   static const dailyReviewGoalOptions = <int?>[
     null,
@@ -49,6 +53,7 @@ class BookmarkReviewSettings {
     bool? autoShowAiAnalysis,
     bool? autoShowAiTranslation,
     bool? autoShowAiSenseGroups,
+    bool? showVideo,
   }) => BookmarkReviewSettings(
     showNextReviewTime: showNextReviewTime ?? this.showNextReviewTime,
     dailyReviewGoal: clearDailyReviewGoal
@@ -59,6 +64,7 @@ class BookmarkReviewSettings {
     autoShowAiAnalysis: autoShowAiAnalysis ?? this.autoShowAiAnalysis,
     autoShowAiTranslation: autoShowAiTranslation ?? this.autoShowAiTranslation,
     autoShowAiSenseGroups: autoShowAiSenseGroups ?? this.autoShowAiSenseGroups,
+    showVideo: showVideo ?? this.showVideo,
   );
 
   Map<String, dynamic> toJson() => {
@@ -69,6 +75,7 @@ class BookmarkReviewSettings {
     'autoShowAiAnalysis': autoShowAiAnalysis,
     'autoShowAiTranslation': autoShowAiTranslation,
     'autoShowAiSenseGroups': autoShowAiSenseGroups,
+    'showVideo': showVideo,
   };
 
   factory BookmarkReviewSettings.fromJson(Map<String, dynamic> json) {
@@ -103,6 +110,8 @@ class BookmarkReviewSettings {
       autoShowAiSenseGroups: json['autoShowAiSenseGroups'] is bool
           ? json['autoShowAiSenseGroups'] == true
           : false,
+      // 旧版本数据没有该字段，按默认开启处理。
+      showVideo: json['showVideo'] is bool ? json['showVideo'] == true : true,
     );
   }
 }

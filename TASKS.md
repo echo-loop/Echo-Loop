@@ -53,6 +53,10 @@
   - 未完成的验证：真机确认深色模式配色与按压反馈手感。
 - [x] 收藏复习正面视觉重做：句子 / 词汇复习正面抽成共享组件 `ReviewFrontLayout` + `ReviewPlaybackPrompt`（`lib/widgets/review/review_front_layout.dart`），删除两页重复的 `_CenteredPrompt`。去掉上下两块大色块：内容直接居中在页面底色上（整块可点按重播），底部 52 高「查看答案」主按钮，与背面评分栏同位、翻面前后版式连贯；播放按钮用 `primaryContainer` 色调圆形、播放中填实为 `primary`、失败用 `errorContainer`；状态文字降为次要色；单词放大加粗，单词隐藏时释义升为主内容层级。删除不再使用的 `bookmarkReviewRevealHint` / `favoriteVocabularyReviewRevealHint` 文案。**完成时间**: 2026-11-16
   - 未完成的验证：真机确认浅 / 深色观感、长释义与 150% 字号下的排版。
+- [x] 收藏句复习显示来源视频画面：来源是视频且「收藏句子复习 → 显示视频画面」开启（默认开，随句子复习设置同步）时，正反面都显示画面，复用学习任务的自适应分栏（竖屏上下、宽屏左右，比例共用）；翻面画面不重建。视频卡由媒体引擎播放这一句、画面随声音移动，背面逐词高亮与意群播放跟随媒体引擎；同一视频的下一张卡只定位不重载；加载失败退回音频播放。画面不提供字幕与全屏；遮罩照常可开关（由用户负责，避免无内嵌字幕的视频被关不掉的遮罩挡住），开关与拖动 / 缩放写库；隐藏画面本次复习内跨卡保留。设置关闭时完全走原音频路径。编排在 `BookmarkReview`（复用并扩展 `FavoriteSentenceVideoSession`），`MediaVisualSurface` 新增 `MediaVisualControls`（默认行为不变）。日志 `[FavoriteSentenceReview] video.*` / `play path=`。macOS 集成测试 `integration_test/bookmark_review_video_test.dart`（ffmpeg 生成真实视频、真实 media_kit、关键状态截图）通过。**完成时间**: 2026-11-16
+  - 未完成的验证：iOS / Android 真机（竖屏视频比例、触屏拖动遮罩、后台切换）。
+  - 同日审查修复：`videoSession` 校验会话加载的是当前卡片材料，切到其它材料时不再暴露旧画面；视频同步异常只退回音频，不中断切卡与自动播放。回归测试见 `test/providers/learning_session/bookmark_review_test.dart` 的「视频材料」组。**完成时间**: 2026-11-16
+  - 既有问题（未改动）：`BookmarkReview` 的 `onDispose` 调用真实 `AudioEngine.stop()` 会在容器销毁期间修改其它 provider，触发 Riverpod 断言；生产中该 provider keepAlive，仅容器销毁 / invalidate 时出现。
 - [ ] 学习内容字号（只调正文，不缩放整个 UI；颜色设置待产品决定）。
   - [x] 云端偏好同步接入字幕文字字号与粗细：本地键 `subtitle_font_size_percent` / `subtitle_font_weight_percent`，云端字段 `appearance.subtitleFontSizePercent` / `appearance.subtitleFontWeightPercent`（后端按域名校验、域内字段自由，无需改后端）；云端缺失或非法时保留本地值。**完成时间**: 2026-11-12
 - [x] 收藏词汇复习设置新增「正面显示释义」（默认关闭，仅对单词有效，先取基础在线词典（本地缓存 → API），未查到时只读 AI 查词缓存，经偏好同步跨平台）。**完成时间**: 2026-11-13
