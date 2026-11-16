@@ -1,14 +1,13 @@
 import '../../database/daos/audio_item_dao.dart';
 import '../../models/audio_item.dart';
-import '../../models/media_playback_state.dart';
 import '../../models/sense_group_range_playback.dart';
 import '../../models/word_highlight_binding.dart';
 import '../../providers/audio_engine/audio_engine_provider.dart';
 import '../../providers/media_engine/media_engine_provider.dart';
 import '../../providers/media_engine/media_sense_group_range_playback.dart';
-import '../../screens/sentence_detail_screen.dart';
 import '../../services/app_logger.dart';
 import '../common/media_presentation_controller.dart';
+import '../common/practice_media_presentation_host.dart';
 
 /// [FavoriteSentenceVideoSession.open] 的结果。
 enum FavoriteVideoOpenResult {
@@ -83,13 +82,14 @@ class FavoriteSentenceVideoSession {
   }
 
   /// 讲解页借用的视频会话；只能在 [open] 成功后、[close] 之前使用。
-  SentenceDetailMediaSession get mediaSession {
+  PracticeMediaPresentationSession get mediaSession {
     final presentation = _requirePresentation();
-    return SentenceDetailMediaSession(
-      readState: () => MediaPlaybackState(
+    return PracticeMediaPresentationSession(
+      readState: () => PracticeMediaPresentationState(
+        enabled: true,
         visualTrackVisible: presentation.visualTrackVisible,
-        visualTrackExpanded: presentation.expanded,
-        videoSubtitleVisible: presentation.subtitleVisible,
+        expanded: presentation.expanded,
+        subtitleVisible: presentation.subtitleVisible,
         videoAspectRatio: _engine.videoAspectRatio,
       ),
       setVisible: presentation.setVisualTrackVisible,

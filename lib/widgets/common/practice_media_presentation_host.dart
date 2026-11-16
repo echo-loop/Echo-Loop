@@ -47,9 +47,10 @@ typedef PracticeMediaPresentationSessionChanged = void Function(
   PracticeMediaPresentationSession? session,
 );
 
-/// 任务页面与句子讲解页共享的视频呈现控制。
+/// 视频呈现控制的统一契约：学习任务、随心听与收藏讲解会话都以它向句子讲解页
+/// 出借视频画面。
 ///
-/// 宿主拥有状态和系统全屏生命周期，详情页只借用，避免两个路由维护两套
+/// 会话持有方拥有状态和系统全屏生命周期，讲解页只借用，避免两个路由维护两套
 /// 可见性、CC 与全屏状态。
 class PracticeMediaPresentationSession {
   const PracticeMediaPresentationSession({
@@ -123,6 +124,9 @@ class _PracticeMediaPresentationHostState
   /// 仅在任务启用媒体呈现时存在；可见性、字幕与全屏状态由控制器统一维护。
   MediaPresentationController? _presentation;
 
+  /// 与 [_presentation] 同生共死；本页画面与借给讲解页的是同一份会话。
+  PracticeMediaPresentationSession? _session;
+
   @override
   void initState() {
     super.initState();
@@ -153,7 +157,9 @@ class _PracticeMediaPresentationHostState
     presentation.addListener(_handlePresentationChanged);
     presentation.start();
     _presentation = presentation;
-    widget.onSessionChanged?.call(_buildSession(presentation));
+    final session = _buildSession(presentation);
+    _session = session;
+    widget.onSessionChanged?.call(session);
   }
 
   void _handlePresentationChanged() {
@@ -188,6 +194,7 @@ class _PracticeMediaPresentationHostState
     widget.onSessionChanged?.call(null);
     final presentation = _presentation;
     _presentation = null;
+    _session = null;
     if (presentation == null) return;
     presentation.removeListener(_handlePresentationChanged);
     await presentation.release();
@@ -205,6 +212,7 @@ class _PracticeMediaPresentationHostState
     // 宽高比在媒体 ready 后即确定，随后的播放状态重建会带上最新值；未知时遮罩
     // 退回按整个画面定位。
     final presentation = widget.enabled ? _presentation : null;
+    final session = widget.enabled ? _session : null;
     final videoAspectRatio = widget.enabled
         ? ref.read(mediaEngineProvider.notifier).videoAspectRatio
         : null;
@@ -215,8 +223,14 @@ class _PracticeMediaPresentationHostState
       subtitleVisible: presentation?.subtitleVisible ?? false,
       videoAspectRatio: videoAspectRatio,
     );
-    final surface = presentation != null && !widget.suppressVisualView
-        ? _buildVisualSurface(presentation, videoAspectRatio)
+    final surface = session != null && !widget.suppressVisualView
+        ? PracticeMediaVisualSurface(
+            audioItemId: widget.audioItemId,
+            session: session,
+            isPlaying: widget.isPlaying,
+            onPlayPause: widget.onPlayPause,
+            fillAvailableHeight: widget.fillVisualSurface,
+          )
         : widget.enabled
         ? const AspectRatio(
             aspectRatio: 16 / 9,
@@ -225,43 +239,73 @@ class _PracticeMediaPresentationHostState
         : const SizedBox.shrink();
     return widget.builder(context, presentationState, surface);
   }
+}
 
-  /// 只在真正显示视频画面时订阅遮罩设置，纯音频任务不读取遮罩数据。
-  Widget _buildVisualSurface(
-    MediaPresentationController presentation,
-    double? videoAspectRatio,
-  ) {
-    final subtitleMaskProvider = videoSubtitleMaskProvider(widget.audioItemId);
+/// 学习任务页、随心听与句子讲解页共用的视频画面。
+///
+/// 按会话状态组装 [MediaVisualSurface]，画面上的显示 / CC / 全屏操作都回到会话，
+/// 并接入该材料的字幕遮罩设置。只在真正显示画面时订阅遮罩，纯音频不读取遮罩数据。
+class PracticeMediaVisualSurface extends ConsumerWidget {
+  const PracticeMediaVisualSurface({
+    super.key,
+    required this.audioItemId,
+    required this.session,
+    required this.isPlaying,
+    required this.onPlayPause,
+    required this.fillAvailableHeight,
+    this.onPresentationChanged,
+  });
+
+  final String audioItemId;
+  final PracticeMediaPresentationSession session;
+
+  /// 业务播放状态，用于画面播放按钮图标。
+  final bool isPlaying;
+  final VoidCallback onPlayPause;
+
+  /// 画面铺满父级给定的尺寸（由分栏布局决定尺寸时使用）；全屏时总是铺满。
+  final bool fillAvailableHeight;
+
+  /// 会话操作完成后通知持有方重建。会话状态不可监听的借用方（句子讲解页）
+  /// 需要传入；宿主与随心听由各自的状态源驱动重建，无需传入。
+  final VoidCallback? onPresentationChanged;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final state = session.readState();
+    final subtitleMaskProvider = videoSubtitleMaskProvider(audioItemId);
     // 加载完成前为 null：不显示遮罩，避免先在默认位置闪现再跳到已保存位置。
     final subtitleMask = ref.watch(subtitleMaskProvider).value;
     final subtitleMaskNotifier = ref.read(subtitleMaskProvider.notifier);
     return MediaVisualSurface(
       state: MediaVisualSurfaceState(
-        visible: presentation.visualTrackVisible,
-        expanded: presentation.expanded,
-        isPlaying: widget.isPlaying,
-        subtitleVisible: presentation.subtitleVisible,
+        visible: state.visualTrackVisible,
+        expanded: state.expanded,
+        isPlaying: isPlaying,
+        subtitleVisible: state.subtitleVisible,
         subtitleMask: subtitleMask,
-        videoAspectRatio: videoAspectRatio,
+        videoAspectRatio: state.videoAspectRatio,
       ),
       actions: MediaVisualSurfaceActions(
-        onShow: () => unawaited(presentation.setVisualTrackVisible(true)),
-        onHide: () => unawaited(presentation.setVisualTrackVisible(false)),
-        onPlayPause: widget.onPlayPause,
-        onSubtitleToggle: () => unawaited(
-          presentation.setSubtitleVisible(!presentation.subtitleVisible),
+        onShow: () => _runSessionAction(session.setVisible(true)),
+        onHide: () => _runSessionAction(session.setVisible(false)),
+        onPlayPause: onPlayPause,
+        onSubtitleToggle: () => _runSessionAction(
+          session.setSubtitleVisible(!state.subtitleVisible),
         ),
         onFullscreenToggle: () =>
-            unawaited(presentation.setFullscreen(!presentation.expanded)),
+            _runSessionAction(session.setFullscreen(!state.expanded)),
         onSubtitleMaskToggle: () =>
             unawaited(subtitleMaskNotifier.toggleEnabled()),
         onSubtitleMaskRectChanged: (rect) =>
             unawaited(subtitleMaskNotifier.setRect(rect)),
       ),
-      fillAvailableHeight: presentation.expanded || widget.fillVisualSurface,
-      buildVideoView: (size) => ref
-          .read(mediaEngineProvider.notifier)
-          .buildVideoView(viewportSize: size),
+      fillAvailableHeight: state.expanded || fillAvailableHeight,
+      buildVideoView: session.buildVideoView,
     );
+  }
+
+  void _runSessionAction(Future<void> action) {
+    unawaited(action.then((_) => onPresentationChanged?.call()));
   }
 }

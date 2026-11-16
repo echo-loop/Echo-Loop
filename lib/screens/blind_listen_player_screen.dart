@@ -22,7 +22,6 @@ import '../utils/playback_speed.dart';
 import '../utils/wakelock_mixin.dart';
 import '../l10n/app_localizations.dart';
 import '../models/media_learning_startup.dart';
-import '../models/media_playback_state.dart';
 import '../models/retell_settings.dart';
 import '../models/sentence.dart';
 import '../models/word_highlight_binding.dart';
@@ -224,7 +223,7 @@ class _BlindListenPlayerScreenState
         endTimeMs: sentence.endTime.inMilliseconds,
         rangePlaybackBuilder: mediaReady ? _buildMediaRangePlayback : null,
         wordHighlightSource: _wordHighlightSource(),
-        mediaSession: usesVideo ? _buildMediaSession() : null,
+        mediaSession: usesVideo ? _mediaPresentationSession : null,
       ),
     );
 
@@ -252,27 +251,6 @@ class _BlindListenPlayerScreenState
       currentPosition: engine.wordHighlightPosition,
       playbackStatus: engine.wordHighlightPlaybackStatus,
       playbackStatusStream: engine.wordHighlightPlaybackStatusStream,
-    );
-  }
-
-  SentenceDetailMediaSession? _buildMediaSession() {
-    final session = _mediaPresentationSession;
-    if (session == null) return null;
-    return SentenceDetailMediaSession(
-      readState: () {
-        final state = session.readState();
-        return MediaPlaybackState(
-          visualTrackVisible: state.visualTrackVisible,
-          visualTrackExpanded: state.expanded,
-          videoSubtitleVisible: state.subtitleVisible,
-          videoAspectRatio: state.videoAspectRatio,
-        );
-      },
-      setVisible: session.setVisible,
-      setSubtitleVisible: session.setSubtitleVisible,
-      setFullscreen: session.setFullscreen,
-      previewPosition: session.previewPosition,
-      buildVideoView: session.buildVideoView,
     );
   }
 

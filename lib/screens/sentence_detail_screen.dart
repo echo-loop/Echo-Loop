@@ -20,57 +20,30 @@ import '../database/providers.dart';
 import '../features/chatbot/widgets/sentence_chat_button.dart';
 import '../features/chatbot/sentence_passage.dart';
 import '../l10n/app_localizations.dart';
-import '../models/media_playback_state.dart';
 import '../models/sense_group_range_playback.dart';
 import '../models/sentence.dart';
 import '../models/word_highlight_binding.dart';
 import '../providers/audio_engine/audio_engine_provider.dart';
 import '../providers/audio_engine/audio_engine_sense_group_range_playback.dart';
 import '../providers/audio_sentences_provider.dart';
-import '../providers/media_engine/media_engine_provider.dart';
 import '../providers/listening_practice/bookmark_manager.dart';
 import '../providers/favorite_sentence_lifecycle_provider.dart';
 import '../providers/learning_settings_provider.dart';
 import '../providers/notification_permission_provider.dart';
 import '../providers/sentence_ai_provider.dart';
 import '../providers/settings_provider.dart';
-import '../providers/video_subtitle_mask_provider.dart';
 import '../services/app_logger.dart';
 import '../theme/app_theme.dart';
 import '../widgets/common/bookmark_toggle_row.dart';
 import '../widgets/common/practice_playback_footer.dart';
-import '../widgets/common/media_visual_surface.dart';
 import '../widgets/common/playback_controls.dart';
+import '../widgets/common/practice_media_presentation_host.dart';
+import '../widgets/common/practice_media_split_layout.dart';
 import '../widgets/dictionary/dictionary_panel_host.dart';
 import '../widgets/player_hotkey_scope.dart';
 import '../widgets/practice/practice_progress_section.dart';
 import '../widgets/practice/practice_sentence_pager.dart';
 import '../widgets/practice/sentence_explanation_view.dart';
-
-/// 句子讲解页借用的视频会话。
-///
-/// 会话由父任务创建并持有 [MediaEngine] 的生命周期；本页只通过这份契约
-/// 渲染画面及发出控制意图，因而不会依赖某个具体任务的 Provider。
-class SentenceDetailMediaSession {
-  const SentenceDetailMediaSession({
-    required this.readState,
-    required this.setVisible,
-    required this.setSubtitleVisible,
-    required this.setFullscreen,
-    required this.previewPosition,
-    required this.buildVideoView,
-  });
-
-  /// 父任务提供的媒体视觉单一状态源。
-  final MediaPlaybackState Function() readState;
-  final Future<void> Function(bool visible) setVisible;
-  final Future<void> Function(bool visible) setSubtitleVisible;
-  final Future<void> Function(bool expanded) setFullscreen;
-
-  /// 暂停中把画面移到讲解句起点；不改变父任务的焦点与高亮。
-  final Future<void> Function(Duration position) previewPosition;
-  final Widget Function(Size viewportSize) buildVideoView;
-}
 
 /// 句子详情页面参数
 class SentenceDetailArgs {
@@ -99,11 +72,11 @@ class SentenceDetailArgs {
   final SenseGroupRangePlayback Function(double Function() playbackSpeed)?
   rangePlaybackBuilder;
 
-  /// 视频随心听注入的画面呈现能力。
+  /// 来源页（学习任务、随心听、收藏）借出的视频会话。
   ///
   /// 仅作为当前父级媒体会话的视图与全屏协调入口，不拥有、不加载也不释放
   /// `MediaEngine`。为空时讲解页保持原有纯音频布局。
-  final SentenceDetailMediaSession? mediaSession;
+  final PracticeMediaPresentationSession? mediaSession;
 
   /// 调用方当前实际使用的原音播放时间轴。
   final WordHighlightSource wordHighlightSource;
@@ -150,6 +123,11 @@ class _SentenceDetailScreenState extends ConsumerState<SentenceDetailScreen> {
 
   bool _isPlaying = false;
   bool _mediaExpanded = false;
+
+  /// 词典面板宿主。视频分栏在上下 / 左右间切换时宿主会移动位置，
+  /// GlobalKey 让已打开的面板保留状态而不是重建。
+  final GlobalKey<DictionaryPanelHostState> _dictPanelHostKey =
+      GlobalKey<DictionaryPanelHostState>();
   Duration? _resumePosition;
   int _playbackGeneration = 0;
 
@@ -545,15 +523,22 @@ class _SentenceDetailScreenState extends ConsumerState<SentenceDetailScreen> {
     );
 
     final mediaSession = args.mediaSession;
-    final hasMedia = mediaSession != null;
-    final mediaState = hasMedia
-        ? mediaSession.readState()
-        : const MediaPlaybackState();
-    final expanded = hasMedia && mediaState.visualTrackExpanded;
+    final mediaState = mediaSession?.readState();
+    final expanded = mediaState?.expanded ?? false;
     _mediaExpanded = expanded;
-    final mediaSurface = hasMedia
-        ? _buildMediaSurface(mediaState, mediaSession)
-        : null;
+    final mediaSurface = mediaSession == null
+        ? null
+        : PracticeMediaVisualSurface(
+            audioItemId: args.audioItemId,
+            session: mediaSession,
+            isPlaying: _isPlaying,
+            onPlayPause: _handleCenter,
+            // 非全屏时尺寸由分栏布局决定，画面铺满分给视频的区域。
+            fillAvailableHeight: true,
+            onPresentationChanged: () {
+              if (mounted) setState(() {});
+            },
+          );
     return Scaffold(
       backgroundColor: expanded ? Colors.black : null,
       appBar: expanded
@@ -574,17 +559,24 @@ class _SentenceDetailScreenState extends ConsumerState<SentenceDetailScreen> {
             ),
       // 词典面板宿主：面板内嵌 body、非 modal（显示期间正文可继续点词）。
       // 页面自身无 PopScope，由宿主代管返回键（面板开着时先关面板）。
+      // 视频与讲解内容复用学习任务页的自适应分栏：宽屏左右、窄屏上下，可拖动调整。
       body: expanded
           ? mediaSurface
-          : DictionaryPanelHost(
-              handleBackButton: true,
-              child: LearningHotkeyScope(
-                onPlayPause: _handleCenter,
-                onPrevious: _handlePrevious,
-                onNext: _handleNext,
-                child: Column(
+          : LearningHotkeyScope(
+              onPlayPause: _handleCenter,
+              onPrevious: _handlePrevious,
+              onNext: _handleNext,
+              child: PracticeMediaSplitLayout(
+                media: mediaSurface,
+                isMediaResizable: mediaState?.visualTrackVisible ?? false,
+                videoAspectRatio: mediaState?.videoAspectRatio,
+                panelHostBuilder: (child) => DictionaryPanelHost(
+                  key: _dictPanelHostKey,
+                  handleBackButton: true,
+                  child: child,
+                ),
+                content: Column(
                   children: [
-                    if (mediaSurface != null) mediaSurface,
                     if (sentences == null)
                       Expanded(
                         child: Center(
@@ -726,68 +718,5 @@ class _SentenceDetailScreenState extends ConsumerState<SentenceDetailScreen> {
   void _handleCenter() {
     if (_sentences == null) return;
     unawaited(_togglePlayback());
-  }
-
-  /// 使用随心听的单一状态源组装共享 media_kit 视频外壳。
-  Widget _buildMediaSurface(
-    MediaPlaybackState state,
-    SentenceDetailMediaSession session,
-  ) {
-    final subtitleMaskProvider = videoSubtitleMaskProvider(
-      widget.args.audioItemId,
-    );
-    // 加载完成前为 null：不显示遮罩，避免先在默认位置闪现再跳到已保存位置。
-    final subtitleMask = ref.watch(subtitleMaskProvider).value;
-    final subtitleMaskNotifier = ref.read(subtitleMaskProvider.notifier);
-    return MediaVisualSurface(
-      state: MediaVisualSurfaceState(
-        visible: state.visualTrackVisible,
-        expanded: state.visualTrackExpanded,
-        isPlaying: _isPlaying,
-        subtitleVisible: state.videoSubtitleVisible,
-        subtitleMask: subtitleMask,
-        videoAspectRatio: state.videoAspectRatio,
-      ),
-      actions: MediaVisualSurfaceActions(
-        onShow: () => unawaited(_setMediaVisible(session, true)),
-        onHide: () => unawaited(_setMediaVisible(session, false)),
-        onPlayPause: _handleCenter,
-        onSubtitleToggle: () => unawaited(
-          _setMediaSubtitleVisible(session, !state.videoSubtitleVisible),
-        ),
-        onFullscreenToggle: () =>
-            unawaited(_setMediaFullscreen(session, !state.visualTrackExpanded)),
-        onSubtitleMaskToggle: () =>
-            unawaited(subtitleMaskNotifier.toggleEnabled()),
-        onSubtitleMaskRectChanged: (rect) =>
-            unawaited(subtitleMaskNotifier.setRect(rect)),
-      ),
-      fillAvailableHeight: state.visualTrackExpanded,
-      buildVideoView: session.buildVideoView,
-    );
-  }
-
-  Future<void> _setMediaVisible(
-    SentenceDetailMediaSession session,
-    bool visible,
-  ) async {
-    await session.setVisible(visible);
-    if (mounted) setState(() {});
-  }
-
-  Future<void> _setMediaSubtitleVisible(
-    SentenceDetailMediaSession session,
-    bool visible,
-  ) async {
-    await session.setSubtitleVisible(visible);
-    if (mounted) setState(() {});
-  }
-
-  Future<void> _setMediaFullscreen(
-    SentenceDetailMediaSession session,
-    bool expanded,
-  ) async {
-    await session.setFullscreen(expanded);
-    if (mounted) setState(() {});
   }
 }

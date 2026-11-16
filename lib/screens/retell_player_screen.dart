@@ -24,7 +24,6 @@ import '../widgets/common/playback_controls.dart';
 import '../utils/playback_speed.dart';
 import '../models/retell_review_sample.dart';
 import '../models/media_learning_startup.dart';
-import '../models/media_playback_state.dart';
 import '../models/retell_settings.dart';
 import '../models/sentence.dart';
 import '../models/speech_practice_models.dart';
@@ -1587,7 +1586,7 @@ class _RetellPlayerScreenState extends ConsumerState<RetellPlayerScreen>
         endTimeMs: sentence.endTime.inMilliseconds,
         rangePlaybackBuilder: _buildMediaRangePlayback,
         wordHighlightSource: _wordHighlightSource(),
-        mediaSession: usesMedia ? _buildMediaSession() : null,
+        mediaSession: usesMedia ? _mediaPresentationSession : null,
       ),
     );
 
@@ -1616,27 +1615,6 @@ class _RetellPlayerScreenState extends ConsumerState<RetellPlayerScreen>
       currentPosition: engine.wordHighlightPosition,
       playbackStatus: engine.wordHighlightPlaybackStatus,
       playbackStatusStream: engine.wordHighlightPlaybackStatusStream,
-    );
-  }
-
-  SentenceDetailMediaSession? _buildMediaSession() {
-    final session = _mediaPresentationSession;
-    if (session == null) return null;
-    return SentenceDetailMediaSession(
-      readState: () {
-        final state = session.readState();
-        return MediaPlaybackState(
-          visualTrackVisible: state.visualTrackVisible,
-          visualTrackExpanded: state.expanded,
-          videoSubtitleVisible: state.subtitleVisible,
-          videoAspectRatio: state.videoAspectRatio,
-        );
-      },
-      setVisible: session.setVisible,
-      setSubtitleVisible: session.setSubtitleVisible,
-      setFullscreen: session.setFullscreen,
-      previewPosition: session.previewPosition,
-      buildVideoView: session.buildVideoView,
     );
   }
 

@@ -19,7 +19,6 @@ import '../providers/media_engine/media_engine_provider.dart';
 import '../providers/media_engine/media_sense_group_range_playback.dart';
 import '../providers/media_playback/media_playback_provider.dart';
 import '../providers/media_playback/media_sleep_timer_provider.dart';
-import '../providers/video_subtitle_mask_provider.dart';
 import '../router/app_router.dart';
 import '../services/app_logger.dart';
 import '../services/media_fullscreen_service.dart';
@@ -34,6 +33,7 @@ import '../widgets/common/free_player_sentence_pager.dart';
 import '../widgets/common/sentence_translation_text.dart';
 import '../widgets/common/media_visual_surface.dart';
 import '../widgets/common/media_startup_status.dart';
+import '../widgets/common/practice_media_presentation_host.dart';
 import '../widgets/common/practice_media_split_layout.dart';
 import '../widgets/common/practice_media_startup_host.dart';
 import '../widgets/dictionary/dictionary_panel_host.dart';
@@ -340,35 +340,35 @@ class _MediaPlaybackScreenState extends ConsumerState<MediaPlaybackScreen>
       );
     }
     final controller = ref.read(mediaPlaybackProvider.notifier);
-    final subtitleMaskProvider = videoSubtitleMaskProvider(widget.audioItem.id);
-    // 加载完成前为 null：不显示遮罩，避免先在默认位置闪现再跳到已保存位置。
-    final subtitleMask = ref.watch(subtitleMaskProvider).value;
-    final subtitleMaskNotifier = ref.read(subtitleMaskProvider.notifier);
-    return MediaVisualSurface(
-      state: MediaVisualSurfaceState(
-        visible: state.visualTrackVisible,
-        expanded: state.visualTrackExpanded,
-        isPlaying: state.isPlaying,
-        subtitleVisible: state.videoSubtitleVisible,
-        subtitleMask: subtitleMask,
-        videoAspectRatio: state.videoAspectRatio,
-      ),
-      actions: MediaVisualSurfaceActions(
-        onShow: () => unawaited(controller.setVisualTrackVisible(true)),
-        onHide: () => unawaited(controller.setVisualTrackVisible(false)),
-        onPlayPause: () =>
-            unawaited(state.isPlaying ? controller.pause() : controller.play()),
-        onSubtitleToggle: () => unawaited(
-          controller.setVideoSubtitleVisible(!state.videoSubtitleVisible),
-        ),
-        onFullscreenToggle: () =>
-            unawaited(_setVisualTrackExpanded(!state.visualTrackExpanded)),
-        onSubtitleMaskToggle: () =>
-            unawaited(subtitleMaskNotifier.toggleEnabled()),
-        onSubtitleMaskRectChanged: (rect) =>
-            unawaited(subtitleMaskNotifier.setRect(rect)),
-      ),
+    return PracticeMediaVisualSurface(
+      audioItemId: widget.audioItem.id,
+      session: _buildMediaPresentationSession(),
+      isPlaying: state.isPlaying,
+      onPlayPause: () =>
+          unawaited(state.isPlaying ? controller.pause() : controller.play()),
       fillAvailableHeight: fillAvailableHeight,
+    );
+  }
+
+  /// 随心听的视频会话：本页画面与借给句子讲解页的是同一份契约，
+  /// 状态取自 [mediaPlaybackProvider] 这一单一来源。
+  PracticeMediaPresentationSession _buildMediaPresentationSession() {
+    final controller = ref.read(mediaPlaybackProvider.notifier);
+    return PracticeMediaPresentationSession(
+      readState: () {
+        final state = ref.read(mediaPlaybackProvider);
+        return PracticeMediaPresentationState(
+          enabled: true,
+          visualTrackVisible: state.visualTrackVisible,
+          expanded: state.visualTrackExpanded,
+          subtitleVisible: state.videoSubtitleVisible,
+          videoAspectRatio: state.videoAspectRatio,
+        );
+      },
+      setVisible: controller.setVisualTrackVisible,
+      setSubtitleVisible: controller.setVideoSubtitleVisible,
+      setFullscreen: _setVisualTrackExpanded,
+      previewPosition: controller.previewSentenceDetailPosition,
       buildVideoView: (size) => ref
           .read(mediaEngineProvider.notifier)
           .buildVideoView(viewportSize: size),
@@ -646,16 +646,7 @@ class _MediaPlaybackScreenState extends ConsumerState<MediaPlaybackScreen>
           ),
           wordHighlightSource: _wordHighlightSource(widget.audioItem.id),
           mediaSession: widget.audioItem.isVideo
-              ? SentenceDetailMediaSession(
-                  readState: () => ref.read(mediaPlaybackProvider),
-                  setVisible: controller.setVisualTrackVisible,
-                  setSubtitleVisible: controller.setVideoSubtitleVisible,
-                  setFullscreen: _setVisualTrackExpanded,
-                  previewPosition: controller.previewSentenceDetailPosition,
-                  buildVideoView: (size) => ref
-                      .read(mediaEngineProvider.notifier)
-                      .buildVideoView(viewportSize: size),
-                )
+              ? _buildMediaPresentationSession()
               : null,
         ),
       );
@@ -803,9 +794,8 @@ class _MediaPlaybackScreenState extends ConsumerState<MediaPlaybackScreen>
     final controller = ref.read(mediaPlaybackProvider.notifier);
     final progress = _seekPreviewPosition ?? state.position;
     final total = state.duration ?? Duration.zero;
-    final labelStyle = AppTextStyles.caption(
-      context,
-    ).copyWith(fontFeatures: const [FontFeature.tabularFigures()]);
+    final labelStyle = AppTextStyles.caption(context)
+        .copyWith(fontFeatures: const [FontFeature.tabularFigures()]);
     return Padding(
       padding: const EdgeInsets.fromLTRB(0, 12, 0, 8),
       child: Row(
@@ -1070,7 +1060,10 @@ class _MediaControls extends ConsumerWidget {
               const SizedBox(width: _mainControlGap),
               _playPauseButton(context, controller),
               const SizedBox(width: _mainControlGap),
-              _navButton(Icons.skip_next_rounded, state.isLastSentence ? null : onNext),
+              _navButton(
+                Icons.skip_next_rounded,
+                state.isLastSentence ? null : onNext,
+              ),
             ],
           ),
         ],
@@ -1334,12 +1327,10 @@ class _MediaInfoBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    final mutedColor = Theme.of(
-      context,
-    ).colorScheme.onSurface.withValues(alpha: 0.45);
-    final captionStyle = AppTextStyles.caption(
-      context,
-    ).copyWith(color: mutedColor);
+    final mutedColor = Theme.of(context).colorScheme.onSurface
+        .withValues(alpha: 0.45);
+    final captionStyle = AppTextStyles.caption(context)
+        .copyWith(color: mutedColor);
     final groupSpacing = MediaQuery.sizeOf(context).width <= 360 ? 4.0 : 12.0;
     final row = Row(
       mainAxisSize: MainAxisSize.min,

@@ -11,12 +11,14 @@ import 'package:echo_loop/providers/settings_provider.dart';
 import 'package:echo_loop/providers/sentence_ai_provider.dart';
 import 'package:echo_loop/screens/sentence_detail_screen.dart';
 import 'package:echo_loop/services/sentence_ai_api_client.dart';
+import 'package:echo_loop/widgets/common/practice_media_presentation_host.dart';
 import 'package:echo_loop/widgets/practice/sentence_explanation_view.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:echo_loop/widgets/common/playback_controls.dart'
     show PlaybackNavButton, PlaybackToggleIcon, playbackCenterIconKey;
 import 'package:mocktail/mocktail.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_riverpod/misc.dart';
 
 import '../helpers/mock_providers.dart';
@@ -169,12 +171,55 @@ SentenceDetailScreen _detailScreen({
   );
 }
 
+/// 视频讲解页：注入媒体会话，画面由 [_VideoViewMediaEngine] 渲染。
+SentenceDetailScreen _videoDetailScreen({
+  required _RecordingRangePlayback rangePlayback,
+  required _TestMediaPlayback mediaPlayback,
+  Future<void> Function(bool expanded)? setFullscreen,
+  Future<void> Function(Duration position)? previewPosition,
+}) {
+  return SentenceDetailScreen(
+    args: SentenceDetailArgs(
+      audioItemId: 'media-item',
+      audioName: 'Media item',
+      sentenceText: 'A sentence for media playback.',
+      sentenceIndex: 0,
+      startTimeMs: 1000,
+      endTimeMs: 3000,
+      rangePlaybackBuilder: (_) => rangePlayback,
+      wordHighlightSource: const WordHighlightSource(
+        audioItemId: 'media-item',
+        positionStream: Stream<Duration>.empty(),
+        currentPosition: Duration.zero,
+        playbackStatus: WordHighlightPlaybackStatus.idle,
+        playbackStatusStream: Stream<WordHighlightPlaybackStatus>.empty(),
+      ),
+      mediaSession: PracticeMediaPresentationSession(
+        readState: () => const PracticeMediaPresentationState(
+          enabled: true,
+          visualTrackVisible: true,
+          expanded: false,
+          subtitleVisible: false,
+          videoAspectRatio: null,
+        ),
+        setVisible: mediaPlayback.setVisualTrackVisible,
+        setSubtitleVisible: mediaPlayback.setVideoSubtitleVisible,
+        setFullscreen: setFullscreen ?? (_) async {},
+        previewPosition: previewPosition ?? (_) async {},
+        buildVideoView: (size) =>
+            _VideoViewMediaEngine().buildVideoView(viewportSize: size),
+      ),
+    ),
+  );
+}
+
 void main() {
   /// [entryText] 为字幕第 0 句；页面入口句需与之一致才会按序号定位。
   List<Override> detailOverrides({
     String entryText = 'A sentence for media playback.',
     bool showPlaybackSpeedButton = false,
     FakeAudioItemDao? audioItemDao,
+    SharedPreferences? prefs,
   }) {
     audioItemDao ??= FakeAudioItemDao();
     final srt = _transcriptSrt(_transcriptTexts(entryText));
@@ -192,6 +237,7 @@ void main() {
       ),
       ...learningSettingsOverrides(
         showPlaybackSpeedButton: showPlaybackSpeedButton,
+        prefs: prefs,
       ),
     ];
   }
@@ -357,37 +403,21 @@ void main() {
     final rangePlayback = _RecordingRangePlayback();
     final mediaPlayback = _TestMediaPlayback();
     var fullscreen = false;
+    // 手机竖屏：分栏为上下布局，视频在进度信息上方。
+    tester.view.physicalSize = const Size(400, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    SharedPreferences.setMockInitialValues({});
+    final prefs = await SharedPreferences.getInstance();
     await tester.pumpWidget(
       createTestApp(
-        SentenceDetailScreen(
-          args: SentenceDetailArgs(
-            audioItemId: 'media-item',
-            audioName: 'Media item',
-            sentenceText: 'A sentence for media playback.',
-            sentenceIndex: 0,
-            startTimeMs: 1000,
-            endTimeMs: 3000,
-            rangePlaybackBuilder: (_) => rangePlayback,
-            wordHighlightSource: const WordHighlightSource(
-              audioItemId: 'media-item',
-              positionStream: Stream<Duration>.empty(),
-              currentPosition: Duration.zero,
-              playbackStatus: WordHighlightPlaybackStatus.idle,
-              playbackStatusStream: Stream<WordHighlightPlaybackStatus>.empty(),
-            ),
-            mediaSession: SentenceDetailMediaSession(
-              readState: () => const MediaPlaybackState(),
-              setVisible: mediaPlayback.setVisualTrackVisible,
-              setSubtitleVisible: mediaPlayback.setVideoSubtitleVisible,
-              setFullscreen: (expanded) async => fullscreen = expanded,
-              previewPosition: (_) async {},
-              buildVideoView: (size) =>
-                  _VideoViewMediaEngine().buildVideoView(viewportSize: size),
-            ),
-          ),
+        _videoDetailScreen(
+          rangePlayback: rangePlayback,
+          mediaPlayback: mediaPlayback,
+          setFullscreen: (expanded) async => fullscreen = expanded,
         ),
         overrides: dedupeOverrides([
-          ...detailOverrides(),
+          ...detailOverrides(prefs: prefs),
           mediaPlaybackProvider.overrideWith(() => mediaPlayback),
           mediaEngineProvider.overrideWith(_VideoViewMediaEngine.new),
         ]),
@@ -444,38 +474,17 @@ void main() {
     final rangePlayback = _RecordingRangePlayback();
     final mediaPlayback = _TestMediaPlayback();
     final previewedPositions = <Duration>[];
+    SharedPreferences.setMockInitialValues({});
+    final prefs = await SharedPreferences.getInstance();
     await tester.pumpWidget(
       createTestApp(
-        SentenceDetailScreen(
-          args: SentenceDetailArgs(
-            audioItemId: 'media-item',
-            audioName: 'Media item',
-            sentenceText: 'A sentence for media playback.',
-            sentenceIndex: 0,
-            startTimeMs: 1000,
-            endTimeMs: 3000,
-            rangePlaybackBuilder: (_) => rangePlayback,
-            wordHighlightSource: const WordHighlightSource(
-              audioItemId: 'media-item',
-              positionStream: Stream<Duration>.empty(),
-              currentPosition: Duration.zero,
-              playbackStatus: WordHighlightPlaybackStatus.idle,
-              playbackStatusStream: Stream<WordHighlightPlaybackStatus>.empty(),
-            ),
-            mediaSession: SentenceDetailMediaSession(
-              readState: () => const MediaPlaybackState(),
-              setVisible: mediaPlayback.setVisualTrackVisible,
-              setSubtitleVisible: mediaPlayback.setVideoSubtitleVisible,
-              setFullscreen: (_) async {},
-              previewPosition: (position) async =>
-                  previewedPositions.add(position),
-              buildVideoView: (size) =>
-                  _VideoViewMediaEngine().buildVideoView(viewportSize: size),
-            ),
-          ),
+        _videoDetailScreen(
+          rangePlayback: rangePlayback,
+          mediaPlayback: mediaPlayback,
+          previewPosition: (position) async => previewedPositions.add(position),
         ),
         overrides: dedupeOverrides([
-          ...detailOverrides(),
+          ...detailOverrides(prefs: prefs),
           mediaPlaybackProvider.overrideWith(() => mediaPlayback),
           mediaEngineProvider.overrideWith(_VideoViewMediaEngine.new),
         ]),
@@ -492,6 +501,41 @@ void main() {
     expect(find.text('第 2/10 句'), findsOneWidget);
     expect(previewedPositions.last, const Duration(seconds: 4));
     expect(rangePlayback.playStarts, isEmpty);
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(milliseconds: 1));
+  });
+
+  testWidgets('宽屏视频讲解页与学习任务页一致改为左右分栏', (tester) async {
+    tester.view.physicalSize = const Size(1200, 700);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    SharedPreferences.setMockInitialValues({});
+    final prefs = await SharedPreferences.getInstance();
+    await tester.pumpWidget(
+      createTestApp(
+        _videoDetailScreen(
+          rangePlayback: _RecordingRangePlayback(),
+          mediaPlayback: _TestMediaPlayback(),
+        ),
+        overrides: dedupeOverrides([
+          ...detailOverrides(prefs: prefs),
+          mediaEngineProvider.overrideWith(_VideoViewMediaEngine.new),
+        ]),
+      ),
+    );
+    await tester.pump();
+
+    expect(
+      find.byKey(const ValueKey('practice-media-split-side-by-side')),
+      findsOneWidget,
+    );
+    final videoRight = tester
+        .getTopRight(find.byKey(const ValueKey('media-visual-surface')))
+        .dx;
+    final pageLeft = tester
+        .getTopLeft(find.byKey(const ValueKey('sentence-detail-page-view')))
+        .dx;
+    expect(videoRight, lessThanOrEqualTo(pageLeft));
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump(const Duration(milliseconds: 1));
   });
