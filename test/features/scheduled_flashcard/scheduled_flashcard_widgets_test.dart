@@ -214,6 +214,61 @@ void main() {
     expect(await buttonHeightAt(2000), 80);
   });
 
+  testWidgets('rating actions use distinct colors per rating and theme', (
+    tester,
+  ) async {
+    const actions = [
+      FlashcardRatingAction(
+        rating: MemoryRating.again,
+        emoji: '😕',
+        label: 'Forgot',
+      ),
+      FlashcardRatingAction(
+        rating: MemoryRating.good,
+        emoji: '🙂',
+        label: 'Remembered',
+      ),
+      FlashcardRatingAction(
+        rating: MemoryRating.easy,
+        emoji: '😎',
+        label: 'Easy',
+      ),
+    ];
+    Future<List<Color?>> backgroundsFor(Brightness brightness) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: ThemeData(brightness: brightness),
+          home: Scaffold(
+            body: FlashcardRatingActionBar(
+              actions: actions,
+              onSelected: (_) {},
+            ),
+          ),
+        ),
+      );
+      // MaterialApp 切换主题带过渡动画，等动画结束再读取配色。
+      await tester.pumpAndSettle();
+      return [
+        for (final rating in ['again', 'good', 'easy'])
+          tester
+              .widget<OutlinedButton>(
+                find.byKey(Key('flashcard-rating-$rating')),
+              )
+              .style
+              ?.backgroundColor
+              ?.resolve({}),
+      ];
+    }
+
+    final light = await backgroundsFor(Brightness.light);
+    final dark = await backgroundsFor(Brightness.dark);
+    expect(light.toSet(), hasLength(3));
+    expect(dark.toSet(), hasLength(3));
+    for (var i = 0; i < 3; i++) {
+      expect(dark[i], isNot(light[i]));
+    }
+  });
+
   testWidgets('rating actions with details fit a compact three-action footer', (
     tester,
   ) async {

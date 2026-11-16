@@ -89,7 +89,77 @@ class FlashcardRatingActionBar extends StatelessWidget {
   }
 }
 
-class _RatingActionButton extends StatelessWidget {
+/// 单个评分按钮的配色：浅底 + 同色细边框 + 深色文字。
+///
+/// 颜色只用来区分「困难 → 熟练」的语义，保持低饱和度，避免复习区喧宾夺主；
+/// 深色模式单独取低亮度底色和提亮文字，不直接沿用浅色值。
+final class _RatingPalette {
+  const _RatingPalette({
+    required this.background,
+    required this.foreground,
+    required this.border,
+  });
+
+  final Color background;
+  final Color foreground;
+  final Color border;
+
+  static _RatingPalette of(MemoryRating rating, Brightness brightness) {
+    final isDark = brightness == Brightness.dark;
+    return switch (rating) {
+      MemoryRating.again => isDark ? _againDark : _againLight,
+      MemoryRating.hard => isDark ? _hardDark : _hardLight,
+      MemoryRating.good => isDark ? _goodDark : _goodLight,
+      MemoryRating.easy => isDark ? _easyDark : _easyLight,
+    };
+  }
+
+  // 「听不懂」用暖橙而非红色：传达「需要多练」而不是「答错」，避免用户
+  // 回避如实自评，导致间隔复习排期失真。
+  static const _againLight = _RatingPalette(
+    background: Color(0xFFFDEEE3),
+    foreground: Color(0xFFB0602A),
+    border: Color(0xFFF0CDB2),
+  );
+  static const _againDark = _RatingPalette(
+    background: Color(0xFF3A2A1F),
+    foreground: Color(0xFFF0B07F),
+    border: Color(0xFF5A3F2B),
+  );
+  // 四档模式的「困难」取偏黄土金，与暖橙拉开色相。
+  static const _hardLight = _RatingPalette(
+    background: Color(0xFFFBF4DC),
+    foreground: Color(0xFF8A6D12),
+    border: Color(0xFFEADB9F),
+  );
+  static const _hardDark = _RatingPalette(
+    background: Color(0xFF353019),
+    foreground: Color(0xFFE3CF7A),
+    border: Color(0xFF524A27),
+  );
+  static const _goodLight = _RatingPalette(
+    background: Color(0xFFEAF3FD),
+    foreground: Color(0xFF386DA5),
+    border: Color(0xFFC3D8EF),
+  );
+  static const _goodDark = _RatingPalette(
+    background: Color(0xFF1F2C3B),
+    foreground: Color(0xFF9CC3EE),
+    border: Color(0xFF30465F),
+  );
+  static const _easyLight = _RatingPalette(
+    background: Color(0xFFE7F4EC),
+    foreground: Color(0xFF327B50),
+    border: Color(0xFFBFDDCA),
+  );
+  static const _easyDark = _RatingPalette(
+    background: Color(0xFF1F3328),
+    foreground: Color(0xFF94CFA9),
+    border: Color(0xFF2F4D3B),
+  );
+}
+
+class _RatingActionButton extends StatefulWidget {
   const _RatingActionButton({
     required this.action,
     required this.enabled,
@@ -101,39 +171,95 @@ class _RatingActionButton extends StatelessWidget {
   final VoidCallback onPressed;
 
   @override
+  State<_RatingActionButton> createState() => _RatingActionButtonState();
+}
+
+class _RatingActionButtonState extends State<_RatingActionButton> {
+  bool _isPressed = false;
+
+  void _setPressed(bool isPressed) {
+    if (_isPressed == isPressed) return;
+    setState(() => _isPressed = isPressed);
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final action = widget.action;
+    final enabled = widget.enabled;
     final detail = action.detail;
+    final theme = Theme.of(context);
+    final palette = _RatingPalette.of(action.rating, theme.brightness);
+    // 禁用（评分预测未就绪或提交中）时整体降低不透明度，保留语义配色。
+    final opacity = enabled ? 1.0 : 0.5;
     return Semantics(
       button: true,
       enabled: enabled,
       label: action.label,
-      child: OutlinedButton(
-        key: Key('flashcard-rating-${action.rating.name}'),
-        onPressed: enabled ? onPressed : null,
-        // 评分按钮需要紧凑布局，三档评分统一使用 6 dp 内边距。
-        style: OutlinedButton.styleFrom(padding: const EdgeInsets.all(6)),
-        child: FittedBox(
-          fit: BoxFit.scaleDown,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                action.emoji,
-                style: TextStyle(fontSize: detail == null ? 30 : 22),
+      child: Listener(
+        onPointerDown: enabled ? (_) => _setPressed(true) : null,
+        onPointerUp: (_) => _setPressed(false),
+        onPointerCancel: (_) => _setPressed(false),
+        child: AnimatedScale(
+          scale: _isPressed ? 0.98 : 1,
+          duration: const Duration(milliseconds: 100),
+          child: OutlinedButton(
+            key: Key('flashcard-rating-${action.rating.name}'),
+            onPressed: enabled ? widget.onPressed : null,
+            style: ButtonStyle(
+              // 评分按钮需要紧凑布局，统一使用 6 dp 内边距。
+              padding: const WidgetStatePropertyAll(EdgeInsets.all(6)),
+              backgroundColor: WidgetStatePropertyAll(
+                palette.background.withValues(alpha: opacity),
               ),
-              const SizedBox(height: 2),
-              Text(action.label, maxLines: 1, overflow: TextOverflow.ellipsis),
-              if (detail != null)
-                Text(
-                  detail,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant
-                        .withValues(alpha: 0.6),
+              foregroundColor: WidgetStatePropertyAll(
+                palette.foreground.withValues(alpha: opacity),
+              ),
+              // 按下 / 悬停时用同色叠加加深底色，作为点击反馈。
+              overlayColor: WidgetStateProperty.resolveWith(
+                (states) => states.contains(WidgetState.pressed)
+                    ? palette.foreground.withValues(alpha: 0.14)
+                    : states.contains(WidgetState.hovered)
+                    ? palette.foreground.withValues(alpha: 0.06)
+                    : null,
+              ),
+              side: WidgetStatePropertyAll(
+                BorderSide(color: palette.border.withValues(alpha: opacity)),
+              ),
+            ),
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // 表情只做辅助识别，缩小后让文字成为视觉焦点。
+                  Text(
+                    action.emoji,
+                    style: TextStyle(fontSize: detail == null ? 24 : 18),
                   ),
-                ),
-            ],
+                  const SizedBox(height: 2),
+                  Text(
+                    action.label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      color: palette.foreground.withValues(alpha: opacity),
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  if (detail != null)
+                    Text(
+                      detail,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: palette.foreground.withValues(
+                          alpha: 0.75 * opacity,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
           ),
         ),
       ),
