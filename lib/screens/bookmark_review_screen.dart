@@ -34,6 +34,7 @@ import '../widgets/practice/sentence_explanation_view.dart';
 import '../widgets/bookmark_review/bookmark_review_settings_sheet.dart';
 import '../widgets/review/review_status_bar.dart';
 import '../widgets/review/review_completion_summary.dart';
+import '../widgets/review/review_front_layout.dart';
 import '../widgets/study/study_activity_detector.dart';
 
 class BookmarkReviewScreen extends ConsumerStatefulWidget {
@@ -438,7 +439,6 @@ class _ListeningFront extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final l10n = AppLocalizations.of(context)!;
     final isPlaybackActive =
         playbackState == BookmarkReviewPlaybackState.loading ||
@@ -449,139 +449,26 @@ class _ListeningFront extends StatelessWidget {
       BookmarkReviewPlaybackState.failed => l10n.bookmarkReviewTapRetry,
       BookmarkReviewPlaybackState.idle => l10n.bookmarkReviewTapReplay,
     };
-    return Center(
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 720),
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(
-            AppSpacing.m,
-            AppSpacing.s,
-            AppSpacing.m,
-            AppSpacing.xs,
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(32),
-            child: Column(
-              children: [
-                Expanded(
-                  flex: 1,
-                  child: Material(
-                    key: const Key('bookmark-review-listen-zone'),
-                    color: theme.colorScheme.primaryContainer.withValues(
-                      alpha: theme.brightness == Brightness.dark ? 0.2 : 0.42,
-                    ),
-                    borderRadius: BorderRadius.circular(28),
-                    clipBehavior: Clip.antiAlias,
-                    child: InkWell(
-                      onTap: onReplay,
-                      child: SizedBox.expand(
-                        child: _CenteredPrompt(
-                          icon: hasError
-                              ? Icons.refresh_rounded
-                              : Icons.headphones_rounded,
-                          title: status,
-                          body: hasError
-                              ? l10n.bookmarkReviewAudioSkipped
-                              : l10n.bookmarkReviewListenPrompt,
-                          accent: hasError
-                              ? theme.colorScheme.error
-                              : isPlaybackActive
-                              ? theme.colorScheme.primary
-                              : theme.colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.s),
-                Expanded(
-                  flex: 1,
-                  child: Material(
-                    key: const Key('bookmark-review-reveal-zone'),
-                    color: theme.colorScheme.surfaceContainerLowest,
-                    borderRadius: BorderRadius.circular(28),
-                    clipBehavior: Clip.antiAlias,
-                    child: InkWell(
-                      onTap: onReveal,
-                      child: SizedBox.expand(
-                        child: _CenteredPrompt(
-                          icon: Icons.visibility_outlined,
-                          title: l10n.bookmarkReviewReadyTitle,
-                          body: l10n.bookmarkReviewRevealHint,
-                          accent: theme.colorScheme.onSurfaceVariant.withValues(
-                            alpha: 0.8,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
+    return ReviewFrontLayout(
+      listenZoneKey: const Key('bookmark-review-listen-zone'),
+      revealZoneKey: const Key('bookmark-review-reveal-zone'),
+      revealLabel: l10n.bookmarkReviewReadyTitle,
+      onReplay: onReplay,
+      onReveal: onReveal,
+      listenContent: ReviewPlaybackPrompt(
+        icon: hasError ? Icons.refresh_rounded : Icons.headphones_rounded,
+        tone: hasError
+            ? ReviewPlaybackTone.error
+            : isPlaybackActive
+            ? ReviewPlaybackTone.active
+            : ReviewPlaybackTone.idle,
+        status: status,
+        detail: hasError
+            ? l10n.bookmarkReviewAudioSkipped
+            : l10n.bookmarkReviewListenPrompt,
       ),
     );
   }
-}
-
-class _CenteredPrompt extends StatelessWidget {
-  const _CenteredPrompt({
-    required this.icon,
-    required this.title,
-    required this.body,
-    required this.accent,
-  });
-  final IconData icon;
-  final String title;
-  final String body;
-  final Color accent;
-
-  @override
-  Widget build(BuildContext context) => LayoutBuilder(
-    builder: (context, constraints) => SingleChildScrollView(
-      physics: const NeverScrollableScrollPhysics(),
-      padding: const EdgeInsets.all(AppSpacing.m),
-      child: ConstrainedBox(
-        constraints: BoxConstraints(
-          minHeight: (constraints.maxHeight - AppSpacing.m * 2).clamp(
-            0,
-            double.infinity,
-          ),
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            DecoratedBox(
-              decoration: BoxDecoration(
-                color: accent.withValues(alpha: 0.1),
-                shape: BoxShape.circle,
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(12),
-                child: Icon(icon, size: 28, color: accent),
-              ),
-            ),
-            const SizedBox(height: AppSpacing.m),
-            Text(
-              title,
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.titleMedium
-                  ?.copyWith(fontWeight: FontWeight.w700),
-            ),
-            const SizedBox(height: AppSpacing.s),
-            Text(
-              body,
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
-            ),
-          ],
-        ),
-      ),
-    ),
-  );
 }
 
 class _ReviewAnswer extends ConsumerWidget {

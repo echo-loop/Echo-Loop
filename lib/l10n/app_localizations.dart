@@ -4187,14 +4187,8 @@ abstract class AppLocalizations {
   /// No description provided for @bookmarkReviewReadyTitle.
   ///
   /// In en, this message translates to:
-  /// **'Flip when ready'**
+  /// **'Show answer'**
   String get bookmarkReviewReadyTitle;
-
-  /// No description provided for @bookmarkReviewRevealHint.
-  ///
-  /// In en, this message translates to:
-  /// **'Tap to reveal the answer'**
-  String get bookmarkReviewRevealHint;
 
   /// No description provided for @bookmarkReviewCompleted.
   ///
@@ -4343,14 +4337,8 @@ abstract class AppLocalizations {
   /// No description provided for @favoriteVocabularyReviewReadyTitle.
   ///
   /// In en, this message translates to:
-  /// **'Flip when ready'**
+  /// **'Show answer'**
   String get favoriteVocabularyReviewReadyTitle;
-
-  /// No description provided for @favoriteVocabularyReviewRevealHint.
-  ///
-  /// In en, this message translates to:
-  /// **'Tap to reveal the back'**
-  String get favoriteVocabularyReviewRevealHint;
 
   /// No description provided for @bookmarkReviewRatingEasy.
   ///

@@ -460,16 +460,20 @@ void main() {
     );
   });
 
-  testWidgets('front uses an equal listening and reveal split', (tester) async {
+  testWidgets('front places the reveal button below the listening area', (
+    tester,
+  ) async {
     await tester.pumpWidget(_app());
     await tester.pump();
-    final listen = tester.getSize(
+    final listen = tester.getRect(
       find.byKey(const Key('bookmark-review-listen-zone')),
     );
-    final reveal = tester.getSize(
+    final reveal = tester.getRect(
       find.byKey(const Key('bookmark-review-reveal-zone')),
     );
-    expect(reveal.height / listen.height, closeTo(1, 0.02));
+    expect(reveal.top, greaterThan(listen.bottom));
+    expect(reveal.width, closeTo(listen.width, 0.1));
+    expect(reveal.height, 52);
   });
 
   testWidgets('upper zone replays and lower zone reveals explanation back', (
@@ -492,7 +496,7 @@ void main() {
     expect(find.byType(AnimatedSwitcher), findsNothing);
   });
 
-  testWidgets('front playback icon uses neutral and active colors', (
+  testWidgets('front playback icon uses brand color and fills while playing', (
     tester,
   ) async {
     await tester.pumpWidget(_app());
@@ -503,14 +507,14 @@ void main() {
     );
     expect(
       tester.widget<Icon>(find.byIcon(Icons.headphones_rounded)).color,
-      theme.colorScheme.onSurfaceVariant,
+      theme.colorScheme.onPrimaryContainer,
     );
 
     await tester.tap(find.byKey(const Key('bookmark-review-listen-zone')));
     await tester.pump();
     expect(
       tester.widget<Icon>(find.byIcon(Icons.headphones_rounded)).color,
-      theme.colorScheme.primary,
+      theme.colorScheme.onPrimary,
     );
   });
 

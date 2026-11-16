@@ -43,6 +43,7 @@ import '../widgets/favorites/ai_lookup_toggle.dart';
 import '../widgets/favorites/source_sentence_card.dart';
 import '../widgets/review/review_status_bar.dart';
 import '../widgets/review/review_completion_summary.dart';
+import '../widgets/review/review_front_layout.dart';
 import '../widgets/study/study_activity_detector.dart';
 
 class FavoriteVocabularyReviewScreen extends ConsumerStatefulWidget {
@@ -483,81 +484,48 @@ class _VocabularyFront extends StatelessWidget {
       FavoriteVocabularyReviewPlaybackState.idle =>
         l10n.favoriteVocabularyReviewTapReplay,
     };
-    return Center(
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 720),
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(
-            AppSpacing.m,
-            AppSpacing.xs,
-            AppSpacing.m,
-            AppSpacing.xs,
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(32),
-            child: Column(
-              children: [
-                Expanded(
-                  flex: 1,
-                  child: Material(
-                    key: const Key('favorite-vocabulary-review-listen-zone'),
-                    color: theme.colorScheme.primaryContainer.withValues(
-                      alpha: theme.brightness == Brightness.dark ? 0.2 : 0.42,
-                    ),
-                    borderRadius: BorderRadius.circular(28),
-                    clipBehavior: Clip.antiAlias,
-                    child: InkWell(
-                      onTap: onReplay,
-                      child: SizedBox.expand(
-                        child: _CenteredPrompt(
-                          vocabulary: showVocabulary ? vocabulary : null,
-                          definition: showWordDefinition
-                              ? _FrontWordDefinition(word: vocabulary)
-                              : null,
-                          icon: hasError
-                              ? Icons.refresh_rounded
-                              : Icons.volume_up_rounded,
-                          title: status,
-                          body: hasError
-                              ? l10n.favoriteVocabularyReviewAudioSkipped
-                              : '',
-                          accent: hasError
-                              ? theme.colorScheme.error
-                              : isPlaybackActive
-                              ? theme.colorScheme.primary
-                              : theme.colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.s),
-                Expanded(
-                  flex: 1,
-                  child: Material(
-                    key: const Key('favorite-vocabulary-review-reveal-zone'),
-                    color: theme.colorScheme.surfaceContainerLowest,
-                    borderRadius: BorderRadius.circular(28),
-                    clipBehavior: Clip.antiAlias,
-                    child: InkWell(
-                      onTap: onReveal,
-                      child: SizedBox.expand(
-                        child: _CenteredPrompt(
-                          icon: Icons.visibility_outlined,
-                          title: l10n.favoriteVocabularyReviewReadyTitle,
-                          body: l10n.favoriteVocabularyReviewRevealHint,
-                          accent: theme.colorScheme.onSurfaceVariant.withValues(
-                            alpha: 0.8,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
+    final visibleVocabulary = showVocabulary ? vocabulary.trim() : '';
+    final hasVisibleVocabulary = visibleVocabulary.isNotEmpty;
+    return ReviewFrontLayout(
+      listenZoneKey: const Key('favorite-vocabulary-review-listen-zone'),
+      revealZoneKey: const Key('favorite-vocabulary-review-reveal-zone'),
+      revealLabel: l10n.favoriteVocabularyReviewReadyTitle,
+      onReplay: onReplay,
+      onReveal: onReveal,
+      listenContent: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (hasVisibleVocabulary) ...[
+            Text(
+              visibleVocabulary,
+              key: const Key('favorite-vocabulary-review-front-word'),
+              textAlign: TextAlign.center,
+              style: theme.textTheme.headlineMedium?.copyWith(
+                fontWeight: FontWeight.w700,
+                color: theme.colorScheme.onSurface,
+              ),
             ),
+            const SizedBox(height: AppSpacing.s),
+          ],
+          if (showWordDefinition)
+            _FrontWordDefinition(
+              word: vocabulary,
+              // 单词隐藏时释义就是要回忆的主体，用主文字层级展示。
+              isProminent: !hasVisibleVocabulary,
+            ),
+          if (hasVisibleVocabulary || showWordDefinition)
+            const SizedBox(height: AppSpacing.m),
+          ReviewPlaybackPrompt(
+            icon: hasError ? Icons.refresh_rounded : Icons.volume_up_rounded,
+            tone: hasError
+                ? ReviewPlaybackTone.error
+                : isPlaybackActive
+                ? ReviewPlaybackTone.active
+                : ReviewPlaybackTone.idle,
+            status: status,
+            detail: hasError ? l10n.favoriteVocabularyReviewAudioSkipped : null,
           ),
-        ),
+        ],
       ),
     );
   }
@@ -566,9 +534,10 @@ class _VocabularyFront extends StatelessWidget {
 /// 收藏单词正面的释义，按顺序取：基础在线词典（本地缓存 → API），未查到时只读 AI 查词缓存。
 /// AI 只读缓存未命中也不发起请求；两者都没有则不占位，释义只是辅助信息，不阻断复习。
 class _FrontWordDefinition extends ConsumerWidget {
-  const _FrontWordDefinition({required this.word});
+  const _FrontWordDefinition({required this.word, required this.isProminent});
 
   final String word;
+  final bool isProminent;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -583,11 +552,15 @@ class _FrontWordDefinition extends ConsumerWidget {
       final translation = _basicTranslation(current.result);
       return translation == null
           ? const SizedBox.shrink()
-          : _DefinitionText(translation);
+          : _DefinitionText(translation, isProminent: isProminent);
     }
     if (current is LookupNotFound || current is LookupError) {
       // 按词区分 State：卡片切换时复用同一 State 会沿用上一张词的缓存结果。
-      return _AiCachedDefinition(key: ValueKey(word), word: word);
+      return _AiCachedDefinition(
+        key: ValueKey(word),
+        word: word,
+        isProminent: isProminent,
+      );
     }
     return const SizedBox.shrink();
   }
@@ -602,9 +575,14 @@ String? _basicTranslation(DictionaryLookupResult result) {
 
 /// 读取 AI 查词的本地缓存（只读，绝不请求 AI）并取第一项释义。
 class _AiCachedDefinition extends ConsumerStatefulWidget {
-  const _AiCachedDefinition({super.key, required this.word});
+  const _AiCachedDefinition({
+    super.key,
+    required this.word,
+    required this.isProminent,
+  });
 
   final String word;
+  final bool isProminent;
 
   @override
   ConsumerState<_AiCachedDefinition> createState() =>
@@ -634,7 +612,7 @@ class _AiCachedDefinitionState extends ConsumerState<_AiCachedDefinition> {
         final definition = snapshot.data;
         return definition == null
             ? const SizedBox.shrink()
-            : _DefinitionText(definition);
+            : _DefinitionText(definition, isProminent: widget.isProminent);
       },
     );
   }
@@ -654,105 +632,30 @@ String? _aiFirstMeaningText(AiDictionaryEntry? entry) {
   return text.isEmpty ? null : text;
 }
 
-/// 正面释义文本，居中展示并与下方内容保持间距。
+/// 正面释义文本。单词隐藏时作为主内容放大加深，单词可见时作为辅助说明弱化。
 class _DefinitionText extends StatelessWidget {
-  const _DefinitionText(this.text);
+  const _DefinitionText(this.text, {required this.isProminent});
 
   final String text;
+  final bool isProminent;
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Text(
-          text,
-          key: const Key('favorite-vocabulary-review-front-definition'),
-          textAlign: TextAlign.center,
-          style: Theme.of(context).textTheme.bodyLarge
-              ?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
-        ),
-        const SizedBox(height: AppSpacing.m),
-      ],
-    );
-  }
-}
-
-class _CenteredPrompt extends StatelessWidget {
-  const _CenteredPrompt({
-    this.vocabulary,
-    this.definition,
-    required this.icon,
-    required this.title,
-    required this.body,
-    required this.accent,
-  });
-  final String? vocabulary;
-  final Widget? definition;
-  final IconData icon;
-  final String title;
-  final String body;
-  final Color accent;
-
-  @override
-  Widget build(BuildContext context) {
-    final visibleVocabulary = vocabulary?.trim();
-    return LayoutBuilder(
-      builder: (context, constraints) => SingleChildScrollView(
-        physics: const NeverScrollableScrollPhysics(),
-        padding: const EdgeInsets.all(AppSpacing.m),
-        child: ConstrainedBox(
-          constraints: BoxConstraints(
-            minHeight: (constraints.maxHeight - AppSpacing.m * 2).clamp(
-              0,
-              double.infinity,
+    final theme = Theme.of(context);
+    return Text(
+      text,
+      key: const Key('favorite-vocabulary-review-front-definition'),
+      textAlign: TextAlign.center,
+      style: isProminent
+          ? theme.textTheme.titleLarge?.copyWith(
+              color: theme.colorScheme.onSurface,
+              fontWeight: FontWeight.w600,
+              height: 1.4,
+            )
+          : theme.textTheme.bodyLarge?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+              height: 1.4,
             ),
-          ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              if (visibleVocabulary != null &&
-                  visibleVocabulary.isNotEmpty) ...[
-                Text(
-                  visibleVocabulary,
-                  key: const Key('favorite-vocabulary-review-front-word'),
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.headlineSmall
-                      ?.copyWith(fontWeight: FontWeight.w700),
-                ),
-                const SizedBox(height: AppSpacing.m),
-              ],
-              if (definition case final definitionWidget?) definitionWidget,
-              DecoratedBox(
-                decoration: BoxDecoration(
-                  color: accent.withValues(alpha: 0.1),
-                  shape: BoxShape.circle,
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: Icon(icon, size: 28, color: accent),
-                ),
-              ),
-              const SizedBox(height: AppSpacing.m),
-              Text(
-                title,
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.titleMedium
-                    ?.copyWith(fontWeight: FontWeight.w700),
-              ),
-              if (body.isNotEmpty) ...[
-                const SizedBox(height: AppSpacing.s),
-                Text(
-                  body,
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
-                ),
-              ],
-            ],
-          ),
-        ),
-      ),
     );
   }
 }

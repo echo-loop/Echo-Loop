@@ -2261,10 +2261,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get bookmarkReviewListenPrompt => '点按可从头重播';
 
   @override
-  String get bookmarkReviewReadyTitle => '想好后翻面';
-
-  @override
-  String get bookmarkReviewRevealHint => '点按查看答案';
+  String get bookmarkReviewReadyTitle => '查看答案';
 
   @override
   String get bookmarkReviewCompleted => '全部完成！';
@@ -2339,10 +2336,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get favoriteVocabularyReviewAudioSkipped => '音频不可用，点按重试';
 
   @override
-  String get favoriteVocabularyReviewReadyTitle => '想好后翻面';
-
-  @override
-  String get favoriteVocabularyReviewRevealHint => '点按查看反面';
+  String get favoriteVocabularyReviewReadyTitle => '查看答案';
 
   @override
   String get bookmarkReviewRatingEasy => '轻松听懂';

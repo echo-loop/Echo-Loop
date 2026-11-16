@@ -426,7 +426,7 @@ void main() {
     _sharedPreferences = await SharedPreferences.getInstance();
   });
 
-  testWidgets('front shows title, progress bar and equal listen/reveal split', (
+  testWidgets('front shows title, progress bar and a bottom reveal button', (
     tester,
   ) async {
     await tester.pumpWidget(_app());
@@ -445,30 +445,23 @@ void main() {
           find.byKey(const Key('favorite-vocabulary-review-progress')),
         )
         .dy;
-    final listenTop = tester
-        .getTopLeft(
-          find.byKey(const Key('favorite-vocabulary-review-listen-zone')),
-        )
-        .dy;
-    expect(listenTop - progressBottom, closeTo(4, 0.1));
-    final listen = tester.getSize(
+    final listen = tester.getRect(
       find.byKey(const Key('favorite-vocabulary-review-listen-zone')),
     );
-    final reveal = tester.getSize(
+    final reveal = tester.getRect(
       find.byKey(const Key('favorite-vocabulary-review-reveal-zone')),
     );
-    expect(reveal.height / listen.height, closeTo(1, 0.02));
-    final revealBottom = tester
-        .getBottomLeft(
-          find.byKey(const Key('favorite-vocabulary-review-reveal-zone')),
-        )
-        .dy;
     final statusTop = tester
         .getTopLeft(
           find.byKey(const Key('favorite-vocabulary-review-status-bar')),
         )
         .dy;
-    expect(statusTop - revealBottom, closeTo(4, 0.1));
+    expect(listen.top - progressBottom, closeTo(8, 0.1));
+    // 翻面按钮与背面评分栏同位：在内容区下方、紧贴状态栏，宽度与内容对齐。
+    expect(reveal.top, greaterThan(listen.bottom));
+    expect(statusTop - reveal.bottom, closeTo(8, 0.1));
+    expect(reveal.width, closeTo(listen.width, 0.1));
+    expect(reveal.height, 52);
   });
 
   testWidgets('front hides vocabulary by default', (tester) async {
@@ -620,7 +613,7 @@ void main() {
     expect(_FakeBasicLookup.builtWords, isNot(contains('apple pie')));
   });
 
-  testWidgets('front playback icon uses neutral and active colors', (
+  testWidgets('front playback icon uses brand color and fills while playing', (
     tester,
   ) async {
     await tester.pumpWidget(_app());
@@ -633,7 +626,7 @@ void main() {
     );
     expect(
       tester.widget<Icon>(find.byIcon(Icons.volume_up_rounded)).color,
-      theme.colorScheme.onSurfaceVariant,
+      theme.colorScheme.onPrimaryContainer,
     );
 
     await tester.tap(
@@ -642,7 +635,7 @@ void main() {
     await tester.pump();
     expect(
       tester.widget<Icon>(find.byIcon(Icons.volume_up_rounded)).color,
-      theme.colorScheme.primary,
+      theme.colorScheme.onPrimary,
     );
   });
 

@@ -51,6 +51,8 @@
   - 未完成的验证：macOS 宽窗口 / iPad 横屏确认两个复习页的居中观感与词典面板位置。
 - [x] 评分按钮分色：`FlashcardRatingActionBar` 按评分使用浅底 + 同色细边框 + 深色文字（听不懂暖橙、听懂了蓝、轻松听懂绿，四档模式「困难」为土金；不用红色，避免「答错」暗示影响如实自评），深色模式单独配色；按下时同色叠加加深并缩放 0.98，表情缩小、文字加粗为视觉焦点；禁用时整体半透明。**完成时间**: 2026-11-16
   - 未完成的验证：真机确认深色模式配色与按压反馈手感。
+- [x] 收藏复习正面视觉重做：句子 / 词汇复习正面抽成共享组件 `ReviewFrontLayout` + `ReviewPlaybackPrompt`（`lib/widgets/review/review_front_layout.dart`），删除两页重复的 `_CenteredPrompt`。去掉上下两块大色块：内容直接居中在页面底色上（整块可点按重播），底部 52 高「查看答案」主按钮，与背面评分栏同位、翻面前后版式连贯；播放按钮用 `primaryContainer` 色调圆形、播放中填实为 `primary`、失败用 `errorContainer`；状态文字降为次要色；单词放大加粗，单词隐藏时释义升为主内容层级。删除不再使用的 `bookmarkReviewRevealHint` / `favoriteVocabularyReviewRevealHint` 文案。**完成时间**: 2026-11-16
+  - 未完成的验证：真机确认浅 / 深色观感、长释义与 150% 字号下的排版。
 - [ ] 学习内容字号（只调正文，不缩放整个 UI；颜色设置待产品决定）。
   - [x] 云端偏好同步接入字幕文字字号与粗细：本地键 `subtitle_font_size_percent` / `subtitle_font_weight_percent`，云端字段 `appearance.subtitleFontSizePercent` / `appearance.subtitleFontWeightPercent`（后端按域名校验、域内字段自由，无需改后端）；云端缺失或非法时保留本地值。**完成时间**: 2026-11-12
 - [x] 收藏词汇复习设置新增「正面显示释义」（默认关闭，仅对单词有效，先取基础在线词典（本地缓存 → API），未查到时只读 AI 查词缓存，经偏好同步跨平台）。**完成时间**: 2026-11-13

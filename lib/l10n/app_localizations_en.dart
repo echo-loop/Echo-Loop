@@ -2373,10 +2373,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get bookmarkReviewListenPrompt => 'Tap to replay from the beginning';
 
   @override
-  String get bookmarkReviewReadyTitle => 'Flip when ready';
-
-  @override
-  String get bookmarkReviewRevealHint => 'Tap to reveal the answer';
+  String get bookmarkReviewReadyTitle => 'Show answer';
 
   @override
   String get bookmarkReviewCompleted => 'All Done!';
@@ -2454,10 +2451,7 @@ class AppLocalizationsEn extends AppLocalizations {
       'Audio unavailable, tap to retry';
 
   @override
-  String get favoriteVocabularyReviewReadyTitle => 'Flip when ready';
-
-  @override
-  String get favoriteVocabularyReviewRevealHint => 'Tap to reveal the back';
+  String get favoriteVocabularyReviewReadyTitle => 'Show answer';
 
   @override
   String get bookmarkReviewRatingEasy => 'Easy';
