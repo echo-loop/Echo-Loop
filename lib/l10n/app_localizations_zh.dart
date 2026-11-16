@@ -5064,11 +5064,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get mediaTrimZoomFit => '显示全部';
 
   @override
-  String mediaTrimClipLabel(int number) {
-    return '片段 $number';
-  }
-
-  @override
   String get mediaTrimZoomToClip => '放大到当前片段';
 
   @override
@@ -5210,6 +5205,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String mediaTrimDefaultCollectionName(String name) {
     return '$name · 片段';
   }
+
+  @override
+  String get mediaTrimNoGapForClip => '没有足够长的空白放新片段，可先缩短或删除已有片段';
 
   @override
   String get mediaTrimSaveLocalOnly =>

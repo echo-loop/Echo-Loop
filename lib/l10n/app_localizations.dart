@@ -9428,12 +9428,6 @@ abstract class AppLocalizations {
   /// **'Show all'**
   String get mediaTrimZoomFit;
 
-  /// No description provided for @mediaTrimClipLabel.
-  ///
-  /// In en, this message translates to:
-  /// **'Clip {number}'**
-  String mediaTrimClipLabel(int number);
-
   /// No description provided for @mediaTrimZoomToClip.
   ///
   /// In en, this message translates to:
@@ -9685,6 +9679,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{name} · Clips'**
   String mediaTrimDefaultCollectionName(String name);
+
+  /// No description provided for @mediaTrimNoGapForClip.
+  ///
+  /// In en, this message translates to:
+  /// **'Not enough free space for a new clip. Shorten or delete a clip first.'**
+  String get mediaTrimNoGapForClip;
 
   /// No description provided for @mediaTrimSaveLocalOnly.
   ///

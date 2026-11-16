@@ -20,9 +20,12 @@ import 'package:just_waveform/just_waveform.dart';
 import '../../helpers/shared/fake_media_player_backend.dart';
 
 class _FakeProcessor extends MediaTrimProcessor {
+  /// 测试可改成更长的材料，验证需要足够空白的场景。
+  Duration duration = const Duration(seconds: 20);
+
   @override
   Future<MediaTrimSourceInfo> probe(String path) async =>
-      const MediaTrimSourceInfo(duration: Duration(seconds: 20));
+      MediaTrimSourceInfo(duration: duration);
 }
 
 /// 波形不是这里的测试对象：保持加载中，避免触达原生插件。
@@ -53,13 +56,31 @@ Second sentence
 Third sentence
 ''';
 
+/// 每 2 秒一句，每句 1.5 秒、句间留 0.5 秒空白，用于验证自动找空白。
+String _denseSrt(int count) {
+  String time(int millis) {
+    final seconds = (millis ~/ 1000).toString().padLeft(2, '0');
+    final rest = (millis % 1000).toString().padLeft(3, '0');
+    return '00:00:$seconds,$rest';
+  }
+
+  return [
+    for (var i = 0; i < count; i++)
+      '${i + 1}\n${time(i * 2000)} --> ${time(i * 2000 + 1500)}\nSentence ${i + 1}\n',
+  ].join('\n');
+}
+
 void main() {
   late Directory directory;
   late db.AppDatabase database;
   late FakeMediaPlayerBackend player;
   late ProviderContainer container;
+  late _FakeProcessor processor;
 
-  Future<MediaTrimEditorController> open({required bool withSubtitles}) async {
+  Future<MediaTrimEditorController> open({
+    required bool withSubtitles,
+    String srt = _srt,
+  }) async {
     final now = DateTime.now();
     await database
         .into(database.audioItems)
@@ -69,7 +90,7 @@ void main() {
             name: 'Source',
             audioPath: const Value('source.m4a'),
             transcriptSource: Value(withSubtitles ? 1 : null),
-            transcriptSrt: Value(withSubtitles ? _srt : null),
+            transcriptSrt: Value(withSubtitles ? srt : null),
             addedDate: now,
             updatedAt: now,
           ),
@@ -94,6 +115,7 @@ void main() {
   }
 
   setUp(() async {
+    processor = _FakeProcessor();
     directory = await Directory.systemTemp.createTemp('trim-editor-');
     appDataDirectoryOverride = directory;
     await File('${directory.path}/source.m4a').writeAsBytes([1]);
@@ -106,7 +128,7 @@ void main() {
       overrides: [
         appDatabaseProvider.overrideWithValue(database),
         mediaBackendFactoryProvider.overrideWithValue(() => player),
-        mediaTrimProcessorProvider.overrideWithValue(_FakeProcessor()),
+        mediaTrimProcessorProvider.overrideWithValue(processor),
         mediaTrimWaveformLoaderProvider.overrideWithValue(
           _PendingWaveformLoader(),
         ),
@@ -124,10 +146,10 @@ void main() {
 
   test('切换片段后，过期的试听请求不能继续起播', () async {
     final controller = await open(withSubtitles: false);
-    controller.addClipAtPlayhead();
+    controller.addClipInGap();
     final first = controller.state.selectedClipId!;
-    await controller.seek(ms(10000));
-    controller.addClipAtPlayhead();
+    controller.setEdgeTime(MediaTrimEdge.end, ms(10000));
+    controller.addClipInGap();
     final second = controller.state.selectedClipId!;
 
     controller.selectClip(first);
@@ -144,7 +166,7 @@ void main() {
 
   test('试听片段期间保持试听目标，播放器先暂停再起播也不会丢失', () async {
     final controller = await open(withSubtitles: false);
-    controller.addClipAtPlayhead();
+    controller.addClipInGap();
     final id = controller.state.selectedClipId!;
     await controller.toggleClipPreview(id);
     await Future<void>.delayed(Duration.zero);
@@ -163,7 +185,7 @@ void main() {
 
   test('页面销毁后，未完成的试听不能继续驱动播放器', () async {
     final controller = await open(withSubtitles: false);
-    controller.addClipAtPlayhead();
+    controller.addClipInGap();
     player.closeStreamsOnDispose = false;
     final pending = controller.toggleClipPreview(
       controller.state.selectedClipId!,
@@ -178,7 +200,7 @@ void main() {
   test('选中片段后播放头钳在片段内；取消选中后恢复自由定位', () async {
     final controller = await open(withSubtitles: false);
     await controller.seek(ms(5000));
-    controller.addClipAtPlayhead();
+    controller.addClipInGap();
     final clip = controller.state.selectedClip!;
     expect((clip.start, clip.end), (ms(5000), ms(20000)));
     expect(controller.state.position, ms(5000));
@@ -200,7 +222,7 @@ void main() {
   test('试听片段：未移动播放头从起点播；手动移到片段内则从该处播；播完再播回到起点', () async {
     final controller = await open(withSubtitles: false);
     await controller.seek(ms(5000));
-    controller.addClipAtPlayhead();
+    controller.addClipInGap();
     final id = controller.state.selectedClipId!;
     controller.clearSelection();
     await controller.seek(ms(0));
@@ -223,7 +245,7 @@ void main() {
   test('调整一端后播放头停到该端；越过另一端时停在最短长度，不整段跳走', () async {
     final controller = await open(withSubtitles: false);
     await controller.seek(ms(5000));
-    controller.addClipAtPlayhead();
+    controller.addClipInGap();
     controller.stepEdge(MediaTrimEdge.end, -1);
     await Future<void>.delayed(Duration.zero);
     expect(controller.state.selectedClip!.end, ms(19900));
@@ -239,52 +261,59 @@ void main() {
 
   test('重复选中当前片段时请求时间轴重新显示它', () async {
     final controller = await open(withSubtitles: false);
-    controller.addClipAtPlayhead();
+    controller.addClipInGap();
     final id = controller.state.selectedClipId!;
     final serial = controller.state.revealSerial;
     controller.selectClip(id);
     expect(controller.state.revealSerial, serial + 1);
   });
 
-  test('有字幕：点句试听定位后新建整句片段，结束端按整句推后', () async {
+  test('有字幕：从点句定位处取整句建段，不足 10 秒向前补句；没有空白时失败', () async {
     final controller = await open(withSubtitles: true);
     final boundaries = controller.state.boundaries!;
-    await controller.toggleSentencePreview(0);
-    controller.addClipAtPlayhead();
-    final firstId = controller.state.selectedClipId!;
-
-    // 试听片段外的句子会让播放头离开选中片段，此时新建得到该句片段。
     await controller.toggleSentencePreview(1);
-    controller.addClipAtPlayhead();
-    var clip = controller.state.selectedClip!;
-    expect(clip.id, isNot(firstId));
-    expect((clip.start, clip.end), boundaries.rangeForSpans(1, 1));
-
-    controller.stepEdge(MediaTrimEdge.end, 1);
-    clip = controller.state.selectedClip!;
-    expect((clip.start, clip.end), boundaries.rangeForSpans(1, 2));
-    expect(clip.sentencesWithin(boundaries.sentences), hasLength(2));
+    expect(controller.addClipInGap(), isTrue);
+    final clip = controller.state.selectedClip!;
+    // 第 2 句往后只有约 9 秒，不足 10 秒时向前补上第 1 句。
+    expect((clip.start, clip.end), boundaries.rangeForSpans(0, 2));
+    // 已没有空白。
+    expect(controller.addClipInGap(), isFalse);
+    expect(controller.state.clips, hasLength(1));
   });
 
-  test('在相同位置重复新建只选中已有片段，片段按起点排序', () async {
-    final controller = await open(withSubtitles: true);
-    await controller.seek(ms(12500));
-    controller.addClipAtPlayhead();
-    // 选中片段时播放头只在片段内，先取消选中再定位到别处。
-    controller.clearSelection();
-    await controller.seek(ms(0));
-    controller.addClipAtPlayhead();
-    controller.addClipAtPlayhead();
+  test('连续新建依次填充后面的空白，片段按起点排序', () async {
+    final controller = await open(withSubtitles: false);
+    controller.addClipInGap();
+    controller.setEdgeTime(MediaTrimEdge.end, ms(10000));
+    expect(controller.addClipInGap(), isTrue);
     final clips = controller.state.clips;
     expect(clips, hasLength(2));
-    expect(clips.first.start < clips.last.start, isTrue);
+    expect((clips.last.start, clips.last.end), (ms(10000), ms(20000)));
+    expect(controller.state.selectedClipId, clips.last.id);
     expect(controller.state.clipName(clips.first), 'Source · 01');
-    expect(controller.state.selectedClipId, clips.first.id);
+    expect(controller.addClipInGap(), isFalse);
+  });
+
+  test('有字幕：连续两次新片段在同一播放头处不重叠，第二次绕回前面的空白', () async {
+    processor.duration = const Duration(seconds: 40);
+    final controller = await open(withSubtitles: true, srt: _denseSrt(20));
+    final boundaries = controller.state.boundaries!;
+    // 第一段从 24 秒起到末尾，前面约 24 秒空白。
+    await controller.seek(ms(24000));
+    expect(controller.addClipInGap(), isTrue);
+    final first = controller.state.selectedClip!;
+    // 播放头仍在第一段内，第一段之后没有空白，应从前面的空白取段。
+    await controller.seek(ms(28000));
+    expect(controller.addClipInGap(), isTrue);
+    final second = controller.state.selectedClip!;
+    expect(second.end <= first.start, isTrue, reason: '新片段不能与第一段重叠');
+    expect((second.start, second.end), boundaries.rangeForSpans(0, 11));
+    expect(controller.state.clips, hasLength(2));
   });
 
   test('自动分段替换现有片段；删除选中片段后选中相邻片段', () async {
     final controller = await open(withSubtitles: false);
-    controller.addClipAtPlayhead();
+    controller.addClipInGap();
     final count = controller.autoSplit(const Duration(seconds: 5));
     expect(count, 4);
     final clips = controller.state.clips;
@@ -300,7 +329,7 @@ void main() {
 
   test('重命名为空或默认名时恢复自动命名', () async {
     final controller = await open(withSubtitles: false);
-    controller.addClipAtPlayhead();
+    controller.addClipInGap();
     final id = controller.state.selectedClipId!;
     controller.renameClip(id, '  Intro  ');
     expect(controller.state.clipName(controller.state.selectedClip!), 'Intro');
@@ -314,7 +343,7 @@ void main() {
 
   test('手动输入时间：有字幕时吸附到句间，句内输入被吸附而不是报错', () async {
     final controller = await open(withSubtitles: true);
-    controller.addClipAtPlayhead();
+    controller.addClipInGap();
     final failure = controller.setEdgeTime(MediaTrimEdge.end, ms(7000));
     expect(failure, isNull);
     final boundaries = controller.state.boundaries!;

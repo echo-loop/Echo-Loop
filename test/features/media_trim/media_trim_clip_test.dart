@@ -15,6 +15,39 @@ Sentence sentence(int index, int startMs, int endMs) => Sentence(
 MediaTrimClip clip(int startMs, int endMs) =>
     MediaTrimClip(id: 1, start: ms(startMs), end: ms(endMs));
 
+MediaTrimClip clipForSpans(
+  int id,
+  MediaTrimBoundaries boundaries,
+  int first,
+  int last,
+) {
+  final (start, end) = boundaries.rangeForSpans(first, last);
+  return MediaTrimClip(id: id, start: start, end: end);
+}
+
+/// 从一系列播放头位置（每 500ms 一个）新建片段，校验结果不与已有片段重叠、
+/// 位于媒体内且不为空；找不到空白时必须返回 null。
+void _expectGapRangesValid(
+  MediaTrimBoundaries boundaries,
+  List<MediaTrimClip> clips,
+) {
+  for (var at = Duration.zero; at <= boundaries.total; at += ms(500)) {
+    final range = boundaries.rangeInGap(clips, at);
+    if (range == null) continue;
+    final (start, end) = range;
+    expect(start >= Duration.zero && end <= boundaries.total, isTrue);
+    expect(end > start, isTrue, reason: 'anchor=$at');
+    for (final existing in clips) {
+      expect(
+        end <= existing.start || start >= existing.end,
+        isTrue,
+        reason:
+            'anchor=$at 新片段 $start-$end 与 ${existing.start}-${existing.end} 重叠',
+      );
+    }
+  }
+}
+
 void main() {
   group('句子单元与边界', () {
     test('重叠字幕合并为不可拆分单元', () {
@@ -127,7 +160,7 @@ void main() {
       expect(free.step(clip(0, 2000), MediaTrimEdge.end, 1), ms(2100));
     });
 
-    test('新片段：有字幕取播放头所在或之后的句子，无字幕取 30 秒并贴近末尾', () {
+    test('新片段：有字幕取播放头所在或之后的句子，无字幕取 2 分钟并贴近末尾', () {
       final boundaries = MediaTrimBoundaries(
         total: ms(10000),
         sentences: [sentence(0, 1000, 2000), sentence(1, 4000, 5000)],
@@ -142,8 +175,105 @@ void main() {
       );
 
       final free = MediaTrimBoundaries(total: ms(60000), sentences: const []);
-      expect(free.defaultRangeAt(ms(10000)), (ms(10000), ms(40000)));
-      expect(free.defaultRangeAt(ms(59900)), (ms(30000), ms(60000)));
+      expect(free.defaultRangeAt(ms(10000)), (ms(10000), ms(60000)));
+      expect(free.defaultRangeAt(ms(59900)), (ms(0), ms(60000)));
+    });
+
+    group('空白处新建片段', () {
+      Duration s(int seconds) => Duration(seconds: seconds);
+      MediaTrimClip range(int id, Duration start, Duration end) =>
+          MediaTrimClip(id: id, start: start, end: end);
+      final free = MediaTrimBoundaries(total: s(600), sentences: const []);
+
+      test('无字幕：从播放头起取 2 分钟；播放头在片段内时从片段末尾起', () {
+        expect(free.rangeInGap(const [], s(30)), (s(30), s(150)));
+        expect(free.rangeInGap([range(1, s(0), s(60))], s(10)), (
+          s(60),
+          s(180),
+        ));
+      });
+
+      test('无字幕：空白不足 2 分钟用整段空白；播放头后剩余太短时贴空白末尾', () {
+        final clips = [range(1, s(0), s(60)), range(2, s(100), s(600))];
+        expect(free.rangeInGap(clips, s(0)), (s(60), s(100)));
+        expect(free.rangeInGap(clips, s(95)), (s(60), s(100)));
+      });
+
+      test('无字幕：后面没有空白时回到开头；空白都不足 10 秒时返回 null', () {
+        expect(free.rangeInGap([range(1, s(60), s(600))], s(300)), (
+          s(0),
+          s(60),
+        ));
+        expect(free.rangeInGap([range(1, s(0), s(595))], s(0)), isNull);
+        final short = MediaTrimBoundaries(total: s(6), sentences: const []);
+        expect(short.rangeInGap(const [], s(0)), (
+          s(0),
+          s(6),
+        ), reason: '媒体不足 10 秒用全长');
+      });
+
+      test('有字幕：按整句累积到不超过 2 分钟，连续新建依次向后', () {
+        final boundaries = MediaTrimBoundaries(
+          total: s(300),
+          sentences: [
+            for (var i = 0; i < 30; i++)
+              sentence(i, i * 10000 + 1000, i * 10000 + 8000),
+          ],
+        );
+        final first = boundaries.rangeInGap(const [], s(0))!;
+        expect(first, boundaries.rangeForSpans(0, 11));
+        final next = boundaries.rangeInGap([
+          range(1, first.$1, first.$2),
+        ], first.$1);
+        expect(next, boundaries.rangeForSpans(12, 23));
+      });
+
+      test('有字幕：播放头在片段内且片段之后没有空白时，回到前面的空白，不与片段重叠', () {
+        final boundaries = MediaTrimBoundaries(
+          total: s(100),
+          sentences: [
+            for (var i = 0; i < 10; i++)
+              sentence(i, i * 10000 + 1000, i * 10000 + 8000),
+          ],
+        );
+        final occupied = boundaries.rangeForSpans(3, 9);
+        final clips = [range(1, occupied.$1, occupied.$2)];
+        expect(
+          boundaries.rangeInGap(clips, occupied.$1 + s(5)),
+          boundaries.rangeForSpans(0, 2),
+        );
+      });
+
+      test('任意播放头位置新建的片段都不与现有片段重叠，且落在媒体内', () {
+        final sentenceBoundaries = MediaTrimBoundaries(
+          total: s(100),
+          sentences: [
+            for (var i = 0; i < 10; i++)
+              sentence(i, i * 10000 + 1000, i * 10000 + 8000),
+          ],
+        );
+        final sentenceLayouts = [
+          const <MediaTrimClip>[],
+          [clipForSpans(1, sentenceBoundaries, 3, 9)],
+          [
+            clipForSpans(1, sentenceBoundaries, 0, 2),
+            clipForSpans(2, sentenceBoundaries, 6, 7),
+          ],
+          [clipForSpans(1, sentenceBoundaries, 0, 9)],
+        ];
+        final freeLayouts = [
+          const <MediaTrimClip>[],
+          [range(1, s(60), s(600))],
+          [range(1, s(0), s(60)), range(2, s(100), s(600))],
+          [range(1, s(0), s(595))],
+        ];
+        for (final layout in sentenceLayouts) {
+          _expectGapRangesValid(sentenceBoundaries, layout);
+        }
+        for (final layout in freeLayouts) {
+          _expectGapRangesValid(free, layout);
+        }
+      });
     });
 
     test('校验拒绝句内切分、过短和越界', () {

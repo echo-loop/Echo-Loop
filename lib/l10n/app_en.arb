@@ -2483,8 +2483,6 @@
   "mediaTrimZoomIn": "Zoom in",
   "mediaTrimZoomOut": "Zoom out",
   "mediaTrimZoomFit": "Show all",
-  "mediaTrimClipLabel": "Clip {number}",
-  "@mediaTrimClipLabel": {"placeholders": {"number": {"type": "int"}}},
   "mediaTrimZoomToClip": "Zoom to clip",
   "mediaTrimHideVideo": "Hide video",
   "mediaTrimShowVideo": "Show video",
@@ -2549,6 +2547,7 @@
   "@mediaTrimDefaultCollectionName": {
     "placeholders": { "name": { "type": "String" } }
   },
+  "mediaTrimNoGapForClip": "Not enough free space for a new clip. Shorten or delete a clip first.",
   "mediaTrimSaveLocalOnly": "This item comes from a podcast or shared collection, which is maintained by its source. Clips can only be saved to your own local collections.",
   "mediaTrimSaveNote": "The original stays unchanged. Clips are saved together once all of them are ready.",
   "mediaTrimSaving": "Creating clip {current} of {total}",

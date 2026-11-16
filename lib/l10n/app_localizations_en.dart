@@ -5324,11 +5324,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get mediaTrimZoomFit => 'Show all';
 
   @override
-  String mediaTrimClipLabel(int number) {
-    return 'Clip $number';
-  }
-
-  @override
   String get mediaTrimZoomToClip => 'Zoom to clip';
 
   @override
@@ -5473,6 +5468,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String mediaTrimDefaultCollectionName(String name) {
     return '$name · Clips';
   }
+
+  @override
+  String get mediaTrimNoGapForClip =>
+      'Not enough free space for a new clip. Shorten or delete a clip first.';
 
   @override
   String get mediaTrimSaveLocalOnly =>

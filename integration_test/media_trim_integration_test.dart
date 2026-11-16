@@ -402,14 +402,22 @@ void main() {
     await ui.resize(const Size(1280, 800));
     await ui.capture('subtitles-empty-desktop');
 
-    // 第一段：点第 1 句试听（播放头移到该句），再在播放位置新建整句片段。
+    // 第一段：点第 1 句试听（播放头移到该句），新片段从这里取整句；材料只有两句，
+    // 一次就取满，再把结束端往前收一句。
     await ui.tap(find.byKey(const ValueKey('trim-sentence-0')));
     await ui.settleAsync(const Duration(milliseconds: 300));
     await ui.tap(find.byKey(const ValueKey('trim-add')));
-    // 第二段：同样点第 2 句再新建。
+    await ui.tap(find.byKey(const ValueKey('trim-end-earlier')));
+    // 剩下的空白只有一句、不足下限：新片段给出顶部 toast，不建段。
+    await ui.tap(find.byKey(const ValueKey('trim-add')));
+    expect(find.textContaining('没有足够长的空白'), findsOneWidget);
+    expect(find.byKey(const ValueKey('trim-clip-2')), findsNothing);
+    // 第二段：取消选中后点第 2 句，用 I 键以播放位置为起点建段。
+    await ui.sendKey(LogicalKeyboardKey.escape);
     await ui.tap(find.byKey(const ValueKey('trim-sentence-1')));
     await ui.settleAsync(const Duration(milliseconds: 600));
-    await ui.tap(find.byKey(const ValueKey('trim-add')));
+    await ui.sendKey(LogicalKeyboardKey.keyI);
+    await ui.settleAsync();
     expect(find.byKey(const ValueKey('trim-clip-1')), findsOneWidget);
     expect(find.byKey(const ValueKey('trim-clip-2')), findsOneWidget);
 
@@ -487,19 +495,46 @@ void main() {
     );
     expect(dragged, findsOneWidget);
 
-    // 快捷键：空格播放 / 暂停，N 在播放位置新建片段。
-    await tester.sendKeyEvent(LogicalKeyboardKey.space);
+    // 快捷键：空格播放 / 暂停；N 新建，剩余空白都短于 6 秒全长时只提示。
+    await ui.sendKey(LogicalKeyboardKey.space);
     await ui.settleAsync(const Duration(milliseconds: 500));
-    await tester.sendKeyEvent(LogicalKeyboardKey.space);
+    await ui.sendKey(LogicalKeyboardKey.space);
     await ui.settleAsync();
-    await tester.sendKeyEvent(LogicalKeyboardKey.keyN);
+    await ui.sendKey(LogicalKeyboardKey.keyN);
+    await ui.settleAsync();
+    expect(find.byKey(const ValueKey('trim-clip-2')), findsNothing);
+    // Esc 取消选中，点到末尾附近后按 I 从播放位置建段。
+    await ui.sendKey(LogicalKeyboardKey.escape);
+    await tester.tapAt(Offset(xAt(4.5), timeline.center.dy));
+    await ui.settleAsync();
+    await ui.sendKey(LogicalKeyboardKey.keyI);
     await ui.settleAsync();
     expect(find.byKey(const ValueKey('trim-clip-2')), findsOneWidget);
+
+    // 选中片段 1，把终点把手拖到片段 2 起点附近：吸附对齐到 4.5 秒，首尾无缝衔接。
+    await ui.tap(find.byKey(const ValueKey('trim-clip-1')));
+    final gesture = await tester.startGesture(
+      Offset(xAt(3.75) + 6, timeline.center.dy),
+    );
+    await gesture.moveBy(const Offset(20, 0));
+    await tester.pump();
+    await gesture.moveTo(Offset(xAt(4.45) + 6, timeline.center.dy));
+    await ui.settleAsync();
+    await ui.capture('audio-snap-guide');
+    await gesture.up();
+    await ui.settleAsync(const Duration(milliseconds: 300));
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey('trim-end-time')),
+        matching: find.text('0:04.500'),
+      ),
+      findsOneWidget,
+    );
 
     // 选中片段时才显示「放大到当前片段」；Esc 取消选中后隐藏。
     await ui.tap(find.byKey(const ValueKey('trim-zoom-clip')));
     await ui.capture('audio-zoomed-clip');
-    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await ui.sendKey(LogicalKeyboardKey.escape);
     await ui.settleAsync();
     expect(find.byKey(const ValueKey('trim-zoom-clip')), findsNothing);
     await ui.tap(find.byKey(const ValueKey('trim-clip-1')));
@@ -523,8 +558,21 @@ void main() {
     final ui = await pumpScreen(tester, source);
     await ui.resize(const Size(1280, 800));
     await ui.tap(find.byKey(const ValueKey('trim-add')));
-    // 画面默认收起，展开后时间轴下移。
+    // 画面默认收起。6 秒素材只有在手机宽度下才能放大：放大后展开画面、切到矮窗口
+    // 整页滚动布局，时间轴换了位置也不重置缩放。
     await ui.resize(const Size(390, 844));
+    await ui.tap(find.byKey(const ValueKey('trim-zoom-in')));
+    Finder zoomOut() => find.descendant(
+      of: find.byKey(const ValueKey('trim-zoom-out')),
+      matching: find.byType(IconButton),
+    );
+    bool isZoomed() => tester.widget<IconButton>(zoomOut()).onPressed != null;
+    expect(isZoomed(), isTrue);
+    await ui.resize(const Size(390, 560));
+    expect(isZoomed(), isTrue, reason: '切到矮窗口布局不重置缩放');
+    await ui.resize(const Size(390, 844));
+    expect(isZoomed(), isTrue, reason: '切回固定头部布局不重置缩放');
+    await ui.tap(find.byKey(const ValueKey('trim-zoom-out')));
     await ui.capture('video-hidden-phone');
     final timelineTop = tester.getTopLeft(
       find.byKey(const ValueKey('trim-timeline')),
@@ -534,6 +582,24 @@ void main() {
       tester.getTopLeft(find.byKey(const ValueKey('trim-timeline'))).dy,
       greaterThan(timelineTop.dy),
     );
+    // 页面左右边距固定 16，不随窗口宽度跳变。
+    for (final size in [
+      const Size(390, 844),
+      const Size(700, 844),
+      const Size(1600, 800),
+    ]) {
+      await ui.resize(size);
+      final timeline = tester.getRect(
+        find.byKey(const ValueKey('trim-timeline')),
+      );
+      expect(timeline.left, 16, reason: '$size 左边距');
+    }
+    await ui.resize(const Size(390, 844));
+    await ui.tap(find.byKey(const ValueKey('trim-zoom-in')));
+    await ui.tap(find.byKey(const ValueKey('trim-toggle-video')));
+    expect(isZoomed(), isTrue, reason: '收起画面不重置缩放');
+    await ui.tap(find.byKey(const ValueKey('trim-toggle-video')));
+    expect(isZoomed(), isTrue, reason: '展开画面不重置缩放');
     await ui.resize(const Size(1280, 800));
     await ui.tap(find.byKey(const ValueKey('trim-play')));
     await ui.settleAsync(const Duration(milliseconds: 800));
@@ -581,6 +647,15 @@ class _UiHarness {
     await tester.tap(finder.first);
     await settleAsync(const Duration(milliseconds: 300));
     expect(tester.takeException(), isNull);
+  }
+
+  /// 发送快捷键。测试窗口失去前台时 App 进入 inactive，Flutter 会把焦点暂存到根节点，
+  /// 快捷键就收不到（见 troubleshooting 7.56）；先恢复为 resumed，让焦点回到页面。
+  Future<void> sendKey(LogicalKeyboardKey key) async {
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await tester.pump();
+    await tester.sendKeyEvent(key);
+    await tester.pump();
   }
 
   Future<void> resize(Size size) async {

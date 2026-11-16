@@ -8,6 +8,7 @@ import '../../../l10n/app_localizations.dart';
 import '../../../models/audio_item.dart';
 import '../media_trim_clip.dart';
 import '../media_trim_editor_controller.dart';
+import 'media_trim_clip_colors.dart';
 import 'media_trim_format.dart';
 
 /// 线条图标统一渲染为 20px：Material 线条图标在 20px 时线宽约 1.67px，
@@ -20,6 +21,7 @@ class MediaTrimClipSlivers extends ConsumerWidget {
     super.key,
     required this.source,
     required this.onAutoSplit,
+    required this.onAddClip,
     required this.onRename,
     required this.onEditTime,
     this.showTitle = true,
@@ -30,6 +32,7 @@ class MediaTrimClipSlivers extends ConsumerWidget {
   /// 标签页里已显示「片段 · N」，此时只保留操作按钮。
   final bool showTitle;
   final VoidCallback onAutoSplit;
+  final VoidCallback onAddClip;
   final ValueChanged<MediaTrimClip> onRename;
   final ValueChanged<MediaTrimEdge> onEditTime;
 
@@ -41,7 +44,6 @@ class MediaTrimClipSlivers extends ConsumerWidget {
         (s) => (s.clips, s.selectedClipId, s.boundaries?.hasSentences ?? false),
       ),
     );
-    final controller = ref.read(provider.notifier);
     final l10n = AppLocalizations.of(context)!;
     return SliverMainAxisGroup(
       slivers: [
@@ -53,7 +55,7 @@ class MediaTrimClipSlivers extends ConsumerWidget {
                       : '${l10n.mediaTrimClips} · ${clips.length}')
                 : null,
             onAutoSplit: onAutoSplit,
-            onAdd: controller.addClipAtPlayhead,
+            onAdd: onAddClip,
           ),
         ),
         if (clips.isEmpty)
@@ -223,11 +225,10 @@ class _ClipRow extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final provider = mediaTrimEditorProvider(source);
     final controller = ref.read(provider.notifier);
-    // 列表里只显示「片段 N」或自定义名称；保存时的完整名称（原名 · 01）在重命名时可见。
-    final customName = clip.customName?.trim();
-    final title = customName == null || customName.isEmpty
-        ? AppLocalizations.of(context)!.mediaTrimClipLabel(number)
-        : customName;
+    // 显示的就是保存时用的名称，与重命名弹窗一致。
+    final (title, sourceName) = ref.watch(
+      provider.select((s) => (s.clipName(clip), s.sourceName)),
+    );
     final sentenceCount = ref.watch(
       provider.select(
         (s) => clip.sentencesWithin(s.boundaries?.sentences ?? const []).length,
@@ -249,16 +250,20 @@ class _ClipRow extends ConsumerWidget {
       formatTrimDuration(clip.duration),
       if (hasSentences) l10n.mediaTrimSentenceCount(sentenceCount),
     ].join(' · ');
+    final color = MediaTrimClipColor.of(number - 1, scheme.brightness);
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Material(
         color: isSelected
-            ? scheme.primaryContainer.withValues(alpha: 0.4)
+            ? Color.alphaBlend(
+                color.base.withValues(alpha: 0.1),
+                scheme.surfaceContainer,
+              )
             : scheme.surfaceContainer,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
           side: BorderSide(
-            color: isSelected ? scheme.primary : Colors.transparent,
+            color: isSelected ? color.base : Colors.transparent,
             width: 1.5,
           ),
         ),
@@ -271,16 +276,19 @@ class _ClipRow extends ConsumerWidget {
                 padding: const EdgeInsets.fromLTRB(12, 10, 4, 10),
                 child: Row(
                   children: [
-                    _NumberBadge(number: number, isSelected: isSelected),
+                    _NumberBadge(
+                      number: number,
+                      color: color,
+                      isSelected: isSelected,
+                    ),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            title,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
+                          _ClipTitle(
+                            name: title,
+                            sourceName: sourceName,
                             style: theme.textTheme.bodyMedium?.copyWith(
                               fontWeight: FontWeight.w600,
                             ),
@@ -387,10 +395,55 @@ class _ClipRow extends ConsumerWidget {
   }
 }
 
+/// 片段名称。默认名「原名 · 01」过长时只省略原名部分、保留序号，否则各片段截断后
+/// 看起来一模一样；自定义名称整体省略。
+class _ClipTitle extends StatelessWidget {
+  const _ClipTitle({
+    required this.name,
+    required this.sourceName,
+    required this.style,
+  });
+
+  final String name;
+  final String sourceName;
+  final TextStyle? style;
+
+  @override
+  Widget build(BuildContext context) {
+    final prefix = '$sourceName · ';
+    if (sourceName.isEmpty || !name.startsWith(prefix)) {
+      return Text(
+        name,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: style,
+      );
+    }
+    return Row(
+      children: [
+        Flexible(
+          child: Text(
+            sourceName,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: style,
+          ),
+        ),
+        Text(name.substring(sourceName.length), maxLines: 1, style: style),
+      ],
+    );
+  }
+}
+
 class _NumberBadge extends StatelessWidget {
-  const _NumberBadge({required this.number, required this.isSelected});
+  const _NumberBadge({
+    required this.number,
+    required this.color,
+    required this.isSelected,
+  });
 
   final int number;
+  final MediaTrimClipColor color;
   final bool isSelected;
 
   @override
@@ -402,14 +455,18 @@ class _NumberBadge extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 8),
       alignment: Alignment.center,
       decoration: ShapeDecoration(
-        color: isSelected ? scheme.primary : scheme.surfaceContainerHighest,
+        color: isSelected
+            ? color.base
+            : color.base.withValues(
+                alpha: scheme.brightness == Brightness.dark ? 0.24 : 0.16,
+              ),
         shape: const StadiumBorder(),
       ),
       child: Text(
         '$number',
         style: Theme.of(context).textTheme.labelMedium?.copyWith(
           fontWeight: FontWeight.w700,
-          color: isSelected ? scheme.onPrimary : scheme.onSurfaceVariant,
+          color: isSelected ? color.onBase : color.base,
           fontFeatures: const [FontFeature.tabularFigures()],
         ),
       ),

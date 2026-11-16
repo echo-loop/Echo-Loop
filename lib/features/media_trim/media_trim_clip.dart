@@ -121,8 +121,11 @@ class MediaTrimBoundaries {
   static const Duration sentencePadding = Duration(milliseconds: 300);
   static const Duration minClipDuration = Duration(milliseconds: 300);
 
-  /// 无字幕时，新片段默认长度。
-  static const Duration defaultFreeClipDuration = Duration(seconds: 30);
+  /// 新片段的默认长度（有字幕时按整句累积，不超过此长度）。
+  static const Duration newClipDuration = Duration(minutes: 2);
+
+  /// 在空白处新建片段时要求的最短长度；媒体本身更短时以全长为准。
+  static const Duration minNewClipDuration = Duration(seconds: 10);
 
   /// 无字幕时，微调按钮的步长。
   static const Duration freeStep = Duration(milliseconds: 100);
@@ -248,14 +251,123 @@ class MediaTrimBoundaries {
       return rangeForSpans(span, span);
     }
     var start = _roundToMillisecond(_clamp(position));
-    var end = start + defaultFreeClipDuration;
+    var end = start + newClipDuration;
     if (end > total) end = total;
     if (end - start < minClipDuration) {
-      start = total - defaultFreeClipDuration;
+      start = total - newClipDuration;
       if (start < Duration.zero) start = Duration.zero;
       end = total;
     }
     return (start, end);
+  }
+
+  /// 在空白处（不被任何片段覆盖的区间）新建片段的范围，找不到足够长的空白时返回 null。
+  ///
+  /// 从 [anchor] 开始向后找：[anchor] 落在片段内时先跳到该片段末尾，因此连续点
+  /// "新片段"会依次在后面的空白处建段；后面没有空白时回到开头继续找。
+  /// 长度默认 [newClipDuration]，空白不足时用整段空白，但不短于
+  /// [minNewClipDuration]。有字幕时只取完整的句子单元。
+  (Duration, Duration)? rangeInGap(List<MediaTrimClip> clips, Duration anchor) {
+    // 材料本身（有字幕时为全部句子）不足 10 秒时，以能取到的全长为下限。
+    final available = hasSentences
+        ? endAt(spans.length - 1) - startAt(0)
+        : total;
+    final minLength = available < minNewClipDuration
+        ? available
+        : minNewClipDuration;
+    if (minLength <= Duration.zero) return null;
+    var from = _clamp(anchor);
+    for (var moved = true; moved;) {
+      moved = false;
+      for (final clip in clips) {
+        if (clip.containsTime(from)) {
+          from = clip.end;
+          moved = true;
+        }
+      }
+    }
+    return hasSentences
+        ? _sentenceRangeInGap(clips, from, minLength)
+        : _freeRangeInGap(clips, from, minLength);
+  }
+
+  (Duration, Duration)? _freeRangeInGap(
+    List<MediaTrimClip> clips,
+    Duration from,
+    Duration minLength,
+  ) {
+    final ordered = [...clips]..sort((a, b) => a.start.compareTo(b.start));
+    final gaps = <(Duration, Duration)>[];
+    var cursor = Duration.zero;
+    for (final clip in ordered) {
+      if (clip.start > cursor) gaps.add((cursor, clip.start));
+      if (clip.end > cursor) cursor = clip.end;
+    }
+    if (total > cursor) gaps.add((cursor, total));
+    final firstAfter = gaps.indexWhere((gap) => gap.$2 > from);
+    final rotation = firstAfter < 0 ? 0 : firstAfter;
+    for (var i = 0; i < gaps.length; i++) {
+      final (gapStart, gapEnd) = gaps[(rotation + i) % gaps.length];
+      if (gapEnd - gapStart < minLength) continue;
+      final start = i == 0 && from > gapStart ? from : gapStart;
+      var end = start + newClipDuration;
+      if (end > gapEnd) end = gapEnd;
+      if (end - start >= minLength) {
+        return (_roundToMillisecond(start), _roundToMillisecond(end));
+      }
+      // 播放头后剩余空白太短：改为贴着这段空白的末尾建段。
+      var shifted = gapEnd - newClipDuration;
+      if (shifted < gapStart) shifted = gapStart;
+      return (_roundToMillisecond(shifted), _roundToMillisecond(gapEnd));
+    }
+    return null;
+  }
+
+  (Duration, Duration)? _sentenceRangeInGap(
+    List<MediaTrimClip> clips,
+    Duration from,
+    Duration minLength,
+  ) {
+    bool isFree(int span) => clips.every(
+      (clip) => endAt(span) <= clip.start || startAt(span) >= clip.end,
+    );
+    // 连续的空闲单元构成一段空白。
+    final runs = <(int, int)>[];
+    for (var i = 0; i < spans.length; i++) {
+      if (!isFree(i)) continue;
+      if (runs.isNotEmpty && runs.last.$2 == i - 1) {
+        runs[runs.length - 1] = (runs.last.$1, i);
+      } else {
+        runs.add((i, i));
+      }
+    }
+    final fromSpan = spanAtOrAfter(from);
+    final firstAfter = runs.indexWhere((run) => run.$2 >= fromSpan);
+    final rotation = firstAfter < 0 ? 0 : firstAfter;
+    for (var i = 0; i < runs.length; i++) {
+      final (runFirst, runLast) = runs[(rotation + i) % runs.length];
+      // 只有排在播放头之后的空白才从播放头所在句开始；绕回到播放头之前的空白时
+      // 必须从空白自身的起点算，否则会把已被片段占用的句子算进新片段。
+      final runIsAfterFrom = runLast >= fromSpan;
+      var first = i == 0 && runIsAfterFrom && fromSpan > runFirst
+          ? fromSpan
+          : runFirst;
+      var last = first;
+      while (last < runLast &&
+          endAt(last + 1) - startAt(first) <= newClipDuration) {
+        last++;
+      }
+      // 后面剩余的句子不够长：向前补句子。
+      while (endAt(last) - startAt(first) < minLength &&
+          first > runFirst &&
+          endAt(last) - startAt(first - 1) <= newClipDuration) {
+        first--;
+      }
+      if (endAt(last) - startAt(first) >= minLength) {
+        return rangeForSpans(first, last);
+      }
+    }
+    return null;
   }
 
   /// 把一端移到 [time]，另一端保持不动。

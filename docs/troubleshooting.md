@@ -774,3 +774,30 @@
 - 验证：`test/features/media_trim/media_trim_timeline_test.dart` 覆盖触摸与鼠标拖动把手；macOS 集成测试拖动终点后日志为 `拖动结束 … range=1350-3750ms`。
 - 相关代码：`lib/features/media_trim/widgets/media_trim_timeline.dart`。
 - 记录时间：2026-11-16。
+
+### 7.56 macOS 集成测试里快捷键偶发无效：窗口失去前台后焦点被暂存到根节点
+
+- 现象：剪辑页集成测试里 Esc / I 等快捷键偶发无响应，`sendKeyEvent` 返回未处理；同一用例重跑又通过。一度误以为是顶部 toast 导致（改成 SnackBar 那次恰好通过）。
+- 根因：测试窗口失去前台（运行期间切到其它应用或窗口）时 App 进入 inactive，`FocusManager._appLifecycleChange` 把 primaryFocus 暂存并移到 Root Focus Scope，恢复 resumed 后才还原。期间页面 `Focus(autofocus)` 下的 `CallbackShortcuts` 收不到按键。用焦点监听在失败时刻看到 primaryFocus 变为 `Root Focus Scope`，与 toast 显示 / 消失时刻无关；最小复现里 toast 出现和移除都不改变焦点。
+- 解法：集成测试发快捷键前先 `handleAppLifecycleStateChanged(AppLifecycleState.resumed)`（`_UiHarness.sendKey`），不依赖窗口是否在前台。窗口被完全遮挡或最小化导致不出帧仍按 7.51 处理。
+- 相关代码：`integration_test/media_trim_integration_test.dart`。
+- 记录时间：2026-11-16。
+
+### 7.57 剪辑页布局切换后时间轴缩放被重置
+
+- 现象：放大时间轴后，拖动窗口跨过宽 / 窄 / 矮布局阈值，或展开收起视频画面，缩放回到 1 倍、平移位置丢失。
+- 根因：缩放与平移是时间轴 `State` 的局部状态；三种布局把时间轴放在不同父节点下，展开画面又在它前面插入一项，没有 key 时按位置和类型匹配失败，`State` 被销毁重建。
+- 解法：`_TimelineSection` 挂屏幕持有的 `GlobalKey`，换位置时整体搬移而不重建。
+- 验证：集成测试「剪辑页面视频」放大后切矮窗口、切回、收起 / 展开画面都检查缩放按钮仍可用；去掉 GlobalKey 时该用例在「切到矮窗口布局不重置缩放」处失败。
+- 相关代码：`lib/features/media_trim/media_trim_screen.dart`。
+- 关联问题：保住状态后又暴露宽度变化时的锚点偏差——旧代码取视口 x=0 处的时间、却恢复到留白之后（x=14），放大平移后每次布局变化波形整体右移 14px，看起来像左边距变宽，连续拖窗口会累积。取点与恢复点统一为留白后第一个像素；`media_trim_timeline_test.dart`「视口宽度变化」用例覆盖。
+- 记录时间：2026-11-16。
+
+### 7.58 连续点「新片段」产生重叠片段：播放头在末段内时绕回前面的空白仍按播放头句子取段
+
+- 现象：有字幕时，播放头落在某段内（该段已延伸到材料末尾，后面没有空白），连续点两次「新片段」，第二段与第一段重叠（如 0:47–1:01 与 0:37–1:01），而左侧仍有大片空白。
+- 根因：`MediaTrimBoundaries._sentenceRangeInGap` 从播放头所在句往后找空白；后面没有空白时绕回到前面的空白，但仍把起点钳到播放头所在句（`fromSpan`），于是从已被占用的句子开始向后取段。
+- 解法：只有排在播放头之后的空白才从播放头所在句开始，绕回时从空白自身起点算。
+- 验证：`media_trim_clip_test.dart`「播放头在片段内且片段之后没有空白」与「任意播放头位置…都不与现有片段重叠」（有字幕 / 无字幕多种布局，每 500ms 一个播放头）；`media_trim_editor_controller_test.dart`「连续两次新片段在同一播放头处不重叠」。三条在修复前均失败。
+- 相关代码：`lib/features/media_trim/media_trim_clip.dart`。
+- 记录时间：2026-11-16。

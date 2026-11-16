@@ -12,6 +12,7 @@ import '../../providers/audio_library_provider.dart';
 import '../../providers/collection_provider.dart';
 import '../../router/app_router.dart';
 import '../../services/app_logger.dart';
+import '../../widgets/app_toast.dart';
 import 'media_trim_clip.dart';
 import 'media_trim_editor_controller.dart';
 import 'media_trim_exporter.dart';
@@ -44,10 +45,18 @@ class _MediaTrimScreenState extends ConsumerState<MediaTrimScreen>
   /// 窄屏下固定时间轴、列表单独滚动所需的最小高度；更矮时整页滚动。
   static const double _pinnedMinHeight = 600;
 
+  /// 页面左右边距固定，不随窗口宽度分档：拖动窗口跨过分档宽度时边距跳变很突兀，
+  /// 也与右侧片段面板的 16 保持一致。
+  static const double _gutter = 16;
+
   AudioItem get _source => widget.source;
 
   /// 剪辑主要看波形和片段，画面默认收起，把高度留给时间轴和列表；只影响本页。
   bool _isVideoVisible = false;
+
+  /// 时间轴在宽 / 窄 / 矮布局间、以及展开收起画面时会换位置；用 GlobalKey 让它
+  /// 搬家而不重建，保住缩放倍数和平移位置。
+  final _timelineKey = GlobalKey(debugLabel: 'media-trim-timeline');
 
   MediaTrimEditorController get _controller =>
       ref.read(mediaTrimEditorProvider(_source).notifier);
@@ -76,6 +85,15 @@ class _MediaTrimScreenState extends ConsumerState<MediaTrimScreen>
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  /// 在空白处新建片段；没有足够长的空白时顶部 toast 提示，不打断操作。
+  void _addClip() {
+    if (_controller.addClipInGap()) return;
+    showAppToast(
+      overlayState: Overlay.of(context, rootOverlay: true),
+      message: AppLocalizations.of(context)!.mediaTrimNoGapForClip,
+    );
   }
 
   Future<void> _handlePop() async {
@@ -188,8 +206,7 @@ class _MediaTrimScreenState extends ConsumerState<MediaTrimScreen>
           controller.setEdgeAtPlayhead(MediaTrimEdge.start),
       const SingleActivator(LogicalKeyboardKey.keyO): () =>
           controller.setEdgeAtPlayhead(MediaTrimEdge.end),
-      const SingleActivator(LogicalKeyboardKey.keyN):
-          controller.addClipAtPlayhead,
+      const SingleActivator(LogicalKeyboardKey.keyN): _addClip,
       const SingleActivator(LogicalKeyboardKey.arrowLeft): () =>
           unawaited(controller.seekBy(const Duration(seconds: -1))),
       const SingleActivator(LogicalKeyboardKey.arrowRight): () =>
@@ -291,6 +308,7 @@ class _MediaTrimScreenState extends ConsumerState<MediaTrimScreen>
           source: _source,
           showTitle: showTitle,
           onAutoSplit: _openAutoSplit,
+          onAddClip: _addClip,
           onRename: _rename,
           onEditTime: _editTime,
         );
@@ -302,7 +320,6 @@ class _MediaTrimScreenState extends ConsumerState<MediaTrimScreen>
           final isWide =
               constraints.maxWidth >= _wideMinWidth &&
               constraints.maxHeight >= _wideMinHeight;
-          final gutter = constraints.maxWidth < 600 ? 16.0 : 24.0;
           final header = [
             if (_source.isVideo && _isVideoVisible)
               _VideoPreview(
@@ -315,7 +332,7 @@ class _MediaTrimScreenState extends ConsumerState<MediaTrimScreen>
               onToggleVideo: () =>
                   setState(() => _isVideoVisible = !_isVideoVisible),
             ),
-            _TimelineSection(source: _source),
+            _TimelineSection(key: _timelineKey, source: _source),
           ];
           if (isWide) {
             return Row(
@@ -323,7 +340,7 @@ class _MediaTrimScreenState extends ConsumerState<MediaTrimScreen>
               children: [
                 Expanded(
                   child: Padding(
-                    padding: EdgeInsets.fromLTRB(gutter, 8, gutter, 0),
+                    padding: const EdgeInsets.fromLTRB(_gutter, 8, _gutter, 0),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
@@ -360,7 +377,7 @@ class _MediaTrimScreenState extends ConsumerState<MediaTrimScreen>
           }
           if (constraints.maxHeight >= _pinnedMinHeight) {
             return Padding(
-              padding: EdgeInsets.fromLTRB(gutter, 8, gutter, 0),
+              padding: const EdgeInsets.fromLTRB(_gutter, 8, _gutter, 0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
@@ -385,7 +402,7 @@ class _MediaTrimScreenState extends ConsumerState<MediaTrimScreen>
             key: const ValueKey('trim-editor'),
             slivers: [
               SliverPadding(
-                padding: EdgeInsets.fromLTRB(gutter, 8, gutter, 0),
+                padding: const EdgeInsets.fromLTRB(_gutter, 8, _gutter, 0),
                 sliver: SliverMainAxisGroup(
                   slivers: [
                     SliverToBoxAdapter(child: Column(children: header)),
@@ -634,7 +651,7 @@ class _SlashPainter extends CustomPainter {
 }
 
 class _TimelineSection extends ConsumerWidget {
-  const _TimelineSection({required this.source});
+  const _TimelineSection({super.key, required this.source});
 
   final AudioItem source;
 

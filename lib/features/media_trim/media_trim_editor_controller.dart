@@ -532,12 +532,22 @@ class MediaTrimEditorController extends Notifier<MediaTrimEditorState> {
     state = state.copyWith(clearSelectedClip: true);
   }
 
-  /// 在播放头处新建片段；与已有片段范围完全相同时直接选中已有片段。
-  void addClipAtPlayhead() {
+  /// 从播放头往后找空白处新建片段（规则见 [MediaTrimBoundaries.rangeInGap]）。
+  /// 没有足够长的空白时返回 false，由界面提示。
+  bool addClipInGap() {
     final boundaries = state.boundaries;
-    if (boundaries == null) return;
-    final (start, end) = boundaries.defaultRangeAt(state.position);
-    _addClip(start, end, reason: 'playhead');
+    if (boundaries == null || state.isSaving) return false;
+    final range = boundaries.rangeInGap(state.clips, state.position);
+    if (range == null) {
+      AppLogger.log(
+        'MediaTrim',
+        '新建片段失败：没有足够长的空白 clips=${state.clips.length} '
+            'position=${state.position.inMilliseconds}ms',
+      );
+      return false;
+    }
+    _addClip(range.$1, range.$2, reason: 'gap');
+    return true;
   }
 
   /// 以播放头作为当前片段的一端；没有选中片段时新建一段。
@@ -559,7 +569,7 @@ class MediaTrimEditorController extends Notifier<MediaTrimEditorState> {
         _addClip(start, end, reason: 'mark-out');
       } else {
         final end = boundaries.snap(MediaTrimEdge.end, position);
-        var start = end - MediaTrimBoundaries.defaultFreeClipDuration;
+        var start = end - MediaTrimBoundaries.newClipDuration;
         if (start < Duration.zero) start = Duration.zero;
         _addClip(start, end, reason: 'mark-out');
       }
