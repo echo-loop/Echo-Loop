@@ -30,8 +30,7 @@ const int _kCoverDecodeScale = 3;
 
 /// 方形圆角素材图标。
 ///
-/// 有封面时显示封面，封面加载中只显示中性色块（不闪现默认图标，避免「图标 → 封面」的跳动），
-/// 无封面或加载失败时显示音频 / 视频图标。
+/// 有封面时显示封面，封面加载中、无封面或加载失败时显示音频 / 视频默认图标。
 class AudioArtwork extends StatelessWidget {
   final String? imageUrl;
   final bool isVideo;
@@ -67,11 +66,6 @@ class AudioArtwork extends StatelessWidget {
     );
     final url = imageUrl;
     if (url == null) return fallback;
-    final loadingPlaceholder = Container(
-      width: size,
-      height: size,
-      color: theme.colorScheme.surfaceContainerHighest,
-    );
     final decodeSize = (size * _kCoverDecodeScale).round();
     return ClipRRect(
       borderRadius: BorderRadius.circular(_kArtworkRadius),
@@ -89,7 +83,7 @@ class AudioArtwork extends StatelessWidget {
         // 缓存命中时立即显示，去掉默认淡入造成的延迟感
         fadeInDuration: Duration.zero,
         placeholderFadeInDuration: Duration.zero,
-        placeholder: (_, __) => loadingPlaceholder,
+        placeholder: (_, __) => fallback,
         errorWidget: (_, __, ___) => fallback,
       ),
     );
