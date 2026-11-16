@@ -58,6 +58,7 @@ class PracticeMediaPresentationSession {
     required this.setVisible,
     required this.setSubtitleVisible,
     required this.setFullscreen,
+    required this.previewPosition,
     required this.buildVideoView,
   });
 
@@ -65,6 +66,9 @@ class PracticeMediaPresentationSession {
   final Future<void> Function(bool visible) setVisible;
   final Future<void> Function(bool visible) setSubtitleVisible;
   final Future<void> Function(bool expanded) setFullscreen;
+
+  /// 暂停中把画面移到讲解句起点，不改变任务页的焦点与高亮。
+  final Future<void> Function(Duration position) previewPosition;
   final Widget Function(Size viewportSize) buildVideoView;
 }
 
@@ -168,6 +172,8 @@ class _PracticeMediaPresentationHostState
         setVisible: _setVisible,
         setSubtitleVisible: _setSubtitleVisible,
         setFullscreen: _setFullscreen,
+        previewPosition: (position) =>
+            ref.read(mediaEngineProvider.notifier).seekForPreview(position),
         buildVideoView: (size) => ref
             .read(mediaEngineProvider.notifier)
             .buildVideoView(viewportSize: size),

@@ -16,6 +16,7 @@ import 'package:echo_loop/models/playback_settings.dart';
 import 'package:echo_loop/models/sentence.dart';
 import 'package:echo_loop/models/sentence_focus_reason.dart';
 import 'package:echo_loop/models/study_stage.dart';
+import 'package:echo_loop/models/word_highlight_binding.dart';
 import 'package:echo_loop/database/providers.dart';
 import 'package:echo_loop/providers/audio_engine/audio_engine_provider.dart';
 import 'package:echo_loop/providers/learned_vocabulary_tracker_provider.dart';
@@ -528,6 +529,32 @@ void main() {
     expect(state.position, const Duration(seconds: 47));
     expect(backend.seekCalls, [const Duration(seconds: 47)]);
     expect(state.isPlaying, isFalse);
+  });
+
+  test('讲解页预览句子画面只移动暂停中的位置，不高亮句首词也不改变焦点', () async {
+    final controller = await loadController();
+    backend.emitPosition(const Duration(seconds: 47));
+    await Future<void>.delayed(Duration.zero);
+    final returnPosition = await controller.prepareSentenceDetail();
+
+    await controller.previewSentenceDetailPosition(const Duration(seconds: 51));
+
+    final state = container.read(mediaPlaybackProvider);
+    expect(backend.seekCalls.last, const Duration(seconds: 51));
+    expect(state.currentFullIndex, 0);
+    expect(state.isPlaying, isFalse);
+    expect(
+      container.read(mediaEngineProvider.notifier).wordHighlightPlaybackStatus,
+      WordHighlightPlaybackStatus.idle,
+    );
+
+    await controller.restoreAfterSentenceDetail(returnPosition);
+
+    expect(backend.seekCalls.last, const Duration(seconds: 47));
+    expect(
+      container.read(mediaPlaybackProvider).position,
+      const Duration(seconds: 47),
+    );
   });
 
   test('空收藏不进入收藏模式，也不触发暂停和对齐', () async {

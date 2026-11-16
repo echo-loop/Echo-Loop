@@ -380,6 +380,7 @@ void main() {
               setVisible: mediaPlayback.setVisualTrackVisible,
               setSubtitleVisible: mediaPlayback.setVideoSubtitleVisible,
               setFullscreen: (expanded) async => fullscreen = expanded,
+              previewPosition: (_) async {},
               buildVideoView: (size) =>
                   _VideoViewMediaEngine().buildVideoView(viewportSize: size),
             ),
@@ -435,6 +436,62 @@ void main() {
     await tester.pump();
     expect(rangePlayback.start, const Duration(seconds: 1));
     expect(rangePlayback.end, const Duration(seconds: 3));
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(milliseconds: 1));
+  });
+
+  testWidgets('视频讲解页进入与切句时把暂停画面移到该句起点', (tester) async {
+    final rangePlayback = _RecordingRangePlayback();
+    final mediaPlayback = _TestMediaPlayback();
+    final previewedPositions = <Duration>[];
+    await tester.pumpWidget(
+      createTestApp(
+        SentenceDetailScreen(
+          args: SentenceDetailArgs(
+            audioItemId: 'media-item',
+            audioName: 'Media item',
+            sentenceText: 'A sentence for media playback.',
+            sentenceIndex: 0,
+            startTimeMs: 1000,
+            endTimeMs: 3000,
+            rangePlaybackBuilder: (_) => rangePlayback,
+            wordHighlightSource: const WordHighlightSource(
+              audioItemId: 'media-item',
+              positionStream: Stream<Duration>.empty(),
+              currentPosition: Duration.zero,
+              playbackStatus: WordHighlightPlaybackStatus.idle,
+              playbackStatusStream: Stream<WordHighlightPlaybackStatus>.empty(),
+            ),
+            mediaSession: SentenceDetailMediaSession(
+              readState: () => const MediaPlaybackState(),
+              setVisible: mediaPlayback.setVisualTrackVisible,
+              setSubtitleVisible: mediaPlayback.setVideoSubtitleVisible,
+              setFullscreen: (_) async {},
+              previewPosition: (position) async =>
+                  previewedPositions.add(position),
+              buildVideoView: (size) =>
+                  _VideoViewMediaEngine().buildVideoView(viewportSize: size),
+            ),
+          ),
+        ),
+        overrides: dedupeOverrides([
+          ...detailOverrides(),
+          mediaPlaybackProvider.overrideWith(() => mediaPlayback),
+          mediaEngineProvider.overrideWith(_VideoViewMediaEngine.new),
+        ]),
+      ),
+    );
+    await tester.pump();
+
+    // 入口句为第 0 句，起点 1000ms：画面应定位到入口句而不是停留在原播放位置。
+    expect(previewedPositions, [const Duration(seconds: 1)]);
+
+    await tester.tap(find.byIcon(Icons.skip_next_rounded));
+    await tester.pumpAndSettle();
+
+    expect(find.text('第 2/10 句'), findsOneWidget);
+    expect(previewedPositions.last, const Duration(seconds: 4));
+    expect(rangePlayback.playStarts, isEmpty);
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump(const Duration(milliseconds: 1));
   });

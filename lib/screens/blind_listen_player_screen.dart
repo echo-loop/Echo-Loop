@@ -271,6 +271,7 @@ class _BlindListenPlayerScreenState
       setVisible: session.setVisible,
       setSubtitleVisible: session.setSubtitleVisible,
       setFullscreen: session.setFullscreen,
+      previewPosition: session.previewPosition,
       buildVideoView: session.buildVideoView,
     );
   }

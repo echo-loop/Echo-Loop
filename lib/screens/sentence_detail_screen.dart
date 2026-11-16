@@ -57,6 +57,7 @@ class SentenceDetailMediaSession {
     required this.setVisible,
     required this.setSubtitleVisible,
     required this.setFullscreen,
+    required this.previewPosition,
     required this.buildVideoView,
   });
 
@@ -65,6 +66,9 @@ class SentenceDetailMediaSession {
   final Future<void> Function(bool visible) setVisible;
   final Future<void> Function(bool visible) setSubtitleVisible;
   final Future<void> Function(bool expanded) setFullscreen;
+
+  /// 暂停中把画面移到讲解句起点；不改变父任务的焦点与高亮。
+  final Future<void> Function(Duration position) previewPosition;
   final Widget Function(Size viewportSize) buildVideoView;
 }
 
@@ -193,6 +197,7 @@ class _SentenceDetailScreenState extends ConsumerState<SentenceDetailScreen> {
           playbackSpeed: () => _playbackSpeed,
         );
     _loadBookmarkStatus();
+    _previewCurrentSentenceFrame();
     unawaited(_loadSentences());
   }
 
@@ -260,6 +265,10 @@ class _SentenceDetailScreenState extends ConsumerState<SentenceDetailScreen> {
       _sentences = entryPosition == null ? [_entrySentence] : transcript;
       _position = entryPosition ?? 0;
     });
+    // 入口句在字幕中换了位置时，画面需要跟到实际显示的句子。
+    if (_currentSentence.startTime != _entrySentence.startTime) {
+      _previewCurrentSentenceFrame();
+    }
   }
 
   void _retryLoadSentences() {
@@ -458,6 +467,15 @@ class _SentenceDetailScreenState extends ConsumerState<SentenceDetailScreen> {
     await _stopPlayback();
     if (!mounted) return;
     setState(() => _position = position);
+    _previewCurrentSentenceFrame();
+  }
+
+  /// 把视频画面移到当前句起点。画面取自共享引擎的当前位置，不做这一步时会停留在
+  /// 进入讲解前的播放句画面。播放中由区间播放自行定位，这里不介入。
+  void _previewCurrentSentenceFrame() {
+    final session = widget.args.mediaSession;
+    if (session == null || _isPlaying) return;
+    unawaited(session.previewPosition(_currentSentence.startTime));
   }
 
   /// 上一句：先完成分页动画，再提交切句。

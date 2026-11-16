@@ -563,6 +563,18 @@ class MediaEngine extends _$MediaEngine {
     });
   }
 
+  /// 讲解页预览暂停中的句子画面：只移动画面位置，不标记为用户已定位。
+  ///
+  /// 标记为已定位会把句首词当作当前高亮；这里保持高亮关闭，直到用户真正播放。
+  /// 播放中不做任何处理，由播放流程自行负责位置。
+  Future<void> seekForPreview(Duration pos) =>
+      _enqueueLifecycle('seek-preview', () async {
+        if (_backend?.playing ?? false) return;
+        await _disarmRangeEnd('seek-preview');
+        await _handler?.seek(pos);
+        _wordHighlightPlaybackStatus.prepareForPlayback();
+      });
+
   Future<void> setSpeed(double speed) =>
       _enqueueLifecycle('set-speed', () async {
         await _handler?.setSpeed(speed);

@@ -951,6 +951,18 @@ class MediaPlayback extends Notifier<MediaPlaybackState> {
     return position;
   }
 
+  /// 讲解页切到某句时，把暂停中的视频画面移到该句起点。
+  ///
+  /// 画面取自共享引擎的当前位置；只移动画面，不改变随心听焦点，返回时由
+  /// [restoreAfterSentenceDetail] 还原原位置。
+  Future<void> previewSentenceDetailPosition(Duration position) {
+    AppLogger.log(
+      'MediaPlayback',
+      'sentence detail preview frame position=${position.inMilliseconds}ms',
+    );
+    return _engine.seekForPreview(position);
+  }
+
   /// 从句子讲解返回后同步收藏，并在讲解播放改变位置时恢复原播放位置。
   ///
   /// 只查看讲解时不 seek；返回也不根据当前句焦点重新对齐媒体位置。

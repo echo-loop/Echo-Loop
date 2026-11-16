@@ -1635,6 +1635,7 @@ class _RetellPlayerScreenState extends ConsumerState<RetellPlayerScreen>
       setVisible: session.setVisible,
       setSubtitleVisible: session.setSubtitleVisible,
       setFullscreen: session.setFullscreen,
+      previewPosition: session.previewPosition,
       buildVideoView: session.buildVideoView,
     );
   }

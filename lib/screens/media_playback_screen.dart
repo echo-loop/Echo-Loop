@@ -651,6 +651,7 @@ class _MediaPlaybackScreenState extends ConsumerState<MediaPlaybackScreen>
                   setVisible: controller.setVisualTrackVisible,
                   setSubtitleVisible: controller.setVideoSubtitleVisible,
                   setFullscreen: _setVisualTrackExpanded,
+                  previewPosition: controller.previewSentenceDetailPosition,
                   buildVideoView: (size) => ref
                       .read(mediaEngineProvider.notifier)
                       .buildVideoView(viewportSize: size),
