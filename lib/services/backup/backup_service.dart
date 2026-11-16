@@ -50,8 +50,10 @@ const _manifestSizeLimit = 256 * 1024;
 const _settingsSizeLimit = 4 * 1024 * 1024;
 const _ioBufferSize = 1024 * 1024;
 
-typedef RestoredAppUpdateMigrator =
-    Future<void> Function(SharedPreferences preferences, int fromVersion);
+typedef RestoredAppUpdateMigrator = Future<void> Function(
+  SharedPreferences preferences,
+  int fromVersion,
+);
 
 /// 将备份文件流式复制到桌面端用户选择的位置。
 Future<void> copyBackupFileStreaming(
@@ -332,16 +334,19 @@ class BackupService {
   }
 
   Future<Set<String>> _collectSafeMediaPaths() async {
-    final rows = await _database
-        .customSelect('SELECT audio_path, transcript_path FROM audio_items')
-        .get();
     final paths = <String>{};
-    for (final row in rows) {
-      for (final column in ['audio_path', 'transcript_path']) {
-        final value = row.readNullable<String>(column);
-        if (value == null || value.isEmpty) continue;
-        final safePath = _tryNormalizeDataPath(value);
-        if (safePath != null) paths.add(safePath);
+    for (final MapEntry(key: table, value: columns)
+        in _mediaPathColumns.entries) {
+      final rows = await _database
+          .customSelect('SELECT ${columns.join(', ')} FROM $table')
+          .get();
+      for (final row in rows) {
+        for (final column in columns) {
+          final value = row.readNullable<String>(column);
+          if (value == null || value.isEmpty) continue;
+          final safePath = _tryNormalizeDataPath(value);
+          if (safePath != null) paths.add(safePath);
+        }
       }
     }
     return paths;
@@ -934,6 +939,13 @@ String? _tryNormalizeDataPath(String rawPath) {
   return normalized;
 }
 
+/// 数据库中引用应用数据目录内文件的列：备份按这些列收集文件，恢复按这些列校验路径。
+const _mediaPathColumns = <String, List<String>>{
+  'audio_items': ['audio_path', 'transcript_path'],
+  // v69 起本地合集的自定义封面。
+  'collections': ['local_cover_path'],
+};
+
 Set<String> _validateDatabaseSnapshot(
   String databasePath,
   int expectedSchemaVersion,
@@ -961,27 +973,35 @@ Set<String> _validateDatabaseSnapshot(
     }
 
     final paths = <String>{};
-    final rows = database.select(
-      'SELECT audio_path, transcript_path FROM audio_items',
-    );
-    for (final row in rows) {
-      for (final column in ['audio_path', 'transcript_path']) {
-        final value = row[column];
-        if (value == null || value == '') continue;
-        if (value is! String) {
-          throw const BackupException(
-            'Invalid media path in database',
-            code: BackupFailureCode.corruptedArchive,
-          );
+    for (final MapEntry(key: table, value: allColumns)
+        in _mediaPathColumns.entries) {
+      // 旧版本备份可能还没有较新的列（如 v69 前没有封面列），只校验实际存在的列。
+      final existingColumns = database
+          .select('SELECT name FROM pragma_table_info(?)', [table])
+          .map((row) => row['name'] as String)
+          .toSet();
+      final columns = allColumns.where(existingColumns.contains).toList();
+      if (columns.isEmpty) continue;
+      final rows = database.select('SELECT ${columns.join(', ')} FROM $table');
+      for (final row in rows) {
+        for (final column in columns) {
+          final value = row[column];
+          if (value == null || value == '') continue;
+          if (value is! String) {
+            throw const BackupException(
+              'Invalid media path in database',
+              code: BackupFailureCode.corruptedArchive,
+            );
+          }
+          final normalized = _tryNormalizeDataPath(value);
+          if (normalized == null) {
+            throw BackupException(
+              'Unsafe media path in database: $value',
+              code: BackupFailureCode.unsafeArchive,
+            );
+          }
+          paths.add(normalized);
         }
-        final normalized = _tryNormalizeDataPath(value);
-        if (normalized == null) {
-          throw BackupException(
-            'Unsafe media path in database: $value',
-            code: BackupFailureCode.unsafeArchive,
-          );
-        }
-        paths.add(normalized);
       }
     }
     return paths;

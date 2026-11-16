@@ -25,6 +25,7 @@ import '../theme/app_theme.dart';
 import '../theme/list_item_text_styles.dart';
 import 'common/app_popup_menu.dart';
 import 'common/transcript_cc_badge.dart';
+import '../features/collection_cover/collection_cover_store.dart';
 import '../features/community_collections/download/community_download_notifier.dart';
 import '../features/community_collections/data/community_collection_api.dart';
 import '../features/community_collections/models/community_collection_models.dart';
@@ -138,9 +139,10 @@ class AudioListTile extends ConsumerWidget {
     // 难度是通用属性：只要有值就显示，不再区分是否仍关联社区合集。
     final difficulty = CommunityDifficulty.fromCode(audioItem.difficulty);
 
-    // 已订阅合集（社区 / 播客）的下载状态在元信息行展示。
-    final subscribedCollection = _subscribedCollection(ref);
+    // 左侧图标取封面所用的合集（社区 / 播客 / 设置了封面的本地合集）。
+    final coverCollection = _coverCollection(ref);
     final isChinaUser = ref.watch(isChinaUserProvider);
+    final dataDirectoryPath = ref.watch(appDataDirectoryPathProvider).value;
 
     // 精确订阅学习进度
     final LearningProgress? progress = ref.watch(
@@ -205,8 +207,9 @@ class AudioListTile extends ConsumerWidget {
                         children: [
                           // 左侧图标，垂直居中
                           _buildCollectionLeading(
-                            subscribedCollection,
+                            coverCollection,
                             isChinaUser,
+                            dataDirectoryPath,
                           ),
                           // 图标与标题间距保持紧凑，给标题让出空间。
                           const SizedBox(width: 8),
@@ -291,11 +294,12 @@ class AudioListTile extends ConsumerWidget {
     );
   }
 
-  /// 合集详情页的左侧方形圆角图标。已订阅合集有封面时显示封面，否则回退到音频 / 视频图标；
+  /// 合集详情页的左侧方形圆角图标。封面合集有封面时显示封面，否则回退到音频 / 视频图标；
   /// 学习进度由列表项下方的进度条展示，这里不再使用进度环。
   Widget _buildCollectionLeading(
-    Collection? subscribedCollection,
+    Collection? coverCollection,
     bool isChinaUser,
+    String? dataDirectoryPath,
   ) {
     // 下架状态是内容级提示，不能被封面替换掉，沿用原有的云离线图标。
     if (audioItem.isCommunityUnavailable) {
@@ -305,23 +309,18 @@ class AudioListTile extends ConsumerWidget {
         size: 28,
       );
     }
-    final imageUrl = subscribedCollection == null
-        ? null
-        : resolveSubscribedArtworkUrl(
-            audio: audioItem,
-            collection: subscribedCollection,
-            isChinaUser: isChinaUser,
-          );
-    return AudioArtwork(
-      imageUrl: imageUrl,
-      isVideo: audioItem.isVideo,
+    return buildCollectionAudioArtwork(
+      audio: audioItem,
+      coverCollection: coverCollection,
+      isChinaUser: isChinaUser,
+      dataDirectoryPath: dataDirectoryPath,
       size: _kCollectionItemIconSize,
     );
   }
 
-  /// 取封面所用的已订阅合集（社区 / 播客）。合集上下文取当前合集；
-  /// 全局上下文（如搜索结果）取素材所在的第一个已订阅合集。用户自建合集返回 null。
-  Collection? _subscribedCollection(WidgetRef ref) {
+  /// 取封面所用的合集。合集上下文取当前合集（社区 / 播客，或设置了封面的本地合集）；
+  /// 全局上下文（如搜索结果）按 [CollectionState.coverCollectionForAudio] 选取。
+  Collection? _coverCollection(WidgetRef ref) {
     final id = collectionId;
     if (id != null) {
       final collection = ref.watch(
@@ -330,11 +329,15 @@ class AudioListTile extends ConsumerWidget {
         ),
       );
       if (collection == null) return null;
-      return collection.isCommunity || collection.isPodcast ? collection : null;
+      final hasCover =
+          collection.isCommunity ||
+          collection.isPodcast ||
+          collection.localCoverPath != null;
+      return hasCover ? collection : null;
     }
     return ref.watch(
       collectionListProvider.select(
-        (s) => s.subscribedCollectionForAudio(audioItem.id),
+        (s) => s.coverCollectionForAudio(audioItem.id),
       ),
     );
   }

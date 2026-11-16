@@ -39,6 +39,9 @@ enum CollectionSource {
 /// - [coverUrlChina]：后端提供的中国 CDN 封面镜像地址
 /// - [deprecatedAt]：后端下架后的本地标记时间
 ///
+/// 本地合集字段（source=local 时有效）：
+/// - [localCoverPath]：用户自定义封面，相对应用数据目录的路径
+///
 /// Podcast 合集字段（source=podcast 时有效）：
 /// - [podcastInputUrl]：用户输入的原始 URL（Apple Podcasts 或 RSS 直链）
 /// - [podcastFeedUrl]：解析后的 RSS Feed URL
@@ -76,6 +79,9 @@ class Collection {
   /// 社区合集被标记下架的时间；非 null 时 UI 置灰，sync 不再请求
   final DateTime? deprecatedAt;
 
+  /// 本地合集自定义封面（相对应用数据目录）；未设置时为 null，显示首字母占位。
+  final String? localCoverPath;
+
   // ── Podcast 字段 ──────────────────────────────────────────────────────
 
   /// 用户输入的原始 URL（Apple Podcasts 链接或直接 RSS 链接）
@@ -107,12 +113,16 @@ class Collection {
     this.authorNickname,
     this.publishedAt,
     this.deprecatedAt,
+    this.localCoverPath,
     this.podcastInputUrl,
     this.podcastFeedUrl,
     this.podcastMetaJson,
     this.podcastLastRefreshedAt,
     this.podcastLastRefreshError,
   }) : updatedAt = updatedAt ?? createdDate;
+
+  /// 方便判断：是否为用户自建的本地合集。
+  bool get isLocal => source == CollectionSource.local;
 
   /// 方便判断：是否为社区合集。
   bool get isCommunity => source == CollectionSource.community;
@@ -179,6 +189,8 @@ class Collection {
     String? authorNickname,
     DateTime? publishedAt,
     DateTime? deprecatedAt,
+    String? localCoverPath,
+    bool clearLocalCoverPath = false,
     String? podcastInputUrl,
     String? podcastFeedUrl,
     String? podcastMetaJson,
@@ -200,6 +212,9 @@ class Collection {
       authorNickname: authorNickname ?? this.authorNickname,
       publishedAt: publishedAt ?? this.publishedAt,
       deprecatedAt: deprecatedAt ?? this.deprecatedAt,
+      localCoverPath: clearLocalCoverPath
+          ? null
+          : localCoverPath ?? this.localCoverPath,
       podcastInputUrl: podcastInputUrl ?? this.podcastInputUrl,
       podcastFeedUrl: podcastFeedUrl ?? this.podcastFeedUrl,
       podcastMetaJson: podcastMetaJson ?? this.podcastMetaJson,

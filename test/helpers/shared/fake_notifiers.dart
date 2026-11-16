@@ -10,6 +10,7 @@
 library;
 
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart' as ja;
@@ -241,7 +242,7 @@ class FakeCollectionList extends CollectionList {
   Future<void> loadCollections() async {}
 
   @override
-  Future<void> createCollection(String name) async {
+  Future<void> createCollection(String name, {Uint8List? coverJpeg}) async {
     final collection = Collection(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
       name: name,
@@ -1744,13 +1745,12 @@ class FakeReviewDifficultPractice extends ReviewDifficultPractice {
       callbacks: RepeatFlowCallbacks(
         pauseAudio: () {},
         playSentence: (_, _) async => SentencePlaybackResult.completed,
-        startRecording:
-            ({
-              required String promptId,
-              required String referenceText,
-              required Duration maxDuration,
-              Duration? referenceDuration,
-            }) {},
+        startRecording: ({
+          required String promptId,
+          required String referenceText,
+          required Duration maxDuration,
+          Duration? referenceDuration,
+        }) {},
         cancelRecording: () async {},
         stopAndEvaluate: ({required String referenceText}) async {},
         clearRecording: () {},

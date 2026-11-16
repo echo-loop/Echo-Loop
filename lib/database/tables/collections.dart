@@ -39,6 +39,12 @@ class Collections extends Table {
   /// 已同步到中国 CDN 的社区合集封面图 URL。
   TextColumn get coverUrlChina => text().nullable()();
 
+  /// 本地合集的自定义封面，相对应用数据目录的路径（如 `collection_covers/x.jpg`）。
+  ///
+  /// 只对 source='local' 有效；存相对路径是因为 iOS 容器绝对路径会随安装变化。
+  /// 文件仅存本机，不同步后端，随本地备份一起导出。
+  TextColumn get localCoverPath => text().nullable()();
+
   /// 社区合集描述；用户自建合集目前为 null。
   TextColumn get description => text().nullable()();
 

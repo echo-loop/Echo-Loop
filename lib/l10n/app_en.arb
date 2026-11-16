@@ -401,6 +401,13 @@
     }
   },
   "renameCollection": "Rename",
+  "editCollection": "Edit",
+  "editCollectionTitle": "Edit Collection",
+  "collectionCoverAdd": "Add cover",
+  "collectionCoverChange": "Change image",
+  "collectionCoverRemove": "Remove cover",
+  "collectionCoverCropTitle": "Crop Cover",
+  "collectionSaveFailed": "Couldn't save. Please try again.",
   "pinCollection": "Pin to Top",
   "unpinCollection": "Unpin",
   "pinAudio": "Pin to Top",

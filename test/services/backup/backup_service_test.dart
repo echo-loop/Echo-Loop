@@ -200,15 +200,12 @@ void main() {
       addTearDown(decoded.close);
       final manifest = BackupManifest.fromJson(
         jsonDecode(
-              utf8.decode(decoded.archive.findFile('manifest.json')!.content),
-            )
-            as Map<String, Object?>,
+          utf8.decode(decoded.archive.findFile('manifest.json')!.content),
+        ) as Map<String, Object?>,
       );
-      final settings =
-          jsonDecode(
-                utf8.decode(decoded.archive.findFile('settings.json')!.content),
-              )
-              as Map<String, Object?>;
+      final settings = jsonDecode(
+        utf8.decode(decoded.archive.findFile('settings.json')!.content),
+      ) as Map<String, Object?>;
 
       expect(manifest.appUpdateMigrationVersion, 4);
       expect(settings, containsPair('theme_mode', 'dark'));
@@ -276,6 +273,8 @@ void main() {
       final snapshot = File(p.join(root.path, 'schema_50.sqlite'));
       await database.createBackupSnapshot(snapshot);
       final raw = sqlite.sqlite3.open(snapshot.path);
+      // 旧版本数据库还没有 v69 的封面列，恢复校验不能因缺列失败。
+      raw.execute('ALTER TABLE collections DROP COLUMN local_cover_path');
       raw.execute('PRAGMA user_version = 50');
       raw.close();
       final hash = await sha256.bind(snapshot.openRead()).first;
@@ -341,6 +340,44 @@ void main() {
 
       expect(decoded.archive.findFile('media/audios/missing.m4a'), isNull);
       expect((await service.readManifest(backupPath)).mediaFileCount, 0);
+    });
+
+    test('本地合集封面随备份导出，恢复后还原', () async {
+      const coverPath = 'collection_covers/c1_1.jpg';
+      final now = DateTime.utc(2026, 11, 17);
+      await database
+          .into(database.collections)
+          .insert(
+            CollectionsCompanion.insert(
+              id: 'c1',
+              name: 'Local',
+              createdDate: now,
+              updatedAt: now,
+              localCoverPath: const Value(coverPath),
+            ),
+          );
+      final cover = File(p.join(dataDir.path, coverPath));
+      await cover.parent.create(recursive: true);
+      await cover.writeAsBytes([0xFF, 0xD8, 1, 2]);
+
+      final backupPath = await service.exportData(
+        outputDir: outputDir.path,
+        appVersion: '1.0.0',
+        platform: 'macos',
+      );
+      final decoded = _decodeStreaming(backupPath);
+      addTearDown(decoded.close);
+      expect(decoded.archive.findFile('media/$coverPath'), isNotNull);
+
+      await cover.delete();
+      final prepared = await service.prepareImport(zipPath: backupPath);
+      addTearDown(prepared.dispose);
+      await database.close();
+      databaseClosed = true;
+      final applied = await service.applyPreparedImport(prepared);
+      await applied.commit();
+
+      expect(await cover.readAsBytes(), [0xFF, 0xD8, 1, 2]);
     });
 
     for (final fixture in [
@@ -621,7 +658,9 @@ void main() {
 
     setUp(() async {
       root = await Directory.systemTemp.createTemp('backup_security_test_');
-      database = AppDatabase(NativeDatabase.memory(setup: configureAppDatabaseConnection));
+      database = AppDatabase(
+        NativeDatabase.memory(setup: configureAppDatabaseConnection),
+      );
       service = BackupService(database);
     });
 

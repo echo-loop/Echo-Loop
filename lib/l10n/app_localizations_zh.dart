@@ -775,6 +775,27 @@ class AppLocalizationsZh extends AppLocalizations {
   String get renameCollection => '重命名';
 
   @override
+  String get editCollection => '编辑';
+
+  @override
+  String get editCollectionTitle => '编辑合集';
+
+  @override
+  String get collectionCoverAdd => '添加封面';
+
+  @override
+  String get collectionCoverChange => '更换图片';
+
+  @override
+  String get collectionCoverRemove => '移除封面';
+
+  @override
+  String get collectionCoverCropTitle => '裁剪封面';
+
+  @override
+  String get collectionSaveFailed => '保存失败，请重试';
+
+  @override
   String get pinCollection => '置顶';
 
   @override

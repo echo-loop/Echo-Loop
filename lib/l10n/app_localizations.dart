@@ -1508,6 +1508,48 @@ abstract class AppLocalizations {
   /// **'Rename'**
   String get renameCollection;
 
+  /// No description provided for @editCollection.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit'**
+  String get editCollection;
+
+  /// No description provided for @editCollectionTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit Collection'**
+  String get editCollectionTitle;
+
+  /// No description provided for @collectionCoverAdd.
+  ///
+  /// In en, this message translates to:
+  /// **'Add cover'**
+  String get collectionCoverAdd;
+
+  /// No description provided for @collectionCoverChange.
+  ///
+  /// In en, this message translates to:
+  /// **'Change image'**
+  String get collectionCoverChange;
+
+  /// No description provided for @collectionCoverRemove.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove cover'**
+  String get collectionCoverRemove;
+
+  /// No description provided for @collectionCoverCropTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Crop Cover'**
+  String get collectionCoverCropTitle;
+
+  /// No description provided for @collectionSaveFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t save. Please try again.'**
+  String get collectionSaveFailed;
+
   /// No description provided for @pinCollection.
   ///
   /// In en, this message translates to:

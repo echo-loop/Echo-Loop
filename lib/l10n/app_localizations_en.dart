@@ -803,6 +803,27 @@ class AppLocalizationsEn extends AppLocalizations {
   String get renameCollection => 'Rename';
 
   @override
+  String get editCollection => 'Edit';
+
+  @override
+  String get editCollectionTitle => 'Edit Collection';
+
+  @override
+  String get collectionCoverAdd => 'Add cover';
+
+  @override
+  String get collectionCoverChange => 'Change image';
+
+  @override
+  String get collectionCoverRemove => 'Remove cover';
+
+  @override
+  String get collectionCoverCropTitle => 'Crop Cover';
+
+  @override
+  String get collectionSaveFailed => 'Couldn\'t save. Please try again.';
+
+  @override
   String get pinCollection => 'Pin to Top';
 
   @override

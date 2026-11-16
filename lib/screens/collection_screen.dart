@@ -8,6 +8,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../features/collection_cover/collection_cover_image.dart';
+import '../features/collection_cover/local_collection_dialog.dart';
 import '../features/community_collections/models/community_asset_url.dart';
 import '../features/community_collections/providers/community_enrollment_provider.dart';
 import '../features/community_collections/widgets/community_badge.dart';
@@ -23,9 +25,7 @@ import '../theme/list_item_text_styles.dart';
 import '../utils/time_format.dart';
 import '../widgets/common/app_popup_menu.dart';
 import '../widgets/common/svg_action_icon.dart';
-import '../widgets/common/form_input_style.dart';
 import '../widgets/audio_list_view.dart';
-import '../widgets/common/secondary_action_button.dart';
 import '../widgets/dialogs/confirm_dialog.dart';
 import '../widgets/dialogs/text_input_dialog.dart';
 import '../widgets/guide_flow.dart';
@@ -177,148 +177,67 @@ class CollectionListView extends StatelessWidget {
   }
 }
 
-/// 显示创建合集对话框（公开供 LibraryScreen 使用）
+/// 显示创建合集入口（公开供 LibraryScreen 使用）
 ///
-/// 使用统一底部 sheet：选择创建本地合集或订阅 Podcast 后，在 sheet 内完成输入。
+/// 底部 sheet 只负责选择类型：本地合集关闭 sheet 后弹出名称 + 封面对话框，
+/// Podcast 进入订阅页。
 void showCreateCollectionDialog(BuildContext context) {
   showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
     showDragHandle: true,
-    builder: (_) => const _CreateCollectionFlowSheet(),
+    builder: (_) => const _CreateCollectionTypeSheet(),
   );
 }
 
-enum _CreateCollectionStep { chooseType, local }
-
-class _CreateCollectionFlowSheet extends ConsumerStatefulWidget {
-  const _CreateCollectionFlowSheet();
-
-  @override
-  ConsumerState<_CreateCollectionFlowSheet> createState() =>
-      _CreateCollectionFlowSheetState();
-}
-
-class _CreateCollectionFlowSheetState
-    extends ConsumerState<_CreateCollectionFlowSheet> {
-  final _nameController = TextEditingController();
-  _CreateCollectionStep _step = _CreateCollectionStep.chooseType;
-  String? _errorText;
-
-  @override
-  void dispose() {
-    _nameController.dispose();
-    super.dispose();
-  }
+class _CreateCollectionTypeSheet extends StatelessWidget {
+  const _CreateCollectionTypeSheet();
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
     return SafeArea(
       child: Padding(
-        padding: EdgeInsets.fromLTRB(16, 0, 16, 16 + bottomInset),
-        child: ConstrainedBox(
-          constraints: BoxConstraints(
-            maxHeight: MediaQuery.of(context).size.height * 0.86,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _CollectionSheetHeader(
-                title: l10n.createCollection,
-                showBack: _step != _CreateCollectionStep.chooseType,
-                onBack: _goBackToType,
-                onClose: () => Navigator.pop(context),
-              ),
-              const SizedBox(height: AppSpacing.s),
-              Flexible(
-                child: SingleChildScrollView(
-                  child: AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 180),
-                    switchInCurve: Curves.easeOutCubic,
-                    switchOutCurve: Curves.easeInCubic,
-                    child: _buildStep(l10n),
-                  ),
-                ),
-              ),
-            ],
-          ),
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _CollectionSheetHeader(
+              title: l10n.createCollection,
+              onClose: () => Navigator.pop(context),
+            ),
+            const SizedBox(height: AppSpacing.s),
+            _CollectionTypePanel(
+              key: const ValueKey('choose-collection-type'),
+              onLocal: () => _openLocalCollectionDialog(context),
+              onPodcast: () => _openPodcastSubscribe(context),
+            ),
+          ],
         ),
       ),
     );
   }
 
-  Widget _buildStep(AppLocalizations l10n) {
-    return switch (_step) {
-      _CreateCollectionStep.chooseType => _CollectionTypePanel(
-        key: const ValueKey('choose-collection-type'),
-        onLocal: () => _setStep(_CreateCollectionStep.local),
-        onPodcast: _openPodcastSubscribe,
-      ),
-      _CreateCollectionStep.local => _LocalCollectionPanel(
-        key: const ValueKey('local-collection-form'),
-        controller: _nameController,
-        errorText: _errorText,
-        onBack: _goBackToType,
-        onSubmit: _submitLocalCollection,
-      ),
-    };
-  }
-
-  void _setStep(_CreateCollectionStep step) {
-    setState(() {
-      _step = step;
-      _errorText = null;
-    });
-  }
-
-  void _goBackToType() {
-    _setStep(_CreateCollectionStep.chooseType);
+  /// 「新建合集」：关闭本 sheet，在其所在 Navigator 上弹出名称 + 封面对话框。
+  void _openLocalCollectionDialog(BuildContext context) {
+    final navigator = Navigator.of(context);
+    navigator.pop();
+    showLocalCollectionDialog(navigator.context);
   }
 
   /// 「订阅 Podcast」：关闭本 sheet 并进入统一的 Podcast 搜索与订阅页。
-  void _openPodcastSubscribe() {
+  void _openPodcastSubscribe(BuildContext context) {
     Navigator.pop(context);
     context.push(AppRoutes.podcastSubscribe);
-  }
-
-  void _submitLocalCollection() {
-    final l10n = AppLocalizations.of(context)!;
-    final name = _nameController.text.trim();
-    final error = _validateCollectionName(l10n, name);
-    if (error != null) {
-      setState(() => _errorText = error);
-      return;
-    }
-    ref.read(collectionListProvider.notifier).createCollection(name);
-    Navigator.pop(context);
-  }
-
-  String? _validateCollectionName(AppLocalizations l10n, String name) {
-    if (name.isEmpty) return l10n.collectionNameEmpty;
-    final exists = ref
-        .read(collectionListProvider)
-        .collections
-        .any((c) => c.name.toLowerCase() == name.toLowerCase());
-    if (exists) return l10n.collectionNameExists;
-    return null;
   }
 }
 
 class _CollectionSheetHeader extends StatelessWidget {
-  const _CollectionSheetHeader({
-    required this.title,
-    required this.showBack,
-    required this.onBack,
-    required this.onClose,
-  });
+  const _CollectionSheetHeader({required this.title, required this.onClose});
 
   final String title;
-  final bool showBack;
-  final VoidCallback onBack;
-  final VoidCallback? onClose;
+  final VoidCallback onClose;
 
   @override
   Widget build(BuildContext context) {
@@ -330,19 +249,11 @@ class _CollectionSheetHeader extends StatelessWidget {
           SizedBox(
             width: 40,
             height: 40,
-            child: showBack
-                ? IconButton(
-                    icon: const Icon(Icons.arrow_back),
-                    onPressed: onBack,
-                    tooltip: MaterialLocalizations.of(context)
-                        .backButtonTooltip,
-                  )
-                : IconButton(
-                    icon: const Icon(Icons.close),
-                    onPressed: onClose,
-                    tooltip: MaterialLocalizations.of(context)
-                        .closeButtonTooltip,
-                  ),
+            child: IconButton(
+              icon: const Icon(Icons.close),
+              onPressed: onClose,
+              tooltip: MaterialLocalizations.of(context).closeButtonTooltip,
+            ),
           ),
           Expanded(
             child: Text(
@@ -460,76 +371,6 @@ class _CollectionOptionTile extends StatelessWidget {
           ),
         ),
       ),
-    );
-  }
-}
-
-class _LocalCollectionPanel extends StatefulWidget {
-  const _LocalCollectionPanel({
-    super.key,
-    required this.controller,
-    required this.errorText,
-    required this.onBack,
-    required this.onSubmit,
-  });
-
-  final TextEditingController controller;
-  final String? errorText;
-  final VoidCallback onBack;
-  final VoidCallback onSubmit;
-
-  @override
-  State<_LocalCollectionPanel> createState() => _LocalCollectionPanelState();
-}
-
-class _LocalCollectionPanelState extends State<_LocalCollectionPanel> {
-  @override
-  Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
-    final canSubmit = widget.controller.text.trim().isNotEmpty;
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        TextField(
-          controller: widget.controller,
-          autofocus: true,
-          style: compactFormTextStyle(context),
-          textInputAction: TextInputAction.done,
-          decoration: compactFormInputDecoration(
-            context,
-            labelText: l10n.collectionName,
-            hintText: l10n.enterCollectionName,
-            errorText: widget.errorText,
-            suffixIcon: widget.controller.text.isEmpty
-                ? null
-                : IconButton(
-                    icon: const Icon(Icons.close),
-                    onPressed: () => setState(widget.controller.clear),
-                  ),
-          ),
-          onChanged: (_) => setState(() {}),
-          onSubmitted: (_) => widget.onSubmit(),
-        ),
-        const SizedBox(height: AppSpacing.l),
-        Row(
-          children: [
-            Expanded(
-              child: SecondaryActionButton(
-                onPressed: widget.onBack,
-                label: l10n.back,
-              ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: FilledButton(
-                onPressed: canSubmit ? widget.onSubmit : null,
-                child: Text(l10n.add),
-              ),
-            ),
-          ],
-        ),
-      ],
     );
   }
 }
@@ -684,6 +525,11 @@ class _CollectionListTile extends ConsumerWidget {
                             .togglePin(collection.id);
                       } else if (value == 'rename') {
                         _showRenameCollectionDialog(context, ref, collection);
+                      } else if (value == 'edit') {
+                        showLocalCollectionDialog(
+                          context,
+                          collection: collection,
+                        );
                       } else if (value == 'delete') {
                         _showDeleteConfirmDialog(context, ref, collection);
                       } else if (value == 'removeCommunity') {
@@ -723,9 +569,13 @@ class _CollectionListTile extends ConsumerWidget {
   /// 左侧 leading（尺寸 / 样式与 Discover 卡片完全一致）：
   /// - 社区合集且有 coverUrl：网络封面图（BoxFit.contain）
   /// - Podcast 合集且有 coverUrl：网络封面图（BoxFit.cover）
+  /// - 本地合集：用户设置的封面，未设置时渐变背景 + 合集名首字
   /// - 其它情况：渐变背景 + 合集名首字母或 Podcast 图标
   Widget _buildLeadingIcon(ThemeData theme, bool isChinaUser) {
     const size = 56.0;
+    if (collection.isLocal) {
+      return LocalCollectionCover(collection: collection, size: size);
+    }
     final coverUrl = collection.isCommunity
         ? communityAssetUrlForRegion(
             globalUrl: collection.coverUrl,
@@ -769,11 +619,17 @@ class _CollectionListTile extends ConsumerWidget {
                 // 缓存命中时立即显示，去掉默认 500ms 淡入造成的延迟感
                 fadeInDuration: Duration.zero,
                 placeholderFadeInDuration: Duration.zero,
-                placeholder: (_, __) => _letterPlaceholder(theme, size),
-                errorWidget: (_, __, ___) => _letterPlaceholder(theme, size),
+                placeholder: (_, __) => CollectionLetterPlaceholder(
+                  name: collection.name,
+                  size: size,
+                ),
+                errorWidget: (_, __, ___) => CollectionLetterPlaceholder(
+                  name: collection.name,
+                  size: size,
+                ),
               ),
             )
-          : _letterPlaceholder(theme, size);
+          : CollectionLetterPlaceholder(name: collection.name, size: size);
     }
 
     return icon;
@@ -792,36 +648,6 @@ class _CollectionListTile extends ConsumerWidget {
         Icons.podcasts_rounded,
         size: 28,
         color: theme.colorScheme.onSecondaryContainer,
-      ),
-    );
-  }
-
-  /// 渐变背景 + 合集名首字母占位（与社区合集卡片 `_coverPlaceholder` 同款）。
-  Widget _letterPlaceholder(ThemeData theme, double size) {
-    final letter = collection.name.isEmpty
-        ? '?'
-        : collection.name.characters.first;
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(8),
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            theme.colorScheme.primaryContainer,
-            theme.colorScheme.tertiaryContainer,
-          ],
-        ),
-      ),
-      alignment: Alignment.center,
-      child: Text(
-        letter,
-        style: theme.textTheme.titleLarge?.copyWith(
-          color: theme.colorScheme.onPrimaryContainer,
-          fontWeight: FontWeight.bold,
-        ),
       ),
     );
   }
@@ -1018,7 +844,7 @@ void _showRemoveCommunityConfirmDialog(
   }
 }
 
-/// 本地合集（source='local'）的菜单项：pin/unpin 切换 / 重命名 / 删除。
+/// 本地合集（source='local'）的菜单项：pin/unpin 切换 / 编辑（名称与封面）/ 删除。
 List<PopupMenuEntry<String>> _buildLocalMenuItems(
   BuildContext context,
   Collection collection,
@@ -1034,9 +860,9 @@ List<PopupMenuEntry<String>> _buildLocalMenuItems(
     ),
     appPopupMenuItem(
       context,
-      value: 'rename',
+      value: 'edit',
       icon: const Icon(Icons.edit, size: 20),
-      label: l10n.renameCollection,
+      label: l10n.editCollection,
     ),
     const PopupMenuDivider(height: 10),
     appPopupMenuItem(

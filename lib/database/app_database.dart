@@ -120,7 +120,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase(super.e);
 
   /// 当前 schema 版本（静态访问，用于导入前版本检查）
-  static const currentSchemaVersion = 68;
+  static const currentSchemaVersion = 69;
 
   @override
   int get schemaVersion => currentSchemaVersion;
@@ -947,6 +947,14 @@ class AppDatabase extends _$AppDatabase {
         // v67→v68：新增按视频保存的字幕遮罩设置表。
         if (from < 68) {
           await m.createTable(videoSubtitleMasks);
+        }
+        // v68→v69：本地合集新增自定义封面路径。
+        if (from < 69) {
+          await _addColumnIfNotExists(
+            'collections',
+            'local_cover_path',
+            'TEXT',
+          );
         }
       },
     );

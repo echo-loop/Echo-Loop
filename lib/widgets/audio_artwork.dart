@@ -1,10 +1,13 @@
 // 素材的方形圆角图标：有封面显示封面，否则显示音频 / 视频图标。
 //
 // 合集详情页列表项与学习页任务卡共用，保证两处外形一致。
+import 'dart:io';
+
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../features/collection_cover/collection_cover_store.dart';
 import '../features/community_collections/models/community_asset_url.dart';
 import '../features/podcast/podcast_models.dart';
 import '../features/user_region/user_region_providers.dart';
@@ -31,17 +34,20 @@ const int _kCoverDecodeScale = 3;
 /// 方形圆角素材图标。
 ///
 /// 有封面时显示封面，封面加载中、无封面或加载失败时显示音频 / 视频默认图标。
+/// 封面来源二选一：[imageUrl]（社区 / 播客网络封面）或 [localImageFile]（本地合集自定义封面）。
 class AudioArtwork extends StatelessWidget {
   final String? imageUrl;
+  final File? localImageFile;
   final bool isVideo;
   final double size;
 
   const AudioArtwork({
     super.key,
     required this.imageUrl,
+    this.localImageFile,
     required this.isVideo,
     required this.size,
-  });
+  }) : assert(imageUrl == null || localImageFile == null, '网络封面与本地封面只能二选一');
 
   @override
   Widget build(BuildContext context) {
@@ -64,9 +70,29 @@ class AudioArtwork extends StatelessWidget {
         color: accentColor,
       ),
     );
+    final decodeSize = (size * _kCoverDecodeScale).round();
+    final file = localImageFile;
+    if (file != null) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(_kArtworkRadius),
+        child: Image(
+          key: const Key('audio_list_tile_local_cover_artwork'),
+          image: ResizeImage(
+            FileImage(file),
+            width: decodeSize,
+            height: decodeSize,
+          ),
+          width: size,
+          height: size,
+          fit: BoxFit.cover,
+          frameBuilder: (context, child, frame, wasSynchronouslyLoaded) =>
+              frame == null && !wasSynchronouslyLoaded ? fallback : child,
+          errorBuilder: (context, error, stackTrace) => fallback,
+        ),
+      );
+    }
     final url = imageUrl;
     if (url == null) return fallback;
-    final decodeSize = (size * _kCoverDecodeScale).round();
     return ClipRRect(
       borderRadius: BorderRadius.circular(_kArtworkRadius),
       child: CachedNetworkImage(
@@ -90,6 +116,43 @@ class AudioArtwork extends StatelessWidget {
   }
 }
 
+/// 按封面合集构建素材图标：本地合集用自定义封面文件，社区 / 播客合集用网络封面。
+///
+/// [coverCollection] 来自 [CollectionState.coverCollectionForAudio] 或当前合集上下文；
+/// 为 null 时显示默认媒体图标。
+AudioArtwork buildCollectionAudioArtwork({
+  required AudioItem? audio,
+  required Collection? coverCollection,
+  required bool isChinaUser,
+  required String? dataDirectoryPath,
+  required double size,
+}) {
+  final isVideo = audio?.isVideo ?? false;
+  if (audio == null || coverCollection == null) {
+    return AudioArtwork(imageUrl: null, isVideo: isVideo, size: size);
+  }
+  if (coverCollection.isLocal) {
+    return AudioArtwork(
+      imageUrl: null,
+      localImageFile: resolveCollectionCoverFile(
+        dataDirectoryPath,
+        coverCollection.localCoverPath,
+      ),
+      isVideo: isVideo,
+      size: size,
+    );
+  }
+  return AudioArtwork(
+    imageUrl: resolveSubscribedArtworkUrl(
+      audio: audio,
+      collection: coverCollection,
+      isChinaUser: isChinaUser,
+    ),
+    isVideo: isVideo,
+    size: size,
+  );
+}
+
 /// 已订阅合集中素材的封面地址：单集自身封面优先，其次是播客 Feed 封面或社区合集封面（按地区选 CDN）。
 String? resolveSubscribedArtworkUrl({
   required AudioItem audio,
@@ -111,8 +174,8 @@ String? resolveSubscribedArtworkUrl({
   );
 }
 
-/// 按素材 ID 展示方形图标：素材所在的已订阅合集有封面时用封面，否则用音频 / 视频图标。
-/// 素材不在资料库中时同样回退到默认图标。
+/// 按素材 ID 展示方形图标：素材所在的已订阅合集或设置了封面的本地合集有封面时用封面，
+/// 否则用音频 / 视频图标。素材不在资料库中时同样回退到默认图标。
 class AudioItemArtwork extends ConsumerWidget {
   final String audioId;
   final double size;
@@ -131,23 +194,16 @@ class AudioItemArtwork extends ConsumerWidget {
             state.audioItems.where((item) => item.id == audioId).firstOrNull,
       ),
     );
-    final subscribedCollection = ref.watch(
+    final coverCollection = ref.watch(
       collectionListProvider.select(
-        (state) => state.subscribedCollectionForAudio(audioId),
+        (state) => state.coverCollectionForAudio(audioId),
       ),
     );
-    final isChinaUser = ref.watch(isChinaUserProvider);
-
-    final imageUrl = audio == null || subscribedCollection == null
-        ? null
-        : resolveSubscribedArtworkUrl(
-            audio: audio,
-            collection: subscribedCollection,
-            isChinaUser: isChinaUser,
-          );
-    return AudioArtwork(
-      imageUrl: imageUrl,
-      isVideo: audio?.isVideo ?? false,
+    return buildCollectionAudioArtwork(
+      audio: audio,
+      coverCollection: coverCollection,
+      isChinaUser: ref.watch(isChinaUserProvider),
+      dataDirectoryPath: ref.watch(appDataDirectoryPathProvider).value,
       size: size,
     );
   }
