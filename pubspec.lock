@@ -2023,10 +2023,10 @@ packages:
     dependency: "direct main"
     description:
       name: sign_in_with_apple
-      sha256: "8bd875c8e8748272749eb6d25b896f768e7e9d60988446d543fe85a37a2392b8"
+      sha256: "6d205ad2b30f95b231812d61f19b4a8df836f16ba9cde28735b3ac8ece9113f7"
       url: "https://pub.dev"
     source: hosted
-    version: "7.0.1"
+    version: "8.2.0"
   sign_in_with_apple_platform_interface:
     dependency: transitive
     description:
