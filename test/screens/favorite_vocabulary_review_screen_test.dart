@@ -1115,6 +1115,31 @@ void main() {
     expect(ratingBar.dx, progress.dx);
   });
 
+  testWidgets('宽屏背面整页限宽居中，评分按钮不随窗口拉高', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(2000, 1200));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(_app(withSource: true));
+    await tester.pump();
+    await tester.tap(
+      find.byKey(const Key('favorite-vocabulary-review-reveal-zone')),
+    );
+    await tester.pump();
+
+    final progress = tester.getRect(
+      find.byKey(const Key('favorite-vocabulary-review-progress')),
+    );
+    final ratingBar = tester.getRect(
+      find.byKey(const Key('favorite-vocabulary-review-rating-bar')),
+    );
+    expect(progress.center.dx, closeTo(1000, 0.5));
+    expect(ratingBar.width, lessThanOrEqualTo(720));
+    expect(ratingBar.left, progress.left);
+    expect(
+      tester.getSize(find.byKey(const Key('flashcard-rating-good'))).height,
+      lessThanOrEqualTo(80),
+    );
+  });
+
   testWidgets(
     'back has a trailing unsave action that removes the current card',
     (tester) async {

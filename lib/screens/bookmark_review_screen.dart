@@ -213,81 +213,93 @@ class _BookmarkReviewScreenState extends ConsumerState<BookmarkReviewScreen>
                 : DictionaryPanelHost(
                     key: _dictionaryHostKey,
                     onOpenStateChanged: _handleDictionaryPanelOpenStateChanged,
-                    child: Column(
-                      children: [
-                        _ReviewProgress(
-                          progress: state.progress,
-                          source: l10n.bookmarkReviewFromAudio(card.audioName),
-                          duration: l10n.sentenceDuration(
-                            (card.sentence.duration.inMilliseconds / 1000)
-                                .toStringAsFixed(1),
-                          ),
-                          isRemoving: state.isRemoving,
-                          onRemove: _removeCurrent,
-                        ),
-                        Expanded(
-                          child: state.face == BookmarkReviewFace.front
-                              ? _ListeningFront(
-                                  playbackState: state.playbackState,
-                                  hasError: state.mediaError != null,
-                                  onReplay: () =>
-                                      unawaited(player.replayCurrent()),
-                                  onReveal: () =>
-                                      unawaited(player.revealBack()),
-                                )
-                              : ProviderScope(
-                                  overrides: [
-                                    senseGroupRangePlaybackProvider
-                                        .overrideWith(
-                                          (ref) =>
-                                              LocalAudioSenseGroupRangePlayback(
-                                                audioItemDao: ref.read(
-                                                  audioItemDaoProvider,
-                                                ),
-                                                audioClipPlayer: ref.read(
-                                                  shortAudioPlayerProvider,
-                                                ),
-                                              ),
+                    // 宽屏下整页（进度条、卡面、评分栏、状态栏）限宽居中，避免正文与评分按钮被拉满整窗。
+                    child: Align(
+                      alignment: Alignment.topCenter,
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 720),
+                        child: Column(
+                          children: [
+                            _ReviewProgress(
+                              progress: state.progress,
+                              source: l10n.bookmarkReviewFromAudio(
+                                card.audioName,
+                              ),
+                              duration: l10n.sentenceDuration(
+                                (card.sentence.duration.inMilliseconds / 1000)
+                                    .toStringAsFixed(1),
+                              ),
+                              isRemoving: state.isRemoving,
+                              onRemove: _removeCurrent,
+                            ),
+                            Expanded(
+                              child: state.face == BookmarkReviewFace.front
+                                  ? _ListeningFront(
+                                      playbackState: state.playbackState,
+                                      hasError: state.mediaError != null,
+                                      onReplay: () =>
+                                          unawaited(player.replayCurrent()),
+                                      onReveal: () =>
+                                          unawaited(player.revealBack()),
+                                    )
+                                  : ProviderScope(
+                                      overrides: [
+                                        senseGroupRangePlaybackProvider
+                                            .overrideWith(
+                                              (ref) =>
+                                                  LocalAudioSenseGroupRangePlayback(
+                                                    audioItemDao: ref.read(
+                                                      audioItemDaoProvider,
+                                                    ),
+                                                    audioClipPlayer: ref.read(
+                                                      shortAudioPlayerProvider,
+                                                    ),
+                                                  ),
+                                            ),
+                                      ],
+                                      child: _ReviewAnswer(
+                                        card: card,
+                                        upcomingCards: state.upcomingCards,
+                                        preview: state.preview,
+                                        showNextReviewTime: ref.watch(
+                                          favoriteReviewSettingsProvider.select(
+                                            (settings) =>
+                                                settings.showNextReviewTime,
+                                          ),
                                         ),
-                                  ],
-                                  child: _ReviewAnswer(
-                                    card: card,
-                                    upcomingCards: state.upcomingCards,
-                                    preview: state.preview,
-                                    showNextReviewTime: ref.watch(
-                                      favoriteReviewSettingsProvider.select(
-                                        (settings) =>
-                                            settings.showNextReviewTime,
+                                        isSubmitting: state.isSubmittingRating,
+                                        playbackState: state.playbackState,
+                                        onTogglePlayback: () => unawaited(
+                                          player.toggleCurrentPlayback(),
+                                        ),
+                                        onRating: (rating) => unawaited(
+                                          player.selectRating(rating),
+                                        ),
                                       ),
                                     ),
-                                    isSubmitting: state.isSubmittingRating,
-                                    playbackState: state.playbackState,
-                                    onTogglePlayback: () => unawaited(
-                                      player.toggleCurrentPlayback(),
-                                    ),
-                                    onRating: (rating) =>
-                                        unawaited(player.selectRating(rating)),
-                                  ),
-                                ),
+                            ),
+                            ReviewStatusBar(
+                              key: const Key('bookmark-review-status-bar'),
+                              elapsed: () => player.elapsed,
+                              reviewedCount: state.reviewedCount,
+                              remainingCount: state.remainingCount,
+                              elapsedLabel:
+                                  Localizations.localeOf(context)
+                                          .languageCode ==
+                                      'zh'
+                                  ? '学习时长'
+                                  : 'Study time',
+                              reviewedLabel:
+                                  Localizations.localeOf(context)
+                                          .languageCode ==
+                                      'zh'
+                                  ? '已复习'
+                                  : 'Reviewed',
+                              remainingLabel: l10n.reviewStatusRemaining,
+                            ),
+                          ],
                         ),
-                        ReviewStatusBar(
-                          key: const Key('bookmark-review-status-bar'),
-                          elapsed: () => player.elapsed,
-                          reviewedCount: state.reviewedCount,
-                          remainingCount: state.remainingCount,
-                          elapsedLabel:
-                              Localizations.localeOf(context).languageCode ==
-                                  'zh'
-                              ? '学习时长'
-                              : 'Study time',
-                          reviewedLabel:
-                              Localizations.localeOf(context).languageCode ==
-                                  'zh'
-                              ? '已复习'
-                              : 'Reviewed',
-                          remainingLabel: l10n.reviewStatusRemaining,
-                        ),
-                      ],
+                      ),
                     ),
                   ),
           ),
@@ -554,9 +566,8 @@ class _CenteredPrompt extends StatelessWidget {
             Text(
               title,
               textAlign: TextAlign.center,
-              style: Theme.of(
-                context,
-              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+              style: Theme.of(context).textTheme.titleMedium
+                  ?.copyWith(fontWeight: FontWeight.w700),
             ),
             const SizedBox(height: AppSpacing.s),
             Text(

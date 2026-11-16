@@ -45,6 +45,12 @@ class FlashcardRatingActionBar extends StatelessWidget {
   final ValueChanged<FlashcardRatingAction> onSelected;
   final bool enabled;
 
+  static const double _spacing = 8;
+
+  /// 按钮高度上限：窄屏按宽高比自然得到的高度约 80，宽屏若继续按比例
+  /// 放大，按钮会变成大块空白卡片并挤占正文区域。
+  static const double _maxTileHeight = 80;
+
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
@@ -52,17 +58,23 @@ class FlashcardRatingActionBar extends StatelessWidget {
         final columns = actions.length == 4 && constraints.maxWidth < 440
             ? 2
             : actions.length.clamp(1, 4);
-        return GridView.count(
+        final tileWidth =
+            (constraints.maxWidth - _spacing * (columns - 1)) / columns;
+        final aspectRatio = columns == 2 ? 2.1 : 1.45;
+        final tileHeight = (tileWidth / aspectRatio).clamp(0.0, _maxTileHeight);
+        return GridView(
           key: const Key('flashcard-rating-action-bar'),
           // 固定评分栏的系统安全区由页面底部容器统一处理，禁止 GridView
           // 自动继承 MediaQuery padding，避免按钮下方重复出现安全区留白。
           padding: EdgeInsets.zero,
-          crossAxisCount: columns,
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
-          mainAxisSpacing: 8,
-          crossAxisSpacing: 8,
-          childAspectRatio: columns == 2 ? 2.1 : 1.45,
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: columns,
+            mainAxisSpacing: _spacing,
+            crossAxisSpacing: _spacing,
+            mainAxisExtent: tileHeight,
+          ),
           children: [
             for (final action in actions)
               _RatingActionButton(
@@ -117,9 +129,8 @@ class _RatingActionButton extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    color: Theme.of(
-                      context,
-                    ).colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
+                    color: Theme.of(context).colorScheme.onSurfaceVariant
+                        .withValues(alpha: 0.6),
                   ),
                 ),
             ],

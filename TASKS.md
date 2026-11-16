@@ -47,6 +47,8 @@
   - [ ] Android 真机与 iOS 模拟器重跑 `integration_test/media_trim_integration_test.dart`（重构后尚未在两端执行）。
   - [ ] 字幕编辑器波形改用 `WaveformSamples`，修复同样的 16 位错位问题（troubleshooting 7.54）。
 
+- [x] 收藏复习宽屏布局：句子 / 词汇复习页整页（进度条、卡面、评分栏、状态栏）限宽 720 居中，与原有正面限宽一致，翻面不跳版；共享评分栏 `FlashcardRatingActionBar` 按钮高度上限 80（窄屏仍按宽高比，手机观感不变），修复宽屏下评分按钮随宽度拉成大块空卡片、挤掉 AI 查词内容的问题。**完成时间**: 2026-11-16
+  - 未完成的验证：macOS 宽窗口 / iPad 横屏确认两个复习页的居中观感与词典面板位置。
 - [ ] 学习内容字号（只调正文，不缩放整个 UI；颜色设置待产品决定）。
   - [x] 云端偏好同步接入字幕文字字号与粗细：本地键 `subtitle_font_size_percent` / `subtitle_font_weight_percent`，云端字段 `appearance.subtitleFontSizePercent` / `appearance.subtitleFontWeightPercent`（后端按域名校验、域内字段自由，无需改后端）；云端缺失或非法时保留本地值。**完成时间**: 2026-11-12
 - [x] 收藏词汇复习设置新增「正面显示释义」（默认关闭，仅对单词有效，先取基础在线词典（本地缓存 → API），未查到时只读 AI 查词缓存，经偏好同步跨平台）。**完成时间**: 2026-11-13

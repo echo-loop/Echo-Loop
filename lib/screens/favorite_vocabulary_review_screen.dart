@@ -324,76 +324,91 @@ class _FavoriteVocabularyReviewScreenState
                 : DictionaryPanelHost(
                     key: _dictionaryHostKey,
                     onOpenStateChanged: _handleDictionaryPanelOpenStateChanged,
-                    child: Column(
-                      children: [
-                        _ReviewProgress(progress: state.progress),
-                        Expanded(
-                          child:
-                              state.face == FavoriteVocabularyReviewFace.front
-                              ? _VocabularyFront(
-                                  vocabulary: card.displayText,
-                                  showVocabulary: ref.watch(
-                                    favoriteReviewSettingsProvider.select(
-                                      (settings) =>
-                                          settings.showVocabularyOnFront,
-                                    ),
-                                  ),
-                                  showWordDefinition:
-                                      _isSingleWordCard(card) &&
-                                      ref.watch(
+                    // 宽屏下整页（进度条、卡面、评分栏、状态栏）限宽居中，避免正文与评分按钮被拉满整窗。
+                    child: Align(
+                      alignment: Alignment.topCenter,
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 720),
+                        child: Column(
+                          children: [
+                            _ReviewProgress(progress: state.progress),
+                            Expanded(
+                              child:
+                                  state.face ==
+                                      FavoriteVocabularyReviewFace.front
+                                  ? _VocabularyFront(
+                                      vocabulary: card.displayText,
+                                      showVocabulary: ref.watch(
                                         favoriteReviewSettingsProvider.select(
-                                          (settings) => settings
-                                              .showWordDefinitionOnFront,
+                                          (settings) =>
+                                              settings.showVocabularyOnFront,
                                         ),
                                       ),
-                                  playbackState: state.wordPlaybackState,
-                                  hasError: state.mediaError != null,
-                                  onReplay: () =>
-                                      unawaited(player.replayCurrent()),
-                                  onReveal: () =>
-                                      unawaited(player.revealBack()),
-                                )
-                              : _VocabularyBack(
-                                  key: ValueKey(card.dbKey),
-                                  card: card,
-                                  preview: state.preview,
-                                  showNextReviewTime: ref.watch(
-                                    favoriteReviewSettingsProvider.select(
-                                      (settings) => settings.showNextReviewTime,
+                                      showWordDefinition:
+                                          _isSingleWordCard(card) &&
+                                          ref.watch(
+                                            favoriteReviewSettingsProvider
+                                                .select(
+                                                  (settings) => settings
+                                                      .showWordDefinitionOnFront,
+                                                ),
+                                          ),
+                                      playbackState: state.wordPlaybackState,
+                                      hasError: state.mediaError != null,
+                                      onReplay: () =>
+                                          unawaited(player.replayCurrent()),
+                                      onReveal: () =>
+                                          unawaited(player.revealBack()),
+                                    )
+                                  : _VocabularyBack(
+                                      key: ValueKey(card.dbKey),
+                                      card: card,
+                                      preview: state.preview,
+                                      showNextReviewTime: ref.watch(
+                                        favoriteReviewSettingsProvider.select(
+                                          (settings) =>
+                                              settings.showNextReviewTime,
+                                        ),
+                                      ),
+                                      autoShowAiLookup: ref.watch(
+                                        favoriteReviewSettingsProvider.select(
+                                          (settings) =>
+                                              settings.autoShowAiLookup,
+                                        ),
+                                      ),
+                                      isSubmitting: state.isSubmittingRating,
+                                      isRemoving: state.isRemoving,
+                                      onRating: (rating) => unawaited(
+                                        player.selectRating(rating),
+                                      ),
+                                      onRemove: () =>
+                                          unawaited(_removeCurrent()),
                                     ),
-                                  ),
-                                  autoShowAiLookup: ref.watch(
-                                    favoriteReviewSettingsProvider.select(
-                                      (settings) => settings.autoShowAiLookup,
-                                    ),
-                                  ),
-                                  isSubmitting: state.isSubmittingRating,
-                                  isRemoving: state.isRemoving,
-                                  onRating: (rating) =>
-                                      unawaited(player.selectRating(rating)),
-                                  onRemove: () => unawaited(_removeCurrent()),
-                                ),
+                            ),
+                            ReviewStatusBar(
+                              key: const Key(
+                                'favorite-vocabulary-review-status-bar',
+                              ),
+                              elapsed: () => player.elapsed,
+                              reviewedCount: state.reviewedCount,
+                              remainingCount: state.remainingCount,
+                              elapsedLabel:
+                                  Localizations.localeOf(context)
+                                          .languageCode ==
+                                      'zh'
+                                  ? '学习时长'
+                                  : 'Study time',
+                              reviewedLabel:
+                                  Localizations.localeOf(context)
+                                          .languageCode ==
+                                      'zh'
+                                  ? '已复习'
+                                  : 'Reviewed',
+                              remainingLabel: l10n.reviewStatusRemaining,
+                            ),
+                          ],
                         ),
-                        ReviewStatusBar(
-                          key: const Key(
-                            'favorite-vocabulary-review-status-bar',
-                          ),
-                          elapsed: () => player.elapsed,
-                          reviewedCount: state.reviewedCount,
-                          remainingCount: state.remainingCount,
-                          elapsedLabel:
-                              Localizations.localeOf(context).languageCode ==
-                                  'zh'
-                              ? '学习时长'
-                              : 'Study time',
-                          reviewedLabel:
-                              Localizations.localeOf(context).languageCode ==
-                                  'zh'
-                              ? '已复习'
-                              : 'Reviewed',
-                          remainingLabel: l10n.reviewStatusRemaining,
-                        ),
-                      ],
+                      ),
                     ),
                   ),
           ),

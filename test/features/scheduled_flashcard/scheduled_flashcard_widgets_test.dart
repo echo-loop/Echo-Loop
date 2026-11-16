@@ -166,6 +166,54 @@ void main() {
     expect(ratingBar.bottom - button.bottom, closeTo(0, 0.1));
   });
 
+  testWidgets('rating action height stays capped on wide layouts', (
+    tester,
+  ) async {
+    const actions = [
+      FlashcardRatingAction(
+        rating: MemoryRating.again,
+        emoji: '😕',
+        label: 'Forgot',
+        detail: '10 min',
+      ),
+      FlashcardRatingAction(
+        rating: MemoryRating.good,
+        emoji: '🙂',
+        label: 'Remembered',
+        detail: '1 day',
+      ),
+      FlashcardRatingAction(
+        rating: MemoryRating.easy,
+        emoji: '😎',
+        label: 'Easy',
+        detail: '2 days',
+      ),
+    ];
+    Future<double> buttonHeightAt(double width) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Align(
+            alignment: Alignment.topCenter,
+            child: SizedBox(
+              width: width,
+              child: FlashcardRatingActionBar(
+                actions: actions,
+                onSelected: (_) {},
+              ),
+            ),
+          ),
+        ),
+      );
+      return tester
+          .getSize(find.byKey(const Key('flashcard-rating-good')))
+          .height;
+    }
+
+    // 手机宽度保持按宽高比得到的高度，宽屏不再随宽度继续拉高。
+    expect(await buttonHeightAt(300), closeTo((300 - 16) / 3 / 1.45, 0.5));
+    expect(await buttonHeightAt(2000), 80);
+  });
+
   testWidgets('rating actions with details fit a compact three-action footer', (
     tester,
   ) async {
