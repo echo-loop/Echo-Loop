@@ -113,7 +113,7 @@ class SourceMaterialLink extends ConsumerWidget {
             child: InkWell(
               key: const Key('favorite-vocabulary-review-source-material'),
               onTap: () => unawaited(
-                openFavoriteSourceSentenceDetail(
+                openFavoriteSentenceDetail(
                   context: context,
                   ref: ref,
                   audioItemId: audioItemId,

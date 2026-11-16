@@ -3,11 +3,10 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../services/app_logger.dart';
 import '../../database/providers.dart';
 import '../../providers/media_engine/media_engine_provider.dart';
 import '../../providers/video_subtitle_mask_provider.dart';
-import '../../services/media_fullscreen_service.dart';
+import 'media_presentation_controller.dart';
 import 'media_visual_surface.dart';
 
 /// 学习页共享的视频呈现状态。
@@ -121,12 +120,8 @@ class PracticeMediaPresentationHost extends ConsumerStatefulWidget {
 
 class _PracticeMediaPresentationHostState
     extends ConsumerState<PracticeMediaPresentationHost> {
-  MediaFullscreenService? _fullscreenService;
-  StreamSubscription<bool>? _fullscreenSubscription;
-  AppLifecycleListener? _lifecycle;
-  bool _visible = true;
-  bool _expanded = false;
-  bool _subtitleVisible = false;
+  /// 仅在任务启用媒体呈现时存在；可见性、字幕与全屏状态由控制器统一维护。
+  MediaPresentationController? _presentation;
 
   @override
   void initState() {
@@ -143,111 +138,60 @@ class _PracticeMediaPresentationHostState
       unawaited(_releasePresentation());
     }
     if (oldWidget.audioItemId != widget.audioItemId) {
-      _subtitleVisible = false;
+      _presentation?.switchAudioItem(widget.audioItemId);
     }
   }
 
   void _initializePresentation() {
-    if (_fullscreenService != null) return;
-    final service = MediaFullscreenService();
-    _fullscreenService = service;
-    _fullscreenSubscription = service.changes.listen((expanded) {
-      if (mounted) setState(() => _expanded = expanded);
-    });
-    _lifecycle = AppLifecycleListener(onStateChange: _handleLifecycle);
-    widget.onSessionChanged?.call(_session);
-  }
-
-  PracticeMediaPresentationSession get _session =>
-      PracticeMediaPresentationSession(
-        readState: () => PracticeMediaPresentationState(
-          enabled: widget.enabled,
-          visualTrackVisible: _visible,
-          expanded: _expanded,
-          subtitleVisible: _subtitleVisible,
-          videoAspectRatio: ref
-              .read(mediaEngineProvider.notifier)
-              .videoAspectRatio,
-        ),
-        setVisible: _setVisible,
-        setSubtitleVisible: _setSubtitleVisible,
-        setFullscreen: _setFullscreen,
-        previewPosition: (position) =>
-            ref.read(mediaEngineProvider.notifier).seekForPreview(position),
-        buildVideoView: (size) => ref
-            .read(mediaEngineProvider.notifier)
-            .buildVideoView(viewportSize: size),
-      );
-
-  void _handleLifecycle(AppLifecycleState state) {
-    final engine = ref.read(mediaEngineProvider.notifier);
-    switch (state) {
-      case AppLifecycleState.paused:
-      case AppLifecycleState.hidden:
-        unawaited(engine.setVideoTrackEnabled(false));
-      case AppLifecycleState.resumed:
-        if (_visible) unawaited(engine.setVideoTrackEnabled(true));
-      case AppLifecycleState.inactive:
-      case AppLifecycleState.detached:
-        break;
-    }
-  }
-
-  Future<void> _setVisible(bool visible) async {
-    AppLogger.log(
-      'PracticeMediaLayout',
-      '视频轨${visible ? '显示' : '隐藏'}: audio=${widget.audioItemId}',
+    if (_presentation != null) return;
+    final presentation = MediaPresentationController(
+      engine: ref.read(mediaEngineProvider.notifier),
+      readTranscriptSrt: (audioItemId) =>
+          ref.read(audioItemDaoProvider).getTranscriptSrt(audioItemId),
+      audioItemId: widget.audioItemId,
     );
-    await ref.read(mediaEngineProvider.notifier).setVideoTrackEnabled(visible);
-    if (mounted) setState(() => _visible = visible);
+    presentation.addListener(_handlePresentationChanged);
+    presentation.start();
+    _presentation = presentation;
+    widget.onSessionChanged?.call(_buildSession(presentation));
   }
 
-  Future<void> _toggleSubtitle() async {
-    await _setSubtitleVisible(!_subtitleVisible);
+  void _handlePresentationChanged() {
+    if (mounted) setState(() {});
   }
 
-  Future<void> _setSubtitleVisible(bool visible) async {
-    final engine = ref.read(mediaEngineProvider.notifier);
-    if (visible) {
-      final srt = await ref
-          .read(audioItemDaoProvider)
-          .getTranscriptSrt(widget.audioItemId);
-      await engine.setSubtitleTrackData(srt);
-    } else {
-      await engine.setSubtitleTrackData(null);
-    }
-    if (mounted) setState(() => _subtitleVisible = visible);
-  }
-
-  Future<void> _toggleFullscreen() async {
-    await _setFullscreen(!_expanded);
-  }
-
-  Future<void> _setFullscreen(bool expanded) async {
-    final service = _fullscreenService;
-    if (service == null) return;
-    if (expanded) {
-      await service.enter(
-        isLandscapeVideo:
-            ref.read(mediaEngineProvider.notifier).isLandscapeVideo ?? false,
-      );
-      return;
-    }
-    await service.exit();
+  PracticeMediaPresentationSession _buildSession(
+    MediaPresentationController presentation,
+  ) {
+    return PracticeMediaPresentationSession(
+      readState: () => PracticeMediaPresentationState(
+        enabled: widget.enabled,
+        visualTrackVisible: presentation.visualTrackVisible,
+        expanded: presentation.expanded,
+        subtitleVisible: presentation.subtitleVisible,
+        videoAspectRatio: ref
+            .read(mediaEngineProvider.notifier)
+            .videoAspectRatio,
+      ),
+      setVisible: presentation.setVisualTrackVisible,
+      setSubtitleVisible: presentation.setSubtitleVisible,
+      setFullscreen: presentation.setFullscreen,
+      previewPosition: (position) =>
+          ref.read(mediaEngineProvider.notifier).seekForPreview(position),
+      buildVideoView: (size) => ref
+          .read(mediaEngineProvider.notifier)
+          .buildVideoView(viewportSize: size),
+    );
   }
 
   Future<void> _releasePresentation() async {
     widget.onSessionChanged?.call(null);
-    _lifecycle?.dispose();
-    _lifecycle = null;
-    await _fullscreenSubscription?.cancel();
-    _fullscreenSubscription = null;
-    final service = _fullscreenService;
-    _fullscreenService = null;
-    if (service != null) {
-      await service.exit();
-      await service.dispose();
-    }
+    final presentation = _presentation;
+    _presentation = null;
+    if (presentation == null) return;
+    presentation.removeListener(_handlePresentationChanged);
+    await presentation.release();
+    presentation.dispose();
   }
 
   @override
@@ -260,54 +204,61 @@ class _PracticeMediaPresentationHostState
   Widget build(BuildContext context) {
     // 宽高比在媒体 ready 后即确定，随后的播放状态重建会带上最新值；未知时遮罩
     // 退回按整个画面定位。
+    final presentation = widget.enabled ? _presentation : null;
     final videoAspectRatio = widget.enabled
         ? ref.read(mediaEngineProvider.notifier).videoAspectRatio
         : null;
-    final presentation = PracticeMediaPresentationState(
+    final presentationState = PracticeMediaPresentationState(
       enabled: widget.enabled,
-      visualTrackVisible: widget.enabled && _visible,
-      expanded: widget.enabled && _expanded,
-      subtitleVisible: widget.enabled && _subtitleVisible,
+      visualTrackVisible: presentation?.visualTrackVisible ?? false,
+      expanded: presentation?.expanded ?? false,
+      subtitleVisible: presentation?.subtitleVisible ?? false,
       videoAspectRatio: videoAspectRatio,
     );
-    final surface = widget.enabled && !widget.suppressVisualView
-        ? _buildVisualSurface(videoAspectRatio)
+    final surface = presentation != null && !widget.suppressVisualView
+        ? _buildVisualSurface(presentation, videoAspectRatio)
         : widget.enabled
         ? const AspectRatio(
             aspectRatio: 16 / 9,
             child: ColoredBox(color: Colors.black),
           )
         : const SizedBox.shrink();
-    return widget.builder(context, presentation, surface);
+    return widget.builder(context, presentationState, surface);
   }
 
   /// 只在真正显示视频画面时订阅遮罩设置，纯音频任务不读取遮罩数据。
-  Widget _buildVisualSurface(double? videoAspectRatio) {
+  Widget _buildVisualSurface(
+    MediaPresentationController presentation,
+    double? videoAspectRatio,
+  ) {
     final subtitleMaskProvider = videoSubtitleMaskProvider(widget.audioItemId);
     // 加载完成前为 null：不显示遮罩，避免先在默认位置闪现再跳到已保存位置。
     final subtitleMask = ref.watch(subtitleMaskProvider).value;
     final subtitleMaskNotifier = ref.read(subtitleMaskProvider.notifier);
     return MediaVisualSurface(
       state: MediaVisualSurfaceState(
-        visible: _visible,
-        expanded: _expanded,
+        visible: presentation.visualTrackVisible,
+        expanded: presentation.expanded,
         isPlaying: widget.isPlaying,
-        subtitleVisible: _subtitleVisible,
+        subtitleVisible: presentation.subtitleVisible,
         subtitleMask: subtitleMask,
         videoAspectRatio: videoAspectRatio,
       ),
       actions: MediaVisualSurfaceActions(
-        onShow: () => unawaited(_setVisible(true)),
-        onHide: () => unawaited(_setVisible(false)),
+        onShow: () => unawaited(presentation.setVisualTrackVisible(true)),
+        onHide: () => unawaited(presentation.setVisualTrackVisible(false)),
         onPlayPause: widget.onPlayPause,
-        onSubtitleToggle: () => unawaited(_toggleSubtitle()),
-        onFullscreenToggle: () => unawaited(_toggleFullscreen()),
+        onSubtitleToggle: () => unawaited(
+          presentation.setSubtitleVisible(!presentation.subtitleVisible),
+        ),
+        onFullscreenToggle: () =>
+            unawaited(presentation.setFullscreen(!presentation.expanded)),
         onSubtitleMaskToggle: () =>
             unawaited(subtitleMaskNotifier.toggleEnabled()),
         onSubtitleMaskRectChanged: (rect) =>
             unawaited(subtitleMaskNotifier.setRect(rect)),
       ),
-      fillAvailableHeight: _expanded || widget.fillVisualSurface,
+      fillAvailableHeight: presentation.expanded || widget.fillVisualSurface,
       buildVideoView: (size) => ref
           .read(mediaEngineProvider.notifier)
           .buildVideoView(viewportSize: size),

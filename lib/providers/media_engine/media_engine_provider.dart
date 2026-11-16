@@ -599,6 +599,9 @@ class MediaEngine extends _$MediaEngine {
       });
 
   bool get isPlaying => _backend?.playing ?? false;
+
+  /// 最近一次媒体加载或播放的错误信息，供页面向用户和日志说明失败原因。
+  String? get errorMessage => state.errorMessage;
   Duration get currentPosition => _backend?.position ?? Duration.zero;
 
   /// 当前高亮位置；活动区间内不会早于区间起点。

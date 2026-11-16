@@ -20,7 +20,6 @@ import '../database/daos/bookmark_dao.dart';
 import '../database/providers.dart';
 import '../l10n/app_localizations.dart';
 import '../models/dict_entry.dart';
-import '../screens/sentence_detail_screen.dart';
 import '../providers/short_audio_player_provider.dart';
 import '../providers/tts/tts_controller_provider.dart';
 import '../providers/pronunciation/pronunciation_providers.dart';
@@ -898,23 +897,18 @@ class _BookmarkSentenceTileState extends ConsumerState<_BookmarkSentenceTile> {
     }
   }
 
-  /// 跳转到句子详情页（单句精听）
+  /// 跳转到句子详情页（单句精听）；视频材料会先加载画面再进入讲解页。
   void _openDetail() {
     final bm = widget.bookmark;
-    AppRoutes.pushNested(
-      context,
-      AppRoutes.sentenceDetailSegment,
-      extra: SentenceDetailArgs(
+    unawaited(
+      openFavoriteSentenceDetail(
+        context: context,
+        ref: ref,
         audioItemId: widget.audioId,
-        audioName: widget.audioName,
         sentenceText: bm.sentenceText,
         sentenceIndex: bm.sentenceIndex,
-        startTimeMs: (bm.startTime * 1000).round(),
-        endTimeMs: (bm.endTime * 1000).round(),
-        wordHighlightSource: audioEngineWordHighlightSource(
-          ref,
-          widget.audioId,
-        ),
+        sentenceStartMs: (bm.startTime * 1000).round(),
+        sentenceEndMs: (bm.endTime * 1000).round(),
       ),
     );
   }
@@ -1488,7 +1482,7 @@ class _SavedPhraseTileState extends ConsumerState<_SavedPhraseTile> {
     final audioItemId = phrase.audioItemId;
     final sentenceText = phrase.sentenceText;
     if (audioItemId == null || sentenceText == null) return Future.value();
-    return openFavoriteSourceSentenceDetail(
+    return openFavoriteSentenceDetail(
       context: context,
       ref: ref,
       audioItemId: audioItemId,
@@ -1761,7 +1755,7 @@ class _SavedWordTileState extends ConsumerState<_SavedWordTile> {
     final audioItemId = word.audioItemId;
     final sentenceText = word.sentenceText;
     if (audioItemId == null || sentenceText == null) return Future.value();
-    return openFavoriteSourceSentenceDetail(
+    return openFavoriteSentenceDetail(
       context: context,
       ref: ref,
       audioItemId: audioItemId,
