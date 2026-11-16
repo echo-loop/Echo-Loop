@@ -30,6 +30,7 @@ import '../features/podcast/screens/podcast_preview_screen.dart';
 import '../features/onboarding_survey/providers/onboarding_survey_provider.dart';
 import '../features/onboarding_survey/screens/onboarding_survey_screen.dart';
 import '../features/subtitle_editor/subtitle_simple_editor_screen.dart';
+import '../features/media_trim/media_trim_screen.dart';
 import '../models/audio_item.dart';
 import '../providers/audio_library_provider.dart';
 import '../services/app_logger.dart';
@@ -159,7 +160,15 @@ abstract class AppRoutes {
   /// 独立音频播放器页路径（不依赖合集）
   static String audioPlayer(String audioId) => '/audio/$audioId/player';
 
-  /// 简版字幕编辑页路径
+  /// 已下载媒体的独立剪辑页路径。
+  static String mediaTrim(String audioId, {String? collectionId}) => Uri(
+    path: '/audio/$audioId/trim',
+    queryParameters: collectionId == null
+        ? null
+        : {'collectionId': collectionId},
+  ).toString();
+
+  /// 简版字幕编辑页路径。
   static String subtitleEditor(String audioId) =>
       '/audio/$audioId/subtitles/edit';
 
@@ -708,6 +717,18 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       _audioPlayerRoute('/audio/:audioId/player'),
       _mediaPlayerRoute('/audio/:audioId/${AppRoutes.mediaPlayerSegment}'),
+      GoRoute(
+        path: '/audio/:audioId/trim',
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) {
+          final source = state.extra;
+          if (source is! AudioItem) return const _RestoredRoutePopper();
+          return MediaTrimScreen(
+            source: source,
+            collectionId: state.uri.queryParameters['collectionId'],
+          );
+        },
+      ),
       GoRoute(
         path: '/audio/:audioId/subtitles/edit',
         parentNavigatorKey: rootNavigatorKey,

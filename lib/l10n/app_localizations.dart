@@ -9367,6 +9367,486 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Unknown source'**
   String get favoritesExportUnknownSource;
+
+  /// No description provided for @mediaTrimMenu.
+  ///
+  /// In en, this message translates to:
+  /// **'Trim'**
+  String get mediaTrimMenu;
+
+  /// No description provided for @mediaTrimTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Trim'**
+  String get mediaTrimTitle;
+
+  /// No description provided for @mediaTrimSaveCount.
+  ///
+  /// In en, this message translates to:
+  /// **'Save ({count})'**
+  String mediaTrimSaveCount(int count);
+
+  /// No description provided for @mediaTrimPlay.
+  ///
+  /// In en, this message translates to:
+  /// **'Play (Space)'**
+  String get mediaTrimPlay;
+
+  /// No description provided for @mediaTrimPause.
+  ///
+  /// In en, this message translates to:
+  /// **'Pause (Space)'**
+  String get mediaTrimPause;
+
+  /// No description provided for @mediaTrimPreviewClip.
+  ///
+  /// In en, this message translates to:
+  /// **'Play clip'**
+  String get mediaTrimPreviewClip;
+
+  /// No description provided for @mediaTrimStopPreview.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop'**
+  String get mediaTrimStopPreview;
+
+  /// No description provided for @mediaTrimZoomIn.
+  ///
+  /// In en, this message translates to:
+  /// **'Zoom in'**
+  String get mediaTrimZoomIn;
+
+  /// No description provided for @mediaTrimZoomOut.
+  ///
+  /// In en, this message translates to:
+  /// **'Zoom out'**
+  String get mediaTrimZoomOut;
+
+  /// No description provided for @mediaTrimZoomFit.
+  ///
+  /// In en, this message translates to:
+  /// **'Show all'**
+  String get mediaTrimZoomFit;
+
+  /// No description provided for @mediaTrimClipLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Clip {number}'**
+  String mediaTrimClipLabel(int number);
+
+  /// No description provided for @mediaTrimZoomToClip.
+  ///
+  /// In en, this message translates to:
+  /// **'Zoom to clip'**
+  String get mediaTrimZoomToClip;
+
+  /// No description provided for @mediaTrimHideVideo.
+  ///
+  /// In en, this message translates to:
+  /// **'Hide video'**
+  String get mediaTrimHideVideo;
+
+  /// No description provided for @mediaTrimShowVideo.
+  ///
+  /// In en, this message translates to:
+  /// **'Show video'**
+  String get mediaTrimShowVideo;
+
+  /// No description provided for @mediaTrimClips.
+  ///
+  /// In en, this message translates to:
+  /// **'Clips'**
+  String get mediaTrimClips;
+
+  /// No description provided for @mediaTrimAddClip.
+  ///
+  /// In en, this message translates to:
+  /// **'New clip'**
+  String get mediaTrimAddClip;
+
+  /// No description provided for @mediaTrimAddClipTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'New clip at playhead (N)'**
+  String get mediaTrimAddClipTooltip;
+
+  /// No description provided for @mediaTrimAutoSplit.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto split'**
+  String get mediaTrimAutoSplit;
+
+  /// No description provided for @mediaTrimEmptyTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'No clips yet'**
+  String get mediaTrimEmptyTitle;
+
+  /// No description provided for @mediaTrimEmptyBodySentences.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap a sentence to play it and move the playhead there, then tap “New clip”. Drag the ends on the waveform to adjust. “Auto split” cuts everything at once.'**
+  String get mediaTrimEmptyBodySentences;
+
+  /// No description provided for @mediaTrimEmptyBodyFree.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap the waveform to move the playhead, then tap “New clip”. “Auto split” cuts everything into equal parts.'**
+  String get mediaTrimEmptyBodyFree;
+
+  /// No description provided for @mediaTrimStart.
+  ///
+  /// In en, this message translates to:
+  /// **'Start'**
+  String get mediaTrimStart;
+
+  /// No description provided for @mediaTrimEnd.
+  ///
+  /// In en, this message translates to:
+  /// **'End'**
+  String get mediaTrimEnd;
+
+  /// No description provided for @mediaTrimEarlier.
+  ///
+  /// In en, this message translates to:
+  /// **'Earlier'**
+  String get mediaTrimEarlier;
+
+  /// No description provided for @mediaTrimLater.
+  ///
+  /// In en, this message translates to:
+  /// **'Later'**
+  String get mediaTrimLater;
+
+  /// No description provided for @mediaTrimEditTime.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter time'**
+  String get mediaTrimEditTime;
+
+  /// No description provided for @mediaTrimRename.
+  ///
+  /// In en, this message translates to:
+  /// **'Rename'**
+  String get mediaTrimRename;
+
+  /// No description provided for @mediaTrimDelete.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete'**
+  String get mediaTrimDelete;
+
+  /// No description provided for @mediaTrimClipName.
+  ///
+  /// In en, this message translates to:
+  /// **'Clip name'**
+  String get mediaTrimClipName;
+
+  /// No description provided for @mediaTrimSentenceCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} sentences'**
+  String mediaTrimSentenceCount(int count);
+
+  /// No description provided for @mediaTrimTranscript.
+  ///
+  /// In en, this message translates to:
+  /// **'Transcript'**
+  String get mediaTrimTranscript;
+
+  /// No description provided for @mediaTrimTranscriptHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap a sentence to play it and move the playhead there'**
+  String get mediaTrimTranscriptHint;
+
+  /// No description provided for @mediaTrimWaveformLoading.
+  ///
+  /// In en, this message translates to:
+  /// **'Generating waveform {percent}%'**
+  String mediaTrimWaveformLoading(int percent);
+
+  /// No description provided for @mediaTrimWaveformFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t generate the waveform'**
+  String get mediaTrimWaveformFailed;
+
+  /// No description provided for @mediaTrimStartTime.
+  ///
+  /// In en, this message translates to:
+  /// **'Start time'**
+  String get mediaTrimStartTime;
+
+  /// No description provided for @mediaTrimEndTime.
+  ///
+  /// In en, this message translates to:
+  /// **'End time'**
+  String get mediaTrimEndTime;
+
+  /// No description provided for @mediaTrimTimeHint.
+  ///
+  /// In en, this message translates to:
+  /// **'m:ss.mmm, e.g. 1:05.250'**
+  String get mediaTrimTimeHint;
+
+  /// No description provided for @mediaTrimTimeInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Invalid time'**
+  String get mediaTrimTimeInvalid;
+
+  /// No description provided for @mediaTrimTimeSnapNote.
+  ///
+  /// In en, this message translates to:
+  /// **'The time snaps to the nearest gap between sentences.'**
+  String get mediaTrimTimeSnapNote;
+
+  /// No description provided for @mediaTrimAutoSplitTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto split'**
+  String get mediaTrimAutoSplitTitle;
+
+  /// No description provided for @mediaTrimAutoSplitTarget.
+  ///
+  /// In en, this message translates to:
+  /// **'Length of each clip'**
+  String get mediaTrimAutoSplitTarget;
+
+  /// No description provided for @mediaTrimMinutes.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} min'**
+  String mediaTrimMinutes(int count);
+
+  /// No description provided for @mediaTrimAutoSplitPreview.
+  ///
+  /// In en, this message translates to:
+  /// **'Creates {count} clips'**
+  String mediaTrimAutoSplitPreview(int count);
+
+  /// No description provided for @mediaTrimAutoSplitBySentence.
+  ///
+  /// In en, this message translates to:
+  /// **'Cuts only between sentences.'**
+  String get mediaTrimAutoSplitBySentence;
+
+  /// No description provided for @mediaTrimAutoSplitEqual.
+  ///
+  /// In en, this message translates to:
+  /// **'Splits into parts of equal length.'**
+  String get mediaTrimAutoSplitEqual;
+
+  /// No description provided for @mediaTrimAutoSplitTooShort.
+  ///
+  /// In en, this message translates to:
+  /// **'This item is {minutes} min or shorter, so there is nothing to auto split. Tap “New clip” to cut it manually.'**
+  String mediaTrimAutoSplitTooShort(int minutes);
+
+  /// No description provided for @mediaTrimAutoSplitReplace.
+  ///
+  /// In en, this message translates to:
+  /// **'Replaces the current {count} clips.'**
+  String mediaTrimAutoSplitReplace(int count);
+
+  /// No description provided for @mediaTrimApply.
+  ///
+  /// In en, this message translates to:
+  /// **'Apply'**
+  String get mediaTrimApply;
+
+  /// No description provided for @mediaTrimSaveTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Save {count} clips'**
+  String mediaTrimSaveTitle(int count);
+
+  /// No description provided for @mediaTrimSaveTo.
+  ///
+  /// In en, this message translates to:
+  /// **'Save to'**
+  String get mediaTrimSaveTo;
+
+  /// No description provided for @mediaTrimNewCollection.
+  ///
+  /// In en, this message translates to:
+  /// **'New collection'**
+  String get mediaTrimNewCollection;
+
+  /// No description provided for @mediaTrimCollectionName.
+  ///
+  /// In en, this message translates to:
+  /// **'Collection name'**
+  String get mediaTrimCollectionName;
+
+  /// No description provided for @mediaTrimDefaultCollectionName.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} · Clips'**
+  String mediaTrimDefaultCollectionName(String name);
+
+  /// No description provided for @mediaTrimSaveLocalOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'This item comes from a podcast or shared collection, which is maintained by its source. Clips can only be saved to your own local collections.'**
+  String get mediaTrimSaveLocalOnly;
+
+  /// No description provided for @mediaTrimSaveNote.
+  ///
+  /// In en, this message translates to:
+  /// **'The original stays unchanged. Clips are saved together once all of them are ready.'**
+  String get mediaTrimSaveNote;
+
+  /// No description provided for @mediaTrimSaving.
+  ///
+  /// In en, this message translates to:
+  /// **'Creating clip {current} of {total}'**
+  String mediaTrimSaving(int current, int total);
+
+  /// No description provided for @mediaTrimCancelling.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancelling…'**
+  String get mediaTrimCancelling;
+
+  /// No description provided for @mediaTrimSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved {count} clips'**
+  String mediaTrimSaved(int count);
+
+  /// No description provided for @mediaTrimSavedWithReused.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved {created} clips. {reused} matched existing items and were added to the collection.'**
+  String mediaTrimSavedWithReused(int created, int reused);
+
+  /// No description provided for @mediaTrimDiscardTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Discard these clips?'**
+  String get mediaTrimDiscardTitle;
+
+  /// No description provided for @mediaTrimDiscardBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Clips that haven\'t been saved will be lost.'**
+  String get mediaTrimDiscardBody;
+
+  /// No description provided for @mediaTrimKeepEditing.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep editing'**
+  String get mediaTrimKeepEditing;
+
+  /// No description provided for @mediaTrimDiscard.
+  ///
+  /// In en, this message translates to:
+  /// **'Discard'**
+  String get mediaTrimDiscard;
+
+  /// No description provided for @mediaTrimLoadFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t open the trim editor'**
+  String get mediaTrimLoadFailed;
+
+  /// No description provided for @mediaTrimFailureSourceMissing.
+  ///
+  /// In en, this message translates to:
+  /// **'The media file is missing. Download it first.'**
+  String get mediaTrimFailureSourceMissing;
+
+  /// No description provided for @mediaTrimFailureTranscriptNotReady.
+  ///
+  /// In en, this message translates to:
+  /// **'The transcript isn\'t ready yet. Try again later.'**
+  String get mediaTrimFailureTranscriptNotReady;
+
+  /// No description provided for @mediaTrimFailureTranscriptInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'The transcript is invalid. Check it in the subtitle editor first.'**
+  String get mediaTrimFailureTranscriptInvalid;
+
+  /// No description provided for @mediaTrimFailureTranscriptOutOfRange.
+  ///
+  /// In en, this message translates to:
+  /// **'Transcript times exceed the media length. Check the transcript first.'**
+  String get mediaTrimFailureTranscriptOutOfRange;
+
+  /// No description provided for @mediaTrimFailureDuration.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t read the media length'**
+  String get mediaTrimFailureDuration;
+
+  /// No description provided for @mediaTrimFailureClipTooShort.
+  ///
+  /// In en, this message translates to:
+  /// **'The clip is too short'**
+  String get mediaTrimFailureClipTooShort;
+
+  /// No description provided for @mediaTrimFailureClipOutOfRange.
+  ///
+  /// In en, this message translates to:
+  /// **'The time is outside the media'**
+  String get mediaTrimFailureClipOutOfRange;
+
+  /// No description provided for @mediaTrimFailureSplitsSentence.
+  ///
+  /// In en, this message translates to:
+  /// **'Clips can\'t cut through a sentence'**
+  String get mediaTrimFailureSplitsSentence;
+
+  /// No description provided for @mediaTrimFailureNoClips.
+  ///
+  /// In en, this message translates to:
+  /// **'Add a clip first'**
+  String get mediaTrimFailureNoClips;
+
+  /// No description provided for @mediaTrimFailureInvalidCollection.
+  ///
+  /// In en, this message translates to:
+  /// **'That collection is no longer available. Choose another one.'**
+  String get mediaTrimFailureInvalidCollection;
+
+  /// No description provided for @mediaTrimFailureCollectionName.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a collection name'**
+  String get mediaTrimFailureCollectionName;
+
+  /// No description provided for @mediaTrimFailureEncode.
+  ///
+  /// In en, this message translates to:
+  /// **'Encoding failed. This device may not support the format.'**
+  String get mediaTrimFailureEncode;
+
+  /// No description provided for @mediaTrimFailureOutput.
+  ///
+  /// In en, this message translates to:
+  /// **'A clip failed verification. Please try again.'**
+  String get mediaTrimFailureOutput;
+
+  /// No description provided for @mediaTrimFailurePlayback.
+  ///
+  /// In en, this message translates to:
+  /// **'Playback failed'**
+  String get mediaTrimFailurePlayback;
+
+  /// No description provided for @mediaTrimFailureCancelled.
+  ///
+  /// In en, this message translates to:
+  /// **'Saving cancelled'**
+  String get mediaTrimFailureCancelled;
+
+  /// No description provided for @mediaTrimFailureUnexpected.
+  ///
+  /// In en, this message translates to:
+  /// **'Something went wrong. Please try again.'**
+  String get mediaTrimFailureUnexpected;
 }
 
 class _AppLocalizationsDelegate

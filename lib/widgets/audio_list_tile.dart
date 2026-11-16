@@ -745,6 +745,13 @@ class AudioListTile extends ConsumerWidget {
             icon: _buildPinnedMenuIcon(isPinned: audioItem.isPinned),
             label: audioItem.isPinned ? l10n.unpinAudio : l10n.pinAudio,
           ),
+          if (audioItem.isAudioReady && !isDownloading)
+            appPopupMenuItem(
+              context,
+              value: 'trim',
+              icon: const Icon(Icons.content_cut, size: 20),
+              label: l10n.mediaTrimMenu,
+            ),
           if (!isCommunity)
             appPopupMenuItem(
               context,
@@ -883,6 +890,11 @@ class AudioListTile extends ConsumerWidget {
             }
           } else if (value == 'togglePin') {
             ref.read(audioLibraryProvider.notifier).togglePin(audioItem.id);
+          } else if (value == 'trim') {
+            context.push(
+              AppRoutes.mediaTrim(audioItem.id, collectionId: collectionId),
+              extra: _latestAudioItem(ref),
+            );
           } else if (value == 'rename') {
             _showRenameDialog(context, ref);
           } else if (value == 'manageSubtitles') {

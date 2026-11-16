@@ -739,3 +739,38 @@
 - 规则：Maestro 不支持 macOS 桌面应用，macOS 上的点按测试用 integration_test。冷启动期间立即 `push` 可能丢失，进入页面要按页面类型有界重试（见 `_openTask`）。
 - 相关代码：`integration_test/practice_media_split_test.dart`。
 - 记录时间：2026-11-15。
+
+### 7.52 剪辑视频在部分 Mac 上无法创建 VideoToolbox 编码会话
+
+- 现象：音频剪辑成功，H.264 视频剪辑失败，日志出现 `Cannot create compression session: -12903` 和 `Try -allow_sw 1`。
+- 根因：声明了 VideoToolbox 编码器并不代表当时一定有可用硬件编码会话；硬件可能不可用或被占用。
+- 解法：Apple 的 H.264 精确裁剪设置 `-allow_sw 1`，允许 VideoToolbox 使用系统软件编码；不回退为关键帧流复制。Android 仍用 MediaCodec。
+- 验证：macOS 的音频/视频、有/无字幕四种真实媒体裁剪测试通过，Android 真机对应四种场景也通过。
+- 相关代码：`lib/features/media_trim/media_trim_processor.dart`、`integration_test/media_trim_integration_test.dart`。
+- 记录时间：2026-11-16。
+
+### 7.53 保存弹窗关闭时 TextEditingController 提前释放
+
+- 现象：`showDialog` 返回后立即释放 controller，关闭动画期间 TextField 继续构建，抛 `A TextEditingController was used after being disposed`，继而触发布局与 Overlay 断言。
+- 根因：弹窗的返回值先于反向过渡结束到达，外部方法的结束不等于弹窗子树已销毁。
+- 解法：仅需读取输入时采用表单初始值与 `onChanged` 保存字符串，不让外部异步方法持有弹窗输入控制器；复杂输入则由独立 StatefulWidget 在自身 dispose 中释放。
+- 相关代码：`lib/features/media_trim/widgets/media_trim_dialogs.dart`。
+- 记录时间：2026-11-16。
+
+### 7.54 just_waveform 16 位波形错位，波形被压成一条线
+
+- 现象：剪辑页时间轴的波形几乎是一条细线，正常音量的音频也看不出起伏。
+- 根因：just_waveform 0.0.7 的 `JustWaveform.parse` 对 16 位数据用 `Int16List.view(bytes, headerLength ~/ 2)`，偏移是 10 字节而非规范的 20 字节头。`getPixelMin/Max` 整体错位 5 个采样，开头还混入头部字段（采样率 44100 被读成 -21436），按峰值归一化时真实波形被压扁。另外它的头部视图按 20 个 uint32 读取，文件小于 80 字节会抛 RangeError。
+- 解法：用 `WaveformSamples` 从原始 buffer 第 20 字节重新建立 16 位视图；8 位数据偏移本身正确。不修改插件源码。字幕编辑器的波形同样受影响，尚未切换。
+- 验证：`test/utils/waveform_samples_test.dart` 构造带头部的波形文件，确认 min/max 与峰值正确；macOS 集成测试截图中波形恢复正常高度。
+- 相关代码：`lib/utils/waveform_samples.dart`、`lib/features/media_trim/widgets/media_trim_timeline.dart`。
+- 记录时间：2026-11-16。
+
+### 7.55 时间轴把手在触屏上拖不动
+
+- 现象：鼠标能拖动片段把手，集成测试（触摸指针）和触屏拖动把手时却变成平移，日志没有「拖动结束」。
+- 根因：`ScaleGestureRecognizer` 要越过拖动阈值才回调 `onScaleStart`，此时 `localFocalPoint` 已离开按下位置；触摸阈值较大，按它判断命中会错过把手。
+- 解法：在 `Listener.onPointerDown` 记录按下位置，`onScaleStart` 用按下位置判断是否命中把手。
+- 验证：`test/features/media_trim/media_trim_timeline_test.dart` 覆盖触摸与鼠标拖动把手；macOS 集成测试拖动终点后日志为 `拖动结束 … range=1350-3750ms`。
+- 相关代码：`lib/features/media_trim/widgets/media_trim_timeline.dart`。
+- 记录时间：2026-11-16。

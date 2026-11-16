@@ -2469,5 +2469,120 @@
   "favoritesExportUnknownSource": "Unknown source",
   "@favoritesExportUnknownSource": {
     "description": "Placeholder for a favorite whose source material was deleted"
-  }
+  },
+  "mediaTrimMenu": "Trim",
+  "mediaTrimTitle": "Trim",
+  "mediaTrimSaveCount": "Save ({count})",
+  "@mediaTrimSaveCount": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "mediaTrimPlay": "Play (Space)",
+  "mediaTrimPause": "Pause (Space)",
+  "mediaTrimPreviewClip": "Play clip",
+  "mediaTrimStopPreview": "Stop",
+  "mediaTrimZoomIn": "Zoom in",
+  "mediaTrimZoomOut": "Zoom out",
+  "mediaTrimZoomFit": "Show all",
+  "mediaTrimClipLabel": "Clip {number}",
+  "@mediaTrimClipLabel": {"placeholders": {"number": {"type": "int"}}},
+  "mediaTrimZoomToClip": "Zoom to clip",
+  "mediaTrimHideVideo": "Hide video",
+  "mediaTrimShowVideo": "Show video",
+  "mediaTrimClips": "Clips",
+  "mediaTrimAddClip": "New clip",
+  "mediaTrimAddClipTooltip": "New clip at playhead (N)",
+  "mediaTrimAutoSplit": "Auto split",
+  "mediaTrimEmptyTitle": "No clips yet",
+  "mediaTrimEmptyBodySentences": "Tap a sentence to play it and move the playhead there, then tap “New clip”. Drag the ends on the waveform to adjust. “Auto split” cuts everything at once.",
+  "mediaTrimEmptyBodyFree": "Tap the waveform to move the playhead, then tap “New clip”. “Auto split” cuts everything into equal parts.",
+  "mediaTrimStart": "Start",
+  "mediaTrimEnd": "End",
+  "mediaTrimEarlier": "Earlier",
+  "mediaTrimLater": "Later",
+  "mediaTrimEditTime": "Enter time",
+  "mediaTrimRename": "Rename",
+  "mediaTrimDelete": "Delete",
+  "mediaTrimClipName": "Clip name",
+  "mediaTrimSentenceCount": "{count} sentences",
+  "@mediaTrimSentenceCount": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "mediaTrimTranscript": "Transcript",
+  "mediaTrimTranscriptHint": "Tap a sentence to play it and move the playhead there",
+  "mediaTrimWaveformLoading": "Generating waveform {percent}%",
+  "@mediaTrimWaveformLoading": {
+    "placeholders": { "percent": { "type": "int" } }
+  },
+  "mediaTrimWaveformFailed": "Couldn't generate the waveform",
+  "mediaTrimStartTime": "Start time",
+  "mediaTrimEndTime": "End time",
+  "mediaTrimTimeHint": "m:ss.mmm, e.g. 1:05.250",
+  "mediaTrimTimeInvalid": "Invalid time",
+  "mediaTrimTimeSnapNote": "The time snaps to the nearest gap between sentences.",
+  "mediaTrimAutoSplitTitle": "Auto split",
+  "mediaTrimAutoSplitTarget": "Length of each clip",
+  "mediaTrimMinutes": "{count} min",
+  "@mediaTrimMinutes": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "mediaTrimAutoSplitPreview": "Creates {count} clips",
+  "@mediaTrimAutoSplitPreview": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "mediaTrimAutoSplitBySentence": "Cuts only between sentences.",
+  "mediaTrimAutoSplitEqual": "Splits into parts of equal length.",
+  "mediaTrimAutoSplitTooShort": "This item is {minutes} min or shorter, so there is nothing to auto split. Tap “New clip” to cut it manually.",
+  "@mediaTrimAutoSplitTooShort": {"placeholders": {"minutes": {"type": "int"}}},
+  "mediaTrimAutoSplitReplace": "Replaces the current {count} clips.",
+  "@mediaTrimAutoSplitReplace": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "mediaTrimApply": "Apply",
+  "mediaTrimSaveTitle": "Save {count} clips",
+  "@mediaTrimSaveTitle": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "mediaTrimSaveTo": "Save to",
+  "mediaTrimNewCollection": "New collection",
+  "mediaTrimCollectionName": "Collection name",
+  "mediaTrimDefaultCollectionName": "{name} · Clips",
+  "@mediaTrimDefaultCollectionName": {
+    "placeholders": { "name": { "type": "String" } }
+  },
+  "mediaTrimSaveLocalOnly": "This item comes from a podcast or shared collection, which is maintained by its source. Clips can only be saved to your own local collections.",
+  "mediaTrimSaveNote": "The original stays unchanged. Clips are saved together once all of them are ready.",
+  "mediaTrimSaving": "Creating clip {current} of {total}",
+  "@mediaTrimSaving": {
+    "placeholders": { "current": { "type": "int" }, "total": { "type": "int" } }
+  },
+  "mediaTrimCancelling": "Cancelling…",
+  "mediaTrimSaved": "Saved {count} clips",
+  "@mediaTrimSaved": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "mediaTrimSavedWithReused": "Saved {created} clips. {reused} matched existing items and were added to the collection.",
+  "@mediaTrimSavedWithReused": {
+    "placeholders": { "created": { "type": "int" }, "reused": { "type": "int" } }
+  },
+  "mediaTrimDiscardTitle": "Discard these clips?",
+  "mediaTrimDiscardBody": "Clips that haven't been saved will be lost.",
+  "mediaTrimKeepEditing": "Keep editing",
+  "mediaTrimDiscard": "Discard",
+  "mediaTrimLoadFailed": "Couldn't open the trim editor",
+  "mediaTrimFailureSourceMissing": "The media file is missing. Download it first.",
+  "mediaTrimFailureTranscriptNotReady": "The transcript isn't ready yet. Try again later.",
+  "mediaTrimFailureTranscriptInvalid": "The transcript is invalid. Check it in the subtitle editor first.",
+  "mediaTrimFailureTranscriptOutOfRange": "Transcript times exceed the media length. Check the transcript first.",
+  "mediaTrimFailureDuration": "Couldn't read the media length",
+  "mediaTrimFailureClipTooShort": "The clip is too short",
+  "mediaTrimFailureClipOutOfRange": "The time is outside the media",
+  "mediaTrimFailureSplitsSentence": "Clips can't cut through a sentence",
+  "mediaTrimFailureNoClips": "Add a clip first",
+  "mediaTrimFailureInvalidCollection": "That collection is no longer available. Choose another one.",
+  "mediaTrimFailureCollectionName": "Enter a collection name",
+  "mediaTrimFailureEncode": "Encoding failed. This device may not support the format.",
+  "mediaTrimFailureOutput": "A clip failed verification. Please try again.",
+  "mediaTrimFailurePlayback": "Playback failed",
+  "mediaTrimFailureCancelled": "Saving cancelled",
+  "mediaTrimFailureUnexpected": "Something went wrong. Please try again."
 }

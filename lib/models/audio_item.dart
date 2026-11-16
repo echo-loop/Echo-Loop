@@ -1,4 +1,5 @@
 import '../utils/app_data_dir.dart';
+
 import 'package:path/path.dart' as path;
 
 /// copyWith 用于区分"未传参"与"显式传 null"的哨兵值
@@ -82,13 +83,17 @@ enum AudioImportSourceType {
   directUrl,
 
   /// 从网盘来源导入。当前预留，后续接入网盘解析时使用。
-  cloudDrive;
+  cloudDrive,
+
+  /// 从已有媒体剪辑生成的独立材料。
+  trimmed;
 
   String get storageValue {
     return switch (this) {
       AudioImportSourceType.local => 'local',
       AudioImportSourceType.directUrl => 'direct_url',
       AudioImportSourceType.cloudDrive => 'cloud_drive',
+      AudioImportSourceType.trimmed => 'trimmed',
     };
   }
 
@@ -97,6 +102,7 @@ enum AudioImportSourceType {
       'local' => AudioImportSourceType.local,
       'direct_url' => AudioImportSourceType.directUrl,
       'cloud_drive' => AudioImportSourceType.cloudDrive,
+      'trimmed' => AudioImportSourceType.trimmed,
       _ => null,
     };
   }

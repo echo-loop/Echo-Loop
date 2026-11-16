@@ -116,7 +116,7 @@ dependencies:
   # 不会传播到宿主 app。release（R8）构建必须在 android/app/proguard-rules.pro 保留
   # com.antonkarpenko.ffmpegkit.**，否则 R8 会裁掉仅由 JNI_OnLoad 注册的 native 方法
   # （AbiDetect.getNativeCpuAbi 等），导致插件注册整体失败、App 卡在启动 splash。
-  ffmpeg_kit_flutter_new_min: ^3.1.0
+  ffmpeg_kit_flutter_new_min: 3.6.7
   xml: ^6.5.0
   # PDF 导出：Dart 端生成结构化 PDF（学习材料导出 PDF，见 lib/services/pdf_export/）。
   # 注意：3.13.0 起要求 Dart >=3.12，当前 SDK 下固定解析到 3.12.0
@@ -247,6 +247,8 @@ flutter:
     - assets/dictionary/wordlist-en_US.txt
     - assets/icon/sort.svg
     - assets/icon/plus.svg
+    - assets/icon/split.svg
+    - assets/icon/arrow-range.svg
     # 账户页用量入口图标（currentColor 由 colorFilter 按 IconTheme 着色）
     - assets/icon/gauge.svg
     # PDF 导出品牌角标（96px 小图，1024 原图 190KB 直接嵌会撑大每份 PDF）

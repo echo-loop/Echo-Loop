@@ -20,10 +20,10 @@ PODS:
     - FlutterMacOS
   - connectivity_plus (0.0.1):
     - FlutterMacOS
-  - ffmpeg_kit_flutter_new_min (7.1.1):
-    - ffmpeg_kit_flutter_new_min/min (= 7.1.1)
+  - ffmpeg_kit_flutter_new_min (8.1.2):
+    - ffmpeg_kit_flutter_new_min/min (= 8.1.2)
     - FlutterMacOS
-  - ffmpeg_kit_flutter_new_min/min (7.1.1):
+  - ffmpeg_kit_flutter_new_min/min (8.1.2):
     - FlutterMacOS
   - file_picker (0.0.1):
     - FlutterMacOS
@@ -363,7 +363,7 @@ SPEC CHECKSUMS:
   audio_session: eaca2512cf2b39212d724f35d11f46180ad3a33e
   charset_converter: 1181fdf66cb99c88eeaea212f3fcbc734546cb15
   connectivity_plus: 4adf20a405e25b42b9c9f87feff8f4b6fde18a4e
-  ffmpeg_kit_flutter_new_min: 623d95fe4c00311175a10f9ab3efa312c266ead6
+  ffmpeg_kit_flutter_new_min: 5eb213c6e89209f8ea9a3a7537d991ed3a4ba5c2
   file_picker: 7584aae6fa07a041af2b36a2655122d42f578c1a
   file_selector_macos: 3af0fddc391c32a6a3956a7d3898ca3a86057a4f
   Firebase: d99ac19b909cd2c548339c2241ecd0d1599ab02e

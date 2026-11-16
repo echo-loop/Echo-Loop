@@ -5290,4 +5290,286 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get favoritesExportUnknownSource => 'Unknown source';
+
+  @override
+  String get mediaTrimMenu => 'Trim';
+
+  @override
+  String get mediaTrimTitle => 'Trim';
+
+  @override
+  String mediaTrimSaveCount(int count) {
+    return 'Save ($count)';
+  }
+
+  @override
+  String get mediaTrimPlay => 'Play (Space)';
+
+  @override
+  String get mediaTrimPause => 'Pause (Space)';
+
+  @override
+  String get mediaTrimPreviewClip => 'Play clip';
+
+  @override
+  String get mediaTrimStopPreview => 'Stop';
+
+  @override
+  String get mediaTrimZoomIn => 'Zoom in';
+
+  @override
+  String get mediaTrimZoomOut => 'Zoom out';
+
+  @override
+  String get mediaTrimZoomFit => 'Show all';
+
+  @override
+  String mediaTrimClipLabel(int number) {
+    return 'Clip $number';
+  }
+
+  @override
+  String get mediaTrimZoomToClip => 'Zoom to clip';
+
+  @override
+  String get mediaTrimHideVideo => 'Hide video';
+
+  @override
+  String get mediaTrimShowVideo => 'Show video';
+
+  @override
+  String get mediaTrimClips => 'Clips';
+
+  @override
+  String get mediaTrimAddClip => 'New clip';
+
+  @override
+  String get mediaTrimAddClipTooltip => 'New clip at playhead (N)';
+
+  @override
+  String get mediaTrimAutoSplit => 'Auto split';
+
+  @override
+  String get mediaTrimEmptyTitle => 'No clips yet';
+
+  @override
+  String get mediaTrimEmptyBodySentences =>
+      'Tap a sentence to play it and move the playhead there, then tap “New clip”. Drag the ends on the waveform to adjust. “Auto split” cuts everything at once.';
+
+  @override
+  String get mediaTrimEmptyBodyFree =>
+      'Tap the waveform to move the playhead, then tap “New clip”. “Auto split” cuts everything into equal parts.';
+
+  @override
+  String get mediaTrimStart => 'Start';
+
+  @override
+  String get mediaTrimEnd => 'End';
+
+  @override
+  String get mediaTrimEarlier => 'Earlier';
+
+  @override
+  String get mediaTrimLater => 'Later';
+
+  @override
+  String get mediaTrimEditTime => 'Enter time';
+
+  @override
+  String get mediaTrimRename => 'Rename';
+
+  @override
+  String get mediaTrimDelete => 'Delete';
+
+  @override
+  String get mediaTrimClipName => 'Clip name';
+
+  @override
+  String mediaTrimSentenceCount(int count) {
+    return '$count sentences';
+  }
+
+  @override
+  String get mediaTrimTranscript => 'Transcript';
+
+  @override
+  String get mediaTrimTranscriptHint =>
+      'Tap a sentence to play it and move the playhead there';
+
+  @override
+  String mediaTrimWaveformLoading(int percent) {
+    return 'Generating waveform $percent%';
+  }
+
+  @override
+  String get mediaTrimWaveformFailed => 'Couldn\'t generate the waveform';
+
+  @override
+  String get mediaTrimStartTime => 'Start time';
+
+  @override
+  String get mediaTrimEndTime => 'End time';
+
+  @override
+  String get mediaTrimTimeHint => 'm:ss.mmm, e.g. 1:05.250';
+
+  @override
+  String get mediaTrimTimeInvalid => 'Invalid time';
+
+  @override
+  String get mediaTrimTimeSnapNote =>
+      'The time snaps to the nearest gap between sentences.';
+
+  @override
+  String get mediaTrimAutoSplitTitle => 'Auto split';
+
+  @override
+  String get mediaTrimAutoSplitTarget => 'Length of each clip';
+
+  @override
+  String mediaTrimMinutes(int count) {
+    return '$count min';
+  }
+
+  @override
+  String mediaTrimAutoSplitPreview(int count) {
+    return 'Creates $count clips';
+  }
+
+  @override
+  String get mediaTrimAutoSplitBySentence => 'Cuts only between sentences.';
+
+  @override
+  String get mediaTrimAutoSplitEqual => 'Splits into parts of equal length.';
+
+  @override
+  String mediaTrimAutoSplitTooShort(int minutes) {
+    return 'This item is $minutes min or shorter, so there is nothing to auto split. Tap “New clip” to cut it manually.';
+  }
+
+  @override
+  String mediaTrimAutoSplitReplace(int count) {
+    return 'Replaces the current $count clips.';
+  }
+
+  @override
+  String get mediaTrimApply => 'Apply';
+
+  @override
+  String mediaTrimSaveTitle(int count) {
+    return 'Save $count clips';
+  }
+
+  @override
+  String get mediaTrimSaveTo => 'Save to';
+
+  @override
+  String get mediaTrimNewCollection => 'New collection';
+
+  @override
+  String get mediaTrimCollectionName => 'Collection name';
+
+  @override
+  String mediaTrimDefaultCollectionName(String name) {
+    return '$name · Clips';
+  }
+
+  @override
+  String get mediaTrimSaveLocalOnly =>
+      'This item comes from a podcast or shared collection, which is maintained by its source. Clips can only be saved to your own local collections.';
+
+  @override
+  String get mediaTrimSaveNote =>
+      'The original stays unchanged. Clips are saved together once all of them are ready.';
+
+  @override
+  String mediaTrimSaving(int current, int total) {
+    return 'Creating clip $current of $total';
+  }
+
+  @override
+  String get mediaTrimCancelling => 'Cancelling…';
+
+  @override
+  String mediaTrimSaved(int count) {
+    return 'Saved $count clips';
+  }
+
+  @override
+  String mediaTrimSavedWithReused(int created, int reused) {
+    return 'Saved $created clips. $reused matched existing items and were added to the collection.';
+  }
+
+  @override
+  String get mediaTrimDiscardTitle => 'Discard these clips?';
+
+  @override
+  String get mediaTrimDiscardBody =>
+      'Clips that haven\'t been saved will be lost.';
+
+  @override
+  String get mediaTrimKeepEditing => 'Keep editing';
+
+  @override
+  String get mediaTrimDiscard => 'Discard';
+
+  @override
+  String get mediaTrimLoadFailed => 'Couldn\'t open the trim editor';
+
+  @override
+  String get mediaTrimFailureSourceMissing =>
+      'The media file is missing. Download it first.';
+
+  @override
+  String get mediaTrimFailureTranscriptNotReady =>
+      'The transcript isn\'t ready yet. Try again later.';
+
+  @override
+  String get mediaTrimFailureTranscriptInvalid =>
+      'The transcript is invalid. Check it in the subtitle editor first.';
+
+  @override
+  String get mediaTrimFailureTranscriptOutOfRange =>
+      'Transcript times exceed the media length. Check the transcript first.';
+
+  @override
+  String get mediaTrimFailureDuration => 'Couldn\'t read the media length';
+
+  @override
+  String get mediaTrimFailureClipTooShort => 'The clip is too short';
+
+  @override
+  String get mediaTrimFailureClipOutOfRange => 'The time is outside the media';
+
+  @override
+  String get mediaTrimFailureSplitsSentence =>
+      'Clips can\'t cut through a sentence';
+
+  @override
+  String get mediaTrimFailureNoClips => 'Add a clip first';
+
+  @override
+  String get mediaTrimFailureInvalidCollection =>
+      'That collection is no longer available. Choose another one.';
+
+  @override
+  String get mediaTrimFailureCollectionName => 'Enter a collection name';
+
+  @override
+  String get mediaTrimFailureEncode =>
+      'Encoding failed. This device may not support the format.';
+
+  @override
+  String get mediaTrimFailureOutput =>
+      'A clip failed verification. Please try again.';
+
+  @override
+  String get mediaTrimFailurePlayback => 'Playback failed';
+
+  @override
+  String get mediaTrimFailureCancelled => 'Saving cancelled';
+
+  @override
+  String get mediaTrimFailureUnexpected =>
+      'Something went wrong. Please try again.';
 }

@@ -5030,4 +5030,272 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get favoritesExportUnknownSource => '未知来源';
+
+  @override
+  String get mediaTrimMenu => '剪辑';
+
+  @override
+  String get mediaTrimTitle => '剪辑';
+
+  @override
+  String mediaTrimSaveCount(int count) {
+    return '保存 ($count)';
+  }
+
+  @override
+  String get mediaTrimPlay => '播放（空格）';
+
+  @override
+  String get mediaTrimPause => '暂停（空格）';
+
+  @override
+  String get mediaTrimPreviewClip => '试听片段';
+
+  @override
+  String get mediaTrimStopPreview => '停止';
+
+  @override
+  String get mediaTrimZoomIn => '放大';
+
+  @override
+  String get mediaTrimZoomOut => '缩小';
+
+  @override
+  String get mediaTrimZoomFit => '显示全部';
+
+  @override
+  String mediaTrimClipLabel(int number) {
+    return '片段 $number';
+  }
+
+  @override
+  String get mediaTrimZoomToClip => '放大到当前片段';
+
+  @override
+  String get mediaTrimHideVideo => '隐藏画面';
+
+  @override
+  String get mediaTrimShowVideo => '显示画面';
+
+  @override
+  String get mediaTrimClips => '片段';
+
+  @override
+  String get mediaTrimAddClip => '新片段';
+
+  @override
+  String get mediaTrimAddClipTooltip => '在播放位置新建片段（N）';
+
+  @override
+  String get mediaTrimAutoSplit => '自动分段';
+
+  @override
+  String get mediaTrimEmptyTitle => '还没有片段';
+
+  @override
+  String get mediaTrimEmptyBodySentences =>
+      '点句子试听并定位，再点「新片段」从这句开始；拖动波形上的两端调整范围。「自动分段」可以一次切好整段。';
+
+  @override
+  String get mediaTrimEmptyBodyFree => '点按波形定位，然后点「新片段」。「自动分段」可以按时长一次切好整段。';
+
+  @override
+  String get mediaTrimStart => '开始';
+
+  @override
+  String get mediaTrimEnd => '结束';
+
+  @override
+  String get mediaTrimEarlier => '提前';
+
+  @override
+  String get mediaTrimLater => '推后';
+
+  @override
+  String get mediaTrimEditTime => '输入时间';
+
+  @override
+  String get mediaTrimRename => '重命名';
+
+  @override
+  String get mediaTrimDelete => '删除';
+
+  @override
+  String get mediaTrimClipName => '片段名称';
+
+  @override
+  String mediaTrimSentenceCount(int count) {
+    return '$count 句';
+  }
+
+  @override
+  String get mediaTrimTranscript => '字幕';
+
+  @override
+  String get mediaTrimTranscriptHint => '点句子试听并定位到这句';
+
+  @override
+  String mediaTrimWaveformLoading(int percent) {
+    return '正在生成波形 $percent%';
+  }
+
+  @override
+  String get mediaTrimWaveformFailed => '波形生成失败';
+
+  @override
+  String get mediaTrimStartTime => '开始时间';
+
+  @override
+  String get mediaTrimEndTime => '结束时间';
+
+  @override
+  String get mediaTrimTimeHint => '分:秒.毫秒，例如 1:05.250';
+
+  @override
+  String get mediaTrimTimeInvalid => '时间格式无效';
+
+  @override
+  String get mediaTrimTimeSnapNote => '时间会吸附到最近的句间位置。';
+
+  @override
+  String get mediaTrimAutoSplitTitle => '自动分段';
+
+  @override
+  String get mediaTrimAutoSplitTarget => '每段时长约';
+
+  @override
+  String mediaTrimMinutes(int count) {
+    return '$count 分钟';
+  }
+
+  @override
+  String mediaTrimAutoSplitPreview(int count) {
+    return '将生成 $count 个片段';
+  }
+
+  @override
+  String get mediaTrimAutoSplitBySentence => '只在句子之间切分，不会切断句子。';
+
+  @override
+  String get mediaTrimAutoSplitEqual => '按相同时长等分。';
+
+  @override
+  String mediaTrimAutoSplitTooShort(int minutes) {
+    return '材料不超过 $minutes 分钟，无需自动分段。可以直接点「新片段」手动切分。';
+  }
+
+  @override
+  String mediaTrimAutoSplitReplace(int count) {
+    return '会替换当前的 $count 个片段。';
+  }
+
+  @override
+  String get mediaTrimApply => '应用';
+
+  @override
+  String mediaTrimSaveTitle(int count) {
+    return '保存 $count 个片段';
+  }
+
+  @override
+  String get mediaTrimSaveTo => '保存到';
+
+  @override
+  String get mediaTrimNewCollection => '新建合集';
+
+  @override
+  String get mediaTrimCollectionName => '合集名称';
+
+  @override
+  String mediaTrimDefaultCollectionName(String name) {
+    return '$name · 片段';
+  }
+
+  @override
+  String get mediaTrimSaveLocalOnly =>
+      '这条材料来自播客或共享合集。这类合集由来源统一维护，剪出的片段只能保存到你自己的本地合集。';
+
+  @override
+  String get mediaTrimSaveNote => '原材料不会改变。所有片段处理成功后才会一起保存。';
+
+  @override
+  String mediaTrimSaving(int current, int total) {
+    return '正在生成第 $current/$total 段';
+  }
+
+  @override
+  String get mediaTrimCancelling => '正在取消…';
+
+  @override
+  String mediaTrimSaved(int count) {
+    return '已保存 $count 个片段';
+  }
+
+  @override
+  String mediaTrimSavedWithReused(int created, int reused) {
+    return '已保存 $created 个片段，$reused 个与已有材料相同，已直接加入合集';
+  }
+
+  @override
+  String get mediaTrimDiscardTitle => '放弃这次剪辑？';
+
+  @override
+  String get mediaTrimDiscardBody => '未保存的片段会丢失。';
+
+  @override
+  String get mediaTrimKeepEditing => '继续编辑';
+
+  @override
+  String get mediaTrimDiscard => '放弃';
+
+  @override
+  String get mediaTrimLoadFailed => '无法打开剪辑';
+
+  @override
+  String get mediaTrimFailureSourceMissing => '找不到媒体文件，请先下载';
+
+  @override
+  String get mediaTrimFailureTranscriptNotReady => '字幕内容尚未就绪，请稍后再试';
+
+  @override
+  String get mediaTrimFailureTranscriptInvalid => '原字幕内容无效，请先在字幕编辑中检查';
+
+  @override
+  String get mediaTrimFailureTranscriptOutOfRange => '字幕时间超出媒体时长，请先检查原字幕';
+
+  @override
+  String get mediaTrimFailureDuration => '无法读取媒体时长';
+
+  @override
+  String get mediaTrimFailureClipTooShort => '片段太短';
+
+  @override
+  String get mediaTrimFailureClipOutOfRange => '时间超出媒体范围';
+
+  @override
+  String get mediaTrimFailureSplitsSentence => '不能在句子中间切分';
+
+  @override
+  String get mediaTrimFailureNoClips => '请先添加片段';
+
+  @override
+  String get mediaTrimFailureInvalidCollection => '目标合集不可用，请重新选择';
+
+  @override
+  String get mediaTrimFailureCollectionName => '请输入合集名称';
+
+  @override
+  String get mediaTrimFailureEncode => '媒体编码失败，可能是设备不支持该格式';
+
+  @override
+  String get mediaTrimFailureOutput => '生成的片段校验失败，请重试';
+
+  @override
+  String get mediaTrimFailurePlayback => '播放失败';
+
+  @override
+  String get mediaTrimFailureCancelled => '已取消保存';
+
+  @override
+  String get mediaTrimFailureUnexpected => '出现未知错误，请重试';
 }

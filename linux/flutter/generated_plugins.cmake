@@ -4,6 +4,7 @@
 
 list(APPEND FLUTTER_PLUGIN_LIST
   charset_converter
+  ffmpeg_kit_flutter_new_min
   file_selector_linux
   flutter_secure_storage_linux
   flutter_timezone
