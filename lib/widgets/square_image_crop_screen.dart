@@ -4,24 +4,35 @@ import 'dart:typed_data';
 import 'package:crop_your_image/crop_your_image.dart';
 import 'package:flutter/material.dart';
 
-import '../../../l10n/app_localizations.dart';
-import '../../../theme/app_theme.dart';
+import '../l10n/app_localizations.dart';
+import '../theme/app_theme.dart';
 
-/// 圆形头像裁剪页。用户确认后以 `pop` 返回裁剪结果（PNG 字节，圆外为透明）。
+/// 1:1 图片裁剪页，头像（圆形框）与合集封面（方形框）共用。
 ///
+/// 用户确认后以 `pop` 返回裁剪结果（PNG 字节；圆形框时圆外为透明），
 /// 取消或返回时 `pop` 为 null。
-class AvatarCropScreen extends StatefulWidget {
-  const AvatarCropScreen({super.key, required this.imageBytes});
+class SquareImageCropScreen extends StatefulWidget {
+  const SquareImageCropScreen({
+    super.key,
+    required this.imageBytes,
+    required this.title,
+    required this.isCircle,
+  });
 
-  /// 已由 `prepareAvatarSourceForCrop` 处理过的 JPEG 字节。
+  /// 已由 `prepareSquareCropSource` 处理过的 JPEG 字节。
   final Uint8List imageBytes;
 
+  final String title;
+
+  /// true 为圆形裁剪框（头像），false 为方形裁剪框（合集封面）。
+  final bool isCircle;
+
   @override
-  State<AvatarCropScreen> createState() => _AvatarCropScreenState();
+  State<SquareImageCropScreen> createState() => _SquareImageCropScreenState();
 }
 
-class _AvatarCropScreenState extends State<AvatarCropScreen> {
-  /// 裁剪区域在桌面宽窗口下的上限边长，避免圆形框撑满整个窗口。
+class _SquareImageCropScreenState extends State<SquareImageCropScreen> {
+  /// 裁剪区域在桌面宽窗口下的上限边长，避免裁剪框撑满整个窗口。
   static const double _maxCropSide = 480;
 
   final _cropController = CropController();
@@ -55,7 +66,7 @@ class _AvatarCropScreenState extends State<AvatarCropScreen> {
     final colorScheme = Theme.of(context).colorScheme;
 
     return Scaffold(
-      appBar: AppBar(title: Text(l10n.profileCropTitle)),
+      appBar: AppBar(title: Text(widget.title)),
       body: SafeArea(
         child: Column(
           children: [
@@ -73,7 +84,8 @@ class _AvatarCropScreenState extends State<AvatarCropScreen> {
                         image: widget.imageBytes,
                         controller: _cropController,
                         onCropped: _handleCropResult,
-                        withCircleUi: true,
+                        withCircleUi: widget.isCircle,
+                        aspectRatio: 1,
                         interactive: true,
                         baseColor: colorScheme.surfaceContainerLowest,
                       ),

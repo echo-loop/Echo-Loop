@@ -8,11 +8,11 @@ import 'package:image_picker/image_picker.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../services/app_logger.dart';
 import '../../../services/app_network_image_cache.dart';
+import '../../../services/square_image_processor.dart';
 import '../../../theme/app_theme.dart';
-import '../data/avatar_image_processor.dart';
+import '../../../widgets/square_image_crop_screen.dart';
 import '../domain/user_profile.dart';
 import '../providers/user_profile_provider.dart';
-import '../screens/avatar_crop_screen.dart';
 import 'nickname_edit_dialog.dart';
 import 'user_avatar.dart';
 
@@ -39,7 +39,7 @@ class _ProfileEditSectionState extends ConsumerState<ProfileEditSection> {
       final croppedBytes = await _pickAndCropAvatar();
       if (croppedBytes == null) return;
       await _runSave(() async {
-        final uploadBytes = await encodeAvatarForUpload(croppedBytes);
+        final uploadBytes = await encodeSquareJpeg(croppedBytes);
         await ref.read(userProfileProvider.notifier).uploadAvatar(uploadBytes);
         // 遮罩在此结束，先把新头像放进图片缓存，避免露出旧图。
         await _precacheCurrentAvatar();
@@ -52,12 +52,16 @@ class _ProfileEditSectionState extends ConsumerState<ProfileEditSection> {
     final picked = await ImagePicker().pickImage(source: ImageSource.gallery);
     if (picked == null) return null;
     final sourceBytes = await picked.readAsBytes();
-    final preparedBytes = await prepareAvatarSourceForCrop(sourceBytes);
+    final preparedBytes = await prepareSquareCropSource(sourceBytes);
     if (!mounted) return null;
 
     return Navigator.of(context).push<Uint8List>(
       MaterialPageRoute(
-        builder: (_) => AvatarCropScreen(imageBytes: preparedBytes),
+        builder: (_) => SquareImageCropScreen(
+          imageBytes: preparedBytes,
+          title: AppLocalizations.of(context)!.profileCropTitle,
+          isCircle: true,
+        ),
       ),
     );
   }
@@ -97,7 +101,7 @@ class _ProfileEditSectionState extends ConsumerState<ProfileEditSection> {
     final messenger = ScaffoldMessenger.of(context);
     try {
       await task();
-    } on AvatarImageException {
+    } on SquareImageException {
       messenger.showSnackBar(
         SnackBar(content: Text(l10n.profileImageUnsupported)),
       );

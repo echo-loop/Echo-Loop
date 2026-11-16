@@ -1,6 +1,6 @@
 import 'dart:typed_data';
 
-import 'package:echo_loop/features/profile/data/avatar_image_processor.dart';
+import 'package:echo_loop/services/square_image_processor.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
 
@@ -14,9 +14,9 @@ bool _isJpeg(Uint8List bytes) =>
     bytes.length > 3 && bytes[0] == 0xFF && bytes[1] == 0xD8;
 
 void main() {
-  group('prepareAvatarSourceForCrop', () {
+  group('prepareSquareCropSource', () {
     test('超大原图的长边缩小到 1536，保持宽高比', () async {
-      final output = await prepareAvatarSourceForCrop(
+      final output = await prepareSquareCropSource(
         _solidPng(width: 3000, height: 1500),
       );
 
@@ -30,7 +30,7 @@ void main() {
       source.exif.imageIfd.orientation = 6; // 顺时针旋转 90°
       final sourceBytes = img.encodeJpg(source);
 
-      final output = await prepareAvatarSourceForCrop(sourceBytes);
+      final output = await prepareSquareCropSource(sourceBytes);
 
       final decoded = img.decodeImage(output)!;
       expect(decoded.width, 100);
@@ -40,39 +40,37 @@ void main() {
 
     test('无法解码的字节抛出 undecodable 异常', () async {
       await expectLater(
-        prepareAvatarSourceForCrop(Uint8List.fromList([1, 2, 3, 4])),
+        prepareSquareCropSource(Uint8List.fromList([1, 2, 3, 4])),
         throwsA(
-          isA<AvatarImageException>().having(
+          isA<SquareImageException>().having(
             (error) => error.failure,
             'failure',
-            AvatarImageFailure.undecodable,
+            SquareImageFailure.undecodable,
           ),
         ),
       );
     });
   });
 
-  group('encodeAvatarForUpload', () {
+  group('encodeSquareJpeg', () {
     test('输出 512×512 JPEG 且不超过 512KB', () async {
-      final output = await encodeAvatarForUpload(
+      final output = await encodeSquareJpeg(
         _solidPng(width: 1024, height: 1024),
       );
 
       expect(_isJpeg(output), isTrue);
-      expect(output.length, lessThanOrEqualTo(avatarMaxBytes));
+      expect(output.length, lessThanOrEqualTo(squareImageMaxBytes));
       final decoded = img.decodeImage(output)!;
-      expect(decoded.width, avatarEdgePixels);
-      expect(decoded.height, avatarEdgePixels);
+      expect(decoded.width, squareImageEdgePixels);
+      expect(decoded.height, squareImageEdgePixels);
     });
 
     test('小于 512 的裁剪结果也会放大到 512×512', () async {
-      final output = await encodeAvatarForUpload(
-        _solidPng(width: 100, height: 100),
-      );
+      final output = await encodeSquareJpeg(_solidPng(width: 100, height: 100));
 
       final decoded = img.decodeImage(output)!;
-      expect(decoded.width, avatarEdgePixels);
-      expect(decoded.height, avatarEdgePixels);
+      expect(decoded.width, squareImageEdgePixels);
+      expect(decoded.height, squareImageEdgePixels);
     });
 
     test('圆形裁剪的透明角输出为白色而不是黑色', () async {
@@ -86,7 +84,7 @@ void main() {
         color: img.ColorRgba8(200, 80, 40, 255),
       );
 
-      final output = await encodeAvatarForUpload(img.encodePng(circle));
+      final output = await encodeSquareJpeg(img.encodePng(circle));
 
       final decoded = img.decodeImage(output)!;
       final corner = decoded.getPixel(4, 4);
@@ -97,12 +95,12 @@ void main() {
 
     test('无法解码的字节抛出 undecodable 异常', () async {
       await expectLater(
-        encodeAvatarForUpload(Uint8List.fromList([9, 9, 9])),
+        encodeSquareJpeg(Uint8List.fromList([9, 9, 9])),
         throwsA(
-          isA<AvatarImageException>().having(
+          isA<SquareImageException>().having(
             (error) => error.failure,
             'failure',
-            AvatarImageFailure.undecodable,
+            SquareImageFailure.undecodable,
           ),
         ),
       );
