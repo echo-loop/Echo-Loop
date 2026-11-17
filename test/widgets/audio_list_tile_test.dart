@@ -1,4 +1,6 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:echo_loop/database/enums.dart';
@@ -1515,6 +1517,88 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Unpin'), findsOneWidget);
+    });
+
+    testWidgets('菜单展开时点击外部只关闭菜单，不穿透触发下方控件', (tester) async {
+      var outsideTaps = 0;
+      await tester.pumpWidget(
+        createTestApp(
+          Column(
+            children: [
+              const SizedBox(width: 360, child: _AudioListTileWrapper()),
+              TextButton(
+                onPressed: () => outsideTaps++,
+                child: const Text('Outside'),
+              ),
+            ],
+          ),
+          overrides: dedupeOverrides([
+            audioLibraryProvider.overrideWith(
+              () => TestAudioLibrary(AudioLibraryState(audioItems: [baseItem])),
+            ),
+          ]),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const Key('audio_list_tile_menu_hit_area')));
+      await tester.pumpAndSettle();
+      expect(find.text('Pin to Top'), findsOneWidget);
+
+      await tester.tap(find.text('Outside'), warnIfMissed: false);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Pin to Top'), findsNothing);
+      expect(outsideTaps, 0);
+    });
+
+    testWidgets('鼠标悬停菜单项后关闭菜单，卡片不残留 focus 高亮', (tester) async {
+      // 桌面端鼠标交互走 traditional 高亮模式，focus 高亮才会被绘制。
+      FocusManager.instance.highlightStrategy =
+          FocusHighlightStrategy.alwaysTraditional;
+      addTearDown(
+        () => FocusManager.instance.highlightStrategy =
+            FocusHighlightStrategy.automatic,
+      );
+      await tester.pumpWidget(
+        buildCompactTile(AudioLibraryState(audioItems: [baseItem])),
+      );
+      await tester.pumpAndSettle();
+
+      final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+      await mouse.addPointer(location: Offset.zero);
+      addTearDown(mouse.removePointer);
+      final menuButton = tester.getCenter(
+        find.byKey(const Key('audio_list_tile_menu_hit_area')),
+      );
+      await mouse.moveTo(menuButton);
+      await mouse.down(menuButton);
+      await mouse.up();
+      await tester.pumpAndSettle();
+      // 悬停菜单项会让该项获焦（MenuItemButton.requestFocusOnHover）。
+      await mouse.moveTo(tester.getCenter(find.text('Pin to Top')));
+      await tester.pumpAndSettle();
+
+      List<InkHighlight> activeCardHighlights() {
+        final cardInk = Material.of(tester.element(find.text('Star Audio')));
+        // debugInkFeatures 仅在 MaterialInkController 的渲染实现上可见，测试内窄范围 dynamic 访问；
+        // 尚未创建过任何墨水效果时为 null。
+        final features =
+            ((cardInk as dynamic).debugInkFeatures as List<InkFeature>?) ??
+            const <InkFeature>[];
+        return features
+            .whereType<InkHighlight>()
+            .where((InkHighlight h) => h.active)
+            .toList();
+      }
+
+      expect(activeCardHighlights(), isEmpty, reason: '菜单展开时卡片不应整卡变灰');
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+      await mouse.moveTo(Offset.zero);
+      await tester.pumpAndSettle();
+
+      expect(activeCardHighlights(), isEmpty, reason: '菜单关闭后卡片不应残留灰底');
     });
 
     testWidgets('社区音频菜单显示更新字幕，不显示管理字幕', (tester) async {

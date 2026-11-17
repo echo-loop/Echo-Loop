@@ -183,101 +183,119 @@ class AudioListTile extends ConsumerWidget {
         final Color? cardColor = selectionMode && selected
             ? selectionHighlightColor
             : (audioItem.isPinned ? pinnedHighlightColor : null);
+        final bool hasMenu = !selectionMode && showMenu;
+        final tapArea = InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: selectionMode ? onSelectToggle : () => _pushPlan(context),
+          onLongPress: onLongPress,
+          child: IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Expanded(
+                  child: Padding(
+                    // 右侧留白通常由 trailing 菜单撑起，故默认为 0；
+                    // 多选态与无菜单态隐藏了菜单，需补回右内边距以保持左右对称。
+                    padding: EdgeInsets.fromLTRB(
+                      sideInset,
+                      8,
+                      hasMenu ? 0 : sideInset,
+                      8,
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        // 左侧图标，垂直居中
+                        _buildCollectionLeading(
+                          coverCollection,
+                          isChinaUser,
+                          dataDirectoryPath,
+                        ),
+                        // 图标与标题间距保持紧凑，给标题让出空间。
+                        const SizedBox(width: 8),
+                        // 中间标题 + 副标题
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              SearchHighlightText(
+                                text: audioItem.name,
+                                searchQuery: searchQuery,
+                                style: audioTitleStyle(theme),
+                                // 标题默认最多两行，与合集详情页、搜索结果保持一致。
+                                maxLines: titleMaxLines,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              if (searchDescription != null) ...[
+                                const SizedBox(height: 4),
+                                searchDescription,
+                              ],
+                              const SizedBox(height: 4),
+                              _buildSubtitle(
+                                context,
+                                l10n,
+                                theme,
+                                progress,
+                                tagData,
+                                transcriptionTask,
+                                downloadProgress,
+                                downloadQueued,
+                                difficulty,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                // 多选态：右侧放选中框（替代菜单按钮），垂直居中。
+                if (selectionMode)
+                  Padding(
+                    padding: const EdgeInsets.only(right: sideInset),
+                    child: Center(
+                      child: Checkbox(
+                        value: selected,
+                        onChanged: (_) => onSelectToggle?.call(),
+                        visualDensity: VisualDensity.compact,
+                        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                    ),
+                  )
+                // 菜单按钮占位：真实按钮叠放在 InkWell 之外（见下方 card）。
+                else if (hasMenu)
+                  const SizedBox(width: _kTrailingButtonSize),
+              ],
+            ),
+          ),
+        );
+        // 菜单不能放在卡片 InkWell 子树内：MenuAnchor 的浮层在焦点树上挂在锚点之下，
+        // 鼠标悬停菜单项会让卡片 InkWell 因子孙获焦而显示整卡 focus 高亮；菜单关闭时
+        // 获焦的菜单项随浮层同帧销毁，FocusManager 丢失旧焦点路径，卡片收不到失焦通知，
+        // 灰底会一直残留。故把菜单与 InkWell 作为 Stack 的兄弟节点，隔离两者焦点。
         final card = Card(
           margin: EdgeInsets.zero,
           color: cardColor,
-          child: InkWell(
-            borderRadius: BorderRadius.circular(12),
-            onTap: selectionMode ? onSelectToggle : () => _pushPlan(context),
-            onLongPress: onLongPress,
-            child: IntrinsicHeight(
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Expanded(
-                    child: Padding(
-                      // 右侧留白通常由 trailing 菜单撑起，故默认为 0；
-                      // 多选态与无菜单态隐藏了菜单，需补回右内边距以保持左右对称。
-                      padding: EdgeInsets.fromLTRB(
-                        sideInset,
-                        8,
-                        (selectionMode || !showMenu) ? sideInset : 0,
-                        8,
-                      ),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: [
-                          // 左侧图标，垂直居中
-                          _buildCollectionLeading(
-                            coverCollection,
-                            isChinaUser,
-                            dataDirectoryPath,
-                          ),
-                          // 图标与标题间距保持紧凑，给标题让出空间。
-                          const SizedBox(width: 8),
-                          // 中间标题 + 副标题
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                SearchHighlightText(
-                                  text: audioItem.name,
-                                  searchQuery: searchQuery,
-                                  style: audioTitleStyle(theme),
-                                  // 标题默认最多两行，与合集详情页、搜索结果保持一致。
-                                  maxLines: titleMaxLines,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                                if (searchDescription != null) ...[
-                                  const SizedBox(height: 4),
-                                  searchDescription,
-                                ],
-                                const SizedBox(height: 4),
-                                _buildSubtitle(
-                                  context,
-                                  l10n,
-                                  theme,
-                                  progress,
-                                  tagData,
-                                  transcriptionTask,
-                                  downloadProgress,
-                                  downloadQueued,
-                                  difficulty,
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
+          child: hasMenu
+              ? Stack(
+                  children: [
+                    tapArea,
+                    Positioned(
+                      top: 0,
+                      right: 0,
+                      bottom: 0,
+                      child: _buildTrailing(
+                        context,
+                        ref,
+                        l10n,
+                        theme,
+                        isDownloading: downloadProgress != null,
                       ),
                     ),
-                  ),
-                  // 多选态：右侧放选中框（替代菜单按钮），垂直居中。
-                  if (selectionMode)
-                    Padding(
-                      padding: const EdgeInsets.only(right: sideInset),
-                      child: Center(
-                        child: Checkbox(
-                          value: selected,
-                          onChanged: (_) => onSelectToggle?.call(),
-                          visualDensity: VisualDensity.compact,
-                          materialTapTargetSize:
-                              MaterialTapTargetSize.shrinkWrap,
-                        ),
-                      ),
-                    )
-                  else if (showMenu)
-                    _buildTrailing(
-                      context,
-                      ref,
-                      l10n,
-                      theme,
-                      isDownloading: downloadProgress != null,
-                    ),
-                ],
-              ),
-            ),
-          ),
+                  ],
+                )
+              : tapArea,
         );
         // 置顶项右上角常驻图钉标记，让用户一眼识别已置顶（与背景高亮呼应）。
         final decoratedCard = audioItem.isPinned
@@ -805,6 +823,9 @@ class AudioListTile extends ConsumerWidget {
     return SizedBox.expand(
       child: MenuAnchor(
         style: menuStyle,
+        // 与旧 PopupMenuButton 的模态行为一致：菜单展开时点击外部只关闭菜单，
+        // 不穿透触发列表项或其他控件。
+        consumeOutsideTap: true,
         builder: (context, controller, child) => IconButton(
           key: _kMenuHitAreaKey,
           tooltip: MaterialLocalizations.of(context).showMenuTooltip,

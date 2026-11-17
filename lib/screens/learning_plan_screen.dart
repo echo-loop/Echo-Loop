@@ -757,6 +757,8 @@ class _LearningPlanScreenState extends ConsumerState<LearningPlanScreen> {
       padding: const EdgeInsets.only(right: AppSpacing.s),
       child: MenuAnchor(
         style: menuStyle,
+        // 菜单展开时点击外部只关闭菜单，不穿透触发页面其他控件。
+        consumeOutsideTap: true,
         menuChildren: items,
         builder: (context, controller, child) => IconButton(
           key: const Key('learning_plan_more_menu'),

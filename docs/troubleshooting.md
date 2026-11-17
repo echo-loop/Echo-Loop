@@ -801,3 +801,13 @@
 - 验证：`media_trim_clip_test.dart`「播放头在片段内且片段之后没有空白」与「任意播放头位置…都不与现有片段重叠」（有字幕 / 无字幕多种布局，每 500ms 一个播放头）；`media_trim_editor_controller_test.dart`「连续两次新片段在同一播放头处不重叠」。三条在修复前均失败。
 - 相关代码：`lib/features/media_trim/media_trim_clip.dart`。
 - 记录时间：2026-11-16。
+
+### 7.59 列表项菜单关闭后卡片残留灰底；菜单展开时点击外部穿透到列表
+
+- 现象：macOS 上音频列表项「…」菜单展开时整张卡片变灰；关闭菜单后部分卡片灰底一直不消失（截图取色 224 = 白底叠 12% 黑，即 InkWell `focusColor`）。另外菜单展开时点击其他列表项会直接触发跳转。
+- 根因（灰底）：`MenuAnchor` 嵌在卡片 `InkWell` 内，其浮层（OverlayPortal）在焦点树上挂在卡片 Focus 节点之下；`MenuItemButton` 默认 `requestFocusOnHover`，鼠标悬停菜单项即获焦，而 `Focus.onFocusChange` 按 `hasFocus`（含子孙）回调，卡片显示 focus 高亮。菜单关闭时获焦的菜单项随浮层同帧销毁，`FocusManager._markDetached` 把 `_primaryFocus` 置空，`applyFocusChangesIfNeeded` 用空的旧焦点路径计算失焦节点，卡片 Focus 收不到 `onFocusChange(false)`，InkWell 的 `_hasFocus` 停在 true。debug 日志可见 `Updating focus from null to ...`。列表无 key、按位置复用元素，残留会落到同位置的其他条目上。
+- 根因（穿透）：由 `PopupMenuButton`（模态路由拦截点击）改为 `MenuAnchor` 后，`consumeOutsideTap` 默认 false，点击外部关闭菜单的同时事件继续传给下方控件。
+- 解法：菜单与 InkWell 改为 Stack 兄弟节点（Row 里保留等宽占位），隔离焦点；`MenuAnchor` 设 `consumeOutsideTap: true`（学习计划页 AppBar「更多」菜单同步）。
+- 验证：`audio_list_tile_test.dart`「鼠标悬停菜单项后关闭菜单，卡片不残留 focus 高亮」「菜单展开时点击外部只关闭菜单，不穿透触发下方控件」，修复前均失败。
+- 相关代码：`lib/widgets/audio_list_tile.dart`、`lib/screens/learning_plan_screen.dart`。
+- 记录时间：2026-11-18。
