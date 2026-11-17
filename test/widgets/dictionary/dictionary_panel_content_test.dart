@@ -58,17 +58,20 @@ class _StubTtsController extends TtsController {
   }
 
   @override
-  Future<void> prewarmTexts(List<String> texts) async {
+  Future<void> prewarmTexts(List<String> texts, {required Object owner}) async {
     _prewarmCalls.add(texts);
   }
 
   @override
-  Future<void> prewarmTextsIncremental(List<String> texts) async {
+  Future<void> prewarmTextsIncremental(
+    List<String> texts, {
+    required Object owner,
+  }) async {
     _prewarmCalls.add(texts);
   }
 
   @override
-  void cancelTextsPrewarm() {}
+  void cancelTextsPrewarm({required Object owner}) {}
   @override
   Future<void> stop() async {
     _ttsStopCalls++;
@@ -97,7 +100,7 @@ class _StubTextPlaybackController extends TextPlaybackController {
   }
 
   @override
-  Future<void> prewarmWord(String word) async {
+  Future<void> prewarmWord(String word, {required Object owner}) async {
     _headwordPrewarmCalls.add(word);
   }
 
@@ -224,7 +227,6 @@ Future<void> _openSheet(WidgetTester tester, String word) async {
 }
 
 void main() {
-
   setUp(() async {
     SharedPreferences.setMockInitialValues({});
     _prefs = await SharedPreferences.getInstance();
@@ -238,7 +240,6 @@ void main() {
     _forwardTextPlaybackToTts = false;
     _dictionaryService = _createTestDictionaryService();
   });
-
 
   group('DictionaryPanel', () {
     testWidgets('关闭面板不会停止宿主页正在播放的句子', (tester) async {

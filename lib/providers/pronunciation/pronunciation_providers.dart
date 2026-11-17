@@ -77,15 +77,18 @@ class TextPlaybackController extends Notifier<TextPlaybackState> {
   /// 后台预热单词发音：CDN 有音频则落入本地缓存；没有则交给 TTS 预热。
   ///
   /// 已在 CDN 的单词不再消耗 TTS 合成额度。预热仍不播放、不抢占当前播放。
-  /// CDN 查询期间若页面已取消预热（批次变化），不再提交 TTS 合成。
-  Future<void> prewarmWord(String word) async {
+  /// CDN 查询期间若所有者已取消预热（批次失效），不再提交 TTS 合成。
+  /// [owner] 标识发起预热的页面，取消只影响该页面自己的预热。
+  Future<void> prewarmWord(String word, {required Object owner}) async {
     final tts = ref.read(ttsControllerProvider.notifier);
-    final batch = tts.textsPrewarmBatch;
+    final batch = tts.beginTextPrewarmBatch(owner);
     final cachedPath = await ref
         .read(wordAudioRepositoryProvider)
         .resolve(word);
-    if (cachedPath != null || batch != tts.textsPrewarmBatch) return;
-    await tts.prewarmTextsIncremental([word]);
+    if (cachedPath != null || !tts.isTextPrewarmBatchCurrent(owner, batch)) {
+      return;
+    }
+    await tts.prewarmTextsIncremental([word], owner: owner);
   }
 
   Future<AudioPlaybackResult> _speak(

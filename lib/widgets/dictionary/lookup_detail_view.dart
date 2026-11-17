@@ -75,7 +75,7 @@ class _LookupDetailViewState extends ConsumerState<LookupDetailView> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       AppLogger.log('Lookup', '预热标题发音 查询词="${widget.query}"');
-      unawaited(_textPlayback?.prewarmWord(widget.query));
+      unawaited(_textPlayback?.prewarmWord(widget.query, owner: this));
       _autoSpeakIfEnabled();
     });
   }
@@ -99,7 +99,7 @@ class _LookupDetailViewState extends ConsumerState<LookupDetailView> {
 
   @override
   void dispose() {
-    _ttsController?.cancelTextsPrewarm();
+    _ttsController?.cancelTextsPrewarm(owner: this);
     if (_autoSpeakStarted) unawaited(_textPlayback?.stop());
     super.dispose();
   }
@@ -201,7 +201,11 @@ class _LookupDetailViewState extends ConsumerState<LookupDetailView> {
           ],
           if (isSingleWord && isAiVisible) ...[
             const SizedBox(height: AppSpacing.m),
-            _AiLookupCard(query: widget.query, autoExpand: isAutoShowAi),
+            _AiLookupCard(
+              query: widget.query,
+              autoExpand: isAutoShowAi,
+              prewarmOwner: this,
+            ),
           ],
         ],
       ),
@@ -221,7 +225,7 @@ class _LookupDetailViewState extends ConsumerState<LookupDetailView> {
     if (texts.isEmpty) return;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      _ttsController?.prewarmTextsIncremental(texts);
+      _ttsController?.prewarmTextsIncremental(texts, owner: this);
     });
   }
 
@@ -269,10 +273,17 @@ class _LookupDetailViewState extends ConsumerState<LookupDetailView> {
 /// 默认折叠时不会发起 AI 请求（controller 惰性创建）。由设置自动展开时，若额度
 /// 用尽或未登录，则静默收起为普通入口：不弹提示，用户手动点开才看到升级/登录引导。
 class _AiLookupCard extends ConsumerStatefulWidget {
-  const _AiLookupCard({required this.query, required this.autoExpand});
+  const _AiLookupCard({
+    required this.query,
+    required this.autoExpand,
+    required this.prewarmOwner,
+  });
 
   final String query;
   final bool autoExpand;
+
+  /// 预热所有者，由词典详情页提供：详情页关闭时统一取消卡片的例句预热。
+  final Object prewarmOwner;
 
   @override
   ConsumerState<_AiLookupCard> createState() => _AiLookupCardState();
@@ -368,7 +379,9 @@ class _AiLookupCardState extends ConsumerState<_AiLookupCard> {
     if (texts.isEmpty) return;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      ref.read(ttsControllerProvider.notifier).prewarmTextsIncremental(texts);
+      ref
+          .read(ttsControllerProvider.notifier)
+          .prewarmTextsIncremental(texts, owner: widget.prewarmOwner);
     });
   }
 

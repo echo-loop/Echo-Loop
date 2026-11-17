@@ -100,7 +100,10 @@ class _RecordingTtsController extends TtsController {
   }
 
   @override
-  Future<void> prewarmTextsIncremental(List<String> texts) async {
+  Future<void> prewarmTextsIncremental(
+    List<String> texts, {
+    required Object owner,
+  }) async {
     prewarmCalls.add(List.of(texts));
   }
 
@@ -133,7 +136,7 @@ class _RecordingTtsController extends TtsController {
   Future<void> stop() async {}
 
   @override
-  void cancelTextsPrewarm() => cancelCount++;
+  void cancelTextsPrewarm({required Object owner}) => cancelCount++;
 }
 
 /// 记录统一朗读入口的分流：`cdnWords` 中的单词视为 CDN 已有音频，不经 TTS。
@@ -160,11 +163,11 @@ class _RecordingPronunciationPlayback extends TextPlaybackController {
   }
 
   @override
-  Future<void> prewarmWord(String word) async {
+  Future<void> prewarmWord(String word, {required Object owner}) async {
     if (cdnWords.contains(word)) return;
     await ref.read(ttsControllerProvider.notifier).prewarmTextsIncremental([
       word,
-    ]);
+    ], owner: owner);
   }
 }
 
@@ -313,6 +316,7 @@ void main() {
   late _RecordingShortAudioPlayer shortAudioPlayer;
   late _MockAudioItemDao audioItemDao;
   late ValueNotifier<int> activeMainTab;
+  late ValueNotifier<bool> rootRouteVisible;
 
   setUp(() {
     bookmarkC = StreamController<List<BookmarkWithAudio>>.broadcast();
@@ -326,6 +330,7 @@ void main() {
     shortAudioPlayer = _RecordingShortAudioPlayer();
     audioItemDao = _MockAudioItemDao();
     activeMainTab = ValueNotifier<int>(2);
+    rootRouteVisible = ValueNotifier<bool>(true);
   });
 
   tearDown(() {
@@ -335,6 +340,7 @@ void main() {
     appDataDirectoryOverride = null;
     if (appDataDir.existsSync()) appDataDir.deleteSync(recursive: true);
     activeMainTab.dispose();
+    rootRouteVisible.dispose();
   });
 
   Widget createWidget({Set<String> cdnWords = const {}}) {
@@ -391,10 +397,13 @@ void main() {
       ]),
       child: ValueListenableBuilder<int>(
         valueListenable: activeMainTab,
-        builder: (context, index, _) => MainTabVisibilityScope(
-          currentIndex: index,
-          rootRouteVisible: true,
-          child: app,
+        builder: (context, index, _) => ValueListenableBuilder<bool>(
+          valueListenable: rootRouteVisible,
+          builder: (context, visible, _) => MainTabVisibilityScope(
+            currentIndex: index,
+            rootRouteVisible: visible,
+            child: app,
+          ),
         ),
       ),
     );
@@ -561,6 +570,28 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(rec.cancelCount, greaterThan(cancelsBefore));
+  });
+
+  testWidgets('全屏页覆盖主壳取消预热，返回后重新预热', (tester) async {
+    await tester.pumpWidget(createWidget());
+    bookmarkC.add([]);
+    wordC.add([_word(1, 'tomorrow')]);
+    phraseC.add([]);
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.textContaining('Vocabulary'));
+    await tester.pumpAndSettle();
+    final callsBeforeCover = rec.prewarmCalls.length;
+    final cancelsBeforeCover = rec.cancelCount;
+
+    // 复习页等全屏路由压在主壳上：主 tab 仍是词汇，但不再可见。
+    rootRouteVisible.value = false;
+    await tester.pumpAndSettle();
+    expect(rec.cancelCount, greaterThan(cancelsBeforeCover));
+
+    rootRouteVisible.value = true;
+    await tester.pumpAndSettle();
+    expect(rec.prewarmCalls.length, greaterThan(callsBeforeCover));
   });
 
   testWidgets('切离主 tab 取消预热，返回主 tab 后重新预热', (tester) async {

@@ -142,7 +142,7 @@ class _DictionaryPanelState extends ConsumerState<DictionaryPanel> {
     final host = _panelHost;
     if (host == null || host.isOpen) return;
     _autoSpeakEpoch++;
-    _ttsController?.cancelTextsPrewarm();
+    _ttsController?.cancelTextsPrewarm(owner: this);
     _stopDictionaryPlayback();
     if (_autoSpeakInFlight) {
       // 自动发音可能尚未把 speakingKey 同步回面板，不能只依赖播放状态判断。
@@ -159,7 +159,7 @@ class _DictionaryPanelState extends ConsumerState<DictionaryPanel> {
     }
     if (oldWord != _normalizedWord) {
       // 切词：停掉旧词的在途预热/朗读，立即预热新词。
-      _ttsController?.cancelTextsPrewarm();
+      _ttsController?.cancelTextsPrewarm(owner: this);
       _stopDictionaryPlayback();
       _dictionaryPlaybackKeys.clear();
       _headwordPrewarmSignature = null;
@@ -204,7 +204,7 @@ class _DictionaryPanelState extends ConsumerState<DictionaryPanel> {
     _isPrewarmVisible = visible;
     final epoch = ++_prewarmVisibilityEpoch;
     if (!visible) {
-      _ttsController?.cancelTextsPrewarm();
+      _ttsController?.cancelTextsPrewarm(owner: this);
       _headwordPrewarmSignature = null;
       _stopDictionaryPlayback();
       return;
@@ -246,7 +246,7 @@ class _DictionaryPanelState extends ConsumerState<DictionaryPanel> {
     widget.entryAnimation?.removeStatusListener(_onEntryAnimationStatus);
     _panelHost?.removeOpenStateListener(_handlePanelOpenStateChanged);
     // 面板关闭即停在途预热，避免离开后继续占用 CPU 合成用不到的例句。
-    _ttsController?.cancelTextsPrewarm();
+    _ttsController?.cancelTextsPrewarm(owner: this);
     // 共享播放器也承载复习页来源句，只停止由本面板发起的朗读。
     _stopDictionaryPlayback();
     // 会话结束：清除粘滞源，下次打开面板恢复默认词典。
@@ -372,7 +372,7 @@ class _DictionaryPanelState extends ConsumerState<DictionaryPanel> {
     _lastDictionaryPrewarmTexts = List.unmodifiable(texts);
     _dictionaryPlaybackKeys.addAll(texts);
     if (texts.isEmpty || !_isPrewarmVisible) return;
-    _ttsController?.prewarmTextsIncremental(texts);
+    _ttsController?.prewarmTextsIncremental(texts, owner: this);
   }
 
   /// 调度标题发音预热：CDN 已有音频则只落本地缓存，缺失时才进入 TTS 预热。
@@ -384,7 +384,9 @@ class _DictionaryPanelState extends ConsumerState<DictionaryPanel> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted || !_isPrewarmVisible) return;
       // 与标题点击使用同一文本（保留大小写），CDN 文件名才能命中。
-      ref.read(textPlaybackProvider.notifier).prewarmWord(_lookupQuery);
+      ref
+          .read(textPlaybackProvider.notifier)
+          .prewarmWord(_lookupQuery, owner: this);
     });
   }
 

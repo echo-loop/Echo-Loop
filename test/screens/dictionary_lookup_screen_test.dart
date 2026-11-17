@@ -54,7 +54,10 @@ final List<String> _prewarmedExamples = [];
 
 class _RecordingTtsController extends TtsController {
   @override
-  Future<void> prewarmTextsIncremental(List<String> texts) async {
+  Future<void> prewarmTextsIncremental(
+    List<String> texts, {
+    required Object owner,
+  }) async {
     _prewarmedExamples.addAll(texts);
   }
 }
@@ -107,7 +110,7 @@ final List<String> _spokenWords = [];
 
 class _RecordingTextPlayback extends TextPlaybackController {
   @override
-  Future<void> prewarmWord(String word) async {
+  Future<void> prewarmWord(String word, {required Object owner}) async {
     _prewarmedWords.add(word);
   }
 
@@ -200,8 +203,7 @@ Widget _buildScreen({
         dictionaryServiceProvider.overrideWithValue(dictionaryService),
       if (ttsController != null)
         ttsControllerProvider.overrideWith(ttsController),
-      if (database != null)
-        appDatabaseProvider.overrideWithValue(database),
+      if (database != null) appDatabaseProvider.overrideWithValue(database),
       savedWordTextsProvider.overrideWith(_EmptySavedWordTexts.new),
       savedSenseGroupTextsProvider.overrideWith(_EmptySavedSenseGroupTexts.new),
       activeSavedWordProvider.overrideWith((ref, word) => Stream.value(null)),

@@ -118,13 +118,19 @@ class _FakeTtsController extends TtsController {
   }
 
   @override
-  Future<void> prewarmTextsIncremental(List<String> texts) async {
+  Future<void> prewarmTextsIncremental(
+    List<String> texts, {
+    required Object owner,
+  }) async {
     prewarmed.addAll(texts);
   }
 
   @override
   Future<void> stop() async {}
 }
+
+/// 测试用预热所有者，区分不同页面的预热批次。
+const _owner = Object();
 
 void main() {
   late Directory tempDir;
@@ -170,12 +176,8 @@ void main() {
     return result;
   }
 
-  String cachedPathFor(String word) => p.join(
-    tempDir.path,
-    'word_audio',
-    'en-US',
-    wordAudioFileName(word)!,
-  );
+  String cachedPathFor(String word) =>
+      p.join(tempDir.path, 'word_audio', 'en-US', wordAudioFileName(word)!);
 
   group('speakWithResult', () {
     test('CDN 有音频时下载缓存并播放，不调用 TTS', () async {
@@ -231,11 +233,7 @@ void main() {
       cdn.failure = _notFound;
       final playback = container().read(textPlaybackProvider.notifier);
 
-      await playback.speak(
-        'hello',
-        key: 'hello',
-        promptIfModelMissing: false,
-      );
+      await playback.speak('hello', key: 'hello', promptIfModelMissing: false);
 
       expect(tts.spoken, ['hello']);
       expect(tts.promptFlags, [false]);
@@ -269,7 +267,7 @@ void main() {
     test('CDN 命中时只下载到缓存，不预热 TTS', () async {
       final playback = container().read(textPlaybackProvider.notifier);
 
-      await playback.prewarmWord('hello');
+      await playback.prewarmWord('hello', owner: _owner);
 
       expect(cdn.requestCount, 1);
       expect(tts.prewarmed, isEmpty);
@@ -279,7 +277,7 @@ void main() {
       cdn.failure = _notFound;
       final playback = container().read(textPlaybackProvider.notifier);
 
-      await playback.prewarmWord('hello');
+      await playback.prewarmWord('hello', owner: _owner);
 
       expect(tts.prewarmed, ['hello']);
     });
@@ -287,7 +285,7 @@ void main() {
     test('不合规的单词直接交给 TTS 预热，不访问 CDN', () async {
       final playback = container().read(textPlaybackProvider.notifier);
 
-      await playback.prewarmWord('two words');
+      await playback.prewarmWord('two words', owner: _owner);
 
       expect(cdn.requestCount, 0);
       expect(tts.prewarmed, ['two words']);

@@ -64,20 +64,19 @@ class _FavoriteVocabularyReviewScreenState
   final GlobalKey<DictionaryPanelHostState> _dictionaryHostKey =
       GlobalKey<DictionaryPanelHostState>();
 
-  /// AI 查词预热订阅（按卡片文本）。
-  ///
-  /// 持有当前卡及后续卡的 AI 查词 controller，使请求在卡片翻到背面前完成并写入缓存；
-  /// 背面 watch 同一 provider，直接复用进行中或已完成的结果，不会重复请求。
-  final Map<String, ProviderSubscription<DictionaryLookupState>>
-  _aiLookupPrewarms = {};
+  /// 当前卡的预热所有者：离开该卡（评分进入下一张、离开页面）时整体取消其例句预热。
+  Object? _cardPrewarmOwner;
 
-  /// 当前预热窗口内的词；不在窗口内但仍在订阅中的词表示正在等待请求完成后释放。
-  Set<String> _aiLookupWindow = const {};
+  /// [_cardPrewarmOwner] 对应卡片的标识，用于判断卡片是否已切换。
+  String? _cardPrewarmKey;
 
-  /// 已提交单词发音预热的词；TTS 配置变化后清空，使新配置下重新提交。
-  final Set<String> _wordAudioPrewarmedWords = {};
+  /// 当前卡的 AI 查词订阅。订阅期间查询由页面持有；关闭订阅即释放查询，未完成的请求随之取消。
+  ProviderSubscription<DictionaryLookupState>? _aiLookupSubscription;
 
-  /// 页面级 TTS 控制器，dispose 时直接取消预热，不再依赖 ref。
+  /// [_aiLookupSubscription] 订阅的词，避免同一张卡重复订阅。
+  String? _aiLookupWord;
+
+  /// 页面级 TTS 控制器，dispose 时直接取消本页的预热，不再依赖 ref。
   late final TtsController _ttsController;
 
   @override
@@ -113,11 +112,8 @@ class _FavoriteVocabularyReviewScreenState
     );
     ref.listenManual(
       ttsControllerProvider.select((state) => state.configurationVersion),
-      (_, _) {
-        // TTS 配置落定或变化后，之前未真正提交的单词需要重新提交。
-        _wordAudioPrewarmedWords.clear();
-        _syncReviewPrewarms();
-      },
+      // TTS 配置落定或变化后，TTS 层已清空本页的去重记录，需按新配置重新提交。
+      (_, _) => _syncReviewPrewarms(),
     );
     _syncReviewPrewarms();
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -127,15 +123,23 @@ class _FavoriteVocabularyReviewScreenState
     });
   }
 
-  /// 同步复习窗口内的预热：单词发音与 AI 查词互不依赖，各自按窗口同步。
+  /// 同步复习页的预热：单词发音按窗口（当前卡与后续两张）同步；
+  /// 当前卡的 AI 查词与例句随卡片生命周期，卡片切换时结束上一张的预热。
   void _syncReviewPrewarms() {
+    // 退出或已销毁后，会话收尾引起的状态变化不能再发起预热。
+    if (!mounted || _isExiting) return;
+    final state = ref.read(favoriteVocabularyReviewProvider);
+    final currentCard = state.completionSummary == null
+        ? state.currentCard
+        : null;
+    _syncCardPrewarmOwner(currentCard);
     _syncWordAudioPrewarms();
-    _syncAiLookupPrewarms();
-    _prewarmLoadedAiLookups();
+    _syncAiLookupSubscription(currentCard);
   }
 
   /// 单词发音预热覆盖当前卡与后续卡，与「自动显示 AI 查词」无关。
   ///
+  /// 重复调用安全：已提交的文本由 TtsController 按所有者去重，不会重复合成。
   /// 只在页面内预热，离开页面时由 [dispose] 统一取消。
   void _syncWordAudioPrewarms() {
     final state = ref.read(favoriteVocabularyReviewProvider);
@@ -145,115 +149,72 @@ class _FavoriteVocabularyReviewScreenState
       if (currentCard != null) currentCard.displayText,
       for (final card in state.upcomingCards) card.displayText,
     };
-    final newWords = [
-      for (final word in words)
-        if (_wordAudioPrewarmedWords.add(word)) word,
-    ];
-    if (newWords.isEmpty) return;
-    AppLogger.log(
-      'FavoriteVocabularyReview',
-      '单词发音预热 words=${newWords.join('|')}',
-    );
     final playback = ref.read(textPlaybackProvider.notifier);
-    for (final word in newWords) {
-      unawaited(playback.prewarmWord(word));
+    for (final word in words) {
+      unawaited(playback.prewarmWord(word, owner: this));
     }
   }
 
-  /// 窗口内 AI 查词若已加载完成（如来自缓存），listenManual 不会回放，需主动预热其例句。
-  void _prewarmLoadedAiLookups() {
-    for (final word in _aiLookupWindow) {
-      final lookup = ref.read(
-        dictionaryLookupControllerProvider(
-          word,
-          preferredSourceId: AiDictionarySource.sourceId,
-        ),
-      );
-      _prewarmLoadedAiLookup(context, ref, lookup);
-    }
-  }
-
-  /// 按当前卡与后续卡同步 AI 查词预热：新进入窗口的词开始查询，离开窗口的词释放。
+  /// 卡片变化时结束上一张的预热，并为新卡创建所有者。
   ///
-  /// 仅在开启「自动显示 AI 查词」时预热，与背面自动展开 AI 结果的条件一致。
-  /// 离开窗口时请求若仍在进行（用户快速评分划过、或评完最后一张进入完成页），
-  /// 等它完成并写入缓存后再释放，避免已消耗的请求被取消白费；用户关闭开关则立即释放。
-  /// 退出页面时订阅随页面销毁，仍在进行的请求会被取消。
-  void _syncAiLookupPrewarms() {
-    final state = ref.read(favoriteVocabularyReviewProvider);
+  /// 取消上一张的例句 TTS 预热与 AI 查词订阅；翻面不改变卡片，因此翻面不会取消预热。
+  void _syncCardPrewarmOwner(FlashcardItem? card) {
+    final key = card?.dbKey;
+    if (key == _cardPrewarmKey) return;
+    _cancelCardPrewarms();
+    _cardPrewarmKey = key;
+    _cardPrewarmOwner = card == null ? null : Object();
+  }
+
+  /// 当前卡的 AI 查词：开启「自动显示 AI 查词」时在正面即开始查询，加载成功后预热例句。
+  ///
+  /// 只订阅当前卡，不提前查询后续卡；关闭开关或切到下一张时关闭订阅。
+  void _syncAiLookupSubscription(FlashcardItem? card) {
     final isAutoShowEnabled = ref
         .read(favoriteReviewSettingsProvider)
         .autoShowAiLookup;
-    final isCompleted = state.completionSummary != null;
-    final currentCard = state.currentCard;
-    final words = isAutoShowEnabled && !isCompleted
-        ? {
-            if (currentCard != null) currentCard.displayText,
-            for (final card in state.upcomingCards) card.displayText,
-          }
-        : const <String>{};
-    final leavingWords = _aiLookupWindow
-        .where((word) => !words.contains(word))
-        .toList();
-    _aiLookupWindow = words;
-    final releasedWords = <String>[];
-    final drainingWords = <String>[];
-    for (final word in leavingWords) {
-      final subscription = _aiLookupPrewarms[word];
-      if (subscription == null) continue;
-      if (isAutoShowEnabled && !_isAiLookupSettled(subscription.read())) {
-        drainingWords.add(word);
-        continue;
-      }
-      _aiLookupPrewarms.remove(word)!.close();
-      releasedWords.add(word);
+    final owner = _cardPrewarmOwner;
+    if (!isAutoShowEnabled || card == null || owner == null) {
+      _closeAiLookupSubscription();
+      return;
     }
-    final newWords = words
-        .where((word) => !_aiLookupPrewarms.containsKey(word))
-        .toList();
-    if (leavingWords.isEmpty && newWords.isEmpty) return;
-    AppLogger.log(
-      'FavoriteVocabularyReview',
-      'AI 查词预热窗口 autoShow=$isAutoShowEnabled completed=$isCompleted '
-          'current=${currentCard?.displayText} '
-          'start=${newWords.join('|')} release=${releasedWords.join('|')} '
-          'drainBeforeRelease=${drainingWords.join('|')} window=${words.length}',
+    final word = card.displayText;
+    if (_aiLookupSubscription != null && _aiLookupWord == word) return;
+    _closeAiLookupSubscription();
+    _aiLookupWord = word;
+    final provider = dictionaryLookupControllerProvider(
+      word,
+      preferredSourceId: AiDictionarySource.sourceId,
     );
-    for (final word in newWords) {
-      _aiLookupPrewarms[word] = ref.listenManual(
-        dictionaryLookupControllerProvider(
-          word,
-          preferredSourceId: AiDictionarySource.sourceId,
-        ),
-        (_, next) {
-          _releaseDrainedAiLookup(word, next);
-          if (_aiLookupWindow.contains(word)) {
-            _prewarmLoadedAiLookup(context, ref, next);
-          }
-        },
-      );
-    }
+    _aiLookupSubscription = ref.listenManual(provider, (_, next) {
+      _prewarmLoadedAiLookup(context, ref, owner, next);
+    });
+    // listenManual 不回放已完成的结果（如来自缓存），需主动处理当前值。
+    _prewarmLoadedAiLookup(context, ref, owner, ref.read(provider));
   }
 
-  /// 已离开窗口的词在请求结束后释放订阅。
-  void _releaseDrainedAiLookup(String word, DictionaryLookupState lookup) {
-    if (_aiLookupWindow.contains(word) || !_isAiLookupSettled(lookup)) return;
-    final subscription = _aiLookupPrewarms.remove(word);
-    if (subscription == null) return;
-    subscription.close();
-    AppLogger.log(
-      'FavoriteVocabularyReview',
-      'AI 查词预热请求结束后释放 word=$word '
-          'status=${lookup.current.runtimeType}',
-    );
+  void _closeAiLookupSubscription() {
+    _aiLookupSubscription?.close();
+    _aiLookupSubscription = null;
+    _aiLookupWord = null;
   }
 
-  /// 查询已结束（成功、未收录或失败），不再有在途请求。
-  bool _isAiLookupSettled(DictionaryLookupState lookup) {
-    final current = lookup.current;
-    return current != null &&
-        current is! LookupLoading &&
-        current is! LookupStreaming;
+  /// 离开复习页时停止全部后台预热：单词窗口与当前卡的例句 TTS，以及当前卡的 AI 查词。
+  /// 不影响正在播放的音频。
+  void _stopPrewarms() {
+    _ttsController.cancelTextsPrewarm(owner: this);
+    _cancelCardPrewarms();
+  }
+
+  /// 结束当前卡的全部预热：取消例句 TTS 并关闭 AI 查词订阅。
+  void _cancelCardPrewarms() {
+    _closeAiLookupSubscription();
+    final owner = _cardPrewarmOwner;
+    if (owner != null) {
+      _ttsController.cancelTextsPrewarm(owner: owner);
+    }
+    _cardPrewarmOwner = null;
+    _cardPrewarmKey = null;
   }
 
   /// 页面生命周期内只启动一次会话收尾，避免返回回调与 dispose 兜底重复刷统计。
@@ -262,8 +223,7 @@ class _FavoriteVocabularyReviewScreenState
 
   @override
   void dispose() {
-    // 离开页面即取消后台发音预热（单词与 AI 例句），不影响正在播放的音频。
-    _ttsController.cancelTextsPrewarm();
+    _stopPrewarms();
     // 外部路由替换不会经过页面返回按钮，销毁时后台启动同一幂等收尾。
     scheduleMicrotask(() => unawaited(_disposeSessionOnce()));
     super.dispose();
@@ -272,6 +232,7 @@ class _FavoriteVocabularyReviewScreenState
   Future<void> _exit() async {
     if (_isExiting) return;
     _isExiting = true;
+    _stopPrewarms();
     if (mounted) {
       if (context.canPop()) {
         context.pop();
@@ -335,7 +296,8 @@ class _FavoriteVocabularyReviewScreenState
           canPop: !_isDictionaryPanelOpen,
           onPopInvokedWithResult: (didPop, _) {
             if (didPop) {
-              // 系统返回手势已完成，释放本次复习会话但不要再次触发 pop。
+              // 系统返回手势已完成：立即停止预热，再释放本次复习会话但不要再次触发 pop。
+              _stopPrewarms();
               if (!_isExiting) {
                 _isExiting = true;
                 unawaited(_disposeSessionOnce());
@@ -433,6 +395,7 @@ class _FavoriteVocabularyReviewScreenState
                                     )
                                   : _VocabularyBack(
                                       key: ValueKey(card.dbKey),
+                                      prewarmOwner: _cardPrewarmOwner ?? this,
                                       card: card,
                                       preview: state.preview,
                                       showNextReviewTime: ref.watch(
@@ -733,10 +696,11 @@ class _DefinitionText extends StatelessWidget {
 /// AI 查词结果加载成功后预热其中的发音：标题走 CDN 优先，例句进入 TTS 后台预热。
 ///
 /// 在下一帧提交，避免在 build 或 provider 通知期间修改 TTS 状态；页面已销毁时跳过，
-/// 保证离开页面后不再产生新的预热。同一结果可重复调用，文本去重由 TtsController 处理。
+/// 保证离开页面后不再产生新的预热。同一结果可重复调用，文本去重由 TtsController 按 [owner] 处理。
 void _prewarmLoadedAiLookup(
   BuildContext context,
   WidgetRef ref,
+  Object owner,
   DictionaryLookupState lookup,
 ) {
   final current = lookup.current;
@@ -747,9 +711,9 @@ void _prewarmLoadedAiLookup(
   final tts = ref.read(ttsControllerProvider.notifier);
   WidgetsBinding.instance.addPostFrameCallback((_) {
     if (!context.mounted) return;
-    unawaited(playback.prewarmWord(result.headword));
+    unawaited(playback.prewarmWord(result.headword, owner: owner));
     if (texts.isEmpty) return;
-    unawaited(tts.prewarmTextsIncremental(texts));
+    unawaited(tts.prewarmTextsIncremental(texts, owner: owner));
   });
 }
 
@@ -757,6 +721,7 @@ void _prewarmLoadedAiLookup(
 class _VocabularyBack extends ConsumerStatefulWidget {
   const _VocabularyBack({
     super.key,
+    required this.prewarmOwner,
     required this.card,
     required this.preview,
     required this.showNextReviewTime,
@@ -767,6 +732,8 @@ class _VocabularyBack extends ConsumerStatefulWidget {
     required this.onRemove,
   });
 
+  /// 复习页的预热所有者：离开复习页时由页面统一取消背面的例句预热。
+  final Object prewarmOwner;
   final FlashcardItem card;
   final MemoryRatingPreviewSet? preview;
   final bool showNextReviewTime;
@@ -868,12 +835,12 @@ class _VocabularyBackState extends ConsumerState<_VocabularyBack> {
     );
     if (_showAi) {
       ref.listen<DictionaryLookupState>(aiLookupProvider, (previous, next) {
-        _prewarmLoadedAiLookup(context, ref, next);
+        _prewarmLoadedAiLookup(context, ref, widget.prewarmOwner, next);
       });
     }
     // 手动展开时 provider 可能已加载完成，显式处理当前缓存结果。
     if (aiLookup != null) {
-      _prewarmLoadedAiLookup(context, ref, aiLookup);
+      _prewarmLoadedAiLookup(context, ref, widget.prewarmOwner, aiLookup);
     }
     return Column(
       children: [

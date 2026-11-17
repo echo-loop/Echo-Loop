@@ -97,9 +97,10 @@ class _SynthScheduler {
     String cacheKey,
     Future<String?> Function() run, {
     required int maxConcurrent,
+    Object? owner,
   }) {
     final completer = Completer<String?>();
-    final task = _QueuedSynth(cacheKey, run, completer, maxConcurrent);
+    final task = _QueuedSynth(cacheKey, run, completer, maxConcurrent, owner);
     (priority == TtsSynthPriority.user ? _userQueue : _backgroundQueue).add(
       task,
     );
@@ -137,14 +138,22 @@ class _SynthScheduler {
   }
 
   /// 丢弃尚未执行的后台任务；正在运行的 native 推理不可可靠中断，必须自然完成。
-  void cancelPendingBackground() {
-    final cancelled = _backgroundQueue.length;
-    while (_backgroundQueue.isNotEmpty) {
-      _backgroundQueue.removeFirst().completer.complete(null);
+  ///
+  /// [owner] 为 null 时丢弃全部后台任务（配置切换）；否则只丢弃该所有者提交的任务，
+  /// 其他页面的预热保持排队。
+  void cancelPendingBackground({Object? owner}) {
+    final dropped = <_QueuedSynth>[];
+    _backgroundQueue.removeWhere((task) {
+      final matches = owner == null || identical(task.owner, owner);
+      if (matches) dropped.add(task);
+      return matches;
+    });
+    for (final task in dropped) {
+      task.completer.complete(null);
     }
     AppLogger.log(
       'TtsScheduler',
-      '已取消未开始的文本预热：取消=$cancelled '
+      '已取消未开始的文本预热：取消=${dropped.length} '
           '保留用户任务=${_userQueue.length} 正在合成=$_runningCount',
     );
   }
@@ -178,11 +187,28 @@ class _SynthScheduler {
 
 /// 排队中的合成任务：缓存键 + 执行闭包 + 结果回投 Completer + 所属引擎的并发上限。
 class _QueuedSynth {
-  _QueuedSynth(this.cacheKey, this.run, this.completer, this.maxConcurrent);
+  _QueuedSynth(
+    this.cacheKey,
+    this.run,
+    this.completer,
+    this.maxConcurrent,
+    this.owner,
+  );
   final String cacheKey;
   final Future<String?> Function() run;
   final Completer<String?> completer;
   final int maxConcurrent;
+
+  /// 提交该后台预热的所有者；用户发音与无所有者的预热为 null。
+  final Object? owner;
+}
+
+/// 后台预热的取消凭据：全局代际（配置切换）或所有者代际（该所有者取消）任一变化即失效。
+class _BackgroundTicket {
+  const _BackgroundTicket(this.owner, this.generation, this.ownerGeneration);
+  final Object? owner;
+  final int generation;
+  final int ownerGeneration;
 }
 
 class _EngineKey {
@@ -258,6 +284,12 @@ class TtsCoordinator {
 
   /// 后台文本预热代际。取消时仅淘汰尚未执行的合成；初始化或 native 推理保持自然结束。
   int _backgroundGeneration = 0;
+
+  /// 各所有者的后台预热代际：单个页面取消时只作废它自己的预热，不影响其他页面。
+  /// 使用 [Expando] 以弱引用记录所有者，页面销毁后不会被本表持有。
+  final Expando<int> _ownerBackgroundGenerations = Expando<int>(
+    'TtsCoordinator owner generation',
+  );
 
   /// 记录目标引擎与发音参数。
   ///
@@ -511,7 +543,7 @@ class TtsCoordinator {
       kind,
       config,
       priority: TtsSynthPriority.background,
-      backgroundGeneration: _backgroundGeneration,
+      backgroundTicket: _backgroundTicket(null),
     );
   }
 
@@ -520,7 +552,7 @@ class TtsCoordinator {
   /// 与 [speak] 同源配置（[_desiredKind]/[_desiredConfig]），故预热产物的 cacheKey
   /// 与点击发音逐字段一致、点击即命中（避免 §7.18 的「自建配置致 key 不符」回归）。
   /// 未配置时静默 no-op。供词典弹窗等「按当前设置发音」的场景批量预热。
-  Future<void> prewarmCurrent(String text) async {
+  Future<void> prewarmCurrent(String text, {required Object owner}) async {
     final kind = _desiredKind;
     final config = _desiredConfig;
     if (kind == null || config == null) return;
@@ -529,7 +561,7 @@ class TtsCoordinator {
       kind,
       config,
       priority: TtsSynthPriority.background,
-      backgroundGeneration: _backgroundGeneration,
+      backgroundTicket: _backgroundTicket(owner),
     );
   }
 
@@ -558,9 +590,31 @@ class TtsCoordinator {
   }
 
   /// 取消尚未开始的文本预热；运行中的初始化/推理不能被安全打断。
-  void cancelPendingPrewarm() {
-    _backgroundGeneration++;
-    _scheduler.cancelPendingBackground();
+  ///
+  /// [owner] 为 null 时取消全部后台预热（配置切换）；否则只取消该所有者的预热。
+  void cancelPendingPrewarm({Object? owner}) {
+    if (owner == null) {
+      _backgroundGeneration++;
+    } else {
+      _ownerBackgroundGenerations[owner] = _ownerGenerationOf(owner) + 1;
+    }
+    _scheduler.cancelPendingBackground(owner: owner);
+  }
+
+  _BackgroundTicket _backgroundTicket(Object? owner) => _BackgroundTicket(
+    owner,
+    _backgroundGeneration,
+    owner == null ? 0 : _ownerGenerationOf(owner),
+  );
+
+  int _ownerGenerationOf(Object owner) =>
+      _ownerBackgroundGenerations[owner] ?? 0;
+
+  bool _isBackgroundTicketStale(_BackgroundTicket? ticket) {
+    if (ticket == null) return false;
+    final owner = ticket.owner;
+    return ticket.generation != _backgroundGeneration ||
+        (owner != null && ticket.ownerGeneration != _ownerGenerationOf(owner));
   }
 
   /// 渲染主干：把（文本+引擎+配置）渲染为可播放的本地文件路径。
@@ -572,7 +626,7 @@ class TtsCoordinator {
     TtsEngineKind kind,
     TtsSpeechConfig config, {
     required TtsSynthPriority priority,
-    int? backgroundGeneration,
+    _BackgroundTicket? backgroundTicket,
   }) async {
     if (text.trim().isEmpty) return null;
 
@@ -599,7 +653,7 @@ class TtsCoordinator {
 
     // 取消发生在缓存查询或模型初始化期间时，不再把过期预热送入合成队列。
     if (priority == TtsSynthPriority.background &&
-        backgroundGeneration != _backgroundGeneration) {
+        _isBackgroundTicketStale(backgroundTicket)) {
       return null;
     }
 
@@ -627,7 +681,7 @@ class TtsCoordinator {
       config,
       cacheKey,
       initialPriority: priority,
-      backgroundGeneration: backgroundGeneration,
+      backgroundTicket: backgroundTicket,
       lookupElapsed: swLookup.elapsed,
     );
     _inFlightRender[cacheKey] = future;
@@ -645,7 +699,7 @@ class TtsCoordinator {
     TtsSpeechConfig config,
     String cacheKey, {
     required TtsSynthPriority initialPriority,
-    required int? backgroundGeneration,
+    required _BackgroundTicket? backgroundTicket,
     required Duration lookupElapsed,
   }) async {
     var priority = initialPriority;
@@ -659,7 +713,7 @@ class TtsCoordinator {
     }
     if (engine == null ||
         (priority == TtsSynthPriority.background &&
-            backgroundGeneration != _backgroundGeneration)) {
+            _isBackgroundTicketStale(backgroundTicket))) {
       return null;
     }
     AppLogger.log(
@@ -671,13 +725,19 @@ class TtsCoordinator {
           '缓存键=$cacheKey',
     );
     _acquireEngine(engine);
-    return _scheduler.submit(priority, cacheKey, () async {
-      try {
-        return await _synthAndStore(engine, text, kind, config, cacheKey);
-      } finally {
-        _releaseEngine(engine);
-      }
-    }, maxConcurrent: _maxConcurrentSynthFor(kind));
+    return _scheduler.submit(
+      priority,
+      cacheKey,
+      () async {
+        try {
+          return await _synthAndStore(engine, text, kind, config, cacheKey);
+        } finally {
+          _releaseEngine(engine);
+        }
+      },
+      maxConcurrent: _maxConcurrentSynthFor(kind),
+      owner: backgroundTicket?.owner,
+    );
   }
 
   /// 合成产文件并入库，返回文件路径（失败返回 null）。被 [_render] 经在途表去重调用。

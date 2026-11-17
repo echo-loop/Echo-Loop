@@ -197,8 +197,11 @@ class _FakeAiDictionarySource extends AiDictionarySource {
 
 /// 记录后台发音预热与取消，替代真实 TTS 协调器与 CDN 查询。
 class _PrewarmRecorder {
-  final List<String> wordPrewarms = [];
-  int cancelCount = 0;
+  /// 单词发音预热的（词，所有者）记录，用于区分页面窗口与当前卡的预热。
+  final List<({String word, Object owner})> wordPrewarms = [];
+
+  /// 被取消预热的所有者。
+  final List<Object> cancelledOwners = [];
 }
 
 class _RecordingTtsController extends TtsController {
@@ -213,10 +216,15 @@ class _RecordingTtsController extends TtsController {
   Future<bool> warmUpCurrentEngine() async => true;
 
   @override
-  Future<void> prewarmTextsIncremental(List<String> texts) async {}
+  Future<void> prewarmTextsIncremental(
+    List<String> texts, {
+    required Object owner,
+  }) async {}
 
   @override
-  void cancelTextsPrewarm() => recorder.cancelCount++;
+  void cancelTextsPrewarm({required Object owner}) {
+    recorder.cancelledOwners.add(owner);
+  }
 
   @override
   Future<void> stop() async {}
@@ -238,8 +246,8 @@ class _RecordingTextPlaybackController extends TextPlaybackController {
   TextPlaybackState build() => const TextPlaybackState();
 
   @override
-  Future<void> prewarmWord(String word) async {
-    recorder.wordPrewarms.add(word);
+  Future<void> prewarmWord(String word, {required Object owner}) async {
+    recorder.wordPrewarms.add((word: word, owner: owner));
   }
 
   @override
@@ -660,17 +668,73 @@ void main() {
       _app(upcomingWords: const ['pear', 'banana'], prewarmRecorder: recorder),
     );
     await tester.pump();
-    expect(recorder.wordPrewarms, containsAll(['apple', 'pear', 'banana']));
+    expect(
+      recorder.wordPrewarms.map((prewarm) => prewarm.word),
+      containsAll(['apple', 'pear', 'banana']),
+    );
   });
 
   testWidgets('离开复习页取消后台发音预热', (tester) async {
     final recorder = _PrewarmRecorder();
     await tester.pumpWidget(_app(prewarmRecorder: recorder));
     await tester.pump();
-    final cancelCountBeforeLeaving = recorder.cancelCount;
+    final cancelCountBeforeLeaving = recorder.cancelledOwners.length;
+    final prewarmCountBeforeLeaving = recorder.wordPrewarms.length;
     await tester.pumpWidget(const SizedBox());
     await tester.pump();
-    expect(recorder.cancelCount, greaterThan(cancelCountBeforeLeaving));
+    expect(
+      recorder.cancelledOwners.length,
+      greaterThan(cancelCountBeforeLeaving),
+    );
+    // 会话收尾引起的状态变化不能再发起新的预热。
+    expect(recorder.wordPrewarms.length, prewarmCountBeforeLeaving);
+  });
+
+  testWidgets('正面即订阅当前卡 AI 查词，不提前查询后续卡', (tester) async {
+    _FakeBasicLookup.requests.clear();
+    await tester.pumpWidget(
+      _app(
+        autoShowAiLookup: true,
+        wordDefinition: _WordDefinitionFixture.basicHit,
+        upcomingWords: const ['pear', 'banana'],
+        prewarmRecorder: _PrewarmRecorder(),
+      ),
+    );
+    await tester.pump();
+    expect(_FakeBasicLookup.requests, contains('apple|ai'));
+    expect(_FakeBasicLookup.requests, isNot(contains('pear|ai')));
+    expect(_FakeBasicLookup.requests, isNot(contains('banana|ai')));
+  });
+
+  testWidgets('翻面不取消当前卡的预热，切到下一张才结束它', (tester) async {
+    final recorder = _PrewarmRecorder();
+    await tester.pumpWidget(
+      _app(
+        autoShowAiLookup: true,
+        wordDefinition: _WordDefinitionFixture.basicHit,
+        upcomingWords: const ['pear'],
+        prewarmRecorder: recorder,
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+    final screenOwner = recorder.wordPrewarms.first.owner;
+    final cardOwner = recorder.wordPrewarms
+        .firstWhere((prewarm) => !identical(prewarm.owner, screenOwner))
+        .owner;
+
+    await tester.tap(
+      find.byKey(const Key('favorite-vocabulary-review-reveal-zone')),
+    );
+    await tester.pump();
+    await tester.pump();
+    expect(recorder.cancelledOwners, isNot(contains(cardOwner)));
+
+    _TestFavoriteVocabularyReview.lastCreated!.showCard('pear');
+    await tester.pump();
+    await tester.pump();
+    expect(recorder.cancelledOwners, contains(cardOwner));
+    expect(recorder.cancelledOwners, isNot(contains(screenOwner)));
   });
 
   testWidgets('turning on auto AI lookup prewarms the current word', (

@@ -125,17 +125,11 @@ TtsSpeechConfig ttsEdgeVoicePreviewConfig(EdgeVoice voice) {
   return TtsSpeechConfig(languageTag: voice.languageTag, voiceName: voice.id);
 }
 
-/// 计算有效引擎：始终尊重用户选择。
+/// 计算有效引擎：始终使用用户所选引擎。
 ///
 /// 本地引擎模型未就绪时只触发下载，不回退系统语音。用户需要兜底时应主动选择
 /// 平台 TTS，避免选中 Echo Loop/Balanced 时听到 Apple/System 语音。
-TtsEngineKind effectiveTtsEngine(
-  TtsEngineKind selected, {
-  required bool kokoroReady,
-  required bool piperReady,
-}) {
-  return selected;
-}
+TtsEngineKind effectiveTtsEngine(TtsEngineKind selected) => selected;
 
 /// 控制器运行态。
 class TtsControllerState {
@@ -157,6 +151,12 @@ class TtsControllerState {
 
   @override
   int get hashCode => Object.hash(speakingKey, configurationVersion);
+}
+
+/// 某个所有者的一次文本预热批次。以对象身份判断是否仍有效：取消或配置切换会移除它，
+/// 旧批次中的在途循环据此停止；已提交文本记录随批次一起失效。
+class _TextPrewarmBatch {
+  final Set<String> submittedTexts = {};
 }
 
 class TtsController extends Notifier<TtsControllerState> {
@@ -189,6 +189,9 @@ class TtsController extends Notifier<TtsControllerState> {
   /// 每次协调器拿到有效配置递增；不能从 [state] 反推，发音状态会在期间变化。
   int _configurationVersion = 0;
 
+  /// 已应用到协调器的有效目标（引擎 + 发音参数）；与之相同的重配置直接跳过。
+  (TtsEngineKind, TtsSpeechConfig)? _appliedTarget;
+
   TtsControllerState _stateWithSpeaking(String? speakingKey) =>
       TtsControllerState(
         speakingKey: speakingKey,
@@ -208,14 +211,13 @@ class TtsController extends Notifier<TtsControllerState> {
       player: ref.read(shortAudioPlayerProvider),
     );
 
-    // 设置（引擎/口音/音色）或本地引擎就绪态变化 → 重算有效引擎并热重配。
+    // 设置（引擎/口音/音色）变化 → 热重配。有效引擎与模型就绪无关，就绪变化不需要重配，
+    // 只需在模型就绪时预热当前引擎。
     ref.listen<TtsSettings>(ttsSettingsProvider, (_, __) => _reconfigure());
     ref.listen<bool>(kokoroReadyProvider, (_, isReady) {
-      _reconfigure();
       if (isReady) unawaited(warmUpCurrentEngine());
     });
     ref.listen<bool>(piperReadyProvider, (_, isReady) {
-      _reconfigure();
       if (isReady) unawaited(warmUpCurrentEngine());
     });
     // 首次配置只记录目标，不创建引擎/不连库；实际加载统一由模型 ready 门控触发。
@@ -226,18 +228,12 @@ class TtsController extends Notifier<TtsControllerState> {
     return const TtsControllerState();
   }
 
-  /// 重算有效引擎：尊重用户选择；本地模型未就绪只后台触发下载，不回退平台 TTS。
+  /// 按设置重算有效引擎与发音参数并热重配。
   void _reconfigure() {
     final settings = ref.read(ttsSettingsProvider);
-    final kokoroReady = ref.read(kokoroReadyProvider);
-    final piperReady = ref.read(piperReadyProvider);
     // 本地模型只由设置页显式下载或首次用户发音门控触发，不在 controller
     // 创建/重配置时隐式下载，避免预热或页面构建提前改变模型状态。
-    final effective = effectiveTtsEngine(
-      settings.engine,
-      kokoroReady: kokoroReady,
-      piperReady: piperReady,
-    );
+    final effective = effectiveTtsEngine(settings.engine);
     // Kokoro 变体、Piper 音色和引擎切换均由协调器根据配置目标统一处理。
     // 配置须匹配用户选中的有效引擎；本地引擎即使模型未就绪也保留 voiceName/modelTag，
     // 使下载完成后的后续发音直接落入正确缓存桶。
@@ -248,7 +244,14 @@ class TtsController extends Notifier<TtsControllerState> {
           ? settings.kokoroVariant.name
           : null,
     );
+    final target = (effective, config);
+    // 有效目标未变（如改了未选用引擎的音色、无关模型就绪变化）时是空操作：
+    // 不重配协调器、不清空在途批次、不通知页面重新提交。
+    if (target == _appliedTarget) return;
+    _appliedTarget = target;
     _readyCoordinator.configure(effective, config);
+    // 目标真正变化后，已提交文本的去重记录与在途批次均失效；页面需按新配置重新提交。
+    _textPrewarmBatches.clear();
     // configure 在第一个 await 前同步记录目标参数；此版本变更通知已创建的可见 tile
     // 再次提交预热，避免首次 post-frame 早于异步初始配置时遗漏。
     _configurationVersion++;
@@ -686,56 +689,62 @@ class TtsController extends Notifier<TtsControllerState> {
     );
   }
 
-  /// 批量文本预热代际：每次发起/取消递增，在途循环据此放弃过期批次。
-  /// 与试听预热的 [_prewarmToken] **相互独立**。
+  /// 各所有者的文本预热批次（词典弹窗、收藏页、复习页等各自隔离）。
   ///
-  /// 词典弹窗与收藏词汇页共用此 token：二者不会同时可见，且预热仅为优化，
-  /// 偶发互相取消可接受（如从收藏页单词打开词典弹窗，弹窗预热接管，关闭后
-  /// 收藏页下次 rebuild 重新触发，届时多已缓存）。
-  int _textsPrewarmToken = 0;
+  /// 取消只作废该所有者的批次，不影响其他页面的预热；配置变化时整体清空，
+  /// 使在途循环与旧去重记录一并失效。与试听预热的 [_prewarmToken] **相互独立**。
+  final Map<Object, _TextPrewarmBatch> _textPrewarmBatches = {};
 
-  /// 已提交过后台预热的文本（增量预热去重，切词/关闭时清空）。
-  final Set<String> _incrementalPrewarmed = {};
+  _TextPrewarmBatch _beginTextPrewarmBatch(Object owner) =>
+      _textPrewarmBatches.putIfAbsent(owner, _TextPrewarmBatch.new);
 
-  /// 后台预热一批文本（如词典「单词 + 例句」、收藏「单词 + 意群」，按显示顺序）。
+  bool _isTextPrewarmBatchCurrent(Object owner, _TextPrewarmBatch batch) =>
+      identical(_textPrewarmBatches[owner], batch);
+
+  /// 取得所有者的当前预热批次凭据（已有则沿用）。异步前置步骤（如 CDN 查询）在提交前
+  /// 用 [isTextPrewarmBatchCurrent] 校验，确保取消后不再提交。
+  Object beginTextPrewarmBatch(Object owner) => _beginTextPrewarmBatch(owner);
+
+  /// 凭据是否仍为该所有者的当前批次；取消或配置切换后返回 false。
+  bool isTextPrewarmBatchCurrent(Object owner, Object batch) =>
+      batch is _TextPrewarmBatch && _isTextPrewarmBatchCurrent(owner, batch);
+
+  /// 后台预热一批文本（如词典「单词 + 例句」，按显示顺序）。替换该所有者的旧批次。
   ///
   /// fire-and-forget、背景优先、命中缓存即跳过；用当前选中引擎/配置合成（经
   /// [TtsCoordinator.prewarmCurrent]），与点击发音 [speak] 同源，保证 cacheKey 一致、
-  /// 点击即命中。顺序 await（worker 本就串行），每轮校验 [_textsPrewarmToken]，页面
-  /// 离开后旧批次自动停止。失败静默（与发音一致），不阻塞、不弹窗。
-  Future<void> prewarmTexts(List<String> texts) async {
+  /// 点击即命中。顺序 await（worker 本就串行）。失败静默（与发音一致），不阻塞、不弹窗。
+  Future<void> prewarmTexts(List<String> texts, {required Object owner}) async {
     if (!await warmUpCurrentEngine()) return;
-    final token = ++_textsPrewarmToken;
+    final batch = _TextPrewarmBatch();
+    _textPrewarmBatches[owner] = batch;
     for (final text in texts) {
-      if (token != _textsPrewarmToken) return; // 已取消/被新批次接管：停止旧批次
+      if (!_isTextPrewarmBatchCurrent(owner, batch)) return;
       if (text.trim().isEmpty) continue;
       try {
-        await _readyCoordinator.prewarmCurrent(text);
+        await _readyCoordinator.prewarmCurrent(text, owner: owner);
       } catch (e, st) {
         AppLogger.log('TtsController', '✗ 批量文本预热异常：$e\n$st');
       }
     }
   }
 
-  /// 增量预热：只对尚未提交过的新文本各触发一次幂等合成，不重置批次 token，
-  /// 不打断已在推进的预热。供流式词典逐帧调用——每帧传当前完整可发音列表，
-  /// 已提交的自动跳过，只有新出现的例句真正进合成队列。
+  /// 增量预热：只对该所有者尚未提交过的新文本各触发一次幂等合成。
+  /// 供流式词典逐帧调用——每帧传当前完整可发音列表，已提交的自动跳过。
   ///
-  /// 与 [prewarmTexts]（一次性全量、`++token` 重置）不同：此处沿用当前 token，
-  /// [_incrementalPrewarmed] 在同步段去重（每条只提交一次），多帧并发调用互不
-  /// 重复提交；worker 串行由协调器内部排队。取消经 [cancelTextsPrewarm] 统一处理。
-  Future<void> prewarmTextsIncremental(List<String> texts) async {
-    final token = _textsPrewarmToken; // 沿用当前，不 ++
+  /// 去重记录按所有者隔离，在同步段完成（每条只提交一次），多帧并发调用互不重复提交；
+  /// worker 串行由协调器内部排队。取消经 [cancelTextsPrewarm] 统一处理。
+  Future<void> prewarmTextsIncremental(
+    List<String> texts, {
+    required Object owner,
+  }) async {
     if (!_readyCoordinator.isConfigured) {
-      AppLogger.log(
-        'TtsController',
-        '增量文本预热跳过：TTS 尚未配置 '
-            '批次=$token 请求数=${texts.length} 已提交=${_incrementalPrewarmed.length}',
-      );
+      AppLogger.log('TtsController', '增量文本预热跳过：TTS 尚未配置 请求数=${texts.length}');
       return;
     }
+    final batch = _beginTextPrewarmBatch(owner);
     if (!await warmUpCurrentEngine()) return;
-    if (token != _textsPrewarmToken) return;
+    if (!_isTextPrewarmBatchCurrent(owner, batch)) return;
     var accepted = 0;
     var skipped = 0;
     for (final text in texts) {
@@ -743,58 +752,48 @@ class TtsController extends Notifier<TtsControllerState> {
         skipped++;
         continue;
       }
-      // 初始配置在 build 后的 microtask 中落定。未配置时不能占用 seen，否则
-      // 收藏 tile 即使在配置完成后重提，也会被误判为已提交。
+      // 初始配置在 build 后的 microtask 中落定。未配置时不能占用去重记录，否则
+      // 配置完成后同文本会被误判为已提交。
       if (!_readyCoordinator.isConfigured) {
-        AppLogger.log(
-          'TtsController',
-          '增量文本预热跳过：TTS 尚未配置 '
-              '批次=$token 请求数=${texts.length} 已提交=${_incrementalPrewarmed.length}',
-        );
+        AppLogger.log('TtsController', '增量文本预热跳过：TTS 尚未配置 请求数=${texts.length}');
         return;
       }
-      if (!_incrementalPrewarmed.add(text)) {
+      if (!batch.submittedTexts.add(text)) {
         skipped++;
         continue;
       }
       accepted++;
       try {
-        await _readyCoordinator.prewarmCurrent(text);
+        await _readyCoordinator.prewarmCurrent(text, owner: owner);
       } catch (e, st) {
         AppLogger.log('TtsController', '✗ 增量预热异常: $e\n$st');
       }
-      if (token != _textsPrewarmToken) {
+      if (!_isTextPrewarmBatchCurrent(owner, batch)) {
         AppLogger.log(
           'TtsController',
-          '增量文本预热已取消：旧批次=$token 本次已提交=$accepted '
-              '当前已提交=${_incrementalPrewarmed.length}',
+          '增量文本预热已取消：本次已提交=$accepted '
+              '当前已提交=${batch.submittedTexts.length}',
         );
         return;
       }
     }
     AppLogger.log(
       'TtsController',
-      '增量文本预热处理完成：批次=$token 请求数=${texts.length} '
-          '新提交=$accepted 跳过=$skipped 当前已提交=${_incrementalPrewarmed.length}',
+      '增量文本预热处理完成：请求数=${texts.length} '
+          '新提交=$accepted 跳过=$skipped 当前已提交=${batch.submittedTexts.length}',
     );
   }
 
-  /// 当前文本预热批次；每次 [cancelTextsPrewarm] 后变化，供异步前置步骤（如 CDN 查询）判断是否已被取消。
-  int get textsPrewarmBatch => _textsPrewarmToken;
-
-  /// 取消在途批量文本预热（页面离开时调用），使预热循环下轮即停。
+  /// 取消该所有者在途的文本预热（页面离开、词典关闭、切词时调用）。
   ///
-  /// 同时清空增量预热去重集合，使切词/关闭后新一轮从头预热。
-  void cancelTextsPrewarm() {
-    final previousToken = _textsPrewarmToken;
-    final seen = _incrementalPrewarmed.length;
-    _textsPrewarmToken++;
-    _incrementalPrewarmed.clear();
+  /// 同时清空该所有者的去重记录，使其之后重新提交时从头预热。不影响其他所有者。
+  void cancelTextsPrewarm({required Object owner}) {
+    final batch = _textPrewarmBatches.remove(owner);
     AppLogger.log(
       'TtsController',
-      '取消文本预热：批次=$previousToken→$_textsPrewarmToken 已清除提交记录=$seen',
+      '取消文本预热：已清除提交记录=${batch?.submittedTexts.length ?? 0}',
     );
-    _readyCoordinator.cancelPendingPrewarm();
+    _readyCoordinator.cancelPendingPrewarm(owner: owner);
   }
 
   /// 后台加载当前模型实例，不合成文本；供收藏词汇 Tab 降低首次未命中延迟。

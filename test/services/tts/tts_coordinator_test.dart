@@ -37,6 +37,9 @@ void _stubEngine(MockTtsEngine engine, {String filePath = '/tmp/out.wav'}) {
   );
 }
 
+/// 测试用预热所有者，区分不同页面的预热批次。
+const _owner = Object();
+
 void main() {
   setUpAll(() {
     registerFallbackValue(_config);
@@ -105,9 +108,8 @@ void main() {
     ).thenAnswer((_) async {});
 
     when(() => player.stop()).thenAnswer((_) async {});
-    when(
-      () => player.playFile(any()),
-    ).thenAnswer((_) async => AudioPlaybackResult.completed);
+    when(() => player.playFile(any()))
+        .thenAnswer((_) async => AudioPlaybackResult.completed);
   });
 
   group('configure（惰性引擎）', () {
@@ -217,9 +219,8 @@ void main() {
   test('缓存文件被抢占时不降级实时朗读', () async {
     final c = build();
     await c.configure(TtsEngineKind.platform, _config);
-    when(
-      () => player.playFile(any()),
-    ).thenAnswer((_) async => AudioPlaybackResult.cancelled);
+    when(() => player.playFile(any()))
+        .thenAnswer((_) async => AudioPlaybackResult.cancelled);
 
     expect(await c.speak('hello'), isFalse);
     verifyNever(() => engine.speakLive(any()));
@@ -227,9 +228,8 @@ void main() {
 
   group('speak', () {
     test('缓存命中 → 不合成，直接播放缓存文件', () async {
-      when(
-        () => store.lookup(any()),
-      ).thenAnswer((_) async => File('/tmp/cached.wav'));
+      when(() => store.lookup(any()))
+          .thenAnswer((_) async => File('/tmp/cached.wav'));
 
       final c = build();
       await c.configure(TtsEngineKind.platform, _config);
@@ -252,9 +252,8 @@ void main() {
     test('缓存命中不等待正在初始化的引擎', () async {
       final initializing = Completer<void>();
       when(() => engine.initialize()).thenAnswer((_) => initializing.future);
-      when(
-        () => store.lookup(any()),
-      ).thenAnswer((_) async => File('/tmp/cached.wav'));
+      when(() => store.lookup(any()))
+          .thenAnswer((_) async => File('/tmp/cached.wav'));
 
       final c = build();
       await c.configure(TtsEngineKind.kokoro, _config);
@@ -721,9 +720,8 @@ void main() {
     });
 
     test('命中缓存 → 跳过合成（去重）', () async {
-      when(
-        () => store.lookup(any()),
-      ).thenAnswer((_) async => File('/tmp/cached.wav'));
+      when(() => store.lookup(any()))
+          .thenAnswer((_) async => File('/tmp/cached.wav'));
 
       final c = build();
       await c.configure(TtsEngineKind.kokoro, _config);
@@ -779,7 +777,7 @@ void main() {
   group('prewarmCurrent（按当前配置预热）', () {
     test('未配置 → no-op，不建引擎不合成', () async {
       final c = build();
-      await c.prewarmCurrent('hi');
+      await c.prewarmCurrent('hi', owner: _owner);
       verifyNever(() => engine.initialize());
       verifyNever(
         () => engine.synthesize(
@@ -799,7 +797,7 @@ void main() {
       );
       final c = build();
       await c.configure(TtsEngineKind.kokoro, cfg);
-      await c.prewarmCurrent('hello');
+      await c.prewarmCurrent('hello', owner: _owner);
 
       verify(
         () => engine.synthesize(
@@ -824,13 +822,12 @@ void main() {
     });
 
     test('命中缓存 → 跳过合成（与 speak 同源 key 即命中）', () async {
-      when(
-        () => store.lookup(any()),
-      ).thenAnswer((_) async => File('/tmp/cached.wav'));
+      when(() => store.lookup(any()))
+          .thenAnswer((_) async => File('/tmp/cached.wav'));
 
       final c = build();
       await c.configure(TtsEngineKind.kokoro, _config);
-      await c.prewarmCurrent('hi');
+      await c.prewarmCurrent('hi', owner: _owner);
 
       verifyNever(
         () => engine.synthesize(
