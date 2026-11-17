@@ -4054,6 +4054,45 @@ class AppLocalizationsZh extends AppLocalizations {
   String get wordSplitBeforeAction => '断句';
 
   @override
+  String get redo => '重做';
+
+  @override
+  String get mergeWithPreviousSentence => '合并上一句';
+
+  @override
+  String get subtitleEditSentenceText => '编辑文字';
+
+  @override
+  String get subtitleInsertSentenceAbove => '在上方插入句子';
+
+  @override
+  String get subtitleInsertSentenceBelow => '在下方插入句子';
+
+  @override
+  String get subtitleInsertSentenceNoGap => '这里没有空隙，可先拖动边界留出位置';
+
+  @override
+  String get subtitleAddSentenceHere => '添加句子';
+
+  @override
+  String get subtitleNewSentenceHint => '输入新句子';
+
+  @override
+  String get subtitleTextEditHint => '回车保存 · Esc 取消';
+
+  @override
+  String get insertWordBefore => '在前面插入词';
+
+  @override
+  String get insertWordAfter => '在后面插入词';
+
+  @override
+  String get deleteWord => '删除单词';
+
+  @override
+  String get subtitleNewWordHint => '新词';
+
+  @override
   String get saveSubtitleEdits => '保存字幕修改';
 
   @override

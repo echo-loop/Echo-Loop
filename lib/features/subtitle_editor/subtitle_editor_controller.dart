@@ -19,6 +19,7 @@ import '../../providers/audio_library_provider.dart';
 import '../../providers/favorite_sentence_lifecycle_provider.dart';
 import '../../providers/learning_progress_provider.dart';
 import '../../providers/listening_practice/listening_practice_provider.dart';
+import '../../services/app_logger.dart';
 import '../../utils/app_data_dir.dart';
 import '../../utils/srt_generator.dart';
 import '../../utils/synthetic_word_timestamps.dart';
@@ -85,6 +86,10 @@ class SubtitleEditorState {
   /// 该词及左右各两词的边界。切句 / 播放整句 / 结构变化时清空。
   final int? focusedWordIndex;
 
+  /// 是否有可撤销 / 可重做的编辑（驱动标题栏按钮的可用态）。
+  final bool canUndo;
+  final bool canRedo;
+
   const SubtitleEditorState({
     required this.audioItem,
     this.isLoading = true,
@@ -108,6 +113,8 @@ class SubtitleEditorState {
     this.selectionEpoch = 0,
     this.words = const [],
     this.focusedWordIndex,
+    this.canUndo = false,
+    this.canRedo = false,
   });
 
   Sentence? get selectedSentence {
@@ -146,6 +153,8 @@ class SubtitleEditorState {
     int? selectionEpoch,
     List<WordTimestamp>? words,
     Object? focusedWordIndex = _sentinel,
+    bool? canUndo,
+    bool? canRedo,
   }) {
     return SubtitleEditorState(
       audioItem: audioItem ?? this.audioItem,
@@ -180,9 +189,18 @@ class SubtitleEditorState {
       focusedWordIndex: focusedWordIndex == _sentinel
           ? this.focusedWordIndex
           : focusedWordIndex as int?,
+      canUndo: canUndo ?? this.canUndo,
+      canRedo: canRedo ?? this.canRedo,
     );
   }
 }
+
+/// 一步编辑前后的可还原内容：字幕、词级时间与当时的选中句。
+typedef _EditSnapshot = ({
+  List<Sentence> sentences,
+  List<WordTimestamp> words,
+  int? selectedSentenceIndex,
+});
 
 const _sentinel = Object();
 
@@ -209,8 +227,25 @@ class SubtitleEditorController extends StateNotifier<SubtitleEditorState> {
   bool _didInitZoom = false;
   String _baselineSubtitleHash = '';
 
-  /// 词级时间是否被拖动编辑过（句子 SRT 不变、仅词边界变时也要能保存）。
-  bool _wordsDirty = false;
+  /// 进入编辑页或上次保存时的词级时间；与当前比较判定「仅改词边界」的改动，
+  /// 撤销回原样时可恢复为未修改。
+  List<WordTimestamp> _baselineWords = const [];
+
+  /// 撤销 / 重做栈，只在本次编辑会话内有效。
+  final List<_EditSnapshot> _undoStack = [];
+  final List<_EditSnapshot> _redoStack = [];
+
+  /// 撤销栈上限，防止长时间编辑无限占用内存。
+  static const int _maxHistoryLength = 200;
+
+  /// 一次边界拖动是否已记录撤销点：拖动中每帧都会调用 [adjustWord]，
+  /// 只在第一帧记录，整次拖动撤销一步。
+  bool _hasRecordedAdjust = false;
+
+  /// 每次撤销记录变化（新编辑、撤销、重做）都递增；调用方据此判断某个撤销入口
+  /// （如删除提示条）是否还对应最新一步。
+  int _editRevision = 0;
+  int get editRevision => _editRevision;
 
   /// 进入编辑页时的原始句子数量。
   ///
@@ -260,6 +295,7 @@ class SubtitleEditorController extends StateNotifier<SubtitleEditorState> {
       _baselineSentenceCount = sentences.length;
       // 物化为按句子文本 token 对齐的可编辑词列表（词边界拖动直接改它）。
       final words = _buildWords(sentences, await _loadWords(sentences));
+      _baselineWords = words;
       state = state.copyWith(
         isLoading: false,
         totalDuration: duration,
@@ -311,6 +347,24 @@ class SubtitleEditorController extends StateNotifier<SubtitleEditorState> {
     return _sentenceWords(index);
   }
 
+  /// 选中句内与播放头对应的单词序号：句子列表高亮它、波形标出它的区间，与播放头
+  /// 和视频画面始终是同一时刻。
+  ///
+  /// 用户点了某个词（[SubtitleEditorState.focusedWordIndex]）时以该词为准：播完
+  /// 一个词后播放头停在词尾，按位置会落到下一个词上。其余情况（播放整句、拖动 /
+  /// 点按定位播放头）按播放头位置取词，落在词与词的空隙或句外时为 null。
+  int? get highlightedWordIndex {
+    final words = wordsOfSelectedSentence;
+    if (words.isEmpty) return null;
+    final focused = state.focusedWordIndex;
+    if (focused != null && focused < words.length) return focused;
+    final position = state.playbackPosition;
+    final index = words.indexWhere(
+      (word) => position >= word.startTime && position < word.endTime,
+    );
+    return index < 0 ? null : index;
+  }
+
   /// 波形要绘制 / 可拖动的全部单词边界：选中句 + 前后相邻句的所有词。
   ///
   /// 句子的起止边界即首词起点 / 末词终点，统一为单词边界（见 [adjustWord]），不再
@@ -357,9 +411,19 @@ class SubtitleEditorController extends StateNotifier<SubtitleEditorState> {
     final word = view[local];
 
     final bounds = _wordEdgeBounds(sentenceIndex, view, local, edge);
-    final clamped = _clampDuration(target, bounds.lower, bounds.upper);
     final current = edge == BoundaryEdge.start ? word.startTime : word.endTime;
+    // 相邻词 / 句边界是硬约束，最小词长只阻止「再变短」：插词按字数分时间可能
+    // 产生短于最小词长的词，此时若强行补足最小词长会越过相邻词、造成重叠。
+    final clamped = _clampDuration(
+      target,
+      current < bounds.lower ? current : bounds.lower,
+      current > bounds.upper ? current : bounds.upper,
+    );
     if (clamped == current) return;
+    if (!_hasRecordedAdjust) {
+      _recordHistory();
+      _hasRecordedAdjust = true;
+    }
 
     // 写回原始词列表（采用句区间内显示值，避免原始词积累越界时间）。
     final words = List<WordTimestamp>.of(state.words);
@@ -374,22 +438,25 @@ class SubtitleEditorController extends StateNotifier<SubtitleEditorState> {
     final nextSentences = isSentenceEdge
         ? _withSentenceEdge(sentenceIndex, edge, clamped)
         : state.sentences;
-    // 纯内部词编辑不反映在句子 SRT 上，需单独标 dirty；句子边界编辑由 SRT hash 判定
-    // （拖回原位可恢复未修改态）。
-    if (!isSentenceEdge) _wordsDirty = true;
 
     final wasPlaying = state.isPlaying;
     if (wasPlaying) _cancelPlaybackSession();
-    state = state.copyWith(
-      words: words,
-      sentences: nextSentences,
-      isDirty: _sentencesChanged(nextSentences) || _wordsDirty,
-      playingSentenceIndex: wasPlaying ? null : state.playingSentenceIndex,
-      isPlaying: wasPlaying ? false : state.isPlaying,
-      playbackMode: wasPlaying
-          ? SubtitleEditorPlaybackMode.idle
-          : state.playbackMode,
+    _commitEdit(
+      state.copyWith(
+        words: words,
+        sentences: nextSentences,
+        playingSentenceIndex: wasPlaying ? null : state.playingSentenceIndex,
+        isPlaying: wasPlaying ? false : state.isPlaying,
+        playbackMode: wasPlaying
+            ? SubtitleEditorPlaybackMode.idle
+            : state.playbackMode,
+      ),
     );
+  }
+
+  /// 一次边界拖动结束（松手）：下一次拖动重新记录撤销点。
+  void endWordAdjust() {
+    _hasRecordedAdjust = false;
   }
 
   /// 计算第 [local] 个词某端边界的允许范围 `[lower, upper]`。
@@ -580,117 +647,177 @@ class SubtitleEditorController extends StateNotifier<SubtitleEditorState> {
   static List<WordTimestamp> _proportionalTokens(
     List<String> tokens,
     Sentence s,
-  ) {
-    final startMs = s.startTime.inMilliseconds;
-    final endMs = s.endTime.inMilliseconds;
-    final span = endMs - startMs;
-    final weights = [for (final token in tokens) _tokenWeight(token)];
-    final totalWeight = weights.fold<int>(0, (sum, w) => sum + w);
-    final result = <WordTimestamp>[];
-    var currentMs = startMs;
-    var consumed = 0;
-    for (var i = 0; i < tokens.length; i++) {
-      consumed += weights[i];
-      final nextMs = i == tokens.length - 1
-          ? endMs
-          : (span <= 0 || totalWeight <= 0
-                ? startMs
-                : startMs + (span * consumed / totalWeight).round());
-      result.add(
-        WordTimestamp(
-          word: tokens[i],
-          startTime: Duration(milliseconds: currentMs),
-          endTime: Duration(milliseconds: nextMs),
-        ),
-      );
-      currentMs = nextMs;
-    }
-    return result;
-  }
+  ) => SubtitleEditEngine.distributeTokens(tokens, s.startTime, s.endTime);
 
-  /// 词的时长权重：字母数字字符数（纯标点 token 记 1，保证也分到时间）。
-  static int _tokenWeight(String token) {
-    final alnum = token.replaceAll(RegExp(r'[^A-Za-z0-9]'), '').length;
-    return alnum > 0 ? alnum : 1;
-  }
-
-  /// 就地编辑选中句第 [localWordIndex] 个词为 [input]（铅笔编辑提交时调用）。
+  /// 就地编辑选中句第 [localWordIndex] 个词为 [input]（单词工具栏「编辑」提交时调用）。
   ///
-  /// 同步更新句子文本 token 与词列表，维持「词数 == 句子 token 数」不变量：
-  /// - [input] 为空 → 删除该词（其余词时间戳不变）；若是句中唯一词则删整句。
+  /// - [input] 为空 → 删除该词（其余词时间不变）；若是句中唯一词则删整句。
   /// - 单个词 → 仅改词文本，时间区间不变。
-  /// - 多个词 → 把原词的 `[start, end]` 按各词字符数比例切成多段（[_proportionalTokens]）。
-  ///
-  /// 删首/末词会让句界跟随新首/末词时间，避免 [_buildWords] 把它 snap 回旧句界从而
-  /// 改动其余词时间戳。
+  /// - 多个词 → 把该词所在的时间按各词字符数比例切成多段。
   void editWord(int localWordIndex, String input) {
     final selected = state.selectedSentenceIndex;
-    if (selected == null ||
-        selected < 0 ||
-        selected >= state.sentences.length) {
+    if (selected == null) return;
+    final tokens = _sentenceTokens(selected);
+    if (tokens == null ||
+        localWordIndex < 0 ||
+        localWordIndex >= tokens.length) {
       return;
     }
-    final range = _sentenceTokenRange(selected);
-    if (range == null) return;
-    if (localWordIndex < 0 || localWordIndex >= range.count) return;
-    final view = _sentenceWords(selected);
-    if (localWordIndex >= view.length) return;
-    final globalIndex = range.offset + localWordIndex;
-    final original = view[localWordIndex];
-
     final newTokens = _splitTokens(input);
+    _replaceSentenceTokens(selected, [
+      for (var i = 0; i < localWordIndex; i++) (tokens[i], i),
+      for (final token in newTokens) (token, null),
+      for (var i = localWordIndex + 1; i < tokens.length; i++) (tokens[i], i),
+    ]);
+  }
 
-    // 句子文本 token：用新 token 替换被编辑词。
-    final sentence = state.sentences[selected];
-    final tokens = _splitTokens(sentence.text)
-      ..replaceRange(localWordIndex, localWordIndex + 1, newTokens);
-    final newText = tokens.join(' ');
+  /// 删除选中句第 [localWordIndex] 个词；句中唯一词时删整句。
+  void deleteWord(int localWordIndex) => editWord(localWordIndex, '');
 
-    // 删空了该词：句中唯一词则删整句（deleteSentence 内部会处理单句无法删的情况），
-    // 否则只移除该词。
-    if (newText.isEmpty) {
-      deleteSentence(selected);
+  /// 在选中句第 [localWordIndex] 个词之前（[after] 为 false）或之后插入 [input]。
+  ///
+  /// 新词分到与相邻词之间的空隙；紧挨着没有空隙时与该词一起按字符比例分时间，
+  /// 之后用户可在波形上拖动微调。
+  void insertWords(int localWordIndex, String input, {required bool after}) {
+    final selected = state.selectedSentenceIndex;
+    if (selected == null) return;
+    final tokens = _sentenceTokens(selected);
+    final newTokens = _splitTokens(input);
+    if (tokens == null ||
+        newTokens.isEmpty ||
+        localWordIndex < 0 ||
+        localWordIndex >= tokens.length) {
       return;
     }
+    final at = after ? localWordIndex + 1 : localWordIndex;
+    _replaceSentenceTokens(selected, [
+      for (var i = 0; i < at; i++) (tokens[i], i),
+      for (final token in newTokens) (token, null),
+      for (var i = at; i < tokens.length; i++) (tokens[i], i),
+    ]);
+  }
 
-    // 词列表：用新词（按字符比例分配原词区间）替换被编辑词；删除则移除。
-    final replacement = newTokens.isEmpty
-        ? const <WordTimestamp>[]
-        : _proportionalTokens(
-            newTokens,
-            Sentence(
-              index: 0,
-              text: '',
-              startTime: original.startTime,
-              endTime: original.endTime,
-            ),
-          );
-    final newWords = List<WordTimestamp>.of(state.words)
-      ..replaceRange(globalIndex, globalIndex + 1, replacement);
+  /// 把第 [index] 句的文字整体改为 [text]。
+  ///
+  /// 逐词对比新旧文字：没改的词保留原时间，新增 / 改写的词在前后两个保留词之间按
+  /// 字数分时间，删掉的词直接去掉。清空文字等同删除该句。
+  void editSentenceText(int index, String text) {
+    final tokens = _sentenceTokens(index);
+    if (tokens == null) return;
+    final newTokens = _splitTokens(text);
+    if (listEquals(tokens, newTokens)) return;
+    final matches = _engine.matchTokens(tokens, newTokens);
+    _replaceSentenceTokens(index, [
+      for (var i = 0; i < newTokens.length; i++) (newTokens[i], matches[i]),
+    ]);
+  }
 
-    // 句界跟随新首/末词，保证其余词时间戳不被 _buildWords 的首尾 snap 改动。
-    final newStart = newWords[range.offset].startTime;
-    final newEnd = newWords[range.offset + tokens.length - 1].endTime;
-    final nextSentences = [...state.sentences];
-    nextSentences[selected] = sentence.copyWith(
-      text: newText,
-      startTime: newStart,
-      endTime: newEnd,
+  /// 第 [index] 句的文本 token；越界返回 null。
+  List<String>? _sentenceTokens(int index) {
+    if (index < 0 || index >= state.sentences.length) return null;
+    return _splitTokens(state.sentences[index].text);
+  }
+
+  /// 用 [tokens] 替换第 [index] 句的文字并重新计算词时间。
+  ///
+  /// 每个新 token 带上它对应的旧 token 序号（null 表示新增或改写），对应到旧词的
+  /// 保留原时间；句子起止跟随新的首 / 末词，避免 [_buildWords] 把首尾 snap 回旧
+  /// 句界而改动其余词。结果为空时删除整句（仅剩一句时不删）。
+  void _replaceSentenceTokens(int index, List<(String, int?)> tokens) {
+    if (tokens.isEmpty) {
+      deleteSentence(index);
+      return;
+    }
+    final range = _sentenceTokenRange(index);
+    if (range == null) return;
+    final sentence = state.sentences[index];
+    final retimed = _engine.retimeTokens(
+      oldWords: _sentenceWords(index),
+      newTokens: [for (final (token, _) in tokens) token],
+      matches: [for (final (_, match) in tokens) match],
+      sentenceStart: sentence.startTime,
+      sentenceEnd: sentence.endTime,
+    );
+    final words = List<WordTimestamp>.of(state.words)
+      ..replaceRange(range.offset, range.offset + range.count, retimed);
+    final sentences = [...state.sentences];
+    sentences[index] = sentence.copyWith(
+      text: retimed.map((word) => word.word).join(' '),
+      startTime: retimed.first.startTime,
+      endTime: retimed.last.endTime,
     );
 
-    _wordsDirty = true;
-    final wasPlaying = state.isPlaying;
-    if (wasPlaying) _cancelPlaybackSession();
-    state = state.copyWith(
-      sentences: nextSentences,
-      words: _buildWords(nextSentences, newWords),
-      focusedWordIndex: null,
-      isDirty: _sentencesChanged(nextSentences) || _wordsDirty,
-      playingSentenceIndex: wasPlaying ? null : state.playingSentenceIndex,
-      isPlaying: wasPlaying ? false : state.isPlaying,
-      playbackMode: wasPlaying
-          ? SubtitleEditorPlaybackMode.idle
-          : state.playbackMode,
+    _recordHistory();
+    _cancelPlaybackSession();
+    _commitEdit(
+      state.copyWith(
+        sentences: sentences,
+        words: _buildWords(sentences, words),
+        focusedWordIndex: null,
+        playingSentenceIndex: null,
+        isPlaying: false,
+        playbackMode: SubtitleEditorPlaybackMode.idle,
+      ),
+    );
+  }
+
+  /// 第 [index] 句之前 / 之后可插入新句的区间；空隙不足时为 null（入口置灰）。
+  SentenceSlot? insertSlotNear(int index, {required bool after}) {
+    return after
+        ? _engine.slotAfter(state.sentences, index, _insertableDuration())
+        : _engine.slotBefore(state.sentences, index);
+  }
+
+  /// 暂停时播放头所在空隙可插入新句的区间；播放中或播放头在某句之内时为 null。
+  SentenceSlot? get insertSlotAtPlayhead {
+    if (state.isPlaying || state.isLoading) return null;
+    return _engine.slotAt(
+      state.sentences,
+      state.playbackPosition,
+      _insertableDuration(),
+    );
+  }
+
+  Duration _insertableDuration() =>
+      _effectiveTotalDuration() ??
+      (state.sentences.isEmpty ? Duration.zero : state.sentences.last.endTime);
+
+  /// 在 [slot] 处插入文字为 [text] 的新句并选中它；文字为空时不插入。
+  void insertSentence(SentenceSlot slot, String text) {
+    final tokens = _splitTokens(text);
+    if (tokens.isEmpty || slot.end <= slot.start) return;
+    final inserted = _engine.insertSentence(state.sentences, slot, text);
+    final index = inserted.index;
+    // 新句的词插在它前面各句的词之后，其余词时间不变。
+    final offset = index < state.sentences.length
+        ? _sentenceTokenRange(index)?.offset
+        : state.words.length;
+    if (offset == null) return;
+    final words = List<WordTimestamp>.of(state.words)
+      ..insertAll(
+        offset,
+        SubtitleEditEngine.distributeTokens(tokens, slot.start, slot.end),
+      );
+
+    _recordHistory();
+    _cancelPlaybackSession();
+    _commitEdit(
+      state.copyWith(
+        sentences: inserted.sentences,
+        words: _buildWords(inserted.sentences, words),
+        selectedSentenceIndex: index,
+        selectionEpoch: state.selectionEpoch + 1,
+        playbackPosition: slot.start,
+        focusedWordIndex: null,
+        playingSentenceIndex: null,
+        isPlaying: false,
+        playbackMode: SubtitleEditorPlaybackMode.idle,
+      ),
+    );
+    AppLogger.log(
+      'SubtitleEditor',
+      '插入新句 index=$index range=${slot.start.inMilliseconds}-'
+          '${slot.end.inMilliseconds}ms',
     );
   }
 
@@ -721,17 +848,19 @@ class SubtitleEditorController extends StateNotifier<SubtitleEditorState> {
       secondStart: view[localWordIndex].startTime,
     );
     if (identical(next, state.sentences)) return;
+    _recordHistory();
     _cancelPlaybackSession();
-    state = state.copyWith(
-      sentences: next,
-      selectedSentenceIndex: selected,
-      playingSentenceIndex: null,
-      isPlaying: false,
-      playbackMode: SubtitleEditorPlaybackMode.idle,
-      playbackPosition: next[selected].startTime,
-      isDirty: _sentencesChanged(next) || _wordsDirty,
-      focusedWordIndex: null,
-      words: _buildWords(next, state.words),
+    _commitEdit(
+      state.copyWith(
+        sentences: next,
+        selectedSentenceIndex: selected,
+        playingSentenceIndex: null,
+        isPlaying: false,
+        playbackMode: SubtitleEditorPlaybackMode.idle,
+        playbackPosition: next[selected].startTime,
+        focusedWordIndex: null,
+        words: _buildWords(next, state.words),
+      ),
     );
   }
 
@@ -844,7 +973,10 @@ class SubtitleEditorController extends StateNotifier<SubtitleEditorState> {
     );
   }
 
+  /// 定位播放头（点按波形或拖动播放头）。播放中定位先停止播放，画面与高亮的
+  /// 单词停在新位置。
   void scrubTo(Duration position) {
+    if (state.isPlaying) unawaited(stopPlayback());
     state = state.copyWith(
       selectedSentenceIndex: _sentenceIndexAt(position),
       playbackPosition: _clampToDuration(position),
@@ -906,28 +1038,31 @@ class SubtitleEditorController extends StateNotifier<SubtitleEditorState> {
   void mergeWithNext(int index) {
     final next = _engine.mergeWithNext(state.sentences, index);
     if (identical(next, state.sentences)) return;
+    _recordHistory();
     _cancelPlaybackSession();
     final selectedIndex = _indexAfterMerge(
       selectedIndex: state.selectedSentenceIndex,
       mergeIndex: index,
     );
-    state = state.copyWith(
-      sentences: next,
-      selectedSentenceIndex: selectedIndex,
-      playingSentenceIndex: null,
-      isPlaying: false,
-      playbackMode: SubtitleEditorPlaybackMode.idle,
-      playbackPosition: _positionForSelected(next, selectedIndex),
-      isDirty: _sentencesChanged(next) || _wordsDirty,
-      focusedWordIndex: null,
-      // 合并不增减词，词数不变 → 顺序索引对齐，保留已编辑的词级时间。
-      words: _buildWords(next, state.words),
+    _commitEdit(
+      state.copyWith(
+        sentences: next,
+        selectedSentenceIndex: selectedIndex,
+        playingSentenceIndex: null,
+        isPlaying: false,
+        playbackMode: SubtitleEditorPlaybackMode.idle,
+        playbackPosition: _positionForSelected(next, selectedIndex),
+        focusedWordIndex: null,
+        // 合并不增减词，词数不变 → 顺序索引对齐，保留已编辑的词级时间。
+        words: _buildWords(next, state.words),
+      ),
     );
   }
 
   void deleteSentence(int index) {
     final next = _engine.deleteSentence(state.sentences, index);
     if (identical(next, state.sentences)) return;
+    _recordHistory();
     _cancelPlaybackSession();
     final selectedIndex = _indexAfterDelete(
       selectedIndex: state.selectedSentenceIndex,
@@ -940,34 +1075,99 @@ class SubtitleEditorController extends StateNotifier<SubtitleEditorState> {
         ? state.words
         : (List<WordTimestamp>.of(state.words)
             ..removeRange(range.offset, range.offset + range.count));
-    state = state.copyWith(
-      sentences: next,
-      selectedSentenceIndex: selectedIndex,
-      playingSentenceIndex: null,
-      isPlaying: false,
-      playbackMode: SubtitleEditorPlaybackMode.idle,
-      playbackPosition: _positionForSelected(next, selectedIndex),
-      isDirty: _sentencesChanged(next) || _wordsDirty,
-      focusedWordIndex: null,
-      words: _buildWords(next, trimmedWords),
+    _commitEdit(
+      state.copyWith(
+        sentences: next,
+        selectedSentenceIndex: selectedIndex,
+        playingSentenceIndex: null,
+        isPlaying: false,
+        playbackMode: SubtitleEditorPlaybackMode.idle,
+        playbackPosition: _positionForSelected(next, selectedIndex),
+        focusedWordIndex: null,
+        words: _buildWords(next, trimmedWords),
+      ),
     );
   }
 
-  /// 还原句子列表，用于删除后的撤销操作。
-  ///
-  /// 直接用调用方在删除前捕获的快照覆盖当前列表，并停止任何播放。
-  /// 撤销后按当前字幕是否等于进入编辑页时的原始字幕重新计算 [isDirty]。
-  void restoreSentences(List<Sentence> snapshot) {
+  /// 撤销上一步编辑：还原字幕与词时间，并选中当时编辑的句子、让波形居中到它，
+  /// 让用户看到撤销了什么。
+  void undo() {
+    if (_undoStack.isEmpty) return;
+    _redoStack.add(_snapshot());
+    _restoreSnapshot(_undoStack.removeLast(), action: '撤销');
+  }
+
+  /// 重做最近一次撤销的编辑。
+  void redo() {
+    if (_redoStack.isEmpty) return;
+    _undoStack.add(_snapshot());
+    _restoreSnapshot(_redoStack.removeLast(), action: '重做');
+  }
+
+  _EditSnapshot _snapshot() => (
+    sentences: state.sentences,
+    words: state.words,
+    selectedSentenceIndex: state.selectedSentenceIndex,
+  );
+
+  /// 记录编辑前的状态作为撤销点；新的编辑会清空重做栈。
+  void _recordHistory() {
+    _undoStack.add(_snapshot());
+    if (_undoStack.length > _maxHistoryLength) _undoStack.removeAt(0);
+    _redoStack.clear();
+  }
+
+  void _restoreSnapshot(_EditSnapshot snapshot, {required String action}) {
     _cancelPlaybackSession();
-    state = state.copyWith(
-      sentences: snapshot,
-      playingSentenceIndex: null,
-      isPlaying: false,
-      playbackMode: SubtitleEditorPlaybackMode.idle,
-      isDirty: _sentencesChanged(snapshot) || _wordsDirty,
-      focusedWordIndex: null,
-      words: _buildWords(snapshot, state.words),
+    _hasRecordedAdjust = false;
+    final sentences = snapshot.sentences;
+    final selected = sentences.isEmpty
+        ? null
+        : (snapshot.selectedSentenceIndex ?? 0).clamp(0, sentences.length - 1);
+    _commitEdit(
+      state.copyWith(
+        sentences: sentences,
+        words: snapshot.words,
+        selectedSentenceIndex: selected,
+        selectionEpoch: state.selectionEpoch + 1,
+        playbackPosition: _positionForSelected(sentences, selected),
+        focusedWordIndex: null,
+        playingSentenceIndex: null,
+        isPlaying: false,
+        playbackMode: SubtitleEditorPlaybackMode.idle,
+      ),
     );
+    AppLogger.log(
+      'SubtitleEditor',
+      '$action selected=$selected undo=${_undoStack.length} '
+          'redo=${_redoStack.length}',
+    );
+  }
+
+  /// 写入一次编辑结果：按与基线的比较重算 dirty，并同步撤销 / 重做可用态。
+  void _commitEdit(SubtitleEditorState next) {
+    _editRevision++;
+    state = next.copyWith(
+      isDirty: _isDirty(next.sentences, next.words),
+      canUndo: _undoStack.isNotEmpty,
+      canRedo: _redoStack.isNotEmpty,
+    );
+  }
+
+  /// 字幕或词级时间是否相对基线（进入编辑页或上次保存）发生了实质变化。
+  bool _isDirty(List<Sentence> sentences, List<WordTimestamp> words) {
+    if (_sentencesChanged(sentences)) return true;
+    if (words.length != _baselineWords.length) return true;
+    for (var i = 0; i < words.length; i++) {
+      final a = words[i];
+      final b = _baselineWords[i];
+      if (a.word != b.word ||
+          a.startTime != b.startTime ||
+          a.endTime != b.endTime) {
+        return true;
+      }
+    }
+    return false;
   }
 
   Future<bool> save() async {
@@ -1033,7 +1233,7 @@ class SubtitleEditorController extends StateNotifier<SubtitleEditorState> {
 
       _baselineSentenceCount = state.sentences.length;
       _baselineSubtitleHash = _subtitleHash(state.sentences);
-      _wordsDirty = false;
+      _baselineWords = state.words;
       if (!mounted) return true;
       state = state.copyWith(
         isSaving: false,

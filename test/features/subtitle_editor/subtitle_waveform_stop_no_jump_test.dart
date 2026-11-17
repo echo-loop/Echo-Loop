@@ -53,7 +53,7 @@ void main() {
       key: const ValueKey('subtitle-waveform-stop-no-jump'),
     );
 
-    testWidgets('播放到句尾后停止：viewOffset 不变且红线消失', (tester) async {
+    testWidgets('播放到句尾后停止：viewOffset 不变且播放头仍在', (tester) async {
       await tester.binding.setSurfaceSize(const Size(800, 240));
       addTearDown(() => tester.binding.setSurfaceSize(null));
 
@@ -84,9 +84,9 @@ void main() {
         await tester.pump(const Duration(milliseconds: 16));
       }
 
-      // 结构性零跳变：偏移像素级不变；停止态隐藏红线。
+      // 结构性零跳变：偏移像素级不变；播放头常驻，停在停止位置。
       expect(_viewOffset(tester), closeTo(offsetPlaying, 0.001));
-      expect(_hasPlayhead(tester), isFalse);
+      expect(_hasPlayhead(tester), isTrue);
     });
 
     testWidgets('用户显式点选（epoch 自增）才把该句居中', (tester) async {

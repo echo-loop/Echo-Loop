@@ -1,13 +1,17 @@
 import 'dart:math' as math;
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:just_waveform/just_waveform.dart';
 
 import '../../l10n/app_localizations.dart';
 
 import '../../models/sentence.dart';
+import '../../models/word_timestamp.dart';
 import '../../utils/waveform_samples.dart';
 import 'subtitle_edit_engine.dart';
+import 'subtitle_sentence_colors.dart';
 
 /// 一条可拖动边界的引用：全篇词列表下标 + 起 / 止端。
 ///
@@ -101,6 +105,8 @@ class WaveformMetrics {
 /// 手势（确定性、跨平台一致，不用各平台不一致的惯性滚动）：
 /// - 在空白处「拖动」= 平移波形（浏览）；「轻点」= 定位播放头到该处。
 /// - 在边界把手上拖动 = 调整该边界。
+/// - 选中句顶部的单词块「轻点」= 试听该词。
+/// - 播放头顶部手柄拖动 = 连续定位。
 /// - 双指捏合 / 触控板 pan-zoom = 缩放。
 /// - 播放中：波形自动滚动让播放头钉在视口中线（近首尾退化为扫过）。
 class SubtitleWaveformView extends StatefulWidget {
@@ -122,7 +128,7 @@ class SubtitleWaveformView extends StatefulWidget {
   /// 底部时间轴占用高度（逻辑像素）。播放头红线只画到此高度之上。
   static const double axisHeight = 26;
 
-  /// 波形区高度（含底部时间轴）。
+  /// 波形区固定高度（含底部时间轴）；宽窗口左右分栏时也不加高，多余空间留在底部。
   static const double height = 120;
 
   /// [onAdjustWord] 默认空实现（未接入词级拖动时）。
@@ -160,6 +166,12 @@ class SubtitleWaveformView extends StatefulWidget {
 
   final Duration playbackPosition;
   final bool isPlaying;
+
+  /// 播放中是否让波形跟随播放头（钉在视口中线）。
+  ///
+  /// 整句试听时跟随；试听单个词时不跟随，否则在波形上点词会让整个视图滚走、
+  /// 单词跑出手指下方。不跟随时只在播放头离开视口时才居中。
+  final bool followsPlayhead;
   final double zoomScale;
 
   /// 当前选中句 + 前后相邻句的全部单词边界（统一为可拖动的边界，含句子起止）。
@@ -183,6 +195,21 @@ class SubtitleWaveformView extends StatefulWidget {
   /// 边界拖动结束时回调。
   final VoidCallback onAdjustEnd;
 
+  /// 与播放头对应的单词（选中句内）；非 null 时在波形上淡色标出它的区间，
+  /// 与句子列表里高亮的单词、视频画面保持同一时刻。
+  final WordTimestamp? highlightedWord;
+
+  /// 暂停时播放头所在空隙可放新句的区间；非 null 时在波形上标出该区间，并在其中
+  /// 显示「添加句子」按钮，用于补上识别漏掉的话。
+  final SentenceSlot? insertSlot;
+
+  /// 点「添加句子」时回调。
+  final VoidCallback? onInsertSentence;
+
+  /// 轻点选中句顶部的单词块时回调，参数为该词在选中句内的下标（与
+  /// [wordBoundaries] 中主样式边界的顺序一致）。
+  final ValueChanged<int>? onWordTap;
+
   const SubtitleWaveformView({
     super.key,
     required this.waveform,
@@ -196,6 +223,7 @@ class SubtitleWaveformView extends StatefulWidget {
     required this.selectionEpoch,
     required this.playbackPosition,
     required this.isPlaying,
+    this.followsPlayhead = true,
     required this.zoomScale,
     this.wordBoundaries = const [],
     this.onAdjustWord = _ignoreWordAdjust,
@@ -203,6 +231,10 @@ class SubtitleWaveformView extends StatefulWidget {
     required this.onScrub,
     required this.onScrubEnd,
     this.onAdjustEnd = _ignoreAdjustEnd,
+    this.insertSlot,
+    this.onInsertSentence,
+    this.highlightedWord,
+    this.onWordTap,
   });
 
   @override
@@ -261,8 +293,26 @@ class _SubtitleWaveformViewState extends State<SubtitleWaveformView> {
   double _pinchInitialDistance = 0;
   double _pinchBaseZoom = 1;
 
+  /// 双指捏合时两指中点的上一次横坐标（全局），两指同向移动时据此平移。
+  double _pinchLastFocalX = 0;
+
   /// 触控板 pan-zoom（双指捏合）开始时的基准缩放。
   double _trackpadBaseZoom = 1;
+
+  /// 是否正在拖动播放头（拖动中按指针位置实时定位）。
+  bool _isScrubbingPlayhead = false;
+
+  /// 按下处在选中句顶部的哪个单词块上（选中句内下标）；null 表示不在单词块上。
+  /// 抬起时若是轻点，就试听该词而不是定位播放头。
+  int? _downWordIndex;
+
+  /// 在单词块上按住了播放头手柄：位移超过 [SubtitleWaveformView.tapSlop] 才开始
+  /// 拖动播放头，否则视为点词，避免手柄压住的单词点不到。记录按下时的 localX。
+  double? _pendingPlayheadGrabX;
+
+  /// 本次按下是否落在波形上方的按钮（「添加句子」）上：按钮自己处理点击，
+  /// 波形不再把它当成定位或平移。
+  bool _isPointerOnOverlay = false;
 
   /// 按规范偏移重新读取的波形采样（规避 just_waveform 16 位错位，见 troubleshooting
   /// 7.54）；仅在波形对象变化时重建。
@@ -358,11 +408,12 @@ class _SubtitleWaveformViewState extends State<SubtitleWaveformView> {
                     onPointerMove: _onPointerMove,
                     onPointerUp: _onPointerUp,
                     onPointerCancel: _onPointerUp,
-                    // 触控板双指捏合（macOS / 触控板设备）。
+                    // 触控板双指手势（macOS / 触控板设备）：滑动平移，捏合缩放。
                     onPointerPanZoomStart: (_) =>
                         _trackpadBaseZoom = widget.zoomScale,
-                    onPointerPanZoomUpdate: (event) =>
-                        widget.onZoomChanged(_trackpadBaseZoom * event.scale),
+                    onPointerPanZoomUpdate: _onTrackpadPanZoomUpdate,
+                    // 鼠标滚轮：滚动平移，Ctrl / ⌘ + 滚轮缩放。
+                    onPointerSignal: _onPointerSignal,
                     // 播放头位置补间：仅平滑「播放推进」，其余瞬时到位。
                     // 用同一个 painted 同时驱动红线与跟随偏移，二者永不 desync。
                     child: TweenAnimationBuilder<double>(
@@ -379,11 +430,8 @@ class _SubtitleWaveformViewState extends State<SubtitleWaveformView> {
                         );
                         final offset = _resolveOffset(metrics, painted);
                         _renderOffset = offset; // 供指针回调使用
-                        final playheadX = widget.isPlaying
-                            ? metrics
-                                  .screenX(painted, offset)
-                                  .clamp(0.0, metrics.viewport)
-                            : null;
+                        // 播放头常驻：暂停时停在当前位置，播放中随播放推进。
+                        final playheadX = metrics.screenX(painted, offset);
                         return Stack(
                           fit: StackFit.expand,
                           children: [
@@ -396,20 +444,26 @@ class _SubtitleWaveformViewState extends State<SubtitleWaveformView> {
                                   sentences: widget.sentences,
                                   activeSentence: widget.activeSentence,
                                   wordBoundaries: widget.wordBoundaries,
+                                  highlightedWord: widget.highlightedWord,
                                   palette: palette,
                                   textScaler: MediaQuery.textScalerOf(context),
                                 ),
                               ),
                             ),
-                            if (playheadX != null)
-                              RepaintBoundary(
-                                child: CustomPaint(
-                                  painter: _PlayheadLayerPainter(
-                                    x: playheadX.toDouble(),
-                                    color: palette.playhead,
-                                  ),
+                            RepaintBoundary(
+                              child: CustomPaint(
+                                painter: _PlayheadLayerPainter(
+                                  x: playheadX,
+                                  palette: palette,
+                                  isActive: _isScrubbingPlayhead,
                                 ),
                               ),
+                            ),
+                            ..._buildInsertSlotOverlay(
+                              metrics,
+                              offset,
+                              theme.colorScheme,
+                            ),
                           ],
                         );
                       },
@@ -419,6 +473,64 @@ class _SubtitleWaveformViewState extends State<SubtitleWaveformView> {
               },
             ),
     );
+  }
+
+  /// 可插入新句的空隙：淡色区间标出新句将占的时间，中间放「添加句子」按钮。
+  List<Widget> _buildInsertSlotOverlay(
+    WaveformMetrics metrics,
+    double offset,
+    ColorScheme scheme,
+  ) {
+    final slot = widget.insertSlot;
+    final onInsert = widget.onInsertSentence;
+    if (slot == null || onInsert == null || widget.isPlaying) return const [];
+    final left = metrics.screenX(slot.start, offset);
+    final right = metrics.screenX(slot.end, offset);
+    if (right <= 0 || left >= metrics.viewport) return const [];
+    const top = _WaveformLayerPainter.labelLaneHeight;
+    const bottomInset = SubtitleWaveformView.axisHeight;
+    // 按钮放在区间可见部分的中央，并按半个按钮的估计宽度留边，避免贴边被裁掉。
+    const halfButtonWidth = 70.0;
+    final visibleCenter =
+        (math.max(left, 0) + math.min(right, metrics.viewport)) / 2;
+    final buttonCenter = metrics.viewport <= halfButtonWidth * 2
+        ? metrics.viewport / 2
+        : visibleCenter.clamp(
+            halfButtonWidth,
+            metrics.viewport - halfButtonWidth,
+          );
+    return [
+      Positioned(
+        left: left,
+        width: right - left,
+        top: top,
+        bottom: bottomInset,
+        child: IgnorePointer(
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: scheme.primary.withValues(alpha: .07),
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(color: scheme.primary.withValues(alpha: .45)),
+            ),
+          ),
+        ),
+      ),
+      // 只定左缘、宽度随文案，再平移半个自身宽度居中，不同语言文案都不会被截断。
+      Positioned(
+        left: buttonCenter,
+        top: top,
+        bottom: bottomInset,
+        child: FractionalTranslation(
+          translation: const Offset(-.5, 0),
+          child: Center(
+            child: Listener(
+              onPointerDown: (_) => _isPointerOnOverlay = true,
+              child: _InsertSentenceButton(onPressed: onInsert),
+            ),
+          ),
+        ),
+      ),
+    ];
   }
 
   // ── 视图偏移：每帧由「缩放焦点 → 播放跟随 → 选句居中 → 保持」依次决定 ──
@@ -446,8 +558,18 @@ class _SubtitleWaveformViewState extends State<SubtitleWaveformView> {
     _lastViewport = metrics.viewport;
 
     // 2) 播放中 → 钉中线跟随（边沿 clamp 退化为扫过）。
-    if (widget.isPlaying) {
+    if (widget.isPlaying && widget.followsPlayhead) {
       final o = metrics.offsetToCenter(painted);
+      _viewOffset = o;
+      return o;
+    }
+    // 2b) 不跟随的播放（试听单词）：保持当前视图，播放头出视口时才居中。
+    if (widget.isPlaying) {
+      final kept = metrics.clampOffset(_viewOffset);
+      final x = metrics.screenX(painted, kept);
+      final o = x < 0 || x > metrics.viewport
+          ? metrics.offsetToCenter(painted)
+          : kept;
       _viewOffset = o;
       return o;
     }
@@ -490,6 +612,10 @@ class _SubtitleWaveformViewState extends State<SubtitleWaveformView> {
   // ── 指针多路分发：单指走平移/轻点/拖边界，双指走捏合缩放 ──
 
   void _onPointerDown(PointerDownEvent event) {
+    if (_isPointerOnOverlay) {
+      _isPointerOnOverlay = false;
+      return;
+    }
     _activePointers[event.pointer] = event.position;
     if (_activePointers.length >= 2) {
       _beginPinch();
@@ -500,6 +626,15 @@ class _SubtitleWaveformViewState extends State<SubtitleWaveformView> {
     final localPosition = event.localPosition;
     final localX = localPosition.dx;
     final hits = _hitTestBoundaries(localPosition, metrics, _renderOffset);
+    _downWordIndex = _wordIndexAt(localPosition, metrics, _renderOffset);
+    if (_prefersPlayhead(localPosition, event.kind, metrics, hits)) {
+      if (_downWordIndex != null) {
+        _pendingPlayheadGrabX = localX;
+      } else {
+        setState(() => _isScrubbingPlayhead = true);
+      }
+      return;
+    }
     if (hits.isNotEmpty) {
       if (hits.length == 1) {
         // 唯一命中：标记为拖动目标，但按下时不移动边界，
@@ -533,6 +668,17 @@ class _SubtitleWaveformViewState extends State<SubtitleWaveformView> {
     if (metrics == null) return;
     final localX = event.localPosition.dx;
 
+    final grabX = _pendingPlayheadGrabX;
+    if (grabX != null) {
+      if ((localX - grabX).abs() <= SubtitleWaveformView.tapSlop) return;
+      _pendingPlayheadGrabX = null;
+      _downWordIndex = null;
+      setState(() => _isScrubbingPlayhead = true);
+    }
+    if (_isScrubbingPlayhead) {
+      widget.onScrub(_scrubTimeAt(localX, metrics));
+      return;
+    }
     if (_draggingBoundary != null) {
       _updateBoundaryDrag(localX, metrics, _renderOffset);
       return;
@@ -555,10 +701,7 @@ class _SubtitleWaveformViewState extends State<SubtitleWaveformView> {
       final dx = localX - _panLastX;
       _panLastX = localX;
       _panTotalAbs += dx.abs();
-      // 播放中跟随接管偏移，手动平移无效（需先暂停）；暂停态下直接改写偏移。
-      if (!widget.isPlaying) {
-        setState(() => _viewOffset = metrics.clampOffset(_viewOffset - dx));
-      }
+      _panBy(dx);
     }
   }
 
@@ -568,6 +711,22 @@ class _SubtitleWaveformViewState extends State<SubtitleWaveformView> {
       if (_activePointers.length < 2) {
         setState(() => _isPinching = false);
         _pinchInitialDistance = 0;
+      }
+      return;
+    }
+    final tappedWord = _downWordIndex;
+    _downWordIndex = null;
+    if (_pendingPlayheadGrabX != null) {
+      // 按在手柄上但没拖动：手柄下面是单词块，按点词处理。
+      _pendingPlayheadGrabX = null;
+      if (tappedWord != null) widget.onWordTap?.call(tappedWord);
+      return;
+    }
+    if (_isScrubbingPlayhead) {
+      setState(() => _isScrubbingPlayhead = false);
+      final metrics = _metrics;
+      if (metrics != null) {
+        widget.onScrubEnd(_scrubTimeAt(event.localPosition.dx, metrics));
       }
       return;
     }
@@ -585,7 +744,13 @@ class _SubtitleWaveformViewState extends State<SubtitleWaveformView> {
       _panActive = false;
       // 位移小于阈值视为「轻点」→ 定位播放头到点按处。
       final metrics = _metrics;
-      if (metrics != null && _panTotalAbs <= SubtitleWaveformView.tapSlop) {
+      final onWordTap = widget.onWordTap;
+      if (_panTotalAbs <= SubtitleWaveformView.tapSlop &&
+          tappedWord != null &&
+          onWordTap != null) {
+        onWordTap(tappedWord);
+      } else if (metrics != null &&
+          _panTotalAbs <= SubtitleWaveformView.tapSlop) {
         final t = metrics.timeAt(_panDownX, _renderOffset);
         widget.onScrub(t);
         widget.onScrubEnd(t);
@@ -593,20 +758,71 @@ class _SubtitleWaveformViewState extends State<SubtitleWaveformView> {
     }
   }
 
-  /// 进入双指捏合：取消进行中的单指操作，记录初始指距与基准缩放。
+  /// 进入双指捏合：取消进行中的单指操作，记录初始指距、两指中点与基准缩放。
   void _beginPinch() {
     _cancelSinglePointerActions();
     _pinchInitialDistance = _currentPointerDistance();
+    _pinchLastFocalX = _currentFocalX();
     _pinchBaseZoom = widget.zoomScale;
     setState(() => _isPinching = true);
   }
 
-  /// 捏合更新：按指距变化比例缩放（越界由 [onZoomChanged] 上层钳制）。
+  /// 捏合更新：两指同向移动平移波形，指距变化缩放（越界由 [onZoomChanged] 上层钳制）。
   void _updatePinch() {
     if (_activePointers.length < 2 || _pinchInitialDistance <= 0) return;
+    final focalX = _currentFocalX();
+    _panBy(focalX - _pinchLastFocalX);
+    _pinchLastFocalX = focalX;
     final distance = _currentPointerDistance();
     if (distance <= 0) return;
     widget.onZoomChanged(_pinchBaseZoom * distance / _pinchInitialDistance);
+  }
+
+  /// 前两个指针中点的横坐标（全局）。
+  double _currentFocalX() {
+    final points = _activePointers.values.toList();
+    if (points.length < 2) return 0;
+    return (points[0].dx + points[1].dx) / 2;
+  }
+
+  /// 触控板双指：滑动按主方向平移（竖向滑动也映射为横向，便于只习惯上下滑的
+  /// 用户浏览时间轴），捏合按比例缩放。
+  void _onTrackpadPanZoomUpdate(PointerPanZoomUpdateEvent event) {
+    final delta = event.panDelta;
+    _panBy(delta.dx.abs() >= delta.dy.abs() ? delta.dx : delta.dy);
+    if (event.scale != 1.0) {
+      widget.onZoomChanged(_trackpadBaseZoom * event.scale);
+    }
+  }
+
+  /// 鼠标滚轮：Ctrl / ⌘ + 滚轮缩放（与剪辑页一致），否则按主方向平移。
+  ///
+  /// 未放大（整段铺满、无处可平移）且不是缩放手势时不接管，让外层照常处理。
+  void _onPointerSignal(PointerSignalEvent event) {
+    if (event is! PointerScrollEvent) return;
+    final keyboard = HardwareKeyboard.instance;
+    final wantsZoom = keyboard.isControlPressed || keyboard.isMetaPressed;
+    final dx = event.scrollDelta.dx;
+    final dy = event.scrollDelta.dy;
+    final canPan = (_metrics?.maxOffset ?? 0) > 0;
+    if (!wantsZoom && (!canPan || (dx == 0 && dy == 0))) return;
+    GestureBinding.instance.pointerSignalResolver.register(event, (event) {
+      if (wantsZoom) {
+        widget.onZoomChanged(widget.zoomScale * math.exp(-dy / 240));
+      } else {
+        // 滚轮向下 / 向右 = 看更晚的内容，与单指拖动方向相反。
+        _panBy(-(dx.abs() > dy.abs() ? dx : dy));
+      }
+    });
+  }
+
+  /// 按手指方向平移波形：向右移动 [dx] 看见更早的内容（1:1 跟手）。
+  ///
+  /// 播放中由跟随播放头接管偏移，手动平移不生效（与单指拖动一致）。
+  void _panBy(double dx) {
+    final metrics = _metrics;
+    if (dx == 0 || metrics == null || widget.isPlaying) return;
+    setState(() => _viewOffset = metrics.clampOffset(_viewOffset - dx));
   }
 
   /// 取前两个指针之间的距离（全局坐标，平移不变）。
@@ -619,6 +835,9 @@ class _SubtitleWaveformViewState extends State<SubtitleWaveformView> {
   /// 第二指落下时，作废尚未提交的单指平移/拖边界操作。
   void _cancelSinglePointerActions() {
     _panActive = false;
+    _downWordIndex = null;
+    _pendingPlayheadGrabX = null;
+    if (_isScrubbingPlayhead) setState(() => _isScrubbingPlayhead = false);
     if (_isAdjustingBoundary) {
       setState(() {
         _draggingBoundary = null;
@@ -664,24 +883,85 @@ class _SubtitleWaveformViewState extends State<SubtitleWaveformView> {
   }
 
   /// 鼠标悬停时更新光标：在边界命中区内显示「可左右移动」（↔），否则默认箭头。
+  /// 单词块上显示「可点击」（手形）。
   void _updateHoverCursor(Offset localPosition, WaveformMetrics metrics) {
-    final overBoundary = _hitTestBoundaries(
-      localPosition,
-      metrics,
-      _renderOffset,
-    ).isNotEmpty;
-    final next = overBoundary
+    final hits = _hitTestBoundaries(localPosition, metrics, _renderOffset);
+    final next =
+        hits.isNotEmpty ||
+            _prefersPlayhead(
+              localPosition,
+              PointerDeviceKind.mouse,
+              metrics,
+              hits,
+            )
         ? SystemMouseCursors.resizeLeftRight
+        : widget.onWordTap != null &&
+              _wordIndexAt(localPosition, metrics, _renderOffset) != null
+        ? SystemMouseCursors.click
         : SystemMouseCursors.basic;
     if (next != _hoverCursor) {
       setState(() => _hoverCursor = next);
     }
   }
 
+  /// 播放头线身命中半径：鼠标精确取小值，触摸取大值（与剪辑页一致）。
+  static double _playheadSlop(PointerDeviceKind kind) =>
+      kind == PointerDeviceKind.mouse ? 6.0 : 16.0;
+
+  /// 播放头手柄命中区在手柄半宽之外的外扩：触摸手指粗，外扩更多。
+  static double _playheadHandleSlop(PointerDeviceKind kind) =>
+      kind == PointerDeviceKind.mouse ? 2.0 : 10.0;
+
+  /// 按下处是否抓播放头。纵向分区，每个区只有一个明确目标：
+  /// - 顶部文字行：手柄是播放头的专属抓取区（边界线不延伸到这里）；
+  /// - 线身：选句后播放头常与句首边界重合，编辑边界是主要操作，与边界重叠时
+  ///   让给边界，附近没有边界才抓播放头；
+  /// - 线身以下（边界把手区）：只抓边界。
+  bool _prefersPlayhead(
+    Offset position,
+    PointerDeviceKind kind,
+    WaveformMetrics metrics,
+    List<_BoundaryRef> boundaryHits,
+  ) {
+    final height = context.size?.height;
+    if (height == null) return false;
+    final dx =
+        (metrics.screenX(widget.playbackPosition, _renderOffset) - position.dx)
+            .abs();
+    if (position.dy <= _WaveformLayerPainter.labelLaneHeight) {
+      return dx <=
+          _PlayheadLayerPainter.handleWidth / 2 + _playheadHandleSlop(kind);
+    }
+    if (position.dy > _PlayheadLayerPainter.lineBottom(height)) return false;
+    return boundaryHits.isEmpty && dx <= _playheadSlop(kind);
+  }
+
+  /// 按下处落在选中句顶部哪个单词块上，返回该词在选中句内的下标。
+  int? _wordIndexAt(Offset position, WaveformMetrics metrics, double offset) {
+    if (widget.onWordTap == null ||
+        position.dy < 0 ||
+        position.dy > _WaveformLayerPainter.labelLaneHeight) {
+      return null;
+    }
+    var local = 0;
+    for (final b in widget.wordBoundaries) {
+      if (!b.primary) continue;
+      final startX = metrics.screenX(b.word.startTime, offset);
+      final endX = metrics.screenX(b.word.endTime, offset);
+      if (position.dx >= startX && position.dx <= endX) return local;
+      local++;
+    }
+    return null;
+  }
+
+  Duration _scrubTimeAt(double localX, WaveformMetrics metrics) =>
+      metrics.timeAt(localX.clamp(0.0, metrics.viewport), _renderOffset);
+
   /// 命中测试：返回竖线（含把手）命中区域内的所有边界，按横向距离升序。
   ///
   /// 命中区 = 整条竖线：横向仅把手宽（外扩 [SubtitleWaveformView.boundaryHitRadius]
-  /// = 0，相近边界不易误选），纵向覆盖竖线全高（顶到时间轴上沿），故线身任意处都可抓取。
+  /// = 0，相近边界不易误选），纵向覆盖竖线全高（从顶部文字行下沿到时间轴上沿），
+  /// 故线身任意处都可抓取；文字行留给单词块和播放头手柄。
   List<_BoundaryRef> _hitTestBoundaries(
     Offset localPosition,
     WaveformMetrics metrics,
@@ -693,7 +973,10 @@ class _SubtitleWaveformViewState extends State<SubtitleWaveformView> {
         bottom -
         SubtitleWaveformView.axisHeight -
         SubtitleWaveformView.boundaryHandleAxisGap;
-    if (localPosition.dy < 0 || localPosition.dy > lineBottom) return const [];
+    if (localPosition.dy < _WaveformLayerPainter.labelLaneHeight ||
+        localPosition.dy > lineBottom) {
+      return const [];
+    }
     final hits = <({_BoundaryRef c, double d})>[];
     for (final candidate in _boundaryCandidates()) {
       final time = _boundaryTime(candidate);
@@ -761,124 +1044,191 @@ enum _BoundaryStyle {
 /// 字幕编辑波形的配色，全部随明暗主题变化。
 ///
 /// 起止边界保留「起点绿 / 终点红」的语义（用户已习惯），但用与主题协调的柔和色值，
-/// 暗色下提高明度保证在近黑背景上可辨；播放头用中性前景色，避免与蓝色选中句、
-/// 绿 / 红边界混淆。
+/// 暗色下提高明度保证在近黑背景上可辨。句子按序号轮换主题色（见
+/// [SubtitleSentenceColors]），同一句的波形、底色、单词都用同一色相，只用透明度区分
+/// 选中与否。播放头用橙色细线，与绿 / 红边界和冷色句子都不撞色。
 @immutable
 class WaveformPalette {
   const WaveformPalette({
+    required this.brightness,
     required this.bar,
-    required this.sentenceBar,
-    required this.activeBar,
-    required this.activeFill,
-    required this.sentenceFill,
     required this.start,
     required this.end,
     required this.playhead,
+    required this.playheadOutline,
+    required this.playheadShadow,
     required this.axis,
     required this.axisLabel,
-    required this.label,
-    required this.activeLabel,
   });
 
   factory WaveformPalette.of(ColorScheme scheme) {
     final isDark = scheme.brightness == Brightness.dark;
     return WaveformPalette(
-      bar: scheme.onSurfaceVariant.withValues(alpha: isDark ? .26 : .22),
-      sentenceBar: scheme.onSurfaceVariant.withValues(alpha: isDark ? .55 : .5),
-      activeBar: scheme.primary,
-      activeFill: scheme.primary.withValues(alpha: isDark ? .14 : .08),
-      sentenceFill: scheme.onSurface.withValues(alpha: isDark ? .04 : .025),
+      brightness: scheme.brightness,
+      bar: scheme.onSurfaceVariant.withValues(alpha: .3),
       start: isDark ? const Color(0xFF5FD08E) : const Color(0xFF1E9E5A),
       end: isDark ? const Color(0xFFFF7A70) : const Color(0xFFE04B3F),
-      playhead: scheme.onSurface,
+      playhead: isDark ? const Color(0xFFFFA24A) : const Color(0xFFF07A12),
+      // 手柄描一圈波形底色，压在彩色单词块上时轮廓仍清楚。
+      playheadOutline: scheme.surfaceContainerHigh,
+      playheadShadow: scheme.shadow.withValues(alpha: isDark ? .6 : .35),
       axis: scheme.onSurfaceVariant.withValues(alpha: .18),
       axisLabel: scheme.onSurfaceVariant.withValues(alpha: .7),
-      label: scheme.onSurfaceVariant.withValues(alpha: .62),
-      activeLabel: scheme.primary,
     );
   }
 
+  final Brightness brightness;
+
   /// 不属于任何句子的波形（停顿、无字幕片段）。
   final Color bar;
-
-  /// 其它句子的波形。
-  final Color sentenceBar;
-
-  /// 当前选中句的波形与区间顶条。
-  final Color activeBar;
-  final Color activeFill;
-  final Color sentenceFill;
   final Color start;
   final Color end;
   final Color playhead;
+  final Color playheadOutline;
+  final Color playheadShadow;
   final Color axis;
   final Color axisLabel;
 
-  /// 波形顶部的句子文字；当前句用 [activeLabel]。
-  final Color label;
-  final Color activeLabel;
+  bool get _isDark => brightness == Brightness.dark;
+
+  /// 第 [index] 句的主题色：选中句的波形、区间顶条、单词文字。
+  Color sentenceColor(int index) =>
+      SubtitleSentenceColors.of(index, brightness);
+
+  /// 未选中句的波形：同色相、降低不透明度。
+  Color sentenceBar(int index) =>
+      sentenceColor(index).withValues(alpha: _isDark ? .55 : .5);
+
+  /// 未选中句的区间底色：极淡铺底，一眼看出句与句的间隔。
+  Color sentenceFill(int index) =>
+      sentenceColor(index).withValues(alpha: _isDark ? .07 : .05);
+
+  /// 选中句的区间底色。
+  Color activeFill(int index) =>
+      sentenceColor(index).withValues(alpha: _isDark ? .16 : .1);
+
+  /// 未选中句顶部的整句文字。
+  Color sentenceLabel(int index) => sentenceColor(index).withValues(alpha: .8);
+
+  /// 选中句顶部单词块的底色；[isHighlighted] 为播放头所在词。
+  Color wordChipFill(int index, {required bool isHighlighted}) =>
+      sentenceColor(index).withValues(
+        alpha: isHighlighted ? (_isDark ? .34 : .22) : (_isDark ? .16 : .1),
+      );
+
+  /// 播放头所在单词在波形上的区间底色（比选中句底色更深）。
+  Color wordFill(int index) =>
+      sentenceColor(index).withValues(alpha: _isDark ? .26 : .16);
 
   @override
   bool operator ==(Object other) =>
       other is WaveformPalette &&
+      other.brightness == brightness &&
       other.bar == bar &&
-      other.sentenceBar == sentenceBar &&
-      other.activeBar == activeBar &&
-      other.activeFill == activeFill &&
-      other.sentenceFill == sentenceFill &&
       other.start == start &&
       other.end == end &&
       other.playhead == playhead &&
+      other.playheadOutline == playheadOutline &&
+      other.playheadShadow == playheadShadow &&
       other.axis == axis &&
-      other.axisLabel == axisLabel &&
-      other.label == label &&
-      other.activeLabel == activeLabel;
+      other.axisLabel == axisLabel;
 
   @override
   int get hashCode => Object.hash(
+    brightness,
     bar,
-    sentenceBar,
-    activeBar,
-    activeFill,
-    sentenceFill,
     start,
     end,
     playhead,
+    playheadOutline,
+    playheadShadow,
     axis,
     axisLabel,
-    label,
-    activeLabel,
   );
 }
 
-/// 播放头层：一条竖线 + 顶部小三角帽，位于视口坐标 [x] 处（顶到时间轴上沿）。
+/// 播放头层：顶部倒五边形手柄 + 橙色细线。
+///
+/// 字幕编辑要精确到词，所以线只有 1.5px（拖动时 2px），比 2.5px 的句子边界还细，
+/// 两者重合时边界颜色从两侧露出。手柄放在顶部单词行里，平顶、尖端正好落在线的
+/// 起点，指明精确时刻；线身与句子起止边界的线身等长（从波形顶到句子边界把手上沿），
+/// 不挡底部把手。手柄是播放头的专属抓取区，线身与边界重叠时让给边界（见
+/// [_SubtitleWaveformViewState._prefersPlayhead]）。
 ///
 /// 与波形层分层 + 各自 RepaintBoundary：播放推进只重绘这条线，不触发波形层重绘。
 class _PlayheadLayerPainter extends CustomPainter {
   final double x;
-  final Color color;
+  final WaveformPalette palette;
 
-  const _PlayheadLayerPainter({required this.x, required this.color});
+  /// 正在拖动时手柄放大、线加粗，提示已抓住。
+  final bool isActive;
+
+  const _PlayheadLayerPainter({
+    required this.x,
+    required this.palette,
+    required this.isActive,
+  });
+
+  /// 手柄宽度与顶部留白；尖端落在单词行下沿（即波形顶）。
+  static const double handleWidth = 11;
+  static const double _activeHandleWidth = 13;
+  static const double _handleTop = 2;
+
+  /// 线身下端：与句子起止边界线身的下端（把手上沿）对齐。
+  static double lineBottom(double height) =>
+      height -
+      SubtitleWaveformView.axisHeight -
+      SubtitleWaveformView.boundaryHandleAxisGap -
+      _WaveformLayerPainter.sentenceEdgeHandleHeight;
 
   @override
   void paint(Canvas canvas, Size size) {
-    final bottom = size.height - SubtitleWaveformView.axisHeight;
-    final paint = Paint()
-      ..color = color
-      ..strokeWidth = 2
-      ..strokeCap = StrokeCap.round;
-    canvas.drawLine(Offset(x, 0), Offset(x, bottom), paint);
-    final cap = Path()
-      ..moveTo(x - 5, 0)
-      ..lineTo(x + 5, 0)
-      ..lineTo(x, 6)
+    if (x < -8 || x > size.width + 8) return;
+    const tipY = _WaveformLayerPainter.labelLaneHeight;
+    final lineWidth = isActive ? 2.0 : 1.5;
+    canvas.drawRect(
+      Rect.fromLTRB(
+        x - lineWidth / 2,
+        tipY - 1,
+        x + lineWidth / 2,
+        lineBottom(size.height),
+      ),
+      Paint()..color = palette.playhead,
+    );
+
+    final half = (isActive ? _activeHandleWidth : handleWidth) / 2;
+    final top = isActive ? _handleTop - 1 : _handleTop;
+    // 平顶占 55% 高度，其余收成尖；上方两角做小圆角。
+    final shoulder = top + (tipY - top) * .55;
+    const radius = 2.0;
+    final handle = Path()
+      ..moveTo(x - half + radius, top)
+      ..lineTo(x + half - radius, top)
+      ..quadraticBezierTo(x + half, top, x + half, top + radius)
+      ..lineTo(x + half, shoulder)
+      ..lineTo(x, tipY)
+      ..lineTo(x - half, shoulder)
+      ..lineTo(x - half, top + radius)
+      ..quadraticBezierTo(x - half, top, x - half + radius, top)
       ..close();
-    canvas.drawPath(cap, Paint()..color = color);
+    canvas
+      ..drawShadow(handle, palette.playheadShadow, 1.5, false)
+      ..drawPath(
+        handle,
+        Paint()
+          ..color = palette.playheadOutline
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1.5
+          ..strokeJoin = StrokeJoin.round,
+      )
+      ..drawPath(handle, Paint()..color = palette.playhead);
   }
 
   @override
   bool shouldRepaint(covariant _PlayheadLayerPainter oldDelegate) {
-    return x != oldDelegate.x || color != oldDelegate.color;
+    return x != oldDelegate.x ||
+        palette != oldDelegate.palette ||
+        isActive != oldDelegate.isActive;
   }
 }
 
@@ -998,6 +1348,9 @@ class _WaveformLayerPainter extends CustomPainter {
 
   /// 选中句 + 前后相邻句的全部单词边界（含句子起止）。当前句为主样式，邻句为次样式。
   final List<WaveformWordBoundary> wordBoundaries;
+
+  /// 播放头所在单词，淡色标出它的区间。
+  final WordTimestamp? highlightedWord;
   final WaveformPalette palette;
 
   /// 句子文字与轴标签的系统文字缩放，与普通 Text 保持一致。
@@ -1007,8 +1360,20 @@ class _WaveformLayerPainter extends CustomPainter {
   static const double _barStep = 3;
   static const double _barWidth = 1.5;
 
-  /// 顶部句子文字行的高度；波形与边界线在其下方绘制，文字不被压住。
-  static const double _labelLaneHeight = 18;
+  /// 顶部文字行的高度：未选中句显示整句，选中句显示逐词单词块；波形与边界线在其
+  /// 下方绘制，文字不被压住。播放头手柄也在这一行。
+  static const double labelLaneHeight = 18;
+
+  /// 当前句起止边界把手的高度；播放头线身下端与它的上沿对齐。
+  static const double sentenceEdgeHandleHeight = 18;
+
+  /// 单词块在文字行内的上下留白（上方让出选中句顶部色条）。
+  static const double _wordChipTop = 3.5;
+  static const double _wordChipBottom = 1.5;
+
+  /// 单词放不下时，块宽至少这么宽才显示省略后的文字；更窄时「w…」这类残字
+  /// 没有辨识度，只画色块（仍可点击播放）。
+  static const double _minEllipsisWordWidth = 30;
 
   /// 屏幕上相距不足该距离的边界合并为一个把手。
   static const double _mergeDistance = 4;
@@ -1020,6 +1385,7 @@ class _WaveformLayerPainter extends CustomPainter {
     required this.sentences,
     required this.activeSentence,
     required this.wordBoundaries,
+    required this.highlightedWord,
     required this.palette,
     required this.textScaler,
   });
@@ -1029,56 +1395,63 @@ class _WaveformLayerPainter extends CustomPainter {
     const top = 0.0;
     final viewport = size.width;
     final waveformBottom = size.height - SubtitleWaveformView.axisHeight;
-    const waveTop = top + _labelLaneHeight;
+    const waveTop = top + labelLaneHeight;
     final centerY = waveTop + (waveformBottom - waveTop) / 2;
     final usableHeight = waveformBottom - waveTop - 6;
     final totalUs = metrics.duration.inMicroseconds;
     if (usableHeight <= 0 || viewport <= 0 || totalUs <= 0) return;
 
     final active = activeSentence;
+    final activeIndex = sentences.indexWhere((s) => identical(s, active));
 
-    // 句子区间底色：有字幕处极淡铺底，停顿留白，一眼看出句与句的间隔。
-    final sentenceFillPaint = Paint()..color = palette.sentenceFill;
-    for (final sentence in sentences) {
-      if (identical(sentence, active)) continue;
+    // 句子区间底色：有字幕处按句子主题色极淡铺底，停顿留白，一眼看出句与句的间隔。
+    for (var i = 0; i < sentences.length; i++) {
+      if (i == activeIndex) continue;
+      final sentence = sentences[i];
       final sx = metrics.screenX(sentence.startTime, viewOffset);
       final ex = metrics.screenX(sentence.endTime, viewOffset);
       if (ex < 0 || sx > viewport) continue;
       canvas.drawRect(
         Rect.fromLTRB(sx, top, ex, waveformBottom),
-        sentenceFillPaint,
+        Paint()..color = palette.sentenceFill(i),
       );
     }
-    // 当前句：主色淡底 + 顶部主色细条，标出正在编辑的区间。
-    if (active != null) {
+    // 当前句：主题色淡底 + 顶部主题色细条，标出正在编辑的区间。
+    if (active != null && activeIndex >= 0) {
       final sx = metrics.screenX(active.startTime, viewOffset);
       final ex = metrics.screenX(active.endTime, viewOffset);
       canvas.drawRect(
         Rect.fromLTRB(sx, top, ex, waveformBottom),
-        Paint()..color = palette.activeFill,
+        Paint()..color = palette.activeFill(activeIndex),
       );
       canvas.drawRect(
         Rect.fromLTRB(sx, top, ex, top + 2.5),
-        Paint()..color = palette.activeBar,
+        Paint()..color = palette.sentenceColor(activeIndex),
+      );
+    }
+    // 播放头所在单词：与句子列表里高亮的单词对应。
+    final word = highlightedWord;
+    if (word != null && activeIndex >= 0) {
+      canvas.drawRect(
+        Rect.fromLTRB(
+          metrics.screenX(word.startTime, viewOffset),
+          waveTop,
+          metrics.screenX(word.endTime, viewOffset),
+          waveformBottom,
+        ),
+        Paint()..color = palette.wordFill(activeIndex),
       );
     }
 
-    final basePaint = Paint()
-      ..color = palette.bar
-      ..strokeWidth = _barWidth
-      ..strokeCap = StrokeCap.round;
-    final sentencePaint = Paint()
-      ..color = palette.sentenceBar
-      ..strokeWidth = _barWidth
-      ..strokeCap = StrokeCap.round;
-    final activePaint = Paint()
-      ..color = palette.activeBar
+    final barPaint = Paint()
       ..strokeWidth = _barWidth
       ..strokeCap = StrokeCap.round;
 
     // 波形竖条：采样网格钉在**内容坐标**（content-x = k*step），而非屏幕坐标。
     // 这样每根柱子恒定代表同一采样点，滚动时随内容平移、高度不变——若钉屏幕坐标，
     // 同一屏幕位置每帧映射到不同采样点，柱高就会一帧一变地闪烁。
+    // 竖条按时间递增，句子按时间排序，用游标查所在句，避免每根竖条遍历全部句子。
+    var sentenceCursor = 0;
     final startK = (viewOffset / _barStep).floor();
     for (var k = startK; ; k++) {
       final cx = k * _barStep; // 内容坐标（稳定网格）
@@ -1107,24 +1480,35 @@ class _WaveformLayerPainter extends CustomPainter {
         centerY + .5,
       );
       final positionUs = totalUs * frac;
-      final isActive =
-          active != null &&
-          positionUs >= active.startTime.inMicroseconds &&
-          positionUs <= active.endTime.inMicroseconds;
-      final isSentence = !isActive && _hasSentenceAt(positionUs);
-      canvas.drawLine(
-        Offset(sx, minY),
-        Offset(sx, maxY),
-        isActive
-            ? activePaint
-            : isSentence
-            ? sentencePaint
-            : basePaint,
-      );
+      while (sentenceCursor < sentences.length &&
+          sentences[sentenceCursor].endTime.inMicroseconds < positionUs) {
+        sentenceCursor++;
+      }
+      final inSentence =
+          sentenceCursor < sentences.length &&
+          positionUs >= sentences[sentenceCursor].startTime.inMicroseconds;
+      barPaint.color = !inSentence
+          ? palette.bar
+          : sentenceCursor == activeIndex
+          ? palette.sentenceColor(sentenceCursor)
+          : palette.sentenceBar(sentenceCursor);
+      canvas.drawLine(Offset(sx, minY), Offset(sx, maxY), barPaint);
     }
 
-    // 句子文本（小字，钉在每句起点、随内容平移、按句区间裁剪）。
-    _drawSentenceTexts(canvas, viewport, top);
+    // 顶部文字行：未选中句画整句，选中句画逐词单词块（有词时）。
+    final activeWords = [
+      for (final b in wordBoundaries)
+        if (b.primary) b.word,
+    ];
+    _drawSentenceTexts(
+      canvas,
+      viewport,
+      top,
+      skipIndex: activeWords.isEmpty ? null : activeIndex,
+    );
+    if (activeWords.isNotEmpty && activeIndex >= 0) {
+      _drawActiveWords(canvas, viewport, top, activeWords, activeIndex);
+    }
 
     // 句子边界 + 词边界统一去重绘制（见 _drawBoundaries）。
     _drawBoundaries(canvas, viewport, waveTop, waveformBottom);
@@ -1134,11 +1518,19 @@ class _WaveformLayerPainter extends CustomPainter {
   }
 
   /// 在波形顶部绘制每句文本：左对齐到句起点（随内容平移），并裁剪到该句的屏幕
-  /// 区间内，避免文字溢出到相邻句。当前句用主色加粗。仅画可见句以省开销。
-  void _drawSentenceTexts(Canvas canvas, double viewport, double top) {
+  /// 区间内，避免文字溢出到相邻句。仅画可见句以省开销。[skipIndex] 为改画逐词
+  /// 单词块的选中句。
+  void _drawSentenceTexts(
+    Canvas canvas,
+    double viewport,
+    double top, {
+    required int? skipIndex,
+  }) {
     const leftPad = 6.0; // 让文字让开起始把手
     const textTop = 4.0;
-    for (final s in sentences) {
+    for (var i = 0; i < sentences.length; i++) {
+      if (i == skipIndex) continue;
+      final s = sentences[i];
       if (s.text.trim().isEmpty) continue;
       final sx = metrics.screenX(s.startTime, viewOffset);
       final ex = metrics.screenX(s.endTime, viewOffset);
@@ -1148,7 +1540,7 @@ class _WaveformLayerPainter extends CustomPainter {
       if (clipRight - clipLeft < 8) continue; // 太窄，放不下字
       final isActive = identical(s, activeSentence);
       final style = TextStyle(
-        color: isActive ? palette.activeLabel : palette.label,
+        color: isActive ? palette.sentenceColor(i) : palette.sentenceLabel(i),
         fontSize: 10,
         height: 1.1,
         fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
@@ -1162,22 +1554,84 @@ class _WaveformLayerPainter extends CustomPainter {
       )..layout(maxWidth: (ex - sx - leftPad * 2).clamp(0.0, double.infinity));
       canvas.save();
       canvas.clipRect(
-        Rect.fromLTRB(clipLeft, top, clipRight, top + _labelLaneHeight),
+        Rect.fromLTRB(clipLeft, top, clipRight, top + labelLaneHeight),
       );
       painter.paint(canvas, Offset(sx + leftPad, top + textTop));
       canvas.restore();
     }
   }
 
-  bool _hasSentenceAt(double positionUs) {
-    for (final s in sentences) {
-      if (positionUs >= s.startTime.inMicroseconds &&
-          positionUs < s.endTime.inMicroseconds) {
-        return true;
+  /// 选中句的逐词单词块：每个词一个圆角色块，文字居中在该词的时间区间内，用户
+  /// 不必回到句子列表就能定位单词、点按试听。播放头所在词加深并加粗。
+  void _drawActiveWords(
+    Canvas canvas,
+    double viewport,
+    double top,
+    List<WordTimestamp> words,
+    int sentenceIndex,
+  ) {
+    final color = palette.sentenceColor(sentenceIndex);
+    final highlighted = highlightedWord;
+    for (final word in words) {
+      final rect = wordChipRect(
+        metrics.screenX(word.startTime, viewOffset),
+        metrics.screenX(word.endTime, viewOffset),
+        top,
+      );
+      if (rect.right < 0 || rect.left > viewport || rect.width <= 0) continue;
+      final isHighlighted =
+          highlighted != null &&
+          highlighted.startTime == word.startTime &&
+          highlighted.endTime == word.endTime;
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(rect, const Radius.circular(4)),
+        Paint()
+          ..color = palette.wordChipFill(
+            sentenceIndex,
+            isHighlighted: isHighlighted,
+          ),
+      );
+      final text = word.word.trim();
+      if (text.isEmpty || rect.width <= 4) continue;
+      final painter = TextPainter(
+        text: TextSpan(
+          text: text,
+          style: TextStyle(
+            color: color,
+            fontSize: 10,
+            height: 1.1,
+            fontWeight: isHighlighted ? FontWeight.w700 : FontWeight.w500,
+          ),
+        ),
+        textDirection: TextDirection.ltr,
+        textScaler: textScaler,
+        maxLines: 1,
+        ellipsis: '…',
+      )..layout(maxWidth: rect.width - 4);
+      if (painter.didExceedMaxLines && rect.width < _minEllipsisWordWidth) {
+        continue;
       }
+      canvas.save();
+      canvas.clipRect(rect);
+      painter.paint(
+        canvas,
+        Offset(
+          rect.center.dx - painter.width / 2,
+          rect.center.dy - painter.height / 2,
+        ),
+      );
+      canvas.restore();
     }
-    return false;
   }
+
+  /// 单词块在文字行内的矩形：左右各缩进半像素，相邻词首尾相接时仍有细缝。
+  static Rect wordChipRect(double startX, double endX, double top) =>
+      Rect.fromLTRB(
+        startX + .5,
+        top + _wordChipTop,
+        endX - .5,
+        top + labelLaneHeight - _wordChipBottom,
+      );
 
   /// 统一绘制所有单词边界（都带把手），按屏幕位置聚合后绘制。
   ///
@@ -1282,11 +1736,20 @@ class _WaveformLayerPainter extends CustomPainter {
   }) {
     if (x < -12 || x > viewport + 12) return;
     final (lineAlpha, handleAlpha, lineWidth, width, height) = switch (style) {
-      _BoundaryStyle.sentenceEdge => (.95, 1.0, 1.6, 10.0, 18.0),
-      _BoundaryStyle.word => (.5, .9, 1.0, 8.0, 13.0),
-      _BoundaryStyle.neighbor => (.28, .45, 1.0, 6.0, 10.0),
+      _BoundaryStyle.sentenceEdge => (
+        .95,
+        1.0,
+        2.5,
+        11.0,
+        sentenceEdgeHandleHeight,
+      ),
+      _BoundaryStyle.word => (.8, .95, 2.0, 9.0, 14.0),
+      _BoundaryStyle.neighbor => (.4, .55, 1.5, 7.0, 10.0),
     };
     final lineHalf = lineWidth / 2;
+    // 相邻词首尾相接时一条线分成左红右绿两半，每半也要和单色线一样粗，否则两色
+    // 细到看不清。
+    final dualHalf = lineWidth * .75;
     final handleBottom = bottom - SubtitleWaveformView.boundaryHandleAxisGap;
     final rect = Rect.fromCenter(
       center: Offset(x, handleBottom - height / 2),
@@ -1297,11 +1760,11 @@ class _WaveformLayerPainter extends CustomPainter {
 
     if (hasStart && hasEnd) {
       canvas.drawRect(
-        Rect.fromLTRB(x - lineHalf, top, x, rect.top),
+        Rect.fromLTRB(x - dualHalf, top, x, rect.top),
         Paint()..color = palette.end.withValues(alpha: lineAlpha),
       );
       canvas.drawRect(
-        Rect.fromLTRB(x, top, x + lineHalf, rect.top),
+        Rect.fromLTRB(x, top, x + dualHalf, rect.top),
         Paint()..color = palette.start.withValues(alpha: lineAlpha),
       );
       canvas.save();
@@ -1424,6 +1887,8 @@ class _WaveformLayerPainter extends CustomPainter {
         !identical(samples, oldDelegate.samples) ||
         !identical(sentences, oldDelegate.sentences) ||
         activeSentence != oldDelegate.activeSentence ||
+        highlightedWord?.startTime != oldDelegate.highlightedWord?.startTime ||
+        highlightedWord?.endTime != oldDelegate.highlightedWord?.endTime ||
         // 按值比较词边界：词边界列表每帧重建，仅当时间 / 主次样式真正变化才重绘，
         // 避免播放时（实例每帧不同但内容相同）触发整层波形重绘。
         !_wordBoundariesEqual(wordBoundaries, oldDelegate.wordBoundaries) ||
@@ -1431,7 +1896,7 @@ class _WaveformLayerPainter extends CustomPainter {
         textScaler != oldDelegate.textScaler;
   }
 
-  /// 词边界按时间值 + 主次样式比较（词文本不影响绘制）。
+  /// 词边界按时间值、主次样式与词文本比较（选中句的词文本画在顶部单词块里）。
   static bool _wordBoundariesEqual(
     List<WaveformWordBoundary> a,
     List<WaveformWordBoundary> b,
@@ -1440,10 +1905,51 @@ class _WaveformLayerPainter extends CustomPainter {
     for (var i = 0; i < a.length; i++) {
       if (a[i].word.startTime != b[i].word.startTime ||
           a[i].word.endTime != b[i].word.endTime ||
+          a[i].word.word != b[i].word.word ||
           a[i].primary != b[i].primary) {
         return false;
       }
     }
     return true;
+  }
+}
+
+/// 波形空隙里的「添加句子」胶囊按钮。
+class _InsertSentenceButton extends StatelessWidget {
+  const _InsertSentenceButton({required this.onPressed});
+
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    return Material(
+      key: const ValueKey('subtitle-waveform-insert-sentence'),
+      color: scheme.primary,
+      shape: const StadiumBorder(),
+      elevation: 1,
+      child: InkWell(
+        onTap: onPressed,
+        customBorder: const StadiumBorder(),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(8, 5, 12, 5),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.add_rounded, size: 16, color: scheme.onPrimary),
+              const SizedBox(width: 3),
+              Text(
+                AppLocalizations.of(context)!.subtitleAddSentenceHere,
+                style: theme.textTheme.labelMedium?.copyWith(
+                  color: scheme.onPrimary,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }

@@ -4274,6 +4274,46 @@ class AppLocalizationsEn extends AppLocalizations {
   String get wordSplitBeforeAction => 'Split';
 
   @override
+  String get redo => 'Redo';
+
+  @override
+  String get mergeWithPreviousSentence => 'Merge with previous';
+
+  @override
+  String get subtitleEditSentenceText => 'Edit text';
+
+  @override
+  String get subtitleInsertSentenceAbove => 'Insert sentence above';
+
+  @override
+  String get subtitleInsertSentenceBelow => 'Insert sentence below';
+
+  @override
+  String get subtitleInsertSentenceNoGap =>
+      'No gap here. Drag boundaries to make room first.';
+
+  @override
+  String get subtitleAddSentenceHere => 'Add sentence';
+
+  @override
+  String get subtitleNewSentenceHint => 'Type the new sentence';
+
+  @override
+  String get subtitleTextEditHint => 'Enter to save · Esc to cancel';
+
+  @override
+  String get insertWordBefore => 'Insert word before';
+
+  @override
+  String get insertWordAfter => 'Insert word after';
+
+  @override
+  String get deleteWord => 'Delete word';
+
+  @override
+  String get subtitleNewWordHint => 'New word';
+
+  @override
   String get saveSubtitleEdits => 'Save subtitle changes';
 
   @override

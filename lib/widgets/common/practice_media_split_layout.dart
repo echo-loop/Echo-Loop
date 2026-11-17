@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/practice_media_split_provider.dart';
 import '../../services/app_logger.dart';
 import 'media_startup_canvas.dart';
+import 'media_split_divider.dart';
 import 'media_startup_status.dart';
 import 'practice_media_split_geometry.dart';
 
@@ -131,7 +132,7 @@ class _PracticeMediaSplitLayoutState
                 range: range,
                 fraction: split.fractionFor(axis),
               );
-        final divider = _PracticeMediaSplitDivider(
+        final divider = MediaSplitDivider(
           axis: axis,
           onDragStart: () => setState(() => _dragExtent = extent),
           onDragUpdate: (delta) => setState(
@@ -253,92 +254,6 @@ class _StartupContentGate extends StatelessWidget {
             ? Duration.zero
             : const Duration(milliseconds: 180),
         child: child,
-      ),
-    );
-  }
-}
-
-/// 视频与学习内容之间的拖动分隔条：整条都是热区，中间的短条是视觉提示。
-class _PracticeMediaSplitDivider extends StatefulWidget {
-  const _PracticeMediaSplitDivider({
-    required this.axis,
-    required this.onDragStart,
-    required this.onDragUpdate,
-    required this.onDragEnd,
-    required this.onReset,
-  });
-
-  final PracticeMediaSplitAxis axis;
-  final VoidCallback onDragStart;
-
-  /// 主轴方向的位移，正值表示视频变大。
-  final ValueChanged<double> onDragUpdate;
-  final VoidCallback onDragEnd;
-  final VoidCallback onReset;
-
-  @override
-  State<_PracticeMediaSplitDivider> createState() =>
-      _PracticeMediaSplitDividerState();
-}
-
-class _PracticeMediaSplitDividerState
-    extends State<_PracticeMediaSplitDivider> {
-  bool _isHovered = false;
-  bool _isDragging = false;
-
-  void _handleStart() {
-    setState(() => _isDragging = true);
-    widget.onDragStart();
-  }
-
-  void _handleEnd() {
-    setState(() => _isDragging = false);
-    widget.onDragEnd();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final isStacked = widget.axis == PracticeMediaSplitAxis.stacked;
-    final isActive = _isHovered || _isDragging;
-    const thickness = PracticeMediaSplitGeometry.dividerExtent;
-    final grip = AnimatedContainer(
-      duration: const Duration(milliseconds: 120),
-      width: isStacked ? (isActive ? 48 : 36) : 4,
-      height: isStacked ? 4 : (isActive ? 48 : 36),
-      decoration: BoxDecoration(
-        color: isActive ? colorScheme.primary : colorScheme.outlineVariant,
-        borderRadius: BorderRadius.circular(2),
-      ),
-    );
-
-    return MouseRegion(
-      cursor: isStacked
-          ? SystemMouseCursors.resizeUpDown
-          : SystemMouseCursors.resizeLeftRight,
-      onEnter: (_) => setState(() => _isHovered = true),
-      onExit: (_) => setState(() => _isHovered = false),
-      child: GestureDetector(
-        key: const ValueKey('practice-media-split-divider'),
-        behavior: HitTestBehavior.opaque,
-        onDoubleTap: widget.onReset,
-        onVerticalDragStart: isStacked ? (_) => _handleStart() : null,
-        onVerticalDragUpdate: isStacked
-            ? (details) => widget.onDragUpdate(details.delta.dy)
-            : null,
-        onVerticalDragEnd: isStacked ? (_) => _handleEnd() : null,
-        onVerticalDragCancel: isStacked ? _handleEnd : null,
-        onHorizontalDragStart: isStacked ? null : (_) => _handleStart(),
-        onHorizontalDragUpdate: isStacked
-            ? null
-            : (details) => widget.onDragUpdate(details.delta.dx),
-        onHorizontalDragEnd: isStacked ? null : (_) => _handleEnd(),
-        onHorizontalDragCancel: isStacked ? null : _handleEnd,
-        child: SizedBox(
-          width: isStacked ? double.infinity : thickness,
-          height: isStacked ? thickness : double.infinity,
-          child: Center(child: grip),
-        ),
       ),
     );
   }

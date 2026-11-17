@@ -296,19 +296,89 @@ void main() {
     expect(state().isDirty, isFalse);
   });
 
-  test('restoreSentences 撤销删除：还原到原始字幕后不再视为已修改', () async {
-    final notifier = controller();
-    await notifier.load();
-    final snapshot = List<Sentence>.from(state().sentences);
+  group('撤销 / 重做', () {
+    test('删除后撤销还原原始字幕，回到未修改；重做再次删除', () async {
+      final notifier = controller();
+      await notifier.load();
+      expect(state().canUndo, isFalse);
 
-    notifier.deleteSentence(1);
-    expect(state().sentences.length, 2);
+      notifier.deleteSentence(1);
+      expect(state().sentences.length, 2);
+      expect(state().canUndo, isTrue);
 
-    notifier.restoreSentences(snapshot);
-    expect(state().sentences.length, 3);
-    expect(state().sentences[1].text, 'Second sentence.');
-    expect(state().isDirty, isFalse);
-    expect(state().isPlaying, isFalse);
+      notifier.undo();
+      expect(state().sentences.length, 3);
+      expect(state().sentences[1].text, 'Second sentence.');
+      expect(state().isDirty, isFalse);
+      expect(state().isPlaying, isFalse);
+      expect(state().canUndo, isFalse);
+      expect(state().canRedo, isTrue);
+
+      notifier.redo();
+      expect(state().sentences.length, 2);
+      expect(state().isDirty, isTrue);
+      expect(state().canRedo, isFalse);
+    });
+
+    test('一次边界拖动（多帧）只算一步撤销，撤销后选中并居中被改的句子', () async {
+      final notifier = controller();
+      await notifier.load();
+      notifier.selectSentence(1);
+
+      // 拖句 1 末词终点（全局词 3）：多帧移动，松手结束。
+      notifier.adjustWord(3, BoundaryEdge.end, const Duration(seconds: 7));
+      notifier.adjustWord(
+        3,
+        BoundaryEdge.end,
+        const Duration(milliseconds: 6500),
+      );
+      notifier.endWordAdjust();
+      expect(state().sentences[1].endTime, const Duration(milliseconds: 6500));
+
+      notifier.selectSentence(0);
+      final epoch = state().selectionEpoch;
+      notifier.undo();
+
+      expect(state().sentences[1].endTime, const Duration(seconds: 8));
+      expect(state().selectedSentenceIndex, 1);
+      expect(state().selectionEpoch, greaterThan(epoch));
+      expect(state().canUndo, isFalse);
+      expect(state().isDirty, isFalse);
+    });
+
+    test('仅改内部词边界后撤销回原样，不再视为已修改', () async {
+      final notifier = controller();
+      await notifier.load();
+
+      // 句 0 'First sentence.'：内部边界 = 词 0 终点。
+      final before = state().words[0].endTime;
+      notifier.adjustWord(
+        0,
+        BoundaryEdge.end,
+        before - const Duration(milliseconds: 300),
+      );
+      notifier.endWordAdjust();
+      expect(state().isDirty, isTrue);
+
+      notifier.undo();
+      expect(state().words[0].endTime, before);
+      expect(state().isDirty, isFalse);
+    });
+
+    test('新编辑清空重做栈', () async {
+      final notifier = controller();
+      await notifier.load();
+
+      notifier.deleteSentence(2);
+      notifier.undo();
+      expect(state().canRedo, isTrue);
+
+      notifier.mergeWithNext(0);
+      expect(state().canRedo, isFalse);
+      notifier.redo();
+      expect(state().sentences.length, 2);
+      expect(state().sentences[0].text, 'First sentence. Second sentence.');
+    });
   });
 
   test('setWaveformZoomScale 限制缩放范围（1.0 ~ 按音频长度）', () async {
@@ -759,24 +829,25 @@ void main() {
             endTime: const Duration(seconds: 3),
           ),
         );
-      audioItemDao.wordTimestampsStore[audioItem.id] =
-          encodeWordTimestamps(const [
-            WordTimestamp(
-              word: 'one',
-              startTime: Duration.zero,
-              endTime: Duration(seconds: 1),
-            ),
-            WordTimestamp(
-              word: 'two',
-              startTime: Duration(seconds: 1),
-              endTime: Duration(seconds: 2),
-            ),
-            WordTimestamp(
-              word: 'three',
-              startTime: Duration(seconds: 2),
-              endTime: Duration(seconds: 3),
-            ),
-          ]);
+      audioItemDao.wordTimestampsStore[audioItem.id] = encodeWordTimestamps(
+        const [
+          WordTimestamp(
+            word: 'one',
+            startTime: Duration.zero,
+            endTime: Duration(seconds: 1),
+          ),
+          WordTimestamp(
+            word: 'two',
+            startTime: Duration(seconds: 1),
+            endTime: Duration(seconds: 2),
+          ),
+          WordTimestamp(
+            word: 'three',
+            startTime: Duration(seconds: 2),
+            endTime: Duration(seconds: 3),
+          ),
+        ],
+      );
     }
 
     test('editWord 改名单词：文本更新、词数不变、其余词时间不变', () async {
@@ -899,6 +970,261 @@ void main() {
       expect(state().sentences.length, 1);
       expect(state().isDirty, isFalse);
     });
+
+    test('highlightedWordIndex 按播放头取词；点词播完后仍是点的词', () async {
+      useSingleSentence();
+      final notifier = controller();
+      await notifier.load();
+
+      // 进入页面播放头在句首 → 第一个词。
+      expect(notifier.highlightedWordIndex, 0);
+      notifier.scrubTo(const Duration(milliseconds: 1500));
+      expect(notifier.highlightedWordIndex, 1);
+      // 句尾不属于任何词。
+      notifier.scrubTo(const Duration(seconds: 3));
+      expect(notifier.highlightedWordIndex, isNull);
+
+      final playback = notifier.playWord(1);
+      await Future<void>.delayed(Duration.zero);
+      expect(notifier.highlightedWordIndex, 1);
+      audioEngine.completePlayback();
+      await playback;
+      // 播完播放头停在词尾（= 下一个词的起点），高亮仍是刚播的词。
+      expect(state().playbackPosition, const Duration(seconds: 2));
+      expect(notifier.highlightedWordIndex, 1);
+
+      // 再定位播放头即按位置取词。
+      notifier.scrubTo(const Duration(milliseconds: 2500));
+      expect(notifier.highlightedWordIndex, 2);
+    });
+
+    test('播放中定位播放头会先停止播放', () async {
+      useSingleSentence();
+      final notifier = controller();
+      await notifier.load();
+
+      final playback = notifier.playSentence(0);
+      await Future<void>.delayed(Duration.zero);
+      expect(state().isPlaying, isTrue);
+
+      notifier.scrubTo(const Duration(milliseconds: 500));
+      expect(state().isPlaying, isFalse);
+      expect(state().playbackPosition, const Duration(milliseconds: 500));
+      audioEngine.completePlayback();
+      await playback;
+      expect(state().playbackPosition, const Duration(milliseconds: 500));
+    });
+
+    test('insertWords 在两个紧挨的词之间插词：与前一词按字数分时间，其余不变', () async {
+      useSingleSentence();
+      final notifier = controller();
+      await notifier.load();
+
+      // 'one' [0,1s] 后插 'big'（各 3 字符）→ one [0,0.5s] + big [0.5s,1s]。
+      notifier.insertWords(0, 'big', after: true);
+
+      expect(state().sentences[0].text, 'one big two three');
+      final words = notifier.wordsOfSelectedSentence;
+      expect(words.map((w) => w.word).toList(), ['one', 'big', 'two', 'three']);
+      expect(words[0].endTime, const Duration(milliseconds: 500));
+      expect(words[1].startTime, const Duration(milliseconds: 500));
+      expect(words[1].endTime, const Duration(seconds: 1));
+      expect(words[2].startTime, const Duration(seconds: 1));
+      expect(words[3].endTime, const Duration(seconds: 3));
+      expect(state().canUndo, isTrue);
+    });
+
+    test('insertWords 在首词前插词：从首词借时间，句起不变', () async {
+      useSingleSentence();
+      final notifier = controller();
+      await notifier.load();
+
+      notifier.insertWords(0, 'and', after: false);
+
+      expect(state().sentences[0].text, 'and one two three');
+      expect(state().sentences[0].startTime, Duration.zero);
+      final words = notifier.wordsOfSelectedSentence;
+      expect(words[0].startTime, Duration.zero);
+      expect(words[1].endTime, const Duration(seconds: 1));
+      expect(words[2].startTime, const Duration(seconds: 1));
+    });
+
+    test('insertWords 留空不插入、不记撤销', () async {
+      useSingleSentence();
+      final notifier = controller();
+      await notifier.load();
+
+      notifier.insertWords(1, '   ', after: true);
+
+      expect(state().sentences[0].text, 'one two three');
+      expect(state().canUndo, isFalse);
+    });
+
+    test('editSentenceText 只给改动的词重新分时间，未改动的词保留原时间', () async {
+      useSingleSentence();
+      final notifier = controller();
+      await notifier.load();
+
+      // 'two' 改成 'TWO', 末尾加 'four'：one / three 保留原时间。
+      notifier.editSentenceText(0, 'one TWO three four');
+
+      expect(state().sentences[0].text, 'one TWO three four');
+      final words = notifier.wordsOfSelectedSentence;
+      expect(words[0].endTime, const Duration(seconds: 1));
+      expect(words[1].startTime, const Duration(seconds: 1));
+      expect(words[1].endTime, const Duration(seconds: 2));
+      // 句尾新词没有空隙可用，与 three 一起按字数（5:4）分 [2s,3s]。
+      expect(words[2].startTime, const Duration(seconds: 2));
+      expect(words[3].endTime, const Duration(seconds: 3));
+      expect(words[3].startTime, const Duration(milliseconds: 2556));
+    });
+
+    test('editSentenceText 删掉首词：句起跟随新首词；清空整句等于删句', () async {
+      useSingleSentence();
+      sentences.add(
+        Sentence(
+          index: 1,
+          text: 'four five',
+          startTime: const Duration(seconds: 3),
+          endTime: const Duration(seconds: 5),
+        ),
+      );
+      audioItemDao.wordTimestampsStore.remove(audioItem.id);
+      final notifier = controller();
+      await notifier.load();
+
+      notifier.editSentenceText(1, 'five');
+      expect(state().sentences[1].text, 'five');
+      expect(
+        state().sentences[1].startTime,
+        greaterThan(const Duration(seconds: 3)),
+      );
+
+      notifier.editSentenceText(1, '  ');
+      expect(state().sentences.length, 1);
+
+      notifier.undo();
+      notifier.undo();
+      expect(state().sentences[1].text, 'four five');
+      expect(state().isDirty, isFalse);
+    });
+
+    test('editSentenceText 文字未变时不记撤销', () async {
+      useSingleSentence();
+      final notifier = controller();
+      await notifier.load();
+
+      notifier.editSentenceText(0, ' one  two three ');
+
+      expect(state().canUndo, isFalse);
+      expect(state().isDirty, isFalse);
+    });
+
+    test('deleteWord 删除中间词', () async {
+      useSingleSentence();
+      final notifier = controller();
+      await notifier.load();
+
+      notifier.deleteWord(1);
+
+      expect(state().sentences[0].text, 'one three');
+    });
+  });
+
+  group('插入新句', () {
+    /// 两句之间留 2s 空隙：[0,2s] 空隙 [2s,4s] [4s,6s]，音频共 12s。
+    void useGappedSentences() {
+      sentences
+        ..clear()
+        ..addAll([
+          Sentence(
+            index: 0,
+            text: 'Hello there',
+            startTime: Duration.zero,
+            endTime: const Duration(seconds: 2),
+          ),
+          Sentence(
+            index: 1,
+            text: 'Good bye',
+            startTime: const Duration(seconds: 4),
+            endTime: const Duration(seconds: 6),
+          ),
+        ]);
+    }
+
+    test('句间空隙可插入；紧挨的两句之间不可插入', () async {
+      final notifier = controller();
+      await notifier.load();
+      // 默认三句首尾相接，句间没有空隙；第 2 句之后到音频结尾也没有。
+      expect(notifier.insertSlotNear(0, after: true), isNull);
+      expect(notifier.insertSlotNear(0, after: false), isNull);
+      expect(notifier.insertSlotNear(2, after: true), isNull);
+    });
+
+    test('在下方插入：新句占满空隙并被选中，其余词时间不变，可撤销', () async {
+      useGappedSentences();
+      final notifier = controller();
+      await notifier.load();
+      final wordsBefore = List.of(state().words);
+
+      final slot = notifier.insertSlotNear(0, after: true);
+      expect(slot, (
+        start: const Duration(seconds: 2),
+        end: const Duration(seconds: 4),
+      ));
+      notifier.insertSentence(slot!, 'I missed this');
+
+      expect(state().sentences.map((s) => s.text).toList(), [
+        'Hello there',
+        'I missed this',
+        'Good bye',
+      ]);
+      expect(state().sentences[1].index, 1);
+      expect(state().selectedSentenceIndex, 1);
+      expect(state().words.length, wordsBefore.length + 3);
+      expect(state().words.last.startTime, wordsBefore.last.startTime);
+      expect(notifier.sentenceCountChanged, isTrue);
+
+      notifier.undo();
+      expect(state().sentences.length, 2);
+      expect(state().isDirty, isFalse);
+    });
+
+    test('播放头停在空隙时给出插入区间，落在句内时没有', () async {
+      useGappedSentences();
+      final notifier = controller();
+      await notifier.load();
+
+      notifier.scrubTo(const Duration(seconds: 3));
+      expect(notifier.insertSlotAtPlayhead, (
+        start: const Duration(seconds: 2),
+        end: const Duration(seconds: 4),
+      ));
+
+      notifier.scrubTo(const Duration(seconds: 1));
+      expect(notifier.insertSlotAtPlayhead, isNull);
+
+      // 末句之后 [6s,12s] 也是空隙。
+      notifier.scrubTo(const Duration(seconds: 9));
+      expect(notifier.insertSlotAtPlayhead, (
+        start: const Duration(seconds: 6),
+        end: const Duration(seconds: 12),
+      ));
+    });
+
+    test('文字为空时不插入', () async {
+      useGappedSentences();
+      final notifier = controller();
+      await notifier.load();
+
+      notifier.insertSentence((
+        start: const Duration(seconds: 2),
+        end: const Duration(seconds: 4),
+      ), '  ');
+
+      expect(state().sentences.length, 2);
+      expect(state().canUndo, isFalse);
+    });
   });
 
   group('save 是否清空学习进度/收藏', () {
@@ -999,10 +1325,7 @@ void main() {
         reason: '句子数量未变，收藏应保留',
       );
       expect(
-        c
-            .read(learningProgressProvider)
-            .progressMap
-            .containsKey(audioItem.id),
+        c.read(learningProgressProvider).progressMap.containsKey(audioItem.id),
         isTrue,
         reason: '句子数量未变，学习进度应保留',
       );
@@ -1065,6 +1388,28 @@ void main() {
       expect(savedAgain, isFalse);
     });
 
+    test('保存后仍可撤销，撤销后相对保存版本为已修改', () async {
+      final c = saveContainer();
+      addTearDown(c.dispose);
+      c.listen(subtitleEditorControllerProvider(audioItem), (_, _) {});
+      final notifier = c.read(
+        subtitleEditorControllerProvider(audioItem).notifier,
+      );
+      SubtitleEditorState current() =>
+          c.read(subtitleEditorControllerProvider(audioItem));
+      await notifier.load();
+
+      notifier.adjustWord(1, BoundaryEdge.end, const Duration(seconds: 3));
+      notifier.endWordAdjust();
+      expect(await notifier.save(), isTrue);
+      expect(current().isDirty, isFalse);
+      expect(current().canUndo, isTrue);
+
+      notifier.undo();
+      expect(current().sentences[0].endTime, const Duration(seconds: 4));
+      expect(current().isDirty, isTrue);
+    });
+
     test('删除句子（句子数量变化）清空学习进度和收藏', () async {
       final c = saveContainer();
       addTearDown(c.dispose);
@@ -1086,10 +1431,7 @@ void main() {
         reason: '句子数量变化，收藏应清空',
       );
       expect(
-        c
-            .read(learningProgressProvider)
-            .progressMap
-            .containsKey(audioItem.id),
+        c.read(learningProgressProvider).progressMap.containsKey(audioItem.id),
         isFalse,
         reason: '句子数量变化，学习进度应清空',
       );
@@ -1117,9 +1459,7 @@ void main() {
             favoriteSentenceLifecycleProvider.overrideWith(
               (ref) => _TestFavoriteSentenceLifecycle(ref),
             ),
-            learningProgressProvider.overrideWith(
-              () => progressNotifier,
-            ),
+            learningProgressProvider.overrideWith(() => progressNotifier),
           ]),
         );
         addTearDown(c.dispose);

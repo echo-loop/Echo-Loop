@@ -19,7 +19,8 @@ class SubtitleEditorVideoPreview {
   SubtitleEditorVideoPreview(this._backend);
 
   /// 播放中画面与播放头的允许偏差；超过才重新定位，避免频繁 seek 造成卡顿。
-  static const Duration _playingDriftTolerance = Duration(milliseconds: 300);
+  /// 约 4 帧：再小容易在播放位置上报抖动时反复 seek。
+  static const Duration _playingDriftTolerance = Duration(milliseconds: 150);
 
   /// 暂停时画面与播放头的允许偏差；小于一帧时不必再定位。
   static const Duration _pausedDriftTolerance = Duration(milliseconds: 40);
@@ -129,7 +130,13 @@ class SubtitleEditorVideoPreview {
       }
       return;
     }
-    if (_backend.playing) await _backend.pause();
+    if (_backend.playing) {
+      // 暂停生效前画面还会再走几十毫秒，暂停前算的偏差已不准：停下后一律定位到
+      // 播放头所在帧，保证停稳时画面与播放头、高亮单词是同一时刻。
+      await _backend.pause();
+      await _backend.seek(_targetPosition);
+      return;
+    }
     if (drift > _pausedDriftTolerance) await _backend.seek(_targetPosition);
   }
 

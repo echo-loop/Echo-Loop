@@ -7544,6 +7544,84 @@ abstract class AppLocalizations {
   /// **'Split'**
   String get wordSplitBeforeAction;
 
+  /// No description provided for @redo.
+  ///
+  /// In en, this message translates to:
+  /// **'Redo'**
+  String get redo;
+
+  /// No description provided for @mergeWithPreviousSentence.
+  ///
+  /// In en, this message translates to:
+  /// **'Merge with previous'**
+  String get mergeWithPreviousSentence;
+
+  /// No description provided for @subtitleEditSentenceText.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit text'**
+  String get subtitleEditSentenceText;
+
+  /// No description provided for @subtitleInsertSentenceAbove.
+  ///
+  /// In en, this message translates to:
+  /// **'Insert sentence above'**
+  String get subtitleInsertSentenceAbove;
+
+  /// No description provided for @subtitleInsertSentenceBelow.
+  ///
+  /// In en, this message translates to:
+  /// **'Insert sentence below'**
+  String get subtitleInsertSentenceBelow;
+
+  /// No description provided for @subtitleInsertSentenceNoGap.
+  ///
+  /// In en, this message translates to:
+  /// **'No gap here. Drag boundaries to make room first.'**
+  String get subtitleInsertSentenceNoGap;
+
+  /// No description provided for @subtitleAddSentenceHere.
+  ///
+  /// In en, this message translates to:
+  /// **'Add sentence'**
+  String get subtitleAddSentenceHere;
+
+  /// No description provided for @subtitleNewSentenceHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Type the new sentence'**
+  String get subtitleNewSentenceHint;
+
+  /// No description provided for @subtitleTextEditHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter to save · Esc to cancel'**
+  String get subtitleTextEditHint;
+
+  /// No description provided for @insertWordBefore.
+  ///
+  /// In en, this message translates to:
+  /// **'Insert word before'**
+  String get insertWordBefore;
+
+  /// No description provided for @insertWordAfter.
+  ///
+  /// In en, this message translates to:
+  /// **'Insert word after'**
+  String get insertWordAfter;
+
+  /// No description provided for @deleteWord.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete word'**
+  String get deleteWord;
+
+  /// No description provided for @subtitleNewWordHint.
+  ///
+  /// In en, this message translates to:
+  /// **'New word'**
+  String get subtitleNewWordHint;
+
   /// No description provided for @saveSubtitleEdits.
   ///
   /// In en, this message translates to:

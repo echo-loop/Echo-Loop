@@ -41,7 +41,7 @@ void main() {
     final seeksWhilePlaying = backend.seekCalls.length;
     preview.follow(
       isPlaying: true,
-      position: seconds(5) + const Duration(milliseconds: 200),
+      position: seconds(5) + const Duration(milliseconds: 100),
       speed: 1.5,
     );
     await flush();
@@ -51,6 +51,28 @@ void main() {
     await flush();
     expect(backend.playing, isFalse);
     expect(backend.seekCalls.last, seconds(8));
+  });
+
+  test('播放转暂停时即使偏差很小也定位到停止位置（暂停前画面还会再走一点）', () async {
+    await preview.open('/media/lesson.mp4', initialPosition: Duration.zero);
+    preview.follow(isPlaying: true, position: seconds(5), speed: 1);
+    await flush();
+    final seeksBefore = backend.seekCalls.length;
+
+    // 停止位置与画面只差 20ms（小于暂停时的 40ms 容差）。
+    preview.follow(
+      isPlaying: false,
+      position: seconds(5) + const Duration(milliseconds: 20),
+      speed: 1,
+    );
+    await flush();
+
+    expect(backend.playing, isFalse);
+    expect(backend.seekCalls.length, seeksBefore + 1);
+    expect(
+      backend.seekCalls.last,
+      seconds(5) + const Duration(milliseconds: 20),
+    );
   });
 
   test('暂停时拖动播放头，画面停到对应帧；收起画面时暂停', () async {
