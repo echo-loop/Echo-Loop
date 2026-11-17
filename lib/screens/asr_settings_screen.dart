@@ -8,6 +8,7 @@ import 'dart:io' show Platform;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:echo_loop/widgets/common/svg_action_icon.dart';
 
 import '../l10n/app_localizations.dart';
 import '../providers/offline_asr_settings_provider.dart';
@@ -274,7 +275,7 @@ class _AsrSettingsScreenState extends ConsumerState<AsrSettingsScreen> {
     }
     if (state.isReady && !isSelected) {
       return IconButton(
-        icon: const Icon(Icons.delete_outline),
+        icon: const SvgActionIcon(assetName: 'assets/icon/trash-bin.svg'),
         tooltip: l10n.deleteModelAction,
         onPressed: () =>
             _confirmDeleteModel(context, l10n, modelId, state.localSizeBytes),
@@ -300,7 +301,7 @@ class _AsrSettingsScreenState extends ConsumerState<AsrSettingsScreen> {
         ),
       ),
       trailing: IconButton(
-        icon: const Icon(Icons.delete_outline),
+        icon: const SvgActionIcon(assetName: 'assets/icon/trash-bin.svg'),
         tooltip: l10n.deleteModelAction,
         onPressed: () => _confirmDeleteAllModels(context, l10n),
       ),

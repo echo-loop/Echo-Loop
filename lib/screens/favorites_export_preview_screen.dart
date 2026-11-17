@@ -7,10 +7,10 @@ library;
 import 'dart:async';
 import 'dart:typed_data';
 
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:universal_io/io.dart';
+import 'package:echo_loop/widgets/common/svg_action_icon.dart';
 
 import '../database/providers.dart';
 import '../l10n/app_localizations.dart';
@@ -190,17 +190,20 @@ class _FavoritesExportPreviewScreenState
         title: Text(l10n.pdfPreviewTitle),
         actions: [
           IconButton(
-            icon: const Icon(CupertinoIcons.arrow_down_to_line, size: 21),
+            icon: const SvgActionIcon(
+              assetName: 'assets/icon/download.svg',
+              size: 21,
+            ),
             tooltip: l10n.download,
             onPressed: hasBytes ? () => unawaited(_download(l10n)) : null,
           ),
           IconButton(
-            icon: Icon(
-              Platform.isIOS || Platform.isMacOS
-                  ? CupertinoIcons.share
-                  : Icons.share_outlined,
-              size: 21,
-            ),
+            icon: Platform.isAndroid
+                ? const Icon(Icons.share_outlined, size: 21)
+                : const SvgActionIcon(
+                    assetName: 'assets/icon/share.svg',
+                    size: 21,
+                  ),
             tooltip: l10n.pdfShare,
             onPressed: hasBytes ? () => unawaited(_share(l10n)) : null,
           ),

@@ -8,6 +8,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 
+import '../helpers/svg_icon_finder.dart';
+
 class _MockInspector extends Mock implements DownloadTaskInspector {}
 
 const _runningTask = DownloadTaskInfo(
@@ -104,7 +106,7 @@ void main() {
 
     expect(find.text('waiting.mp3'), findsOneWidget);
     expect(find.textContaining('排队中'), findsOneWidget);
-    expect(find.byIcon(Icons.delete_outline), findsOneWidget);
+    expect(svgIcon('assets/icon/trash-bin.svg'), findsOneWidget);
     expect(
       tester.getTopLeft(find.text('waiting.mp3')).dy,
       lessThan(tester.getTopLeft(find.text('episode.mp3')).dy),

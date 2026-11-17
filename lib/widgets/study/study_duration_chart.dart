@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:echo_loop/widgets/common/svg_action_icon.dart';
 
 import '../../l10n/app_localizations.dart';
 import '../../providers/study_duration_provider.dart';
@@ -111,7 +112,7 @@ class _ErrorState extends StatelessWidget {
     child: Center(
       child: TextButton.icon(
         onPressed: onRetry,
-        icon: const Icon(Icons.refresh),
+        icon: const SvgActionIcon(assetName: 'assets/icon/refresh.svg'),
         label: const Text('Retry'),
       ),
     ),

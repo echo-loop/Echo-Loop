@@ -7,6 +7,7 @@ library;
 import 'package:background_downloader/background_downloader.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:echo_loop/widgets/common/svg_action_icon.dart';
 
 import '../features/baidu_netdisk/providers/baidu_netdisk_import_tasks_provider.dart';
 import '../providers/download_provider.dart';
@@ -148,7 +149,7 @@ class _DownloadTaskTile extends StatelessWidget {
           ? null
           : IconButton(
               tooltip: '删除',
-              icon: const Icon(Icons.delete_outline),
+              icon: const SvgActionIcon(assetName: 'assets/icon/trash-bin.svg'),
               onPressed: onRemove,
             ),
     );

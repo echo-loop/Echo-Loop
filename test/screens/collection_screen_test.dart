@@ -427,7 +427,7 @@ void main() {
         );
         await tester.pumpAndSettle();
 
-        expect(find.byIcon(Icons.push_pin_outlined), findsNothing);
+        expect(svgIcon('assets/icon/pin.svg'), findsNothing);
 
         await tester.tap(
           find.byKey(const Key('collection_list_menu_hit_area')),

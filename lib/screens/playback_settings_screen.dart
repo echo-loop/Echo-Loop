@@ -11,6 +11,7 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:echo_loop/widgets/common/svg_action_icon.dart';
 
 import '../l10n/app_localizations.dart';
 import '../providers/settings_provider.dart';
@@ -154,12 +155,15 @@ class PlaybackSettingsScreen extends ConsumerWidget {
   ) {
     final isSelected = settings.silenceThresholdSeconds == seconds;
     return ListTile(
-      leading: Icon(
-        isSelected ? Icons.check_circle : Icons.circle_outlined,
-        color: isSelected
-            ? Theme.of(context).colorScheme.primary
-            : Theme.of(context).colorScheme.outline,
-      ),
+      leading: isSelected
+          ? SvgActionIcon(
+              assetName: 'assets/icon/check-circle-3.svg',
+              color: Theme.of(context).colorScheme.primary,
+            )
+          : Icon(
+              Icons.circle_outlined,
+              color: Theme.of(context).colorScheme.outline,
+            ),
       title: Text(l10n.silenceThresholdValue(seconds)),
       selected: isSelected,
       onTap: () {

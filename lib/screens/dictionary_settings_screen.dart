@@ -6,6 +6,7 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:echo_loop/widgets/common/svg_action_icon.dart';
 
 import '../l10n/app_localizations.dart';
 import '../providers/dictionary/dictionary_registry.dart';
@@ -67,8 +68,8 @@ class DictionarySettingsScreen extends ConsumerWidget {
                     leading: _SourceIcon(source: s),
                     title: Text(dictSourceLabel(l10n, s.id)),
                     trailing: settings.defaultSourceId == s.id
-                        ? Icon(
-                            Icons.check_circle,
+                        ? SvgActionIcon(
+                            assetName: 'assets/icon/check-circle-3.svg',
                             color: theme.colorScheme.primary,
                           )
                         : Icon(
@@ -180,8 +181,8 @@ class _SourceToggleTile extends StatelessWidget {
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              Icons.lock_outline,
+            SvgActionIcon(
+              assetName: 'assets/icon/lock.svg',
               size: 16,
               color: theme.colorScheme.onSurfaceVariant,
             ),

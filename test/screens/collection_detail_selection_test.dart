@@ -6,6 +6,8 @@ import 'package:echo_loop/screens/collection_detail_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import '../helpers/svg_icon_finder.dart';
+
 import '../helpers/mock_providers.dart';
 import '../helpers/test_app.dart';
 
@@ -175,7 +177,7 @@ void main() {
     await tester.tap(find.text('Select All'));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byIcon(Icons.delete_outline));
+    await tester.tap(svgIcon('assets/icon/trash-bin.svg'));
     await tester.pumpAndSettle();
 
     // 默认勾选「彻底删除」，主按钮为 Delete，直接确认
@@ -208,7 +210,7 @@ void main() {
 
     await tester.longPress(find.text('a2'));
     await tester.pumpAndSettle();
-    await tester.tap(find.byIcon(Icons.delete_outline));
+    await tester.tap(svgIcon('assets/icon/trash-bin.svg'));
     await tester.pumpAndSettle();
 
     // 取消勾选「彻底删除」后主按钮切换为「从合集移除」，再确认

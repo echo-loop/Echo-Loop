@@ -5,6 +5,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:echo_loop/widgets/common/svg_action_icon.dart';
 
 import '../../../l10n/app_localizations.dart';
 import '../../../models/subtitle_text_prefs.dart';
@@ -258,7 +259,10 @@ class ChatMessageBubble extends StatelessWidget {
         if (message.status == ChatMessageStatus.error)
           _inlineAction(
             context,
-            icon: Icons.refresh,
+            icon: const SvgActionIcon(
+              assetName: 'assets/icon/refresh.svg',
+              size: 16,
+            ),
             label: AppLocalizations.of(context)!.chatErrorGenerate,
             onTap: onRetry,
           ),
@@ -267,7 +271,10 @@ class ChatMessageBubble extends StatelessWidget {
         if (message.status == ChatMessageStatus.authRequired)
           _inlineAction(
             context,
-            icon: Icons.lock_outline,
+            icon: const SvgActionIcon(
+              assetName: 'assets/icon/lock.svg',
+              size: 16,
+            ),
             label: AppLocalizations.of(context)!.chatSignInTitle,
             onTap: onSignIn,
           ),
@@ -278,7 +285,7 @@ class ChatMessageBubble extends StatelessWidget {
   /// 气泡内 inline 操作按钮（重试 / 升级 / 登录）。
   Widget _inlineAction(
     BuildContext context, {
-    required IconData icon,
+    required Widget icon,
     required String label,
     required VoidCallback? onTap,
   }) {
@@ -290,7 +297,10 @@ class ChatMessageBubble extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 16, color: scheme.error),
+            IconTheme(
+              data: IconThemeData(size: 16, color: scheme.error),
+              child: icon,
+            ),
             const SizedBox(width: AppSpacing.xs),
             Text(
               label,

@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:echo_loop/widgets/common/svg_action_icon.dart';
 
 import '../../analytics/analytics_providers.dart';
 import '../../analytics/models/event_names.dart';
@@ -245,13 +246,13 @@ class _SubtitleSimpleEditorScreenState
             key: const ValueKey('subtitle-editor-undo'),
             tooltip: _withShortcutHint(l10n.undo, 'Z'),
             onPressed: state.canUndo ? _undo : null,
-            icon: const Icon(Icons.undo_rounded),
+            icon: const SvgActionIcon(assetName: 'assets/icon/undo.svg'),
           ),
           IconButton(
             key: const ValueKey('subtitle-editor-redo'),
             tooltip: _withShortcutHint(l10n.redo, '⇧Z'),
             onPressed: state.canRedo ? _redo : null,
-            icon: const Icon(Icons.redo_rounded),
+            icon: const SvgActionIcon(assetName: 'assets/icon/redo.svg'),
           ),
           const SizedBox(width: AppSpacing.xs),
           Padding(
@@ -923,7 +924,7 @@ class _EditorToolbar extends StatelessWidget {
                   ? () =>
                         onZoomChanged((value * _zoomStep).clamp(1.0, sliderMax))
                   : null,
-              icon: const Icon(Icons.add_rounded),
+              icon: const SvgActionIcon(assetName: 'assets/icon/plus.svg'),
             ),
             const SizedBox(width: AppSpacing.s),
             _SpeedChip(
@@ -1354,7 +1355,11 @@ class _SentenceListState extends State<_SentenceList> {
                   value: _SentenceAction.delete,
                   enabled: widget.sentences.length > 1,
                   child: _MenuRow(
-                    icon: Icons.delete_outline,
+                    iconWidget: SvgActionIcon(
+                      assetName: 'assets/icon/trash-bin.svg',
+                      size: 20,
+                      color: scheme.error,
+                    ),
                     label: l10n.deleteSentence,
                     color: scheme.error,
                   ),
@@ -1529,7 +1534,11 @@ class _SentenceListState extends State<_SentenceList> {
               width: _kPlayActionWidth,
               child: Padding(
                 padding: const EdgeInsets.only(top: _kRowVerticalPadding + 2),
-                child: Icon(Icons.add_rounded, size: 22, color: scheme.primary),
+                child: SvgActionIcon(
+                  assetName: 'assets/icon/plus.svg',
+                  size: 22,
+                  color: scheme.primary,
+                ),
               ),
             ),
             Expanded(
@@ -2183,7 +2192,11 @@ class _SentenceWordLabelsState extends State<_SentenceWordLabels> {
                       children: [
                         _ToolbarButton(
                           key: ValueKey('subtitle-word-edit-button-$index'),
-                          icon: Icons.edit_outlined,
+                          iconWidget: SvgActionIcon(
+                            assetName: 'assets/icon/edit.svg',
+                            size: 16,
+                            color: onSurface,
+                          ),
                           label: l10n.wordEditAction,
                           tooltip: l10n.editWord,
                           color: onSurface,
@@ -2343,7 +2356,11 @@ class _InsertWordIcon extends StatelessWidget {
         border: Border.all(color: color.withValues(alpha: .7), width: 1.4),
       ),
     );
-    final plus = Icon(Icons.add_rounded, size: 14, color: color);
+    final plus = SvgActionIcon(
+      assetName: 'assets/icon/plus.svg',
+      size: 14,
+      color: color,
+    );
     return SizedBox(
       height: 16,
       child: Row(
@@ -2489,19 +2506,21 @@ class _EmptySentences extends StatelessWidget {
 }
 
 class _MenuRow extends StatelessWidget {
-  final IconData icon;
+  final IconData? icon;
+  final Widget? iconWidget;
   final String label;
 
   /// 可选着色，破坏性操作（删除）传 [colorScheme.error] 以示警示。
   final Color? color;
 
-  const _MenuRow({required this.icon, required this.label, this.color});
+  const _MenuRow({this.icon, this.iconWidget, required this.label, this.color})
+    : assert(icon != null || iconWidget != null);
 
   @override
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Icon(icon, size: 20, color: color),
+        iconWidget ?? Icon(icon, size: 20, color: color),
         const SizedBox(width: 12),
         Text(label, style: color == null ? null : TextStyle(color: color)),
       ],

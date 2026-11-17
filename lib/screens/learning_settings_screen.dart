@@ -9,6 +9,7 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:echo_loop/widgets/common/svg_action_icon.dart';
 
 import '../analytics/analytics_providers.dart';
 import '../analytics/models/event_names.dart';
@@ -385,10 +386,12 @@ class LearningSettingsScreen extends ConsumerWidget {
     final colorScheme = Theme.of(context).colorScheme;
     final isSelected = currentMinutes == minutes;
     return ListTile(
-      leading: Icon(
-        isSelected ? Icons.check_circle : Icons.circle_outlined,
-        color: isSelected ? colorScheme.primary : colorScheme.outline,
-      ),
+      leading: isSelected
+          ? SvgActionIcon(
+              assetName: 'assets/icon/check-circle-3.svg',
+              color: colorScheme.primary,
+            )
+          : Icon(Icons.circle_outlined, color: colorScheme.outline),
       title: Text(l10n.dailyGoalMinutesValue(minutes)),
       selected: isSelected,
       onTap: () {

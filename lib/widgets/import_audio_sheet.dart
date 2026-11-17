@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:echo_loop/widgets/common/svg_action_icon.dart';
 
 import '../features/audio_import/audio_import_models.dart';
 import '../features/audio_import/audio_import_provider.dart';
@@ -562,15 +563,17 @@ class _BaiduAvatar extends StatelessWidget {
         child: avatarUrl == null
             ? const ColoredBox(
                 color: Colors.transparent,
-                child: Icon(Icons.account_circle_outlined),
+                child: SvgActionIcon(assetName: 'assets/icon/account-1.svg'),
               )
             : Image.network(
                 avatarUrl,
                 fit: BoxFit.cover,
                 errorBuilder: (_, _, _) =>
-                    const Icon(Icons.account_circle_outlined),
+                    const SvgActionIcon(assetName: 'assets/icon/account-1.svg'),
                 loadingBuilder: loading
-                    ? (_, _, _) => const Icon(Icons.account_circle_outlined)
+                    ? (_, _, _) => const SvgActionIcon(
+                        assetName: 'assets/icon/account-1.svg',
+                      )
                     : null,
               ),
       ),
@@ -1266,7 +1269,11 @@ class _BaiduFileTile extends StatelessWidget {
         width: 48,
         height: 48,
         child: Center(
-          child: Icon(Icons.check_circle, size: 18, color: colorScheme.primary),
+          child: SvgActionIcon(
+            assetName: 'assets/icon/check-circle-3.svg',
+            size: 18,
+            color: colorScheme.primary,
+          ),
         ),
       ),
       _BaiduRowStatus.queued => Row(
@@ -1284,7 +1291,7 @@ class _BaiduFileTile extends StatelessWidget {
         ),
       ),
       _BaiduRowStatus.failed => IconButton(
-        icon: const Icon(Icons.refresh),
+        icon: const SvgActionIcon(assetName: 'assets/icon/refresh.svg'),
         tooltip: l10n.retry,
         onPressed: onRetry,
       ),
@@ -1664,7 +1671,11 @@ class _CompletedPanel extends StatelessWidget {
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(Icons.check_circle, color: colorScheme.primary, size: 24),
+            SvgActionIcon(
+              assetName: 'assets/icon/check-circle-3.svg',
+              color: colorScheme.primary,
+              size: 24,
+            ),
             const SizedBox(width: 10),
             Expanded(
               child: Column(

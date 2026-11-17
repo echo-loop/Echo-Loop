@@ -440,7 +440,7 @@ class _CollectionDetailScreenState
           child: Text(allSelected ? l10n.deselectAll : l10n.selectAll),
         ),
         IconButton(
-          icon: const Icon(Icons.delete_outline),
+          icon: const SvgActionIcon(assetName: 'assets/icon/trash-bin.svg'),
           tooltip: l10n.delete,
           onPressed: selectedCount == 0
               ? null

@@ -25,6 +25,8 @@ import 'package:echo_loop/widgets/media_type_icon.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../helpers/svg_icon_finder.dart';
+
 import '../helpers/mock_providers.dart';
 import '../helpers/test_app.dart';
 
@@ -1459,8 +1461,8 @@ void main() {
         find.byKey(const Key('audio_list_tile_menu_hit_area')),
         findsOneWidget,
       );
-      expect(find.byIcon(Icons.push_pin_outlined), findsNothing);
-      expect(find.byIcon(Icons.push_pin), findsNothing);
+      expect(svgIcon('assets/icon/pin.svg'), findsNothing);
+      expect(svgIcon('assets/icon/pin.svg'), findsNothing);
     });
 
     testWidgets('已置顶时使用淡背景色标记', (tester) async {
@@ -1669,7 +1671,7 @@ void main() {
       expect(card.color, isNull, reason: '当前播放态不应持久保留卡片背景色');
       expect(find.text('Last'), findsNothing);
       expect(find.text('上次'), findsNothing);
-      expect(find.byIcon(Icons.push_pin_outlined), findsNothing);
+      expect(svgIcon('assets/icon/pin.svg'), findsNothing);
       expect(find.byType(MenuAnchor), findsOneWidget);
     });
   });

@@ -13,6 +13,8 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
 import 'package:share_plus/share_plus.dart';
 
+import '../helpers/svg_icon_finder.dart';
+
 const _shareButtonKey = ValueKey('log_viewer_share_button');
 
 /// 轮询等待分享压缩等真实 I/O 完成，替代固定 sleep，避免慢机器上偶发失败。
@@ -117,7 +119,7 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 50));
 
-    expect(find.byIcon(Icons.ios_share), findsOneWidget);
+    expect(svgIcon('assets/icon/share.svg'), findsOneWidget);
     expect(find.byKey(_shareButtonKey), findsOneWidget);
     expect(find.byIcon(Icons.copy), findsNothing);
     expect(

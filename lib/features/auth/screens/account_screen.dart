@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:echo_loop/widgets/common/svg_action_icon.dart';
 
 import '../../../l10n/app_localizations.dart';
 import '../../../router/app_router.dart';
@@ -251,7 +252,7 @@ class _SignInMethodCard extends StatelessWidget {
               )
             : null,
         child: ListTile(
-          leading: const Icon(Icons.account_circle_outlined),
+          leading: const SvgActionIcon(assetName: 'assets/icon/account-1.svg'),
           title: Text(title),
           subtitle: Text(emailText),
         ),

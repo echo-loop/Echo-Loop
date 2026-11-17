@@ -135,7 +135,7 @@ class _PreferencesViewerScreenState
         actions: [
           IconButton(
             tooltip: '刷新',
-            icon: const Icon(Icons.refresh),
+            icon: const SvgActionIcon(assetName: 'assets/icon/refresh.svg'),
             onPressed: _loading ? null : _load,
           ),
           IconButton(
@@ -193,8 +193,8 @@ class _PreferencesViewerScreenState
                           color: theme.colorScheme.error,
                           alignment: Alignment.centerRight,
                           padding: const EdgeInsets.symmetric(horizontal: 24),
-                          child: Icon(
-                            Icons.delete,
+                          child: SvgActionIcon(
+                            assetName: 'assets/icon/trash-bin.svg',
                             color: theme.colorScheme.onError,
                           ),
                         ),

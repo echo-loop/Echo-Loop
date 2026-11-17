@@ -4,6 +4,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:echo_loop/widgets/common/svg_action_icon.dart';
 
 import '../../../l10n/app_localizations.dart';
 import '../models/chat_role.dart';
@@ -87,7 +88,10 @@ class ChatHeaderActions extends ConsumerWidget {
           enabled: canAct,
           child: Row(
             children: [
-              const Icon(Icons.refresh, size: 18),
+              const SvgActionIcon(
+                assetName: 'assets/icon/refresh.svg',
+                size: 18,
+              ),
               const SizedBox(width: 8),
               Text(l10n.chatRegenerate),
             ],
@@ -98,7 +102,10 @@ class ChatHeaderActions extends ConsumerWidget {
           enabled: hasMessages && canAct,
           child: Row(
             children: [
-              const Icon(Icons.delete_outline, size: 18),
+              const SvgActionIcon(
+                assetName: 'assets/icon/trash-bin.svg',
+                size: 18,
+              ),
               const SizedBox(width: 8),
               Text(l10n.chatClear),
             ],

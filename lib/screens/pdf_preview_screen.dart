@@ -15,6 +15,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:universal_io/io.dart';
+import 'package:echo_loop/widgets/common/svg_action_icon.dart';
 
 import '../database/providers.dart';
 import '../l10n/app_localizations.dart';
@@ -305,18 +306,21 @@ class _PdfPreviewScreenState extends ConsumerState<PdfPreviewScreen> {
         actions: [
           // 细线 iOS 风格图标，统一 21dp 视觉重量
           IconButton(
-            icon: const Icon(CupertinoIcons.arrow_down_to_line, size: 21),
+            icon: const SvgActionIcon(
+              assetName: 'assets/icon/download.svg',
+              size: 21,
+            ),
             tooltip: l10n.download,
             onPressed: hasBytes ? () => unawaited(_download()) : null,
           ),
           IconButton(
-            // Apple 平台用 iOS 风格分享图标，其余平台用 Material 标准分享图标
-            icon: Icon(
-              Platform.isIOS || Platform.isMacOS
-                  ? CupertinoIcons.share
-                  : Icons.share_outlined,
-              size: 21,
-            ),
+            // Android 保留 Material 分享图标，其余平台用 share.svg
+            icon: Platform.isAndroid
+                ? const Icon(Icons.share_outlined, size: 21)
+                : const SvgActionIcon(
+                    assetName: 'assets/icon/share.svg',
+                    size: 21,
+                  ),
             tooltip: l10n.pdfShare,
             onPressed: hasBytes ? () => unawaited(_share()) : null,
           ),

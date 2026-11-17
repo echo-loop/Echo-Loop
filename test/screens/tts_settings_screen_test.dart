@@ -13,6 +13,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+import '../helpers/svg_icon_finder.dart';
 import '../helpers/mock_providers.dart';
 
 /// 平台语音引擎的显示名随宿主而变（见 [platformSpeechEngineName]）：
@@ -264,7 +266,7 @@ void main() {
 
     expect(find.byType(CircularProgressIndicator), findsOneWidget);
     expect(find.byTooltip('Cancel'), findsNothing);
-    expect(find.byIcon(Icons.download_rounded), findsNWidgets(8));
+    expect(svgIcon('assets/icon/download.svg'), findsNWidgets(8));
   });
 
   testWidgets('存储空间不足 → 显清晰的空间不足文案（非原始异常）', (tester) async {

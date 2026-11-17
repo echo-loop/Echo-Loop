@@ -2,11 +2,11 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:echo_loop/widgets/common/svg_action_icon.dart';
 
 import '../database/app_database.dart';
 import '../analytics/analytics_providers.dart';
@@ -304,9 +304,9 @@ class _BackupRestoreScreenState extends ConsumerState<BackupRestoreScreen> {
             downloadLabel: l10n.download,
             shareLabel: l10n.pdfShare,
             downloadFeedback: downloadFeedback,
-            shareIcon: Platform.isIOS || Platform.isMacOS
-                ? CupertinoIcons.share
-                : Icons.share_outlined,
+            shareIcon: Platform.isAndroid
+                ? const Icon(Icons.share_outlined)
+                : const SvgActionIcon(assetName: 'assets/icon/share.svg'),
             onClose: () => unawaited(_closeBackupReadyDialog(dialogContext)),
             onDownload: () =>
                 unawaited(_download(path, feedback: downloadFeedback)),
@@ -477,7 +477,7 @@ class BackupReadyDialog extends StatelessWidget {
   final String downloadLabel;
   final String shareLabel;
   final ValueNotifier<String?> downloadFeedback;
-  final IconData shareIcon;
+  final Widget shareIcon;
   final VoidCallback onClose;
   final VoidCallback onDownload;
   final VoidCallback onShare;
@@ -593,7 +593,9 @@ class BackupReadyDialog extends StatelessWidget {
                   children: [
                     Expanded(
                       child: OutlinedButton.icon(
-                        icon: const Icon(CupertinoIcons.arrow_down_to_line),
+                        icon: const SvgActionIcon(
+                          assetName: 'assets/icon/download.svg',
+                        ),
                         label: Text(downloadLabel),
                         onPressed: onDownload,
                       ),
@@ -601,7 +603,7 @@ class BackupReadyDialog extends StatelessWidget {
                     const SizedBox(width: AppSpacing.m),
                     Expanded(
                       child: FilledButton.icon(
-                        icon: Icon(shareIcon),
+                        icon: shareIcon,
                         label: Text(shareLabel),
                         onPressed: onShare,
                       ),
@@ -610,7 +612,7 @@ class BackupReadyDialog extends StatelessWidget {
                 )
               else
                 FilledButton.icon(
-                  icon: Icon(shareIcon),
+                  icon: shareIcon,
                   label: Text(shareLabel),
                   onPressed: onShare,
                 ),

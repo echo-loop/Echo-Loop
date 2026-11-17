@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:echo_loop/widgets/common/svg_action_icon.dart';
 
 import '../../../l10n/app_localizations.dart';
 import '../../../models/audio_item.dart';
@@ -180,7 +181,11 @@ class _EmptyClips extends StatelessWidget {
       ),
       child: Column(
         children: [
-          Icon(Icons.content_cut_rounded, color: scheme.primary, size: 24),
+          SvgActionIcon(
+            assetName: 'assets/icon/scissor.svg',
+            color: scheme.primary,
+            size: 24,
+          ),
           const SizedBox(height: 10),
           Text(
             AppLocalizations.of(context)!.mediaTrimEmptyTitle,
@@ -328,8 +333,8 @@ class _ClipRow extends ConsumerWidget {
                         PopupMenuItem(
                           value: 'rename',
                           child: ListTile(
-                            leading: const Icon(
-                              Icons.edit_outlined,
+                            leading: const SvgActionIcon(
+                              assetName: 'assets/icon/edit.svg',
                               size: _lineIconSize,
                             ),
                             title: Text(l10n.mediaTrimRename),

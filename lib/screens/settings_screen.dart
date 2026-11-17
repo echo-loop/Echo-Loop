@@ -1505,12 +1505,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   ) {
     final isSelected = settings.nativeLanguage == code;
     return ListTile(
-      leading: Icon(
-        isSelected ? Icons.check_circle : Icons.circle_outlined,
-        color: isSelected
-            ? Theme.of(context).colorScheme.primary
-            : Theme.of(context).colorScheme.outline,
-      ),
+      leading: isSelected
+          ? SvgActionIcon(
+              assetName: 'assets/icon/check-circle-3.svg',
+              color: Theme.of(context).colorScheme.primary,
+            )
+          : Icon(
+              Icons.circle_outlined,
+              color: Theme.of(context).colorScheme.outline,
+            ),
       title: Text(label),
       selected: isSelected,
       onTap: () {
@@ -1602,10 +1605,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final isSelected = settings.themeMode == mode;
     final colorScheme = Theme.of(context).colorScheme;
     return ListTile(
-      leading: Icon(
-        isSelected ? Icons.check_circle : Icons.circle_outlined,
-        color: isSelected ? colorScheme.primary : colorScheme.outline,
-      ),
+      leading: isSelected
+          ? SvgActionIcon(
+              assetName: 'assets/icon/check-circle-3.svg',
+              color: colorScheme.primary,
+            )
+          : Icon(Icons.circle_outlined, color: colorScheme.outline),
       title: Row(
         children: [
           Icon(
@@ -1698,12 +1703,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   ) {
     final isSelected = settings.locale == locale;
     return ListTile(
-      leading: Icon(
-        isSelected ? Icons.check_circle : Icons.circle_outlined,
-        color: isSelected
-            ? Theme.of(context).colorScheme.primary
-            : Theme.of(context).colorScheme.outline,
-      ),
+      leading: isSelected
+          ? SvgActionIcon(
+              assetName: 'assets/icon/check-circle-3.svg',
+              color: Theme.of(context).colorScheme.primary,
+            )
+          : Icon(
+              Icons.circle_outlined,
+              color: Theme.of(context).colorScheme.outline,
+            ),
       title: Row(
         children: [
           Text(emoji, style: const TextStyle(fontSize: 20)),
@@ -1797,7 +1805,9 @@ class _DictionaryLookupDialogState extends State<_DictionaryLookupDialog> {
               decoration: InputDecoration(
                 hintText: '输入单词...',
                 suffixIcon: IconButton(
-                  icon: const SvgActionIcon(assetName: 'assets/icon/search.svg'),
+                  icon: const SvgActionIcon(
+                    assetName: 'assets/icon/search.svg',
+                  ),
                   onPressed: _lookup,
                 ),
               ),

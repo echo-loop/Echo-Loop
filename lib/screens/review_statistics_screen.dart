@@ -2,6 +2,7 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:echo_loop/widgets/common/svg_action_icon.dart';
 
 import '../features/review_statistics/review_statistics_provider.dart';
 import '../features/review_statistics/review_statistics_repository.dart';
@@ -492,7 +493,9 @@ class _TrendChart extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (!stats.dailyTrend.any((day) => day.reviewedCards > 0)) {
-      return const _ChartEmptyState(icon: Icons.bar_chart_rounded);
+      return const _ChartEmptyState(
+        icon: SvgActionIcon(assetName: 'assets/icon/bar-chart.svg', size: 30),
+      );
     }
     final theme = Theme.of(context);
     final maxY = stats.dailyTrend
@@ -612,7 +615,7 @@ class _UpcomingChart extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (!stats.upcomingDue.any((value) => value > 0)) {
-      return const _ChartEmptyState(icon: Icons.event_available_outlined);
+      return const _ChartEmptyState(icon: Icon(Icons.event_available_outlined));
     }
     final theme = Theme.of(context);
     final now = DateTime.now();
@@ -728,7 +731,7 @@ class _RatingChart extends StatelessWidget {
   Widget build(BuildContext context) {
     if (stats.ratings.total == 0) {
       return _ChartEmptyState(
-        icon: Icons.donut_large_outlined,
+        icon: const Icon(Icons.donut_large_outlined),
         message: l10n.reviewStatisticsEmptyRatings,
       );
     }
@@ -977,7 +980,7 @@ class _ContentTile extends StatelessWidget {
 }
 
 class _ChartEmptyState extends StatelessWidget {
-  final IconData icon;
+  final Widget icon;
   final String? message;
 
   const _ChartEmptyState({required this.icon, this.message});
@@ -989,12 +992,13 @@ class _ChartEmptyState extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
-            icon,
-            size: 30,
-            color: Theme.of(
-              context,
-            ).colorScheme.onSurfaceVariant.withValues(alpha: 0.65),
+          IconTheme(
+            data: IconThemeData(
+              size: 30,
+              color: Theme.of(context).colorScheme.onSurfaceVariant
+                  .withValues(alpha: 0.65),
+            ),
+            child: icon,
           ),
           if (message != null) ...[
             const SizedBox(height: 8),

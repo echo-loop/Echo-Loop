@@ -11,6 +11,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:echo_loop/widgets/common/svg_action_icon.dart';
 
 import '../../l10n/app_localizations.dart';
 import '../../models/audio_item.dart';
@@ -708,8 +709,8 @@ class _LinkRow extends StatelessWidget {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(
-                  Icons.link_rounded,
+                SvgActionIcon(
+                  assetName: 'assets/icon/link.svg',
                   size: 20,
                   color: theme.colorScheme.primary,
                 ),

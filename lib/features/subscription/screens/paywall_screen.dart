@@ -15,6 +15,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:echo_loop/widgets/common/svg_action_icon.dart';
 
 import '../../../config/revenuecat_config.dart';
 import '../../../analytics/analytics_providers.dart';
@@ -1014,7 +1015,11 @@ class _BenefitCard extends StatelessWidget {
               padding: const EdgeInsets.symmetric(vertical: 8),
               child: Row(
                 children: [
-                  Icon(Icons.check_circle, size: 20, color: color),
+                  SvgActionIcon(
+                    assetName: 'assets/icon/check-circle-3.svg',
+                    size: 20,
+                    color: color,
+                  ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(benefit, style: theme.textTheme.bodyLarge),

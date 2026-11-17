@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:universal_io/io.dart';
+import 'package:echo_loop/widgets/common/svg_action_icon.dart';
 
 import '../analytics/models/event_names.dart';
 import '../features/auth/providers/auth_providers.dart';
@@ -336,7 +337,10 @@ class _ManageSubtitlesSheetState extends ConsumerState<ManageSubtitlesSheet> {
                       TextButton.icon(
                         onPressed: () =>
                             _openSubtitleEditor(context, audioItem),
-                        icon: const Icon(Icons.edit_note, size: 20),
+                        icon: const SvgActionIcon(
+                          assetName: 'assets/icon/edit.svg',
+                          size: 20,
+                        ),
                         label: Text(l10n.editSubtitles),
                         style: TextButton.styleFrom(
                           foregroundColor: theme.colorScheme.onSurfaceVariant,
@@ -348,7 +352,10 @@ class _ManageSubtitlesSheetState extends ConsumerState<ManageSubtitlesSheet> {
                         child: IconButton(
                           onPressed: () =>
                               _handleDeleteSubtitle(context, audioItem),
-                          icon: const Icon(Icons.delete_outline, size: 20),
+                          icon: const SvgActionIcon(
+                            assetName: 'assets/icon/trash-bin.svg',
+                            size: 20,
+                          ),
                           color: theme.colorScheme.onSurfaceVariant,
                           visualDensity: VisualDensity.compact,
                         ),
@@ -441,28 +448,31 @@ class _ManageSubtitlesSheetState extends ConsumerState<ManageSubtitlesSheet> {
     ThemeData theme,
     TranscriptionTaskState taskState,
   ) {
-    final IconData icon;
+    final Widget icon;
     final String text;
     final Color iconColor;
 
     if (taskState is TranscriptionCompleted) {
-      icon = Icons.check_circle;
+      icon = const SvgActionIcon(
+        assetName: 'assets/icon/check-circle-3.svg',
+        size: 28,
+      );
       text = l10n.transcriptionComplete;
       iconColor = Colors.green;
     } else if (taskState is TranscriptionHashing) {
-      icon = Icons.fingerprint;
+      icon = const Icon(Icons.fingerprint, size: 28);
       text = l10n.transcriptionUploading; // 对用户统一显示"上传中"
       iconColor = theme.colorScheme.primary;
     } else if (taskState is TranscriptionCompressing) {
-      icon = Icons.compress;
+      icon = const Icon(Icons.compress, size: 28);
       text = l10n.transcriptionCompressing;
       iconColor = theme.colorScheme.primary;
     } else if (taskState is TranscriptionUploading) {
-      icon = Icons.cloud_upload;
+      icon = const Icon(Icons.cloud_upload, size: 28);
       text = l10n.transcriptionUploading;
       iconColor = theme.colorScheme.primary;
     } else {
-      icon = Icons.auto_awesome;
+      icon = const Icon(Icons.auto_awesome, size: 28);
       text = l10n.transcriptionProcessing;
       iconColor = theme.colorScheme.primary;
     }
@@ -490,7 +500,10 @@ class _ManageSubtitlesSheetState extends ConsumerState<ManageSubtitlesSheet> {
                 color: iconColor.withValues(alpha: 0.12),
                 shape: BoxShape.circle,
               ),
-              child: Icon(icon, size: 28, color: iconColor),
+              child: IconTheme(
+                data: IconThemeData(size: 28, color: iconColor),
+                child: icon,
+              ),
             ),
             const SizedBox(height: 12),
             Text(
@@ -758,23 +771,26 @@ class _ManageSubtitlesSheetState extends ConsumerState<ManageSubtitlesSheet> {
     ThemeData theme,
     LocalTranscriptionState st,
   ) {
-    final IconData icon;
+    final Widget icon;
     final String text;
     final Color iconColor;
     double? progress;
     final isCompleted = st is LocalTranscriptionCompleted;
 
     if (isCompleted) {
-      icon = Icons.check_circle;
+      icon = const SvgActionIcon(
+        assetName: 'assets/icon/check-circle-3.svg',
+        size: 28,
+      );
       text = l10n.transcriptionComplete;
       iconColor = Colors.green;
     } else if (st is LocalTranscriptionDecoding) {
-      icon = Icons.graphic_eq;
+      icon = const Icon(Icons.graphic_eq, size: 28);
       text = l10n.localTranscriptionDecoding;
       iconColor = theme.colorScheme.primary;
       progress = null;
     } else {
-      icon = Icons.auto_awesome;
+      icon = const Icon(Icons.auto_awesome, size: 28);
       text = l10n.transcriptionProcessing;
       iconColor = theme.colorScheme.primary;
       progress = st is LocalTranscriptionTranscribing ? st.progress : null;
@@ -801,7 +817,10 @@ class _ManageSubtitlesSheetState extends ConsumerState<ManageSubtitlesSheet> {
                 color: iconColor.withValues(alpha: 0.12),
                 shape: BoxShape.circle,
               ),
-              child: Icon(icon, size: 28, color: iconColor),
+              child: IconTheme(
+                data: IconThemeData(size: 28, color: iconColor),
+                child: icon,
+              ),
             ),
             const SizedBox(height: 12),
             Text(
@@ -935,7 +954,10 @@ class _ManageSubtitlesSheetState extends ConsumerState<ManageSubtitlesSheet> {
           if (_hasPodcastTranscript(audioItem)) ...[
             _buildOptionTile(
               theme: theme,
-              icon: Icons.closed_caption_outlined,
+              icon: const SvgActionIcon(
+                assetName: 'assets/icon/closed-captions.svg',
+                size: 18,
+              ),
               title: l10n.downloadPodcastSubtitle,
               subtitle: l10n.downloadPodcastSubtitleSubtitle,
               selected: _selectedAction == _SubtitleAction.podcastDownload,
@@ -948,7 +970,7 @@ class _ManageSubtitlesSheetState extends ConsumerState<ManageSubtitlesSheet> {
           // 排序：AI 转录（推荐默认）→ 本地转录（离线替代）→ 本地上传（进阶手动）。
           _buildOptionTile(
             theme: theme,
-            icon: Icons.auto_awesome_outlined,
+            icon: const Icon(Icons.auto_awesome_outlined),
             title: l10n.aiTranscription,
             subtitle: l10n.aiTranscriptionSubtitle,
             selected: _selectedAction == _SubtitleAction.aiTranscription,
@@ -970,7 +992,7 @@ class _ManageSubtitlesSheetState extends ConsumerState<ManageSubtitlesSheet> {
           if (_showOfflineTranscriptionEntry) ...[
             _buildOptionTile(
               theme: theme,
-              icon: Icons.offline_bolt_outlined,
+              icon: const Icon(Icons.offline_bolt_outlined),
               title: l10n.offlineTranscription,
               subtitle: l10n.offlineTranscriptionSubtitle,
               selected: _selectedAction == _SubtitleAction.offlineTranscription,
@@ -992,7 +1014,7 @@ class _ManageSubtitlesSheetState extends ConsumerState<ManageSubtitlesSheet> {
           // 本地上传（手动导入已有字幕文件）
           _buildOptionTile(
             theme: theme,
-            icon: Icons.folder_open_outlined,
+            icon: const Icon(Icons.folder_open_outlined),
             title: l10n.localUpload,
             selected: _selectedAction == _SubtitleAction.localUpload,
             onTap: () =>
@@ -1461,7 +1483,7 @@ class _ManageSubtitlesSheetState extends ConsumerState<ManageSubtitlesSheet> {
   /// 构建选项卡片（带图标 + 选中态边框高亮）
   Widget _buildOptionTile({
     required ThemeData theme,
-    required IconData icon,
+    required Widget icon,
     required String title,
     String? subtitle,
     required bool selected,
@@ -1500,12 +1522,14 @@ class _ManageSubtitlesSheetState extends ConsumerState<ManageSubtitlesSheet> {
                       : colorScheme.surfaceContainerHighest,
                   borderRadius: BorderRadius.circular(9),
                 ),
-                child: Icon(
-                  icon,
-                  color: selected
-                      ? colorScheme.primary
-                      : colorScheme.onSurfaceVariant,
-                  size: 18,
+                child: IconTheme(
+                  data: IconThemeData(
+                    size: 18,
+                    color: selected
+                        ? colorScheme.primary
+                        : colorScheme.onSurfaceVariant,
+                  ),
+                  child: icon,
                 ),
               ),
               const SizedBox(width: 12),

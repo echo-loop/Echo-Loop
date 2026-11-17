@@ -17,6 +17,8 @@ import 'package:echo_loop/providers/learning_settings_provider.dart';
 import 'package:echo_loop/providers/study_stats_provider.dart';
 import 'package:echo_loop/theme/app_theme.dart';
 
+import '../helpers/svg_icon_finder.dart';
+
 import '../helpers/mock_providers.dart';
 
 // ========== 测试用 Mock ==========
@@ -181,7 +183,7 @@ void main() {
       expect(find.text('Checked in today'), findsOneWidget);
       expect(find.text('Goal 10 min'), findsNothing);
       expect(find.text('100%'), findsNothing);
-      expect(find.byIcon(Icons.check_circle), findsNothing);
+      expect(svgIcon('assets/icon/check-circle-3.svg'), findsNothing);
       expect(find.byType(DailyCheckInShareIcon), findsNothing);
       final bar = tester.widget<LinearProgressIndicator>(
         find.byType(LinearProgressIndicator),
@@ -208,7 +210,7 @@ void main() {
       expect(
         find.descendant(
           of: shareButton,
-          matching: find.byIcon(Icons.check_circle),
+          matching: svgIcon('assets/icon/check-circle-3.svg'),
         ),
         findsNothing,
       );

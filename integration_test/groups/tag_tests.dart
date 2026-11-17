@@ -6,6 +6,8 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import '../../test/helpers/svg_icon_finder.dart';
+
 import '../helpers/test_notifiers.dart';
 
 void _useCompactViewport(WidgetTester tester) {
@@ -119,7 +121,7 @@ void tagTests() {
       expect(find.text('ToDelete'), findsAtLeast(1));
 
       // 点击删除按钮
-      await tester.tap(find.byIcon(Icons.delete_outline));
+      await tester.tap(svgIcon('assets/icon/trash-bin.svg'));
       await tester.pump(const Duration(milliseconds: 500));
 
       // 确认对话框应出现

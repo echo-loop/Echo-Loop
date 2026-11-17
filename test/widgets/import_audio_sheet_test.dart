@@ -32,6 +32,8 @@ import 'package:flutter/foundation.dart'
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter_riverpod/misc.dart';
 
+import '../helpers/svg_icon_finder.dart';
+
 import '../helpers/mock_providers.dart';
 import '../helpers/test_app.dart';
 
@@ -628,8 +630,8 @@ void main() {
       ),
     );
 
-    expect(find.byIcon(Icons.delete_outline), findsOneWidget);
-    await tester.tap(find.byIcon(Icons.delete_outline));
+    expect(svgIcon('assets/icon/trash-bin.svg'), findsOneWidget);
+    await tester.tap(svgIcon('assets/icon/trash-bin.svg'));
     expect(removedIds, ['local-audio']);
   });
 
@@ -977,7 +979,7 @@ void main() {
     await tester.tap(find.textContaining('个素材'));
     await _pumpFrames(tester);
 
-    expect(find.byIcon(Icons.check_circle), findsOneWidget);
+    expect(svgIcon('assets/icon/check-circle-3.svg'), findsOneWidget);
     // 本次会话已导入的文件不可再选，不显示复选框。
     expect(find.byType(Checkbox), findsNothing);
 
@@ -985,7 +987,7 @@ void main() {
     await _pumpFrames(tester);
     await _reopenBaiduDirectory(tester);
 
-    expect(find.byIcon(Icons.check_circle), findsNothing);
+    expect(svgIcon('assets/icon/check-circle-3.svg'), findsNothing);
   });
 
   testWidgets('百度网盘已导入到合集的素材仍可勾选，并以绿色标签列出所在合集', (tester) async {
@@ -1450,7 +1452,7 @@ void main() {
       findsNothing,
     );
 
-    await tester.tap(find.byIcon(Icons.delete_outline));
+    await tester.tap(svgIcon('assets/icon/trash-bin.svg'));
     await tester.pumpAndSettle();
 
     expect(find.text('talk.mp3'), findsNothing);

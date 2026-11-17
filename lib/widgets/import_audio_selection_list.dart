@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:echo_loop/widgets/common/svg_action_icon.dart';
 
 import '../features/audio_import/audio_import_models.dart';
 import '../l10n/app_localizations.dart';
@@ -233,11 +234,10 @@ class _ImportAudioSelectionListState extends State<ImportAudioSelectionList> {
               width: 22,
               child: item.hasSubtitle
                   ? Tooltip(
-                      message: AppLocalizations.of(
-                        context,
-                      )!.subtitlePairedBadge,
-                      child: Icon(
-                        Icons.closed_caption_outlined,
+                      message: AppLocalizations.of(context)!
+                          .subtitlePairedBadge,
+                      child: SvgActionIcon(
+                        assetName: 'assets/icon/closed-captions.svg',
                         size: 18,
                         color: colorScheme.primary,
                       ),
@@ -281,7 +281,10 @@ class _ImportAudioSelectionListState extends State<ImportAudioSelectionList> {
                 message: AppLocalizations.of(context)!.removeFile,
                 child: IconButton(
                   onPressed: () => widget.onRemove!(item.id),
-                  icon: const Icon(Icons.delete_outline, size: 20),
+                  icon: const SvgActionIcon(
+                    assetName: 'assets/icon/trash-bin.svg',
+                    size: 20,
+                  ),
                   color: colorScheme.onSurfaceVariant,
                   visualDensity: VisualDensity.compact,
                   padding: EdgeInsets.zero,
@@ -350,8 +353,8 @@ class _SelectionStatusIcon extends StatelessWidget {
             color: colorScheme.primary,
           ),
         ),
-        AudioImportSelectionStatus.added => Icon(
-          Icons.check_circle,
+        AudioImportSelectionStatus.added => SvgActionIcon(
+          assetName: 'assets/icon/check-circle-3.svg',
           size: 19,
           color: colorScheme.primary,
         ),
@@ -394,7 +397,10 @@ class _ImportSelectionSummaryView extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _ImportSelectionSummaryRow(
-          icon: Icons.check_circle,
+          icon: const SvgActionIcon(
+            assetName: 'assets/icon/check-circle-3.svg',
+            size: 20,
+          ),
           iconColor: colorScheme.primary,
           label: successParts.join(' · '),
           textStyle: summaryStyle,
@@ -402,7 +408,7 @@ class _ImportSelectionSummaryView extends StatelessWidget {
         if (summary.skippedCount > 0) ...[
           const SizedBox(height: 4),
           _ImportSelectionSummaryRow(
-            icon: Icons.warning_amber_rounded,
+            icon: const Icon(Icons.warning_amber_rounded, size: 20),
             iconColor: warningColor,
             label: l10n.duplicatesSkipped(summary.skippedCount),
             textStyle: summaryStyle,
@@ -411,7 +417,7 @@ class _ImportSelectionSummaryView extends StatelessWidget {
         if (summary.failedCount > 0) ...[
           const SizedBox(height: 4),
           _ImportSelectionSummaryRow(
-            icon: Icons.cancel_rounded,
+            icon: const Icon(Icons.cancel_rounded, size: 20),
             iconColor: colorScheme.error,
             label: l10n.importFailedCount(summary.failedCount),
             textStyle: summaryStyle,
@@ -430,7 +436,7 @@ class _ImportSelectionSummaryRow extends StatelessWidget {
     required this.textStyle,
   });
 
-  final IconData icon;
+  final Widget icon;
   final Color iconColor;
   final String label;
   final TextStyle? textStyle;
@@ -439,7 +445,10 @@ class _ImportSelectionSummaryRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Icon(icon, color: iconColor, size: 20),
+        IconTheme(
+          data: IconThemeData(color: iconColor, size: 20),
+          child: icon,
+        ),
         const SizedBox(width: 8),
         Expanded(
           child: Text(

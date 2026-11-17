@@ -11,6 +11,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
+import 'package:echo_loop/widgets/common/svg_action_icon.dart';
 
 import '../analytics/models/event_names.dart';
 import '../features/usage/usage_event.dart';
@@ -406,7 +407,9 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen> {
                 appPopupMenuItem(
                   context,
                   value: _FavoritesMoreAction.export,
-                  icon: const Icon(Icons.ios_share),
+                  icon: const SvgActionIcon(
+                    assetName: 'assets/icon/upload.svg',
+                  ),
                   label: l10n.favoritesExportMenu,
                 ),
                 appPopupMenuItem(

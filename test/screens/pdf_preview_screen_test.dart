@@ -19,6 +19,8 @@ import 'package:echo_loop/widgets/common/anchored_bubble.dart';
 import 'package:echo_loop/services/pdf_export/study_pdf_export_service.dart';
 import 'package:echo_loop/services/pdf_export/study_pdf_loader.dart';
 
+import '../helpers/svg_icon_finder.dart';
+
 import '../helpers/shared/test_fixtures.dart';
 import '../helpers/mock_providers.dart';
 import '../helpers/test_app.dart';
@@ -86,12 +88,15 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('preview-7'), findsOneWidget);
-    expect(find.byIcon(CupertinoIcons.arrow_down_to_line), findsOneWidget);
+    expect(svgIcon('assets/icon/download.svg'), findsOneWidget);
     expect(find.byIcon(CupertinoIcons.ellipsis), findsOneWidget);
 
     // 下载/分享按钮已启用
     final downloadButton = tester.widget<IconButton>(
-      find.widgetWithIcon(IconButton, CupertinoIcons.arrow_down_to_line),
+      find.ancestor(
+        of: svgIcon('assets/icon/download.svg'),
+        matching: find.byType(IconButton),
+      ),
     );
     expect(downloadButton.onPressed, isNotNull);
 

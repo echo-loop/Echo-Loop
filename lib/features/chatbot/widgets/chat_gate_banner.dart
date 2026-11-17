@@ -2,6 +2,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:echo_loop/widgets/common/svg_action_icon.dart';
 
 import '../../../l10n/app_localizations.dart';
 import '../../../theme/app_theme.dart';
@@ -50,11 +51,17 @@ class ChatGateBanner extends StatelessWidget {
       color: scheme.primaryContainer,
       child: Row(
         children: [
-          Icon(
-            isAuth ? Icons.lock_outline : Icons.workspace_premium_outlined,
-            size: 18,
-            color: scheme.onPrimaryContainer,
-          ),
+          isAuth
+              ? SvgActionIcon(
+                  assetName: 'assets/icon/lock.svg',
+                  size: 18,
+                  color: scheme.onPrimaryContainer,
+                )
+              : Icon(
+                  Icons.workspace_premium_outlined,
+                  size: 18,
+                  color: scheme.onPrimaryContainer,
+                ),
           const SizedBox(width: AppSpacing.s),
           Expanded(
             child: Text(

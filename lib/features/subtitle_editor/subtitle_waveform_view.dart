@@ -4,6 +4,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:just_waveform/just_waveform.dart';
+import 'package:echo_loop/widgets/common/svg_action_icon.dart';
 
 import '../../l10n/app_localizations.dart';
 
@@ -1937,7 +1938,11 @@ class _InsertSentenceButton extends StatelessWidget {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.add_rounded, size: 16, color: scheme.onPrimary),
+              SvgActionIcon(
+                assetName: 'assets/icon/plus.svg',
+                size: 16,
+                color: scheme.onPrimary,
+              ),
               const SizedBox(width: 3),
               Text(
                 AppLocalizations.of(context)!.subtitleAddSentenceHere,

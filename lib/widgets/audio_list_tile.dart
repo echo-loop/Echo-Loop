@@ -699,8 +699,8 @@ class AudioListTile extends ConsumerWidget {
   Widget _buildPinnedMenuIcon({required bool isPinned}) {
     return Transform.rotate(
       angle: 0.52,
-      child: Icon(
-        isPinned ? Icons.push_pin : Icons.push_pin_outlined,
+      child: SvgActionIcon(
+        assetName: 'assets/icon/pin.svg',
         size: 20,
         color: isPinned ? AppTheme.pinColor : null,
       ),
@@ -828,13 +828,19 @@ class AudioListTile extends ConsumerWidget {
           if (audioItem.isAudioReady && !isDownloading)
             menuItem(
               value: 'trim',
-              icon: const Icon(Icons.content_cut, size: 20),
+              icon: const SvgActionIcon(
+                assetName: 'assets/icon/scissor.svg',
+                size: 20,
+              ),
               label: l10n.mediaTrimMenu,
             ),
           if (!isCommunity)
             menuItem(
               value: 'rename',
-              icon: const Icon(Icons.edit, size: 20),
+              icon: const SvgActionIcon(
+                assetName: 'assets/icon/edit.svg',
+                size: 20,
+              ),
               label: l10n.renameAudio,
             ),
           if (!isCommunity)
@@ -856,17 +862,20 @@ class AudioListTile extends ConsumerWidget {
             SubmenuButton(
               menuStyle: menuStyle,
               style: appMenuButtonStyle(theme),
-              leadingIcon: const Icon(Icons.ios_share, size: 20),
+              leadingIcon: const SvgActionIcon(
+                assetName: 'assets/icon/upload.svg',
+                size: 20,
+              ),
               menuChildren: [
                 if (!isCommunity)
                   menuItem(
                     value: 'export',
-                    icon: Icon(
-                      audioItem.isVideo
-                          ? Icons.movie_outlined
-                          : Icons.audio_file_outlined,
-                      size: 20,
-                    ),
+                    icon: audioItem.isVideo
+                        ? const SvgActionIcon(
+                            assetName: 'assets/icon/video-2.svg',
+                            size: 20,
+                          )
+                        : const Icon(Icons.audio_file_outlined, size: 20),
                     label: audioItem.isVideo
                         ? l10n.exportVideo
                         : l10n.exportAudio,
@@ -898,19 +907,22 @@ class AudioListTile extends ConsumerWidget {
                 if (!isCommunity)
                   menuItem(
                     value: 'manageTags',
-                    icon: const Icon(Icons.label_outline, size: 20),
+                    icon: const SvgActionIcon(
+                      assetName: 'assets/icon/tag.svg',
+                      size: 20,
+                    ),
                     label: l10n.manageTags,
                   ),
                 // 仅在已开始学习时显示「暂停 / 恢复」与「重置」
                 if (hasProgress)
                   menuItem(
                     value: 'togglePause',
-                    icon: Icon(
-                      isPausedForMenu
-                          ? Icons.play_arrow_rounded
-                          : Icons.pause_rounded,
-                      size: 20,
-                    ),
+                    icon: isPausedForMenu
+                        ? const Icon(Icons.play_arrow_rounded, size: 20)
+                        : const SvgActionIcon(
+                            assetName: 'assets/icon/pause-circle.svg',
+                            size: 20,
+                          ),
                     label: isPausedForMenu
                         ? l10n.resumeLearning
                         : l10n.pauseLearning,
@@ -940,8 +952,8 @@ class AudioListTile extends ConsumerWidget {
           if (!isCommunity && !isPodcastEpisode)
             menuItem(
               value: 'delete',
-              icon: Icon(
-                Icons.delete,
+              icon: SvgActionIcon(
+                assetName: 'assets/icon/trash-bin.svg',
                 size: 20,
                 color: theme.colorScheme.error,
               ),
@@ -954,8 +966,8 @@ class AudioListTile extends ConsumerWidget {
           if ((isCommunity || isPodcastEpisode) && audioItem.isAudioReady)
             menuItem(
               value: 'deleteDownload',
-              icon: Icon(
-                Icons.delete_outline,
+              icon: SvgActionIcon(
+                assetName: 'assets/icon/trash-bin.svg',
                 size: 20,
                 color: theme.colorScheme.error,
               ),
@@ -1168,7 +1180,11 @@ class _PinnedBadge extends StatelessWidget {
     return Transform.rotate(
       key: const Key('audio_list_tile_pinned_badge'),
       angle: 0.52,
-      child: const Icon(Icons.push_pin, size: 14, color: AppTheme.pinColor),
+      child: const SvgActionIcon(
+        assetName: 'assets/icon/pin.svg',
+        size: 14,
+        color: AppTheme.pinColor,
+      ),
     );
   }
 }

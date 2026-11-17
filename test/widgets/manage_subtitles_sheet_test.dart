@@ -34,6 +34,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_riverpod/misc.dart';
 
+import '../helpers/svg_icon_finder.dart';
+
 import '../helpers/mock_providers.dart';
 import '../helpers/test_app.dart';
 
@@ -213,7 +215,7 @@ void main() {
           find.widgetWithText(TextButton, 'Edit subtitles'),
           findsOneWidget,
         );
-        expect(find.byIcon(Icons.edit_note), findsOneWidget);
+        expect(svgIcon('assets/icon/edit.svg'), findsOneWidget);
         expect(find.byTooltip('Delete Subtitles'), findsOneWidget);
 
         final deleteButton = tester.widget<IconButton>(

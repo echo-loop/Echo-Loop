@@ -696,12 +696,12 @@ class _LearningPlanScreenState extends ConsumerState<LearningPlanScreen> {
       if (!isCommunity)
         MenuItemButton(
           onPressed: () => exportAudioItem(context, ref, audioItem),
-          leadingIcon: Icon(
-            audioItem.isVideo
-                ? Icons.movie_outlined
-                : Icons.audio_file_outlined,
-            size: 20,
-          ),
+          leadingIcon: audioItem.isVideo
+              ? const SvgActionIcon(
+                  assetName: 'assets/icon/video-2.svg',
+                  size: 20,
+                )
+              : const Icon(Icons.audio_file_outlined, size: 20),
           style: appMenuButtonStyle(theme),
           child: Text(audioItem.isVideo ? l10n.exportVideo : l10n.exportAudio),
         ),
@@ -730,7 +730,10 @@ class _LearningPlanScreenState extends ConsumerState<LearningPlanScreen> {
         ),
       if (exportItems.isNotEmpty)
         SubmenuButton(
-          leadingIcon: const Icon(Icons.ios_share, size: 20),
+          leadingIcon: const SvgActionIcon(
+            assetName: 'assets/icon/upload.svg',
+            size: 20,
+          ),
           style: appMenuButtonStyle(theme),
           menuStyle: menuStyle,
           menuChildren: exportItems,

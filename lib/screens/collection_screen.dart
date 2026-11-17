@@ -377,8 +377,8 @@ class _CollectionOptionTile extends StatelessWidget {
 Widget _buildCollectionPinIcon({required bool isPinned}) {
   return Transform.rotate(
     angle: 0.52,
-    child: Icon(
-      isPinned ? Icons.push_pin : Icons.push_pin_outlined,
+    child: SvgActionIcon(
+      assetName: 'assets/icon/pin.svg',
       size: 18,
       color: isPinned ? AppTheme.pinColor : null,
     ),
@@ -837,14 +837,18 @@ List<PopupMenuEntry<String>> _buildLocalMenuItems(
     appPopupMenuItem(
       context,
       value: 'edit',
-      icon: const Icon(Icons.edit, size: 20),
+      icon: const SvgActionIcon(assetName: 'assets/icon/edit.svg', size: 20),
       label: l10n.editCollection,
     ),
     const PopupMenuDivider(height: 10),
     appPopupMenuItem(
       context,
       value: 'delete',
-      icon: Icon(Icons.delete, size: 20, color: theme.colorScheme.error),
+      icon: SvgActionIcon(
+        assetName: 'assets/icon/trash-bin.svg',
+        size: 20,
+        color: theme.colorScheme.error,
+      ),
       label: l10n.delete,
       destructive: true,
     ),
@@ -898,7 +902,7 @@ List<PopupMenuEntry<String>> _buildPodcastMenuItems(
     appPopupMenuItem(
       context,
       value: 'rename',
-      icon: const Icon(Icons.edit, size: 20),
+      icon: const SvgActionIcon(assetName: 'assets/icon/edit.svg', size: 20),
       label: l10n.renameCollection,
     ),
     appPopupMenuItem(

@@ -4,6 +4,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:echo_loop/widgets/common/svg_action_icon.dart';
 
 import '../../features/daily_goal_check_in/widgets/daily_check_in_share_icon.dart';
 import '../../l10n/app_localizations.dart';
@@ -58,11 +59,13 @@ class DailyGoalProgressCard extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  Icon(
-                    isCheckedIn ? Icons.check_circle : Icons.flag_outlined,
-                    size: 20,
-                    color: color,
-                  ),
+                  isCheckedIn
+                      ? SvgActionIcon(
+                          assetName: 'assets/icon/check-circle-3.svg',
+                          size: 20,
+                          color: color,
+                        )
+                      : Icon(Icons.flag_outlined, size: 20, color: color),
                   const SizedBox(width: 8),
                   Text(
                     l10n.dailyGoalTodayTitle,

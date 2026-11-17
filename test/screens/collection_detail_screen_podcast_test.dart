@@ -13,6 +13,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 
+import '../helpers/svg_icon_finder.dart';
+
 import '../helpers/mock_providers.dart';
 import '../helpers/test_app.dart';
 
@@ -169,7 +171,7 @@ void main() {
     // 头部保持紧凑，不展示上次刷新时间
     expect(find.text('Last refreshed: 2026-06-12 08:30'), findsNothing);
     expect(find.byIcon(Icons.podcasts_rounded), findsNothing);
-    expect(find.byIcon(Icons.refresh), findsNothing);
+    expect(svgIcon('assets/icon/refresh.svg'), findsNothing);
     expect(find.byIcon(Icons.info_outline), findsNothing);
 
     await tester.drag(find.byType(ListView).first, const Offset(0, -500));

@@ -22,6 +22,8 @@ import 'package:echo_loop/providers/time_provider.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../helpers/svg_icon_finder.dart';
+
 import '../helpers/mock_providers.dart';
 
 void main() {
@@ -512,7 +514,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Completed Audio'), findsOneWidget);
     expect(find.byType(MediaTypeIcon), findsOneWidget);
-    expect(find.byIcon(Icons.check_circle), findsNothing);
+    expect(svgIcon('assets/icon/check-circle-3.svg'), findsNothing);
   });
 
   testWidgets('已完成视频显示视频图标且不叠加对钩', (tester) async {
@@ -550,7 +552,7 @@ void main() {
 
     expect(find.text('Completed Video'), findsOneWidget);
     expect(_findSvgAsset('assets/icon/video-2.svg'), findsOneWidget);
-    expect(find.byIcon(Icons.check_circle), findsNothing);
+    expect(svgIcon('assets/icon/check-circle-3.svg'), findsNothing);
   });
 
   testWidgets('有任务时不应出现 Hero Card（渐变大卡片）', (tester) async {

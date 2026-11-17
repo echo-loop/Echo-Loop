@@ -4,6 +4,8 @@ import 'package:echo_loop/providers/tag_provider.dart';
 import 'package:echo_loop/widgets/edit_tag_membership_sheet.dart';
 import 'package:echo_loop/models/tag.dart';
 
+import '../helpers/svg_icon_finder.dart';
+
 import '../helpers/test_app.dart';
 import '../helpers/mock_providers.dart';
 
@@ -235,7 +237,7 @@ void main() {
       expect(find.text('Business'), findsOneWidget);
 
       // 点击删除按钮
-      await tester.tap(find.byIcon(Icons.delete_outline));
+      await tester.tap(svgIcon('assets/icon/trash-bin.svg'));
       await tester.pumpAndSettle();
 
       // 确认对话框应出现

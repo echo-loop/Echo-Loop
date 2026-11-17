@@ -13,6 +13,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:go_router/go_router.dart';
+import 'package:echo_loop/widgets/common/svg_action_icon.dart';
 
 import '../../../analytics/analytics_providers.dart';
 import '../../../analytics/models/event_names.dart';
@@ -55,7 +56,7 @@ const _dailyMinutesEmoji = <String, String>{
 };
 
 /// 单个渠道的品牌图标 + 品牌色。
-typedef _BrandToken = ({FaIconData icon, Color color});
+typedef _BrandToken = ({FaIconData? icon, String? assetName, Color color});
 
 /// 来源渠道 → 平台图标 + 品牌色映射。
 ///
@@ -68,61 +69,75 @@ const _referralBrand = <String, _BrandToken>{
   // 中文渠道
   OnboardingReferralSource.xiaohongshu: (
     icon: FontAwesomeIcons.book,
+    assetName: null,
     color: Color(0xFFFF2442),
   ),
   OnboardingReferralSource.wechat: (
     icon: FontAwesomeIcons.weixin,
+    assetName: null,
     color: Color(0xFF07C160),
   ),
   OnboardingReferralSource.bilibili: (
     icon: FontAwesomeIcons.bilibili,
+    assetName: null,
     color: Color(0xFF00AEEC),
   ),
   OnboardingReferralSource.shortVideo: (
-    icon: FontAwesomeIcons.video,
+    icon: null,
+    assetName: 'assets/icon/video-2.svg',
     color: Color(0xFFFF2C55),
   ),
   OnboardingReferralSource.searchEngine: (
-    icon: FontAwesomeIcons.magnifyingGlass,
+    icon: null,
+    assetName: 'assets/icon/search.svg',
     color: Color(0xFF2932E1),
   ),
   OnboardingReferralSource.teacherSchool: (
     icon: FontAwesomeIcons.graduationCap,
+    assetName: null,
     color: Color(0xFF8E44AD),
   ),
   // 英文渠道
   OnboardingReferralSource.youtube: (
     icon: FontAwesomeIcons.youtube,
+    assetName: null,
     color: Color(0xFFFF0000),
   ),
   OnboardingReferralSource.reddit: (
     icon: FontAwesomeIcons.reddit,
+    assetName: null,
     color: Color(0xFFFF4500),
   ),
   OnboardingReferralSource.xTwitter: (
     icon: FontAwesomeIcons.xTwitter,
+    assetName: null,
     color: Color(0xFF000000),
   ),
   // 通用渠道
   OnboardingReferralSource.github: (
     icon: FontAwesomeIcons.github,
+    assetName: null,
     color: Color(0xFF181717),
   ),
   // 与应用内 AI 讲解的星芒图标（auto_awesome，purple.shade400）保持一致
   OnboardingReferralSource.aiAssistant: (
     icon: FontAwesomeIcons.wandMagicSparkles,
+    assetName: null,
     color: Color(0xFFAB47BC),
   ),
   OnboardingReferralSource.appStore: (
     icon: FontAwesomeIcons.appStore,
+    assetName: null,
     color: Color(0xFF007AFF),
   ),
   OnboardingReferralSource.friend: (
-    icon: FontAwesomeIcons.userGroup,
+    icon: null,
+    assetName: 'assets/icon/group.svg',
     color: Color(0xFF1976D2),
   ),
   OnboardingReferralSource.other: (
     icon: FontAwesomeIcons.ellipsis,
+    assetName: null,
     color: Color(0xFF4A5568),
   ),
 };
@@ -154,7 +169,11 @@ Widget _referralLeading(BuildContext context, String code) {
           brand.color.computeLuminance() < 0.08
       ? theme.colorScheme.onSurface
       : brand.color;
-  return FaIcon(brand.icon, size: 18, color: color);
+  final assetName = brand.assetName;
+  if (assetName != null) {
+    return SvgActionIcon(assetName: assetName, size: 18, color: color);
+  }
+  return FaIcon(brand.icon!, size: 18, color: color);
 }
 
 class OnboardingSurveyScreen extends ConsumerStatefulWidget {

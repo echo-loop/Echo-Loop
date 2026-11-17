@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
+import 'package:echo_loop/widgets/common/svg_action_icon.dart';
 
 import '../../auth/sign_in_required_dialog.dart';
 import '../../../l10n/app_localizations.dart';
@@ -283,7 +284,7 @@ class _ErrorState extends StatelessWidget {
     return Center(
       child: FilledButton.icon(
         onPressed: onRetry,
-        icon: const Icon(Icons.refresh),
+        icon: const SvgActionIcon(assetName: 'assets/icon/refresh.svg'),
         label: Text(AppLocalizations.of(context)!.discoverLoadFailed),
       ),
     );

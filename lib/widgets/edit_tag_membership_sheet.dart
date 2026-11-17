@@ -4,6 +4,8 @@
 // 勾选/取消即时生效，支持底部"创建新标签"入口（名称 + 颜色选择）。
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:echo_loop/widgets/common/svg_action_icon.dart';
+
 import '../models/tag.dart';
 import '../providers/tag_provider.dart';
 import '../l10n/app_localizations.dart';
@@ -100,7 +102,10 @@ class EditTagMembershipSheet extends ConsumerWidget {
                         children: [
                           Expanded(child: Text(tag.name)),
                           IconButton(
-                            icon: const Icon(Icons.delete_outline, size: 20),
+                            icon: const SvgActionIcon(
+                              assetName: 'assets/icon/trash-bin.svg',
+                              size: 20,
+                            ),
                             onPressed: () =>
                                 _showDeleteTagDialog(context, ref, tag),
                           ),

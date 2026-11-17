@@ -10,6 +10,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:echo_loop/widgets/common/svg_action_icon.dart';
 
 import '../l10n/app_localizations.dart';
 import '../models/app_update_info.dart';
@@ -986,7 +987,9 @@ class _MainShellState extends ConsumerState<MainShell>
                   onPressed: () => unawaited(
                     ref.read(localStartupProvider.notifier).retry(),
                   ),
-                  icon: const Icon(Icons.refresh),
+                  icon: const SvgActionIcon(
+                    assetName: 'assets/icon/refresh.svg',
+                  ),
                   label: Text(l10n.retry),
                 ),
                 TextButton.icon(

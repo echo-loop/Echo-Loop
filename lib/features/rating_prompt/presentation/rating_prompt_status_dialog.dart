@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:echo_loop/widgets/common/svg_action_icon.dart';
 
 import '../../../services/app_logger.dart';
 import '../domain/rating_prompt_policy.dart';
@@ -307,11 +308,13 @@ class _VerdictBanner extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Icon(
-            isReady ? Icons.check_circle : Icons.info_outline,
-            size: 20,
-            color: foreground,
-          ),
+          isReady
+              ? SvgActionIcon(
+                  assetName: 'assets/icon/check-circle-3.svg',
+                  size: 20,
+                  color: foreground,
+                )
+              : Icon(Icons.info_outline, size: 20, color: foreground),
           const SizedBox(width: 10),
           Expanded(
             child: Text(
@@ -363,10 +366,16 @@ class _ConditionTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
-    final (icon, color) = switch (ok) {
-      true => (Icons.check_circle, scheme.primary),
-      false => (Icons.cancel, scheme.error),
-      null => (Icons.help_outline, scheme.outline),
+    final (Widget icon, Color color) = switch (ok) {
+      true => (
+        const SvgActionIcon(
+          assetName: 'assets/icon/check-circle-3.svg',
+          size: 18,
+        ),
+        scheme.primary,
+      ),
+      false => (const Icon(Icons.cancel, size: 18), scheme.error),
+      null => (const Icon(Icons.help_outline, size: 18), scheme.outline),
     };
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
@@ -375,7 +384,10 @@ class _ConditionTile extends StatelessWidget {
         children: [
           Padding(
             padding: const EdgeInsets.only(top: 1),
-            child: Icon(icon, size: 18, color: color),
+            child: IconTheme(
+              data: IconThemeData(size: 18, color: color),
+              child: icon,
+            ),
           ),
           const SizedBox(width: 10),
           Expanded(

@@ -4,6 +4,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:echo_loop/widgets/common/svg_action_icon.dart';
 
 import '../../../l10n/app_localizations.dart';
 import '../../../services/app_logger.dart';
@@ -218,7 +219,9 @@ class _ProfileEditSectionState extends ConsumerState<ProfileEditSection> {
               if (profile?.avatarUrl != null) ...[
                 const Divider(height: 1),
                 ListTile(
-                  leading: const Icon(Icons.delete_outline),
+                  leading: const SvgActionIcon(
+                    assetName: 'assets/icon/trash-bin.svg',
+                  ),
                   title: Text(l10n.profileRemoveAvatar),
                   enabled: !_isSaving,
                   onTap: () => _runSave(

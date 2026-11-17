@@ -13,6 +13,8 @@ import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:echo_loop/widgets/common/svg_action_icon.dart';
+
 import '../services/app_logger.dart';
 import '../services/device_diagnostics_service.dart';
 import '../theme/app_theme.dart';
@@ -232,11 +234,11 @@ class _LogViewerScreenState extends State<LogViewerScreen> {
           IconButton(
             key: const ValueKey('log_viewer_share_button'),
             tooltip: '分享日志',
-            icon: const Icon(Icons.ios_share),
+            icon: const SvgActionIcon(assetName: 'assets/icon/share.svg'),
             onPressed: entries.isEmpty ? null : () => unawaited(_shareAll()),
           ),
           IconButton(
-            icon: const Icon(Icons.delete_outline),
+            icon: const SvgActionIcon(assetName: 'assets/icon/trash-bin.svg'),
             onPressed: entries.isEmpty ? null : () => unawaited(_clearLogs()),
           ),
         ],

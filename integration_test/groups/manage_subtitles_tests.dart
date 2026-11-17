@@ -11,6 +11,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:echo_loop/models/audio_item.dart';
 
+import '../../test/helpers/svg_icon_finder.dart';
+
 import '../helpers/test_notifiers.dart';
 
 /// 管理字幕相关集成测试
@@ -51,7 +53,7 @@ void manageSubtitlesTests() {
       expect(find.text('Select Language'), findsOneWidget);
 
       // 无字幕时不显示删除图标按钮
-      expect(find.byIcon(Icons.delete_outline), findsNothing);
+      expect(svgIcon('assets/icon/trash-bin.svg'), findsNothing);
     });
 
     testWidgets('有本地字幕音频 — 显示删除图标按钮', (tester) async {
@@ -83,7 +85,7 @@ void manageSubtitlesTests() {
       await safeSettle(tester);
 
       // 删除图标按钮可见
-      expect(find.byIcon(Icons.delete_outline), findsOneWidget);
+      expect(svgIcon('assets/icon/trash-bin.svg'), findsOneWidget);
     });
 
     testWidgets('删除字幕 — 确认后清除字幕', (tester) async {
@@ -115,7 +117,7 @@ void manageSubtitlesTests() {
       await safeSettle(tester);
 
       // 点击删除图标按钮
-      await tester.tap(find.byIcon(Icons.delete_outline));
+      await tester.tap(svgIcon('assets/icon/trash-bin.svg'));
       await safeSettle(tester);
 
       // 确认对话框出现
@@ -129,7 +131,7 @@ void manageSubtitlesTests() {
       await safeSettle(tester);
 
       // 删除后删除图标按钮消失
-      expect(find.byIcon(Icons.delete_outline), findsNothing);
+      expect(svgIcon('assets/icon/trash-bin.svg'), findsNothing);
     });
 
     testWidgets('删除字幕 — 取消后无变化', (tester) async {
@@ -159,7 +161,7 @@ void manageSubtitlesTests() {
       await safeSettle(tester);
 
       // 点击删除图标按钮
-      await tester.tap(find.byIcon(Icons.delete_outline));
+      await tester.tap(svgIcon('assets/icon/trash-bin.svg'));
       await safeSettle(tester);
 
       // 点击"Cancel"取消
@@ -167,7 +169,7 @@ void manageSubtitlesTests() {
       await safeSettle(tester);
 
       // 删除图标按钮仍在
-      expect(find.byIcon(Icons.delete_outline), findsOneWidget);
+      expect(svgIcon('assets/icon/trash-bin.svg'), findsOneWidget);
     });
 
     testWidgets('AI 已转录(en) — 同语言按钮禁用，切换语言后可用', (tester) async {
@@ -307,7 +309,7 @@ void manageSubtitlesTests() {
       await safeSettle(tester);
 
       // 弹窗仍在（删除图标按钮仍可见）
-      expect(find.byIcon(Icons.delete_outline), findsOneWidget);
+      expect(svgIcon('assets/icon/trash-bin.svg'), findsOneWidget);
     });
   });
 }
