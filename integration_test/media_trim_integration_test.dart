@@ -601,6 +601,27 @@ void main() {
     await ui.tap(find.byKey(const ValueKey('trim-toggle-video')));
     expect(isZoomed(), isTrue, reason: '展开画面不重置缩放');
     await ui.resize(const Size(1280, 800));
+    final initialTimelineWidth = tester
+        .getSize(find.byKey(const ValueKey('trim-timeline-column')))
+        .width;
+    await tester.drag(
+      find.byKey(const ValueKey('practice-media-split-divider')),
+      const Offset(120, 0),
+    );
+    await tester.pumpAndSettle();
+    final expandedTimelineWidth = tester
+        .getSize(find.byKey(const ValueKey('trim-timeline-column')))
+        .width;
+    expect(expandedTimelineWidth, greaterThan(initialTimelineWidth));
+    final divider = find.byKey(const ValueKey('practice-media-split-divider'));
+    await tester.tap(divider);
+    await tester.pump(const Duration(milliseconds: 100));
+    await tester.tap(divider);
+    await tester.pumpAndSettle();
+    expect(
+      tester.getSize(find.byKey(const ValueKey('trim-clip-column'))).width,
+      closeTo(400, 1),
+    );
     await ui.tap(find.byKey(const ValueKey('trim-play')));
     await ui.settleAsync(const Duration(milliseconds: 800));
     await ui.tap(find.byKey(const ValueKey('trim-play')));

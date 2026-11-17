@@ -13,10 +13,14 @@ import '../../router/app_router.dart';
 import '../../services/app_logger.dart';
 import '../../widgets/app_toast.dart';
 import '../../widgets/common/video_toggle_icon.dart';
+import '../../widgets/common/media_split_divider.dart';
+import '../../models/practice_media_split.dart';
 import 'media_trim_clip.dart';
 import 'media_trim_editor_controller.dart';
 import 'media_trim_exporter.dart';
 import 'media_trim_repository.dart';
+import 'media_trim_split_geometry.dart';
+import 'media_trim_split_provider.dart';
 import 'widgets/media_trim_clip_panel.dart';
 import 'widgets/media_trim_dialogs.dart';
 import 'widgets/media_trim_format.dart';
@@ -53,6 +57,8 @@ class _MediaTrimScreenState extends ConsumerState<MediaTrimScreen>
 
   /// 剪辑主要看波形和片段，画面默认收起，把高度留给时间轴和列表；只影响本页。
   bool _isVideoVisible = false;
+
+  double? _dragTimelineWidth;
 
   /// 时间轴在宽 / 窄 / 矮布局间、以及展开收起画面时会换位置；用 GlobalKey 让它
   /// 搬家而不重建，保住缩放倍数和平移位置。
@@ -299,6 +305,7 @@ class _MediaTrimScreenState extends ConsumerState<MediaTrimScreen>
   }
 
   Widget _buildEditor(BuildContext context) {
+    final savedFraction = ref.watch(mediaTrimSplitProvider);
     final hasSentences = ref.watch(
       mediaTrimEditorProvider(_source)
           .select((s) => s.boundaries?.hasSentences ?? false),
@@ -335,10 +342,21 @@ class _MediaTrimScreenState extends ConsumerState<MediaTrimScreen>
             _TimelineSection(key: _timelineKey, source: _source),
           ];
           if (isWide) {
+            final splitRange = MediaTrimSplitGeometry.range(
+              constraints.maxWidth,
+            );
+            final timelineWidth =
+                _dragTimelineWidth ??
+                MediaTrimSplitGeometry.resolveTimelineWidth(
+                  width: constraints.maxWidth,
+                  fraction: savedFraction,
+                );
             return Row(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Expanded(
+                SizedBox(
+                  key: const ValueKey('trim-timeline-column'),
+                  width: timelineWidth,
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(_gutter, 8, _gutter, 0),
                     child: Column(
@@ -359,9 +377,33 @@ class _MediaTrimScreenState extends ConsumerState<MediaTrimScreen>
                     ),
                   ),
                 ),
-                const VerticalDivider(width: 1),
-                SizedBox(
-                  width: 400,
+                MediaSplitDivider(
+                  axis: PracticeMediaSplitAxis.sideBySide,
+                  onDragStart: () =>
+                      setState(() => _dragTimelineWidth = timelineWidth),
+                  onDragUpdate: (delta) => setState(
+                    () => _dragTimelineWidth = splitRange.clamp(
+                      (_dragTimelineWidth ?? timelineWidth) + delta,
+                    ),
+                  ),
+                  onDragEnd: () {
+                    final width = _dragTimelineWidth;
+                    setState(() => _dragTimelineWidth = null);
+                    if (width == null || splitRange.available <= 0) return;
+                    unawaited(
+                      ref
+                          .read(mediaTrimSplitProvider.notifier)
+                          .setFraction(
+                            splitRange.fractionOf(splitRange.clamp(width)),
+                          ),
+                    );
+                  },
+                  onReset: () => unawaited(
+                    ref.read(mediaTrimSplitProvider.notifier).setFraction(null),
+                  ),
+                ),
+                Expanded(
+                  key: const ValueKey('trim-clip-column'),
                   child: CustomScrollView(
                     key: const ValueKey('trim-editor'),
                     slivers: [
