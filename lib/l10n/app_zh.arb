@@ -2160,5 +2160,7 @@
   "mediaTrimFailureOutput": "生成的片段校验失败，请重试",
   "mediaTrimFailurePlayback": "播放失败",
   "mediaTrimFailureCancelled": "已取消保存",
-  "mediaTrimFailureUnexpected": "出现未知错误，请重试"
+  "mediaTrimFailureUnexpected": "出现未知错误，请重试",
+  "audioMenuExport": "导出",
+  "audioMenuMoreActions": "更多操作"
 }

@@ -9967,6 +9967,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Something went wrong. Please try again.'**
   String get mediaTrimFailureUnexpected;
+
+  /// No description provided for @audioMenuExport.
+  ///
+  /// In en, this message translates to:
+  /// **'Export'**
+  String get audioMenuExport;
+
+  /// No description provided for @audioMenuMoreActions.
+  ///
+  /// In en, this message translates to:
+  /// **'More actions'**
+  String get audioMenuMoreActions;
 }
 
 class _AppLocalizationsDelegate

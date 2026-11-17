@@ -670,7 +670,7 @@ void main() {
       expect(find.text('Missing AudioItem'), findsNothing);
     });
 
-    testWidgets('AppBar「更多」菜单：有字幕音频显示 4 项操作', (tester) async {
+    testWidgets('AppBar「更多」菜单：导出子菜单按字幕状态显示导出项', (tester) async {
       await tester.pumpWidget(createTestWidget());
       await tester.pumpAndSettle();
 
@@ -679,8 +679,11 @@ void main() {
       await tester.tap(find.byKey(const Key('learning_plan_more_menu')));
       await tester.pumpAndSettle();
 
-      expect(find.text('Manage Subtitles'), findsOneWidget);
-      expect(find.text('Edit subtitles'), findsOneWidget);
+      expect(find.text('Subtitles'), findsOneWidget);
+      expect(find.text('Edit subtitles'), findsNothing);
+      expect(find.text('Export Audio'), findsNothing);
+      await tester.tap(find.text('Export'));
+      await tester.pumpAndSettle();
       expect(find.text('Export Audio'), findsOneWidget);
       expect(find.text('Export PDF'), findsOneWidget);
     });
@@ -694,7 +697,10 @@ void main() {
       await tester.tap(find.byKey(const Key('learning_plan_more_menu')));
       await tester.pumpAndSettle();
 
-      expect(find.text('Manage Subtitles'), findsOneWidget);
+      expect(find.text('Subtitles'), findsOneWidget);
+      expect(find.text('Export Audio'), findsNothing);
+      await tester.tap(find.text('Export'));
+      await tester.pumpAndSettle();
       expect(find.text('Export Audio'), findsOneWidget);
       expect(find.text('Edit subtitles'), findsNothing);
       expect(find.text('Export PDF'), findsNothing);
@@ -721,7 +727,13 @@ void main() {
       final resetLabel = find.text('Reset Progress');
       expect(resetLabel, findsOneWidget);
       expect(
-        tester.widget<Text>(resetLabel).style?.color,
+        tester
+            .widget<MenuItemButton>(
+              find.widgetWithText(MenuItemButton, 'Reset Progress'),
+            )
+            .style
+            ?.foregroundColor
+            ?.resolve({}),
         AppTheme.light().colorScheme.error,
       );
 

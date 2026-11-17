@@ -511,6 +511,22 @@ void main() {
 
       await tester.tap(find.byKey(const Key('audio_list_tile_menu_hit_area')));
       await tester.pumpAndSettle();
+      expect(find.byType(SubmenuButton), findsNWidgets(2));
+      final anchor = tester.widget<MenuAnchor>(find.byType(MenuAnchor).first);
+      final popupTheme = Theme.of(tester.element(find.byType(MenuAnchor).first))
+          .popupMenuTheme;
+      expect(anchor.style?.backgroundColor?.resolve({}), popupTheme.color);
+      expect(anchor.style?.surfaceTintColor?.resolve({}), Colors.transparent);
+      expect(anchor.style?.shape?.resolve({}), popupTheme.shape);
+      for (final submenu in tester.widgetList<SubmenuButton>(
+        find.byType(SubmenuButton),
+      )) {
+        expect(submenu.menuStyle, anchor.style);
+      }
+
+      expect(find.text('Export PDF'), findsNothing);
+      await tester.tap(find.text('Export'));
+      await tester.pumpAndSettle();
 
       expect(find.text('Export PDF'), findsOneWidget);
     });
@@ -525,6 +541,8 @@ void main() {
       await tester.pumpAndSettle();
 
       await tester.tap(find.byKey(const Key('audio_list_tile_menu_hit_area')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Export'));
       await tester.pumpAndSettle();
 
       expect(find.text('Export PDF'), findsNothing);
@@ -568,6 +586,8 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const Key('audio_list_tile_menu_hit_area')));
       await tester.pumpAndSettle();
+      await tester.tap(find.text('Export'));
+      await tester.pumpAndSettle();
 
       expect(find.text('Export Video'), findsOneWidget);
       expect(find.text('Export Audio'), findsNothing);
@@ -579,6 +599,8 @@ void main() {
       await tester.pumpWidget(buildTile(item));
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const Key('audio_list_tile_menu_hit_area')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Export'));
       await tester.pumpAndSettle();
 
       expect(find.text('Export Audio'), findsOneWidget);
@@ -1270,7 +1292,7 @@ void main() {
 
       await tester.tap(find.byKey(const Key('audio_list_tile_menu_hit_area')));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Manage Subtitles'));
+      await tester.tap(find.text('Subtitles'));
       await tester.pumpAndSettle();
 
       await tester.tap(find.text('Cloud Transcription'));
@@ -1322,6 +1344,8 @@ void main() {
       await tester.pumpAndSettle();
 
       await tester.tap(find.byKey(const Key('audio_list_tile_menu_hit_area')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('More actions'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Episode Info'));
       await tester.pumpAndSettle();
@@ -1379,6 +1403,8 @@ void main() {
       await tester.pumpAndSettle();
 
       await tester.tap(find.byKey(const Key('audio_list_tile_menu_hit_area')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('More actions'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Episode Info'));
       await tester.pumpAndSettle();
@@ -1503,11 +1529,11 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Update Subtitles'), findsOneWidget);
-      expect(find.text('Manage Subtitles'), findsNothing);
+      expect(find.text('Subtitles'), findsNothing);
       expect(find.text('Edit subtitles'), findsNothing);
     });
 
-    testWidgets('用户音频有字幕时显示编辑字幕菜单', (tester) async {
+    testWidgets('用户音频有字幕时仅显示统一字幕菜单', (tester) async {
       final item = baseItem.copyWith(transcriptPath: 'transcripts/user.srt');
       await tester.pumpWidget(
         buildCompactTile(AudioLibraryState(audioItems: [item])),
@@ -1517,8 +1543,8 @@ void main() {
       await tester.tap(find.byKey(const Key('audio_list_tile_menu_hit_area')));
       await tester.pumpAndSettle();
 
-      expect(find.text('Manage Subtitles'), findsOneWidget);
-      expect(find.text('Edit subtitles'), findsOneWidget);
+      expect(find.text('Subtitles'), findsOneWidget);
+      expect(find.text('Edit subtitles'), findsNothing);
     });
 
     testWidgets('用户音频无字幕时不显示编辑字幕菜单', (tester) async {
@@ -1534,7 +1560,7 @@ void main() {
       await tester.tap(find.byKey(const Key('audio_list_tile_menu_hit_area')));
       await tester.pumpAndSettle();
 
-      expect(find.text('Manage Subtitles'), findsOneWidget);
+      expect(find.text('Subtitles'), findsOneWidget);
       expect(find.text('Edit subtitles'), findsNothing);
     });
 
@@ -1551,6 +1577,8 @@ void main() {
       await tester.pumpAndSettle();
 
       await tester.tap(find.byKey(const Key('audio_list_tile_menu_hit_area')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('More actions'));
       await tester.pumpAndSettle();
 
       // 单集由 feed 统一管理，删除后刷新会重新插回，故隐藏删除项。
@@ -1574,7 +1602,7 @@ void main() {
 
       expect(find.text('Delete'), findsOneWidget);
       expect(find.text('Episode Info'), findsNothing);
-      expect(find.byType(PopupMenuDivider), findsOneWidget);
+      expect(find.byType(Divider), findsOneWidget);
     });
 
     testWidgets('点击社区更新字幕先弹出清空进度确认框', (tester) async {
@@ -1642,7 +1670,7 @@ void main() {
       expect(find.text('Last'), findsNothing);
       expect(find.text('上次'), findsNothing);
       expect(find.byIcon(Icons.push_pin_outlined), findsNothing);
-      expect(find.byType(PopupMenuButton<String>), findsOneWidget);
+      expect(find.byType(MenuAnchor), findsOneWidget);
     });
   });
 
@@ -1686,6 +1714,8 @@ void main() {
 
       await tester.tap(find.byKey(const Key('audio_list_tile_menu_hit_area')));
       await tester.pumpAndSettle();
+      await tester.tap(find.text('More actions'));
+      await tester.pumpAndSettle();
 
       expect(find.text('Pause'), findsOneWidget);
       expect(find.text('Resume Learning'), findsNothing);
@@ -1708,6 +1738,8 @@ void main() {
       expect(find.text('Paused'), findsOneWidget);
 
       await tester.tap(find.byKey(const Key('audio_list_tile_menu_hit_area')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('More actions'));
       await tester.pumpAndSettle();
 
       expect(find.text('Resume Learning'), findsOneWidget);

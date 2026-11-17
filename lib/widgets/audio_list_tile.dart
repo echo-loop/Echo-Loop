@@ -7,8 +7,10 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+
 import 'package:go_router/go_router.dart';
 
+import 'common/svg_action_icon.dart';
 import '../models/audio_item.dart';
 import '../models/collection.dart';
 import '../models/learning_progress.dart';
@@ -23,8 +25,8 @@ import '../utils/audio_item_actions.dart';
 import '../router/app_router.dart';
 import '../theme/app_theme.dart';
 import '../theme/list_item_text_styles.dart';
-import 'common/app_popup_menu.dart';
 import 'common/transcript_cc_badge.dart';
+import 'common/app_menu_style.dart';
 import '../features/collection_cover/collection_cover_store.dart';
 import '../features/community_collections/download/community_download_notifier.dart';
 import '../features/community_collections/data/community_collection_api.dart';
@@ -728,124 +730,215 @@ class AudioListTile extends ConsumerWidget {
     // guid 去重重新插回（_importEpisodes 只比对活跃音频的 guid，查不到已删行），
     // 造成「删了又回来」。故与社区合集一致隐藏删除项，移除请退订整个播客合集。
     final isPodcastEpisode = audioItem.podcastEpisodeGuid != null;
+    void onSelected(String value) {
+      if (value == 'cancelDownload') {
+        if (isPodcastEpisode) {
+          ref
+              .read(podcastDownloadControllerProvider.notifier)
+              .cancel(audioItem.id);
+        } else if (isCommunity) {
+          unawaited(
+            ref.read(communityDownloadProvider.notifier).cancel(audioItem.id),
+          );
+        }
+      } else if (value == 'togglePin') {
+        ref.read(audioLibraryProvider.notifier).togglePin(audioItem.id);
+      } else if (value == 'trim') {
+        context.push(
+          AppRoutes.mediaTrim(audioItem.id, collectionId: collectionId),
+          extra: _latestAudioItem(ref),
+        );
+      } else if (value == 'rename') {
+        _showRenameDialog(context, ref);
+      } else if (value == 'manageSubtitles') {
+        showManageSubtitlesSheet(context, ref, audioItem);
+      } else if (value == 'updateCommunitySubtitle') {
+        unawaited(_handleUpdateCommunitySubtitle(context, ref, l10n));
+      } else if (value == 'manage') {
+        onManageCollections?.call();
+      } else if (value == 'manageTags') {
+        onManageTags?.call();
+      } else if (value == 'export') {
+        exportAudioItem(context, ref, audioItem);
+      } else if (value == 'exportPdf') {
+        AppRoutes.pushNested(
+          context,
+          AppRoutes.pdfPreviewSegment,
+          extra: _latestAudioItem(ref),
+        );
+      } else if (value == 'togglePause') {
+        _handleTogglePause(context, ref, isPausedForMenu);
+      } else if (value == 'resetProgress') {
+        _showResetProgressDialog(context, ref);
+      } else if (value == 'delete') {
+        onDelete?.call();
+      } else if (value == 'deleteDownload') {
+        // 无需二次确认：item 仍在、可随时重新下载。
+        ref
+            .read(audioLibraryProvider.notifier)
+            .deleteDownloadedAudio(audioItem.id);
+      } else if (value == 'podcastEpisodeInfo') {
+        showPodcastEpisodeInfoSheet(
+          context,
+          _latestAudioItem(ref),
+          podcastImageUrl: _podcastFeedImageUrl(ref),
+        );
+      }
+    }
+
+    final menuStyle = appMenuStyle(theme);
+
+    MenuItemButton menuItem({
+      required String value,
+      required Widget icon,
+      required String label,
+      bool destructive = false,
+    }) {
+      return MenuItemButton(
+        onPressed: () => onSelected(value),
+        leadingIcon: icon,
+        style: appMenuButtonStyle(theme, destructive: destructive),
+        child: Text(label),
+      );
+    }
+
     return SizedBox.expand(
-      child: PopupMenuButton<String>(
-        key: _kMenuHitAreaKey,
-        tooltip: MaterialLocalizations.of(context).showMenuTooltip,
-        padding: EdgeInsets.zero,
-        child: Center(child: _buildMenuIcon(theme)),
-        itemBuilder: (context) => [
+      child: MenuAnchor(
+        style: menuStyle,
+        builder: (context, controller, child) => IconButton(
+          key: _kMenuHitAreaKey,
+          tooltip: MaterialLocalizations.of(context).showMenuTooltip,
+          padding: EdgeInsets.zero,
+          onPressed: () =>
+              controller.isOpen ? controller.close() : controller.open(),
+          icon: _buildMenuIcon(theme),
+        ),
+        menuChildren: [
           if (isDownloading)
-            appPopupMenuItem(
-              context,
+            menuItem(
               value: 'cancelDownload',
               icon: const Icon(Icons.cancel_outlined, size: 20),
               label: l10n.cancelDownload,
             ),
-          appPopupMenuItem(
-            context,
+          menuItem(
             value: 'togglePin',
             icon: _buildPinnedMenuIcon(isPinned: audioItem.isPinned),
             label: audioItem.isPinned ? l10n.unpinAudio : l10n.pinAudio,
           ),
           if (audioItem.isAudioReady && !isDownloading)
-            appPopupMenuItem(
-              context,
+            menuItem(
               value: 'trim',
               icon: const Icon(Icons.content_cut, size: 20),
               label: l10n.mediaTrimMenu,
             ),
           if (!isCommunity)
-            appPopupMenuItem(
-              context,
+            menuItem(
               value: 'rename',
               icon: const Icon(Icons.edit, size: 20),
               label: l10n.renameAudio,
             ),
           if (!isCommunity)
-            appPopupMenuItem(
-              context,
+            menuItem(
               value: 'manageSubtitles',
-              icon: const Icon(Icons.subtitles_outlined, size: 20),
-              label: l10n.manageSubtitles,
-            ),
-          if (!isCommunity && audioItem.hasTranscript)
-            appPopupMenuItem(
-              context,
-              value: 'editSubtitles',
-              icon: const Icon(Icons.edit_note, size: 20),
-              label: l10n.editSubtitles,
+              icon: const SvgActionIcon(
+                assetName: 'assets/icon/closed-captions.svg',
+                size: 20,
+              ),
+              label: l10n.exportSubtitleFile,
             ),
           if (isCommunity)
-            appPopupMenuItem(
-              context,
+            menuItem(
               value: 'updateCommunitySubtitle',
               icon: const Icon(Icons.sync, size: 20),
               label: l10n.updateCommunitySubtitle,
             ),
-          // 播客单集天然属于其 RSS 订阅合集，再加入本地自建合集属低频且易与
-          // 「管理订阅」语义混淆，故与社区音频一致隐藏此项。
+          if (!isCommunity || audioItem.hasTranscript)
+            SubmenuButton(
+              menuStyle: menuStyle,
+              style: appMenuButtonStyle(theme),
+              leadingIcon: const Icon(Icons.ios_share, size: 20),
+              menuChildren: [
+                if (!isCommunity)
+                  menuItem(
+                    value: 'export',
+                    icon: Icon(
+                      audioItem.isVideo
+                          ? Icons.movie_outlined
+                          : Icons.audio_file_outlined,
+                      size: 20,
+                    ),
+                    label: audioItem.isVideo
+                        ? l10n.exportVideo
+                        : l10n.exportAudio,
+                  ),
+                // 学习材料导出 PDF：只读派生内容（字幕+笔记），社区音频也可用，仅要求有字幕
+                if (audioItem.hasTranscript)
+                  menuItem(
+                    value: 'exportPdf',
+                    icon: const Icon(Icons.description_outlined, size: 20),
+                    label: l10n.exportPdf,
+                  ),
+              ],
+              child: Text(l10n.audioMenuExport),
+            ),
+          if (!isCommunity || hasProgress || isPodcastEpisode)
+            SubmenuButton(
+              menuStyle: menuStyle,
+              style: appMenuButtonStyle(theme),
+              leadingIcon: const Icon(Icons.more_horiz, size: 20),
+              menuChildren: [
+                // 播客单集天然属于其 RSS 订阅合集，再加入本地自建合集属低频且易与
+                // 「管理订阅」语义混淆，故与社区音频一致隐藏此项。
+                if (!isCommunity && !isPodcastEpisode)
+                  menuItem(
+                    value: 'manage',
+                    icon: const Icon(Icons.folder_outlined, size: 20),
+                    label: l10n.manageCollections,
+                  ),
+                if (!isCommunity)
+                  menuItem(
+                    value: 'manageTags',
+                    icon: const Icon(Icons.label_outline, size: 20),
+                    label: l10n.manageTags,
+                  ),
+                // 仅在已开始学习时显示「暂停 / 恢复」与「重置」
+                if (hasProgress)
+                  menuItem(
+                    value: 'togglePause',
+                    icon: Icon(
+                      isPausedForMenu
+                          ? Icons.play_arrow_rounded
+                          : Icons.pause_rounded,
+                      size: 20,
+                    ),
+                    label: isPausedForMenu
+                        ? l10n.resumeLearning
+                        : l10n.pauseLearning,
+                  ),
+                if (hasProgress)
+                  menuItem(
+                    value: 'resetProgress',
+                    icon: Icon(
+                      Icons.restart_alt,
+                      size: 20,
+                      color: theme.colorScheme.error,
+                    ),
+                    label: l10n.resetLearningProgress,
+                    destructive: true,
+                  ),
+                if (audioItem.podcastEpisodeGuid != null)
+                  menuItem(
+                    value: 'podcastEpisodeInfo',
+                    icon: const Icon(Icons.info_outline, size: 20),
+                    label: l10n.podcastEpisodeMeta,
+                  ),
+              ],
+              child: Text(l10n.audioMenuMoreActions),
+            ),
+          if ((!isCommunity && !isPodcastEpisode) || audioItem.isAudioReady)
+            const Divider(height: 10),
           if (!isCommunity && !isPodcastEpisode)
-            appPopupMenuItem(
-              context,
-              value: 'manage',
-              icon: const Icon(Icons.folder_outlined, size: 20),
-              label: l10n.manageCollections,
-            ),
-          if (!isCommunity)
-            appPopupMenuItem(
-              context,
-              value: 'manageTags',
-              icon: const Icon(Icons.label_outline, size: 20),
-              label: l10n.manageTags,
-            ),
-          if (!isCommunity)
-            appPopupMenuItem(
-              context,
-              value: 'export',
-              icon: const Icon(Icons.ios_share, size: 20),
-              label: audioItem.isVideo ? l10n.exportVideo : l10n.exportAudio,
-            ),
-          // 学习材料导出 PDF：只读派生内容（字幕+笔记），社区音频也可用，仅要求有字幕
-          if (audioItem.hasTranscript)
-            appPopupMenuItem(
-              context,
-              value: 'exportPdf',
-              icon: const Icon(Icons.ios_share, size: 20),
-              label: l10n.exportPdf,
-            ),
-          // 仅在已开始学习时显示「暂停 / 恢复」与「重置」
-          if (hasProgress)
-            appPopupMenuItem(
-              context,
-              value: 'togglePause',
-              icon: Icon(
-                isPausedForMenu
-                    ? Icons.play_arrow_rounded
-                    : Icons.pause_rounded,
-                size: 20,
-              ),
-              label: isPausedForMenu ? l10n.resumeLearning : l10n.pauseLearning,
-            ),
-          if (hasProgress)
-            appPopupMenuItem(
-              context,
-              value: 'resetProgress',
-              icon: Icon(
-                Icons.restart_alt,
-                size: 20,
-                color: theme.colorScheme.error,
-              ),
-              label: l10n.resetLearningProgress,
-              destructive: true,
-            ),
-          if (!isCommunity && !isPodcastEpisode && hasProgress)
-            const PopupMenuDivider(height: 10),
-          if (!isCommunity && !isPodcastEpisode && !hasProgress)
-            const PopupMenuDivider(height: 10),
-          if (!isCommunity && !isPodcastEpisode)
-            appPopupMenuItem(
-              context,
+            menuItem(
               value: 'delete',
               icon: Icon(
                 Icons.delete,
@@ -859,8 +952,7 @@ class AudioListTile extends ConsumerWidget {
           // 「删除音频」仅删本地音频文件、把 audioPath 置空（列表重现下载按钮），
           // 字幕/进度保留，随时可重新下载。
           if ((isCommunity || isPodcastEpisode) && audioItem.isAudioReady)
-            appPopupMenuItem(
-              context,
+            menuItem(
               value: 'deleteDownload',
               icon: Icon(
                 Icons.delete_outline,
@@ -870,76 +962,7 @@ class AudioListTile extends ConsumerWidget {
               label: l10n.deleteAudio,
               destructive: true,
             ),
-          if (audioItem.podcastEpisodeGuid != null)
-            appPopupMenuItem(
-              context,
-              value: 'podcastEpisodeInfo',
-              icon: const Icon(Icons.info_outline, size: 20),
-              label: l10n.podcastEpisodeMeta,
-            ),
         ],
-        onSelected: (value) {
-          if (value == 'cancelDownload') {
-            if (isPodcastEpisode) {
-              ref
-                  .read(podcastDownloadControllerProvider.notifier)
-                  .cancel(audioItem.id);
-            } else if (isCommunity) {
-              unawaited(
-                ref
-                    .read(communityDownloadProvider.notifier)
-                    .cancel(audioItem.id),
-              );
-            }
-          } else if (value == 'togglePin') {
-            ref.read(audioLibraryProvider.notifier).togglePin(audioItem.id);
-          } else if (value == 'trim') {
-            context.push(
-              AppRoutes.mediaTrim(audioItem.id, collectionId: collectionId),
-              extra: _latestAudioItem(ref),
-            );
-          } else if (value == 'rename') {
-            _showRenameDialog(context, ref);
-          } else if (value == 'manageSubtitles') {
-            showManageSubtitlesSheet(context, ref, audioItem);
-          } else if (value == 'editSubtitles') {
-            context.push(
-              AppRoutes.subtitleEditor(audioItem.id),
-              extra: audioItem,
-            );
-          } else if (value == 'updateCommunitySubtitle') {
-            unawaited(_handleUpdateCommunitySubtitle(context, ref, l10n));
-          } else if (value == 'manage') {
-            onManageCollections?.call();
-          } else if (value == 'manageTags') {
-            onManageTags?.call();
-          } else if (value == 'export') {
-            exportAudioItem(context, ref, audioItem);
-          } else if (value == 'exportPdf') {
-            AppRoutes.pushNested(
-              context,
-              AppRoutes.pdfPreviewSegment,
-              extra: _latestAudioItem(ref),
-            );
-          } else if (value == 'togglePause') {
-            _handleTogglePause(context, ref, isPausedForMenu);
-          } else if (value == 'resetProgress') {
-            _showResetProgressDialog(context, ref);
-          } else if (value == 'delete') {
-            onDelete?.call();
-          } else if (value == 'deleteDownload') {
-            // 无需二次确认：item 仍在、可随时重新下载。
-            ref
-                .read(audioLibraryProvider.notifier)
-                .deleteDownloadedAudio(audioItem.id);
-          } else if (value == 'podcastEpisodeInfo') {
-            showPodcastEpisodeInfoSheet(
-              context,
-              _latestAudioItem(ref),
-              podcastImageUrl: _podcastFeedImageUrl(ref),
-            );
-          }
-        },
       ),
     );
   }

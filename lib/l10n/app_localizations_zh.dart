@@ -5353,4 +5353,10 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get mediaTrimFailureUnexpected => '出现未知错误，请重试';
+
+  @override
+  String get audioMenuExport => '导出';
+
+  @override
+  String get audioMenuMoreActions => '更多操作';
 }

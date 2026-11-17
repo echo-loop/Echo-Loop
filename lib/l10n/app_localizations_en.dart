@@ -5630,4 +5630,10 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get mediaTrimFailureUnexpected =>
       'Something went wrong. Please try again.';
+
+  @override
+  String get audioMenuExport => 'Export';
+
+  @override
+  String get audioMenuMoreActions => 'More actions';
 }

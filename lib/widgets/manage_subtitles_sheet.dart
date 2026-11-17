@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:universal_io/io.dart';
+
 import '../analytics/models/event_names.dart';
 import '../features/auth/providers/auth_providers.dart';
 import '../features/auth/sign_in_required_dialog.dart';
@@ -332,13 +333,13 @@ class _ManageSubtitlesSheetState extends ConsumerState<ManageSubtitlesSheet> {
                       ),
                     // 编辑与删除仅在已有字幕且没有进行中的转录任务时显示。
                     if (audioItem.hasTranscript && !isTaskActive) ...[
-                      Tooltip(
-                        message: l10n.editSubtitles,
-                        child: IconButton(
-                          onPressed: () =>
-                              _openSubtitleEditor(context, audioItem),
-                          icon: const Icon(Icons.edit_note, size: 20),
-                          color: theme.colorScheme.onSurfaceVariant,
+                      TextButton.icon(
+                        onPressed: () =>
+                            _openSubtitleEditor(context, audioItem),
+                        icon: const Icon(Icons.edit_note, size: 20),
+                        label: Text(l10n.editSubtitles),
+                        style: TextButton.styleFrom(
+                          foregroundColor: theme.colorScheme.onSurfaceVariant,
                           visualDensity: VisualDensity.compact,
                         ),
                       ),
@@ -348,7 +349,7 @@ class _ManageSubtitlesSheetState extends ConsumerState<ManageSubtitlesSheet> {
                           onPressed: () =>
                               _handleDeleteSubtitle(context, audioItem),
                           icon: const Icon(Icons.delete_outline, size: 20),
-                          color: theme.colorScheme.error,
+                          color: theme.colorScheme.onSurfaceVariant,
                           visualDensity: VisualDensity.compact,
                         ),
                       ),

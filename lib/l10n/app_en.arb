@@ -2589,5 +2589,7 @@
   "mediaTrimFailureOutput": "A clip failed verification. Please try again.",
   "mediaTrimFailurePlayback": "Playback failed",
   "mediaTrimFailureCancelled": "Saving cancelled",
-  "mediaTrimFailureUnexpected": "Something went wrong. Please try again."
+  "mediaTrimFailureUnexpected": "Something went wrong. Please try again.",
+  "audioMenuExport": "Export",
+  "audioMenuMoreActions": "More actions"
 }

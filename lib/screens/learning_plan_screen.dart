@@ -64,8 +64,8 @@ import '../utils/retell_duration_estimator.dart';
 import '../utils/audio_item_actions.dart';
 import '../utils/time_format.dart';
 import '../widgets/blind_listen_paragraph_sheet.dart';
-import '../widgets/common/app_popup_menu.dart';
 import '../widgets/common/svg_action_icon.dart';
+import '../widgets/common/app_menu_style.dart';
 import '../widgets/intensive_listen/intensive_listen_briefing_sheet.dart';
 import '../widgets/listen_and_repeat/listen_and_repeat_briefing_sheet.dart';
 import '../widgets/common/paragraph_selection_sheet.dart'
@@ -676,7 +676,7 @@ class _LearningPlanScreenState extends ConsumerState<LearningPlanScreen> {
 
   /// 构建计划页顶栏「更多操作」菜单（随心听按钮右侧）。
   ///
-  /// 承载对当前音频的重要操作：管理字幕、编辑字幕、导出音频、导出 PDF、重置进度。
+  /// 承载对当前音频的重要操作：字幕、导出音频、导出 PDF、重置进度。
   /// 与音频列表项菜单同源（复用 [showManageSubtitlesSheet]/[exportAudioItem]）。
   /// 社区音频隐藏字幕/导出写操作，仅在有字幕时保留导出 PDF；无可用项时返回 null。
   Widget? _buildPlanMenu(
@@ -689,80 +689,79 @@ class _LearningPlanScreenState extends ConsumerState<LearningPlanScreen> {
     final hasTranscript = audioItem.hasTranscript;
     final hasProgress = progress?.isStarted ?? false;
 
-    final items = <PopupMenuEntry<String>>[
+    final theme = Theme.of(context);
+    final menuStyle = appMenuStyle(theme);
+
+    final exportItems = <Widget>[
       if (!isCommunity)
-        appPopupMenuItem(
-          context,
-          value: 'manageSubtitles',
-          icon: const Icon(Icons.subtitles_outlined, size: 20),
-          label: l10n.manageSubtitles,
-        ),
-      if (!isCommunity && hasTranscript)
-        appPopupMenuItem(
-          context,
-          value: 'editSubtitles',
-          icon: const Icon(Icons.edit_note, size: 20),
-          label: l10n.editSubtitles,
-        ),
-      if (!isCommunity)
-        appPopupMenuItem(
-          context,
-          value: 'export',
-          icon: const Icon(Icons.ios_share, size: 20),
-          label: audioItem.isVideo ? l10n.exportVideo : l10n.exportAudio,
+        MenuItemButton(
+          onPressed: () => exportAudioItem(context, ref, audioItem),
+          leadingIcon: Icon(
+            audioItem.isVideo
+                ? Icons.movie_outlined
+                : Icons.audio_file_outlined,
+            size: 20,
+          ),
+          style: appMenuButtonStyle(theme),
+          child: Text(audioItem.isVideo ? l10n.exportVideo : l10n.exportAudio),
         ),
       if (hasTranscript)
-        appPopupMenuItem(
-          context,
-          value: 'exportPdf',
-          icon: const Icon(Icons.ios_share, size: 20),
-          label: l10n.exportPdf,
-        ),
-      // 与音频列表菜单保持一致：仅在已有实际学习进度时提供危险的重置操作。
-      if (hasProgress)
-        appPopupMenuItem(
-          context,
-          value: 'resetProgress',
-          icon: Icon(
-            Icons.restart_alt,
-            size: 20,
-            color: Theme.of(context).colorScheme.error,
+        MenuItemButton(
+          onPressed: () => AppRoutes.pushNested(
+            context,
+            AppRoutes.pdfPreviewSegment,
+            extra: audioItem,
           ),
-          label: l10n.resetLearningProgress,
-          destructive: true,
+          leadingIcon: const Icon(Icons.description_outlined, size: 20),
+          style: appMenuButtonStyle(theme),
+          child: Text(l10n.exportPdf),
         ),
     ];
-
+    final items = <Widget>[
+      if (!isCommunity)
+        MenuItemButton(
+          onPressed: () => showManageSubtitlesSheet(context, ref, audioItem),
+          leadingIcon: const SvgActionIcon(
+            assetName: 'assets/icon/closed-captions.svg',
+            size: 20,
+          ),
+          style: appMenuButtonStyle(theme),
+          child: Text(l10n.exportSubtitleFile),
+        ),
+      if (exportItems.isNotEmpty)
+        SubmenuButton(
+          leadingIcon: const Icon(Icons.ios_share, size: 20),
+          style: appMenuButtonStyle(theme),
+          menuStyle: menuStyle,
+          menuChildren: exportItems,
+          child: Text(l10n.audioMenuExport),
+        ),
+      if (hasProgress)
+        MenuItemButton(
+          onPressed: () => _showResetProgressDialog(context, l10n, audioItem),
+          leadingIcon: Icon(
+            Icons.restart_alt,
+            size: 20,
+            color: theme.colorScheme.error,
+          ),
+          style: appMenuButtonStyle(theme, destructive: true),
+          child: Text(l10n.resetLearningProgress),
+        ),
+    ];
     if (items.isEmpty) return null;
 
     return Padding(
       padding: const EdgeInsets.only(right: AppSpacing.s),
-      child: PopupMenuButton<String>(
-        key: const Key('learning_plan_more_menu'),
-        tooltip: MaterialLocalizations.of(context).showMenuTooltip,
-        icon: const Icon(Icons.more_horiz),
-        itemBuilder: (_) => items,
-        onSelected: (value) {
-          switch (value) {
-            case 'manageSubtitles':
-              showManageSubtitlesSheet(context, ref, audioItem);
-            case 'editSubtitles':
-              context.push(
-                AppRoutes.subtitleEditor(audioItem.id),
-                extra: audioItem,
-              );
-            case 'export':
-              exportAudioItem(context, ref, audioItem);
-            case 'exportPdf':
-              AppRoutes.pushNested(
-                context,
-                AppRoutes.pdfPreviewSegment,
-                extra: audioItem,
-              );
-            case 'resetProgress':
-              _showResetProgressDialog(context, l10n, audioItem);
-          }
-        },
+      child: MenuAnchor(
+        style: menuStyle,
+        menuChildren: items,
+        builder: (context, controller, child) => IconButton(
+          key: const Key('learning_plan_more_menu'),
+          tooltip: MaterialLocalizations.of(context).showMenuTooltip,
+          icon: const Icon(Icons.more_horiz),
+          onPressed: () =>
+              controller.isOpen ? controller.close() : controller.open(),
+        ),
       ),
     );
   }
