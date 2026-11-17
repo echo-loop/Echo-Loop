@@ -157,6 +157,7 @@ Widget createTestScreen(
   List<Override>? overrides,
   List<NavigatorObserver> navigatorObservers = const [],
   Locale locale = const Locale('en'),
+  ThemeMode themeMode = ThemeMode.light,
 }) {
   final defaultOverrides = <Override>[
     analyticsOverride(),
@@ -209,6 +210,8 @@ Widget createTestScreen(
             GlobalCupertinoLocalizations.delegate,
           ],
           theme: AppTheme.light(),
+          darkTheme: AppTheme.dark(),
+          themeMode: themeMode,
           routerConfig: router,
         );
       },

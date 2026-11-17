@@ -819,7 +819,7 @@ class _TimelinePainter extends CustomPainter {
     final halfHeight = (bottom - top) / 2 - 4;
     final idle = Paint()
       ..color = scheme.onSurfaceVariant.withValues(alpha: 0.32)
-      ..strokeWidth = 2
+      ..strokeWidth = 1.5
       ..strokeCap = StrokeCap.round;
     if (data == null || values == null) {
       canvas.drawLine(

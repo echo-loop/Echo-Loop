@@ -737,7 +737,7 @@ void main() {
       audioEngine.disposeController();
     });
 
-    testWidgets('句子编号复用左侧播放区，不增加布局宽度', (tester) async {
+    testWidgets('句子编号排在播放按钮正下方，不另占横向宽度', (tester) async {
       final audioEngine = _ScreenTestAudioEngine(
         duration: const Duration(seconds: 10),
         sentences: _sentences(),
@@ -759,17 +759,19 @@ void main() {
         expect(numberFinder, findsOneWidget);
         expect(tester.widget<Text>(numberFinder).data, '${i + 1}');
       }
-      expect(
-        tester
-            .getSize(find.byKey(const ValueKey('subtitle-sentence-play-0')))
-            .width,
-        52,
+      final playRect = tester.getRect(
+        find.byKey(const ValueKey('subtitle-sentence-play-0')),
       );
+      final numberRect = tester.getRect(
+        find.byKey(const ValueKey('subtitle-sentence-number-0')),
+      );
+      expect(numberRect.center.dx, moreOrLessEquals(playRect.center.dx));
+      expect(numberRect.top, greaterThanOrEqualTo(playRect.bottom));
 
       audioEngine.disposeController();
     });
 
-    testWidgets('波形下方显示缩放和速度控制', (tester) async {
+    testWidgets('波形上方工具条显示缩放和速度控制，音频材料不显示画面开关', (tester) async {
       final audioEngine = _ScreenTestAudioEngine(
         duration: const Duration(seconds: 10),
         sentences: _sentences(),
@@ -785,15 +787,41 @@ void main() {
       await tester.pump(const Duration(milliseconds: 100));
 
       expect(find.byIcon(Icons.play_arrow), findsNothing);
-      expect(find.text('Zoom'), findsOneWidget);
-      expect(find.byIcon(Icons.zoom_out), findsNothing);
-      expect(find.byIcon(Icons.zoom_in), findsNothing);
+      expect(find.byTooltip('Zoom out'), findsOneWidget);
+      expect(find.byTooltip('Zoom in'), findsOneWidget);
       expect(
         find.byKey(const ValueKey('subtitle-waveform-zoom-slider')),
         findsOneWidget,
       );
-      expect(find.text('Playback Speed'), findsOneWidget);
+      expect(find.text('1.0x'), findsOneWidget);
       expect(find.byTooltip('Playback Speed'), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('subtitle-editor-toggle-video')),
+        findsNothing,
+      );
+      final toolbarBottom = tester
+          .getRect(find.byKey(const ValueKey('subtitle-waveform-zoom-slider')))
+          .bottom;
+      expect(
+        toolbarBottom,
+        lessThanOrEqualTo(
+          tester.getRect(find.byType(SubtitleWaveformView)).top,
+        ),
+      );
+
+      final sliderFinder = find.byKey(
+        const ValueKey('subtitle-waveform-zoom-slider'),
+      );
+      final before = tester.widget<Slider>(sliderFinder).value;
+      await tester.tap(find.byTooltip('Zoom in'));
+      await tester.pump();
+      expect(tester.widget<Slider>(sliderFinder).value, greaterThan(before));
+      await tester.tap(find.byTooltip('Zoom out'));
+      await tester.pump();
+      expect(
+        tester.widget<Slider>(sliderFinder).value,
+        moreOrLessEquals(before),
+      );
 
       await tester.tap(find.byTooltip('Playback Speed'));
       await tester.pump(const Duration(milliseconds: 300));

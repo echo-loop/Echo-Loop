@@ -1,9 +1,12 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:just_waveform/just_waveform.dart';
 
 import '../../l10n/app_localizations.dart';
 
 import '../../models/sentence.dart';
+import '../../utils/waveform_samples.dart';
 import 'subtitle_edit_engine.dart';
 
 /// 一条可拖动边界的引用：全篇词列表下标 + 起 / 止端。
@@ -119,12 +122,8 @@ class SubtitleWaveformView extends StatefulWidget {
   /// 底部时间轴占用高度（逻辑像素）。播放头红线只画到此高度之上。
   static const double axisHeight = 26;
 
-  /// 起始边界配色（绿），结束边界配色（红），方便用户区分两端。
-  static const Color startBoundaryColor = Color(0xFF43A047);
-  static const Color endBoundaryColor = Color(0xFFE53935);
-
-  /// 当前播放位置线配色（蓝），与起止的绿/红区分开。
-  static const Color playheadColor = Color(0xFF1E88E5);
+  /// 波形区高度（含底部时间轴）。
+  static const double height = 120;
 
   /// [onAdjustWord] 默认空实现（未接入词级拖动时）。
   static void _ignoreWordAdjust(
@@ -265,6 +264,19 @@ class _SubtitleWaveformViewState extends State<SubtitleWaveformView> {
   /// 触控板 pan-zoom（双指捏合）开始时的基准缩放。
   double _trackpadBaseZoom = 1;
 
+  /// 按规范偏移重新读取的波形采样（规避 just_waveform 16 位错位，见 troubleshooting
+  /// 7.54）；仅在波形对象变化时重建。
+  WaveformSamples? _samples;
+  Waveform? _samplesSource;
+
+  WaveformSamples _samplesOf(Waveform waveform) {
+    if (!identical(_samplesSource, waveform) || _samples == null) {
+      _samplesSource = waveform;
+      _samples = WaveformSamples(waveform);
+    }
+    return _samples!;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -315,115 +327,97 @@ class _SubtitleWaveformViewState extends State<SubtitleWaveformView> {
     final theme = Theme.of(context);
     final waveform = widget.waveform;
     final duration = widget.duration ?? waveform?.duration;
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: .45),
-        border: Border(
-          bottom: BorderSide(color: theme.colorScheme.outlineVariant),
-        ),
-      ),
-      child: SizedBox(
-        height: 112,
-        width: double.infinity,
-        child: widget.audioMissing
-            ? const _WaveformAudioMissing()
-            : widget.extractionFailed
-            ? _WaveformFailed(onRetry: widget.onRetryExtraction)
-            : (waveform == null ||
-                  duration == null ||
-                  duration <= Duration.zero)
-            ? _WaveformLoading(progress: widget.extractionProgress)
-            : LayoutBuilder(
-                builder: (context, constraints) {
-                  final metrics = WaveformMetrics(
-                    viewport: constraints.maxWidth,
-                    zoom: widget.zoomScale,
-                    duration: duration,
-                    padding: SubtitleWaveformView.horizontalPadding,
-                  );
-                  _metrics = metrics; // 供指针回调使用
+    final palette = WaveformPalette.of(theme.colorScheme);
+    // 背景与圆角由外层卡片负责，这里只画内容，便于在不同布局中复用。
+    return SizedBox(
+      height: SubtitleWaveformView.height,
+      width: double.infinity,
+      child: widget.audioMissing
+          ? const _WaveformAudioMissing()
+          : widget.extractionFailed
+          ? _WaveformFailed(onRetry: widget.onRetryExtraction)
+          : (waveform == null || duration == null || duration <= Duration.zero)
+          ? _WaveformLoading(progress: widget.extractionProgress)
+          : LayoutBuilder(
+              builder: (context, constraints) {
+                final metrics = WaveformMetrics(
+                  viewport: constraints.maxWidth,
+                  zoom: widget.zoomScale,
+                  duration: duration,
+                  padding: SubtitleWaveformView.horizontalPadding,
+                );
+                _metrics = metrics; // 供指针回调使用
 
-                  return MouseRegion(
-                    cursor: _hoverCursor,
-                    onHover: (event) =>
-                        _updateHoverCursor(event.localPosition, metrics),
-                    child: Listener(
-                      behavior: HitTestBehavior.opaque,
-                      onPointerDown: _onPointerDown,
-                      onPointerMove: _onPointerMove,
-                      onPointerUp: _onPointerUp,
-                      onPointerCancel: _onPointerUp,
-                      // 触控板双指捏合（macOS / 触控板设备）。
-                      onPointerPanZoomStart: (_) =>
-                          _trackpadBaseZoom = widget.zoomScale,
-                      onPointerPanZoomUpdate: (event) =>
-                          widget.onZoomChanged(_trackpadBaseZoom * event.scale),
-                      // 播放头位置补间：仅平滑「播放推进」，其余瞬时到位。
-                      // 用同一个 painted 同时驱动红线与跟随偏移，二者永不 desync。
-                      child: TweenAnimationBuilder<double>(
-                        tween: Tween<double>(
-                          end: widget.playbackPosition.inMicroseconds
-                              .toDouble(),
-                        ),
-                        duration: _animatePlayhead
-                            ? const Duration(milliseconds: 80)
-                            : Duration.zero,
-                        curve: Curves.linear,
-                        builder: (context, animatedUs, _) {
-                          final painted = Duration(
-                            microseconds: animatedUs.round(),
-                          );
-                          final offset = _resolveOffset(metrics, painted);
-                          _renderOffset = offset; // 供指针回调使用
-                          final playheadX = widget.isPlaying
-                              ? metrics
-                                    .screenX(painted, offset)
-                                    .clamp(0.0, metrics.viewport)
-                              : null;
-                          return Stack(
-                            fit: StackFit.expand,
-                            children: [
+                return MouseRegion(
+                  cursor: _hoverCursor,
+                  onHover: (event) =>
+                      _updateHoverCursor(event.localPosition, metrics),
+                  child: Listener(
+                    behavior: HitTestBehavior.opaque,
+                    onPointerDown: _onPointerDown,
+                    onPointerMove: _onPointerMove,
+                    onPointerUp: _onPointerUp,
+                    onPointerCancel: _onPointerUp,
+                    // 触控板双指捏合（macOS / 触控板设备）。
+                    onPointerPanZoomStart: (_) =>
+                        _trackpadBaseZoom = widget.zoomScale,
+                    onPointerPanZoomUpdate: (event) =>
+                        widget.onZoomChanged(_trackpadBaseZoom * event.scale),
+                    // 播放头位置补间：仅平滑「播放推进」，其余瞬时到位。
+                    // 用同一个 painted 同时驱动红线与跟随偏移，二者永不 desync。
+                    child: TweenAnimationBuilder<double>(
+                      tween: Tween<double>(
+                        end: widget.playbackPosition.inMicroseconds.toDouble(),
+                      ),
+                      duration: _animatePlayhead
+                          ? const Duration(milliseconds: 80)
+                          : Duration.zero,
+                      curve: Curves.linear,
+                      builder: (context, animatedUs, _) {
+                        final painted = Duration(
+                          microseconds: animatedUs.round(),
+                        );
+                        final offset = _resolveOffset(metrics, painted);
+                        _renderOffset = offset; // 供指针回调使用
+                        final playheadX = widget.isPlaying
+                            ? metrics
+                                  .screenX(painted, offset)
+                                  .clamp(0.0, metrics.viewport)
+                            : null;
+                        return Stack(
+                          fit: StackFit.expand,
+                          children: [
+                            RepaintBoundary(
+                              child: CustomPaint(
+                                painter: _WaveformLayerPainter(
+                                  samples: _samplesOf(waveform),
+                                  metrics: metrics,
+                                  viewOffset: offset,
+                                  sentences: widget.sentences,
+                                  activeSentence: widget.activeSentence,
+                                  wordBoundaries: widget.wordBoundaries,
+                                  palette: palette,
+                                  textScaler: MediaQuery.textScalerOf(context),
+                                ),
+                              ),
+                            ),
+                            if (playheadX != null)
                               RepaintBoundary(
                                 child: CustomPaint(
-                                  painter: _WaveformLayerPainter(
-                                    waveform: waveform,
-                                    metrics: metrics,
-                                    viewOffset: offset,
-                                    sentences: widget.sentences,
-                                    activeSentence: widget.activeSentence,
-                                    wordBoundaries: widget.wordBoundaries,
-                                    color: theme.colorScheme.outline,
-                                    activeColor: theme.colorScheme.primary,
-                                    startColor:
-                                        SubtitleWaveformView.startBoundaryColor,
-                                    endColor:
-                                        SubtitleWaveformView.endBoundaryColor,
-                                    axisColor:
-                                        theme.colorScheme.onSurfaceVariant,
-                                    textScaler: MediaQuery.textScalerOf(
-                                      context,
-                                    ),
+                                  painter: _PlayheadLayerPainter(
+                                    x: playheadX.toDouble(),
+                                    color: palette.playhead,
                                   ),
                                 ),
                               ),
-                              if (playheadX != null)
-                                RepaintBoundary(
-                                  child: CustomPaint(
-                                    painter: _PlayheadLayerPainter(
-                                      x: playheadX.toDouble(),
-                                      color: SubtitleWaveformView.playheadColor,
-                                    ),
-                                  ),
-                                ),
-                            ],
-                          );
-                        },
-                      ),
+                          ],
+                        );
+                      },
                     ),
-                  );
-                },
-              ),
-      ),
+                  ),
+                );
+              },
+            ),
     );
   }
 
@@ -743,7 +737,121 @@ class _SubtitleWaveformViewState extends State<SubtitleWaveformView> {
   }
 }
 
-/// 播放头红线层。仅画一条位于视口坐标 [x] 处的竖线（顶到时间轴上沿）。
+/// 聚合后待绘制的边界标记。
+typedef _BoundaryMarker = ({
+  double x,
+  bool hasStart,
+  bool hasEnd,
+  bool primary,
+  bool isSentenceEdge,
+});
+
+/// 边界的视觉层级。
+enum _BoundaryStyle {
+  /// 当前句的起止：最醒目。
+  sentenceEdge,
+
+  /// 当前句内部的词边界。
+  word,
+
+  /// 相邻句的词边界：最淡，只作参照。
+  neighbor,
+}
+
+/// 字幕编辑波形的配色，全部随明暗主题变化。
+///
+/// 起止边界保留「起点绿 / 终点红」的语义（用户已习惯），但用与主题协调的柔和色值，
+/// 暗色下提高明度保证在近黑背景上可辨；播放头用中性前景色，避免与蓝色选中句、
+/// 绿 / 红边界混淆。
+@immutable
+class WaveformPalette {
+  const WaveformPalette({
+    required this.bar,
+    required this.sentenceBar,
+    required this.activeBar,
+    required this.activeFill,
+    required this.sentenceFill,
+    required this.start,
+    required this.end,
+    required this.playhead,
+    required this.axis,
+    required this.axisLabel,
+    required this.label,
+    required this.activeLabel,
+  });
+
+  factory WaveformPalette.of(ColorScheme scheme) {
+    final isDark = scheme.brightness == Brightness.dark;
+    return WaveformPalette(
+      bar: scheme.onSurfaceVariant.withValues(alpha: isDark ? .26 : .22),
+      sentenceBar: scheme.onSurfaceVariant.withValues(alpha: isDark ? .55 : .5),
+      activeBar: scheme.primary,
+      activeFill: scheme.primary.withValues(alpha: isDark ? .14 : .08),
+      sentenceFill: scheme.onSurface.withValues(alpha: isDark ? .04 : .025),
+      start: isDark ? const Color(0xFF5FD08E) : const Color(0xFF1E9E5A),
+      end: isDark ? const Color(0xFFFF7A70) : const Color(0xFFE04B3F),
+      playhead: scheme.onSurface,
+      axis: scheme.onSurfaceVariant.withValues(alpha: .18),
+      axisLabel: scheme.onSurfaceVariant.withValues(alpha: .7),
+      label: scheme.onSurfaceVariant.withValues(alpha: .62),
+      activeLabel: scheme.primary,
+    );
+  }
+
+  /// 不属于任何句子的波形（停顿、无字幕片段）。
+  final Color bar;
+
+  /// 其它句子的波形。
+  final Color sentenceBar;
+
+  /// 当前选中句的波形与区间顶条。
+  final Color activeBar;
+  final Color activeFill;
+  final Color sentenceFill;
+  final Color start;
+  final Color end;
+  final Color playhead;
+  final Color axis;
+  final Color axisLabel;
+
+  /// 波形顶部的句子文字；当前句用 [activeLabel]。
+  final Color label;
+  final Color activeLabel;
+
+  @override
+  bool operator ==(Object other) =>
+      other is WaveformPalette &&
+      other.bar == bar &&
+      other.sentenceBar == sentenceBar &&
+      other.activeBar == activeBar &&
+      other.activeFill == activeFill &&
+      other.sentenceFill == sentenceFill &&
+      other.start == start &&
+      other.end == end &&
+      other.playhead == playhead &&
+      other.axis == axis &&
+      other.axisLabel == axisLabel &&
+      other.label == label &&
+      other.activeLabel == activeLabel;
+
+  @override
+  int get hashCode => Object.hash(
+    bar,
+    sentenceBar,
+    activeBar,
+    activeFill,
+    sentenceFill,
+    start,
+    end,
+    playhead,
+    axis,
+    axisLabel,
+    label,
+    activeLabel,
+  );
+}
+
+/// 播放头层：一条竖线 + 顶部小三角帽，位于视口坐标 [x] 处（顶到时间轴上沿）。
 ///
 /// 与波形层分层 + 各自 RepaintBoundary：播放推进只重绘这条线，不触发波形层重绘。
 class _PlayheadLayerPainter extends CustomPainter {
@@ -757,8 +865,15 @@ class _PlayheadLayerPainter extends CustomPainter {
     final bottom = size.height - SubtitleWaveformView.axisHeight;
     final paint = Paint()
       ..color = color
-      ..strokeWidth = 2.4;
+      ..strokeWidth = 2
+      ..strokeCap = StrokeCap.round;
     canvas.drawLine(Offset(x, 0), Offset(x, bottom), paint);
+    final cap = Path()
+      ..moveTo(x - 5, 0)
+      ..lineTo(x + 5, 0)
+      ..lineTo(x, 6)
+      ..close();
+    canvas.drawPath(cap, Paint()..color = color);
   }
 
   @override
@@ -872,10 +987,10 @@ class _WaveformFailed extends StatelessWidget {
   }
 }
 
-/// 波形层：只绘制**当前可见时间窗**（约 viewport/2 条竖线，与缩放无关），
+/// 波形层：只绘制**当前可见时间窗**（约 viewport/3 根竖条，与缩放无关），
 /// 经 [metrics] + [viewOffset] 单一映射定位，故与播放头同一坐标空间、不可能错位。
 class _WaveformLayerPainter extends CustomPainter {
-  final Waveform waveform;
+  final WaveformSamples samples;
   final WaveformMetrics metrics;
   final double viewOffset;
   final List<Sentence> sentences;
@@ -883,91 +998,90 @@ class _WaveformLayerPainter extends CustomPainter {
 
   /// 选中句 + 前后相邻句的全部单词边界（含句子起止）。当前句为主样式，邻句为次样式。
   final List<WaveformWordBoundary> wordBoundaries;
-  final Color color;
-  final Color activeColor;
-
-  /// 起始边界配色（绿），结束边界配色（红）。
-  final Color startColor;
-  final Color endColor;
-  final Color axisColor;
+  final WaveformPalette palette;
 
   /// 句子文字与轴标签的系统文字缩放，与普通 Text 保持一致。
   final TextScaler textScaler;
 
+  /// 波形竖条在内容坐标中的间距与粗细。
+  static const double _barStep = 3;
+  static const double _barWidth = 1.5;
+
+  /// 顶部句子文字行的高度；波形与边界线在其下方绘制，文字不被压住。
+  static const double _labelLaneHeight = 18;
+
+  /// 屏幕上相距不足该距离的边界合并为一个把手。
+  static const double _mergeDistance = 4;
+
   const _WaveformLayerPainter({
-    required this.waveform,
+    required this.samples,
     required this.metrics,
     required this.viewOffset,
     required this.sentences,
     required this.activeSentence,
     required this.wordBoundaries,
-    required this.color,
-    required this.activeColor,
-    required this.startColor,
-    required this.endColor,
-    required this.axisColor,
+    required this.palette,
     required this.textScaler,
   });
 
   @override
   void paint(Canvas canvas, Size size) {
-    const topPadding = 0.0;
+    const top = 0.0;
     final viewport = size.width;
     final waveformBottom = size.height - SubtitleWaveformView.axisHeight;
-    final centerY = topPadding + (waveformBottom - topPadding) / 2;
-    final usableHeight = waveformBottom - topPadding;
+    const waveTop = top + _labelLaneHeight;
+    final centerY = waveTop + (waveformBottom - waveTop) / 2;
+    final usableHeight = waveformBottom - waveTop - 6;
     final totalUs = metrics.duration.inMicroseconds;
     if (usableHeight <= 0 || viewport <= 0 || totalUs <= 0) return;
 
-    // 中线（横跨整个视口）。
-    final midlinePaint = Paint()
-      ..color = axisColor.withValues(alpha: .12)
-      ..strokeWidth = 1;
-    canvas.drawLine(
-      Offset(0, centerY),
-      Offset(viewport, centerY),
-      midlinePaint,
-    );
-
-    final basePaint = Paint()
-      ..color = color.withValues(alpha: .50)
-      ..strokeWidth = 1.2
-      ..strokeCap = StrokeCap.round;
-    final sentencePaint = Paint()
-      ..color = activeColor.withValues(alpha: .42)
-      ..strokeWidth = 1.2
-      ..strokeCap = StrokeCap.round;
-    final activePaint = Paint()
-      ..color = activeColor
-      ..strokeWidth = 1.8
-      ..strokeCap = StrokeCap.round;
-
     final active = activeSentence;
 
-    // 当前句填充高亮（先于竖线，作背景）。
+    // 句子区间底色：有字幕处极淡铺底，停顿留白，一眼看出句与句的间隔。
+    final sentenceFillPaint = Paint()..color = palette.sentenceFill;
+    for (final sentence in sentences) {
+      if (identical(sentence, active)) continue;
+      final sx = metrics.screenX(sentence.startTime, viewOffset);
+      final ex = metrics.screenX(sentence.endTime, viewOffset);
+      if (ex < 0 || sx > viewport) continue;
+      canvas.drawRect(
+        Rect.fromLTRB(sx, top, ex, waveformBottom),
+        sentenceFillPaint,
+      );
+    }
+    // 当前句：主色淡底 + 顶部主色细条，标出正在编辑的区间。
     if (active != null) {
       final sx = metrics.screenX(active.startTime, viewOffset);
       final ex = metrics.screenX(active.endTime, viewOffset);
-      final fillPaint = Paint()
-        ..color = activeColor.withValues(alpha: .08)
-        ..style = PaintingStyle.fill;
-      canvas.drawRRect(
-        RRect.fromRectAndRadius(
-          Rect.fromLTRB(sx, topPadding, ex, waveformBottom),
-          const Radius.circular(4),
-        ),
-        fillPaint,
+      canvas.drawRect(
+        Rect.fromLTRB(sx, top, ex, waveformBottom),
+        Paint()..color = palette.activeFill,
+      );
+      canvas.drawRect(
+        Rect.fromLTRB(sx, top, ex, top + 2.5),
+        Paint()..color = palette.activeBar,
       );
     }
 
-    // 波形竖线：采样网格钉在**内容坐标**（content-x = k*step），而非屏幕坐标。
+    final basePaint = Paint()
+      ..color = palette.bar
+      ..strokeWidth = _barWidth
+      ..strokeCap = StrokeCap.round;
+    final sentencePaint = Paint()
+      ..color = palette.sentenceBar
+      ..strokeWidth = _barWidth
+      ..strokeCap = StrokeCap.round;
+    final activePaint = Paint()
+      ..color = palette.activeBar
+      ..strokeWidth = _barWidth
+      ..strokeCap = StrokeCap.round;
+
+    // 波形竖条：采样网格钉在**内容坐标**（content-x = k*step），而非屏幕坐标。
     // 这样每根柱子恒定代表同一采样点，滚动时随内容平移、高度不变——若钉屏幕坐标，
     // 同一屏幕位置每帧映射到不同采样点，柱高就会一帧一变地闪烁。
-    const step = 2.0;
-    // 当前视口左缘对应的 content-x，向下取整对齐到 step 网格，保证网格不随偏移漂移。
-    final startK = ((viewOffset) / step).floor();
+    final startK = (viewOffset / _barStep).floor();
     for (var k = startK; ; k++) {
-      final cx = k * step; // 内容坐标（稳定网格）
+      final cx = k * _barStep; // 内容坐标（稳定网格）
       final sx = cx - viewOffset; // 屏幕坐标
       if (sx > viewport) break;
       if (sx < 0) continue;
@@ -976,15 +1090,23 @@ class _WaveformLayerPainter extends CustomPainter {
       final frac = metrics.contentUsable <= 0
           ? 0.0
           : rel / metrics.contentUsable;
-      final sampleIndex = (frac * waveform.length).round().clamp(
+      if (samples.length == 0) break;
+      final sampleIndex = (frac * samples.length).round().clamp(
         0,
-        waveform.length - 1,
+        samples.length - 1,
       );
-      final min = waveform.getPixelMin(sampleIndex);
-      final max = waveform.getPixelMax(sampleIndex);
-      final minY = centerY + _normalize(min, usableHeight);
-      final maxY = centerY + _normalize(max, usableHeight);
-      final positionUs = (totalUs * frac);
+      final min = samples.minAt(sampleIndex);
+      final max = samples.maxAt(sampleIndex);
+      // 至少保留 1px 高度，静音处也连成一条细线，时间轴不显得断裂。
+      final minY = math.min(
+        centerY + _normalize(min, usableHeight),
+        centerY - .5,
+      );
+      final maxY = math.max(
+        centerY + _normalize(max, usableHeight),
+        centerY + .5,
+      );
+      final positionUs = totalUs * frac;
       final isActive =
           active != null &&
           positionUs >= active.startTime.inMicroseconds &&
@@ -1001,26 +1123,21 @@ class _WaveformLayerPainter extends CustomPainter {
       );
     }
 
-    // 句子文本（弱化小字，钉在每句起点、随内容平移、按句区间裁剪）。
-    _drawSentenceTexts(canvas, viewport, topPadding);
+    // 句子文本（小字，钉在每句起点、随内容平移、按句区间裁剪）。
+    _drawSentenceTexts(canvas, viewport, top);
 
     // 句子边界 + 词边界统一去重绘制（见 _drawBoundaries）。
-    _drawBoundaries(canvas, viewport, topPadding, waveformBottom);
+    _drawBoundaries(canvas, viewport, waveTop, waveformBottom);
 
-    // 播放头红线由独立的 _PlayheadLayerPainter 绘制，不在此层。
+    // 播放头由独立的 _PlayheadLayerPainter 绘制，不在此层。
     _drawTimeAxis(canvas: canvas, size: size, waveformBottom: waveformBottom);
   }
 
-  /// 在波形顶部绘制每句文本：弱化小字，左对齐到句起点（随内容平移），
-  /// 并裁剪到该句的屏幕区间内，避免文字溢出到相邻句。仅画可见句以省开销。
+  /// 在波形顶部绘制每句文本：左对齐到句起点（随内容平移），并裁剪到该句的屏幕
+  /// 区间内，避免文字溢出到相邻句。当前句用主色加粗。仅画可见句以省开销。
   void _drawSentenceTexts(Canvas canvas, double viewport, double top) {
-    const leftPad = 5.0; // 让文字让开起始把手
-    const textTop = 2.0;
-    final style = TextStyle(
-      color: axisColor.withValues(alpha: .5),
-      fontSize: 10,
-      height: 1.1,
-    );
+    const leftPad = 6.0; // 让文字让开起始把手
+    const textTop = 4.0;
     for (final s in sentences) {
       if (s.text.trim().isEmpty) continue;
       final sx = metrics.screenX(s.startTime, viewOffset);
@@ -1029,15 +1146,24 @@ class _WaveformLayerPainter extends CustomPainter {
       final clipLeft = sx < 0 ? 0.0 : sx;
       final clipRight = ex > viewport ? viewport : ex;
       if (clipRight - clipLeft < 8) continue; // 太窄，放不下字
+      final isActive = identical(s, activeSentence);
+      final style = TextStyle(
+        color: isActive ? palette.activeLabel : palette.label,
+        fontSize: 10,
+        height: 1.1,
+        fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
+      );
       final painter = TextPainter(
         text: TextSpan(text: s.text.trim(), style: style),
         textDirection: TextDirection.ltr,
         textScaler: textScaler,
         maxLines: 1,
         ellipsis: '…',
-      )..layout(maxWidth: (ex - sx - leftPad).clamp(0.0, double.infinity));
+      )..layout(maxWidth: (ex - sx - leftPad * 2).clamp(0.0, double.infinity));
       canvas.save();
-      canvas.clipRect(Rect.fromLTRB(clipLeft, top, clipRight, top + 16));
+      canvas.clipRect(
+        Rect.fromLTRB(clipLeft, top, clipRight, top + _labelLaneHeight),
+      );
       painter.paint(canvas, Offset(sx + leftPad, top + textTop));
       canvas.restore();
     }
@@ -1066,28 +1192,57 @@ class _WaveformLayerPainter extends CustomPainter {
     double top,
     double bottom,
   ) {
-    // 按屏幕 x 聚合：记录该位置是否有起始(绿)/结束(红)边界、是否属于当前句(主样式)。
-    final byX = <int, ({double x, bool hasStart, bool hasEnd, bool primary})>{};
-    void add(Duration t, {required bool isStart, required bool primary}) {
+    // 按屏幕位置聚合：相距不足 [_mergeDistance] 的边界（相邻词首尾相接）画成一个
+    // 双色把手，避免一排挤在一起的小把手；拖动命中仍按各自边界判定。
+    final markers = <_BoundaryMarker>[];
+    void add(
+      Duration t, {
+      required bool isStart,
+      required bool primary,
+      required bool isSentenceEdge,
+    }) {
       final x = metrics.screenX(t, viewOffset);
-      final key = x.round();
-      final e = byX[key];
-      byX[key] = (
-        x: e?.x ?? x,
-        hasStart: (e?.hasStart ?? false) || isStart,
-        hasEnd: (e?.hasEnd ?? false) || !isStart,
-        primary: (e?.primary ?? false) || primary,
-      );
+      for (var i = 0; i < markers.length; i++) {
+        final m = markers[i];
+        if ((m.x - x).abs() < _mergeDistance) {
+          markers[i] = (
+            x: m.x,
+            hasStart: m.hasStart || isStart,
+            hasEnd: m.hasEnd || !isStart,
+            primary: m.primary || primary,
+            isSentenceEdge: m.isSentenceEdge || isSentenceEdge,
+          );
+          return;
+        }
+      }
+      markers.add((
+        x: x,
+        hasStart: isStart,
+        hasEnd: !isStart,
+        primary: primary,
+        isSentenceEdge: isSentenceEdge,
+      ));
     }
 
     for (final b in wordBoundaries) {
-      add(b.word.startTime, isStart: true, primary: b.primary);
-      add(b.word.endTime, isStart: false, primary: b.primary);
+      add(
+        b.word.startTime,
+        isStart: true,
+        primary: b.primary,
+        isSentenceEdge: b.isSentenceStart,
+      );
+      add(
+        b.word.endTime,
+        isStart: false,
+        primary: b.primary,
+        isSentenceEdge: b.isSentenceEnd,
+      );
     }
 
-    // 次样式先画、主样式后画，主把手叠在最上层。
-    final markers = byX.values.toList()
-      ..sort((a, b) => (a.primary ? 1 : 0).compareTo(b.primary ? 1 : 0));
+    // 次样式先画、主样式后画，句子起止最后画，最重要的把手叠在最上层。
+    int rank(_BoundaryMarker m) =>
+        (m.primary ? 1 : 0) + (m.primary && m.isSentenceEdge ? 1 : 0);
+    markers.sort((a, b) => rank(a).compareTo(rank(b)));
     for (final m in markers) {
       _drawBoundaryIfVisible(
         canvas,
@@ -1097,17 +1252,24 @@ class _WaveformLayerPainter extends CustomPainter {
         bottom,
         hasStart: m.hasStart,
         hasEnd: m.hasEnd,
-        secondary: !m.primary,
+        style: !m.primary
+            ? _BoundaryStyle.neighbor
+            : m.isSentenceEdge
+            ? _BoundaryStyle.sentenceEdge
+            : _BoundaryStyle.word,
       );
     }
   }
 
   /// 仅当边界落在视口内（含少量外扩，容纳把手）时绘制竖线 + 底部把手。
   ///
-  /// 当同一位置同时有「结束(红)」和「起始(绿)」边界（相邻词首尾相接）时，竖线与把手
-  /// 都分成**左红右绿**：左 = 上一段的结束、右 = 下一段的开始。接缝落在真实时间点 [x]，
-  /// 既不让绿色覆盖红色，又对应拖动方向（向左抓结束 / 向右抓开始）——业界 NLE 双修剪
-  /// 手柄约定。
+  /// 三级样式（见 [_BoundaryStyle]）：当前句起止最醒目，句内词边界次之，相邻句
+  /// 最淡，让用户先看到「这句从哪到哪」，再看到可微调的词边界。把手为圆角胶囊。
+  /// 当同一位置同时有「结束(红)」和「起始(绿)」边界（相邻词首尾相接）时，竖线与
+  /// 把手都分成**左红右绿**：左 = 上一段的结束、右 = 下一段的开始，对应拖动方向
+  /// （向左抓结束 / 向右抓开始）——业界 NLE 双修剪手柄约定。
+  ///
+  /// 把手只是视觉提示，命中区按 `_hitTestBoundaries` 的固定宽度判定，不随样式缩小。
   void _drawBoundaryIfVisible(
     Canvas canvas,
     double x,
@@ -1116,60 +1278,53 @@ class _WaveformLayerPainter extends CustomPainter {
     double bottom, {
     required bool hasStart,
     required bool hasEnd,
-    required bool secondary,
+    required _BoundaryStyle style,
   }) {
     if (x < -12 || x > viewport + 12) return;
-    final lineAlpha = secondary ? .35 : .9;
-    final handleAlpha = secondary ? .55 : 1.0;
-    final lineHalf = secondary ? 0.5 : 0.8; // 竖线半宽（单色时即标准 1 / 1.6px）
-    final width = secondary ? 7.0 : 10.0;
-    final height = secondary ? 10.0 : 14.0;
+    final (lineAlpha, handleAlpha, lineWidth, width, height) = switch (style) {
+      _BoundaryStyle.sentenceEdge => (.95, 1.0, 1.6, 10.0, 18.0),
+      _BoundaryStyle.word => (.5, .9, 1.0, 8.0, 13.0),
+      _BoundaryStyle.neighbor => (.28, .45, 1.0, 6.0, 10.0),
+    };
+    final lineHalf = lineWidth / 2;
     final handleBottom = bottom - SubtitleWaveformView.boundaryHandleAxisGap;
     final rect = Rect.fromCenter(
       center: Offset(x, handleBottom - height / 2),
       width: width,
       height: height,
     );
-    final rrect = RRect.fromRectAndRadius(rect, const Radius.circular(3));
+    final rrect = RRect.fromRectAndRadius(rect, Radius.circular(width / 2));
 
     if (hasStart && hasEnd) {
-      // 左红(结束) / 右绿(开始)：竖线合成一条略宽双色柱，把手左右两半双色。
       canvas.drawRect(
-        Rect.fromLTRB(x - lineHalf, top, x, bottom),
-        Paint()..color = endColor.withValues(alpha: lineAlpha),
+        Rect.fromLTRB(x - lineHalf, top, x, rect.top),
+        Paint()..color = palette.end.withValues(alpha: lineAlpha),
       );
       canvas.drawRect(
-        Rect.fromLTRB(x, top, x + lineHalf, bottom),
-        Paint()..color = startColor.withValues(alpha: lineAlpha),
+        Rect.fromLTRB(x, top, x + lineHalf, rect.top),
+        Paint()..color = palette.start.withValues(alpha: lineAlpha),
       );
       canvas.save();
       canvas.clipRRect(rrect);
       canvas.drawRect(
         Rect.fromLTRB(rect.left, rect.top, x, rect.bottom),
-        Paint()..color = endColor.withValues(alpha: handleAlpha),
+        Paint()..color = palette.end.withValues(alpha: handleAlpha),
       );
       canvas.drawRect(
         Rect.fromLTRB(x, rect.top, rect.right, rect.bottom),
-        Paint()..color = startColor.withValues(alpha: handleAlpha),
+        Paint()..color = palette.start.withValues(alpha: handleAlpha),
       );
       canvas.restore();
       return;
     }
-
-    // 仅起始或仅结束：单色竖线 + 单色把手。
-    final color = hasStart ? startColor : endColor;
-    canvas.drawLine(
-      Offset(x, top),
-      Offset(x, bottom),
-      Paint()
-        ..color = color.withValues(alpha: lineAlpha)
-        ..strokeWidth = lineHalf * 2,
+    final color = hasStart ? palette.start : palette.end;
+    canvas.drawRect(
+      Rect.fromLTRB(x - lineHalf, top, x + lineHalf, rect.top),
+      Paint()..color = color.withValues(alpha: lineAlpha),
     );
     canvas.drawRRect(
       rrect,
-      Paint()
-        ..color = color.withValues(alpha: handleAlpha)
-        ..style = PaintingStyle.fill,
+      Paint()..color = color.withValues(alpha: handleAlpha),
     );
   }
 
@@ -1181,10 +1336,7 @@ class _WaveformLayerPainter extends CustomPainter {
     final viewport = size.width;
     final axisTop = waveformBottom;
     final axisPaint = Paint()
-      ..color = axisColor.withValues(alpha: .14)
-      ..strokeWidth = 1;
-    final majorPaint = Paint()
-      ..color = axisColor.withValues(alpha: .26)
+      ..color = palette.axis
       ..strokeWidth = 1;
     // 轴底线横跨视口。
     canvas.drawLine(Offset(0, axisTop), Offset(viewport, axisTop), axisPaint);
@@ -1195,11 +1347,12 @@ class _WaveformLayerPainter extends CustomPainter {
 
     final pixelsPerSecond = metrics.contentUsable / totalSeconds;
     final majorStepSeconds = _majorStepSeconds(pixelsPerSecond);
-    final minorStepSeconds = majorStepSeconds / 2;
+    final minorStepSeconds = majorStepSeconds / 5;
     final textStyle = TextStyle(
-      color: axisColor.withValues(alpha: .38),
-      fontSize: 9,
+      color: palette.axisLabel,
+      fontSize: 10,
       height: 1,
+      fontFeatures: const [FontFeature.tabularFigures()],
     );
 
     for (
@@ -1218,22 +1371,24 @@ class _WaveformLayerPainter extends CustomPainter {
           0.001;
       canvas.drawLine(
         Offset(x, axisTop),
-        Offset(x, axisTop + (isMajor ? 8 : 4)),
-        isMajor ? majorPaint : axisPaint,
+        Offset(x, axisTop + (isMajor ? 6 : 3)),
+        axisPaint,
       );
       if (isMajor) {
         final label = _formatAxisTime(
           Duration(milliseconds: (second * 1000).round()),
         );
         final paragraph = _axisLabel(label, textStyle);
-        if (x + 3 + paragraph.width <= viewport) {
-          paragraph.paint(canvas, Offset(x + 3, axisTop + 8));
+        final labelX = x - paragraph.width / 2;
+        if (labelX >= 2 && labelX + paragraph.width <= viewport - 2) {
+          paragraph.paint(canvas, Offset(labelX, axisTop + 9));
         }
       }
     }
   }
 
   double _majorStepSeconds(double pixelsPerSecond) {
+    if (pixelsPerSecond >= 60) return 2;
     if (pixelsPerSecond >= 30) return 5;
     if (pixelsPerSecond >= 16) return 10;
     if (pixelsPerSecond >= 8) return 30;
@@ -1255,9 +1410,9 @@ class _WaveformLayerPainter extends CustomPainter {
     return '$minutes:$seconds';
   }
 
+  /// 按全段峰值归一化，低音量录音也能铺满波形区高度。
   double _normalize(int value, double height) {
-    final max = waveform.flags == 0 ? 32768.0 : 128.0;
-    return (value / max) * height / 2;
+    return (value / samples.peak) * height / 2;
   }
 
   @override
@@ -1266,17 +1421,13 @@ class _WaveformLayerPainter extends CustomPainter {
         metrics.contentUsable != oldDelegate.metrics.contentUsable ||
         metrics.viewport != oldDelegate.metrics.viewport ||
         metrics.duration != oldDelegate.metrics.duration ||
-        waveform != oldDelegate.waveform ||
+        !identical(samples, oldDelegate.samples) ||
         !identical(sentences, oldDelegate.sentences) ||
         activeSentence != oldDelegate.activeSentence ||
         // 按值比较词边界：词边界列表每帧重建，仅当时间 / 主次样式真正变化才重绘，
         // 避免播放时（实例每帧不同但内容相同）触发整层波形重绘。
         !_wordBoundariesEqual(wordBoundaries, oldDelegate.wordBoundaries) ||
-        color != oldDelegate.color ||
-        activeColor != oldDelegate.activeColor ||
-        startColor != oldDelegate.startColor ||
-        endColor != oldDelegate.endColor ||
-        axisColor != oldDelegate.axisColor ||
+        palette != oldDelegate.palette ||
         textScaler != oldDelegate.textScaler;
   }
 

@@ -836,6 +836,24 @@ abstract class AppLocalizations {
   /// **'Zoom'**
   String get waveformZoom;
 
+  /// No description provided for @waveformZoomIn.
+  ///
+  /// In en, this message translates to:
+  /// **'Zoom in'**
+  String get waveformZoomIn;
+
+  /// No description provided for @waveformZoomOut.
+  ///
+  /// In en, this message translates to:
+  /// **'Zoom out'**
+  String get waveformZoomOut;
+
+  /// No description provided for @subtitleEditorVideoLoadFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t load the video. You can still edit subtitles.'**
+  String get subtitleEditorVideoLoadFailed;
+
   /// No description provided for @waveformLoading.
   ///
   /// In en, this message translates to:

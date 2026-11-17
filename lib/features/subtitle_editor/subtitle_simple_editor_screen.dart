@@ -10,10 +10,16 @@ import '../../l10n/app_localizations.dart';
 import '../../models/audio_item.dart';
 import '../../models/sentence.dart';
 import '../../models/word_timestamp.dart';
+import '../../models/practice_media_split.dart';
+import '../../providers/media_engine/media_engine_provider.dart';
 import '../../providers/new_user_guide_provider.dart';
+import '../../services/app_logger.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/common/practice_media_split_geometry.dart';
+import '../../widgets/common/video_toggle_icon.dart';
 import '../../widgets/guide_flow.dart';
 import 'subtitle_editor_controller.dart';
+import 'subtitle_editor_video_preview.dart';
 import 'subtitle_waveform_view.dart';
 
 class SubtitleSimpleEditorScreen extends ConsumerStatefulWidget {
@@ -28,6 +34,16 @@ class SubtitleSimpleEditorScreen extends ConsumerStatefulWidget {
 
 class _SubtitleSimpleEditorScreenState
     extends ConsumerState<SubtitleSimpleEditorScreen> {
+  /// 页面左右边距，波形卡片、工具条与句子列表对齐到同一条竖线。
+  static const double _gutter = 12;
+
+  /// 单栏布局的最大内容宽度：宽窗口里波形、工具条与句子列表一起居中，
+  /// 左右边缘对齐，句子也不会横向拉得过长。
+  static const double _maxSingleColumnWidth = 960;
+
+  /// 上下布局时视频画面最多占用的高度比例，其余留给波形与句子列表。
+  static const double _stackedVideoMaxFraction = 0.3;
+
   final GlobalKey _guideSentencePlayKey = GlobalKey(
     debugLabel: 'subtitleEditorSentencePlay',
   );
@@ -38,6 +54,24 @@ class _SubtitleSimpleEditorScreenState
     debugLabel: 'subtitleEditorBoundaryHandle',
   );
 
+  /// 波形与句子列表在上下 / 左右布局间换位置；GlobalKey 让它们搬家而不重建，
+  /// 保住波形的平移位置和列表的滚动位置。
+  final GlobalKey _waveformKey = GlobalKey(
+    debugLabel: 'subtitleEditorWaveform',
+  );
+  final GlobalKey _sentenceListKey = GlobalKey(
+    debugLabel: 'subtitleEditorSentenceList',
+  );
+
+  /// 编辑字幕以波形和文字为主，画面默认收起；只影响本页。
+  bool _isVideoVisible = false;
+
+  /// 首次显示画面时才创建，离开页面时释放。
+  SubtitleEditorVideoPreview? _videoPreview;
+
+  SubtitleEditorController get _controller =>
+      ref.read(subtitleEditorControllerProvider(widget.audioItem).notifier);
+
   @override
   void initState() {
     super.initState();
@@ -46,31 +80,66 @@ class _SubtitleSimpleEditorScreenState
     });
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      unawaited(
-        ref
-            .read(subtitleEditorControllerProvider(widget.audioItem).notifier)
-            .load(),
-      );
+      unawaited(_controller.load());
     });
+  }
+
+  @override
+  void dispose() {
+    final preview = _videoPreview;
+    _videoPreview = null;
+    if (preview != null) unawaited(preview.dispose());
+    super.dispose();
+  }
+
+  Future<void> _toggleVideo() async {
+    final isVisible = !_isVideoVisible;
+    setState(() => _isVideoVisible = isVisible);
+    AppLogger.log(
+      'SubtitleEditorVideo',
+      '${isVisible ? '显示' : '隐藏'}画面 audio=${widget.audioItem.id}',
+    );
+    if (!isVisible) {
+      _videoPreview?.suspend();
+      return;
+    }
+    if (_videoPreview != null) {
+      _syncVideo(ref.read(subtitleEditorControllerProvider(widget.audioItem)));
+      return;
+    }
+    final preview = SubtitleEditorVideoPreview(
+      ref.read(mediaBackendFactoryProvider)(),
+    );
+    setState(() => _videoPreview = preview);
+    final path = await widget.audioItem.getFullAudioPath();
+    if (!mounted || _videoPreview != preview) return;
+    await preview.open(
+      path,
+      initialPosition: ref
+          .read(subtitleEditorControllerProvider(widget.audioItem))
+          .playbackPosition,
+    );
+    if (mounted && _isVideoVisible) {
+      _syncVideo(ref.read(subtitleEditorControllerProvider(widget.audioItem)));
+    }
+  }
+
+  void _syncVideo(SubtitleEditorState state) {
+    if (!_isVideoVisible) return;
+    _videoPreview?.follow(
+      isPlaying: state.isPlaying,
+      position: state.playbackPosition,
+      speed: state.playbackSpeed,
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    final state = ref.watch(subtitleEditorControllerProvider(widget.audioItem));
-    final controller = ref.read(
-      subtitleEditorControllerProvider(widget.audioItem).notifier,
-    );
-
-    // 时长就绪后，按屏幕物理宽度设置初始缩放（每厘米约 1 秒音频）；幂等，仅生效一次。
-    if (state.totalDuration != null) {
-      final usableWidth =
-          MediaQuery.sizeOf(context).width -
-          SubtitleWaveformView.horizontalPadding * 2;
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) controller.initZoomForViewport(usableWidth);
-      });
-    }
+    final provider = subtitleEditorControllerProvider(widget.audioItem);
+    ref.listen(provider, (_, next) => _syncVideo(next));
+    final state = ref.watch(provider);
+    final controller = _controller;
 
     final sentencePlayStep = GuideStep(
       key: _guideSentencePlayKey,
@@ -105,36 +174,17 @@ class _SubtitleSimpleEditorScreenState
         },
         child: Scaffold(
           appBar: AppBar(
-            title: Text(l10n.editSubtitles),
+            title: _EditorTitle(
+              title: l10n.editSubtitles,
+              mediaName: widget.audioItem.name,
+            ),
             actions: [
               Padding(
-                padding: const EdgeInsets.only(right: AppSpacing.s),
-                child: FilledButton.tonal(
-                  key: const ValueKey('subtitle-editor-save-button'),
-                  // AppBar 内收紧默认主题的大 padding，保持紧凑
-                  style: FilledButton.styleFrom(
-                    backgroundColor: state.isDirty && !state.isSaving
-                        ? Theme.of(context).colorScheme.primary
-                        : null,
-                    foregroundColor: state.isDirty && !state.isSaving
-                        ? Theme.of(context).colorScheme.onPrimary
-                        : null,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: AppSpacing.m,
-                      vertical: AppSpacing.s,
-                    ),
-                    minimumSize: const Size(0, 36),
-                    visualDensity: VisualDensity.compact,
-                  ),
-                  onPressed: !state.isDirty || state.isSaving
-                      ? null
-                      : () => unawaited(_save(context, controller, l10n)),
-                  child: state.isSaving
-                      ? const SizedBox.square(
-                          dimension: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : Text(l10n.save),
+                padding: const EdgeInsets.only(right: AppSpacing.m - 4),
+                child: _SaveButton(
+                  isDirty: state.isDirty,
+                  isSaving: state.isSaving,
+                  onPressed: () => unawaited(_save(context, controller, l10n)),
                 ),
               ),
             ],
@@ -143,71 +193,190 @@ class _SubtitleSimpleEditorScreenState
               ? const Center(child: CircularProgressIndicator())
               : state.errorMessage != null
               ? _EditorError(message: state.errorMessage!)
-              : Column(
-                  children: [
-                    GuideTarget(
-                      step: boundaryHandleStep,
-                      child: SubtitleWaveformView(
-                        waveform: state.waveform,
-                        extractionProgress: state.waveformProgress,
-                        extractionFailed: state.waveformFailed,
-                        audioMissing: state.waveformAudioMissing,
-                        onRetryExtraction: () =>
-                            unawaited(controller.retryWaveform()),
-                        duration: state.totalDuration,
-                        sentences: state.sentences,
-                        activeSentence: state.selectedSentence,
-                        selectionEpoch: state.selectionEpoch,
-                        playbackPosition: state.playbackPosition,
-                        isPlaying:
-                            state.isPlaying &&
-                            (state.playbackMode ==
-                                    SubtitleEditorPlaybackMode.sentence ||
-                                state.playbackMode ==
-                                    SubtitleEditorPlaybackMode.word),
-                        wordBoundaries: controller.wordBoundariesForWaveform,
-                        onAdjustWord: controller.adjustWord,
-                        zoomScale: state.waveformZoomScale,
-                        onZoomChanged: controller.setWaveformZoomScale,
-                        onScrub: controller.scrubTo,
-                        onScrubEnd: (position) =>
-                            unawaited(controller.finishScrub(position)),
-                        onAdjustEnd: () {},
-                      ),
+              : SafeArea(
+                  top: false,
+                  child: LayoutBuilder(
+                    builder: (context, constraints) => _buildEditor(
+                      context,
+                      constraints: constraints,
+                      state: state,
+                      controller: controller,
+                      sentencePlayStep: sentencePlayStep,
+                      sentenceMenuStep: sentenceMenuStep,
+                      boundaryHandleStep: boundaryHandleStep,
                     ),
-                    _WaveformControls(
-                      zoomScale: state.waveformZoomScale,
-                      maxZoomScale: state.maxWaveformZoomScale,
-                      playbackSpeed: state.playbackSpeed,
-                      onZoomChanged: controller.setWaveformZoomScale,
-                      onSpeedChanged: (speed) =>
-                          unawaited(controller.setPlaybackSpeed(speed)),
-                    ),
-                    Expanded(
-                      child: _SentenceList(
-                        sentences: state.sentences,
-                        selectedIndex: state.selectedSentenceIndex,
-                        playingIndex: state.playingSentenceIndex,
-                        selectedSentenceWords:
-                            controller.wordsOfSelectedSentence,
-                        focusedWordIndex: state.focusedWordIndex,
-                        onPlay: (index) =>
-                            unawaited(controller.playSentence(index)),
-                        onStop: () => unawaited(controller.stopPlayback()),
-                        onSelect: controller.selectSentence,
-                        onWordTap: (index) =>
-                            unawaited(controller.playWord(index)),
-                        onEditWord: controller.editWord,
-                        onSplitWord: controller.splitSentenceAtWord,
-                        onMergeNext: controller.mergeWithNext,
-                        onDelete: (index) =>
-                            _deleteSentence(context, controller, l10n, index),
-                        firstPlayGuideStep: sentencePlayStep,
-                        firstMenuGuideStep: sentenceMenuStep,
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
+        ),
+      ),
+    );
+  }
+
+  /// 组装编辑区：画面收起或空间不足时上下排布；宽窗口显示画面时左右分栏，
+  /// 左侧「画面 + 工具条 + 波形」都是时间维度的视图，右侧是逐句编辑的文字。
+  Widget _buildEditor(
+    BuildContext context, {
+    required BoxConstraints constraints,
+    required SubtitleEditorState state,
+    required SubtitleEditorController controller,
+    required GuideStep sentencePlayStep,
+    required GuideStep sentenceMenuStep,
+    required GuideStep boundaryHandleStep,
+  }) {
+    final isVideoShown = widget.audioItem.isVideo && _isVideoVisible;
+    final isSideBySide =
+        isVideoShown &&
+        PracticeMediaSplitGeometry.resolveAxis(constraints.biggest) ==
+            PracticeMediaSplitAxis.sideBySide;
+    final toolbar = _EditorToolbar(
+      isVideoVisible: widget.audioItem.isVideo ? _isVideoVisible : null,
+      onToggleVideo: () => unawaited(_toggleVideo()),
+      zoomScale: state.waveformZoomScale,
+      maxZoomScale: state.maxWaveformZoomScale,
+      playbackSpeed: state.playbackSpeed,
+      onZoomChanged: controller.setWaveformZoomScale,
+      onSpeedChanged: (speed) => unawaited(controller.setPlaybackSpeed(speed)),
+    );
+    final waveform = KeyedSubtree(
+      key: _waveformKey,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: _gutter),
+        child: _WaveformCard(
+          child: LayoutBuilder(
+            builder: (context, box) {
+              // 时长就绪后按波形实际宽度设置初始缩放（每厘米约 1 秒音频）；
+              // controller 侧幂等，仅首次生效。
+              if (state.totalDuration != null) {
+                final usableWidth =
+                    box.maxWidth - SubtitleWaveformView.horizontalPadding * 2;
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  if (mounted) controller.initZoomForViewport(usableWidth);
+                });
+              }
+              return GuideTarget(
+                step: boundaryHandleStep,
+                child: SubtitleWaveformView(
+                  waveform: state.waveform,
+                  extractionProgress: state.waveformProgress,
+                  extractionFailed: state.waveformFailed,
+                  audioMissing: state.waveformAudioMissing,
+                  onRetryExtraction: () =>
+                      unawaited(controller.retryWaveform()),
+                  duration: state.totalDuration,
+                  sentences: state.sentences,
+                  activeSentence: state.selectedSentence,
+                  selectionEpoch: state.selectionEpoch,
+                  playbackPosition: state.playbackPosition,
+                  isPlaying:
+                      state.isPlaying &&
+                      (state.playbackMode ==
+                              SubtitleEditorPlaybackMode.sentence ||
+                          state.playbackMode ==
+                              SubtitleEditorPlaybackMode.word),
+                  wordBoundaries: controller.wordBoundariesForWaveform,
+                  onAdjustWord: controller.adjustWord,
+                  zoomScale: state.waveformZoomScale,
+                  onZoomChanged: controller.setWaveformZoomScale,
+                  onScrub: controller.scrubTo,
+                  onScrubEnd: (position) =>
+                      unawaited(controller.finishScrub(position)),
+                  onAdjustEnd: () {},
+                ),
+              );
+            },
+          ),
+        ),
+      ),
+    );
+    final sentenceList = KeyedSubtree(
+      key: _sentenceListKey,
+      child: _SentenceList(
+        sentences: state.sentences,
+        selectedIndex: state.selectedSentenceIndex,
+        playingIndex: state.playingSentenceIndex,
+        selectedSentenceWords: controller.wordsOfSelectedSentence,
+        focusedWordIndex: state.focusedWordIndex,
+        onPlay: (index) => unawaited(controller.playSentence(index)),
+        onStop: () => unawaited(controller.stopPlayback()),
+        onSelect: controller.selectSentence,
+        onWordTap: (index) => unawaited(controller.playWord(index)),
+        onEditWord: controller.editWord,
+        onSplitWord: controller.splitSentenceAtWord,
+        onMergeNext: controller.mergeWithNext,
+        onDelete: (index) => _deleteSentence(
+          context,
+          controller,
+          AppLocalizations.of(context)!,
+          index,
+        ),
+        firstPlayGuideStep: sentencePlayStep,
+        firstMenuGuideStep: sentenceMenuStep,
+      ),
+    );
+    final videoPanel = SubtitleEditorVideoPanel(preview: _videoPreview);
+
+    if (isSideBySide) {
+      final panelWidth = (constraints.maxWidth * 0.42).clamp(360.0, 520.0);
+      return Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // 画面贴顶、工具条与波形紧跟其下，剩余空间留在底部，
+                // 视线从画面到波形不被空白隔断。
+                Flexible(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(
+                      _gutter,
+                      AppSpacing.m,
+                      _gutter,
+                      AppSpacing.xs,
+                    ),
+                    child: videoPanel,
+                  ),
+                ),
+                toolbar,
+                waveform,
+                const SizedBox(height: AppSpacing.m),
+              ],
+            ),
+          ),
+          VerticalDivider(
+            width: 1,
+            color: Theme.of(context).colorScheme.outlineVariant,
+          ),
+          SizedBox(width: panelWidth, child: sentenceList),
+        ],
+      );
+    }
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: _maxSingleColumnWidth),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            if (isVideoShown)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  _gutter,
+                  AppSpacing.s,
+                  _gutter,
+                  0,
+                ),
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxHeight: constraints.maxHeight * _stackedVideoMaxFraction,
+                  ),
+                  child: videoPanel,
+                ),
+              ),
+            toolbar,
+            waveform,
+            const SizedBox(height: AppSpacing.xs),
+            Expanded(child: sentenceList),
+          ],
         ),
       ),
     );
@@ -244,9 +413,8 @@ class _SubtitleSimpleEditorScreenState
     }
     final saved = await controller.save();
     if (saved && context.mounted) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(l10n.subtitleEditsSaved)));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(l10n.subtitleEditsSaved)));
     }
   }
 
@@ -296,16 +464,124 @@ class _SubtitleSimpleEditorScreenState
   }
 }
 
-class _WaveformControls extends StatelessWidget {
+/// 标题栏：功能名 + 当前材料名，告诉用户正在编辑哪份字幕。
+class _EditorTitle extends StatelessWidget {
+  const _EditorTitle({required this.title, required this.mediaName});
+
+  final String title;
+  final String mediaName;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(title),
+        Text(
+          mediaName,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// 保存按钮：无改动时置灰，有改动时主色实心，保存中显示进度。
+class _SaveButton extends StatelessWidget {
+  const _SaveButton({
+    required this.isDirty,
+    required this.isSaving,
+    required this.onPressed,
+  });
+
+  final bool isDirty;
+  final bool isSaving;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final scheme = Theme.of(context).colorScheme;
+    return FilledButton(
+      key: const ValueKey('subtitle-editor-save-button'),
+      style: FilledButton.styleFrom(
+        backgroundColor: scheme.primary,
+        foregroundColor: scheme.onPrimary,
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.m),
+        minimumSize: const Size(64, 36),
+        visualDensity: VisualDensity.compact,
+      ),
+      onPressed: !isDirty || isSaving ? null : onPressed,
+      child: isSaving
+          ? SizedBox.square(
+              dimension: 16,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: scheme.onSurfaceVariant,
+              ),
+            )
+          : Text(l10n.save),
+    );
+  }
+}
+
+/// 波形卡片：圆角承载波形，与页面背景分层，作为「时间」视图的主体。
+class _WaveformCard extends StatelessWidget {
+  const _WaveformCard({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final isDark = scheme.brightness == Brightness.dark;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: scheme.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: isDark ? Border.all(color: scheme.outlineVariant) : null,
+        boxShadow: isDark
+            ? null
+            : [
+                BoxShadow(
+                  color: scheme.shadow.withValues(alpha: .05),
+                  blurRadius: 10,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+      ),
+      child: ClipRRect(borderRadius: BorderRadius.circular(16), child: child),
+    );
+  }
+}
+
+/// 波形上方的工具条：画面开关、缩放、播放速度。
+///
+/// 只放与「看波形 / 听」有关的全局控件；逐句操作留在句子行内，避免工具条膨胀。
+class _EditorToolbar extends StatelessWidget {
   static const _speedOptions = [0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0];
 
+  /// 缩放按钮每次放大 / 缩小的倍数。
+  static const double _zoomStep = 1.5;
+
+  /// 为 null 表示音频材料，不显示画面开关。
+  final bool? isVideoVisible;
+  final VoidCallback onToggleVideo;
   final double zoomScale;
   final double maxZoomScale;
   final double playbackSpeed;
   final ValueChanged<double> onZoomChanged;
   final ValueChanged<double> onSpeedChanged;
 
-  const _WaveformControls({
+  const _EditorToolbar({
+    required this.isVideoVisible,
+    required this.onToggleVideo,
     required this.zoomScale,
     required this.maxZoomScale,
     required this.playbackSpeed,
@@ -313,48 +589,66 @@ class _WaveformControls extends StatelessWidget {
     required this.onSpeedChanged,
   });
 
-  /// 音频长度允许放大时才启用缩放滑块（短音频整段已铺满屏宽，无需放大）。
+  /// 音频长度允许放大时才启用缩放（短音频整段已铺满屏宽，无需放大）。
   bool get _canZoom => maxZoomScale > 1.0;
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final theme = Theme.of(context);
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
-        border: Border(
-          bottom: BorderSide(color: theme.colorScheme.outlineVariant),
-        ),
+    final scheme = theme.colorScheme;
+    final sliderMax = _canZoom ? maxZoomScale : 2.0;
+    final value = zoomScale.clamp(1.0, sliderMax);
+    final iconColor = scheme.onSurfaceVariant;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.xs,
+        AppSpacing.xs,
+        _SubtitleSimpleEditorScreenState._gutter,
+        AppSpacing.xs,
       ),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(
-          AppSpacing.m,
-          AppSpacing.xs + 2,
-          AppSpacing.m,
-          AppSpacing.s,
-        ),
+      child: IconTheme.merge(
+        data: IconThemeData(color: iconColor, size: 20),
         child: Row(
           children: [
-            Text(
-              l10n.waveformZoom,
-              style: theme.textTheme.labelMedium?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
+            if (isVideoVisible case final isVisible?) ...[
+              IconButton(
+                key: const ValueKey('subtitle-editor-toggle-video'),
+                tooltip: isVisible
+                    ? l10n.videoHideTrack
+                    : l10n.mediaShowVisualTrack,
+                isSelected: isVisible,
+                onPressed: onToggleVideo,
+                icon: VideoToggleIcon(isVisible: isVisible, size: 20),
               ),
+              Container(
+                width: 1,
+                height: 18,
+                margin: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
+                color: scheme.outlineVariant,
+              ),
+            ],
+            IconButton(
+              key: const ValueKey('subtitle-waveform-zoom-out'),
+              tooltip: l10n.waveformZoomOut,
+              onPressed: _canZoom && value > 1.0
+                  ? () =>
+                        onZoomChanged((value / _zoomStep).clamp(1.0, sliderMax))
+                  : null,
+              icon: const Icon(Icons.remove_rounded),
             ),
-            const SizedBox(width: AppSpacing.s),
             Expanded(
-              // 缩放语义：最左 1.0 = 不缩放（时间轴铺满屏宽），向右拉长时间轴；
+              // 缩放语义：最左 1.0 = 不缩放（时间轴铺满波形宽度），向右拉长时间轴；
               // 上限按音频长度计算，长音频也能放大到看清一句话。
               // 轨道和圆点保持紧凑，overlay 使用 48px 标准触摸范围。
               child: SliderTheme(
                 data: SliderTheme.of(context).copyWith(
-                  trackHeight: 2,
+                  trackHeight: 3,
                   thumbShape: const RoundSliderThumbShape(
                     enabledThumbRadius: 7,
                   ),
                   overlayShape: const RoundSliderOverlayShape(
-                    overlayRadius: 24,
+                    overlayRadius: 20,
                   ),
                 ),
                 child: Slider(
@@ -362,67 +656,97 @@ class _WaveformControls extends StatelessWidget {
                   // 不设显式 padding：Flutter 的 Slider padding 只负责布局，
                   // 留白本身不参与命中测试，会让两端圆点外侧形成死区。
                   min: 1.0,
-                  max: _canZoom ? maxZoomScale : 2.0,
-                  value: zoomScale.clamp(1.0, _canZoom ? maxZoomScale : 2.0),
+                  max: sliderMax,
+                  value: value,
+                  semanticFormatterCallback: (_) => l10n.waveformZoom,
                   onChanged: _canZoom ? onZoomChanged : null,
                 ),
               ),
             ),
-            const SizedBox(width: AppSpacing.l),
-            Text(
-              l10n.playbackSpeed,
-              style: theme.textTheme.labelMedium?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
+            IconButton(
+              key: const ValueKey('subtitle-waveform-zoom-in'),
+              tooltip: l10n.waveformZoomIn,
+              onPressed: _canZoom && value < sliderMax
+                  ? () =>
+                        onZoomChanged((value * _zoomStep).clamp(1.0, sliderMax))
+                  : null,
+              icon: const Icon(Icons.add_rounded),
             ),
             const SizedBox(width: AppSpacing.s),
-            PopupMenuButton<double>(
-              tooltip: l10n.playbackSpeed,
+            _SpeedChip(
+              speed: playbackSpeed,
+              options: _speedOptions,
               onSelected: onSpeedChanged,
-              itemBuilder: (context) => [
-                for (final speed in _speedOptions)
-                  PopupMenuItem<double>(
-                    value: speed,
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text('${speed}x'),
-                        if (speed == playbackSpeed)
-                          Icon(
-                            Icons.check,
-                            size: 18,
-                            color: theme.colorScheme.primary,
-                          ),
-                      ],
-                    ),
-                  ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// 播放速度胶囊：显示当前倍速，点开选择。
+class _SpeedChip extends StatelessWidget {
+  const _SpeedChip({
+    required this.speed,
+    required this.options,
+    required this.onSelected,
+  });
+
+  final double speed;
+  final List<double> options;
+  final ValueChanged<double> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final isDefault = speed == 1.0;
+    return PopupMenuButton<double>(
+      tooltip: l10n.playbackSpeed,
+      onSelected: onSelected,
+      position: PopupMenuPosition.under,
+      itemBuilder: (context) => [
+        for (final option in options)
+          PopupMenuItem<double>(
+            value: option,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text('${option}x'),
+                if (option == speed)
+                  Icon(Icons.check, size: 18, color: scheme.primary),
               ],
-              // 速度按钮：带边框紧凑 chip，明确「这是可点的控件」
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.s,
-                  vertical: AppSpacing.xs,
-                ),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: theme.colorScheme.outlineVariant),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      '${playbackSpeed}x',
-                      style: theme.textTheme.labelMedium?.copyWith(
-                        color: theme.colorScheme.onSurface,
-                      ),
-                    ),
-                    Icon(
-                      Icons.arrow_drop_down,
-                      size: 18,
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                  ],
-                ),
+            ),
+          ),
+      ],
+      child: Container(
+        height: 30,
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s + 2),
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          // 非 1x 时用主色提示「当前不是原速」，避免用户忘了调过速度。
+          color: isDefault
+              ? scheme.surfaceContainerHighest.withValues(alpha: .6)
+              : scheme.primary.withValues(alpha: .12),
+          borderRadius: BorderRadius.circular(15),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.speed_rounded,
+              size: 16,
+              color: isDefault ? scheme.onSurfaceVariant : scheme.primary,
+            ),
+            const SizedBox(width: 4),
+            Text(
+              '${speed}x',
+              style: theme.textTheme.labelMedium?.copyWith(
+                color: isDefault ? scheme.onSurface : scheme.primary,
+                fontWeight: FontWeight.w600,
+                fontFeatures: const [FontFeature.tabularFigures()],
               ),
             ),
           ],
@@ -439,10 +763,28 @@ class _EditorError extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Text(message, textAlign: TextAlign.center),
+        padding: const EdgeInsets.all(AppSpacing.l),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.error_outline_rounded,
+              size: 40,
+              color: theme.colorScheme.error,
+            ),
+            const SizedBox(height: AppSpacing.m - 4),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -501,6 +843,9 @@ class _SentenceListState extends State<_SentenceList> {
   static const double _kPlayActionWidth = 52;
   static const double _kMenuActionWidth = 44;
 
+  /// 句子行内容的上下留白；左右操作按钮按它对齐首行文字。
+  static const double _kRowVerticalPadding = 12;
+
   final List<GlobalKey> _rowKeys = [];
 
   @override
@@ -549,71 +894,80 @@ class _SentenceListState extends State<_SentenceList> {
     final l10n = AppLocalizations.of(context)!;
     _syncRowKeys();
     if (widget.sentences.isEmpty) {
-      return Center(child: Text(l10n.subtitleFileEmpty));
+      return _EmptySentences(message: l10n.subtitleFileEmpty);
     }
 
-    return ListView.separated(
-      padding: const EdgeInsets.symmetric(vertical: 8),
+    const gutter = _SubtitleSimpleEditorScreenState._gutter;
+    return ListView.builder(
+      padding: const EdgeInsets.fromLTRB(
+        gutter,
+        AppSpacing.xs,
+        gutter,
+        AppSpacing.l,
+      ),
       itemCount: widget.sentences.length,
-      separatorBuilder: (_, _) => const Divider(height: 1),
-      itemBuilder: (context, index) {
-        final theme = Theme.of(context);
-        final sentence = widget.sentences[index];
-        final isSelected = widget.selectedIndex == index;
-        final isPlaying = widget.playingIndex == index;
-        final rowColor = isSelected || isPlaying
-            ? theme.colorScheme.primaryContainer.withValues(alpha: .35)
-            : Colors.transparent;
-        final playAction = SizedBox(
-          width: _kPlayActionWidth,
-          child: Tooltip(
-            message: isPlaying ? l10n.stopPlayback : l10n.playSentence,
-            child: InkWell(
-              key: ValueKey('subtitle-sentence-play-$index'),
-              onTap: isPlaying ? widget.onStop : () => widget.onPlay(index),
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  Center(
-                    child: Icon(
-                      isPlaying ? Icons.stop_rounded : Icons.play_arrow_rounded,
-                      // 播放中用 primary 实色单点强调，区别于「仅选中定位」的行底高亮
-                      color: isPlaying ? theme.colorScheme.primary : null,
-                    ),
-                  ),
-                  Positioned(
-                    top: 5,
-                    left: 0,
-                    right: 0,
-                    child: Text(
-                      key: ValueKey('subtitle-sentence-number-$index'),
-                      '${index + 1}',
-                      textAlign: TextAlign.center,
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        fontSize: 10,
-                        height: 1,
-                        color: theme.colorScheme.onSurfaceVariant.withValues(
-                          alpha: .62,
-                        ),
-                        fontFeatures: const [FontFeature.tabularFigures()],
-                      ),
-                    ),
-                  ),
-                ],
+      itemBuilder: (context, index) => KeyedSubtree(
+        key: _rowKeys[index],
+        child: _buildRow(context, l10n, index),
+      ),
+    );
+  }
+
+  Widget _buildRow(BuildContext context, AppLocalizations l10n, int index) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final sentence = widget.sentences[index];
+    final isSelected = widget.selectedIndex == index;
+    final isPlaying = widget.playingIndex == index;
+    final playAction = SizedBox(
+      width: _kPlayActionWidth,
+      child: Padding(
+        padding: const EdgeInsets.only(top: _kRowVerticalPadding - 4),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Tooltip(
+              message: isPlaying ? l10n.stopPlayback : l10n.playSentence,
+              child: _PlayButton(
+                key: ValueKey('subtitle-sentence-play-$index'),
+                isPlaying: isPlaying,
+                isSelected: isSelected,
+                onTap: isPlaying ? widget.onStop : () => widget.onPlay(index),
               ),
             ),
-          ),
-        );
-        final menuAction = SizedBox(
-          width: _kMenuActionWidth,
+            const SizedBox(height: 3),
+            Text(
+              key: ValueKey('subtitle-sentence-number-$index'),
+              '${index + 1}',
+              textAlign: TextAlign.center,
+              style: theme.textTheme.labelSmall?.copyWith(
+                fontSize: 10,
+                height: 1,
+                color: isSelected
+                    ? scheme.primary
+                    : scheme.onSurfaceVariant.withValues(alpha: .7),
+                fontWeight: isSelected ? FontWeight.w600 : null,
+                fontFeatures: const [FontFeature.tabularFigures()],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+    final menuAction = SizedBox(
+      width: _kMenuActionWidth,
+      child: Padding(
+        padding: const EdgeInsets.only(top: _kRowVerticalPadding - 6),
+        child: Align(
+          alignment: Alignment.topCenter,
           child: PopupMenuButton<_SentenceAction>(
             padding: EdgeInsets.zero,
+            iconSize: 20,
             tooltip: MaterialLocalizations.of(context).showMenuTooltip,
-            child: Center(
-              child: Icon(
-                Icons.more_horiz,
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
+            position: PopupMenuPosition.under,
+            icon: Icon(
+              Icons.more_horiz_rounded,
+              color: scheme.onSurfaceVariant.withValues(alpha: .8),
             ),
             itemBuilder: (context) => [
               PopupMenuItem(
@@ -630,7 +984,7 @@ class _SentenceListState extends State<_SentenceList> {
                 child: _MenuRow(
                   icon: Icons.delete_outline,
                   label: l10n.deleteSentence,
-                  color: theme.colorScheme.error,
+                  color: scheme.error,
                 ),
               ),
             ],
@@ -643,77 +997,90 @@ class _SentenceListState extends State<_SentenceList> {
               }
             },
           ),
-        );
-        // 新手引导只挂在第一句，用户能立即理解每行左右两侧的操作分区。
-        final guidedPlayAction = index == 0 && widget.firstPlayGuideStep != null
-            ? GuideTarget(step: widget.firstPlayGuideStep!, child: playAction)
-            : playAction;
-        final guidedMenuAction = index == 0 && widget.firstMenuGuideStep != null
-            ? GuideTarget(step: widget.firstMenuGuideStep!, child: menuAction)
-            : menuAction;
-        return KeyedSubtree(
-          key: _rowKeys[index],
-          child: Material(
-            color: rowColor,
-            child: IntrinsicHeight(
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  guidedPlayAction,
-                  Expanded(
-                    child: InkWell(
-                      onTap: () => widget.onSelect(index),
-                      // 行内就地编辑的 TextField 是本 InkWell 的后代，其获焦会让本
-                      // InkWell 的 focusNode.hasFocus 为真而绘制 focus 高亮（整列变深
-                      // 灰）。选中行不需要 focus 高亮，置空避免编辑时背景变深。
-                      focusColor: Colors.transparent,
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            // 选中句拆成单词 label（可点词播放并显示词边界）；
-                            // 其余句保持纯文本，降低视觉噪音、突出当前编辑句。
-                            isSelected
-                                ? _SentenceWordLabels(
-                                    text: sentence.text,
-                                    words: widget.selectedSentenceWords,
-                                    focusedWordIndex: widget.focusedWordIndex,
-                                    onWordTap: widget.onWordTap,
-                                    onEditWord: widget.onEditWord,
-                                    onSplitWord: widget.onSplitWord,
-                                  )
-                                : Text(sentence.text),
-                            const SizedBox(height: 2),
-                            Text(
-                              '${_formatTime(sentence.startTime)} - '
-                              '${_formatTime(sentence.endTime)} · '
-                              '${_formatSeconds(sentence.endTime - sentence.startTime)}',
-                              style: theme.textTheme.labelSmall?.copyWith(
-                                fontSize:
-                                    (theme.textTheme.labelSmall?.fontSize ??
-                                        11) -
-                                    1,
-                                color: theme.colorScheme.onSurfaceVariant
-                                    .withValues(alpha: .68),
-                                fontFeatures: const [
-                                  FontFeature.tabularFigures(),
-                                ],
-                              ),
-                            ),
-                          ],
+        ),
+      ),
+    );
+    // 新手引导只挂在第一句，用户能立即理解每行左右两侧的操作分区。
+    final guidedPlayAction = index == 0 && widget.firstPlayGuideStep != null
+        ? GuideTarget(step: widget.firstPlayGuideStep!, child: playAction)
+        : playAction;
+    final guidedMenuAction = index == 0 && widget.firstMenuGuideStep != null
+        ? GuideTarget(step: widget.firstMenuGuideStep!, child: menuAction)
+        : menuAction;
+    // 选中句是正在编辑的句子：抬升为带主色描边的卡片；播放中的非选中句只淡淡铺底。
+    final Color rowColor;
+    if (isSelected) {
+      rowColor = scheme.surface;
+    } else if (isPlaying) {
+      rowColor = scheme.primary.withValues(alpha: .06);
+    } else {
+      rowColor = Colors.transparent;
+    }
+    final textStyle = theme.textTheme.bodyMedium?.copyWith(
+      height: 1.45,
+      color: scheme.onSurface,
+    );
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Material(
+        color: rowColor,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(14),
+          side: isSelected
+              ? BorderSide(color: scheme.primary.withValues(alpha: .55))
+              : BorderSide.none,
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: () => widget.onSelect(index),
+          // 行内就地编辑的 TextField 是本 InkWell 的后代，其获焦会让本
+          // InkWell 的 focusNode.hasFocus 为真而绘制 focus 高亮（整列变深
+          // 灰）。选中行不需要 focus 高亮，置空避免编辑时背景变深。
+          focusColor: Colors.transparent,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              guidedPlayAction,
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    vertical: _kRowVerticalPadding,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // 选中句拆成单词 label（可点词播放并显示词边界）；
+                      // 其余句保持纯文本，降低视觉噪音、突出当前编辑句。
+                      isSelected
+                          ? _SentenceWordLabels(
+                              text: sentence.text,
+                              words: widget.selectedSentenceWords,
+                              focusedWordIndex: widget.focusedWordIndex,
+                              onWordTap: widget.onWordTap,
+                              onEditWord: widget.onEditWord,
+                              onSplitWord: widget.onSplitWord,
+                            )
+                          : Text(sentence.text, style: textStyle),
+                      const SizedBox(height: 4),
+                      Text(
+                        '${_formatTime(sentence.startTime)} - '
+                        '${_formatTime(sentence.endTime)} · '
+                        '${_formatSeconds(sentence.endTime - sentence.startTime)}',
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: scheme.onSurfaceVariant.withValues(alpha: .75),
+                          letterSpacing: .1,
+                          fontFeatures: const [FontFeature.tabularFigures()],
                         ),
                       ),
-                    ),
+                    ],
                   ),
-                  guidedMenuAction,
-                ],
+                ),
               ),
-            ),
+              guidedMenuAction,
+            ],
           ),
-        );
-      },
+        ),
+      ),
     );
   }
 
@@ -1111,30 +1478,114 @@ class _WordChip extends StatelessWidget {
     final scheme = theme.colorScheme;
     return Material(
       color: focused
-          ? scheme.primary.withValues(alpha: .14)
-          : Colors.transparent,
-      borderRadius: BorderRadius.circular(6),
+          ? scheme.primary.withValues(alpha: .12)
+          : scheme.surfaceContainerHighest.withValues(alpha: .45),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(8),
+        side: BorderSide(
+          color: focused
+              ? scheme.primary.withValues(alpha: .6)
+              : Colors.transparent,
+        ),
+      ),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(6),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(6),
-            border: Border.all(
-              color: focused
-                  ? scheme.primary.withValues(alpha: .55)
-                  : scheme.outlineVariant.withValues(alpha: .6),
-            ),
-          ),
+        borderRadius: BorderRadius.circular(8),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
           // 字重在 focus 态不变（否则加粗变宽会触发 Wrap 重新折行、整体布局跳动），
           // 仅靠颜色 + 底色 + 描边表达选中。
           child: Text(
             label,
             style: theme.textTheme.bodyMedium?.copyWith(
+              height: 1.4,
               color: focused ? scheme.primary : scheme.onSurface,
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// 句子行左侧的圆形播放按钮：选中句淡主色底，播放中主色实心显示停止。
+class _PlayButton extends StatelessWidget {
+  const _PlayButton({
+    super.key,
+    required this.isPlaying,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  static const double _size = 34;
+
+  final bool isPlaying;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final Color background;
+    final Color foreground;
+    if (isPlaying) {
+      background = scheme.primary;
+      foreground = scheme.onPrimary;
+    } else if (isSelected) {
+      background = scheme.primary.withValues(alpha: .12);
+      foreground = scheme.primary;
+    } else {
+      background = Colors.transparent;
+      foreground = scheme.onSurfaceVariant;
+    }
+    return Material(
+      color: background,
+      shape: const CircleBorder(),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: SizedBox.square(
+          dimension: _size,
+          child: Icon(
+            isPlaying ? Icons.stop_rounded : Icons.play_arrow_rounded,
+            size: 22,
+            color: foreground,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// 没有任何句子时的空状态。
+class _EmptySentences extends StatelessWidget {
+  const _EmptySentences({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.l),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.subtitles_off_outlined,
+              size: 36,
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+            const SizedBox(height: AppSpacing.m - 4),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ],
         ),
       ),
     );

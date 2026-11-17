@@ -280,6 +280,11 @@ class MediaKitPlayerBackend implements MediaPlayerBackend {
   }
 
   @override
+  Future<void> setAudioTrackEnabled(bool enabled) {
+    return _player.setAudioTrack(enabled ? AudioTrack.auto() : AudioTrack.no());
+  }
+
+  @override
   Future<void> setSubtitleTrackData(String? srt) {
     return _player.setSubtitleTrack(
       srt == null || srt.isEmpty

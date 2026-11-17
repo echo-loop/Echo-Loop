@@ -761,7 +761,7 @@
 
 - 现象：剪辑页时间轴的波形几乎是一条细线，正常音量的音频也看不出起伏。
 - 根因：just_waveform 0.0.7 的 `JustWaveform.parse` 对 16 位数据用 `Int16List.view(bytes, headerLength ~/ 2)`，偏移是 10 字节而非规范的 20 字节头。`getPixelMin/Max` 整体错位 5 个采样，开头还混入头部字段（采样率 44100 被读成 -21436），按峰值归一化时真实波形被压扁。另外它的头部视图按 20 个 uint32 读取，文件小于 80 字节会抛 RangeError。
-- 解法：用 `WaveformSamples` 从原始 buffer 第 20 字节重新建立 16 位视图；8 位数据偏移本身正确。不修改插件源码。字幕编辑器的波形同样受影响，尚未切换。
+- 解法：用 `WaveformSamples` 从原始 buffer 第 20 字节重新建立 16 位视图；8 位数据偏移本身正确。不修改插件源码。字幕编辑器的波形同样受影响，已于 2026-11-17 切换到 `WaveformSamples`（`lib/features/subtitle_editor/subtitle_waveform_view.dart`）。
 - 验证：`test/utils/waveform_samples_test.dart` 构造带头部的波形文件，确认 min/max 与峰值正确；macOS 集成测试截图中波形恢复正常高度。
 - 相关代码：`lib/utils/waveform_samples.dart`、`lib/features/media_trim/widgets/media_trim_timeline.dart`。
 - 记录时间：2026-11-16。

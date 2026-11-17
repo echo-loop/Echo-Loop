@@ -432,6 +432,16 @@ class AppLocalizationsEn extends AppLocalizations {
   String get waveformZoom => 'Zoom';
 
   @override
+  String get waveformZoomIn => 'Zoom in';
+
+  @override
+  String get waveformZoomOut => 'Zoom out';
+
+  @override
+  String get subtitleEditorVideoLoadFailed =>
+      'Couldn\'t load the video. You can still edit subtitles.';
+
+  @override
   String waveformLoading(int progress) {
     return 'Loading waveform $progress%';
   }

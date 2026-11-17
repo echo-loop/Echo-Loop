@@ -212,6 +212,9 @@
   "singleSentence": "Single Sentence",
   "playbackSettings": "Playback Settings",
   "waveformZoom": "Zoom",
+  "waveformZoomIn": "Zoom in",
+  "waveformZoomOut": "Zoom out",
+  "subtitleEditorVideoLoadFailed": "Couldn't load the video. You can still edit subtitles.",
   "waveformLoading": "Loading waveform {progress}%",
   "@waveformLoading": {
     "placeholders": {

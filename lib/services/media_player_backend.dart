@@ -22,6 +22,10 @@ abstract class MediaPlayerBackend {
   /// 位置事件 + pause 的软停止会受事件间隔与音频输出缓冲影响而越过终点。
   Future<void> setPlaybackEnd(Duration? end);
   Future<void> setVideoTrackEnabled(bool enabled);
+
+  /// 关闭音轨后播放器不输出声音，也不占用音频输出；用于只借用画面、声音另由
+  /// 其它播放链路负责的场景（字幕编辑的视频画面）。
+  Future<void> setAudioTrackEnabled(bool enabled);
   Future<void> setSubtitleTrackData(String? srt);
   Future<void> startKeepAlive();
   Future<void> stopKeepAlive();

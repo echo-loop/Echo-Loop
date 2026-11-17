@@ -414,6 +414,15 @@ class AppLocalizationsZh extends AppLocalizations {
   String get waveformZoom => '缩放';
 
   @override
+  String get waveformZoomIn => '放大波形';
+
+  @override
+  String get waveformZoomOut => '缩小波形';
+
+  @override
+  String get subtitleEditorVideoLoadFailed => '画面加载失败，仍可正常编辑字幕。';
+
+  @override
   String waveformLoading(int progress) {
     return '正在加载波形 $progress%';
   }

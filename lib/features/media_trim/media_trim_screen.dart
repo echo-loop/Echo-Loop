@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../l10n/app_localizations.dart';
@@ -13,6 +12,7 @@ import '../../providers/collection_provider.dart';
 import '../../router/app_router.dart';
 import '../../services/app_logger.dart';
 import '../../widgets/app_toast.dart';
+import '../../widgets/common/video_toggle_icon.dart';
 import 'media_trim_clip.dart';
 import 'media_trim_editor_controller.dart';
 import 'media_trim_exporter.dart';
@@ -578,76 +578,12 @@ class _TransportBar extends ConsumerWidget {
                   ? l10n.mediaTrimHideVideo
                   : l10n.mediaTrimShowVideo,
               onPressed: onToggleVideo,
-              icon: _VideoToggleIcon(isVisible: isVisible),
+              icon: VideoToggleIcon(isVisible: isVisible),
             ),
         ],
       ),
     );
   }
-}
-
-/// 画面开关图标：显示中为视频图标，收起时在图标上加斜线。
-class _VideoToggleIcon extends StatelessWidget {
-  const _VideoToggleIcon({required this.isVisible});
-
-  final bool isVisible;
-
-  @override
-  Widget build(BuildContext context) {
-    final color = IconTheme.of(context).color ?? Colors.black;
-    // video-2.svg 线宽约为视框的 1/13，22px 时约 1.67px，与页面其它线条图标一致。
-    return SizedBox.square(
-      dimension: 22,
-      child: CustomPaint(
-        foregroundPainter: isVisible
-            ? null
-            : _SlashPainter(
-                color: color,
-                gapColor: Theme.of(context).scaffoldBackgroundColor,
-              ),
-        child: SvgPicture.asset(
-          'assets/icon/video-2.svg',
-          colorFilter: ColorFilter.mode(color, BlendMode.srcIn),
-        ),
-      ),
-    );
-  }
-}
-
-class _SlashPainter extends CustomPainter {
-  const _SlashPainter({required this.color, required this.gapColor});
-
-  final Color color;
-
-  /// 斜线两侧描一圈背景色，让斜线与图标线条分开，和系统「关闭」图标一致。
-  final Color gapColor;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final from = Offset(size.width * 0.12, size.height * 0.1);
-    final to = Offset(size.width * 0.88, size.height * 0.9);
-    canvas
-      ..drawLine(
-        from,
-        to,
-        Paint()
-          ..color = gapColor
-          ..strokeWidth = 4.7
-          ..strokeCap = StrokeCap.round,
-      )
-      ..drawLine(
-        from,
-        to,
-        Paint()
-          ..color = color
-          ..strokeWidth = 1.67
-          ..strokeCap = StrokeCap.round,
-      );
-  }
-
-  @override
-  bool shouldRepaint(_SlashPainter old) =>
-      old.color != color || old.gapColor != gapColor;
 }
 
 class _TimelineSection extends ConsumerWidget {
