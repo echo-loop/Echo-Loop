@@ -11,6 +11,24 @@ class PracticeMediaExtentRange {
     required this.max,
   });
 
+  /// 左右两栏页面中左栏宽度的可调范围；空间不足时优先保证右栏最小宽度。
+  factory PracticeMediaExtentRange.sideBySideColumns({
+    required double width,
+    required double minLeadingWidth,
+    required double minTrailingWidth,
+  }) {
+    final available = math.max(
+      0.0,
+      width - PracticeMediaSplitGeometry.dividerExtent,
+    );
+    final max = math.max(0.0, available - minTrailingWidth);
+    return PracticeMediaExtentRange(
+      available: available,
+      min: math.min(minLeadingWidth, max),
+      max: max,
+    );
+  }
+
   /// 视频与学习内容共享的主轴长度（已扣除分隔条）。
   final double available;
   final double min;

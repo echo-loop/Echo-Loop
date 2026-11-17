@@ -7,14 +7,15 @@ import 'package:go_router/go_router.dart';
 
 import '../../l10n/app_localizations.dart';
 import '../../models/audio_item.dart';
+import '../../models/practice_media_split.dart';
 import '../../providers/audio_library_provider.dart';
 import '../../providers/collection_provider.dart';
 import '../../router/app_router.dart';
 import '../../services/app_logger.dart';
 import '../../widgets/app_toast.dart';
-import '../../widgets/common/video_toggle_icon.dart';
 import '../../widgets/common/media_split_divider.dart';
-import '../../models/practice_media_split.dart';
+import '../../widgets/common/practice_media_split_geometry.dart';
+import '../../widgets/common/video_toggle_icon.dart';
 import 'media_trim_clip.dart';
 import 'media_trim_editor_controller.dart';
 import 'media_trim_exporter.dart';
@@ -58,6 +59,7 @@ class _MediaTrimScreenState extends ConsumerState<MediaTrimScreen>
   /// 剪辑主要看波形和片段，画面默认收起，把高度留给时间轴和列表；只影响本页。
   bool _isVideoVisible = false;
 
+  /// 拖动分隔条过程中的左栏宽度，只存在于拖动期间；松手后写入偏好并清空。
   double? _dragTimelineWidth;
 
   /// 时间轴在宽 / 窄 / 矮布局间、以及展开收起画面时会换位置；用 GlobalKey 让它
@@ -304,6 +306,18 @@ class _MediaTrimScreenState extends ConsumerState<MediaTrimScreen>
     );
   }
 
+  /// 松手后按可用宽度记住左栏比例；算不出有效比例时保留原偏好，不当作恢复默认。
+  void _commitTimelineDrag(PracticeMediaExtentRange range) {
+    // 分隔条在拖动中被移除时会在帧结束后补发，此时页面可能已关闭。
+    if (!mounted) return;
+    final width = _dragTimelineWidth;
+    setState(() => _dragTimelineWidth = null);
+    if (width == null) return;
+    final fraction = range.fractionOf(range.clamp(width));
+    if (fraction == null) return;
+    unawaited(ref.read(mediaTrimSplitProvider.notifier).setFraction(fraction));
+  }
+
   Widget _buildEditor(BuildContext context) {
     final savedFraction = ref.watch(mediaTrimSplitProvider);
     final hasSentences = ref.watch(
@@ -345,12 +359,14 @@ class _MediaTrimScreenState extends ConsumerState<MediaTrimScreen>
             final splitRange = MediaTrimSplitGeometry.range(
               constraints.maxWidth,
             );
-            final timelineWidth =
-                _dragTimelineWidth ??
-                MediaTrimSplitGeometry.resolveTimelineWidth(
-                  width: constraints.maxWidth,
-                  fraction: savedFraction,
-                );
+            // 拖动中的宽度也按当前范围限制：拖动期间窗口变化不会让右栏被挤出最小宽度。
+            final timelineWidth = splitRange.clamp(
+              _dragTimelineWidth ??
+                  MediaTrimSplitGeometry.resolveTimelineWidth(
+                    width: constraints.maxWidth,
+                    fraction: savedFraction,
+                  ),
+            );
             return Row(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
@@ -386,18 +402,7 @@ class _MediaTrimScreenState extends ConsumerState<MediaTrimScreen>
                       (_dragTimelineWidth ?? timelineWidth) + delta,
                     ),
                   ),
-                  onDragEnd: () {
-                    final width = _dragTimelineWidth;
-                    setState(() => _dragTimelineWidth = null);
-                    if (width == null || splitRange.available <= 0) return;
-                    unawaited(
-                      ref
-                          .read(mediaTrimSplitProvider.notifier)
-                          .setFraction(
-                            splitRange.fractionOf(splitRange.clamp(width)),
-                          ),
-                    );
-                  },
+                  onDragEnd: () => _commitTimelineDrag(splitRange),
                   onReset: () => unawaited(
                     ref.read(mediaTrimSplitProvider.notifier).setFraction(null),
                   ),

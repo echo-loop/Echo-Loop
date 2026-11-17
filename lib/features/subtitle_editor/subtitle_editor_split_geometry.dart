@@ -19,18 +19,12 @@ abstract final class SubtitleEditorSplitGeometry {
   static const preferredSentenceColumnWidth = 420.0;
 
   /// 左栏宽度的可调范围；空间不足时优先保证句子列表。
-  static PracticeMediaExtentRange mediaColumnRange(double width) {
-    final available = math.max(
-      0.0,
-      width - PracticeMediaSplitGeometry.dividerExtent,
-    );
-    final max = math.max(0.0, available - minSentenceColumnWidth);
-    return PracticeMediaExtentRange(
-      available: available,
-      min: math.min(minMediaColumnWidth, max),
-      max: max,
-    );
-  }
+  static PracticeMediaExtentRange mediaColumnRange(double width) =>
+      PracticeMediaExtentRange.sideBySideColumns(
+        width: width,
+        minLeadingWidth: minMediaColumnWidth,
+        minTrailingWidth: minSentenceColumnWidth,
+      );
 
   /// 左栏宽度：用户记住的比例优先，否则按「画面填满剩余高度」自动计算。
   ///

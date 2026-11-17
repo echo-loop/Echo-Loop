@@ -12,6 +12,10 @@ import 'package:echo_loop/database/providers.dart';
 import 'package:echo_loop/l10n/app_localizations.dart';
 import 'package:echo_loop/features/media_trim/media_trim_editor_controller.dart';
 import 'package:echo_loop/features/media_trim/media_trim_screen.dart';
+import 'package:echo_loop/features/media_trim/media_trim_split_geometry.dart';
+import 'package:echo_loop/features/media_trim/media_trim_split_provider.dart';
+import 'package:echo_loop/features/onboarding_survey/providers/onboarding_survey_provider.dart'
+    show sharedPreferencesProvider;
 import 'package:echo_loop/theme/app_theme.dart';
 
 import 'package:drift/drift.dart' hide isNull, isNotNull;
@@ -31,6 +35,7 @@ import 'package:ffmpeg_kit_flutter_new_min/ffprobe_kit.dart';
 import 'package:ffmpeg_kit_flutter_new_min/return_code.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
@@ -364,10 +369,14 @@ void main() {
       ],
     );
     final presentation = ValueNotifier<(double, bool)>((1.0, false));
+    // 用内存偏好，分栏宽度等设置不写入用户真实偏好，用例之间也互不影响。
+    SharedPreferences.setMockInitialValues({});
+    final preferences = await SharedPreferences.getInstance();
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
           appDatabaseProvider.overrideWithValue(database),
+          sharedPreferencesProvider.overrideWithValue(preferences),
           // 测试只验证剪辑页本身，不启动全局播放链路。
           mediaTrimPauseOtherPlaybackProvider.overrideWithValue(() async {}),
         ],
@@ -391,7 +400,7 @@ void main() {
         ),
       ),
     );
-    final harness = _UiHarness(tester, router, presentation);
+    final harness = _UiHarness(tester, router, presentation, preferences);
     await harness.waitFor(find.byKey(const ValueKey('trim-timeline')));
     return harness;
   }
@@ -622,6 +631,43 @@ void main() {
       tester.getSize(find.byKey(const ValueKey('trim-clip-column'))).width,
       closeTo(400, 1),
     );
+    expect(
+      ui.preferences.containsKey(MediaTrimSplitNotifier.storageKey),
+      isFalse,
+      reason: '双击恢复默认清除偏好',
+    );
+    // 回归：拖动中缩窄窗口，右栏不被挤到最小宽度以下；拖动中切到窄布局，
+    // 分隔条被移除也按拖动结束保存，切回宽布局不残留拖动中的宽度。
+    final gesture = await tester.startGesture(tester.getCenter(divider));
+    await gesture.moveBy(const Offset(40, 0));
+    await gesture.moveBy(const Offset(300, 0));
+    await tester.pump();
+    await ui.resize(const Size(1000, 800));
+    expect(
+      tester.getSize(find.byKey(const ValueKey('trim-clip-column'))).width,
+      greaterThanOrEqualTo(MediaTrimSplitGeometry.minClipColumnWidth - 0.5),
+    );
+    await ui.resize(const Size(390, 844));
+    await gesture.up();
+    final savedFraction = ui.preferences.getDouble(
+      MediaTrimSplitNotifier.storageKey,
+    );
+    expect(savedFraction, isNotNull, reason: '分隔条被移除时保存拖动结果');
+    await ui.resize(const Size(1280, 800));
+    expect(
+      tester.getSize(find.byKey(const ValueKey('trim-timeline-column'))).width,
+      closeTo(
+        MediaTrimSplitGeometry.resolveTimelineWidth(
+          width: 1280,
+          fraction: savedFraction,
+        ),
+        0.5,
+      ),
+    );
+    await tester.tap(divider);
+    await tester.pump(const Duration(milliseconds: 100));
+    await tester.tap(divider);
+    await tester.pumpAndSettle();
     await ui.tap(find.byKey(const ValueKey('trim-play')));
     await ui.settleAsync(const Duration(milliseconds: 800));
     await ui.tap(find.byKey(const ValueKey('trim-play')));
@@ -636,11 +682,12 @@ const _uiSrt =
 
 /// 页面集成测试的操作封装：真实播放器与 FFmpeg 需要在 runAsync 中推进。
 class _UiHarness {
-  _UiHarness(this.tester, this.router, this.presentation);
+  _UiHarness(this.tester, this.router, this.presentation, this.preferences);
 
   final WidgetTester tester;
   final GoRouter router;
   final ValueNotifier<(double, bool)> presentation;
+  final SharedPreferences preferences;
 
   Future<void> settleAsync([
     Duration duration = const Duration(milliseconds: 100),

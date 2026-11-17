@@ -24,6 +24,7 @@ import 'package:echo_loop/database/providers.dart';
 import 'package:echo_loop/features/onboarding_survey/providers/onboarding_survey_provider.dart'
     show sharedPreferencesProvider;
 import 'package:echo_loop/features/subtitle_editor/subtitle_editor_controller.dart';
+import 'package:echo_loop/features/subtitle_editor/subtitle_editor_split_geometry.dart';
 import 'package:echo_loop/features/subtitle_editor/subtitle_editor_split_provider.dart';
 import 'package:echo_loop/features/subtitle_editor/subtitle_simple_editor_screen.dart';
 import 'package:echo_loop/features/subtitle_editor/subtitle_waveform_view.dart';
@@ -442,6 +443,40 @@ void main() {
     await settle(const Duration(milliseconds: 500));
     expect(savedFraction(), isNull);
     expect(listLeft(), moreOrLessEquals(autoListLeft, epsilon: 1));
+
+    // 回归：拖动中缩窄窗口，句子列表不被挤到最小宽度以下；拖动中切到上下布局，
+    // 分隔条被移除也按拖动结束保存，切回左右布局不残留拖动中的宽度。
+    final resizeDrag = await tester.startGesture(
+      tester.getCenter(find.byKey(_dividerKey)),
+    );
+    for (var i = 0; i < 10; i++) {
+      await resizeDrag.moveBy(const Offset(40, 0));
+      await tester.pump(const Duration(milliseconds: 16));
+    }
+    const narrowDesktop = Size(1000, 800);
+    await resize(narrowDesktop);
+    final narrowListLeft = listLeft();
+    expect(
+      narrowDesktop.width - tester.getRect(find.byKey(_dividerKey)).right,
+      greaterThanOrEqualTo(SubtitleEditorSplitGeometry.minSentenceColumnWidth),
+    );
+    await resize(phone);
+    await resizeDrag.up();
+    expect(savedFraction(), isNotNull, reason: '分隔条被移除时保存拖动结果');
+    await resize(desktop);
+    final restoredListLeft = listLeft();
+    await tester.tap(find.byKey(_dividerKey));
+    await tester.pump(const Duration(milliseconds: 60));
+    await tester.tap(find.byKey(_dividerKey));
+    await settle(const Duration(milliseconds: 500));
+    expect(savedFraction(), isNull);
+    // 残留的拖动宽度是窄窗口下的像素值，切回宽窗口会与窄窗口时几乎一样；
+    // 按比例恢复则左栏随窗口变宽。
+    expect(
+      restoredListLeft,
+      greaterThan(narrowListLeft + 100),
+      reason: '切回左右布局按保存的比例，而不是残留的拖动宽度',
+    );
 
     // 高窗口：画面受宽度限制（右栏保留舒适阅读宽度）无法再大时，布局不溢出。
     const tallDesktop = Size(1180, 920);

@@ -82,7 +82,7 @@ void main() {
       final notifier = container.read(subtitleEditorSplitProvider.notifier);
       expect(container.read(subtitleEditorSplitProvider), isNull);
 
-      await notifier.setMediaFraction(0.6);
+      await notifier.setFraction(0.6);
       final preferences = await SharedPreferences.getInstance();
       expect(container.read(subtitleEditorSplitProvider), 0.6);
       expect(
@@ -90,7 +90,7 @@ void main() {
         0.6,
       );
 
-      await notifier.setMediaFraction(null);
+      await notifier.setFraction(null);
       expect(container.read(subtitleEditorSplitProvider), isNull);
       expect(
         preferences.containsKey(SubtitleEditorSplitNotifier.storageKey),

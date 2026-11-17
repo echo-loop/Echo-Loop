@@ -22,6 +22,8 @@ class MediaSplitDivider extends StatefulWidget {
 
   /// 主轴方向的位移，正值表示视频变大。
   final ValueChanged<double> onDragUpdate;
+
+  /// 拖动结束；拖动中分隔条被移出树时会在帧结束后补发，使用方可能已销毁，需自行检查。
   final VoidCallback onDragEnd;
   final VoidCallback onReset;
 
@@ -32,6 +34,18 @@ class MediaSplitDivider extends StatefulWidget {
 class _MediaSplitDividerState extends State<MediaSplitDivider> {
   bool _isHovered = false;
   bool _isDragging = false;
+
+  @override
+  void dispose() {
+    // 拖动中被移出树（窗口缩放切换布局、页面关闭）时手势不会再回调结束，
+    // 使用方会残留拖动中的尺寸；帧结束后补发一次。不能在 dispose 中直接回调：
+    // 此时元素树处于锁定状态，使用方 setState 会报错。
+    if (_isDragging) {
+      final onDragEnd = widget.onDragEnd;
+      WidgetsBinding.instance.addPostFrameCallback((_) => onDragEnd());
+    }
+    super.dispose();
+  }
 
   void _handleStart() {
     setState(() => _isDragging = true);

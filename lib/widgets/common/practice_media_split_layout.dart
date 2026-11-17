@@ -207,6 +207,8 @@ class _PracticeMediaSplitLayoutState
     PracticeMediaSplitAxis axis,
     PracticeMediaExtentRange range,
   ) {
+    // 分隔条在拖动中被移除时会在帧结束后补发，此时页面可能已关闭。
+    if (!mounted) return;
     final dragExtent = _dragExtent;
     setState(() => _dragExtent = null);
     if (dragExtent == null) return;

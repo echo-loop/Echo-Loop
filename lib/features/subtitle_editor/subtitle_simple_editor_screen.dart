@@ -445,15 +445,18 @@ class _SubtitleSimpleEditorScreenState
     final size = constraints.biggest;
     final splitRange = SubtitleEditorSplitGeometry.mediaColumnRange(size.width);
     final videoAspectRatio = _videoPreview?.aspectRatio.value;
+    // 拖动中的宽度也按当前范围限制：拖动期间窗口变化不会让右栏被挤出最小宽度。
     final mediaColumnWidth = isSideBySide
-        ? _dragMediaColumnWidth ??
-              SubtitleEditorSplitGeometry.resolveMediaColumnWidth(
-                size: size,
-                chromeHeight: _sideChromeHeight,
-                horizontalPadding: _gutter * 2,
-                videoAspectRatio: videoAspectRatio,
-                fraction: ref.watch(subtitleEditorSplitProvider),
-              )
+        ? splitRange.clamp(
+            _dragMediaColumnWidth ??
+                SubtitleEditorSplitGeometry.resolveMediaColumnWidth(
+                  size: size,
+                  chromeHeight: _sideChromeHeight,
+                  horizontalPadding: _gutter * 2,
+                  videoAspectRatio: videoAspectRatio,
+                  fraction: ref.watch(subtitleEditorSplitProvider),
+                ),
+          )
         : null;
     final toolbar = _EditorToolbar(
       isVideoVisible: widget.audioItem.isVideo ? _isVideoVisible : null,
@@ -615,9 +618,7 @@ class _SubtitleSimpleEditorScreenState
             ),
             onDragEnd: () => _commitMediaColumnDrag(splitRange),
             onReset: () => unawaited(
-              ref
-                  .read(subtitleEditorSplitProvider.notifier)
-                  .setMediaFraction(null),
+              ref.read(subtitleEditorSplitProvider.notifier).setFraction(null),
             ),
           ),
           Expanded(child: sentenceList),
@@ -657,13 +658,15 @@ class _SubtitleSimpleEditorScreenState
 
   /// 松手后按可用宽度记住左栏比例，窗口缩放后仍保持相近的分配。
   void _commitMediaColumnDrag(PracticeMediaExtentRange range) {
+    // 分隔条在拖动中被移除时会在帧结束后补发，此时页面可能已关闭。
+    if (!mounted) return;
     final width = _dragMediaColumnWidth;
     setState(() => _dragMediaColumnWidth = null);
     if (width == null) return;
     final fraction = range.fractionOf(range.clamp(width));
     if (fraction == null) return;
     unawaited(
-      ref.read(subtitleEditorSplitProvider.notifier).setMediaFraction(fraction),
+      ref.read(subtitleEditorSplitProvider.notifier).setFraction(fraction),
     );
   }
 
