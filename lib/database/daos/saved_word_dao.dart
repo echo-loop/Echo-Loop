@@ -2,6 +2,8 @@ import 'package:collection/collection.dart';
 import 'package:drift/drift.dart';
 import 'package:uuid/uuid.dart';
 
+import '../../models/sentence.dart';
+import '../../services/source_sentence_anchor.dart';
 import '../app_database.dart';
 import '../tables/saved_words.dart';
 import 'bookmark_dao.dart' show RecycleBinSortMode;
@@ -124,6 +126,54 @@ class SavedWordDao extends DatabaseAccessor<AppDatabase>
     if (audioItemIds.isEmpty) return Future.value();
     return (update(savedWords)..where((t) => t.audioItemId.isIn(audioItemIds)))
         .write(const SavedWordsCompanion(sentenceText: Value(null)));
+  }
+
+  /// 字幕替换后，把来源为该音频的收藏词（含回收站）的来源句改写为当前字幕中
+  /// 对应那一句的文字与区间；定位不到（来源句已删除）的保持原样。
+  ///
+  /// 只依据收藏自身的来源句区间，重复执行结果不变。返回改写的条数。
+  Future<int> relinkSourceSentences(
+    String audioItemId,
+    List<Sentence> sentences,
+  ) async {
+    final rows = await (select(
+      savedWords,
+    )..where((t) => t.audioItemId.equals(audioItemId))).get();
+    final now = DateTime.now();
+    var relinked = 0;
+    await batch((batch) {
+      for (final row in rows) {
+        final index = resolveVocabularySourceSentenceIndex(
+          SourceSentenceAnchor.fromMilliseconds(
+            startMs: row.sentenceStartMs,
+            endMs: row.sentenceEndMs,
+          ),
+          sentences,
+          row.word,
+        );
+        if (index == null) continue;
+        final target = sentences[index];
+        final startMs = target.startTime.inMilliseconds;
+        final endMs = target.endTime.inMilliseconds;
+        if (row.sentenceText == target.text &&
+            row.sentenceStartMs == startMs &&
+            row.sentenceEndMs == endMs) {
+          continue;
+        }
+        batch.update(
+          savedWords,
+          SavedWordsCompanion(
+            sentenceText: Value(target.text),
+            sentenceStartMs: Value(startMs),
+            sentenceEndMs: Value(endMs),
+            updatedAt: Value(now),
+          ),
+          where: (t) => t.id.equals(row.id),
+        );
+        relinked++;
+      }
+    });
+    return relinked;
   }
 
   /// 更新 Flashcard 练习统计

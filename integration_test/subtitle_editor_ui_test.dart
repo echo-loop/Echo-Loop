@@ -1010,7 +1010,7 @@ void main() {
     await h.closeEditor();
   });
 
-  testWidgets('保存字幕：收藏句、收藏词与学习进度按时间保留，不再弹窗清空', (tester) async {
+  testWidgets('保存字幕：收藏句、收藏词改写为新字幕中的句子，学习进度按时间保留', (tester) async {
     final h = await createHarness(tester);
     const desktop = Size(1280, 800);
     const audioId = 'lesson-audio';
@@ -1104,8 +1104,8 @@ void main() {
       original[5].text,
     ]);
 
-    // 收藏句：内容与区间一律不改；按区间定位：S1 → 2，S3、S4 → 合并句 3，
-    // S2 已删除不计入。
+    // 收藏句：按区间定位后改写为新字幕中对应的句子（S1 → 改字后的 2，S3、S4 →
+    // 合并句 3）；S2 已删除，保持原样且不计入句子收藏。
     final bookmarks = (await tester.runAsync(
       () => database.bookmarkDao.getByAudioId(audioId),
     ))!;
@@ -1116,17 +1116,24 @@ void main() {
       ),
       {2, 3},
     );
-    final byStart = {for (final b in bookmarks) b.startTime: b};
-    double secondsOf(Sentence s) => s.startTime.inMilliseconds / 1000.0;
-    for (final index in [1, 2, 3, 4]) {
-      final bookmark = byStart[secondsOf(original[index])]!;
-      expect(bookmark.sentenceText, original[index].text, reason: '收藏文字不改');
-      expect(
-        bookmark.endTime,
-        original[index].endTime.inMilliseconds / 1000.0,
-        reason: '收藏区间不改',
-      );
-    }
+    String describe(String text, Duration start, Duration end) =>
+        '$text@${start.inMilliseconds}-${end.inMilliseconds}';
+    String describeSentence(Sentence s) =>
+        describe(s.text, s.startTime, s.endTime);
+    Duration ms(double seconds) =>
+        Duration(milliseconds: (seconds * 1000).round());
+    expect(
+      [
+        for (final b in bookmarks)
+          describe(b.sentenceText, ms(b.startTime), ms(b.endTime)),
+      ]..sort(),
+      [
+        describeSentence(saved[2]),
+        describeSentence(saved[3]),
+        describeSentence(saved[3]),
+        describeSentence(original[2]),
+      ]..sort(),
+    );
     final schedules = (await tester.runAsync(
       () => (database.select(
         database.memorySchedules,
@@ -1134,12 +1141,16 @@ void main() {
     ))!;
     expect(schedules.map((s) => s.status).toList(), List.filled(4, 'active'));
 
-    // 收藏词：来源句信息不改，按区间定位到新字幕第 4 句（S5）。
+    // 收藏词：来源句改写为新字幕中对应的第 4 句（S5）。
     final words = (await tester.runAsync(
       () => database.savedWordDao.getByAudioId(audioId),
     ))!;
     expect(words.single.word, savedWord);
-    expect(words.single.sentenceText, original[5].text);
+    expect(words.single.sentenceText, saved[4].text);
+    expect(
+      (words.single.sentenceStartMs, words.single.sentenceEndMs),
+      (saved[4].startTime.inMilliseconds, saved[4].endTime.inMilliseconds),
+    );
     expect(
       resolveSourceSentenceIndex(
         SourceSentenceAnchor.fromMilliseconds(
@@ -1177,9 +1188,9 @@ void main() {
     final activeAfterRemove = (await tester.runAsync(
       () => database.bookmarkDao.getByAudioId(audioId),
     ))!;
-    expect(activeAfterRemove.map((b) => b.startTime).toSet(), {
-      secondsOf(original[1]),
-      secondsOf(original[2]),
+    expect(activeAfterRemove.map((b) => b.sentenceText).toSet(), {
+      fixedText,
+      original[2].text,
     }, reason: 'S1 与来源句已删除的 S2 不受影响');
     await h.closeEditor();
 

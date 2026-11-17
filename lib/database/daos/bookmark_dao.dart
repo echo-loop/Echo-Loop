@@ -195,6 +195,50 @@ class BookmarkDao extends DatabaseAccessor<AppDatabase>
     );
   }
 
+  /// 字幕替换后，把该音频的收藏（含回收站）改写为当前字幕中对应那一句的文字
+  /// 与区间，记忆主体与复习进度不变；定位不到（来源句已删除）的保持原样。
+  ///
+  /// 只依据收藏自身的区间，重复执行结果不变。返回改写的条数。
+  Future<int> relinkToSentences(
+    String audioItemId,
+    List<Sentence> sentences,
+  ) async {
+    final rows = await (select(
+      bookmarks,
+    )..where((t) => t.audioItemId.equals(audioItemId))).get();
+    final now = DateTime.now();
+    var relinked = 0;
+    await batch((batch) {
+      for (final row in rows) {
+        final index = resolveSourceSentenceIndex(
+          anchorOfBookmark(row),
+          sentences,
+        );
+        if (index == null) continue;
+        final target = sentences[index];
+        final startTime = target.startTime.inMilliseconds / 1000.0;
+        final endTime = target.endTime.inMilliseconds / 1000.0;
+        if (row.sentenceText == target.text &&
+            row.startTime == startTime &&
+            row.endTime == endTime) {
+          continue;
+        }
+        batch.update(
+          bookmarks,
+          BookmarksCompanion(
+            sentenceText: Value(target.text),
+            startTime: Value(startTime),
+            endTime: Value(endTime),
+            updatedAt: Value(now),
+          ),
+          where: (t) => t.id.equals(row.id),
+        );
+        relinked++;
+      }
+    });
+    return relinked;
+  }
+
   Set<int> _resolveIndices(List<Bookmark> rows, List<Sentence> sentences) {
     final indices = <int>{};
     for (final row in rows) {

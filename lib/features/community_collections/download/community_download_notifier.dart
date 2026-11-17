@@ -167,7 +167,7 @@ class CommunityDownload extends _$CommunityDownload {
     final newSentences = await SubtitleParser.parseSubtitleString(srt);
     final transcriptSync = ref.read(transcriptChangeSyncProvider);
     // 换字幕与学习数据同步放在同一事务：同步失败时连同字幕一起回滚，旧字幕仍在，
-    // 学习断点不会停在与新字幕不匹配的旧索引上。
+    // 收藏与学习断点不会停在与新字幕不匹配的状态。
     await database.transaction(() async {
       // 替换前记下旧句子，供学习断点按时间换算到新字幕。
       final oldSentences = await SubtitleParser.parseSubtitleString(
@@ -188,7 +188,7 @@ class CommunityDownload extends _$CommunityDownload {
           updatedAt: Value(DateTime.now()),
         ),
       );
-      // 收藏只存时间区间，换字幕后仍然有效；只换算学习断点。
+      // 收藏改写为新字幕中对应的句子，学习断点按时间换算。
       await transcriptSync.apply(
         audioItemId,
         oldSentences: oldSentences,

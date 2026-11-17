@@ -1173,7 +1173,7 @@ class SubtitleEditorController extends StateNotifier<SubtitleEditorState> {
         wordTimestampsJson: syncedWordsJson,
       );
 
-      // 收藏只存时间区间，字幕变化不需要改动收藏；只换算学习断点。
+      // 收藏改写为新字幕中对应的句子，学习断点按时间换算。
       // 以落库的 SRT 重新解析，保证与各读取路径看到的句子完全一致。
       final savedSentences = await SubtitleParser.parseSubtitleString(srt);
       await transcriptSync.apply(

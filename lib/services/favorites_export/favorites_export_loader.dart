@@ -137,9 +137,9 @@ class FavoritesExportLoader {
 
   /// 读取某材料下收藏句的本地译文：键为收藏句的主键 id
   ///
-  /// 收藏句按时间区间定位到当前字幕（防字幕编辑后错位）；译文缓存键依赖当前句
-  /// 及前后句文本，因此仅当当前句文本与收藏文本一致时才取译文（来源句被拆分 /
-  /// 合并后不取）。解析失败或无缓存的句子不返回译文，不影响句子本身导出。
+  /// 收藏句按时间区间定位到当前字幕，取该位置的译文缓存（键依赖当前句及前后句
+  /// 文本）。字幕替换后收藏已改写为对应的句子，定位结果与收藏文本一致。
+  /// 解析失败或无缓存的句子不返回译文，不影响句子本身导出。
   Future<Map<int, String>> _loadTranslationsForAudio(
     String audioItemId,
     List<BookmarkWithAudio> items, {
@@ -150,18 +150,14 @@ class FavoritesExportLoader {
     final sentences = await compute(parsePdfTranscript, srt);
     if (sentences.isEmpty) return const {};
 
-    // 收藏句 id → 字幕位置（解析失败或文本不一致的不入表）
+    // 收藏句 id → 字幕位置（来源句已删除的不入表）
     final resolved = <int, int>{};
     for (final item in items) {
       final position = resolveSourceSentenceIndex(
         anchorOfBookmark(item.bookmark),
         sentences,
       );
-      if (position != null &&
-          sentences[position].text.trim() ==
-              item.bookmark.sentenceText.trim()) {
-        resolved[item.bookmark.id] = position;
-      }
+      if (position != null) resolved[item.bookmark.id] = position;
     }
     if (resolved.isEmpty) return const {};
 

@@ -100,6 +100,73 @@ void main() {
     });
   });
 
+  group('resolveVocabularySourceSentenceIndex', () {
+    /// "It's so exciting. I often watch games." 拆成两句，中点落在后半句。
+    final split = _sentences([
+      (0, 1.5, "It's so exciting."),
+      (1.5, 5, 'I often watch games.'),
+    ]);
+
+    test('拆分后关联含该词的那一半，而不是中点所在的句子', () {
+      expect(resolveSourceSentenceIndex(_anchor(0, 5), split), 1);
+      expect(
+        resolveVocabularySourceSentenceIndex(_anchor(0, 5), split, 'exciting'),
+        0,
+      );
+      expect(
+        resolveVocabularySourceSentenceIndex(
+          _anchor(0, 5),
+          split,
+          'So Exciting',
+        ),
+        0,
+        reason: '不区分大小写，意群也能匹配',
+      );
+    });
+
+    test('词元能匹配变形，但不匹配词中间的片段', () {
+      expect(
+        resolveVocabularySourceSentenceIndex(_anchor(0, 5), split, 'watch'),
+        1,
+      );
+      // "it" 只出现在 "exciting" 中间，不算命中，退回中点规则。
+      final noIt = _sentences([(0, 1.5, 'So exciting.'), (1.5, 5, 'Go.')]);
+      expect(
+        resolveVocabularySourceSentenceIndex(_anchor(0, 5), noIt, 'it'),
+        1,
+      );
+    });
+
+    test('只在与收藏区间重叠的句子里找；都不含时按中点定位', () {
+      final sentences = _sentences([
+        (0, 2, 'Games again.'),
+        (2, 4, 'B b.'),
+        (4, 6, 'C c.'),
+      ]);
+      expect(
+        resolveVocabularySourceSentenceIndex(_anchor(2, 6), sentences, 'games'),
+        2,
+        reason: '第 0 句含该词但不在收藏区间内，按中点 4s 落在第 2 句',
+      );
+    });
+
+    test('来源句被删除或没有有效时间时返回 null', () {
+      final sentences = _sentences([(0, 2, 'A a.'), (6, 8, 'D d.')]);
+      expect(
+        resolveVocabularySourceSentenceIndex(_anchor(3, 5), sentences, 'a'),
+        isNull,
+      );
+      expect(
+        resolveVocabularySourceSentenceIndex(
+          const SourceSentenceAnchor(start: null, end: null),
+          sentences,
+          'a',
+        ),
+        isNull,
+      );
+    });
+  });
+
   group('remapSentenceIndex', () {
     test('合并后断点落在合并句，拆分后落在前半句（不跳过内容）', () {
       final edited = _sentences([

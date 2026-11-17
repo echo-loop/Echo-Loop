@@ -104,34 +104,78 @@ void main() {
         );
   }
 
-  test('收藏句保留、按时间定位到新字幕，复习调度不受影响', () async {
+  test('收藏句改写为新字幕中对应的句子，复习调度不受影响', () async {
     final lifecycle = container.read(favoriteSentenceLifecycleProvider);
     for (final index in [1, 3, 4]) {
       await lifecycle.save(_audioId, oldSentences[index]);
     }
-    final subjectsBefore = {
+    final before = {
       for (final b in await db.bookmarkDao.getByAudioId(_audioId))
-        b.memorySubjectId,
+        b.memorySubjectId: b,
     };
 
     await replaceTranscript();
 
-    // S1 → 合并句 2，S3 → 3；S4 已删除，不再计入句子收藏。
+    // S1 → 合并句 2，S3 → 改字后的 3；S4 已删除，不再计入句子收藏。
     expect(await db.bookmarkDao.getBookmarkedIndices(_audioId), {2, 3});
     final rows = await db.bookmarkDao.getByAudioId(_audioId);
     expect(rows, hasLength(3), reason: '来源句被删除的收藏仍保留在收藏列表');
-    final byStart = {for (final b in rows) b.startTime: b};
-    expect(byStart[2.0]!.sentenceText, 'Sentence 1', reason: '收藏文字不随字幕改');
-    expect(byStart[6.0]!.sentenceText, 'Sentence 3', reason: '改字后也不改收藏文字');
-    expect(byStart[6.0]!.endTime, 8.0, reason: '收藏区间不改');
+    expect(rows.map((b) => b.memorySubjectId).toSet(), before.keys.toSet());
+    final byId = {for (final b in rows) b.id: b};
+    final merged = byId[before.values.firstWhere((b) => b.startTime == 2).id]!;
+    expect(
+      (merged.sentenceText, merged.startTime, merged.endTime),
+      ('Sentence 1 Sentence 2', 2.0, 6.0),
+    );
+    final edited = byId[before.values.firstWhere((b) => b.startTime == 6).id]!;
+    expect(
+      (edited.sentenceText, edited.startTime, edited.endTime),
+      ('Sentence three', 6.0, 8.0),
+    );
+    final orphan = byId[before.values.firstWhere((b) => b.startTime == 8).id]!;
+    expect(
+      (orphan.sentenceText, orphan.startTime, orphan.endTime),
+      ('Sentence 4', 8.0, 10.0),
+      reason: '来源句已删除时保持原样',
+    );
 
-    final schedules =
-        await (db.select(db.memorySchedules)..where(
-              (t) => t.subjectId.isIn(subjectsBefore.whereType<String>()),
-            ))
-            .get();
+    final schedules = await (db.select(
+      db.memorySchedules,
+    )..where((t) => t.subjectId.isIn(before.keys.whereType<String>()))).get();
     expect(schedules, hasLength(3));
     expect(schedules.map((s) => s.status).toSet(), {'active'});
+  });
+
+  test('拆分收藏句后：收藏文字与定位到的句子一致，重复同步结果不变', () async {
+    final lifecycle = container.read(favoriteSentenceLifecycleProvider);
+    await lifecycle.save(_audioId, oldSentences[0]);
+
+    await replaceTranscript();
+    // 收藏列表读收藏文字，随心听 / 讲解页按区间定位；两者必须是同一句。
+    final indices = await db.bookmarkDao.getBookmarkedIndices(_audioId);
+    final row = (await db.bookmarkDao.getByAudioId(_audioId)).single;
+    expect(indices, hasLength(1));
+    final located = newSentences[indices.single];
+    expect(row.sentenceText, located.text);
+    expect(row.startTime, located.startTime.inMilliseconds / 1000.0);
+    expect(row.endTime, located.endTime.inMilliseconds / 1000.0);
+
+    await replaceTranscript();
+    final again = (await db.bookmarkDao.getByAudioId(_audioId)).single;
+    expect(again, row);
+  });
+
+  test('回收站中的收藏也改写为新字幕中的句子', () async {
+    final lifecycle = container.read(favoriteSentenceLifecycleProvider);
+    await lifecycle.save(_audioId, oldSentences[3]);
+    await lifecycle.remove(_audioId, oldSentences[3]);
+
+    await replaceTranscript();
+
+    final deleted = await db.bookmarkDao.getDeletedBookmarks(
+      sortMode: RecycleBinSortMode.timeDesc,
+    );
+    expect(deleted.single.bookmark.sentenceText, 'Sentence three');
   });
 
   test('合并句的两条收藏：再次收藏不新增，取消收藏一起取消', () async {
@@ -239,13 +283,31 @@ void main() {
     expect(await db.bookmarkDao.getByAudioId(_audioId), hasLength(1));
   });
 
-  test('字幕变更不改收藏词汇 / 意群；来源句按区间定位到新字幕', () async {
+  test('收藏词汇 / 意群的来源句改写为新字幕中含该词的句子', () async {
+    // 'sentence' 来自 S0：S0 被拆成 "Sentence" + "0"，区间中点落在后半句，
+    // 但应关联含该词的前半句。
+    await db.savedWordDao.saveWord(
+      word: 'sentence',
+      audioItemId: _audioId,
+      sentenceText: 'Sentence 0',
+      sentenceStartMs: 0,
+      sentenceEndMs: 2000,
+    );
+    // 'three' 是词元匹配不到的情形（S3 改字前是 "Sentence 3"）：退回区间中点。
     await db.savedWordDao.saveWord(
       word: 'three',
       audioItemId: _audioId,
       sentenceText: 'Sentence 3',
       sentenceStartMs: 6000,
       sentenceEndMs: 8000,
+    );
+    // 来源句 S4 已删除：保持原样。
+    await db.savedWordDao.saveWord(
+      word: 'four',
+      audioItemId: _audioId,
+      sentenceText: 'Sentence 4',
+      sentenceStartMs: 8000,
+      sentenceEndMs: 10000,
     );
     await db.savedSenseGroupDao.saveSenseGroup(
       phraseText: 'sentence 2',
@@ -254,23 +316,28 @@ void main() {
       sentenceText: 'Sentence 2',
       sentenceStartMs: 4000,
       sentenceEndMs: 6000,
+      groupStartMs: 4000,
+      groupEndMs: 6000,
     );
 
     await replaceTranscript();
 
-    final word = (await db.savedWordDao.getByAudioId(_audioId)).single;
-    expect(word.sentenceText, 'Sentence 3');
-    expect((word.sentenceStartMs, word.sentenceEndMs), (6000, 8000));
+    final words = {
+      for (final w in await db.savedWordDao.getByAudioId(_audioId))
+        w.word: (w.sentenceText, w.sentenceStartMs, w.sentenceEndMs),
+    };
+    expect(words, {
+      'sentence': ('Sentence', 0, 1000),
+      'three': ('Sentence three', 6000, 8000),
+      'four': ('Sentence 4', 8000, 10000),
+    });
     final group = (await db.savedSenseGroupDao.getByAudioId(_audioId)).single;
-    expect(group.sentenceText, 'Sentence 2');
-    // 需要前后句时现算编号：S3 → 3，S2 所在的合并句 → 2。
-    final wordIndex = await container.read(
-      sourceSentenceIndexProvider((
-        audioItemId: _audioId,
-        startMs: word.sentenceStartMs,
-        endMs: word.sentenceEndMs,
-      )).future,
+    expect(
+      (group.sentenceText, group.sentenceStartMs, group.sentenceEndMs),
+      ('Sentence 1 Sentence 2', 2000, 6000),
     );
+    expect((group.groupStartMs, group.groupEndMs), (4000, 6000));
+    // 需要前后句时现算编号，与改写后的来源句一致。
     final groupIndex = await container.read(
       sourceSentenceIndexProvider((
         audioItemId: _audioId,
@@ -278,7 +345,7 @@ void main() {
         endMs: group.sentenceEndMs,
       )).future,
     );
-    expect((wordIndex, groupIndex), (3, 2));
+    expect(groupIndex, 2);
   });
 
   test('学习进度保留阶段与复习时间，断点换算到新字幕', () async {

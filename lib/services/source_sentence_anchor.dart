@@ -1,8 +1,8 @@
 /// 来源句定位：收藏句、收藏词汇 / 意群按音频时间锚定到当前字幕的句子。
 ///
-/// 收藏的就是一段音频区间（收藏时那句话的起止时间），不记句子编号：编号会随
-/// 拆分、合并、插入、删除句子而变化。需要知道「当前是第几句」时，用区间中点
-/// 在当前字幕里现算。
+/// 收藏记录来源句的文字与起止时间，不记句子编号：编号会随拆分、合并、插入、
+/// 删除句子而变化。需要知道「当前是第几句」时，用区间中点在当前字幕里现算。
+/// 字幕替换后由 `TranscriptChangeSync` 按同样规则把收藏改写为当前对应的句子。
 library;
 
 import '../models/sentence.dart';
@@ -71,6 +71,45 @@ int? resolveSourceSentenceIndex(
     }
   }
   return best;
+}
+
+/// 收藏词汇 / 意群的来源句在当前字幕中对应第几句；无法定位返回 null。
+///
+/// 来源句被拆分时，区间中点可能落在不含该词的另一半，所以先在与收藏区间重叠
+/// 的句子里找含 [vocabularyText] 的那句（多句都含取重叠最长的）；都不含（如
+/// 收藏的是词元、正文是变形）时退回 [resolveSourceSentenceIndex]。
+int? resolveVocabularySourceSentenceIndex(
+  SourceSentenceAnchor anchor,
+  List<Sentence> sentences,
+  String vocabularyText,
+) {
+  if (!anchor.hasTimeRange) return null;
+  final start = anchor.start!;
+  final end = anchor.end!;
+  int? best;
+  var bestOverlap = Duration.zero;
+  for (var i = 0; i < sentences.length; i++) {
+    final sentence = sentences[i];
+    final overlap = _overlap(start, end, sentence.startTime, sentence.endTime);
+    if (overlap > bestOverlap &&
+        _containsVocabulary(sentence.text, vocabularyText)) {
+      best = i;
+      bestOverlap = overlap;
+    }
+  }
+  return best ?? resolveSourceSentenceIndex(anchor, sentences);
+}
+
+/// 句子是否含该词 / 意群：不区分大小写，且匹配位置前不是字母或数字（避免
+/// "it" 命中 "exciting"）；不限制词尾，词元也能命中变形（watch → watching）。
+bool _containsVocabulary(String sentenceText, String vocabularyText) {
+  final needle = vocabularyText.trim().toLowerCase();
+  if (needle.isEmpty) return false;
+  final pattern = RegExp(
+    '(?<![\\p{L}\\p{N}])${RegExp.escape(needle)}',
+    unicode: true,
+  );
+  return pattern.hasMatch(sentenceText.toLowerCase());
 }
 
 Duration _overlap(

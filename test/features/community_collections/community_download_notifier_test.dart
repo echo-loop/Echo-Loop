@@ -422,7 +422,12 @@ void main() {
     expect(result, SubtitleUpdateResult.updated);
     final bookmarks = await database.bookmarkDao.getByAudioId('audio-1');
     expect(bookmarks, hasLength(2), reason: '换字幕不清空收藏');
-    expect(bookmarks.first.sentenceText, 'Helo world', reason: '收藏文字不随字幕改');
+    expect(
+      bookmarks.first.sentenceText,
+      'Hello world',
+      reason: '收藏文字改写为新字幕中对应的句子',
+    );
+    expect(bookmarks.last.sentenceText, 'Bye', reason: '来源句已删除时保持原样');
     expect(await database.bookmarkDao.getBookmarkedIndices('audio-1'), {0});
     final progress = await database.learningProgressDao.getByAudioId('audio-1');
     expect(progress, isNotNull, reason: '换字幕不清空学习进度');
