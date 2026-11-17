@@ -1,3 +1,5 @@
+import 'package:just_waveform/just_waveform.dart';
+
 import 'package:echo_loop/features/media_trim/media_trim_clip.dart';
 import 'package:echo_loop/features/media_trim/widgets/media_trim_timeline.dart';
 import 'package:echo_loop/l10n/app_localizations.dart';
@@ -33,6 +35,7 @@ void main() {
     WidgetTester tester, {
     Duration position = Duration.zero,
     double viewWidth = width,
+    Waveform? waveform,
   }) async {
     drags = [];
     seeks = [];
@@ -51,7 +54,7 @@ void main() {
             child: SizedBox(
               width: viewWidth,
               child: MediaTrimTimeline(
-                waveform: null,
+                waveform: waveform,
                 waveformProgress: 0.5,
                 isWaveformFailed: false,
                 onRetryWaveform: () {},
@@ -79,6 +82,24 @@ void main() {
   }
 
   double xAt(Rect rect, double seconds) => rect.left + 14 + 60 * seconds;
+
+  testWidgets('剪辑波形平移后同一内容位置保持相同采样分组', (tester) async {
+    final rect = await pumpTimeline(tester, waveform: _testWaveform());
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('trim-zoom-in')));
+    await tester.pumpAndSettle();
+
+    final beforeRange = _timelinePainter(tester).sampleRangeAtContentX(450.0);
+    await tester.timedDragFrom(
+      Offset(rect.left + 500, rect.center.dy),
+      const Offset(-30, 0),
+      const Duration(seconds: 1),
+    );
+    await tester.pumpAndSettle();
+    final afterRange = _timelinePainter(tester).sampleRangeAtContentX(450.0);
+
+    expect(afterRange, beforeRange);
+  });
 
   testWidgets('从把手按下拖动：调整对应一端，而不是平移', (tester) async {
     final rect = await pumpTimeline(tester);
@@ -303,4 +324,31 @@ void main() {
     final after = await timeAtLeft();
     expect(after.inMilliseconds, closeTo(before.inMilliseconds, 15));
   });
+}
+
+Waveform _testWaveform() {
+  return Waveform(
+    version: 1,
+    flags: 1,
+    sampleRate: 80,
+    samplesPerPixel: 1,
+    length: 800,
+    data: List<int>.generate(1600, (index) {
+      final peak = index ~/ 2 % 17 == 0 ? 16000 : 4000;
+      return index.isEven ? -peak : peak;
+    }),
+  );
+}
+
+dynamic _timelinePainter(WidgetTester tester) {
+  for (final customPaint in tester.widgetList<CustomPaint>(
+    find.byType(CustomPaint),
+  )) {
+    final painter = customPaint.painter;
+    if (painter != null &&
+        painter.runtimeType.toString() == '_TimelinePainter') {
+      return painter;
+    }
+  }
+  fail('找不到剪辑时间轴波形 painter');
 }

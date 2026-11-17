@@ -40,11 +40,14 @@ class _TimelineMetrics {
 
   double screenX(Duration time, double offset) => contentX(time) - offset;
 
-  Duration timeAt(double screenX, double offset) {
+  Duration timeAtContentX(double contentX) {
     if (usable <= 0) return Duration.zero;
-    final fraction = ((screenX + offset - padding) / usable).clamp(0.0, 1.0);
+    final fraction = ((contentX - padding) / usable).clamp(0.0, 1.0);
     return Duration(microseconds: (total.inMicroseconds * fraction).round());
   }
+
+  Duration timeAt(double screenX, double offset) =>
+      timeAtContentX(screenX + offset);
 
   double clampOffset(double offset) => offset.clamp(0.0, maxOffset);
 }
@@ -741,6 +744,7 @@ class _TimelinePainter extends CustomPainter {
 
   static const double labelLane = 20;
   static const double axisLane = 18;
+  static const double _barStep = 3;
 
   /// 把手宽度；把手画在片段外侧。
   static const double handleWidth = 12;
@@ -758,6 +762,26 @@ class _TimelinePainter extends CustomPainter {
   final Duration? snapTime;
   final ColorScheme scheme;
   final TextScaler textScaler;
+
+  /// 将固定内容坐标上的一个波形柱区间映射到采样下标。
+  ({int from, int to}) sampleRangeAtContentX(double contentX) {
+    final data = waveform;
+    final values = samples;
+    if (data == null || values == null || values.length == 0) {
+      return (from: 0, to: 0);
+    }
+    final from = data
+        .positionToPixel(metrics.timeAtContentX(contentX))
+        .floor()
+        .clamp(0, values.length - 1)
+        .toInt();
+    final to = data
+        .positionToPixel(metrics.timeAtContentX(contentX + _barStep))
+        .ceil()
+        .clamp(from + 1, values.length)
+        .toInt();
+    return (from: from, to: to);
+  }
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -834,28 +858,31 @@ class _TimelinePainter extends CustomPainter {
       ..color = index == selectedIndex
           ? _colorAt(index).base
           : _colorAt(index).base.withValues(alpha: 0.6)
-      ..strokeWidth = 2
+      ..strokeWidth = 1.5
       ..strokeCap = StrokeCap.round;
     final clipPaints = [for (var i = 0; i < clips.length; i++) clipPaint(i)];
     // 3px 一根圆头竖条：比连续填充更轻、更易分辨音量起伏。
-    const step = 3.0;
-    final startX = math.max(0.0, metrics.screenX(Duration.zero, offset));
-    final endX = math.min(size.width, metrics.screenX(metrics.total, offset));
-    for (var x = startX; x < endX; x += step) {
-      final from = data.positionToPixel(metrics.timeAt(x, offset)).floor();
-      final to = math.max(
-        from + 1,
-        data.positionToPixel(metrics.timeAt(x + step, offset)).ceil(),
-      );
+    final firstContentX = math.max(offset, metrics.contentX(Duration.zero));
+    final lastContentX = math.min(
+      offset + size.width,
+      metrics.contentX(metrics.total),
+    );
+    final startK = (firstContentX / _barStep).floor();
+    for (var k = startK; ; k++) {
+      final contentX = k * _barStep;
+      if (contentX > lastContentX) break;
+      if (contentX < firstContentX) continue;
+      final x = contentX - offset;
+      final range = sampleRangeAtContentX(contentX);
       var low = 0;
       var high = 0;
-      for (var i = math.max(0, from); i < to && i < values.length; i++) {
+      for (var i = range.from; i < range.to && i < values.length; i++) {
         final min = values.minAt(i);
         final max = values.maxAt(i);
         if (min < low) low = min;
         if (max > high) high = max;
       }
-      final time = metrics.timeAt(x, offset);
+      final time = metrics.timeAtContentX(contentX);
       var clipIndex = -1;
       for (var i = 0; i < clips.length; i++) {
         if (!clips[i].containsTime(time)) continue;
