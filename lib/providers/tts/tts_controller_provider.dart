@@ -779,6 +779,9 @@ class TtsController extends Notifier<TtsControllerState> {
     );
   }
 
+  /// 当前文本预热批次；每次 [cancelTextsPrewarm] 后变化，供异步前置步骤（如 CDN 查询）判断是否已被取消。
+  int get textsPrewarmBatch => _textsPrewarmToken;
+
   /// 取消在途批量文本预热（页面离开时调用），使预热循环下轮即停。
   ///
   /// 同时清空增量预热去重集合，使切词/关闭后新一轮从头预热。
