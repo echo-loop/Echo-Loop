@@ -168,7 +168,10 @@ class _SubtitleSimpleEditorScreenState
   void _syncVideo(SubtitleEditorState state) {
     if (!_isVideoVisible) return;
     _videoPreview?.follow(
-      isPlaying: state.isPlaying,
+      // 试听单词时播放头不动，画面也停在播放头所在帧。
+      isPlaying:
+          state.isPlaying &&
+          state.playbackMode != SubtitleEditorPlaybackMode.wordAudition,
       position: state.playbackPosition,
       speed: state.playbackSpeed,
     );
@@ -501,12 +504,16 @@ class _SubtitleSimpleEditorScreenState
                   followsPlayhead:
                       state.playbackMode == SubtitleEditorPlaybackMode.sentence,
                   wordBoundaries: controller.wordBoundariesForWaveform,
-                  onWordTap: (index) => unawaited(controller.playWord(index)),
+                  // 波形上点词只试听，播放头不动；字幕列表点词才移动播放头帮助定位。
+                  onWordTap: (index) => unawaited(
+                    controller.playWord(index, movesPlayhead: false),
+                  ),
                   highlightedWord: switch (controller.highlightedWordIndex) {
                     final index? => controller.wordsOfSelectedSentence[index],
                     null => null,
                   },
                   onAdjustWord: controller.adjustWord,
+                  onMoveWord: controller.moveWord,
                   zoomScale: state.waveformZoomScale,
                   onZoomChanged: controller.setWaveformZoomScale,
                   onScrub: controller.scrubTo,
@@ -561,12 +568,7 @@ class _SubtitleSimpleEditorScreenState
           AppLogger.log('SubtitleEditor', '放弃新句');
           setState(() => _draftSlot = null);
         },
-        onDelete: (index) => _deleteSentence(
-          context,
-          controller,
-          AppLocalizations.of(context)!,
-          index,
-        ),
+        onDelete: (index) => controller.deleteSentence(index),
         firstPlayGuideStep: sentencePlayStep,
         firstMenuGuideStep: sentenceMenuStep,
       ),
@@ -675,32 +677,6 @@ class _SubtitleSimpleEditorScreenState
       ScaffoldMessenger.of(context)
           .showSnackBar(SnackBar(content: Text(l10n.subtitleEditsSaved)));
     }
-  }
-
-  /// 删除句子，并在提示条上给出撤销入口。
-  ///
-  /// 提示条的「撤销」与标题栏撤销走同一份历史；删除后若又做了别的编辑，
-  /// 提示条的撤销不再生效，避免撤掉的不是这次删除。
-  void _deleteSentence(
-    BuildContext context,
-    SubtitleEditorController controller,
-    AppLocalizations l10n,
-    int index,
-  ) {
-    controller.deleteSentence(index);
-    final revision = controller.editRevision;
-    final messenger = ScaffoldMessenger.of(context)..clearSnackBars();
-    messenger.showSnackBar(
-      SnackBar(
-        content: Text(l10n.sentenceDeleted),
-        action: SnackBarAction(
-          label: l10n.undo,
-          onPressed: () {
-            if (controller.editRevision == revision) _undo();
-          },
-        ),
-      ),
-    );
   }
 
   Future<bool?> _confirmDiscard(BuildContext context, AppLocalizations l10n) {

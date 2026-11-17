@@ -560,6 +560,40 @@ void main() {
       expect(state().focusedWordIndex, 1);
     });
 
+    test('只试听单词（波形点词）：播放该词，播放头始终停在原处', () async {
+      final notifier = controller();
+      await notifier.load();
+      final words = notifier.wordsOfSelectedSentence;
+      notifier.scrubTo(const Duration(milliseconds: 300));
+      final before = state().playbackPosition;
+
+      final playback = notifier.playWord(1, movesPlayhead: false);
+      await Future<void>.delayed(Duration.zero);
+      expect(state().playbackMode, SubtitleEditorPlaybackMode.wordAudition);
+      expect(state().isPlaying, isTrue);
+      expect(state().focusedWordIndex, 1);
+      expect(audioEngine.lastPlayStart, words[1].startTime);
+      expect(state().playbackPosition, before);
+
+      // 播放中的位置流与计时器都不移动播放头。
+      audioEngine.emitPosition(
+        words[1].startTime + const Duration(milliseconds: 50),
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 120));
+      expect(state().playbackPosition, before);
+
+      final stopsBefore = audioEngine.stopPlaybackCallCount;
+      audioEngine.completePlayback();
+      await playback;
+      expect(state().isPlaying, isFalse);
+      expect(state().playbackPosition, before);
+      expect(
+        audioEngine.stopPlaybackCallCount,
+        stopsBefore + 1,
+        reason: '播完必须停止底层播放器，否则清除片段后会从头继续播放',
+      );
+    });
+
     test('句子播放中点词改播该词，清空 playingSentenceIndex（句子行恢复播放按钮）', () async {
       final notifier = controller();
       await notifier.load();
@@ -629,6 +663,115 @@ void main() {
       final words = notifier.wordsOfSelectedSentence;
       expect(words[1].startTime, const Duration(seconds: 4));
       expect(state().isDirty, isTrue);
+    });
+
+    group('moveWord 整体平移单词', () {
+      List<(Duration, Duration)> spans(List<WordTimestamp> words) => [
+        for (final w in words) (w.startTime, w.endTime),
+      ];
+
+      Future<SubtitleEditorController> load() async {
+        sentences
+          ..clear()
+          ..addAll([
+            Sentence(
+              index: 0,
+              text: 'one two three',
+              startTime: const Duration(seconds: 1),
+              endTime: const Duration(seconds: 9),
+            ),
+            Sentence(
+              index: 1,
+              text: 'next',
+              startTime: const Duration(seconds: 12),
+              endTime: const Duration(seconds: 14),
+            ),
+          ]);
+        final notifier = controller();
+        await notifier.load();
+        return notifier;
+      }
+
+      test('相接的相邻词共享边界随之移动，不短于最小词长；多帧拖动只算一步撤销', () async {
+        final notifier = await load();
+        final before = notifier.wordsOfSelectedSentence;
+        final length = before[1].endTime - before[1].startTime;
+
+        notifier.moveWord(
+          1,
+          before[1].startTime + const Duration(milliseconds: 100),
+        );
+        notifier.moveWord(1, const Duration(seconds: 99));
+        notifier.endWordAdjust();
+        final after = notifier.wordsOfSelectedSentence;
+        expect(after[1].endTime - after[1].startTime, length, reason: '词长不变');
+        expect(
+          after[2].endTime - after[2].startTime,
+          SubtitleEditorController.kMinWordDuration,
+          reason: '后一个词被压到最小词长为止',
+        );
+        expect(after[0].endTime, after[1].startTime, reason: '前一个词跟着变长');
+        expect(after[0].startTime, before[0].startTime);
+        expect(after[2].endTime, before[2].endTime);
+        expect(state().sentences[0].startTime, const Duration(seconds: 1));
+        expect(state().isDirty, isTrue);
+
+        notifier.undo();
+        expect(spans(notifier.wordsOfSelectedSentence), spans(before));
+        expect(state().canUndo, isFalse);
+      });
+
+      test('与相邻词有间隙时整体平移，不越过相邻词', () async {
+        final notifier = await load();
+        // 先把 two 的两端各收进 0.5s，留出间隙。
+        final two = notifier.wordsOfSelectedSentence[1];
+        notifier.adjustWord(
+          1,
+          BoundaryEdge.start,
+          two.startTime + const Duration(milliseconds: 500),
+        );
+        notifier.adjustWord(
+          1,
+          BoundaryEdge.end,
+          two.endTime - const Duration(milliseconds: 500),
+        );
+        notifier.endWordAdjust();
+        final before = notifier.wordsOfSelectedSentence;
+
+        notifier.moveWord(1, Duration.zero);
+        final after = notifier.wordsOfSelectedSentence;
+        expect(after[1].startTime, before[0].endTime, reason: '贴住前一个词为止');
+        expect(
+          after[1].endTime - after[1].startTime,
+          before[1].endTime - before[1].startTime,
+        );
+        expect(spans(after)..removeAt(1), spans(before)..removeAt(1));
+      });
+
+      test('句首词左移带动句子起点，不越过前一句（无前句则 0）', () async {
+        final notifier = await load();
+        final first = notifier.wordsOfSelectedSentence.first;
+        final length = first.endTime - first.startTime;
+
+        notifier.moveWord(0, const Duration(milliseconds: -500));
+        expect(state().sentences[0].startTime, Duration.zero);
+        expect(state().words[0].startTime, Duration.zero);
+        expect(state().words[0].endTime, length);
+      });
+
+      test('句末词右移带动句子终点，不越过后一句起点', () async {
+        final notifier = await load();
+        final last = notifier.wordsOfSelectedSentence.last;
+        final length = last.endTime - last.startTime;
+
+        notifier.moveWord(2, const Duration(seconds: 20));
+        expect(state().sentences[0].endTime, const Duration(seconds: 12));
+        expect(state().words[2].endTime, const Duration(seconds: 12));
+        expect(
+          state().words[2].startTime,
+          const Duration(seconds: 12) - length,
+        );
+      });
     });
 
     test('adjustWord 越界被钳制（不跨相邻词、不小于最小词长）', () async {

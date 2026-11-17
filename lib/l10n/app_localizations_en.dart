@@ -4253,9 +4253,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get deleteSentence => 'Delete sentence';
 
   @override
-  String get sentenceDeleted => 'Sentence deleted';
-
-  @override
   String get playSentence => 'Play sentence';
 
   @override

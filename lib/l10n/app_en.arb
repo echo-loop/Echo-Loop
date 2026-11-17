@@ -2042,7 +2042,6 @@
   "editSubtitles": "Edit subtitles",
   "mergeWithNextSentence": "Merge with next",
   "deleteSentence": "Delete sentence",
-  "sentenceDeleted": "Sentence deleted",
   "playSentence": "Play sentence",
   "stopPlayback": "Stop playback",
   "editWord": "Edit word",

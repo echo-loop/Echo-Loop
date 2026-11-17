@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/gestures.dart';
@@ -139,6 +140,9 @@ class SubtitleWaveformView extends StatefulWidget {
     Duration target,
   ) {}
 
+  /// [onMoveWord] 默认空实现（未接入整词拖动时）。
+  static void _ignoreWordMove(int index, Duration targetStart) {}
+
   /// [onAdjustEnd] 默认空实现。
   static void _ignoreAdjustEnd() {}
 
@@ -186,6 +190,11 @@ class SubtitleWaveformView extends StatefulWidget {
   final void Function(int wordIndex, BoundaryEdge edge, Duration target)
   onAdjustWord;
 
+  /// 整体拖动单词时回调（全局词下标 + 目标起点），词长不变。
+  ///
+  /// 鼠标按住词区间（非边界）拖动、触摸长按词区间后拖动触发；松手走 [onAdjustEnd]。
+  final void Function(int wordIndex, Duration targetStart) onMoveWord;
+
   /// 双指捏合缩放时回调，传入新的缩放倍数（越界由上层钳制）。
   final ValueChanged<double> onZoomChanged;
 
@@ -193,7 +202,7 @@ class SubtitleWaveformView extends StatefulWidget {
   final ValueChanged<Duration> onScrub;
   final ValueChanged<Duration> onScrubEnd;
 
-  /// 边界拖动结束时回调。
+  /// 边界 / 整词拖动结束时回调。
   final VoidCallback onAdjustEnd;
 
   /// 与播放头对应的单词（选中句内）；非 null 时在波形上淡色标出它的区间，
@@ -228,6 +237,7 @@ class SubtitleWaveformView extends StatefulWidget {
     required this.zoomScale,
     this.wordBoundaries = const [],
     this.onAdjustWord = _ignoreWordAdjust,
+    this.onMoveWord = _ignoreWordMove,
     required this.onZoomChanged,
     required this.onScrub,
     required this.onScrubEnd,
@@ -266,7 +276,7 @@ class _SubtitleWaveformViewState extends State<SubtitleWaveformView> {
   double _renderOffset = 0;
 
   /// 鼠标光标：悬停在某条边界（竖线/把手）上时显示「可左右移动」（↔），
-  /// 其余波形区域为默认箭头，让用户一眼区分「能抓边界」与「普通区域」。
+  /// 词区间内显示「可抓取」（手形），其余波形区域为默认箭头。
   MouseCursor _hoverCursor = SystemMouseCursors.basic;
 
   // ── 手势状态 ──
@@ -284,6 +294,20 @@ class _SubtitleWaveformViewState extends State<SubtitleWaveformView> {
   double _panLastX = 0;
   double _panDownX = 0;
   double _panTotalAbs = 0;
+
+  /// 正在整体拖动的词：全局词下标 + 按下点相对词起点的时间偏移（拖动中保持
+  /// 指针相对词的位置不变）。null 表示未在拖词。
+  _WordGrab? _movingWord;
+
+  /// 按在词区间上、尚未开始拖动的词：鼠标移动超过 [_mouseGrabSlop] 或触摸长按
+  /// 后开始整体拖动；鼠标未移动即松手仍按轻点定位播放头处理。
+  _WordGrab? _pendingWordGrab;
+
+  /// 触摸长按抓词的计时器；移动超过 [SubtitleWaveformView.tapSlop] 视为平移并取消。
+  Timer? _wordLongPressTimer;
+
+  /// 鼠标按住词区间后开始拖词的位移阈值，过滤点击时的手抖。
+  static const double _mouseGrabSlop = 3;
 
   bool get _isAdjustingBoundary =>
       _draggingBoundary != null || _pendingBoundaries != null;
@@ -326,6 +350,12 @@ class _SubtitleWaveformViewState extends State<SubtitleWaveformView> {
       _samples = WaveformSamples(waveform);
     }
     return _samples!;
+  }
+
+  @override
+  void dispose() {
+    _wordLongPressTimer?.cancel();
+    super.dispose();
   }
 
   @override
@@ -650,6 +680,18 @@ class _SubtitleWaveformViewState extends State<SubtitleWaveformView> {
       }
       return;
     }
+    // 词区间（非边界）：鼠标按住即可拖词，触摸需长按；在开始拖词之前仍按
+    // 平移 / 轻点处理。
+    final grab = _wordGrabAt(localPosition, metrics, _renderOffset);
+    if (grab != null) {
+      _pendingWordGrab = grab;
+      if (event.kind != PointerDeviceKind.mouse) {
+        _wordLongPressTimer = Timer(kLongPressTimeout, () {
+          HapticFeedback.selectionClick();
+          _beginWordMove();
+        });
+      }
+    }
     // 空白处：进入「平移/轻点」待定（移动超过阈值=平移，否则=轻点定位）。
     _panActive = true;
     _panDownX = localX;
@@ -684,6 +726,21 @@ class _SubtitleWaveformViewState extends State<SubtitleWaveformView> {
       _updateBoundaryDrag(localX, metrics, _renderOffset);
       return;
     }
+    if (_movingWord != null) {
+      _updateWordMove(localX, metrics);
+      return;
+    }
+    if (_pendingWordGrab != null) {
+      final moved = (localX - _panDownX).abs();
+      if (event.kind == PointerDeviceKind.mouse) {
+        if (moved <= _mouseGrabSlop) return;
+        _beginWordMove();
+        _updateWordMove(localX, metrics);
+        return;
+      }
+      // 触摸：长按前移动超过阈值视为平移波形。
+      if (moved > SubtitleWaveformView.tapSlop) _cancelWordGrab();
+    }
     final pending = _pendingBoundaries;
     if (pending != null) {
       final dir = localX - (_pendingLocalX ?? 0);
@@ -717,6 +774,15 @@ class _SubtitleWaveformViewState extends State<SubtitleWaveformView> {
     }
     final tappedWord = _downWordIndex;
     _downWordIndex = null;
+    _cancelWordGrab();
+    if (_movingWord != null) {
+      setState(() {
+        _movingWord = null;
+        _hoverCursor = SystemMouseCursors.grab;
+      });
+      widget.onAdjustEnd();
+      return;
+    }
     if (_pendingPlayheadGrabX != null) {
       // 按在手柄上但没拖动：手柄下面是单词块，按点词处理。
       _pendingPlayheadGrabX = null;
@@ -837,6 +903,11 @@ class _SubtitleWaveformViewState extends State<SubtitleWaveformView> {
   void _cancelSinglePointerActions() {
     _panActive = false;
     _downWordIndex = null;
+    _cancelWordGrab();
+    if (_movingWord != null) {
+      setState(() => _movingWord = null);
+      widget.onAdjustEnd();
+    }
     _pendingPlayheadGrabX = null;
     if (_isScrubbingPlayhead) setState(() => _isScrubbingPlayhead = false);
     if (_isAdjustingBoundary) {
@@ -883,8 +954,8 @@ class _SubtitleWaveformViewState extends State<SubtitleWaveformView> {
     return b == null || !b.primary;
   }
 
-  /// 鼠标悬停时更新光标：在边界命中区内显示「可左右移动」（↔），否则默认箭头。
-  /// 单词块上显示「可点击」（手形）。
+  /// 鼠标悬停时更新光标：在边界命中区内显示「可左右移动」（↔），词区间内显示
+  /// 「可抓取」，顶部单词块上显示「可点击」，否则默认箭头。
   void _updateHoverCursor(Offset localPosition, WaveformMetrics metrics) {
     final hits = _hitTestBoundaries(localPosition, metrics, _renderOffset);
     final next =
@@ -896,6 +967,8 @@ class _SubtitleWaveformViewState extends State<SubtitleWaveformView> {
               hits,
             )
         ? SystemMouseCursors.resizeLeftRight
+        : _wordGrabAt(localPosition, metrics, _renderOffset) != null
+        ? SystemMouseCursors.grab
         : widget.onWordTap != null &&
               _wordIndexAt(localPosition, metrics, _renderOffset) != null
         ? SystemMouseCursors.click
@@ -953,6 +1026,64 @@ class _SubtitleWaveformViewState extends State<SubtitleWaveformView> {
       local++;
     }
     return null;
+  }
+
+  /// 按下处落在哪个可拖动词的区间内（竖线区，边界命中优先、已在调用前排除）。
+  ///
+  /// 当前句与相邻句的词都可整体拖动；`globalIndex < 0` 的词只绘制、不可拖。
+  _WordGrab? _wordGrabAt(
+    Offset position,
+    WaveformMetrics metrics,
+    double offset,
+  ) {
+    final height = context.size?.height;
+    if (height == null ||
+        position.dy < _WaveformLayerPainter.labelLaneHeight ||
+        position.dy >
+            height -
+                SubtitleWaveformView.axisHeight -
+                SubtitleWaveformView.boundaryHandleAxisGap) {
+      return null;
+    }
+    for (final b in widget.wordBoundaries) {
+      if (b.globalIndex < 0) continue;
+      final startX = metrics.screenX(b.word.startTime, offset);
+      final endX = metrics.screenX(b.word.endTime, offset);
+      if (position.dx < startX || position.dx > endX) continue;
+      return (
+        globalIndex: b.globalIndex,
+        grabOffset: metrics.timeAt(position.dx, offset) - b.word.startTime,
+      );
+    }
+    return null;
+  }
+
+  /// 开始整体拖词：停止平移 / 轻点判定，光标切为「抓取中」。
+  void _beginWordMove() {
+    _wordLongPressTimer?.cancel();
+    _wordLongPressTimer = null;
+    final grab = _pendingWordGrab;
+    if (grab == null) return;
+    _pendingWordGrab = null;
+    _panActive = false;
+    _downWordIndex = null;
+    setState(() {
+      _movingWord = grab;
+      _hoverCursor = SystemMouseCursors.grabbing;
+    });
+  }
+
+  void _cancelWordGrab() {
+    _wordLongPressTimer?.cancel();
+    _wordLongPressTimer = null;
+    _pendingWordGrab = null;
+  }
+
+  void _updateWordMove(double localX, WaveformMetrics metrics) {
+    final grab = _movingWord;
+    if (grab == null) return;
+    final target = metrics.timeAt(localX, _renderOffset) - grab.grabOffset;
+    widget.onMoveWord(grab.globalIndex, target);
   }
 
   Duration _scrubTimeAt(double localX, WaveformMetrics metrics) =>
@@ -1020,6 +1151,9 @@ class _SubtitleWaveformViewState extends State<SubtitleWaveformView> {
     widget.onAdjustWord(boundary.globalIndex, boundary.edge, target);
   }
 }
+
+/// 被抓住的词：全局词下标 + 按下点相对词起点的时间偏移。
+typedef _WordGrab = ({int globalIndex, Duration grabOffset});
 
 /// 聚合后待绘制的边界标记。
 typedef _BoundaryMarker = ({

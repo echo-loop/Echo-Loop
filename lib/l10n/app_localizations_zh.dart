@@ -4033,9 +4033,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get deleteSentence => '删除句子';
 
   @override
-  String get sentenceDeleted => '已删除句子';
-
-  @override
   String get playSentence => '播放句子';
 
   @override

@@ -326,6 +326,137 @@ void main() {
       });
     });
 
+    group('整词拖动', () {
+      // 未缩放：x = 16 + t/10s * 768。词 aa [4,6]（x 323.2~476.8），线身 y=50。
+      const bodyY = 50.0;
+      const aaMidX = 16 + 768 * .5; // 5s
+
+      late List<Duration> scrubEnds;
+      late List<(int, Duration)> moves;
+      late List<(int, BoundaryEdge, Duration)> adjusts;
+      late int adjustEnds;
+
+      Future<Rect> pumpView(WidgetTester tester) async {
+        await tester.binding.setSurfaceSize(const Size(800, 240));
+        addTearDown(() => tester.binding.setSurfaceSize(null));
+        scrubEnds = [];
+        moves = [];
+        adjusts = [];
+        adjustEnds = 0;
+        final sentences = _sentences();
+        await tester.pumpWidget(
+          createTestApp(
+            SubtitleWaveformView(
+              waveform: _waveform(),
+              extractionProgress: 1,
+              duration: const Duration(seconds: 10),
+              sentences: sentences,
+              activeSentence: sentences[1],
+              selectionEpoch: 0,
+              playbackPosition: Duration.zero,
+              isPlaying: false,
+              zoomScale: 1,
+              wordBoundaries: _activeWords,
+              onAdjustWord: (i, edge, target) => adjusts.add((i, edge, target)),
+              onMoveWord: (i, target) => moves.add((i, target)),
+              onAdjustEnd: () => adjustEnds++,
+              onZoomChanged: (_) {},
+              onScrub: (_) {},
+              onScrubEnd: scrubEnds.add,
+            ),
+          ),
+        );
+        return tester.getRect(find.byType(SubtitleWaveformView));
+      }
+
+      MouseCursor cursorOf(WidgetTester tester) => tester
+          .widget<MouseRegion>(
+            find
+                .descendant(
+                  of: find.byType(SubtitleWaveformView),
+                  matching: find.byType(MouseRegion),
+                )
+                .first,
+          )
+          .cursor;
+
+      testWidgets('鼠标悬停在词区间显示抓取手形，边界上仍是左右箭头', (tester) async {
+        final rect = await pumpView(tester);
+        final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+        addTearDown(mouse.removePointer);
+        await mouse.addPointer(location: rect.topLeft + const Offset(700, 50));
+        await mouse.moveTo(rect.topLeft + const Offset(aaMidX, bodyY));
+        await tester.pump();
+        expect(cursorOf(tester), SystemMouseCursors.grab);
+
+        await mouse.moveTo(rect.topLeft + const Offset(16 + 768 * .6, bodyY));
+        await tester.pump();
+        expect(cursorOf(tester), SystemMouseCursors.resizeLeftRight);
+      });
+
+      testWidgets('鼠标按住词区间拖动：整体移动该词，不定位播放头', (tester) async {
+        final rect = await pumpView(tester);
+        final mouse = await tester.startGesture(
+          rect.topLeft + const Offset(aaMidX, bodyY),
+          kind: PointerDeviceKind.mouse,
+        );
+        await tester.pump();
+        // 向左 76.8px = 1s：词起点 4s → 3s。
+        await mouse.moveBy(const Offset(-38.4, 0));
+        await tester.pump();
+        expect(cursorOf(tester), SystemMouseCursors.grabbing);
+        await mouse.moveBy(const Offset(-38.4, 0));
+        await tester.pump();
+        await mouse.up();
+        await tester.pump();
+
+        expect(adjusts, isEmpty);
+        expect(scrubEnds, isEmpty);
+        expect(moves.last.$1, 2);
+        expect(moves.last.$2.inMilliseconds, closeTo(3000, 20));
+        expect(adjustEnds, 1);
+      });
+
+      testWidgets('鼠标在词区间轻点（不移动）仍定位播放头', (tester) async {
+        final rect = await pumpView(tester);
+        await tester.tapAt(
+          rect.topLeft + const Offset(aaMidX, bodyY),
+          kind: PointerDeviceKind.mouse,
+        );
+        await tester.pump();
+
+        expect(moves, isEmpty);
+        expect(scrubEnds.single.inMilliseconds, closeTo(5000, 20));
+      });
+
+      testWidgets('触摸直接拖动词区间不移动词；长按后拖动才整体移动', (tester) async {
+        final rect = await pumpView(tester);
+        final swipe = await tester.startGesture(
+          rect.topLeft + const Offset(aaMidX, bodyY),
+        );
+        await tester.pump();
+        await swipe.moveBy(const Offset(-40, 0));
+        await tester.pump(kLongPressTimeout);
+        await swipe.up();
+        await tester.pump();
+        expect(moves, isEmpty, reason: '未长按的拖动是平移波形');
+
+        final hold = await tester.startGesture(
+          rect.topLeft + const Offset(aaMidX, bodyY),
+        );
+        await tester.pump(kLongPressTimeout + const Duration(milliseconds: 50));
+        await hold.moveBy(const Offset(76.8, 0));
+        await tester.pump();
+        await hold.up();
+        await tester.pump();
+
+        expect(moves.last.$1, 2);
+        expect(moves.last.$2.inMilliseconds, closeTo(5000, 20));
+        expect(scrubEnds, isEmpty);
+        expect(adjustEnds, 1);
+      });
+    });
+
     testWidgets('试听单词（不跟随）时视图不滚动，播放头出视口才居中', (tester) async {
       await tester.binding.setSurfaceSize(const Size(800, 240));
       addTearDown(() => tester.binding.setSurfaceSize(null));

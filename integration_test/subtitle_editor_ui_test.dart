@@ -571,18 +571,28 @@ void main() {
       final words = controller.wordsOfSelectedSentence;
       expect(words.length, greaterThan(2));
 
-      // 轻点第三个词的单词块：试听该词，视图不滚动。
+      // 轻点第三个词的单词块：只试听该词，播放头停在原处，视图不滚动。
       final offsetBefore = viewOffset();
       final word = words[2];
       final wordCenterX =
           (screenXOf(word.startTime) + screenXOf(word.endTime)) / 2;
+      final modes = <SubtitleEditorPlaybackMode>[];
+      final modeListener = controller.addListener(
+        (state) => modes.add(state.playbackMode),
+        fireImmediately: false,
+      );
       await tester.tapAt(Offset(wordCenterX, laneY));
       await settle(const Duration(milliseconds: 150));
-      expect(editorState().playbackMode, SubtitleEditorPlaybackMode.word);
+      // 短词可能在 150ms 内播完，按记录到的模式变化判断，不依赖时机。
+      expect(modes, contains(SubtitleEditorPlaybackMode.wordAudition));
+      expect(modes, isNot(contains(SubtitleEditorPlaybackMode.word)));
       expect(editorState().focusedWordIndex, 2);
+      expect(editorState().playbackPosition, sentenceStart);
       await capture('w03-$tag-word-playing');
       await settle(const Duration(milliseconds: 1200));
       expect(editorState().isPlaying, isFalse);
+      expect(editorState().playbackPosition, sentenceStart, reason: '播放头不动');
+      modeListener();
       expect(viewOffset(), moreOrLessEquals(offsetBefore, epsilon: .5));
 
       // 重新选句，让播放头回到句首（与句首边界重合）。

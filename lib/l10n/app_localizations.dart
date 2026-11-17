@@ -7502,12 +7502,6 @@ abstract class AppLocalizations {
   /// **'Delete sentence'**
   String get deleteSentence;
 
-  /// No description provided for @sentenceDeleted.
-  ///
-  /// In en, this message translates to:
-  /// **'Sentence deleted'**
-  String get sentenceDeleted;
-
   /// No description provided for @playSentence.
   ///
   /// In en, this message translates to:

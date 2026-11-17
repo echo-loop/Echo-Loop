@@ -25,7 +25,11 @@ import '../../utils/srt_generator.dart';
 import '../../utils/synthetic_word_timestamps.dart';
 import 'subtitle_edit_engine.dart';
 
-enum SubtitleEditorPlaybackMode { idle, sentence, range, word }
+/// 编辑器播放模式。
+///
+/// [word] 播放单词且播放头随之移动（字幕列表点词，帮助定位）；[wordAudition]
+/// 只试听单词、播放头停在原处（波形上点词，避免播放头跳动干扰编辑）。
+enum SubtitleEditorPlaybackMode { idle, sentence, range, word, wordAudition }
 
 final subtitleEditorControllerProvider = StateNotifierProvider.autoDispose
     .family<SubtitleEditorController, SubtitleEditorState, AudioItem>((
@@ -238,14 +242,9 @@ class SubtitleEditorController extends StateNotifier<SubtitleEditorState> {
   /// 撤销栈上限，防止长时间编辑无限占用内存。
   static const int _maxHistoryLength = 200;
 
-  /// 一次边界拖动是否已记录撤销点：拖动中每帧都会调用 [adjustWord]，
-  /// 只在第一帧记录，整次拖动撤销一步。
+  /// 一次边界 / 整词拖动是否已记录撤销点：拖动中每帧都会调用 [adjustWord] /
+  /// [moveWord]，只在第一帧记录，整次拖动撤销一步。
   bool _hasRecordedAdjust = false;
-
-  /// 每次撤销记录变化（新编辑、撤销、重做）都递增；调用方据此判断某个撤销入口
-  /// （如删除提示条）是否还对应最新一步。
-  int _editRevision = 0;
-  int get editRevision => _editRevision;
 
   /// 进入编辑页或上次保存时的句子；保存时据此把学习断点换算到新字幕。
   List<Sentence> _baselineSentences = const [];
@@ -409,13 +408,82 @@ class SubtitleEditorController extends StateNotifier<SubtitleEditorState> {
     final nextSentences = isSentenceEdge
         ? _withSentenceEdge(sentenceIndex, edge, clamped)
         : state.sentences;
+    _commitWordDrag(words, nextSentences);
+  }
 
+  /// 整体平移第 [globalIndex] 个词，使其起点到 [targetStart]，词长不变（波形上
+  /// 按住词区间拖动时实时调用）。
+  ///
+  /// 与相邻词首尾相接（导入字幕按比例生成的词都是相接的）时，共享边界一起移动：
+  /// 相邻词随之变长 / 变短，但不短于 [kMinWordDuration]；不相接的相邻词与相邻句
+  /// 是硬边界。句首词 / 句末词同时带动句子起止，保持「句起 = 首词起、句止 = 末词
+  /// 止」不变量（同 [adjustWord]）。
+  void moveWord(int globalIndex, Duration targetStart) {
+    if (globalIndex < 0 || globalIndex >= state.words.length) return;
+    final sentenceIndex = _sentenceIndexOfWord(globalIndex);
+    if (sentenceIndex == null) return;
+    final range = _sentenceTokenRange(sentenceIndex);
+    if (range == null) return;
+    final local = globalIndex - range.offset;
+    final view = _sentenceWords(sentenceIndex);
+    if (local < 0 || local >= view.length) return;
+    final word = view[local];
+    final length = word.endTime - word.startTime;
+    final last = view.length - 1;
+    final prev = local > 0 ? view[local - 1] : null;
+    final next = local < last ? view[local + 1] : null;
+    final isPrevLinked = prev != null && prev.endTime == word.startTime;
+    final isNextLinked = next != null && next.startTime == word.endTime;
+
+    final lowerLimit = prev == null
+        ? _prevSentenceEnd(sentenceIndex)
+        : isPrevLinked
+        ? prev.startTime + kMinWordDuration
+        : prev.endTime;
+    final upperLimit =
+        (next == null
+            ? _nextSentenceStart(sentenceIndex)
+            : isNextLinked
+            ? next.endTime - kMinWordDuration
+            : next.startTime) -
+        length;
+    // 相邻词本已短于最小词长时只阻止它再变短，不强行把当前词推开。
+    final start = _clampDuration(
+      targetStart,
+      lowerLimit < word.startTime ? lowerLimit : word.startTime,
+      upperLimit > word.startTime ? upperLimit : word.startTime,
+    );
+    if (start == word.startTime) return;
+    if (!_hasRecordedAdjust) {
+      _recordHistory();
+      _hasRecordedAdjust = true;
+    }
+
+    final end = start + length;
+    final words = List<WordTimestamp>.of(state.words);
+    words[globalIndex] = word.copyWith(startTime: start, endTime: end);
+    if (isPrevLinked) words[globalIndex - 1] = prev.copyWith(endTime: start);
+    if (isNextLinked) words[globalIndex + 1] = next.copyWith(startTime: end);
+    var nextSentences = state.sentences;
+    if (local == 0 || local == last) {
+      nextSentences = [...nextSentences];
+      final sentence = nextSentences[sentenceIndex];
+      nextSentences[sentenceIndex] = sentence.copyWith(
+        startTime: local == 0 ? start : sentence.startTime,
+        endTime: local == last ? end : sentence.endTime,
+      );
+    }
+    _commitWordDrag(words, nextSentences);
+  }
+
+  /// 写入一帧词拖动结果；拖动会打断正在进行的试听。
+  void _commitWordDrag(List<WordTimestamp> words, List<Sentence> sentences) {
     final wasPlaying = state.isPlaying;
     if (wasPlaying) _cancelPlaybackSession();
     _commitEdit(
       state.copyWith(
         words: words,
-        sentences: nextSentences,
+        sentences: sentences,
         playingSentenceIndex: wasPlaying ? null : state.playingSentenceIndex,
         isPlaying: wasPlaying ? false : state.isPlaying,
         playbackMode: wasPlaying
@@ -425,7 +493,7 @@ class SubtitleEditorController extends StateNotifier<SubtitleEditorState> {
     );
   }
 
-  /// 一次边界拖动结束（松手）：下一次拖动重新记录撤销点。
+  /// 一次边界 / 整词拖动结束（松手）：下一次拖动重新记录撤销点。
   void endWordAdjust() {
     _hasRecordedAdjust = false;
   }
@@ -840,25 +908,32 @@ class SubtitleEditorController extends StateNotifier<SubtitleEditorState> {
   /// 复用区间播放基元（[AudioEngine.playRangeOnce]）、session 隔离与播放头计时器，
   /// 与 [playSentence] 同源。索引越界时钳到合法范围（label 与词数偶尔不一致时兜底）。
   /// 播放结束后保留 [SubtitleEditorState.focusedWordIndex]，便于用户继续查看边界。
-  Future<void> playWord(int wordIndex) async {
+  ///
+  /// [movesPlayhead] 为 false 时只试听（[SubtitleEditorPlaybackMode.wordAudition]）：
+  /// 不启动播放头计时器、不采纳位置流，播放头始终停在原处。
+  Future<void> playWord(int wordIndex, {bool movesPlayhead = true}) async {
     final words = wordsOfSelectedSentence;
     if (words.isEmpty) return;
     final index = wordIndex.clamp(0, words.length - 1);
     final word = words[index];
     await _stopActivePlayback(invalidateSession: true);
     final sessionId = _audioEngine.newSession();
-    _startPlayheadTicker(
-      sessionId: sessionId,
-      start: word.startTime,
-      end: word.endTime,
-    );
+    if (movesPlayhead) {
+      _startPlayheadTicker(
+        sessionId: sessionId,
+        start: word.startTime,
+        end: word.endTime,
+      );
+    }
     state = state.copyWith(
       focusedWordIndex: index,
       // 改为播放单个词，清空「正在播放的句子」，让句子行从停止按钮恢复为播放按钮。
       playingSentenceIndex: null,
       isPlaying: true,
-      playbackMode: SubtitleEditorPlaybackMode.word,
-      playbackPosition: word.startTime,
+      playbackMode: movesPlayhead
+          ? SubtitleEditorPlaybackMode.word
+          : SubtitleEditorPlaybackMode.wordAudition,
+      playbackPosition: movesPlayhead ? word.startTime : null,
     );
     try {
       await _audioEngine.setSpeed(state.playbackSpeed);
@@ -870,9 +945,12 @@ class SubtitleEditorController extends StateNotifier<SubtitleEditorState> {
         state = state.copyWith(
           isPlaying: false,
           playbackMode: SubtitleEditorPlaybackMode.idle,
-          playbackPosition: word.endTime,
+          playbackPosition: movesPlayhead ? word.endTime : null,
         );
-        await _stopActivePlayback(invalidateSession: false);
+        // 本会话自己播完，必须停掉底层播放器：只试听时没有播放头计时器，
+        // _stopActivePlayback 会误判为「无播放」而只清片段，播放器随即从头继续播。
+        _cancelPlayheadTicker();
+        await _stopAndClearClip();
       }
     }
   }
@@ -1117,7 +1195,6 @@ class SubtitleEditorController extends StateNotifier<SubtitleEditorState> {
 
   /// 写入一次编辑结果：按与基线的比较重算 dirty，并同步撤销 / 重做可用态。
   void _commitEdit(SubtitleEditorState next) {
-    _editRevision++;
     state = next.copyWith(
       isDirty: _isDirty(next.sentences, next.words),
       canUndo: _undoStack.isNotEmpty,
@@ -1230,7 +1307,11 @@ class SubtitleEditorController extends StateNotifier<SubtitleEditorState> {
   }
 
   void _handlePosition(Duration position) {
-    if (!mounted || !state.isPlaying) return;
+    if (!mounted ||
+        !state.isPlaying ||
+        state.playbackMode == SubtitleEditorPlaybackMode.wordAudition) {
+      return;
+    }
     if (position < _playbackStart ||
         position > _playbackEnd + const Duration(milliseconds: 250)) {
       return;
