@@ -292,6 +292,8 @@ class _SelectableSentenceTextState
           text: sentenceText,
           audioItemId: widget.origin.audioItemId,
           sentenceIndex: widget.origin.sentenceIndex,
+          sentenceStartMs: widget.origin.sentenceStartMs,
+          sentenceEndMs: widget.origin.sentenceEndMs,
         ),
         initialQuote: trimmed,
       ),

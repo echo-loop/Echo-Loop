@@ -86,6 +86,15 @@ class SentenceExplanationView extends ConsumerStatefulWidget {
   /// 当前句子索引
   final int? sentenceIndex;
 
+  /// 调用方是否仍在异步解析当前句的 [sentenceIndex]。
+  ///
+  /// 收藏不存句子编号，需按收藏区间现算；解析完成前 [sentenceIndex] 为 null，
+  /// 但这不代表"没有上下文"。翻译缓存 key 含前后句，此时自动与手动翻译都等编号
+  /// 就绪再请求、预热也暂停，否则会先发一次无上下文请求、再发一次带上下文请求。
+  /// 解析完成且定位不到来源句时传 false + null，按无上下文翻译。
+  /// 预热目标的编号由调用方自行保证已就绪。
+  final bool isSentenceIndexPending;
+
   /// 当前句子起始时间（毫秒）
   final int? sentenceStartMs;
 
@@ -162,6 +171,7 @@ class SentenceExplanationView extends ConsumerStatefulWidget {
     this.audioItemId,
     this.wordHighlightSource,
     this.sentenceIndex,
+    this.isSentenceIndexPending = false,
     this.sentenceStartMs,
     this.sentenceEndMs,
     this.highlightedSegments,
@@ -280,6 +290,9 @@ class _SentenceExplanationViewState
   /// 缓存预加载 generation counter（防竞态）
   int _preloadGeneration = 0;
 
+  /// 句子编号待定期间发起的翻译请求在此等待，编号就绪时完成。
+  Completer<void>? _sentenceIndexResolved;
+
   /// 自动预加载诊断去重键，避免 rebuild 重复记录同一判定。
   String? _autoLoadDiagnosticKey;
 
@@ -299,6 +312,9 @@ class _SentenceExplanationViewState
   @override
   void initState() {
     super.initState();
+    if (widget.isSentenceIndexPending) {
+      _sentenceIndexResolved = Completer<void>();
+    }
     _preloadCache();
     _schedulePrewarm();
   }
@@ -338,6 +354,15 @@ class _SentenceExplanationViewState
     if (widget.audioItemId != oldWidget.audioItemId) {
       _resetSenseGroups();
     }
+    if (!oldWidget.isSentenceIndexPending && widget.isSentenceIndexPending) {
+      _sentenceIndexResolved ??= Completer<void>();
+    }
+    // 句子编号就绪：放行等待中的翻译请求，并按带上下文的缓存 key 重读本地翻译缓存。
+    if (oldWidget.isSentenceIndexPending && !widget.isSentenceIndexPending) {
+      _sentenceIndexResolved?.complete();
+      _sentenceIndexResolved = null;
+      _preloadCache();
+    }
     if (_shouldResetScrollPosition(oldWidget)) {
       _resetScrollPosition();
     }
@@ -370,6 +395,7 @@ class _SentenceExplanationViewState
         _text != (oldWidget.text ?? '') ||
         widget.audioItemId != oldWidget.audioItemId ||
         widget.sentenceIndex != oldWidget.sentenceIndex ||
+        widget.isSentenceIndexPending != oldWidget.isSentenceIndexPending ||
         widget.autoShowAiExplanation != oldWidget.autoShowAiExplanation ||
         widget.autoShowAiAnalysis != oldWidget.autoShowAiAnalysis ||
         widget.autoShowAiTranslation != oldWidget.autoShowAiTranslation ||
@@ -380,10 +406,19 @@ class _SentenceExplanationViewState
   /// 帧后启动后台预热：先等当前句（与卡片自动请求共享同一条流），再依次预热后续卡片。
   ///
   /// 仅激活页触发，离屏保活页不重复调度；未登录或未开启任何自动展示时不预热。
+  /// 句子编号解析中时不预热，等编号就绪后由 [didUpdateWidget] 重新调度。
   void _schedulePrewarm() {
-    if (!widget.isActiveSentence || widget.prewarmTargets.isEmpty) return;
+    if (!widget.isActiveSentence ||
+        widget.isSentenceIndexPending ||
+        widget.prewarmTargets.isEmpty) {
+      return;
+    }
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted || !widget.isActiveSentence) return;
+      if (!mounted ||
+          !widget.isActiveSentence ||
+          widget.isSentenceIndexPending) {
+        return;
+      }
       final features = _autoShowFeatures(ref.read(learningSettingsProvider));
       final accessToken = ref.read(supabaseSessionProvider).value?.accessToken;
       final skipReason = features.isEmpty
@@ -468,6 +503,22 @@ class _SentenceExplanationViewState
     return (at(idx - 1), at(idx + 1));
   }
 
+  /// 取翻译请求的前后句上下文；自动与手动翻译共用。
+  ///
+  /// 句子编号待定时先等其就绪，再按就绪后的编号取前后句，保证每句只按一个缓存 key 请求。
+  Future<(String?, String?)> _resolveTranslationContext() async {
+    final indexResolved = _sentenceIndexResolved;
+    if (indexResolved != null) await indexResolved.future;
+    final audioItemId = widget.audioItemId;
+    if (audioItemId == null || audioItemId.isEmpty || _sentenceIndex == null) {
+      return (null, null);
+    }
+    final sentences = await ref.read(
+      audioSentencesProvider(audioItemId).future,
+    );
+    return _neighborTexts(sentences);
+  }
+
   /// 从本地缓存预加载翻译/解析/意群数据
   ///
   /// 只查 L2 SQLite 并写入 L1 内存，不调用 L3 API。
@@ -490,13 +541,16 @@ class _SentenceExplanationViewState
     if (!mounted || generation != _preloadGeneration) return;
     final (previousText, nextText) = _neighborTexts(sentences);
 
-    // 预加载翻译和解析（结果通过 getCachedTranslation/getCachedAnalysis 透给 card）
-    final translationLoaded = await ai.preloadTranslationFromDb(
-      _text,
-      targetLanguage: nativeLanguage,
-      previous: previousText,
-      next: nextText,
-    );
+    // 预加载翻译和解析（结果通过 getCachedTranslation/getCachedAnalysis 透给 card）。
+    // 编号解析中时上下文未定，跳过翻译，编号就绪后再预加载。
+    final translationLoaded =
+        !widget.isSentenceIndexPending &&
+        await ai.preloadTranslationFromDb(
+          _text,
+          targetLanguage: nativeLanguage,
+          previous: previousText,
+          next: nextText,
+        );
     final analysisLoaded = await ai.preloadAnalysisFromDb(
       _text,
       targetLanguage: nativeLanguage,
@@ -1089,7 +1143,7 @@ class _SentenceExplanationViewState
     final autoShowAiTranslation = autoShow.translation;
     final autoShowAiSenseGroups = autoShow.senseGroups;
     // watch 共享字幕投影：撑起其 autoDispose 生命周期（视图在屏则常驻）+ 同步取前后句。
-    // 翻译缓存 key 包含前后句，必须等字幕投影就绪后才允许自动翻译；
+    // 翻译缓存 key 包含前后句，必须等句子编号与字幕投影都就绪后才允许自动翻译；
     // 否则首帧会用 null/null 写入无上下文 key，返回页面时再用带上下文 key 读取就会 miss。
     final audioItemId = widget.audioItemId;
     final hasSentenceContextSource =
@@ -1098,21 +1152,14 @@ class _SentenceExplanationViewState
         ? ref.watch(audioSentencesProvider(audioItemId))
         : null;
     final translationContextReady =
-        !hasSentenceContextSource || (sentencesAsync?.hasValue ?? false);
+        !widget.isSentenceIndexPending &&
+        (!hasSentenceContextSource || (sentencesAsync?.hasValue ?? false));
     final sentences = translationContextReady ? sentencesAsync?.value : null;
     final (previousText, nextText) = translationContextReady
         ? _neighborTexts(sentences)
         : (null, null);
 
-    Future<(String?, String?)> resolveTranslationContext() async {
-      if (!hasSentenceContextSource) return (null, null);
-      final loadedSentences =
-          sentencesAsync?.value ??
-          await ref.read(audioSentencesProvider(audioItemId).future);
-      return _neighborTexts(loadedSentences);
-    }
-
-    final cachedTranslation = autoShowAiTranslation
+    final cachedTranslation = autoShowAiTranslation && translationContextReady
         ? ai
               ?.getCachedTranslation(
                 _text,
@@ -1231,7 +1278,7 @@ class _SentenceExplanationViewState
                         var hasContent = false;
                         try {
                           final (requestPreviousText, requestNextText) =
-                              await resolveTranslationContext();
+                              await _resolveTranslationContext();
                           // await for（非 yield*）确保流内 auth/quota 错误在本
                           // try 内重抛，从而弹登录/订阅（与 onRequestAnalysis 语义一致）。
                           await for (final t in ai.getTranslationStream(

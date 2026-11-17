@@ -15,7 +15,6 @@ import '../database/providers.dart';
 import '../features/chatbot/sentence_passage.dart';
 import '../features/chatbot/widgets/sentence_chat_button.dart';
 import '../l10n/app_localizations.dart';
-import '../providers/source_sentence_index_provider.dart';
 import '../providers/dictionary/lookup_history_provider.dart';
 import '../providers/dictionary/wordlist_provider.dart';
 import '../services/app_logger.dart';
@@ -199,27 +198,21 @@ class _DictionaryLookupScreenState
 
   /// 详情态右上角的 AI 助手入口：与收藏来源句关联，便于在语境中继续提问。
   Widget _buildChatAction(String query) {
-    final savedWord = ref
-        .watch(activeSavedWordProvider(normalizeWord(query)))
-        .value;
-    final audioItemId = savedWord?.audioItemId;
-    // 收藏不存句子编号；取前后句作对话上下文时按来源句区间在当前字幕里现算。
-    final sentenceIndex = savedWord == null || audioItemId == null
-        ? null
-        : ref
-              .watch(
-                sourceSentenceIndexProvider((
-                  audioItemId: audioItemId,
-                  startMs: savedWord.sentenceStartMs,
-                  endMs: savedWord.sentenceEndMs,
-                )),
-              )
-              .value;
+    final savedWordAsync = ref.watch(
+      activeSavedWordProvider(normalizeWord(query)),
+    );
+    // 收藏记录读出前不知道来源句，此时打开对话会按无上下文建立另一会话，先不显示入口。
+    if (!savedWordAsync.hasValue && !savedWordAsync.hasError) {
+      return const SizedBox.shrink();
+    }
+    final savedWord = savedWordAsync.value;
     return SentenceChatButton(
       target: SentenceChatTarget(
         text: query,
-        audioItemId: audioItemId,
-        sentenceIndex: sentenceIndex,
+        audioItemId: savedWord?.audioItemId,
+        // 收藏不存编号：打开对话时按来源句区间定位。
+        sentenceStartMs: savedWord?.sentenceStartMs,
+        sentenceEndMs: savedWord?.sentenceEndMs,
       ),
     );
   }

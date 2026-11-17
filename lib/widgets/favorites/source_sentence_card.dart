@@ -10,13 +10,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../database/providers.dart';
 import '../../l10n/app_localizations.dart';
-import '../../providers/source_sentence_index_provider.dart';
 import '../../theme/app_theme.dart';
 import '../practice/selectable_sentence_text.dart';
 import 'source_sentence_detail_navigation.dart';
 
 /// 来源句卡片：把可播放句子与学习语境标签组合成一个明确的内容入口。
-class SourceSentenceCard extends ConsumerWidget {
+class SourceSentenceCard extends StatelessWidget {
   const SourceSentenceCard({
     required this.sentenceText,
     required this.audioItemId,
@@ -30,20 +29,8 @@ class SourceSentenceCard extends ConsumerWidget {
   final int? sentenceEndMs;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final audioItemId = this.audioItemId;
-    // 收藏不存句子编号；选词问 AI 时按收藏区间在当前字幕里现算，取前后句。
-    final sentenceIndex = audioItemId == null
-        ? null
-        : ref
-              .watch(
-                sourceSentenceIndexProvider((
-                  audioItemId: audioItemId,
-                  startMs: sentenceStartMs,
-                  endMs: sentenceEndMs,
-                )),
-              )
-              .value;
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
     return Material(
@@ -68,7 +55,6 @@ class SourceSentenceCard extends ConsumerWidget {
               ),
               origin: DictionaryLookupOrigin(
                 audioItemId: audioItemId,
-                sentenceIndex: sentenceIndex,
                 sentenceText: sentenceText,
                 sentenceStartMs: sentenceStartMs,
                 sentenceEndMs: sentenceEndMs,

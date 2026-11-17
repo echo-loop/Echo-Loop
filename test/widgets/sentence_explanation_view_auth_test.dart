@@ -1302,4 +1302,124 @@ void main() {
     expect(aiNotifier.translationRequests.single.next, 'Next sentence.');
     expect(find.text('cached-chain translation'), findsOneWidget);
   });
+
+  /// 搭建句子编号可由测试切换为"待定 → 就绪"的讲解视图，返回切换句柄。
+  Future<ValueNotifier<({bool isPending, int? index})>> pumpPendingIndexApp(
+    WidgetTester tester, {
+    required _RecordingSentenceAiNotifier aiNotifier,
+    required SentenceAiCacheDao cacheDao,
+    bool autoShowAiExplanation = true,
+  }) async {
+    final savedSenseGroupDao = _MockSavedSenseGroupDao();
+    final audioItemDao = _MockAudioItemDao();
+    final sentenceContext = ValueNotifier<({bool isPending, int? index})>((
+      isPending: true,
+      index: null,
+    ));
+    addTearDown(sentenceContext.dispose);
+
+    when(savedSenseGroupDao.watchSavedPhraseTexts)
+        .thenAnswer((_) => Stream<Set<String>>.value(const {}));
+    when(() => audioItemDao.getById('audio-1')).thenAnswer((_) async => null);
+
+    await pumpAuthTestApp(
+      tester,
+      cacheDao: cacheDao,
+      savedSenseGroupDao: savedSenseGroupDao,
+      aiNotifier: aiNotifier,
+      signedIn: true,
+      autoShowAiExplanation: autoShowAiExplanation,
+      content: ValueListenableBuilder(
+        valueListenable: sentenceContext,
+        builder: (context, value, _) => SentenceExplanationView(
+          text: 'Hello world.',
+          enableGuide: false,
+          audioItemId: 'audio-1',
+          sentenceIndex: value.index,
+          isSentenceIndexPending: value.isPending,
+          aiNotifier: aiNotifier,
+        ),
+      ),
+      extraOverrides: [
+        audioItemDaoProvider.overrideWithValue(audioItemDao),
+        audioSentencesProvider('audio-1').overrideWith(
+          (_) async => [
+            Sentence(
+              index: 0,
+              text: 'Previous sentence.',
+              startTime: Duration.zero,
+              endTime: const Duration(seconds: 1),
+            ),
+            Sentence(
+              index: 1,
+              text: 'Hello world.',
+              startTime: const Duration(seconds: 1),
+              endTime: const Duration(seconds: 2),
+            ),
+            Sentence(
+              index: 2,
+              text: 'Next sentence.',
+              startTime: const Duration(seconds: 2),
+              endTime: const Duration(seconds: 3),
+            ),
+          ],
+        ),
+      ],
+    );
+    await tester.pumpAndSettle();
+    return sentenceContext;
+  }
+
+  testWidgets('句子编号解析中时不自动翻译，编号就绪后只带上下文请求一次', (tester) async {
+    final cacheDao = _MockCacheDao();
+    when(() => cacheDao.getByHash(any(), any())).thenAnswer((_) async => null);
+    final aiNotifier = _RecordingSentenceAiNotifier(
+      cacheDao: cacheDao,
+      apiClient: _NoopSentenceAiApiClient(),
+    );
+    final sentenceContext = await pumpPendingIndexApp(
+      tester,
+      aiNotifier: aiNotifier,
+      cacheDao: cacheDao,
+    );
+
+    // 编号未定时不能按无上下文翻译，但解析不依赖上下文，照常请求。
+    expect(aiNotifier.translationRequests, isEmpty);
+    expect(aiNotifier.analysisRequests, 1);
+
+    sentenceContext.value = (isPending: false, index: 1);
+    await tester.pumpAndSettle();
+
+    expect(aiNotifier.translationRequests, [
+      (previous: 'Previous sentence.', next: 'Next sentence.'),
+    ]);
+    expect(aiNotifier.analysisRequests, 1);
+  });
+
+  testWidgets('句子编号解析中手动点翻译，等编号就绪后带上下文请求', (tester) async {
+    final cacheDao = _MockCacheDao();
+    when(() => cacheDao.getByHash(any(), any())).thenAnswer((_) async => null);
+    final aiNotifier = _RecordingSentenceAiNotifier(
+      cacheDao: cacheDao,
+      apiClient: _NoopSentenceAiApiClient(),
+    );
+    final sentenceContext = await pumpPendingIndexApp(
+      tester,
+      aiNotifier: aiNotifier,
+      cacheDao: cacheDao,
+      autoShowAiExplanation: false,
+    );
+
+    await tester.tap(find.byKey(const ValueKey('translation')));
+    await tester.pump();
+    expect(aiNotifier.translationRequests, isEmpty);
+
+    sentenceContext.value = (isPending: false, index: 1);
+    await tester.pumpAndSettle();
+
+    expect(aiNotifier.translationRequests, [
+      (previous: 'Previous sentence.', next: 'Next sentence.'),
+    ]);
+    expect(find.text('cached-chain translation'), findsOneWidget);
+  });
 }

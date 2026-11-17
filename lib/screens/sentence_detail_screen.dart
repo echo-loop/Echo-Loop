@@ -561,6 +561,9 @@ class _SentenceDetailScreenState extends ConsumerState<SentenceDetailScreen> {
                     text: current.text,
                     audioItemId: args.audioItemId,
                     sentenceIndex: _transcriptIndexOf(current),
+                    // 字幕加载完成前编号未知，打开对话时按入口句区间定位。
+                    sentenceStartMs: current.startTime.inMilliseconds,
+                    sentenceEndMs: current.endTime.inMilliseconds,
                   ),
                 ),
               ],

@@ -92,7 +92,7 @@ void main() {
     );
     String? requestedAudioItemId;
 
-    final passage = await resolveSentencePassage(
+    final context = await resolveSentenceChatContext(
       target: const SentenceChatTarget(
         text: 'S5',
         audioItemId: 'audio-1',
@@ -105,13 +105,14 @@ void main() {
     );
 
     expect(requestedAudioItemId, 'audio-1');
-    expect(passage, 'S0\nS1\nS2\nS3\nS4\nS5\nS6\nS7');
+    expect(context.sentenceIndex, 5);
+    expect(context.passage, 'S0\nS1\nS2\nS3\nS4\nS5\nS6\nS7');
   });
 
   test('来源不完整时不加载字幕并回退单句', () async {
     var loadCalled = false;
 
-    final passage = await resolveSentencePassage(
+    final context = await resolveSentenceChatContext(
       target: const SentenceChatTarget(text: 'Current.'),
       loadSentences: (_) async {
         loadCalled = true;
@@ -120,11 +121,12 @@ void main() {
     );
 
     expect(loadCalled, isFalse);
-    expect(passage, isNull);
+    expect(context.sentenceIndex, isNull);
+    expect(context.passage, isNull);
   });
 
   test('字幕读取失败时回退单句', () async {
-    final passage = await resolveSentencePassage(
+    final context = await resolveSentenceChatContext(
       target: const SentenceChatTarget(
         text: 'Current.',
         audioItemId: 'audio-1',
@@ -133,6 +135,42 @@ void main() {
       loadSentences: (_) async => throw StateError('subtitle unavailable'),
     );
 
-    expect(passage, isNull);
+    expect(context.sentenceIndex, 0);
+    expect(context.passage, isNull);
+  });
+
+  test('只有收藏区间时在当前字幕里定位编号并截取上下文', () async {
+    final sourceSentences = List.generate(
+      4,
+      (index) => sentence(index, 'S$index'),
+    );
+
+    final context = await resolveSentenceChatContext(
+      target: const SentenceChatTarget(
+        text: 'S2',
+        audioItemId: 'audio-1',
+        sentenceStartMs: 2000,
+        sentenceEndMs: 3000,
+      ),
+      loadSentences: (_) async => sourceSentences,
+    );
+
+    expect(context.sentenceIndex, 2);
+    expect(context.passage, 'S0\nS1\nS2\nS3');
+  });
+
+  test('收藏区间定位不到来源句时回退单句', () async {
+    final context = await resolveSentenceChatContext(
+      target: const SentenceChatTarget(
+        text: 'Deleted.',
+        audioItemId: 'audio-1',
+        sentenceStartMs: 9000,
+        sentenceEndMs: 10000,
+      ),
+      loadSentences: (_) async => [sentence(0, 'S0'), sentence(1, 'S1')],
+    );
+
+    expect(context.sentenceIndex, isNull);
+    expect(context.passage, isNull);
   });
 }

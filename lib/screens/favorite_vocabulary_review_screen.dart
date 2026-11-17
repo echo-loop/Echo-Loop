@@ -16,7 +16,6 @@ import '../features/memory_scheduler/domain/memory_rating.dart';
 import '../features/memory_scheduler/domain/memory_scheduler_results.dart';
 import '../features/scheduled_flashcard/widgets/flashcard_rating_action_bar.dart';
 import '../features/rating_prompt/rating_prompt_providers.dart';
-import '../providers/source_sentence_index_provider.dart';
 import '../providers/learning_session/favorite_vocabulary_review_provider.dart';
 import '../providers/favorite_review_settings_provider.dart';
 import '../providers/dictionary/lookup_controller.dart';
@@ -256,19 +255,6 @@ class _FavoriteVocabularyReviewScreenState
   Widget build(BuildContext context) {
     final state = ref.watch(favoriteVocabularyReviewProvider);
     final card = state.currentCard;
-    // 收藏不存句子编号；AI 对话取前后句时按来源句区间在当前字幕里现算。
-    final cardAudioItemId = card?.audioItemId;
-    final cardSentenceIndex = card == null || cardAudioItemId == null
-        ? null
-        : ref
-              .watch(
-                sourceSentenceIndexProvider((
-                  audioItemId: cardAudioItemId,
-                  startMs: card.sentenceStartMs,
-                  endMs: card.sentenceEndMs,
-                )),
-              )
-              .value;
     final completionSummary = state.completionSummary;
     final l10n = AppLocalizations.of(context)!;
     final player = _review;
@@ -308,7 +294,9 @@ class _FavoriteVocabularyReviewScreenState
                   target: SentenceChatTarget(
                     text: card?.displayText ?? '',
                     audioItemId: card?.audioItemId,
-                    sentenceIndex: cardSentenceIndex,
+                    // 收藏不存编号：打开对话时按来源句区间定位，不依赖页面异步现算结果。
+                    sentenceStartMs: card?.sentenceStartMs,
+                    sentenceEndMs: card?.sentenceEndMs,
                   ),
                   onBeforeOpen: () => unawaited(player.interruptPlayback()),
                 ),

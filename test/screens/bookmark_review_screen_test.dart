@@ -393,7 +393,10 @@ void main() {
     final chat = tester.widget<SentenceChatButton>(
       find.byType(SentenceChatButton),
     );
-    expect(chat.target.sentenceIndex, 1);
+    // 对话入口传收藏区间，打开时再在当前字幕里定位，不依赖页面异步现算结果。
+    expect(chat.target.sentenceIndex, isNull);
+    expect(chat.target.sentenceStartMs, 1000);
+    expect(chat.target.sentenceEndMs, 3500);
   });
 
   testWidgets('unsaving the final sentence shows the completion summary', (

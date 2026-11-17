@@ -3,6 +3,7 @@ library;
 
 import '../../models/sentence.dart';
 import '../../services/app_logger.dart';
+import '../../services/source_sentence_anchor.dart';
 
 /// 句子聊天的目标及其来源。
 ///
@@ -14,15 +15,25 @@ class SentenceChatTarget {
   /// 目标所在材料；没有来源材料时保留单句模式。
   final String? audioItemId;
 
-  /// 目标对应的原文句索引。
+  /// 目标对应的原文句索引；已知时优先使用。
   final int? sentenceIndex;
+
+  /// 来源句时间区间（毫秒）。收藏不存句子编号，无 [sentenceIndex] 时打开对话
+  /// 才按区间在当前字幕里定位，避免页面异步现算编号未完成时丢失上下文。
+  final int? sentenceStartMs;
+  final int? sentenceEndMs;
 
   const SentenceChatTarget({
     required this.text,
     this.audioItemId,
     this.sentenceIndex,
+    this.sentenceStartMs,
+    this.sentenceEndMs,
   });
 }
+
+/// 打开对话时定位到的上下文：目标句编号（会话身份的一部分）与截取的字幕段落。
+typedef SentenceChatContext = ({int? sentenceIndex, String? passage});
 
 /// 取目标句前最多 5 个有效句子、后最多 2 个有效句子，并按原顺序拼接。
 ///
@@ -69,26 +80,44 @@ String? buildSentencePassage(
   return passageSentences.join('\n');
 }
 
-/// 根据目标来源解析完整字幕上下文；缺失或读取失败时退回单句模式。
-Future<String?> resolveSentencePassage({
+/// 根据目标来源定位句子编号并解析完整字幕上下文；缺失或读取失败时退回单句模式。
+///
+/// 无编号时按 [SentenceChatTarget.sentenceStartMs]/[SentenceChatTarget.sentenceEndMs]
+/// 在同一份字幕里定位，与收藏复习讲解页的编号算法一致，保证会话身份跨页面一致。
+Future<SentenceChatContext> resolveSentenceChatContext({
   required SentenceChatTarget target,
   required Future<List<Sentence>> Function(String audioItemId) loadSentences,
 }) async {
   final audioItemId = target.audioItemId;
-  final sentenceIndex = target.sentenceIndex;
-  if (audioItemId == null || audioItemId.isEmpty || sentenceIndex == null) {
-    return null;
+  final anchor = SourceSentenceAnchor.fromMilliseconds(
+    startMs: target.sentenceStartMs,
+    endMs: target.sentenceEndMs,
+  );
+  if (audioItemId == null ||
+      audioItemId.isEmpty ||
+      (target.sentenceIndex == null && !anchor.hasTimeRange)) {
+    return (sentenceIndex: target.sentenceIndex, passage: null);
   }
 
+  final List<Sentence> sentences;
   try {
-    final sentences = await loadSentences(audioItemId);
-    return buildSentencePassage(sentences, currentSentenceIndex: sentenceIndex);
+    sentences = await loadSentences(audioItemId);
   } catch (error, stackTrace) {
     AppLogger.log(
       'SentenceChat',
       'event=context-load-failed audioItemId=$audioItemId '
-          'sentenceIndex=$sentenceIndex error=$error\n$stackTrace',
+          'sentenceIndex=${target.sentenceIndex} error=$error\n$stackTrace',
     );
-    return null;
+    return (sentenceIndex: target.sentenceIndex, passage: null);
   }
+  final sentenceIndex =
+      target.sentenceIndex ?? resolveSourceSentenceIndex(anchor, sentences);
+  if (sentenceIndex == null) return (sentenceIndex: null, passage: null);
+  return (
+    sentenceIndex: sentenceIndex,
+    passage: buildSentencePassage(
+      sentences,
+      currentSentenceIndex: sentenceIndex,
+    ),
+  );
 }

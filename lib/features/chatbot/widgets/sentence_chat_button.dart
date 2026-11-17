@@ -60,16 +60,26 @@ Future<void> showSentenceChatbotSheet({
   required SentenceChatTarget target,
   String? initialQuote,
 }) async {
-  final passage = await resolveSentencePassage(
+  final chatContext = await resolveSentenceChatContext(
     target: target,
     loadSentences: (audioItemId) =>
         ref.read(audioSentencesProvider(audioItemId).future),
   );
   if (!context.mounted) return;
 
+  // 会话身份用定位后的编号：按区间定位的收藏入口与按编号进入的练习页共用同一会话。
+  final locatedTarget = SentenceChatTarget(
+    text: target.text,
+    audioItemId: target.audioItemId,
+    sentenceIndex: chatContext.sentenceIndex,
+  );
   await showChatbotSheet(
     context: context,
-    config: sentenceChatbotConfig(context, target, passage: passage),
+    config: sentenceChatbotConfig(
+      context,
+      locatedTarget,
+      passage: chatContext.passage,
+    ),
     initialQuote: initialQuote,
   );
 }
