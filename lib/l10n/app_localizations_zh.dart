@@ -4093,12 +4093,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get subtitleNewWordHint => '新词';
 
   @override
-  String get saveSubtitleEdits => '保存字幕修改';
-
-  @override
-  String get subtitleStructureChangedWarning => '这会清除该音频的学习进度和收藏句子。';
-
-  @override
   String get subtitleEditsSaved => '字幕修改已保存。';
 
   @override

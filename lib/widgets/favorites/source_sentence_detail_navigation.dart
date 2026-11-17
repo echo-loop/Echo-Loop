@@ -7,18 +7,15 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../database/daos/audio_item_dao.dart';
 import '../../database/providers.dart';
 import '../../l10n/app_localizations.dart';
 import '../../models/audio_item.dart';
-import '../../models/sentence.dart';
 import '../../models/word_highlight_binding.dart';
 import '../../providers/audio_engine/audio_engine_provider.dart';
 import '../../providers/media_engine/media_engine_provider.dart';
 import '../../router/app_router.dart';
 import '../../screens/sentence_detail_screen.dart';
 import '../../services/pronunciation/local_audio_range_player.dart';
-import '../../services/subtitle_parser.dart';
 import '../app_toast.dart';
 import 'favorite_sentence_video_session.dart';
 
@@ -32,7 +29,6 @@ Future<void> openFavoriteSentenceDetail({
   required WidgetRef ref,
   required String audioItemId,
   required String sentenceText,
-  required int? sentenceIndex,
   required int? sentenceStartMs,
   required int? sentenceEndMs,
 }) async {
@@ -41,27 +37,14 @@ Future<void> openFavoriteSentenceDetail({
   if (audioRow == null) return;
   final audio = audioItemFromDatabaseRow(audioRow);
 
-  final storedRangeIsValid =
-      sentenceStartMs != null &&
-      sentenceEndMs != null &&
-      sentenceEndMs - sentenceStartMs >= 200;
-  final storedIndexIsValid = sentenceIndex != null && sentenceIndex >= 0;
-  final storedLocation = storedRangeIsValid && storedIndexIsValid
-      ? (
-          sentenceIndex: sentenceIndex,
-          startTimeMs: sentenceStartMs,
-          endTimeMs: sentenceEndMs,
-        )
-      : null;
-  final location =
-      storedLocation ??
-      await _resolveSourceSentenceLocation(
-        audioItemDao: audioItemDao,
-        audioItemId: audioItemId,
-        sentenceText: sentenceText,
-        preferredSentenceIndex: sentenceIndex,
-      );
-  if (location == null || !context.mounted) return;
+  // 讲解页按收藏区间自行定位到当前字幕；没有有效区间的收藏无法打开讲解页。
+  if (sentenceStartMs == null ||
+      sentenceEndMs == null ||
+      sentenceEndMs - sentenceStartMs < _minStoredRangeMs) {
+    return;
+  }
+  final location = (startTimeMs: sentenceStartMs, endTimeMs: sentenceEndMs);
+  if (!context.mounted) return;
 
   if (!audio.isVideo) {
     AppRoutes.pushNested(
@@ -71,7 +54,6 @@ Future<void> openFavoriteSentenceDetail({
         audioItemId: audioItemId,
         audioName: audio.name,
         sentenceText: sentenceText,
-        sentenceIndex: location.sentenceIndex,
         startTimeMs: location.startTimeMs,
         endTimeMs: location.endTimeMs,
         wordHighlightSource: audioEngineWordHighlightSource(ref, audioItemId),
@@ -95,7 +77,7 @@ Future<void> _openVideoSentenceDetail({
   required WidgetRef ref,
   required AudioItem audio,
   required String sentenceText,
-  required ({int sentenceIndex, int startTimeMs, int endTimeMs}) location,
+  required ({int startTimeMs, int endTimeMs}) location,
 }) async {
   final session = FavoriteSentenceVideoSession(
     engine: ref.read(mediaEngineProvider.notifier),
@@ -125,7 +107,6 @@ Future<void> _openVideoSentenceDetail({
             audioItemId: audio.id,
             audioName: audio.name,
             sentenceText: sentenceText,
-            sentenceIndex: location.sentenceIndex,
             startTimeMs: location.startTimeMs,
             endTimeMs: location.endTimeMs,
             rangePlaybackBuilder: session.rangePlaybackBuilder,
@@ -154,36 +135,5 @@ WordHighlightSource audioEngineWordHighlightSource(
   );
 }
 
-/// 从材料字幕恢复来源句的位置；优先信任仍与文本一致的原句序。
-Future<({int sentenceIndex, int startTimeMs, int endTimeMs})?>
-_resolveSourceSentenceLocation({
-  required AudioItemDao audioItemDao,
-  required String audioItemId,
-  required String sentenceText,
-  required int? preferredSentenceIndex,
-}) async {
-  final srt = await audioItemDao.getTranscriptSrt(audioItemId);
-  if (srt == null || srt.isEmpty) return null;
-  final sentences = await SubtitleParser.parseSubtitleString(srt);
-  final normalizedText = sentenceText.trim();
-  if (normalizedText.isEmpty) return null;
-
-  final preferred =
-      preferredSentenceIndex != null &&
-          preferredSentenceIndex >= 0 &&
-          preferredSentenceIndex < sentences.length
-      ? sentences[preferredSentenceIndex]
-      : null;
-  final resolved = preferred?.text.trim() == normalizedText
-      ? preferred
-      : sentences.cast<Sentence?>().firstWhere(
-          (candidate) => candidate?.text.trim() == normalizedText,
-          orElse: () => null,
-        );
-  if (resolved == null) return null;
-  return (
-    sentenceIndex: resolved.index,
-    startTimeMs: resolved.startTime.inMilliseconds,
-    endTimeMs: resolved.endTime.inMilliseconds,
-  );
-}
+/// 收藏区间短于该值视为无效（早期数据），无法打开讲解页。
+const int _minStoredRangeMs = 200;

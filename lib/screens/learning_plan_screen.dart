@@ -219,8 +219,8 @@ final _bookmarkCountProvider = StreamProvider.family.autoDispose<int, String>((
 ) {
   final bookmarkDao = ref.watch(bookmarkDaoProvider);
   return bookmarkDao
-      .watchByAudioId(audioItemId)
-      .map((bookmarks) => bookmarks.length);
+      .watchBookmarkedIndices(audioItemId)
+      .map((indices) => indices.length);
 });
 
 /// 查询指定音频各复习大阶段的最终完成时间。
@@ -1749,9 +1749,7 @@ class _LearningPlanScreenState extends ConsumerState<LearningPlanScreen> {
 
     // 监听学习进度
     final progress = ref.watch(
-      learningProgressProvider.select(
-        (s) => s.progressMap[widget.audioItemId],
-      ),
+      learningProgressProvider.select((s) => s.progressMap[widget.audioItemId]),
     );
     final now = ref.watch(nowProvider)();
 
@@ -1765,9 +1763,8 @@ class _LearningPlanScreenState extends ConsumerState<LearningPlanScreen> {
 
     // 媒体未就绪时只展示占位页（下载进度 / 失败重试）：学习入口与 autoStart 都不构建。
     final isMediaReady = ref.watch(
-      mediaReadinessProvider(
-        widget.audioItemId,
-      ).select((readiness) => readiness is MediaReady),
+      mediaReadinessProvider(widget.audioItemId)
+          .select((readiness) => readiness is MediaReady),
     );
     if (!isMediaReady) {
       return Scaffold(
@@ -2513,9 +2510,7 @@ class _FirstStudySection extends ConsumerWidget {
     final theme = Theme.of(context);
     final plan = ref.watch(learningPlanForAudioProvider(audioItemId));
     final stageCompletedAtMap =
-        ref
-            .watch(reviewStageCompletionTimesProvider(audioItemId))
-            .value ??
+        ref.watch(reviewStageCompletionTimesProvider(audioItemId)).value ??
         const <String, DateTime>{};
     final completedKeys = ref
         .watch(learningProgressProvider)
@@ -3884,9 +3879,7 @@ class _ReviewRoundSection extends ConsumerWidget {
     final theme = Theme.of(context);
     final plan = ref.watch(learningPlanForAudioProvider(audioItemId));
     final stageCompletedAtMap =
-        ref
-            .watch(reviewStageCompletionTimesProvider(audioItemId))
-            .value ??
+        ref.watch(reviewStageCompletionTimesProvider(audioItemId)).value ??
         const <String, DateTime>{};
     final completedKeys = ref
         .watch(learningProgressProvider)
@@ -4055,10 +4048,7 @@ class _ReviewRoundSection extends ConsumerWidget {
               String? subtitle;
               if (subStage == SubStageType.reviewDifficultPractice) {
                 final bookmarkCount =
-                    ref
-                        .watch(_bookmarkCountProvider(audioItemId))
-                        .value ??
-                    0;
+                    ref.watch(_bookmarkCountProvider(audioItemId)).value ?? 0;
                 if (isCompleted && bookmarkCount == 0) {
                   subtitle = l10n.autoCompletedNoDifficultReview;
                 } else if (bookmarkCount > 0) {
@@ -4076,10 +4066,7 @@ class _ReviewRoundSection extends ConsumerWidget {
               if (canFreePlay) {
                 // 无难句自动完成的补练步骤：点击只显示提示
                 final bookmarkCount =
-                    ref
-                        .watch(_bookmarkCountProvider(audioItemId))
-                        .value ??
-                    0;
+                    ref.watch(_bookmarkCountProvider(audioItemId)).value ?? 0;
                 if (subStage == SubStageType.reviewDifficultPractice &&
                     bookmarkCount == 0) {
                   onTap = () {
@@ -4382,9 +4369,9 @@ class _BottomButton extends ConsumerWidget {
       final pauseButton = FilledButton.tonal(
         onPressed: () => _confirmAndPause(context, ref),
         style: FilledButton.styleFrom(
-          backgroundColor: Theme.of(
-            context,
-          ).colorScheme.surfaceContainerHighest,
+          backgroundColor: Theme.of(context)
+              .colorScheme
+              .surfaceContainerHighest,
           foregroundColor: Theme.of(context).colorScheme.onSurfaceVariant,
         ),
         child: Text(

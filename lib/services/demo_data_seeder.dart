@@ -3,7 +3,9 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:drift/drift.dart';
+
 import '../utils/app_data_dir.dart';
+
 import 'package:path/path.dart' as p;
 
 import '../data/demo_content.dart';
@@ -174,9 +176,8 @@ class DemoDataSeeder {
     for (var i = 0; i < demoAudios.length; i++) {
       // 字幕内容存 DB transcript_srt 列，不再写 SRT 文件；仅需音频文件。
       final wavPath = p.join(demoDir.path, 'audio_${i + 1}.wav');
-      await File(
-        wavPath,
-      ).writeAsBytes(_buildSilentWav(demoAudios[i].durationSeconds));
+      await File(wavPath)
+          .writeAsBytes(_buildSilentWav(demoAudios[i].durationSeconds));
     }
   }
 
@@ -262,7 +263,6 @@ class DemoDataSeeder {
             .insert(
               BookmarksCompanion.insert(
                 audioItemId: audio.id,
-                sentenceIndex: idx,
                 sentenceText: sentence.text,
                 startTime: sentence.startTime,
                 endTime: sentence.endTime,
@@ -287,7 +287,6 @@ class DemoDataSeeder {
             SavedWordsCompanion.insert(
               word: word.word,
               audioItemId: Value(audio.id),
-              sentenceIndex: Value(word.sentenceIndex),
               sentenceText: Value(sentence.text),
               sentenceStartMs: Value((sentence.startTime * 1000).round()),
               sentenceEndMs: Value((sentence.endTime * 1000).round()),
@@ -375,7 +374,6 @@ class DemoDataSeeder {
               phraseText: sg.displayText.toLowerCase().trim(),
               displayText: sg.displayText,
               audioItemId: Value(audio.id),
-              sentenceIndex: Value(sg.sentenceIndex),
               sentenceText: Value(sentence.text),
               sentenceStartMs: Value(sentenceStartMs),
               sentenceEndMs: Value(sentenceEndMs),

@@ -1,4 +1,5 @@
 import 'dart:async';
+
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -93,8 +94,8 @@ class _TestBookmarkDao implements BookmarkDao {
   Future<List<Bookmark>> getByAudioId(String audioItemId) async => [];
 
   @override
-  Stream<List<Bookmark>> watchByAudioId(String audioItemId) =>
-      Stream<List<Bookmark>>.value([]);
+  Stream<Set<int>> watchBookmarkedIndices(String audioItemId) =>
+      Stream<Set<int>>.value(bookmarkedIndices);
 
   @override
   dynamic noSuchMethod(Invocation invocation) {

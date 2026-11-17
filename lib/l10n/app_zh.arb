@@ -1720,8 +1720,6 @@
   "insertWordAfter": "在后面插入词",
   "deleteWord": "删除单词",
   "subtitleNewWordHint": "新词",
-  "saveSubtitleEdits": "保存字幕修改",
-  "subtitleStructureChangedWarning": "这会清除该音频的学习进度和收藏句子。",
   "subtitleEditsSaved": "字幕修改已保存。",
   "discardSubtitleEditsTitle": "放弃修改？",
   "discardSubtitleEditsMessage": "当前字幕修改尚未保存。",

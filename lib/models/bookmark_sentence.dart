@@ -13,9 +13,6 @@ class BookmarkSentence {
   /// 来源音频名称（用于 UI 显示）
   final String audioName;
 
-  /// 书签数据中的原始句子索引
-  final int originalSentenceIndex;
-
   /// 稳定关联 FSRS 调度快照的业务主体 ID。
   final String memorySubjectId;
 
@@ -23,7 +20,6 @@ class BookmarkSentence {
     required this.sentence,
     required this.audioItemId,
     required this.audioName,
-    required this.originalSentenceIndex,
     required this.memorySubjectId,
   });
 
@@ -32,7 +28,6 @@ class BookmarkSentence {
     sentence: sentence.copyWith(isBookmarked: isBookmarked),
     audioItemId: audioItemId,
     audioName: audioName,
-    originalSentenceIndex: originalSentenceIndex,
     memorySubjectId: memorySubjectId,
   );
 }

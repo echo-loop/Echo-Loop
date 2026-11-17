@@ -3697,17 +3697,6 @@ class $BookmarksTable extends Bookmarks
       'REFERENCES audio_items (id) ON DELETE CASCADE',
     ),
   );
-  static const VerificationMeta _sentenceIndexMeta = const VerificationMeta(
-    'sentenceIndex',
-  );
-  @override
-  late final GeneratedColumn<int> sentenceIndex = GeneratedColumn<int>(
-    'sentence_index',
-    aliasedName,
-    false,
-    type: DriftSqlType.int,
-    requiredDuringInsert: true,
-  );
   static const VerificationMeta _sentenceTextMeta = const VerificationMeta(
     'sentenceText',
   );
@@ -3791,7 +3780,6 @@ class $BookmarksTable extends Bookmarks
     id,
     memorySubjectId,
     audioItemId,
-    sentenceIndex,
     sentenceText,
     startTime,
     endTime,
@@ -3834,17 +3822,6 @@ class $BookmarksTable extends Bookmarks
       );
     } else if (isInserting) {
       context.missing(_audioItemIdMeta);
-    }
-    if (data.containsKey('sentence_index')) {
-      context.handle(
-        _sentenceIndexMeta,
-        sentenceIndex.isAcceptableOrUnknown(
-          data['sentence_index']!,
-          _sentenceIndexMeta,
-        ),
-      );
-    } else if (isInserting) {
-      context.missing(_sentenceIndexMeta);
     }
     if (data.containsKey('sentence_text')) {
       context.handle(
@@ -3907,10 +3884,6 @@ class $BookmarksTable extends Bookmarks
   @override
   Set<GeneratedColumn> get $primaryKey => {id};
   @override
-  List<Set<GeneratedColumn>> get uniqueKeys => [
-    {audioItemId, sentenceIndex},
-  ];
-  @override
   Bookmark map(Map<String, dynamic> data, {String? tablePrefix}) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
     return Bookmark(
@@ -3925,10 +3898,6 @@ class $BookmarksTable extends Bookmarks
       audioItemId: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}audio_item_id'],
-      )!,
-      sentenceIndex: attachedDatabase.typeMapping.read(
-        DriftSqlType.int,
-        data['${effectivePrefix}sentence_index'],
       )!,
       sentenceText: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
@@ -3977,16 +3946,13 @@ class Bookmark extends DataClass implements Insertable<Bookmark> {
   /// 音频 ID，外键关联 audio_items.id
   final String audioItemId;
 
-  /// 句子索引（快速查询 + 向后兼容）
-  final int sentenceIndex;
-
-  /// 句子文本（防止索引错位时可通过文本匹配）
+  /// 收藏时的句子文本（之后编辑字幕也不改）
   final String sentenceText;
 
-  /// 句子起始时间（秒）
+  /// 收藏区间起点（秒），之后编辑字幕也不改
   final double startTime;
 
-  /// 句子结束时间（秒）
+  /// 收藏区间终点（秒），之后编辑字幕也不改
   final double endTime;
 
   /// 创建时间
@@ -4004,7 +3970,6 @@ class Bookmark extends DataClass implements Insertable<Bookmark> {
     required this.id,
     this.memorySubjectId,
     required this.audioItemId,
-    required this.sentenceIndex,
     required this.sentenceText,
     required this.startTime,
     required this.endTime,
@@ -4021,7 +3986,6 @@ class Bookmark extends DataClass implements Insertable<Bookmark> {
       map['memory_subject_id'] = Variable<String>(memorySubjectId);
     }
     map['audio_item_id'] = Variable<String>(audioItemId);
-    map['sentence_index'] = Variable<int>(sentenceIndex);
     map['sentence_text'] = Variable<String>(sentenceText);
     map['start_time'] = Variable<double>(startTime);
     map['end_time'] = Variable<double>(endTime);
@@ -4041,7 +4005,6 @@ class Bookmark extends DataClass implements Insertable<Bookmark> {
           ? const Value.absent()
           : Value(memorySubjectId),
       audioItemId: Value(audioItemId),
-      sentenceIndex: Value(sentenceIndex),
       sentenceText: Value(sentenceText),
       startTime: Value(startTime),
       endTime: Value(endTime),
@@ -4063,7 +4026,6 @@ class Bookmark extends DataClass implements Insertable<Bookmark> {
       id: serializer.fromJson<int>(json['id']),
       memorySubjectId: serializer.fromJson<String?>(json['memorySubjectId']),
       audioItemId: serializer.fromJson<String>(json['audioItemId']),
-      sentenceIndex: serializer.fromJson<int>(json['sentenceIndex']),
       sentenceText: serializer.fromJson<String>(json['sentenceText']),
       startTime: serializer.fromJson<double>(json['startTime']),
       endTime: serializer.fromJson<double>(json['endTime']),
@@ -4080,7 +4042,6 @@ class Bookmark extends DataClass implements Insertable<Bookmark> {
       'id': serializer.toJson<int>(id),
       'memorySubjectId': serializer.toJson<String?>(memorySubjectId),
       'audioItemId': serializer.toJson<String>(audioItemId),
-      'sentenceIndex': serializer.toJson<int>(sentenceIndex),
       'sentenceText': serializer.toJson<String>(sentenceText),
       'startTime': serializer.toJson<double>(startTime),
       'endTime': serializer.toJson<double>(endTime),
@@ -4095,7 +4056,6 @@ class Bookmark extends DataClass implements Insertable<Bookmark> {
     int? id,
     Value<String?> memorySubjectId = const Value.absent(),
     String? audioItemId,
-    int? sentenceIndex,
     String? sentenceText,
     double? startTime,
     double? endTime,
@@ -4109,7 +4069,6 @@ class Bookmark extends DataClass implements Insertable<Bookmark> {
         ? memorySubjectId.value
         : this.memorySubjectId,
     audioItemId: audioItemId ?? this.audioItemId,
-    sentenceIndex: sentenceIndex ?? this.sentenceIndex,
     sentenceText: sentenceText ?? this.sentenceText,
     startTime: startTime ?? this.startTime,
     endTime: endTime ?? this.endTime,
@@ -4127,9 +4086,6 @@ class Bookmark extends DataClass implements Insertable<Bookmark> {
       audioItemId: data.audioItemId.present
           ? data.audioItemId.value
           : this.audioItemId,
-      sentenceIndex: data.sentenceIndex.present
-          ? data.sentenceIndex.value
-          : this.sentenceIndex,
       sentenceText: data.sentenceText.present
           ? data.sentenceText.value
           : this.sentenceText,
@@ -4150,7 +4106,6 @@ class Bookmark extends DataClass implements Insertable<Bookmark> {
           ..write('id: $id, ')
           ..write('memorySubjectId: $memorySubjectId, ')
           ..write('audioItemId: $audioItemId, ')
-          ..write('sentenceIndex: $sentenceIndex, ')
           ..write('sentenceText: $sentenceText, ')
           ..write('startTime: $startTime, ')
           ..write('endTime: $endTime, ')
@@ -4167,7 +4122,6 @@ class Bookmark extends DataClass implements Insertable<Bookmark> {
     id,
     memorySubjectId,
     audioItemId,
-    sentenceIndex,
     sentenceText,
     startTime,
     endTime,
@@ -4183,7 +4137,6 @@ class Bookmark extends DataClass implements Insertable<Bookmark> {
           other.id == this.id &&
           other.memorySubjectId == this.memorySubjectId &&
           other.audioItemId == this.audioItemId &&
-          other.sentenceIndex == this.sentenceIndex &&
           other.sentenceText == this.sentenceText &&
           other.startTime == this.startTime &&
           other.endTime == this.endTime &&
@@ -4197,7 +4150,6 @@ class BookmarksCompanion extends UpdateCompanion<Bookmark> {
   final Value<int> id;
   final Value<String?> memorySubjectId;
   final Value<String> audioItemId;
-  final Value<int> sentenceIndex;
   final Value<String> sentenceText;
   final Value<double> startTime;
   final Value<double> endTime;
@@ -4209,7 +4161,6 @@ class BookmarksCompanion extends UpdateCompanion<Bookmark> {
     this.id = const Value.absent(),
     this.memorySubjectId = const Value.absent(),
     this.audioItemId = const Value.absent(),
-    this.sentenceIndex = const Value.absent(),
     this.sentenceText = const Value.absent(),
     this.startTime = const Value.absent(),
     this.endTime = const Value.absent(),
@@ -4222,7 +4173,6 @@ class BookmarksCompanion extends UpdateCompanion<Bookmark> {
     this.id = const Value.absent(),
     this.memorySubjectId = const Value.absent(),
     required String audioItemId,
-    required int sentenceIndex,
     required String sentenceText,
     required double startTime,
     required double endTime,
@@ -4231,7 +4181,6 @@ class BookmarksCompanion extends UpdateCompanion<Bookmark> {
     this.deletedAt = const Value.absent(),
     this.syncStatus = const Value.absent(),
   }) : audioItemId = Value(audioItemId),
-       sentenceIndex = Value(sentenceIndex),
        sentenceText = Value(sentenceText),
        startTime = Value(startTime),
        endTime = Value(endTime),
@@ -4241,7 +4190,6 @@ class BookmarksCompanion extends UpdateCompanion<Bookmark> {
     Expression<int>? id,
     Expression<String>? memorySubjectId,
     Expression<String>? audioItemId,
-    Expression<int>? sentenceIndex,
     Expression<String>? sentenceText,
     Expression<double>? startTime,
     Expression<double>? endTime,
@@ -4254,7 +4202,6 @@ class BookmarksCompanion extends UpdateCompanion<Bookmark> {
       if (id != null) 'id': id,
       if (memorySubjectId != null) 'memory_subject_id': memorySubjectId,
       if (audioItemId != null) 'audio_item_id': audioItemId,
-      if (sentenceIndex != null) 'sentence_index': sentenceIndex,
       if (sentenceText != null) 'sentence_text': sentenceText,
       if (startTime != null) 'start_time': startTime,
       if (endTime != null) 'end_time': endTime,
@@ -4269,7 +4216,6 @@ class BookmarksCompanion extends UpdateCompanion<Bookmark> {
     Value<int>? id,
     Value<String?>? memorySubjectId,
     Value<String>? audioItemId,
-    Value<int>? sentenceIndex,
     Value<String>? sentenceText,
     Value<double>? startTime,
     Value<double>? endTime,
@@ -4282,7 +4228,6 @@ class BookmarksCompanion extends UpdateCompanion<Bookmark> {
       id: id ?? this.id,
       memorySubjectId: memorySubjectId ?? this.memorySubjectId,
       audioItemId: audioItemId ?? this.audioItemId,
-      sentenceIndex: sentenceIndex ?? this.sentenceIndex,
       sentenceText: sentenceText ?? this.sentenceText,
       startTime: startTime ?? this.startTime,
       endTime: endTime ?? this.endTime,
@@ -4304,9 +4249,6 @@ class BookmarksCompanion extends UpdateCompanion<Bookmark> {
     }
     if (audioItemId.present) {
       map['audio_item_id'] = Variable<String>(audioItemId.value);
-    }
-    if (sentenceIndex.present) {
-      map['sentence_index'] = Variable<int>(sentenceIndex.value);
     }
     if (sentenceText.present) {
       map['sentence_text'] = Variable<String>(sentenceText.value);
@@ -4338,7 +4280,6 @@ class BookmarksCompanion extends UpdateCompanion<Bookmark> {
           ..write('id: $id, ')
           ..write('memorySubjectId: $memorySubjectId, ')
           ..write('audioItemId: $audioItemId, ')
-          ..write('sentenceIndex: $sentenceIndex, ')
           ..write('sentenceText: $sentenceText, ')
           ..write('startTime: $startTime, ')
           ..write('endTime: $endTime, ')
@@ -8432,17 +8373,6 @@ class $SavedWordsTable extends SavedWords
       'REFERENCES audio_items (id) ON DELETE SET NULL',
     ),
   );
-  static const VerificationMeta _sentenceIndexMeta = const VerificationMeta(
-    'sentenceIndex',
-  );
-  @override
-  late final GeneratedColumn<int> sentenceIndex = GeneratedColumn<int>(
-    'sentence_index',
-    aliasedName,
-    true,
-    type: DriftSqlType.int,
-    requiredDuringInsert: false,
-  );
   static const VerificationMeta _sentenceTextMeta = const VerificationMeta(
     'sentenceText',
   );
@@ -8578,7 +8508,6 @@ class $SavedWordsTable extends SavedWords
     word,
     memorySubjectId,
     audioItemId,
-    sentenceIndex,
     sentenceText,
     sentenceStartMs,
     sentenceEndMs,
@@ -8629,15 +8558,6 @@ class $SavedWordsTable extends SavedWords
         audioItemId.isAcceptableOrUnknown(
           data['audio_item_id']!,
           _audioItemIdMeta,
-        ),
-      );
-    }
-    if (data.containsKey('sentence_index')) {
-      context.handle(
-        _sentenceIndexMeta,
-        sentenceIndex.isAcceptableOrUnknown(
-          data['sentence_index']!,
-          _sentenceIndexMeta,
         ),
       );
     }
@@ -8754,10 +8674,6 @@ class $SavedWordsTable extends SavedWords
         DriftSqlType.string,
         data['${effectivePrefix}audio_item_id'],
       ),
-      sentenceIndex: attachedDatabase.typeMapping.read(
-        DriftSqlType.int,
-        data['${effectivePrefix}sentence_index'],
-      ),
       sentenceText: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}sentence_text'],
@@ -8826,9 +8742,6 @@ class SavedWord extends DataClass implements Insertable<SavedWord> {
   /// 来源音频 ID，FK → audio_items，音频删除时置空
   final String? audioItemId;
 
-  /// 来源句子索引
-  final int? sentenceIndex;
-
   /// 来源句子文本（冗余存储，防止索引错位或音频删除后丢失上下文）
   final String? sentenceText;
 
@@ -8866,7 +8779,6 @@ class SavedWord extends DataClass implements Insertable<SavedWord> {
     required this.word,
     this.memorySubjectId,
     this.audioItemId,
-    this.sentenceIndex,
     this.sentenceText,
     this.sentenceStartMs,
     this.sentenceEndMs,
@@ -8889,9 +8801,6 @@ class SavedWord extends DataClass implements Insertable<SavedWord> {
     }
     if (!nullToAbsent || audioItemId != null) {
       map['audio_item_id'] = Variable<String>(audioItemId);
-    }
-    if (!nullToAbsent || sentenceIndex != null) {
-      map['sentence_index'] = Variable<int>(sentenceIndex);
     }
     if (!nullToAbsent || sentenceText != null) {
       map['sentence_text'] = Variable<String>(sentenceText);
@@ -8927,9 +8836,6 @@ class SavedWord extends DataClass implements Insertable<SavedWord> {
       audioItemId: audioItemId == null && nullToAbsent
           ? const Value.absent()
           : Value(audioItemId),
-      sentenceIndex: sentenceIndex == null && nullToAbsent
-          ? const Value.absent()
-          : Value(sentenceIndex),
       sentenceText: sentenceText == null && nullToAbsent
           ? const Value.absent()
           : Value(sentenceText),
@@ -8964,7 +8870,6 @@ class SavedWord extends DataClass implements Insertable<SavedWord> {
       word: serializer.fromJson<String>(json['word']),
       memorySubjectId: serializer.fromJson<String?>(json['memorySubjectId']),
       audioItemId: serializer.fromJson<String?>(json['audioItemId']),
-      sentenceIndex: serializer.fromJson<int?>(json['sentenceIndex']),
       sentenceText: serializer.fromJson<String?>(json['sentenceText']),
       sentenceStartMs: serializer.fromJson<int?>(json['sentenceStartMs']),
       sentenceEndMs: serializer.fromJson<int?>(json['sentenceEndMs']),
@@ -8986,7 +8891,6 @@ class SavedWord extends DataClass implements Insertable<SavedWord> {
       'word': serializer.toJson<String>(word),
       'memorySubjectId': serializer.toJson<String?>(memorySubjectId),
       'audioItemId': serializer.toJson<String?>(audioItemId),
-      'sentenceIndex': serializer.toJson<int?>(sentenceIndex),
       'sentenceText': serializer.toJson<String?>(sentenceText),
       'sentenceStartMs': serializer.toJson<int?>(sentenceStartMs),
       'sentenceEndMs': serializer.toJson<int?>(sentenceEndMs),
@@ -9006,7 +8910,6 @@ class SavedWord extends DataClass implements Insertable<SavedWord> {
     String? word,
     Value<String?> memorySubjectId = const Value.absent(),
     Value<String?> audioItemId = const Value.absent(),
-    Value<int?> sentenceIndex = const Value.absent(),
     Value<String?> sentenceText = const Value.absent(),
     Value<int?> sentenceStartMs = const Value.absent(),
     Value<int?> sentenceEndMs = const Value.absent(),
@@ -9025,9 +8928,6 @@ class SavedWord extends DataClass implements Insertable<SavedWord> {
         ? memorySubjectId.value
         : this.memorySubjectId,
     audioItemId: audioItemId.present ? audioItemId.value : this.audioItemId,
-    sentenceIndex: sentenceIndex.present
-        ? sentenceIndex.value
-        : this.sentenceIndex,
     sentenceText: sentenceText.present ? sentenceText.value : this.sentenceText,
     sentenceStartMs: sentenceStartMs.present
         ? sentenceStartMs.value
@@ -9056,9 +8956,6 @@ class SavedWord extends DataClass implements Insertable<SavedWord> {
       audioItemId: data.audioItemId.present
           ? data.audioItemId.value
           : this.audioItemId,
-      sentenceIndex: data.sentenceIndex.present
-          ? data.sentenceIndex.value
-          : this.sentenceIndex,
       sentenceText: data.sentenceText.present
           ? data.sentenceText.value
           : this.sentenceText,
@@ -9096,7 +8993,6 @@ class SavedWord extends DataClass implements Insertable<SavedWord> {
           ..write('word: $word, ')
           ..write('memorySubjectId: $memorySubjectId, ')
           ..write('audioItemId: $audioItemId, ')
-          ..write('sentenceIndex: $sentenceIndex, ')
           ..write('sentenceText: $sentenceText, ')
           ..write('sentenceStartMs: $sentenceStartMs, ')
           ..write('sentenceEndMs: $sentenceEndMs, ')
@@ -9118,7 +9014,6 @@ class SavedWord extends DataClass implements Insertable<SavedWord> {
     word,
     memorySubjectId,
     audioItemId,
-    sentenceIndex,
     sentenceText,
     sentenceStartMs,
     sentenceEndMs,
@@ -9139,7 +9034,6 @@ class SavedWord extends DataClass implements Insertable<SavedWord> {
           other.word == this.word &&
           other.memorySubjectId == this.memorySubjectId &&
           other.audioItemId == this.audioItemId &&
-          other.sentenceIndex == this.sentenceIndex &&
           other.sentenceText == this.sentenceText &&
           other.sentenceStartMs == this.sentenceStartMs &&
           other.sentenceEndMs == this.sentenceEndMs &&
@@ -9158,7 +9052,6 @@ class SavedWordsCompanion extends UpdateCompanion<SavedWord> {
   final Value<String> word;
   final Value<String?> memorySubjectId;
   final Value<String?> audioItemId;
-  final Value<int?> sentenceIndex;
   final Value<String?> sentenceText;
   final Value<int?> sentenceStartMs;
   final Value<int?> sentenceEndMs;
@@ -9175,7 +9068,6 @@ class SavedWordsCompanion extends UpdateCompanion<SavedWord> {
     this.word = const Value.absent(),
     this.memorySubjectId = const Value.absent(),
     this.audioItemId = const Value.absent(),
-    this.sentenceIndex = const Value.absent(),
     this.sentenceText = const Value.absent(),
     this.sentenceStartMs = const Value.absent(),
     this.sentenceEndMs = const Value.absent(),
@@ -9193,7 +9085,6 @@ class SavedWordsCompanion extends UpdateCompanion<SavedWord> {
     required String word,
     this.memorySubjectId = const Value.absent(),
     this.audioItemId = const Value.absent(),
-    this.sentenceIndex = const Value.absent(),
     this.sentenceText = const Value.absent(),
     this.sentenceStartMs = const Value.absent(),
     this.sentenceEndMs = const Value.absent(),
@@ -9213,7 +9104,6 @@ class SavedWordsCompanion extends UpdateCompanion<SavedWord> {
     Expression<String>? word,
     Expression<String>? memorySubjectId,
     Expression<String>? audioItemId,
-    Expression<int>? sentenceIndex,
     Expression<String>? sentenceText,
     Expression<int>? sentenceStartMs,
     Expression<int>? sentenceEndMs,
@@ -9231,7 +9121,6 @@ class SavedWordsCompanion extends UpdateCompanion<SavedWord> {
       if (word != null) 'word': word,
       if (memorySubjectId != null) 'memory_subject_id': memorySubjectId,
       if (audioItemId != null) 'audio_item_id': audioItemId,
-      if (sentenceIndex != null) 'sentence_index': sentenceIndex,
       if (sentenceText != null) 'sentence_text': sentenceText,
       if (sentenceStartMs != null) 'sentence_start_ms': sentenceStartMs,
       if (sentenceEndMs != null) 'sentence_end_ms': sentenceEndMs,
@@ -9251,7 +9140,6 @@ class SavedWordsCompanion extends UpdateCompanion<SavedWord> {
     Value<String>? word,
     Value<String?>? memorySubjectId,
     Value<String?>? audioItemId,
-    Value<int?>? sentenceIndex,
     Value<String?>? sentenceText,
     Value<int?>? sentenceStartMs,
     Value<int?>? sentenceEndMs,
@@ -9269,7 +9157,6 @@ class SavedWordsCompanion extends UpdateCompanion<SavedWord> {
       word: word ?? this.word,
       memorySubjectId: memorySubjectId ?? this.memorySubjectId,
       audioItemId: audioItemId ?? this.audioItemId,
-      sentenceIndex: sentenceIndex ?? this.sentenceIndex,
       sentenceText: sentenceText ?? this.sentenceText,
       sentenceStartMs: sentenceStartMs ?? this.sentenceStartMs,
       sentenceEndMs: sentenceEndMs ?? this.sentenceEndMs,
@@ -9298,9 +9185,6 @@ class SavedWordsCompanion extends UpdateCompanion<SavedWord> {
     }
     if (audioItemId.present) {
       map['audio_item_id'] = Variable<String>(audioItemId.value);
-    }
-    if (sentenceIndex.present) {
-      map['sentence_index'] = Variable<int>(sentenceIndex.value);
     }
     if (sentenceText.present) {
       map['sentence_text'] = Variable<String>(sentenceText.value);
@@ -9345,7 +9229,6 @@ class SavedWordsCompanion extends UpdateCompanion<SavedWord> {
           ..write('word: $word, ')
           ..write('memorySubjectId: $memorySubjectId, ')
           ..write('audioItemId: $audioItemId, ')
-          ..write('sentenceIndex: $sentenceIndex, ')
           ..write('sentenceText: $sentenceText, ')
           ..write('sentenceStartMs: $sentenceStartMs, ')
           ..write('sentenceEndMs: $sentenceEndMs, ')
@@ -9428,17 +9311,6 @@ class $SavedSenseGroupsTable extends SavedSenseGroups
     defaultConstraints: GeneratedColumn.constraintIsAlways(
       'REFERENCES audio_items (id) ON DELETE SET NULL',
     ),
-  );
-  static const VerificationMeta _sentenceIndexMeta = const VerificationMeta(
-    'sentenceIndex',
-  );
-  @override
-  late final GeneratedColumn<int> sentenceIndex = GeneratedColumn<int>(
-    'sentence_index',
-    aliasedName,
-    true,
-    type: DriftSqlType.int,
-    requiredDuringInsert: false,
   );
   static const VerificationMeta _sentenceTextMeta = const VerificationMeta(
     'sentenceText',
@@ -9598,7 +9470,6 @@ class $SavedSenseGroupsTable extends SavedSenseGroups
     memorySubjectId,
     displayText,
     audioItemId,
-    sentenceIndex,
     sentenceText,
     sentenceStartMs,
     sentenceEndMs,
@@ -9662,15 +9533,6 @@ class $SavedSenseGroupsTable extends SavedSenseGroups
         audioItemId.isAcceptableOrUnknown(
           data['audio_item_id']!,
           _audioItemIdMeta,
-        ),
-      );
-    }
-    if (data.containsKey('sentence_index')) {
-      context.handle(
-        _sentenceIndexMeta,
-        sentenceIndex.isAcceptableOrUnknown(
-          data['sentence_index']!,
-          _sentenceIndexMeta,
         ),
       );
     }
@@ -9809,10 +9671,6 @@ class $SavedSenseGroupsTable extends SavedSenseGroups
         DriftSqlType.string,
         data['${effectivePrefix}audio_item_id'],
       ),
-      sentenceIndex: attachedDatabase.typeMapping.read(
-        DriftSqlType.int,
-        data['${effectivePrefix}sentence_index'],
-      ),
       sentenceText: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}sentence_text'],
@@ -9892,9 +9750,6 @@ class SavedSenseGroup extends DataClass implements Insertable<SavedSenseGroup> {
   /// 来源音频 ID，FK → audio_items，音频删除时置空
   final String? audioItemId;
 
-  /// 来源句子索引
-  final int? sentenceIndex;
-
   /// 来源句子文本（冗余存储，闪卡复习时展示上下文）
   final String? sentenceText;
 
@@ -9939,7 +9794,6 @@ class SavedSenseGroup extends DataClass implements Insertable<SavedSenseGroup> {
     this.memorySubjectId,
     required this.displayText,
     this.audioItemId,
-    this.sentenceIndex,
     this.sentenceText,
     this.sentenceStartMs,
     this.sentenceEndMs,
@@ -9965,9 +9819,6 @@ class SavedSenseGroup extends DataClass implements Insertable<SavedSenseGroup> {
     map['display_text'] = Variable<String>(displayText);
     if (!nullToAbsent || audioItemId != null) {
       map['audio_item_id'] = Variable<String>(audioItemId);
-    }
-    if (!nullToAbsent || sentenceIndex != null) {
-      map['sentence_index'] = Variable<int>(sentenceIndex);
     }
     if (!nullToAbsent || sentenceText != null) {
       map['sentence_text'] = Variable<String>(sentenceText);
@@ -10010,9 +9861,6 @@ class SavedSenseGroup extends DataClass implements Insertable<SavedSenseGroup> {
       audioItemId: audioItemId == null && nullToAbsent
           ? const Value.absent()
           : Value(audioItemId),
-      sentenceIndex: sentenceIndex == null && nullToAbsent
-          ? const Value.absent()
-          : Value(sentenceIndex),
       sentenceText: sentenceText == null && nullToAbsent
           ? const Value.absent()
           : Value(sentenceText),
@@ -10054,7 +9902,6 @@ class SavedSenseGroup extends DataClass implements Insertable<SavedSenseGroup> {
       memorySubjectId: serializer.fromJson<String?>(json['memorySubjectId']),
       displayText: serializer.fromJson<String>(json['displayText']),
       audioItemId: serializer.fromJson<String?>(json['audioItemId']),
-      sentenceIndex: serializer.fromJson<int?>(json['sentenceIndex']),
       sentenceText: serializer.fromJson<String?>(json['sentenceText']),
       sentenceStartMs: serializer.fromJson<int?>(json['sentenceStartMs']),
       sentenceEndMs: serializer.fromJson<int?>(json['sentenceEndMs']),
@@ -10079,7 +9926,6 @@ class SavedSenseGroup extends DataClass implements Insertable<SavedSenseGroup> {
       'memorySubjectId': serializer.toJson<String?>(memorySubjectId),
       'displayText': serializer.toJson<String>(displayText),
       'audioItemId': serializer.toJson<String?>(audioItemId),
-      'sentenceIndex': serializer.toJson<int?>(sentenceIndex),
       'sentenceText': serializer.toJson<String?>(sentenceText),
       'sentenceStartMs': serializer.toJson<int?>(sentenceStartMs),
       'sentenceEndMs': serializer.toJson<int?>(sentenceEndMs),
@@ -10102,7 +9948,6 @@ class SavedSenseGroup extends DataClass implements Insertable<SavedSenseGroup> {
     Value<String?> memorySubjectId = const Value.absent(),
     String? displayText,
     Value<String?> audioItemId = const Value.absent(),
-    Value<int?> sentenceIndex = const Value.absent(),
     Value<String?> sentenceText = const Value.absent(),
     Value<int?> sentenceStartMs = const Value.absent(),
     Value<int?> sentenceEndMs = const Value.absent(),
@@ -10124,9 +9969,6 @@ class SavedSenseGroup extends DataClass implements Insertable<SavedSenseGroup> {
         : this.memorySubjectId,
     displayText: displayText ?? this.displayText,
     audioItemId: audioItemId.present ? audioItemId.value : this.audioItemId,
-    sentenceIndex: sentenceIndex.present
-        ? sentenceIndex.value
-        : this.sentenceIndex,
     sentenceText: sentenceText.present ? sentenceText.value : this.sentenceText,
     sentenceStartMs: sentenceStartMs.present
         ? sentenceStartMs.value
@@ -10162,9 +10004,6 @@ class SavedSenseGroup extends DataClass implements Insertable<SavedSenseGroup> {
       audioItemId: data.audioItemId.present
           ? data.audioItemId.value
           : this.audioItemId,
-      sentenceIndex: data.sentenceIndex.present
-          ? data.sentenceIndex.value
-          : this.sentenceIndex,
       sentenceText: data.sentenceText.present
           ? data.sentenceText.value
           : this.sentenceText,
@@ -10209,7 +10048,6 @@ class SavedSenseGroup extends DataClass implements Insertable<SavedSenseGroup> {
           ..write('memorySubjectId: $memorySubjectId, ')
           ..write('displayText: $displayText, ')
           ..write('audioItemId: $audioItemId, ')
-          ..write('sentenceIndex: $sentenceIndex, ')
           ..write('sentenceText: $sentenceText, ')
           ..write('sentenceStartMs: $sentenceStartMs, ')
           ..write('sentenceEndMs: $sentenceEndMs, ')
@@ -10234,7 +10072,6 @@ class SavedSenseGroup extends DataClass implements Insertable<SavedSenseGroup> {
     memorySubjectId,
     displayText,
     audioItemId,
-    sentenceIndex,
     sentenceText,
     sentenceStartMs,
     sentenceEndMs,
@@ -10258,7 +10095,6 @@ class SavedSenseGroup extends DataClass implements Insertable<SavedSenseGroup> {
           other.memorySubjectId == this.memorySubjectId &&
           other.displayText == this.displayText &&
           other.audioItemId == this.audioItemId &&
-          other.sentenceIndex == this.sentenceIndex &&
           other.sentenceText == this.sentenceText &&
           other.sentenceStartMs == this.sentenceStartMs &&
           other.sentenceEndMs == this.sentenceEndMs &&
@@ -10280,7 +10116,6 @@ class SavedSenseGroupsCompanion extends UpdateCompanion<SavedSenseGroup> {
   final Value<String?> memorySubjectId;
   final Value<String> displayText;
   final Value<String?> audioItemId;
-  final Value<int?> sentenceIndex;
   final Value<String?> sentenceText;
   final Value<int?> sentenceStartMs;
   final Value<int?> sentenceEndMs;
@@ -10300,7 +10135,6 @@ class SavedSenseGroupsCompanion extends UpdateCompanion<SavedSenseGroup> {
     this.memorySubjectId = const Value.absent(),
     this.displayText = const Value.absent(),
     this.audioItemId = const Value.absent(),
-    this.sentenceIndex = const Value.absent(),
     this.sentenceText = const Value.absent(),
     this.sentenceStartMs = const Value.absent(),
     this.sentenceEndMs = const Value.absent(),
@@ -10321,7 +10155,6 @@ class SavedSenseGroupsCompanion extends UpdateCompanion<SavedSenseGroup> {
     this.memorySubjectId = const Value.absent(),
     required String displayText,
     this.audioItemId = const Value.absent(),
-    this.sentenceIndex = const Value.absent(),
     this.sentenceText = const Value.absent(),
     this.sentenceStartMs = const Value.absent(),
     this.sentenceEndMs = const Value.absent(),
@@ -10345,7 +10178,6 @@ class SavedSenseGroupsCompanion extends UpdateCompanion<SavedSenseGroup> {
     Expression<String>? memorySubjectId,
     Expression<String>? displayText,
     Expression<String>? audioItemId,
-    Expression<int>? sentenceIndex,
     Expression<String>? sentenceText,
     Expression<int>? sentenceStartMs,
     Expression<int>? sentenceEndMs,
@@ -10366,7 +10198,6 @@ class SavedSenseGroupsCompanion extends UpdateCompanion<SavedSenseGroup> {
       if (memorySubjectId != null) 'memory_subject_id': memorySubjectId,
       if (displayText != null) 'display_text': displayText,
       if (audioItemId != null) 'audio_item_id': audioItemId,
-      if (sentenceIndex != null) 'sentence_index': sentenceIndex,
       if (sentenceText != null) 'sentence_text': sentenceText,
       if (sentenceStartMs != null) 'sentence_start_ms': sentenceStartMs,
       if (sentenceEndMs != null) 'sentence_end_ms': sentenceEndMs,
@@ -10389,7 +10220,6 @@ class SavedSenseGroupsCompanion extends UpdateCompanion<SavedSenseGroup> {
     Value<String?>? memorySubjectId,
     Value<String>? displayText,
     Value<String?>? audioItemId,
-    Value<int?>? sentenceIndex,
     Value<String?>? sentenceText,
     Value<int?>? sentenceStartMs,
     Value<int?>? sentenceEndMs,
@@ -10410,7 +10240,6 @@ class SavedSenseGroupsCompanion extends UpdateCompanion<SavedSenseGroup> {
       memorySubjectId: memorySubjectId ?? this.memorySubjectId,
       displayText: displayText ?? this.displayText,
       audioItemId: audioItemId ?? this.audioItemId,
-      sentenceIndex: sentenceIndex ?? this.sentenceIndex,
       sentenceText: sentenceText ?? this.sentenceText,
       sentenceStartMs: sentenceStartMs ?? this.sentenceStartMs,
       sentenceEndMs: sentenceEndMs ?? this.sentenceEndMs,
@@ -10444,9 +10273,6 @@ class SavedSenseGroupsCompanion extends UpdateCompanion<SavedSenseGroup> {
     }
     if (audioItemId.present) {
       map['audio_item_id'] = Variable<String>(audioItemId.value);
-    }
-    if (sentenceIndex.present) {
-      map['sentence_index'] = Variable<int>(sentenceIndex.value);
     }
     if (sentenceText.present) {
       map['sentence_text'] = Variable<String>(sentenceText.value);
@@ -10498,7 +10324,6 @@ class SavedSenseGroupsCompanion extends UpdateCompanion<SavedSenseGroup> {
           ..write('memorySubjectId: $memorySubjectId, ')
           ..write('displayText: $displayText, ')
           ..write('audioItemId: $audioItemId, ')
-          ..write('sentenceIndex: $sentenceIndex, ')
           ..write('sentenceText: $sentenceText, ')
           ..write('sentenceStartMs: $sentenceStartMs, ')
           ..write('sentenceEndMs: $sentenceEndMs, ')
@@ -19333,7 +19158,6 @@ typedef $$BookmarksTableCreateCompanionBuilder = BookmarksCompanion Function({
   Value<int> id,
   Value<String?> memorySubjectId,
   required String audioItemId,
-  required int sentenceIndex,
   required String sentenceText,
   required double startTime,
   required double endTime,
@@ -19346,7 +19170,6 @@ typedef $$BookmarksTableUpdateCompanionBuilder = BookmarksCompanion Function({
   Value<int> id,
   Value<String?> memorySubjectId,
   Value<String> audioItemId,
-  Value<int> sentenceIndex,
   Value<String> sentenceText,
   Value<double> startTime,
   Value<double> endTime,
@@ -19394,11 +19217,6 @@ class $$BookmarksTableFilterComposer
 
   ColumnFilters<String> get memorySubjectId => $composableBuilder(
     column: $table.memorySubjectId,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<int> get sentenceIndex => $composableBuilder(
-    column: $table.sentenceIndex,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -19480,11 +19298,6 @@ class $$BookmarksTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<int> get sentenceIndex => $composableBuilder(
-    column: $table.sentenceIndex,
-    builder: (column) => ColumnOrderings(column),
-  );
-
   ColumnOrderings<String> get sentenceText => $composableBuilder(
     column: $table.sentenceText,
     builder: (column) => ColumnOrderings(column),
@@ -19558,11 +19371,6 @@ class $$BookmarksTableAnnotationComposer
 
   GeneratedColumn<String> get memorySubjectId => $composableBuilder(
     column: $table.memorySubjectId,
-    builder: (column) => column,
-  );
-
-  GeneratedColumn<int> get sentenceIndex => $composableBuilder(
-    column: $table.sentenceIndex,
     builder: (column) => column,
   );
 
@@ -19646,7 +19454,6 @@ class $$BookmarksTableTableManager
                 Value<int> id = const Value.absent(),
                 Value<String?> memorySubjectId = const Value.absent(),
                 Value<String> audioItemId = const Value.absent(),
-                Value<int> sentenceIndex = const Value.absent(),
                 Value<String> sentenceText = const Value.absent(),
                 Value<double> startTime = const Value.absent(),
                 Value<double> endTime = const Value.absent(),
@@ -19658,7 +19465,6 @@ class $$BookmarksTableTableManager
                 id: id,
                 memorySubjectId: memorySubjectId,
                 audioItemId: audioItemId,
-                sentenceIndex: sentenceIndex,
                 sentenceText: sentenceText,
                 startTime: startTime,
                 endTime: endTime,
@@ -19672,7 +19478,6 @@ class $$BookmarksTableTableManager
                 Value<int> id = const Value.absent(),
                 Value<String?> memorySubjectId = const Value.absent(),
                 required String audioItemId,
-                required int sentenceIndex,
                 required String sentenceText,
                 required double startTime,
                 required double endTime,
@@ -19684,7 +19489,6 @@ class $$BookmarksTableTableManager
                 id: id,
                 memorySubjectId: memorySubjectId,
                 audioItemId: audioItemId,
-                sentenceIndex: sentenceIndex,
                 sentenceText: sentenceText,
                 startTime: startTime,
                 endTime: endTime,
@@ -22243,7 +22047,6 @@ typedef $$SavedWordsTableCreateCompanionBuilder = SavedWordsCompanion Function({
   required String word,
   Value<String?> memorySubjectId,
   Value<String?> audioItemId,
-  Value<int?> sentenceIndex,
   Value<String?> sentenceText,
   Value<int?> sentenceStartMs,
   Value<int?> sentenceEndMs,
@@ -22261,7 +22064,6 @@ typedef $$SavedWordsTableUpdateCompanionBuilder = SavedWordsCompanion Function({
   Value<String> word,
   Value<String?> memorySubjectId,
   Value<String?> audioItemId,
-  Value<int?> sentenceIndex,
   Value<String?> sentenceText,
   Value<int?> sentenceStartMs,
   Value<int?> sentenceEndMs,
@@ -22318,11 +22120,6 @@ class $$SavedWordsTableFilterComposer
 
   ColumnFilters<String> get memorySubjectId => $composableBuilder(
     column: $table.memorySubjectId,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<int> get sentenceIndex => $composableBuilder(
-    column: $table.sentenceIndex,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -22429,11 +22226,6 @@ class $$SavedWordsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<int> get sentenceIndex => $composableBuilder(
-    column: $table.sentenceIndex,
-    builder: (column) => ColumnOrderings(column),
-  );
-
   ColumnOrderings<String> get sentenceText => $composableBuilder(
     column: $table.sentenceText,
     builder: (column) => ColumnOrderings(column),
@@ -22530,11 +22322,6 @@ class $$SavedWordsTableAnnotationComposer
 
   GeneratedColumn<String> get memorySubjectId => $composableBuilder(
     column: $table.memorySubjectId,
-    builder: (column) => column,
-  );
-
-  GeneratedColumn<int> get sentenceIndex => $composableBuilder(
-    column: $table.sentenceIndex,
     builder: (column) => column,
   );
 
@@ -22643,7 +22430,6 @@ class $$SavedWordsTableTableManager
                 Value<String> word = const Value.absent(),
                 Value<String?> memorySubjectId = const Value.absent(),
                 Value<String?> audioItemId = const Value.absent(),
-                Value<int?> sentenceIndex = const Value.absent(),
                 Value<String?> sentenceText = const Value.absent(),
                 Value<int?> sentenceStartMs = const Value.absent(),
                 Value<int?> sentenceEndMs = const Value.absent(),
@@ -22660,7 +22446,6 @@ class $$SavedWordsTableTableManager
                 word: word,
                 memorySubjectId: memorySubjectId,
                 audioItemId: audioItemId,
-                sentenceIndex: sentenceIndex,
                 sentenceText: sentenceText,
                 sentenceStartMs: sentenceStartMs,
                 sentenceEndMs: sentenceEndMs,
@@ -22679,7 +22464,6 @@ class $$SavedWordsTableTableManager
                 required String word,
                 Value<String?> memorySubjectId = const Value.absent(),
                 Value<String?> audioItemId = const Value.absent(),
-                Value<int?> sentenceIndex = const Value.absent(),
                 Value<String?> sentenceText = const Value.absent(),
                 Value<int?> sentenceStartMs = const Value.absent(),
                 Value<int?> sentenceEndMs = const Value.absent(),
@@ -22696,7 +22480,6 @@ class $$SavedWordsTableTableManager
                 word: word,
                 memorySubjectId: memorySubjectId,
                 audioItemId: audioItemId,
-                sentenceIndex: sentenceIndex,
                 sentenceText: sentenceText,
                 sentenceStartMs: sentenceStartMs,
                 sentenceEndMs: sentenceEndMs,
@@ -22781,7 +22564,6 @@ typedef $$SavedSenseGroupsTableCreateCompanionBuilder =
       Value<String?> memorySubjectId,
       required String displayText,
       Value<String?> audioItemId,
-      Value<int?> sentenceIndex,
       Value<String?> sentenceText,
       Value<int?> sentenceStartMs,
       Value<int?> sentenceEndMs,
@@ -22803,7 +22585,6 @@ typedef $$SavedSenseGroupsTableUpdateCompanionBuilder =
       Value<String?> memorySubjectId,
       Value<String> displayText,
       Value<String?> audioItemId,
-      Value<int?> sentenceIndex,
       Value<String?> sentenceText,
       Value<int?> sentenceStartMs,
       Value<int?> sentenceEndMs,
@@ -22872,11 +22653,6 @@ class $$SavedSenseGroupsTableFilterComposer
 
   ColumnFilters<String> get displayText => $composableBuilder(
     column: $table.displayText,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<int> get sentenceIndex => $composableBuilder(
-    column: $table.sentenceIndex,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -22998,11 +22774,6 @@ class $$SavedSenseGroupsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<int> get sentenceIndex => $composableBuilder(
-    column: $table.sentenceIndex,
-    builder: (column) => ColumnOrderings(column),
-  );
-
   ColumnOrderings<String> get sentenceText => $composableBuilder(
     column: $table.sentenceText,
     builder: (column) => ColumnOrderings(column),
@@ -23116,11 +22887,6 @@ class $$SavedSenseGroupsTableAnnotationComposer
 
   GeneratedColumn<String> get displayText => $composableBuilder(
     column: $table.displayText,
-    builder: (column) => column,
-  );
-
-  GeneratedColumn<int> get sentenceIndex => $composableBuilder(
-    column: $table.sentenceIndex,
     builder: (column) => column,
   );
 
@@ -23242,7 +23008,6 @@ class $$SavedSenseGroupsTableTableManager
                 Value<String?> memorySubjectId = const Value.absent(),
                 Value<String> displayText = const Value.absent(),
                 Value<String?> audioItemId = const Value.absent(),
-                Value<int?> sentenceIndex = const Value.absent(),
                 Value<String?> sentenceText = const Value.absent(),
                 Value<int?> sentenceStartMs = const Value.absent(),
                 Value<int?> sentenceEndMs = const Value.absent(),
@@ -23262,7 +23027,6 @@ class $$SavedSenseGroupsTableTableManager
                 memorySubjectId: memorySubjectId,
                 displayText: displayText,
                 audioItemId: audioItemId,
-                sentenceIndex: sentenceIndex,
                 sentenceText: sentenceText,
                 sentenceStartMs: sentenceStartMs,
                 sentenceEndMs: sentenceEndMs,
@@ -23284,7 +23048,6 @@ class $$SavedSenseGroupsTableTableManager
                 Value<String?> memorySubjectId = const Value.absent(),
                 required String displayText,
                 Value<String?> audioItemId = const Value.absent(),
-                Value<int?> sentenceIndex = const Value.absent(),
                 Value<String?> sentenceText = const Value.absent(),
                 Value<int?> sentenceStartMs = const Value.absent(),
                 Value<int?> sentenceEndMs = const Value.absent(),
@@ -23304,7 +23067,6 @@ class $$SavedSenseGroupsTableTableManager
                 memorySubjectId: memorySubjectId,
                 displayText: displayText,
                 audioItemId: audioItemId,
-                sentenceIndex: sentenceIndex,
                 sentenceText: sentenceText,
                 sentenceStartMs: sentenceStartMs,
                 sentenceEndMs: sentenceEndMs,

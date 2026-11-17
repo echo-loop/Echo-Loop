@@ -511,10 +511,9 @@ class BookmarkReview extends _$BookmarkReview {
     await interruptPlayback();
     state = state.copyWith(isRemoving: true, clearRemoveError: true);
     try {
-      await ref.read(favoriteSentenceLifecycleProvider).remove(
-        card.audioItemId,
-        {card.originalSentenceIndex},
-      );
+      await ref
+          .read(favoriteSentenceLifecycleProvider)
+          .removeBySubjectId(card.memorySubjectId);
       if (!identical(_controller, controller)) return;
       controller.removeCurrent();
       state = _stateFromController(
@@ -739,8 +738,7 @@ class BookmarkReview extends _$BookmarkReview {
       audioItemId: card.audioItemId,
       start: card.sentence.startTime,
       end: card.sentence.endTime,
-      playbackKey:
-          'favorite-sentence-review:${card.audioItemId}:${card.originalSentenceIndex}',
+      playbackKey: 'favorite-sentence-review:${card.memorySubjectId}',
     );
   }
 

@@ -108,7 +108,6 @@ Future<void> _seedV57(File file) async {
       .insert(
         BookmarksCompanion.insert(
           audioItemId: 'audio',
-          sentenceIndex: 1,
           sentenceText: 'Valid sentence',
           startTime: 0,
           endTime: 2,

@@ -108,13 +108,12 @@ class _WaitingSpyRepeatEngine extends RepeatFlowEngine {
         callbacks: RepeatFlowCallbacks(
           pauseAudio: () {},
           playSentence: (_, _) async => SentencePlaybackResult.completed,
-          startRecording:
-              ({
-                required String promptId,
-                required String referenceText,
-                required Duration maxDuration,
-                Duration? referenceDuration,
-              }) {},
+          startRecording: ({
+            required String promptId,
+            required String referenceText,
+            required Duration maxDuration,
+            Duration? referenceDuration,
+          }) {},
           cancelRecording: () async {},
           stopAndEvaluate: ({required String referenceText}) async {},
           clearRecording: () {},
@@ -196,8 +195,8 @@ class _TestBookmarkDao implements BookmarkDao {
   Future<List<Bookmark>> getByAudioId(String audioItemId) async => [];
 
   @override
-  Stream<List<Bookmark>> watchByAudioId(String audioItemId) =>
-      Stream<List<Bookmark>>.value([]);
+  Stream<Set<int>> watchBookmarkedIndices(String audioItemId) =>
+      Stream<Set<int>>.value(<int>{});
 
   @override
   dynamic noSuchMethod(Invocation invocation) {
@@ -293,18 +292,16 @@ void main() {
     )?
     playerFactory,
   }) {
-    final sentences = createTestSentences(
-      count: 5,
-    ).map((s) => s.copyWith(isBookmarked: true)).toList();
+    final sentences = createTestSentences(count: 5)
+        .map((s) => s.copyWith(isBookmarked: true))
+        .toList();
     final initialPlayerState = playerState ?? createPlayerState();
     final audioItemDao = _MockAudioItemDao();
     when(() => audioItemDao.getById(any())).thenAnswer((_) async => null);
-    when(
-      () => audioItemDao.getWordTimestamps(any()),
-    ).thenAnswer((_) async => null);
-    when(
-      () => audioItemDao.getTranscriptSrt(any()),
-    ).thenAnswer((_) async => null);
+    when(() => audioItemDao.getWordTimestamps(any()))
+        .thenAnswer((_) async => null);
+    when(() => audioItemDao.getTranscriptSrt(any()))
+        .thenAnswer((_) async => null);
 
     final router = GoRouter(
       initialLocation: startAtHome
@@ -499,9 +496,9 @@ void main() {
     testWidgets('正文左滑切到下一句并同步进度', (tester) async {
       final player = _RecordingReviewDifficultPractice(
         createPlayerState(currentSentenceIndex: 2),
-        createTestSentences(
-          count: 5,
-        ).map((s) => s.copyWith(isBookmarked: true)).toList(),
+        createTestSentences(count: 5)
+            .map((s) => s.copyWith(isBookmarked: true))
+            .toList(),
       );
       await tester.pumpWidget(
         createTestWidget(
@@ -550,9 +547,9 @@ void main() {
     testWidgets('正文右滑切到上一句并同步进度', (tester) async {
       final player = _RecordingReviewDifficultPractice(
         createPlayerState(currentSentenceIndex: 2),
-        createTestSentences(
-          count: 5,
-        ).map((s) => s.copyWith(isBookmarked: true)).toList(),
+        createTestSentences(count: 5)
+            .map((s) => s.copyWith(isBookmarked: true))
+            .toList(),
       );
       await tester.pumpWidget(
         createTestWidget(
@@ -579,9 +576,9 @@ void main() {
     testWidgets('跟读模式正文左滑后切换为新句盲听', (tester) async {
       final player = _RecordingReviewDifficultPractice(
         createPlayerState(currentSentenceIndex: 2, isAnnotationMode: true),
-        createTestSentences(
-          count: 5,
-        ).map((s) => s.copyWith(isBookmarked: true)).toList(),
+        createTestSentences(count: 5)
+            .map((s) => s.copyWith(isBookmarked: true))
+            .toList(),
       );
       await tester.pumpWidget(
         createTestWidget(
@@ -612,9 +609,9 @@ void main() {
     testWidgets('短距离或垂直拖动正文不会切句', (tester) async {
       final player = _RecordingReviewDifficultPractice(
         createPlayerState(currentSentenceIndex: 2),
-        createTestSentences(
-          count: 5,
-        ).map((s) => s.copyWith(isBookmarked: true)).toList(),
+        createTestSentences(count: 5)
+            .map((s) => s.copyWith(isBookmarked: true))
+            .toList(),
       );
       await tester.pumpWidget(
         createTestWidget(
@@ -653,7 +650,10 @@ void main() {
 
       expect(find.byIcon(Icons.skip_previous_rounded), findsOneWidget);
       expect(find.byIcon(Icons.skip_next_rounded), findsOneWidget);
-      expect(find.byKey(playbackCenterIconKey(PlaybackToggleIcon.pause)), findsOneWidget);
+      expect(
+        find.byKey(playbackCenterIconKey(PlaybackToggleIcon.pause)),
+        findsOneWidget,
+      );
     });
 
     testWidgets('播放中不显示盲听标签（共享 widget 简化）', (tester) async {
@@ -678,7 +678,10 @@ void main() {
 
       expect(find.byIcon(Icons.skip_previous_rounded), findsOneWidget);
       expect(find.byIcon(Icons.skip_next_rounded), findsOneWidget);
-      expect(find.byKey(playbackCenterIconKey(PlaybackToggleIcon.pause)), findsOneWidget);
+      expect(
+        find.byKey(playbackCenterIconKey(PlaybackToggleIcon.pause)),
+        findsOneWidget,
+      );
     });
 
     testWidgets('暂停后显示播放图标', (tester) async {
@@ -688,11 +691,19 @@ void main() {
       await tester.pumpAndSettle();
 
       // 点击暂停
-      await tester.tap(find.byKey(playbackCenterIconKey(PlaybackToggleIcon.pause)));
+      await tester.tap(
+        find.byKey(playbackCenterIconKey(PlaybackToggleIcon.pause)),
+      );
       await tester.pumpAndSettle();
 
-      expect(find.byKey(playbackCenterIconKey(PlaybackToggleIcon.play)), findsOneWidget);
-      expect(find.byKey(playbackCenterIconKey(PlaybackToggleIcon.pause)), findsNothing);
+      expect(
+        find.byKey(playbackCenterIconKey(PlaybackToggleIcon.play)),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(playbackCenterIconKey(PlaybackToggleIcon.pause)),
+        findsNothing,
+      );
     });
 
     testWidgets('盲听模式打开设置会进入 WaitingForUser', (tester) async {
@@ -1065,9 +1076,9 @@ void main() {
     testWidgets('跟读模式点击下一句只提交一次并前进一格', (tester) async {
       final player = _RecordingReviewDifficultPractice(
         createPlayerState(currentSentenceIndex: 2, isAnnotationMode: true),
-        createTestSentences(
-          count: 5,
-        ).map((sentence) => sentence.copyWith(isBookmarked: true)).toList(),
+        createTestSentences(count: 5)
+            .map((sentence) => sentence.copyWith(isBookmarked: true))
+            .toList(),
       );
       await tester.pumpWidget(
         createTestWidget(
@@ -1099,7 +1110,10 @@ void main() {
       await tester.pumpAndSettle();
 
       // 播放按钮显示暂停图标（非禁用态）
-      expect(find.byKey(playbackCenterIconKey(PlaybackToggleIcon.pause)), findsOneWidget);
+      expect(
+        find.byKey(playbackCenterIconKey(PlaybackToggleIcon.pause)),
+        findsOneWidget,
+      );
     });
 
     testWidgets('跟读模式只显示一套底部播放控制', (tester) async {
@@ -1115,7 +1129,10 @@ void main() {
 
       expect(find.byIcon(Icons.skip_previous_rounded), findsOneWidget);
       expect(find.byIcon(Icons.skip_next_rounded), findsOneWidget);
-      expect(find.byKey(playbackCenterIconKey(PlaybackToggleIcon.pause)), findsOneWidget);
+      expect(
+        find.byKey(playbackCenterIconKey(PlaybackToggleIcon.pause)),
+        findsOneWidget,
+      );
     });
 
     testWidgets('打开设置弹窗后进入 WaitingForUser', (tester) async {
@@ -1151,11 +1168,16 @@ void main() {
       await tester.pumpAndSettle();
 
       // 点击暂停
-      await tester.tap(find.byKey(playbackCenterIconKey(PlaybackToggleIcon.pause)));
+      await tester.tap(
+        find.byKey(playbackCenterIconKey(PlaybackToggleIcon.pause)),
+      );
       await tester.pumpAndSettle();
 
       // 应切换为播放图标
-      expect(find.byKey(playbackCenterIconKey(PlaybackToggleIcon.play)), findsOneWidget);
+      expect(
+        find.byKey(playbackCenterIconKey(PlaybackToggleIcon.play)),
+        findsOneWidget,
+      );
     });
 
     testWidgets('暂停中点击 → 恢复播放', (tester) async {
@@ -1165,14 +1187,24 @@ void main() {
       await tester.pumpAndSettle();
 
       // 先暂停
-      await tester.tap(find.byKey(playbackCenterIconKey(PlaybackToggleIcon.pause)));
+      await tester.tap(
+        find.byKey(playbackCenterIconKey(PlaybackToggleIcon.pause)),
+      );
       await tester.pumpAndSettle();
-      expect(find.byKey(playbackCenterIconKey(PlaybackToggleIcon.play)), findsOneWidget);
+      expect(
+        find.byKey(playbackCenterIconKey(PlaybackToggleIcon.play)),
+        findsOneWidget,
+      );
 
       // 再恢复
-      await tester.tap(find.byKey(playbackCenterIconKey(PlaybackToggleIcon.play)));
+      await tester.tap(
+        find.byKey(playbackCenterIconKey(PlaybackToggleIcon.play)),
+      );
       await tester.pumpAndSettle();
-      expect(find.byKey(playbackCenterIconKey(PlaybackToggleIcon.pause)), findsOneWidget);
+      expect(
+        find.byKey(playbackCenterIconKey(PlaybackToggleIcon.pause)),
+        findsOneWidget,
+      );
     });
 
     testWidgets('点击听不懂 → 进入跟读模式', (tester) async {
@@ -1209,11 +1241,15 @@ void main() {
       await tester.pumpAndSettle();
 
       // 暂停
-      await tester.tap(find.byKey(playbackCenterIconKey(PlaybackToggleIcon.pause)));
+      await tester.tap(
+        find.byKey(playbackCenterIconKey(PlaybackToggleIcon.pause)),
+      );
       await tester.pumpAndSettle();
 
       // 恢复 → resume 调 _startShadowReading()，currentPlayCount 回 1
-      await tester.tap(find.byKey(playbackCenterIconKey(PlaybackToggleIcon.play)));
+      await tester.tap(
+        find.byKey(playbackCenterIconKey(PlaybackToggleIcon.play)),
+      );
       await tester.pumpAndSettle();
 
       expect(find.text('Play 1/3'), findsOneWidget);
@@ -1343,9 +1379,8 @@ void main() {
 
     testWidgets('完成后不再检查学习版通知提示', (tester) async {
       final notificationService = _MockNotificationPermissionService();
-      when(
-        () => notificationService.canShowPrompt(),
-      ).thenAnswer((_) async => true);
+      when(() => notificationService.canShowPrompt())
+          .thenAnswer((_) async => true);
 
       await tester.pumpWidget(
         createTestWidget(

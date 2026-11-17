@@ -299,8 +299,8 @@ class _IntensiveListenPlayerScreenState
   /// 该值代表“全部已标记难句”，而非“本次会话临时集合”。
   Future<int> _loadTotalDifficultCount() async {
     final bookmarkDao = ref.read(bookmarkDaoProvider);
-    final bookmarks = await bookmarkDao.getByAudioId(widget.audioItemId);
-    return bookmarks.length;
+    final indices = await bookmarkDao.getBookmarkedIndices(widget.audioItemId);
+    return indices.length;
   }
 
   /// 切换难句标记并即时持久化到数据库
@@ -328,10 +328,9 @@ class _IntensiveListenPlayerScreenState
             .save(widget.audioItemId, sentence);
       }
     } else {
-      await ref.read(favoriteSentenceLifecycleProvider).remove(
-        widget.audioItemId,
-        {player.sentences[idx].index},
-      );
+      await ref
+          .read(favoriteSentenceLifecycleProvider)
+          .remove(widget.audioItemId, player.sentences[idx]);
     }
   }
 
@@ -360,18 +359,16 @@ class _IntensiveListenPlayerScreenState
       }
     }
 
-    // 取消标记的书签 — 位置索引转换为句子索引后传给 DB
+    // 取消标记的书签：按位置取出句子逐句取消
     final removedPositions = initialBookmarks.difference(
       playerState.difficultSentences,
     );
-    if (removedPositions.isNotEmpty) {
-      final removedSentenceIndices = <int>{
-        for (final pos in removedPositions)
-          if (pos < player.sentences.length) player.sentences[pos].index,
-      };
-      await ref
-          .read(favoriteSentenceLifecycleProvider)
-          .remove(widget.audioItemId, removedSentenceIndices);
+    for (final pos in removedPositions) {
+      if (pos < player.sentences.length) {
+        await ref
+            .read(favoriteSentenceLifecycleProvider)
+            .remove(widget.audioItemId, player.sentences[pos]);
+      }
     }
   }
 

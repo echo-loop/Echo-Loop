@@ -32,7 +32,6 @@ class _GatedBookmarkReview extends BookmarkReview {
       ),
       audioItemId: 'audio-1',
       audioName: 'Test audio',
-      originalSentenceIndex: 0,
       memorySubjectId: 'sentence-subject-1',
     ),
     initialTotal: 1,

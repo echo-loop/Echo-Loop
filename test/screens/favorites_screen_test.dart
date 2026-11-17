@@ -73,7 +73,7 @@ class _TestBookmarkDao implements BookmarkDao {
   Future<List<Bookmark>> getByAudioId(String audioItemId) async => [];
 
   @override
-  Stream<List<Bookmark>> watchByAudioId(String audioItemId) =>
+  Stream<Set<int>> watchBookmarkedIndices(String audioItemId) =>
       const Stream.empty();
 
   @override
@@ -132,7 +132,6 @@ class _ImmediateBookmarkReview extends BookmarkReview {
 Bookmark _createBookmark({
   required int id,
   required String audioItemId,
-  required int sentenceIndex,
   String sentenceText = 'Test sentence.',
   double startTime = 0.0,
   double endTime = 5.0,
@@ -140,7 +139,6 @@ Bookmark _createBookmark({
   return Bookmark(
     id: id,
     audioItemId: audioItemId,
-    sentenceIndex: sentenceIndex,
     sentenceText: sentenceText,
     startTime: startTime,
     endTime: endTime,
@@ -156,7 +154,6 @@ SavedWord _createSavedWord({
   required int id,
   required String word,
   String? audioItemId,
-  int? sentenceIndex,
   String? sentenceText,
   int? sentenceStartMs,
   int? sentenceEndMs,
@@ -165,7 +162,6 @@ SavedWord _createSavedWord({
     id: id,
     word: word,
     audioItemId: audioItemId,
-    sentenceIndex: sentenceIndex,
     sentenceText: sentenceText,
     sentenceStartMs: sentenceStartMs,
     sentenceEndMs: sentenceEndMs,
@@ -192,7 +188,6 @@ SavedSenseGroup _createSavedPhrase({
     phraseText: phraseText,
     displayText: phraseText,
     audioItemId: audioItemId,
-    sentenceIndex: null,
     sentenceText: sentenceText,
     sentenceStartMs: null,
     sentenceEndMs: null,
@@ -382,11 +377,7 @@ void main() {
       await tester.pumpWidget(createTestWidget());
       bookmarkController.add([
         BookmarkWithAudio(
-          bookmark: _createBookmark(
-            id: 1,
-            audioItemId: 'audio-1',
-            sentenceIndex: 0,
-          ),
+          bookmark: _createBookmark(id: 1, audioItemId: 'audio-1'),
           audioName: 'Audio 1',
         ),
       ]);
@@ -440,12 +431,7 @@ void main() {
       );
       bookmarkController.add([
         BookmarkWithAudio(
-          bookmark: _createBookmark(
-            id: 1,
-            audioItemId: 'audio-1',
-            sentenceIndex: 0,
-            endTime: 3,
-          ),
+          bookmark: _createBookmark(id: 1, audioItemId: 'audio-1', endTime: 3),
           audioName: 'Audio One',
         ),
       ]);
@@ -476,12 +462,7 @@ void main() {
       );
       bookmarkController.add([
         BookmarkWithAudio(
-          bookmark: _createBookmark(
-            id: 1,
-            audioItemId: 'audio-1',
-            sentenceIndex: 0,
-            endTime: 3,
-          ),
+          bookmark: _createBookmark(id: 1, audioItemId: 'audio-1', endTime: 3),
           audioName: 'Audio One',
         ),
       ]);
@@ -560,19 +541,11 @@ void main() {
       await tester.pumpWidget(createTestWidget());
       bookmarkController.add([
         BookmarkWithAudio(
-          bookmark: _createBookmark(
-            id: 1,
-            audioItemId: 'audio-1',
-            sentenceIndex: 0,
-          ),
+          bookmark: _createBookmark(id: 1, audioItemId: 'audio-1'),
           audioName: 'Audio One',
         ),
         BookmarkWithAudio(
-          bookmark: _createBookmark(
-            id: 2,
-            audioItemId: 'audio-1',
-            sentenceIndex: 1,
-          ),
+          bookmark: _createBookmark(id: 2, audioItemId: 'audio-1'),
           audioName: 'Audio One',
         ),
       ]);
@@ -691,12 +664,7 @@ void main() {
       );
       bookmarkController.add([
         BookmarkWithAudio(
-          bookmark: _createBookmark(
-            id: 1,
-            audioItemId: 'audio-1',
-            sentenceIndex: 0,
-            endTime: 3,
-          ),
+          bookmark: _createBookmark(id: 1, audioItemId: 'audio-1', endTime: 3),
           audioName: 'Audio One',
         ),
       ]);
@@ -732,7 +700,6 @@ void main() {
           bookmark: _createBookmark(
             id: 1,
             audioItemId: 'audio-1',
-            sentenceIndex: 0,
             sentenceText: 'Hello world.',
           ),
           audioName: 'Audio One',
@@ -741,7 +708,6 @@ void main() {
           bookmark: _createBookmark(
             id: 2,
             audioItemId: 'audio-1',
-            sentenceIndex: 1,
             sentenceText: 'How are you?',
           ),
           audioName: 'Audio One',
@@ -750,7 +716,6 @@ void main() {
           bookmark: _createBookmark(
             id: 3,
             audioItemId: 'audio-2',
-            sentenceIndex: 0,
             sentenceText: 'Good morning.',
           ),
           audioName: 'Audio Two',
@@ -772,7 +737,6 @@ void main() {
           bookmark: _createBookmark(
             id: 1,
             audioItemId: 'audio-1',
-            sentenceIndex: 0,
             sentenceText: 'Test sentence.',
             startTime: 0.0,
             endTime: 3.0,
@@ -804,7 +768,6 @@ void main() {
           bookmark: _createBookmark(
             id: 1,
             audioItemId: 'audio-1',
-            sentenceIndex: 0,
             endTime: 3.0,
           ),
           audioName: 'Audio One',
@@ -834,7 +797,6 @@ void main() {
           bookmark: _createBookmark(
             id: 1,
             audioItemId: 'audio-1',
-            sentenceIndex: 0,
             endTime: 3.0,
           ),
           audioName: 'Audio One',
@@ -862,7 +824,6 @@ void main() {
           bookmark: _createBookmark(
             id: 1,
             audioItemId: 'audio-1',
-            sentenceIndex: 0,
             endTime: 3.0,
           ),
           audioName: 'Audio One',
@@ -888,7 +849,6 @@ void main() {
           bookmark: _createBookmark(
             id: 1,
             audioItemId: 'audio-1',
-            sentenceIndex: 0,
             sentenceText: 'Hello world.',
           ),
           audioName: 'Audio One',
@@ -913,7 +873,6 @@ void main() {
           bookmark: _createBookmark(
             id: 1,
             audioItemId: 'audio-1',
-            sentenceIndex: 0,
             sentenceText: 'Test.',
             startTime: 65.0,
             endTime: 70.0,
@@ -940,7 +899,6 @@ void main() {
           bookmark: _createBookmark(
             id: 1,
             audioItemId: 'audio-1',
-            sentenceIndex: 0,
             sentenceText: 'Test.',
           ),
           audioName: 'Audio One',
@@ -949,7 +907,6 @@ void main() {
           bookmark: _createBookmark(
             id: 2,
             audioItemId: 'audio-1',
-            sentenceIndex: 1,
             sentenceText: 'Second sentence.',
           ),
           audioName: 'Audio One',
@@ -998,19 +955,11 @@ void main() {
 
       bookmarkController.add([
         BookmarkWithAudio(
-          bookmark: _createBookmark(
-            id: 1,
-            audioItemId: 'audio-1',
-            sentenceIndex: 0,
-          ),
+          bookmark: _createBookmark(id: 1, audioItemId: 'audio-1'),
           audioName: 'Audio One',
         ),
         BookmarkWithAudio(
-          bookmark: _createBookmark(
-            id: 2,
-            audioItemId: 'audio-2',
-            sentenceIndex: 0,
-          ),
+          bookmark: _createBookmark(id: 2, audioItemId: 'audio-2'),
           audioName: 'Audio Two',
         ),
       ]);
@@ -1275,7 +1224,6 @@ void main() {
           id: 1,
           word: 'researcher',
           audioItemId: 'audio-1',
-          sentenceIndex: 0,
           sentenceText: 'A researcher studies inherited traits.',
         ),
       ]);
@@ -1344,7 +1292,6 @@ void main() {
           id: 1,
           word: 'researcher',
           audioItemId: 'audio-1',
-          sentenceIndex: 2,
           sentenceText: 'A researcher studies inherited traits.',
           sentenceStartMs: 1200,
           sentenceEndMs: 3600,
@@ -1365,7 +1312,6 @@ void main() {
       expect(find.text('Sentence detail destination'), findsOneWidget);
       expect(openedSentenceDetailArgs?.audioItemId, 'audio-1');
       expect(openedSentenceDetailArgs?.audioName, 'A source lesson');
-      expect(openedSentenceDetailArgs?.sentenceIndex, 2);
       expect(openedSentenceDetailArgs?.startTimeMs, 1200);
       expect(openedSentenceDetailArgs?.endTimeMs, 3600);
     });
@@ -1400,7 +1346,6 @@ void main() {
           id: 1,
           word: 'researcher',
           audioItemId: 'audio-1',
-          sentenceIndex: 2,
           sentenceText: 'A researcher studies inherited traits.',
           sentenceStartMs: 1200,
           sentenceEndMs: 3600,
@@ -1447,7 +1392,6 @@ void main() {
           id: 1,
           word: 'researcher',
           audioItemId: 'audio-1',
-          sentenceIndex: 2,
           sentenceText: 'A researcher studies inherited traits.',
           sentenceStartMs: 1200,
           sentenceEndMs: 3600,
@@ -1471,10 +1415,10 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Sentence detail destination'), findsOneWidget);
-      expect(openedSentenceDetailArgs?.sentenceIndex, 2);
+      expect(openedSentenceDetailArgs?.startTimeMs, 1200);
     });
 
-    testWidgets('单词来源句缺少时间时从字幕恢复后进入讲解页', (tester) async {
+    testWidgets('单词来源句缺少时间时不按文字去字幕里找句子，不进入讲解页', (tester) async {
       final sourceAudio = AudioItem(
         id: 'audio-1',
         name: 'A source lesson',
@@ -1500,7 +1444,6 @@ void main() {
           id: 1,
           word: 'researcher',
           audioItemId: 'audio-1',
-          sentenceIndex: 9,
           sentenceText: 'A researcher studies inherited traits.',
         ),
       ]);
@@ -1516,10 +1459,8 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Sentence detail destination'), findsOneWidget);
-      expect(openedSentenceDetailArgs?.sentenceIndex, 0);
-      expect(openedSentenceDetailArgs?.startTimeMs, 1200);
-      expect(openedSentenceDetailArgs?.endTimeMs, 3600);
+      expect(find.text('Sentence detail destination'), findsNothing);
+      expect(openedSentenceDetailArgs, isNull);
     });
 
     testWidgets('来源材料已删除时显示不可点击提示', (tester) async {
@@ -1596,7 +1537,6 @@ void main() {
           id: 1,
           word: 'encountered',
           audioItemId: 'audio-1',
-          sentenceIndex: 0,
           sentenceText: longSentence,
         ),
       ]);

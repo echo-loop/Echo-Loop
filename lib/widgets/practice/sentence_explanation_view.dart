@@ -558,10 +558,7 @@ class _SentenceExplanationViewState
     // 必须回退到 Provider，避免工具栏请求回调为空而整组 AI 按钮被禁用。
     final ai = widget.aiNotifier ?? ref.read(sentenceAiNotifierProvider);
     if (ai == null) return;
-    final accessToken = ref
-        .read(supabaseSessionProvider)
-        .value
-        ?.accessToken;
+    final accessToken = ref.read(supabaseSessionProvider).value?.accessToken;
 
     ref.read(usageTrackerProvider).record(UsageEvent.senseGroupTapped);
 
@@ -804,8 +801,7 @@ class _SentenceExplanationViewState
                 'Timing may be inaccurate',
           ),
           content: Text(
-            l10n?.senseGroupSyntheticTimingNoticeMessage ??
-                'Playback timing for this chunk is estimated from your uploaded subtitles and may be inaccurate.',
+            l10n?.senseGroupSyntheticTimingNoticeMessage ?? 'Playback timing for this chunk is estimated from your uploaded subtitles and may be inaccurate.',
           ),
           actions: [
             FilledButton(
@@ -988,7 +984,6 @@ class _SentenceExplanationViewState
         preferredSourceId: AiDictionarySource.sourceId,
         bookmarkKind: DictionaryBookmarkKind.senseGroup,
         audioItemId: widget.audioItemId,
-        sentenceIndex: _sentenceIndex,
         sentenceText: _text,
         sentenceStartMs: _sentenceStartMs,
         sentenceEndMs: _sentenceEndMs,
@@ -1043,7 +1038,6 @@ class _SentenceExplanationViewState
         phraseText: normalizedText,
         displayText: displayText.trim(),
         audioItemId: audioItemId,
-        sentenceIndex: _sentenceIndex,
         sentenceText: _text,
         sentenceStartMs: _sentenceStartMs,
         sentenceEndMs: _sentenceEndMs,
@@ -1105,9 +1099,7 @@ class _SentenceExplanationViewState
         : null;
     final translationContextReady =
         !hasSentenceContextSource || (sentencesAsync?.hasValue ?? false);
-    final sentences = translationContextReady
-        ? sentencesAsync?.value
-        : null;
+    final sentences = translationContextReady ? sentencesAsync?.value : null;
     final (previousText, nextText) = translationContextReady
         ? _neighborTexts(sentences)
         : (null, null);
@@ -1133,10 +1125,7 @@ class _SentenceExplanationViewState
     final cachedAnalysis = autoShowAiAnalysis
         ? ai?.getCachedAnalysis(_text, targetLanguage: nativeLanguage)
         : null;
-    final accessToken = ref
-        .watch(supabaseSessionProvider)
-        .value
-        ?.accessToken;
+    final accessToken = ref.watch(supabaseSessionProvider).value?.accessToken;
     // 讲解视图自包含：是否自动请求只由认证状态和用户 AI 设置决定，
     // 宿主无需额外传入“启用自动加载”的开关。
     final shouldAutoLoadSentenceAi =
@@ -1464,9 +1453,8 @@ class _TranscriptVisibilityMask extends StatelessWidget {
               child: BackdropFilter(
                 filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
                 child: Container(
-                  color: Theme.of(
-                    context,
-                  ).colorScheme.onSurface.withValues(alpha: 0.05),
+                  color: Theme.of(context).colorScheme.onSurface
+                      .withValues(alpha: 0.05),
                 ),
               ),
             ),

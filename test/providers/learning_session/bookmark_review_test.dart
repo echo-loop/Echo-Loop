@@ -39,41 +39,32 @@ import 'package:echo_loop/database/app_database.dart'
 class _TestBookmarkDao implements BookmarkDao {
   _TestBookmarkDao({this.fail = false});
   final bool fail;
-  final removed = <(String, int)>[];
+  final removedIds = <int>[];
 
+  /// 收藏复习按记忆主体取消收藏：主体 test-subject-N 对应主键 N。
   @override
-  Future<void> removeBookmark(String audioItemId, int sentenceIndex) async {
-    if (fail) throw StateError('failed');
-    removed.add((audioItemId, sentenceIndex));
+  Future<db.Bookmark?> getActiveBySubjectId(String memorySubjectId) async {
+    final sentenceIndex = int.parse(
+      memorySubjectId.substring('test-subject-'.length),
+    );
+    return db.Bookmark(
+      id: sentenceIndex,
+      audioItemId: 'audio-1',
+      memorySubjectId: memorySubjectId,
+      sentenceText: 'Sentence $sentenceIndex',
+      startTime: sentenceIndex.toDouble(),
+      endTime: sentenceIndex + 1.0,
+      createdAt: DateTime(2026),
+      updatedAt: DateTime(2026),
+      syncStatus: 0,
+    );
   }
 
   @override
-  Future<void> removeBookmarks(
-    String audioItemId,
-    Set<int> sentenceIndices,
-  ) async {
+  Future<void> softDeleteByIds(Iterable<int> ids) async {
     if (fail) throw StateError('failed');
-    for (final sentenceIndex in sentenceIndices) {
-      removed.add((audioItemId, sentenceIndex));
-    }
+    removedIds.addAll(ids);
   }
-
-  @override
-  Future<db.Bookmark?> getByAudioAndSentence(
-    String audioItemId,
-    int sentenceIndex,
-  ) async => db.Bookmark(
-    id: sentenceIndex,
-    audioItemId: audioItemId,
-    memorySubjectId: 'test-subject-$sentenceIndex',
-    sentenceIndex: sentenceIndex,
-    sentenceText: 'Sentence $sentenceIndex',
-    startTime: sentenceIndex.toDouble(),
-    endTime: sentenceIndex + 1.0,
-    createdAt: DateTime(2026),
-    updatedAt: DateTime(2026),
-    syncStatus: 0,
-  );
 
   @override
   dynamic noSuchMethod(Invocation invocation) => Future<void>.value();
@@ -186,7 +177,6 @@ BookmarkWithAudio _bookmark(int id) => BookmarkWithAudio(
     id: id,
     audioItemId: 'audio-1',
     memorySubjectId: 'test-subject-$id',
-    sentenceIndex: id,
     sentenceText: 'Sentence $id',
     startTime: id.toDouble(),
     endTime: id + 1.0,
@@ -402,7 +392,6 @@ Future<void> _initializeBookmarkReview(
           db.BookmarksCompanion.insert(
             memorySubjectId: Value(bookmark.memorySubjectId),
             audioItemId: bookmark.audioItemId,
-            sentenceIndex: bookmark.sentenceIndex,
             sentenceText: bookmark.sentenceText,
             startTime: bookmark.startTime,
             endTime: bookmark.endTime,
@@ -481,13 +470,14 @@ void main() {
         _bookmark(1),
       ]);
       expect(
-        container.read(bookmarkReviewProvider).currentCard?.sentence.index,
-        3,
+        container.read(bookmarkReviewProvider).currentCard?.sentence.text,
+        'Sentence 3',
       );
 
       final reordered = Completer<void>();
       final subscription = container.listen(bookmarkReviewProvider, (_, next) {
-        if (next.currentCard?.sentence.index == 1 && !reordered.isCompleted) {
+        if (next.currentCard?.sentence.text == 'Sentence 1' &&
+            !reordered.isCompleted) {
           reordered.complete();
         }
       });
@@ -505,7 +495,7 @@ void main() {
       await reordered.future.timeout(const Duration(seconds: 3));
 
       final state = container.read(bookmarkReviewProvider);
-      expect(state.currentCard?.sentence.index, 1);
+      expect(state.currentCard?.sentence.text, 'Sentence 1');
       expect(state.reviewedCount, 0);
       expect(state.remainingCount, 3);
     },
@@ -782,7 +772,11 @@ void main() {
     await _initializeBookmarkReview(container, [_bookmark(1), _bookmark(2)]);
     final removed = container.read(bookmarkReviewProvider).currentCard!;
     await notifier.removeCurrentBookmark();
-    expect(dao.removed, [(removed.audioItemId, removed.originalSentenceIndex)]);
+    // 按卡片的记忆主体取消收藏：主体 test-subject-N 对应主键 N。
+    final removedId = int.parse(
+      removed.memorySubjectId.substring('test-subject-'.length),
+    );
+    expect(dao.removedIds, [removedId]);
     expect(container.read(bookmarkReviewProvider).remainingCount, 1);
     expect(
       container.read(bookmarkReviewProvider).face,
@@ -1085,7 +1079,6 @@ BookmarkWithAudio _bookmarkOf(String audioItemId, int id) => BookmarkWithAudio(
     id: id,
     audioItemId: audioItemId,
     memorySubjectId: 'test-subject-$audioItemId-$id',
-    sentenceIndex: id,
     sentenceText: 'Sentence $id',
     startTime: id.toDouble(),
     endTime: id + 1.0,

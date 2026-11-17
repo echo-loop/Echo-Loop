@@ -15,7 +15,9 @@ import '../database/providers.dart';
 import '../database/app_database.dart' as db;
 import '../models/learning_plan.dart';
 import '../models/learning_progress.dart';
+import '../models/sentence.dart';
 import '../services/app_logger.dart';
+import '../services/source_sentence_anchor.dart';
 import '../utils/difficulty_from_ratio.dart';
 import 'learning_plan_provider.dart';
 import 'learning_settings_provider.dart';
@@ -876,6 +878,64 @@ class LearningProgressNotifier extends _$LearningProgressNotifier {
     state = state.copyWith(
       progressMap: newMap,
       completionsByAudio: newCompletions,
+    );
+  }
+
+  /// 字幕变更后换算断点句子索引。
+  ///
+  /// 阶段、遍数、复习时间、学习时长与句子无关，保持不变。盲听 / 精听 / 复述
+  /// 断点是全文句子索引，按时间换算到新字幕；难句跟读 / 难句补练断点是难句
+  /// 列表内的位置，句子结构变化后无法可靠换算，清除后从头开始该环节。
+  Future<void> remapSentenceBreakpoints(
+    String audioItemId, {
+    required List<Sentence> oldSentences,
+    required List<Sentence> newSentences,
+  }) async {
+    if (hasSameSentenceStructure(oldSentences, newSentences)) return;
+    final progress = await getLatestByAudioId(audioItemId);
+    if (progress == null) return;
+
+    int? remap(int? index) => index == null
+        ? null
+        : remapSentenceIndex(index, oldSentences, newSentences);
+    final blind = remap(progress.blindListenSentenceIndex);
+    final freeBlind = remap(progress.freePlayBlindListenSentenceIndex);
+    final intensive = remap(progress.intensiveListenSentenceIndex);
+    final freeIntensive = remap(progress.freePlayIntensiveListenSentenceIndex);
+    final retell = remap(progress.retellSentenceIndex);
+    final freeRetell = remap(progress.freePlayRetellSentenceIndex);
+
+    final updated = progress.copyWith(
+      blindListenSentenceIndex: blind,
+      clearBlindListenSentenceIndex: blind == null,
+      freePlayBlindListenSentenceIndex: freeBlind,
+      clearFreePlayBlindListenSentenceIndex: freeBlind == null,
+      intensiveListenSentenceIndex: intensive,
+      clearIntensiveListenSentenceIndex: intensive == null,
+      freePlayIntensiveListenSentenceIndex: freeIntensive,
+      clearFreePlayIntensiveListenSentenceIndex: freeIntensive == null,
+      retellSentenceIndex: retell,
+      clearRetellSentenceIndex: retell == null,
+      freePlayRetellSentenceIndex: freeRetell,
+      clearFreePlayRetellSentenceIndex: freeRetell == null,
+      clearShadowingSentenceIndex: true,
+      clearFreePlayShadowingSentenceIndex: true,
+      clearDifficultPracticeSentenceIndex: true,
+      clearFreePlayDifficultPracticeSentenceIndex: true,
+      updatedAt: DateTime.now(),
+    );
+    await _persistProgress(updated);
+
+    final newMap = Map<String, LearningProgress>.from(state.progressMap);
+    newMap[audioItemId] = updated;
+    state = state.copyWith(progressMap: newMap);
+    AppLogger.log(
+      'LearningProgress',
+      'event=breakpoints-remapped audioItemId=$audioItemId '
+          'sentences=${oldSentences.length}->${newSentences.length} '
+          'blind=${progress.blindListenSentenceIndex}->$blind '
+          'intensive=${progress.intensiveListenSentenceIndex}->$intensive '
+          'retell=${progress.retellSentenceIndex}->$retell',
     );
   }
 

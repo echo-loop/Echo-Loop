@@ -54,7 +54,6 @@ void main() {
         phraseText: 'on the other hand',
         displayText: 'On the other hand,',
         audioItemId: 'audio-1',
-        sentenceIndex: 3,
         sentenceText: 'On the other hand, it might rain.',
         sentenceStartMs: 5000,
         sentenceEndMs: 8000,
@@ -70,7 +69,6 @@ void main() {
       expect(item.phraseText, 'on the other hand');
       expect(item.displayText, 'On the other hand,');
       expect(item.audioItemId, 'audio-1');
-      expect(item.sentenceIndex, 3);
       expect(item.sentenceText, 'On the other hand, it might rain.');
       expect(item.sentenceStartMs, 5000);
       expect(item.sentenceEndMs, 8000);
@@ -104,7 +102,6 @@ void main() {
         phraseText: 'for example',
         displayText: 'For example,',
         audioItemId: 'audio-1',
-        sentenceIndex: 1,
         sentenceText: 'For example, we could go.',
       );
 
@@ -113,7 +110,6 @@ void main() {
         phraseText: 'for example',
         displayText: 'for example',
         audioItemId: 'audio-2',
-        sentenceIndex: 5,
         sentenceText: 'Take, for example, the case of...',
       );
 
@@ -123,7 +119,6 @@ void main() {
       )..where((t) => t.deletedAt.isNull())).get();
       expect(all.length, 1);
       expect(all.first.audioItemId, 'audio-1');
-      expect(all.first.sentenceIndex, 1);
       expect(all.first.displayText, 'For example,');
     });
 
@@ -198,7 +193,6 @@ void main() {
         phraseText: 'at the end of the day',
         displayText: 'At the end of the day',
         audioItemId: 'audio-1',
-        sentenceIndex: 2,
         sentenceText: 'At the end of the day, we succeeded.',
         sentenceStartMs: 1000,
         sentenceEndMs: 4000,
@@ -217,7 +211,6 @@ void main() {
       expect(item.phraseText, 'at the end of the day');
       expect(item.displayText, 'At the end of the day');
       // 所有上下文字段被清除
-      expect(item.sentenceIndex, isNull);
       expect(item.sentenceText, isNull);
       expect(item.sentenceStartMs, isNull);
       expect(item.sentenceEndMs, isNull);
@@ -246,7 +239,6 @@ void main() {
           phraseText: 'phrase-$i',
           displayText: 'Phrase $i',
           audioItemId: 'audio-$i',
-          sentenceIndex: i,
           sentenceText: 'Sentence $i',
           sentenceStartMs: i * 1000,
           sentenceEndMs: i * 1000 + 500,
@@ -265,11 +257,9 @@ void main() {
             (g) => g.phraseText == 'phrase-0' || g.phraseText == 'phrase-1',
           )
           .toList();
-      expect(cleared.every((g) => g.sentenceIndex == null), isTrue);
       expect(cleared.every((g) => g.sentenceText == null), isTrue);
       expect(cleared.every((g) => g.groupStartMs == null), isTrue);
       final untouched = all.firstWhere((g) => g.phraseText == 'phrase-2');
-      expect(untouched.sentenceIndex, 2);
       expect(untouched.sentenceText, 'Sentence 2');
       expect(untouched.groupStartMs, 2000);
     });
@@ -358,7 +348,7 @@ void main() {
       expect(texts, {'first of all', 'in conclusion'});
     });
 
-    test('getByAudioId 只返回指定音频的未删除意群，按句子索引升序', () async {
+    test('getByAudioId 只返回指定音频的未删除意群，按来源句时间升序', () async {
       final now = DateTime.now();
       await db.audioItemDao.upsert(
         AudioItemsCompanion(
@@ -374,13 +364,15 @@ void main() {
         phraseText: 'as a result',
         displayText: 'As a result',
         audioItemId: 'audio-1',
-        sentenceIndex: 4,
+        sentenceStartMs: 3000,
+        sentenceEndMs: 4000,
       );
       await db.savedSenseGroupDao.saveSenseGroup(
         phraseText: 'first of all',
         displayText: 'First of all',
         audioItemId: 'audio-1',
-        sentenceIndex: 1,
+        sentenceStartMs: 1000,
+        sentenceEndMs: 2000,
       );
       // 无来源音频的意群不应出现
       await db.savedSenseGroupDao.saveSenseGroup(
@@ -392,7 +384,6 @@ void main() {
         phraseText: 'to be deleted',
         displayText: 'To be deleted',
         audioItemId: 'audio-1',
-        sentenceIndex: 0,
       );
       await db.savedSenseGroupDao.removeSenseGroup('to be deleted');
 

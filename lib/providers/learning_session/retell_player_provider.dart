@@ -10,8 +10,10 @@
 library;
 
 import 'dart:async';
+
 import 'package:flutter/widgets.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
+
 import '../../analytics/analytics_providers.dart';
 import '../../analytics/audio_event_params.dart';
 import '../../analytics/models/event_names.dart';
@@ -456,9 +458,9 @@ class RetellPlayer extends _$RetellPlayer {
     );
 
     if (isCurrentlyBookmarked) {
-      await ref.read(favoriteSentenceLifecycleProvider).remove(audioItemId, {
-        sentence.index,
-      });
+      await ref
+          .read(favoriteSentenceLifecycleProvider)
+          .remove(audioItemId, sentence);
     } else {
       await ref
           .read(favoriteSentenceLifecycleProvider)

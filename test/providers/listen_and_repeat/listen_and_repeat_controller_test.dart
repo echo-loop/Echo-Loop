@@ -36,6 +36,30 @@ import '../../helpers/mock_providers.dart';
 
 class _MockBookmarkDao extends Mock implements BookmarkDao {}
 
+/// 取消收藏走「按句子时间定位到收藏 → 按主键软删除」：第 0 句对应主键 1。
+void _stubBookmarkRemoval(_MockBookmarkDao bookmarkDao) {
+  when(() => bookmarkDao.getForSentence(any(), any())).thenAnswer(
+    (_) async => (
+      index: 0,
+      bookmarks: [
+        Bookmark(
+          id: 1,
+          memorySubjectId: 'subject-1',
+          audioItemId: 'test-audio',
+          sentenceText: 'First sentence.',
+          startTime: 0,
+          endTime: 1,
+          createdAt: DateTime(2026),
+          updatedAt: DateTime(2026),
+          syncStatus: 0,
+        ),
+      ],
+    ),
+  );
+  when(() => bookmarkDao.softDeleteByIds(any())).thenAnswer((_) async {});
+  when(() => bookmarkDao.addBookmark(any())).thenAnswer((_) async {});
+}
+
 class _RecordingStudyTimeService extends FakeStudyTimeService {
   final List<({Duration duration, String text, StudyStage stage})>
   sentencePlaybacks = [];
@@ -270,6 +294,16 @@ RepeatFlowConfig _testConfig({
 void main() {
   setUpAll(() {
     registerFallbackValue(const BookmarksCompanion());
+    registerFallbackValue(<int>{});
+    registerFallbackValue(<int>[]);
+    registerFallbackValue(
+      Sentence(
+        index: 0,
+        text: '',
+        startTime: Duration.zero,
+        endTime: Duration.zero,
+      ),
+    );
   });
 
   late ProviderContainer container;
@@ -286,7 +320,9 @@ void main() {
   }
 
   setUp(() {
-    database = AppDatabase(NativeDatabase.memory(setup: configureAppDatabaseConnection));
+    database = AppDatabase(
+      NativeDatabase.memory(setup: configureAppDatabaseConnection),
+    );
     studyTimeService = _RecordingStudyTimeService();
     container = ProviderContainer(
       overrides: dedupeOverrides([
@@ -325,9 +361,8 @@ void main() {
 
     ProviderContainer createMediaContainer(_ControlledMediaEngine mediaEngine) {
       final bookmarkDao = _MockBookmarkDao();
-      when(
-        () => bookmarkDao.getBookmarkedIndices('video-1'),
-      ).thenAnswer((_) async => {0});
+      when(() => bookmarkDao.getBookmarkedIndices('video-1'))
+          .thenAnswer((_) async => {0});
       final container = ProviderContainer(
         overrides: dedupeOverrides([
           foregroundAudioEngineProvider.overrideWith(
@@ -534,9 +569,8 @@ void main() {
 
     test('页面计时在退出时写入总时长并刷写统计队列', () async {
       final bookmarkDao = _MockBookmarkDao();
-      when(
-        () => bookmarkDao.getBookmarkedIndices('test-audio'),
-      ).thenAnswer((_) async => {0});
+      when(() => bookmarkDao.getBookmarkedIndices('test-audio'))
+          .thenAnswer((_) async => {0});
       final statsContainer = ProviderContainer(
         overrides: dedupeOverrides([
           appDatabaseProvider.overrideWithValue(database),
@@ -830,31 +864,9 @@ void main() {
   group('flowToken 防竞态', () {
     test('初始化难句会保留已收藏状态，取消时走删除分支', () async {
       final bookmarkDao = _MockBookmarkDao();
-      when(
-        () => bookmarkDao.getBookmarkedIndices('test-audio'),
-      ).thenAnswer((_) async => {0});
-      when(
-        () => bookmarkDao.removeBookmark(any(), any()),
-      ).thenAnswer((_) async {});
-      when(
-        () => bookmarkDao.removeBookmarks(any(), any()),
-      ).thenAnswer((_) async {});
-      when(() => bookmarkDao.addBookmark(any())).thenAnswer((_) async {});
-      when(() => bookmarkDao.getByAudioAndSentence(any(), any())).thenAnswer(
-        (_) async => Bookmark(
-          id: 1,
-          memorySubjectId: 'subject-1',
-          audioItemId: 'test-audio',
-          sentenceIndex: 0,
-          sentenceText: 'First sentence.',
-          startTime: 0,
-          endTime: 1,
-          createdAt: DateTime(2026),
-          updatedAt: DateTime(2026),
-          syncStatus: 0,
-        ),
-      );
-
+      when(() => bookmarkDao.getBookmarkedIndices('test-audio'))
+          .thenAnswer((_) async => {0});
+      _stubBookmarkRemoval(bookmarkDao);
       final initializedContainer = ProviderContainer(
         overrides: dedupeOverrides([
           appDatabaseProvider.overrideWithValue(database),
@@ -900,15 +912,18 @@ void main() {
       );
 
       await initializedController.toggleCurrentBookmark();
-      verify(() => bookmarkDao.removeBookmarks('test-audio', {0})).called(1);
+      final removed = verify(
+        () => bookmarkDao.getForSentence('test-audio', captureAny()),
+      ).captured;
+      expect((removed.single as Sentence).index, 0);
+      verify(() => bookmarkDao.softDeleteByIds([1])).called(1);
       verifyNever(() => bookmarkDao.addBookmark(any()));
     });
 
     test('全文范围在无书签时仍使用全部字幕句子', () async {
       final bookmarkDao = _MockBookmarkDao();
-      when(
-        () => bookmarkDao.getBookmarkedIndices('test-audio'),
-      ).thenAnswer((_) async => <int>{});
+      when(() => bookmarkDao.getBookmarkedIndices('test-audio'))
+          .thenAnswer((_) async => <int>{});
       final fullTextContainer = ProviderContainer(
         overrides: dedupeOverrides([
           appDatabaseProvider.overrideWithValue(database),
@@ -973,16 +988,7 @@ void main() {
     test('播放中切换书签不应使当前播放回调失效', () async {
       final controlledEngine = _ControlledAudioEngine();
       final bookmarkDao = _MockBookmarkDao();
-      when(
-        () => bookmarkDao.getByAudioAndSentence(any(), any()),
-      ).thenAnswer((_) async => null);
-      when(
-        () => bookmarkDao.removeBookmark(any(), any()),
-      ).thenAnswer((_) async {});
-      when(
-        () => bookmarkDao.removeBookmarks(any(), any()),
-      ).thenAnswer((_) async {});
-      when(() => bookmarkDao.addBookmark(any())).thenAnswer((_) async {});
+      _stubBookmarkRemoval(bookmarkDao);
       final controlledContainer = ProviderContainer(
         overrides: dedupeOverrides([
           appDatabaseProvider.overrideWithValue(database),
@@ -1000,9 +1006,9 @@ void main() {
       final controlledController = controlledContainer.read(
         listenAndRepeatControllerProvider.notifier,
       );
-      final initialSentences = createTestSentences(
-        count: 3,
-      ).map((s) => s.index == 0 ? s.copyWith(isBookmarked: true) : s).toList();
+      final initialSentences = createTestSentences(count: 3)
+          .map((s) => s.index == 0 ? s.copyWith(isBookmarked: true) : s)
+          .toList();
 
       await controlledController.prepareSession(
         sentences: initialSentences,
@@ -1028,7 +1034,11 @@ void main() {
       );
       expect(stateAfterToggle.flowToken, tokenBefore);
       expect(stateAfterToggle.currentSentenceBookmarked, isFalse);
-      verify(() => bookmarkDao.removeBookmarks('test-audio', {0})).called(1);
+      final removed = verify(
+        () => bookmarkDao.getForSentence('test-audio', captureAny()),
+      ).captured;
+      expect((removed.single as Sentence).index, 0);
+      verify(() => bookmarkDao.softDeleteByIds([1])).called(1);
       verifyNever(() => bookmarkDao.addBookmark(any()));
 
       controlledEngine.playCompleter?.complete();
@@ -1167,7 +1177,10 @@ void main() {
     );
     listenToController(container);
     controller = container.read(listenAndRepeatControllerProvider.notifier);
-    await controller.prepareSession(sentences: sentences, config: _testConfig());
+    await controller.prepareSession(
+      sentences: sentences,
+      config: _testConfig(),
+    );
 
     final playing = controller.startPlaying();
     await Future<void>.delayed(Duration.zero);

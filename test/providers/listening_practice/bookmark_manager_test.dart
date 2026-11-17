@@ -90,100 +90,61 @@ void main() {
     });
 
     group('toggleBookmark', () {
-      test('添加新书签（isRemoving=false）', () {
+      test('未收藏时为添加，无替代焦点', () {
         final sentences = [createSentence(0, 'A'), createSentence(1, 'B')];
-        final (isRemoving, indicesToRemove, nextIndex) =
-            BookmarkManager.toggleBookmark(0, sentences, {}, false);
+        final (isRemoving, nextIndex) = BookmarkManager.toggleBookmark(
+          0,
+          sentences,
+          {},
+          true,
+        );
 
         expect(isRemoving, isFalse);
-        expect(indicesToRemove, isEmpty);
         expect(nextIndex, isNull);
       });
 
-      test('移除已有书签（isRemoving=true）', () {
-        final sentences = [
-          createSentence(0, 'A'),
-          createSentence(1, 'B'),
-          createSentence(2, 'C'),
-        ];
-        final (isRemoving, indicesToRemove, nextIndex) =
-            BookmarkManager.toggleBookmark(0, sentences, {0, 1, 2}, false);
+      test('已收藏时为取消', () {
+        final sentences = [createSentence(0, 'A'), createSentence(1, 'B')];
+        final (isRemoving, _) = BookmarkManager.toggleBookmark(0, sentences, {
+          0,
+          1,
+        }, false);
 
         expect(isRemoving, isTrue);
-        expect(indicesToRemove.contains(0), isTrue);
       });
 
-      test('智能去重：同文本不同大小写的句子一起移除', () {
+      test('同文本的其他收藏不受影响：替代焦点就是后一条同文本收藏', () {
         final sentences = [
-          createSentence(0, 'Hello'),
-          createSentence(1, 'hello'),
-          createSentence(2, 'World'),
+          createSentence(0, 'Same'),
+          createSentence(1, 'Same'),
+          createSentence(2, 'Different'),
         ];
-        // 所有句子都是书签
-        final (isRemoving, indicesToRemove, _) = BookmarkManager.toggleBookmark(
+        final (isRemoving, nextIndex) = BookmarkManager.toggleBookmark(
           0,
           sentences,
           {0, 1, 2},
-          false,
+          true,
         );
 
         expect(isRemoving, isTrue);
-        // 'Hello' 和 'hello' 标准化后相同，都应被移除
-        expect(indicesToRemove, contains(0));
-        expect(indicesToRemove, contains(1));
-        expect(indicesToRemove.contains(2), isFalse);
-      });
-
-      test('智能去重：同文本不同标点的句子一起移除', () {
-        final sentences = [
-          createSentence(0, 'Hello!'),
-          createSentence(1, 'Hello'),
-          createSentence(2, ',Hello.'),
-        ];
-        final result = BookmarkManager.toggleBookmark(0, sentences, {
-          0,
-          1,
-          2,
-        }, false);
-        final indicesToRemove = result.$2;
-
-        // 标准化后 'Hello!', 'Hello', ',Hello.' 都是 'hello'
-        expect(indicesToRemove, {0, 1, 2});
-      });
-
-      test('书签模式下计算 nextIndex（跳过将被移除的）', () {
-        final sentences = [
-          createSentence(0, 'A'),
-          createSentence(1, 'B'),
-          createSentence(2, 'C'),
-        ];
-        // 书签模式下，移除索引 0，下一个应该是索引 1
-        final result = BookmarkManager.toggleBookmark(0, sentences, {
-          0,
-          1,
-          2,
-        }, true);
-        final nextIndex = result.$3;
-
-        expect(nextIndex, isNotNull);
-        expect(nextIndex, 1);
+        expect(nextIndex, 1, reason: '只取消当前这一句，同文本的第 1 句仍是收藏');
       });
 
       test('非书签模式 nextIndex 为 null', () {
         final sentences = [createSentence(0, 'A'), createSentence(1, 'B')];
-        final result = BookmarkManager.toggleBookmark(0, sentences, {
+        final (_, nextIndex) = BookmarkManager.toggleBookmark(0, sentences, {
           0,
           1,
         }, false);
-        final nextIndex = result.$3;
 
         expect(nextIndex, isNull);
       });
 
       test('书签模式移除最后一个书签时 nextIndex 为 null', () {
         final sentences = [createSentence(0, 'A')];
-        final result = BookmarkManager.toggleBookmark(0, sentences, {0}, true);
-        final nextIndex = result.$3;
+        final (_, nextIndex) = BookmarkManager.toggleBookmark(0, sentences, {
+          0,
+        }, true);
 
         expect(nextIndex, isNull);
       });
@@ -195,32 +156,13 @@ void main() {
           createSentence(2, 'C'),
           createSentence(3, 'D'),
         ];
-        final result = BookmarkManager.toggleBookmark(3, sentences, {
+        final (_, nextIndex) = BookmarkManager.toggleBookmark(3, sentences, {
           0,
           1,
           3,
         }, true);
 
-        expect(result.$2, {3});
-        expect(result.$3, 1);
-      });
-
-      test('书签模式移除后跳过同文本书签找到下一个', () {
-        final sentences = [
-          createSentence(0, 'Same'),
-          createSentence(1, 'Same'),
-          createSentence(2, 'Different'),
-        ];
-        // 移除索引 0，索引 1 同文本也会被移除，下一个应该是索引 2
-        final (_, indicesToRemove, nextIndex) = BookmarkManager.toggleBookmark(
-          0,
-          sentences,
-          {0, 1, 2},
-          true,
-        );
-
-        expect(indicesToRemove, {0, 1});
-        expect(nextIndex, 2);
+        expect(nextIndex, 1);
       });
     });
   });

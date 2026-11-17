@@ -14,13 +14,13 @@ import '../../../l10n/app_localizations.dart';
 import '../../../models/word_timestamp.dart';
 import '../../../providers/audio_library_provider.dart';
 import '../../../providers/collection_provider.dart';
-import '../../../providers/favorite_sentence_lifecycle_provider.dart';
-import '../../../providers/learning_progress_provider.dart';
 import '../../../providers/listening_practice/listening_practice_provider.dart';
 import '../../../providers/download_clock_provider.dart';
 import '../../../providers/download_provider.dart';
+import '../../../providers/transcript_change_sync_provider.dart';
 import '../../../services/app_logger.dart';
 import '../../../services/download_speed_meter.dart';
+import '../../../services/subtitle_parser.dart';
 import '../../../utils/app_data_dir.dart';
 import '../../../utils/srt_generator.dart';
 import '../../../utils/transcript_stats.dart';
@@ -164,27 +164,37 @@ class CommunityDownload extends _$CommunityDownload {
     final srt = _toSrt(subtitle.subtitle);
     if (srt.isEmpty) throw CommunitySubtitleUnavailable(remoteId);
     final stats = await getTranscriptStatsFromSrt(srt);
-    await (database.update(
-      database.audioItems,
-    )..where((table) => table.id.equals(audioItemId))).write(
-      db.AudioItemsCompanion(
-        transcriptPath: const Value(null),
-        transcriptSrt: Value(srt),
-        wordTimestampsJson: Value(
-          encodeWordTimestamps(subtitle.subtitle.words),
+    final newSentences = await SubtitleParser.parseSubtitleString(srt);
+    final transcriptSync = ref.read(transcriptChangeSyncProvider);
+    // 换字幕与学习数据同步放在同一事务：同步失败时连同字幕一起回滚，旧字幕仍在，
+    // 学习断点不会停在与新字幕不匹配的旧索引上。
+    await database.transaction(() async {
+      // 替换前记下旧句子，供学习断点按时间换算到新字幕。
+      final oldSentences = await SubtitleParser.parseSubtitleString(
+        await database.audioItemDao.getTranscriptSrt(audioItemId) ?? '',
+      );
+      await (database.update(
+        database.audioItems,
+      )..where((table) => table.id.equals(audioItemId))).write(
+        db.AudioItemsCompanion(
+          transcriptPath: const Value(null),
+          transcriptSrt: Value(srt),
+          wordTimestampsJson: Value(
+            encodeWordTimestamps(subtitle.subtitle.words),
+          ),
+          transcriptSource: const Value(1),
+          sentenceCount: Value(stats.$1),
+          wordCount: Value(stats.$2),
+          updatedAt: Value(DateTime.now()),
         ),
-        transcriptSource: const Value(1),
-        sentenceCount: Value(stats.$1),
-        wordCount: Value(stats.$2),
-        updatedAt: Value(DateTime.now()),
-      ),
-    );
-    await ref
-        .read(favoriteSentenceLifecycleProvider)
-        .removeAllForAudio(audioItemId);
-    await ref
-        .read(learningProgressProvider.notifier)
-        .deleteProgress(audioItemId);
+      );
+      // 收藏只存时间区间，换字幕后仍然有效；只换算学习断点。
+      await transcriptSync.apply(
+        audioItemId,
+        oldSentences: oldSentences,
+        newSentences: newSentences,
+      );
+    });
     await ref.read(audioLibraryProvider.notifier).loadLibrary();
     await _reloadCurrentSessionIfNeeded(audioItemId);
     return SubtitleUpdateResult.updated;

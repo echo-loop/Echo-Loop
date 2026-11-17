@@ -195,7 +195,6 @@ class _LookupDetailViewState extends ConsumerState<LookupDetailView> {
             SourceSentenceCard(
               sentenceText: sentenceText,
               audioItemId: savedWord.audioItemId,
-              sentenceIndex: savedWord.sentenceIndex,
               sentenceStartMs: savedWord.sentenceStartMs,
               sentenceEndMs: savedWord.sentenceEndMs,
             ),

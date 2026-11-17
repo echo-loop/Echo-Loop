@@ -637,7 +637,6 @@ class _MediaPlaybackScreenState extends ConsumerState<MediaPlaybackScreen>
           audioItemId: widget.audioItem.id,
           audioName: widget.audioItem.name,
           sentenceText: sentence.text,
-          sentenceIndex: sentence.index,
           startTimeMs: sentence.startTime.inMilliseconds,
           endTimeMs: sentence.endTime.inMilliseconds,
           rangePlaybackBuilder: (playbackSpeed) => MediaSenseGroupRangePlayback(

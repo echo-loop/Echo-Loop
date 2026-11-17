@@ -148,7 +148,10 @@ void main() {
     test('已软删除的收藏句不导出', () async {
       await _bookmark(db, 'audio-alpha', 1, 'This is a test.');
       await _bookmark(db, 'audio-alpha', 2, 'Goodbye now.');
-      await db.bookmarkDao.removeBookmark('audio-alpha', 2);
+      final rows = await db.bookmarkDao.getByAudioId('audio-alpha');
+      await db.bookmarkDao.softDeleteByIds(
+        rows.where((b) => b.sentenceText == 'Goodbye now.').map((b) => b.id),
+      );
 
       final document = await buildLoader().load(
         const FavoritesExportOptions(includeWords: false),
@@ -188,8 +191,8 @@ void main() {
       );
     });
 
-    test('字幕已重解析导致索引错位时，按文本兜底找回译文', () async {
-      // 收藏时记录的索引是 0，但当前字幕中该句位于第 1 位
+    test('收藏时的索引已过期时，按时间定位找回译文', () async {
+      // 收藏时记录的索引是 0，但当前字幕中该时间段位于第 1 位
       await _bookmark(db, 'audio-alpha', 0, 'This is a test.');
       await db.sentenceAiCacheDao.upsert(
         translationContextHash(
@@ -232,7 +235,6 @@ void main() {
       await db.savedWordDao.saveWord(
         word: 'Test',
         audioItemId: 'audio-alpha',
-        sentenceIndex: 1,
         sentenceText: 'This is a test.',
       );
       await db.savedWordDao.saveWord(word: 'apple');
@@ -240,7 +242,6 @@ void main() {
         phraseText: 'look up',
         displayText: 'Look up',
         audioItemId: 'audio-beta',
-        sentenceIndex: 0,
         sentenceText: 'Look it up tonight.',
       );
 
@@ -266,7 +267,6 @@ void main() {
       await db.savedWordDao.saveWord(
         word: 'Test',
         audioItemId: 'audio-alpha',
-        sentenceIndex: 1,
         sentenceText: 'This is a test.',
       );
       await (db.update(db.audioItems)..where((t) => t.id.equals('audio-alpha')))
@@ -395,6 +395,14 @@ Future<void> _insertAudio(
 }
 
 /// 插入一条收藏句（文本与时间戳仅为满足表约束）
+/// 测试字幕中各句的时间区间（秒）；收藏按时间区间定位到当前字幕。
+const _cueTimes = {
+  'Hello world.': (0.0, 3.0),
+  'This is a test.': (3.5, 6.0),
+  'Goodbye now.': (6.5, 9.0),
+  'Look it up tonight.': (0.0, 3.0),
+};
+
 Future<void> _bookmark(
   AppDatabase db,
   String audioItemId,
@@ -402,13 +410,13 @@ Future<void> _bookmark(
   String sentenceText,
 ) {
   final now = DateTime.now();
+  final (start, end) = _cueTimes[sentenceText]!;
   return db.bookmarkDao.addBookmark(
     BookmarksCompanion.insert(
       audioItemId: audioItemId,
-      sentenceIndex: sentenceIndex,
       sentenceText: sentenceText,
-      startTime: sentenceIndex.toDouble(),
-      endTime: sentenceIndex + 1.0,
+      startTime: start,
+      endTime: end,
       createdAt: now,
       updatedAt: now,
     ),

@@ -66,7 +66,6 @@ void main() {
 
     final result = await player.play(
       audioItemId: null,
-      sentenceIndex: null,
       sentenceText: ' A fallback sentence. ',
       sentenceStartMs: null,
       sentenceEndMs: null,
@@ -88,7 +87,6 @@ void main() {
 
       final result = await player.play(
         audioItemId: null,
-        sentenceIndex: null,
         sentenceText: 'A cancelled sentence.',
         sentenceStartMs: null,
         sentenceEndMs: null,
@@ -108,7 +106,6 @@ void main() {
 
     final result = await player.play(
       audioItemId: null,
-      sentenceIndex: null,
       sentenceText: '   ',
       sentenceStartMs: null,
       sentenceEndMs: null,
@@ -133,7 +130,6 @@ void main() {
 
     final result = await player.play(
       audioItemId: 'audio-1',
-      sentenceIndex: 0,
       sentenceText: 'A cancelled sentence.',
       sentenceStartMs: 1000,
       sentenceEndMs: 2000,

@@ -30,7 +30,6 @@ class FavoriteVocabularyLifecycle {
   Future<void> saveWord({
     required String word,
     String? audioItemId,
-    int? sentenceIndex,
     String? sentenceText,
     int? sentenceStartMs,
     int? sentenceEndMs,
@@ -47,7 +46,6 @@ class FavoriteVocabularyLifecycle {
         await dao.saveWord(
           word: word,
           audioItemId: audioItemId,
-          sentenceIndex: sentenceIndex,
           sentenceText: sentenceText,
           sentenceStartMs: sentenceStartMs,
           sentenceEndMs: sentenceEndMs,
@@ -72,7 +70,6 @@ class FavoriteVocabularyLifecycle {
     required String phraseText,
     required String displayText,
     String? audioItemId,
-    int? sentenceIndex,
     String? sentenceText,
     int? sentenceStartMs,
     int? sentenceEndMs,
@@ -92,7 +89,6 @@ class FavoriteVocabularyLifecycle {
           phraseText: phraseText,
           displayText: displayText,
           audioItemId: audioItemId,
-          sentenceIndex: sentenceIndex,
           sentenceText: sentenceText,
           sentenceStartMs: sentenceStartMs,
           sentenceEndMs: sentenceEndMs,

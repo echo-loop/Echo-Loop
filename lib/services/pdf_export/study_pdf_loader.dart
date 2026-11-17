@@ -23,6 +23,7 @@ import '../../models/pdf_export/study_pdf_data.dart';
 import '../../models/sentence.dart';
 import '../../models/sentence_ai_result.dart';
 import '../../services/app_logger.dart';
+import '../../services/source_sentence_anchor.dart';
 import '../../utils/paragraph_grouping.dart';
 import '../../utils/saved_text_index.dart';
 import '../../utils/text_normalize.dart';
@@ -301,21 +302,10 @@ class StudyPdfLoader {
       ..reset()
       ..start();
 
-    // 文本 → 句子索引的兜底匹配表（重复文本取首个）
-    final textIndex = <String, int>{};
-    for (final s in sentences) {
-      textIndex.putIfAbsent(s.text.trim(), () => s.index);
-    }
-
-    // 收藏句索引集合
+    // 收藏句索引集合：按收藏时间区间定位到当前字幕（字幕编辑后句序会变）
     final bookmarkedIndices = <int>{};
     for (final b in await _bookmarkDao.getByAudioId(audioItemId)) {
-      final idx = resolvePdfSentenceIndex(
-        storedIndex: b.sentenceIndex,
-        storedText: b.sentenceText,
-        sentences: sentences,
-        textIndex: textIndex,
-      );
+      final idx = resolveSourceSentenceIndex(anchorOfBookmark(b), sentences);
       if (idx != null) bookmarkedIndices.add(idx);
     }
 
@@ -330,11 +320,12 @@ class StudyPdfLoader {
     //    （编号排序对同位并列依赖此序，见下方 numbering）。
     final candidates = <_VocabCandidate>[];
     for (final w in savedWords) {
-      final idx = resolvePdfSentenceIndex(
-        storedIndex: w.sentenceIndex,
-        storedText: w.sentenceText,
-        sentences: sentences,
-        textIndex: textIndex,
+      final idx = resolveSourceSentenceIndex(
+        SourceSentenceAnchor.fromMilliseconds(
+          startMs: w.sentenceStartMs,
+          endMs: w.sentenceEndMs,
+        ),
+        sentences,
       );
       if (idx == null) continue;
       candidates.add(
@@ -349,11 +340,12 @@ class StudyPdfLoader {
     }
     final wordCandidateCount = candidates.length;
     for (final g in savedGroups) {
-      final idx = resolvePdfSentenceIndex(
-        storedIndex: g.sentenceIndex,
-        storedText: g.sentenceText,
-        sentences: sentences,
-        textIndex: textIndex,
+      final idx = resolveSourceSentenceIndex(
+        SourceSentenceAnchor.fromMilliseconds(
+          startMs: g.sentenceStartMs,
+          endMs: g.sentenceEndMs,
+        ),
+        sentences,
       );
       if (idx == null) continue;
       candidates.add(

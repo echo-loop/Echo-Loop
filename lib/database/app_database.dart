@@ -120,7 +120,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase(super.e);
 
   /// 当前 schema 版本（静态访问，用于导入前版本检查）
-  static const currentSchemaVersion = 69;
+  static const currentSchemaVersion = 71;
 
   @override
   int get schemaVersion => currentSchemaVersion;
@@ -955,6 +955,35 @@ class AppDatabase extends _$AppDatabase {
             'local_cover_path',
             'TEXT',
           );
+        }
+        // v69→v71：收藏改为只按「音频 + 来源句时间区间」定位，删除收藏句、收藏词汇、
+        // 收藏意群的 sentence_index 列，并去掉收藏句 {audio_item_id, sentence_index}
+        // 唯一约束（字幕合并后同一句可有多条收藏）。SQLite 删列 / 删表级约束需重建表。
+        // v70 是未发布的开发版本（只去唯一约束），按 from < 71 统一重建，重复执行安全。
+        if (from < 71) {
+          for (final TableInfo<Table, dynamic> table in [
+            bookmarks,
+            savedWords,
+            savedSenseGroups,
+          ]) {
+            await customStatement(
+              'DROP TABLE IF EXISTS tmp_for_copy_${table.actualTableName}',
+            );
+            // ignore: experimental_member_use
+            await m.alterTable(TableMigration(table));
+          }
+          // 重建表后补回部分索引（IF NOT EXISTS，已由重建恢复时不重复创建）。
+          await customStatement('''
+            CREATE INDEX IF NOT EXISTS idx_bookmarks_audio
+            ON bookmarks(audio_item_id)
+            WHERE deleted_at IS NULL
+          ''');
+          await customStatement('''
+            CREATE INDEX IF NOT EXISTS idx_saved_words_active
+            ON saved_words(created_at DESC)
+            WHERE deleted_at IS NULL
+          ''');
+          await _createFavoriteReviewIndexes();
         }
       },
     );

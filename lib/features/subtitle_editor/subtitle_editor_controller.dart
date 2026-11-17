@@ -16,10 +16,10 @@ import '../../models/sentence.dart';
 import '../../models/word_timestamp.dart';
 import '../../providers/audio_engine/audio_engine_provider.dart';
 import '../../providers/audio_library_provider.dart';
-import '../../providers/favorite_sentence_lifecycle_provider.dart';
-import '../../providers/learning_progress_provider.dart';
 import '../../providers/listening_practice/listening_practice_provider.dart';
+import '../../providers/transcript_change_sync_provider.dart';
 import '../../services/app_logger.dart';
+import '../../services/subtitle_parser.dart';
 import '../../utils/app_data_dir.dart';
 import '../../utils/srt_generator.dart';
 import '../../utils/synthetic_word_timestamps.dart';
@@ -247,37 +247,8 @@ class SubtitleEditorController extends StateNotifier<SubtitleEditorState> {
   int _editRevision = 0;
   int get editRevision => _editRevision;
 
-  /// 进入编辑页时的原始句子数量。
-  ///
-  /// 句子数量只会因合并/删除而减少（调整边界仅改时间戳）。保存时若数量未变，
-  /// 说明仅调整了时间戳、句子与索引的对应关系不变，无需清空按句索引的学习进度
-  /// 和收藏句子。
-  int? _baselineSentenceCount;
-
-  /// 相对进入编辑页时句子数量是否发生变化（合并/删除）。
-  ///
-  /// 仅调整边界时间戳不会改变数量。数量变化才会打乱按句索引的学习进度与收藏，
-  /// 保存时需清空；据此 UI 也只在数量变化时提示「将清空进度」。
-  bool get sentenceCountChanged =>
-      _baselineSentenceCount != null &&
-      state.sentences.length != _baselineSentenceCount;
-
-  /// 当前保存是否会清理已有学习数据。
-  ///
-  /// 句子数量变化会打乱基于句子索引保存的学习进度与收藏句子；但如果该音频本身
-  /// 没有任何进度或收藏，则无需在保存前打断用户确认。
-  Future<bool> hasResettableLearningData() async {
-    if (!sentenceCountChanged) return false;
-    final audioItemId = state.audioItem.id;
-    final bookmarks = await _ref
-        .read(bookmarkDaoProvider)
-        .getBookmarkedIndices(audioItemId);
-    if (bookmarks.isNotEmpty) return true;
-    final progress = await _ref
-        .read(learningProgressProvider.notifier)
-        .getLatestByAudioId(audioItemId);
-    return progress?.isStarted ?? false;
-  }
+  /// 进入编辑页或上次保存时的句子；保存时据此把学习断点换算到新字幕。
+  List<Sentence> _baselineSentences = const [];
 
   /// 每厘米屏幕对应的逻辑像素数（160 逻辑像素/英寸 ÷ 2.54 厘米/英寸）。
   static const double _logicalPixelsPerCm = 160 / 2.54;
@@ -292,7 +263,7 @@ class SubtitleEditorController extends StateNotifier<SubtitleEditorState> {
       final duration = await _audioEngine.loadAudio(state.audioItem, 1.0);
       final sentences = await _audioEngine.loadTranscript(state.audioItem);
       _baselineSubtitleHash = _subtitleHash(sentences);
-      _baselineSentenceCount = sentences.length;
+      _baselineSentences = sentences;
       // 物化为按句子文本 token 对齐的可编辑词列表（词边界拖动直接改它）。
       final words = _buildWords(sentences, await _loadWords(sentences));
       _baselineWords = words;
@@ -1177,14 +1148,23 @@ class SubtitleEditorController extends StateNotifier<SubtitleEditorState> {
       await stopPlayback();
 
       final item = state.audioItem;
+      // 先取出依赖：保存期间页面可能被关闭（控制器随之释放），之后不能再读 ref。
+      // 字幕一旦落库，必须完成学习数据同步。
+      final dao = _ref.read(audioItemDaoProvider);
+      final transcriptSync = _ref.read(transcriptChangeSyncProvider);
+      final library = _ref.read(audioLibraryProvider.notifier);
+      final practice = _ref.read(listeningPracticeProvider.notifier);
+      final isPracticeHoldingItem =
+          _ref.read(listeningPracticeProvider).currentAudioItem?.id == item.id;
 
       final srt = _generateSrt(state.sentences);
 
       // 词级字幕：直接落编辑后的词列表（加载时按句子文本 token 物化、可被拖动编辑），
       // 每句首尾词贴合句子边界，与句子 SRT 保持一致。句子与词级字幕同时更新。
-      final dao = _ref.read(audioItemDaoProvider);
       final words = _wordsSnappedToSentences();
       final syncedWordsJson = encodeWordTimestamps(words);
+      final sentencesSnapshot = state.sentences;
+      final wordsSnapshot = state.words;
 
       // 字幕内容（+ 词级时间戳）原子写入 DB 列。
       await dao.saveTranscriptContent(
@@ -1193,57 +1173,57 @@ class SubtitleEditorController extends StateNotifier<SubtitleEditorState> {
         wordTimestampsJson: syncedWordsJson,
       );
 
+      // 收藏只存时间区间，字幕变化不需要改动收藏；只换算学习断点。
+      // 以落库的 SRT 重新解析，保证与各读取路径看到的句子完全一致。
+      final savedSentences = await SubtitleParser.parseSubtitleString(srt);
+      await transcriptSync.apply(
+        item.id,
+        oldSentences: _baselineSentences,
+        newSentences: savedSentences,
+      );
+      // 同步成功后立即推进基线：之后的步骤失败时重试保存，不会把已换算过的
+      // 学习断点按旧基线再换算一次。
+      _baselineSentences = savedSentences;
+      _baselineSubtitleHash = _subtitleHash(sentencesSnapshot);
+      _baselineWords = wordsSnapshot;
+
       final wordCount = words.isNotEmpty
           ? words.length
-          : state.sentences.fold<int>(
+          : sentencesSnapshot.fold<int>(
               0,
               (sum, sentence) => sum + _countWords(sentence.text),
             );
       final updatedItem = item.copyWith(
         transcriptPath: null,
-        sentenceCount: state.sentences.length,
+        sentenceCount: sentencesSnapshot.length,
         wordCount: wordCount,
       );
+      await library.updateAudioItem(updatedItem);
 
-      await _ref
-          .read(audioLibraryProvider.notifier)
-          .updateAudioItem(updatedItem);
-
-      // 句子数量变化（合并/删除）才会打乱按句索引的学习进度和收藏句子，需清空；
-      // 仅调整时间戳时索引对应关系不变，保留进度与收藏。
-      if (sentenceCountChanged) {
-        await _ref
-            .read(favoriteSentenceLifecycleProvider)
-            .removeAllForAudio(item.id);
-        await _ref
-            .read(learningProgressProvider.notifier)
-            .deleteProgress(item.id);
-      }
-
-      final practiceState = _ref.read(listeningPracticeProvider);
-      if (practiceState.currentAudioItem?.id == item.id) {
+      if (isPracticeHoldingItem) {
         // 字幕保存只改 DB transcript_srt 列，id / transcriptPath 不变（都为 null）。
         // loadAudio 的去重守卫只比较 id + transcriptPath，不带 force 会命中守卫
         // 直接跳过重新解析，使 keepAlive 的 LP 保留旧句子（自由练习/盲听显示陈旧
         // 拆分版本）。必须强制重载以绕过守卫，从 DB 列读到最新内容。
-        await _ref
-            .read(listeningPracticeProvider.notifier)
-            .loadAudio(updatedItem, forceTranscriptReload: true);
+        await practice.loadAudio(updatedItem, forceTranscriptReload: true);
       }
 
-      _baselineSentenceCount = state.sentences.length;
-      _baselineSubtitleHash = _subtitleHash(state.sentences);
-      _baselineWords = state.words;
       if (!mounted) return true;
       state = state.copyWith(
         isSaving: false,
-        isDirty: false,
+        isDirty: _isDirty(state.sentences, state.words),
         audioItem: updatedItem,
       );
       return true;
-    } catch (e) {
+    } catch (e, stackTrace) {
+      AppLogger.log('SubtitleEditor', '保存失败 error=$e\n$stackTrace');
       if (mounted) {
-        state = state.copyWith(isSaving: false, errorMessage: e.toString());
+        // 保持可保存：重试会重写字幕并补完未完成的步骤（学习数据同步可重复执行）。
+        state = state.copyWith(
+          isSaving: false,
+          isDirty: true,
+          errorMessage: e.toString(),
+        );
       }
       return false;
     }

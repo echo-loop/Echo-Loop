@@ -636,10 +636,9 @@ class ListenAndRepeatController extends _$ListenAndRepeatController {
     state = state.copyWith(currentSentenceBookmarked: !wasBookmarked);
 
     if (wasBookmarked) {
-      await ref.read(favoriteSentenceLifecycleProvider).remove(
-        _engine.config.audioItemId,
-        {s.index},
-      );
+      await ref
+          .read(favoriteSentenceLifecycleProvider)
+          .remove(_engine.config.audioItemId, s);
     } else {
       await ref
           .read(favoriteSentenceLifecycleProvider)

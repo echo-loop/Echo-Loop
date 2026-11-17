@@ -220,7 +220,6 @@ void main() {
             db.BookmarksCompanion.insert(
               memorySubjectId: Value(subjectId),
               audioItemId: audioId,
-              sentenceIndex: index,
               sentenceText: text,
               startTime: start,
               endTime: end,

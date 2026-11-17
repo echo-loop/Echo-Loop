@@ -41,7 +41,7 @@ class DictionaryLookupOrigin {
   /// 来源音频 ID（可选）
   final String? audioItemId;
 
-  /// 来源句子索引（可选）
+  /// 来源句子在当前字幕中的编号（可选），只用于 AI 对话取前后句；收藏不存编号
   final int? sentenceIndex;
 
   /// 来源句子文本
@@ -65,7 +65,6 @@ class DictionaryLookupOrigin {
   DictionaryPanelQuery queryFor(String word) => DictionaryPanelQuery(
     word: word,
     audioItemId: audioItemId,
-    sentenceIndex: sentenceIndex,
     sentenceText: sentenceText,
     sentenceStartMs: sentenceStartMs,
     sentenceEndMs: sentenceEndMs,
@@ -266,7 +265,6 @@ class _SelectableSentenceTextState
         await notifier.saveWord(
           word: word,
           audioItemId: widget.origin.audioItemId,
-          sentenceIndex: widget.origin.sentenceIndex,
           sentenceText: widget.origin.sentenceText,
           sentenceStartMs: widget.origin.sentenceStartMs,
           sentenceEndMs: widget.origin.sentenceEndMs,

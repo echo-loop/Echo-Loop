@@ -4,7 +4,9 @@
 library;
 
 import 'package:flutter/material.dart';
+
 import '../../utils/time_format.dart';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../database/daos/bookmark_dao.dart';
@@ -72,10 +74,7 @@ class _SentenceRecycleBinSheetState
 
   Future<void> _onDelete(BookmarkWithAudio item) async {
     final dao = ref.read(bookmarkDaoProvider);
-    await dao.permanentlyDeleteBookmark(
-      item.bookmark.audioItemId,
-      item.bookmark.sentenceIndex,
-    );
+    await dao.permanentlyDeleteById(item.bookmark.id);
     if (!mounted) return;
     setState(() => _items.remove(item));
   }

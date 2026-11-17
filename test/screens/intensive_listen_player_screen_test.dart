@@ -70,9 +70,15 @@ class _TestBookmarkDao implements BookmarkDao {
   @override
   Future<List<Bookmark>> getByAudioId(String audioItemId) async => _bookmarks;
 
+  /// 测试不解析字幕：第 n 条收藏视为第 n 句。
+  Set<int> get _indices => {for (var i = 0; i < _bookmarks.length; i++) i};
+
   @override
-  Stream<List<Bookmark>> watchByAudioId(String audioItemId) =>
-      Stream<List<Bookmark>>.value(_bookmarks);
+  Future<Set<int>> getBookmarkedIndices(String audioItemId) async => _indices;
+
+  @override
+  Stream<Set<int>> watchBookmarkedIndices(String audioItemId) =>
+      Stream<Set<int>>.value(_indices);
 
   @override
   dynamic noSuchMethod(Invocation invocation) {

@@ -10,6 +10,7 @@ import 'package:echo_loop/database/providers.dart';
 import 'package:echo_loop/models/sentence.dart';
 import 'package:echo_loop/providers/favorite_sentence_lifecycle_provider.dart';
 import 'package:echo_loop/providers/listening_practice/bookmark_manager.dart';
+import 'package:echo_loop/utils/srt_generator.dart';
 
 /// 创建内存数据库用于测试
 AppDatabase _createTestDb() {
@@ -36,6 +37,15 @@ List<Sentence> _createTestSentences({
   });
 }
 
+String _srtOf(List<Sentence> sentences) => generateSrtContent([
+  for (final s in sentences)
+    TranscriptSentence(
+      text: s.text,
+      startTime: s.startTime,
+      endTime: s.endTime,
+    ),
+]);
+
 void main() {
   late AppDatabase db;
   late ProviderContainer container;
@@ -57,6 +67,11 @@ void main() {
         addedDate: Value(now),
         updatedAt: Value(now),
       ),
+    );
+    // 收藏按时间定位到当前字幕，需预置与测试句子一致的字幕。
+    await db.audioItemDao.updateTranscriptSrt(
+      audioId,
+      _srtOf(_createTestSentences(count: 16)),
     );
   });
 
@@ -84,8 +99,9 @@ void main() {
         await sentenceLifecycle.save(audioId, sentences[i]);
       }
 
-      // 移除 index 0 和 4
-      await sentenceLifecycle.remove(audioId, {0, 4});
+      // 取消第 0、4 句
+      await sentenceLifecycle.remove(audioId, sentences[0]);
+      await sentenceLifecycle.remove(audioId, sentences[4]);
 
       final indices = await BookmarkManager.loadBookmarks(
         audioId,
@@ -129,12 +145,8 @@ void main() {
       final removedPositions = initialBookmarks.difference(difficultSentences);
       expect(removedPositions, {3});
 
-      if (removedPositions.isNotEmpty) {
-        final removedSentenceIndices = <int>{
-          for (final pos in removedPositions)
-            if (pos < sentences.length) sentences[pos].index,
-        };
-        await sentenceLifecycle.remove(audioId, removedSentenceIndices);
+      for (final pos in removedPositions) {
+        await sentenceLifecycle.remove(audioId, sentences[pos]);
       }
 
       // 验证最终数据库状态
@@ -146,30 +158,13 @@ void main() {
     });
 
     test('position 索引与 sentence.index 不同时增量同步正确', () async {
-      // 模拟 position != sentence.index 的情况
-      // 例如：句子列表只包含部分句子，index 不连续
+      // 模拟 position != sentence.index 的情况：会话只包含字幕中的部分句子
+      // （第 5、10、15 句），句子保留其在完整字幕中的 index。
+      final transcript = _createTestSentences(count: 16);
       final sentences = [
-        Sentence(
-          index: 5,
-          text: 'Sentence at index 5',
-          startTime: const Duration(seconds: 0),
-          endTime: const Duration(seconds: 3),
-          isBookmarked: true,
-        ),
-        Sentence(
-          index: 10,
-          text: 'Sentence at index 10',
-          startTime: const Duration(seconds: 3),
-          endTime: const Duration(seconds: 6),
-          isBookmarked: false,
-        ),
-        Sentence(
-          index: 15,
-          text: 'Sentence at index 15',
-          startTime: const Duration(seconds: 6),
-          endTime: const Duration(seconds: 9),
-          isBookmarked: true,
-        ),
+        transcript[5].copyWith(isBookmarked: true),
+        transcript[10],
+        transcript[15].copyWith(isBookmarked: true),
       ];
 
       // 预存已有书签（sentence.index 5 和 15）
@@ -194,17 +189,10 @@ void main() {
         await sentenceLifecycle.save(audioId, sentences[index]);
       }
 
-      // 移除: position 0 → sentence.index = 5
+      // 移除: position 0（字幕中的第 5 句）
       final removedPositions = initialBookmarks.difference(difficultSentences);
       expect(removedPositions, {0});
-
-      final removedSentenceIndices = <int>{
-        for (final pos in removedPositions)
-          if (pos < sentences.length) sentences[pos].index,
-      };
-      expect(removedSentenceIndices, {5});
-
-      await sentenceLifecycle.remove(audioId, removedSentenceIndices);
+      await sentenceLifecycle.remove(audioId, sentences[0]);
 
       // 验证：应保留 index 10 和 15（position 1 和 2）
       final finalIndices = await BookmarkManager.loadBookmarks(

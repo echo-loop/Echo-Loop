@@ -10,7 +10,9 @@
 library;
 
 import 'dart:async';
+
 import 'package:riverpod_annotation/riverpod_annotation.dart';
+
 import '../../analytics/analytics_providers.dart';
 import '../../analytics/audio_event_params.dart';
 import '../../services/app_logger.dart';
@@ -562,9 +564,9 @@ class BlindListenPlayer extends _$BlindListenPlayer {
     );
 
     if (isCurrentlyBookmarked) {
-      await ref.read(favoriteSentenceLifecycleProvider).remove(audioItemId, {
-        sentence.index,
-      });
+      await ref
+          .read(favoriteSentenceLifecycleProvider)
+          .remove(audioItemId, sentence);
     } else {
       await ref
           .read(favoriteSentenceLifecycleProvider)

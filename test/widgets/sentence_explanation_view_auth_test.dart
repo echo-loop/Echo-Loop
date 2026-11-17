@@ -904,7 +904,6 @@ void main() {
         phraseText: any(named: 'phraseText'),
         displayText: any(named: 'displayText'),
         audioItemId: any(named: 'audioItemId'),
-        sentenceIndex: any(named: 'sentenceIndex'),
         sentenceText: any(named: 'sentenceText'),
         sentenceStartMs: any(named: 'sentenceStartMs'),
         sentenceEndMs: any(named: 'sentenceEndMs'),

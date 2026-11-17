@@ -4314,13 +4314,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get subtitleNewWordHint => 'New word';
 
   @override
-  String get saveSubtitleEdits => 'Save subtitle changes';
-
-  @override
-  String get subtitleStructureChangedWarning =>
-      'This will clear learning progress and saved sentences of this audio.';
-
-  @override
   String get subtitleEditsSaved => 'Subtitle changes saved.';
 
   @override

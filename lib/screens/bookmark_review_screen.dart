@@ -24,6 +24,7 @@ import '../providers/learning_session/bookmark_review_provider.dart';
 import '../providers/sentence_ai_prewarm.dart';
 import '../providers/sentence_ai_provider.dart';
 import '../providers/sense_group_range_playback_provider.dart';
+import '../providers/source_sentence_index_provider.dart';
 import '../services/pronunciation/local_audio_sense_group_range_playback.dart';
 import '../router/app_router.dart';
 import '../theme/app_theme.dart';
@@ -152,6 +153,9 @@ class _BookmarkReviewScreenState extends ConsumerState<BookmarkReviewScreen>
   Widget build(BuildContext context) {
     final state = ref.watch(bookmarkReviewProvider);
     final card = state.currentCard;
+    final cardSentenceIndex = card == null
+        ? null
+        : ref.watch(sourceSentenceIndexProvider(_sourceOf(card))).value;
     final completionSummary = state.completionSummary;
     final l10n = AppLocalizations.of(context)!;
     final player = _review;
@@ -191,7 +195,7 @@ class _BookmarkReviewScreenState extends ConsumerState<BookmarkReviewScreen>
                   target: SentenceChatTarget(
                     text: card?.sentence.text ?? '',
                     audioItemId: card?.audioItemId,
-                    sentenceIndex: card?.originalSentenceIndex,
+                    sentenceIndex: cardSentenceIndex,
                   ),
                   onBeforeOpen: () => unawaited(player.interruptPlayback()),
                 ),
@@ -559,6 +563,15 @@ class _ReviewAnswer extends ConsumerWidget {
     final theme = Theme.of(context);
     final l10n = AppLocalizations.of(context)!;
     final sentenceSettings = ref.watch(bookmarkReviewSettingsProvider);
+    // 收藏不存句子编号：AI 翻译取前后句前，先按收藏区间在当前字幕里算出编号。
+    // 算出之前不构建讲解视图，避免编号从空变为有值时重复请求翻译与预热。
+    final cardIndex = ref.watch(sourceSentenceIndexProvider(_sourceOf(card)));
+    final upcomingIndices = [
+      for (final upcoming in upcomingCards)
+        ref.watch(sourceSentenceIndexProvider(_sourceOf(upcoming))),
+    ];
+    final isSentenceIndexReady =
+        !cardIndex.isLoading && upcomingIndices.every((a) => !a.isLoading);
     final actions = [
       FlashcardRatingAction(
         rating: MemoryRating.again,
@@ -600,50 +613,55 @@ class _ReviewAnswer extends ConsumerWidget {
         Expanded(
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: AppSpacing.m),
-            child: SentenceExplanationView(
-              text: card.sentence.text,
-              aiNotifier: ref.read(sentenceAiNotifierProvider),
-              audioItemId: card.audioItemId,
-              sentenceIndex: card.originalSentenceIndex,
-              sentenceStartMs: card.sentence.startTime.inMilliseconds,
-              sentenceEndMs: card.sentence.endTime.inMilliseconds,
-              wordHighlightSource:
-                  videoSession?.wordHighlightSource(card.audioItemId) ??
-                  WordHighlightSource(
+            child: !isSentenceIndexReady
+                ? const SizedBox.shrink()
+                : SentenceExplanationView(
+                    text: card.sentence.text,
+                    aiNotifier: ref.read(sentenceAiNotifierProvider),
                     audioItemId: card.audioItemId,
-                    positionStream: ref
-                        .read(shortAudioPlayerProvider)
-                        .positionStream,
-                    currentPosition: ref
-                        .read(shortAudioPlayerProvider)
-                        .currentPosition,
-                    playbackStatus: ref
-                        .read(shortAudioPlayerProvider)
-                        .wordHighlightPlaybackStatus,
-                    playbackStatusStream: ref
-                        .read(shortAudioPlayerProvider)
-                        .wordHighlightPlaybackStatusStream,
+                    sentenceIndex: cardIndex.value,
+                    sentenceStartMs: card.sentence.startTime.inMilliseconds,
+                    sentenceEndMs: card.sentence.endTime.inMilliseconds,
+                    wordHighlightSource:
+                        videoSession?.wordHighlightSource(card.audioItemId) ??
+                        WordHighlightSource(
+                          audioItemId: card.audioItemId,
+                          positionStream: ref
+                              .read(shortAudioPlayerProvider)
+                              .positionStream,
+                          currentPosition: ref
+                              .read(shortAudioPlayerProvider)
+                              .currentPosition,
+                          playbackStatus: ref
+                              .read(shortAudioPlayerProvider)
+                              .wordHighlightPlaybackStatus,
+                          playbackStatusStream: ref
+                              .read(shortAudioPlayerProvider)
+                              .wordHighlightPlaybackStatusStream,
+                        ),
+                    senseGroupRangePlayback: ref.read(
+                      senseGroupRangePlaybackProvider,
+                    ),
+                    enableGuide: false,
+                    explanationContext: const SentenceExplanationContext(
+                      source: 'bookmarkReview',
+                    ),
+                    autoShowAiExplanation:
+                        sentenceSettings.autoShowAiExplanation,
+                    autoShowAiAnalysis: sentenceSettings.autoShowAiAnalysis,
+                    autoShowAiTranslation:
+                        sentenceSettings.autoShowAiTranslation,
+                    autoShowAiSenseGroups:
+                        sentenceSettings.autoShowAiSenseGroups,
+                    prewarmTargets: [
+                      for (final (i, upcoming) in upcomingCards.indexed)
+                        SentenceAiPrewarmTarget(
+                          text: upcoming.sentence.text,
+                          audioItemId: upcoming.audioItemId,
+                          sentenceIndex: upcomingIndices[i].value,
+                        ),
+                    ],
                   ),
-              senseGroupRangePlayback: ref.read(
-                senseGroupRangePlaybackProvider,
-              ),
-              enableGuide: false,
-              explanationContext: const SentenceExplanationContext(
-                source: 'bookmarkReview',
-              ),
-              autoShowAiExplanation: sentenceSettings.autoShowAiExplanation,
-              autoShowAiAnalysis: sentenceSettings.autoShowAiAnalysis,
-              autoShowAiTranslation: sentenceSettings.autoShowAiTranslation,
-              autoShowAiSenseGroups: sentenceSettings.autoShowAiSenseGroups,
-              prewarmTargets: [
-                for (final upcoming in upcomingCards)
-                  SentenceAiPrewarmTarget(
-                    text: upcoming.sentence.text,
-                    audioItemId: upcoming.audioItemId,
-                    sentenceIndex: upcoming.originalSentenceIndex,
-                  ),
-              ],
-            ),
           ),
         ),
         Padding(
@@ -690,3 +708,10 @@ class _ReviewAnswer extends ConsumerWidget {
     );
   }
 }
+
+/// 收藏复习卡片的来源（音频 + 收藏区间）。
+SourceSentenceRef _sourceOf(BookmarkSentence card) => (
+  audioItemId: card.audioItemId,
+  startMs: card.sentence.startTime.inMilliseconds,
+  endMs: card.sentence.endTime.inMilliseconds,
+);

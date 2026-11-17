@@ -669,30 +669,6 @@ class _SubtitleSimpleEditorScreenState
     SubtitleEditorController controller,
     AppLocalizations l10n,
   ) async {
-    // 仅调整时间戳（句子数量不变）不会清空学习进度和收藏，无需弹窗确认。
-    // 句子数量变化但本音频没有学习进度/收藏时，也直接保存，不打断用户。
-    final needsConfirmation = await controller.hasResettableLearningData();
-    if (!context.mounted) return;
-    if (needsConfirmation) {
-      final confirmed = await showDialog<bool>(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          title: Text(l10n.saveSubtitleEdits),
-          content: Text(l10n.subtitleStructureChangedWarning),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: Text(l10n.cancel),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: Text(l10n.save),
-            ),
-          ],
-        ),
-      );
-      if (confirmed != true) return;
-    }
     final saved = await controller.save();
     if (saved && context.mounted) {
       ScaffoldMessenger.of(context)

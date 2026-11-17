@@ -39,7 +39,7 @@ class SavedWordDao extends DatabaseAccessor<AppDatabase>
   Future<SavedWord?> getByWord(String word) =>
       (select(savedWords)..where((t) => t.word.equals(word))).getSingleOrNull();
 
-  /// 获取指定音频关联的未删除收藏单词（按来源句子索引升序）
+  /// 获取指定音频关联的未删除收藏单词（按来源句时间升序）
   ///
   /// 用于学习材料导出 PDF 时将收藏词归到所属句子。
   /// audioItemId 指向「最新一次收藏来源」（MVP 单来源设计），
@@ -49,18 +49,17 @@ class SavedWordDao extends DatabaseAccessor<AppDatabase>
           ..where(
             (t) => t.audioItemId.equals(audioItemId) & t.deletedAt.isNull(),
           )
-          ..orderBy([(t) => OrderingTerm.asc(t.sentenceIndex)]))
+          ..orderBy([(t) => OrderingTerm.asc(t.sentenceStartMs)]))
         .get();
   }
 
   /// 保存单词（冲突时更新来源信息和更新时间）
   ///
   /// [word] 必须是小写 lemmatized 形式。
-  /// [audioItemId]、[sentenceIndex]、[sentenceText] 为可选来源信息。
+  /// [audioItemId]、[sentenceText] 与来源句起止时间为可选来源信息。
   Future<void> saveWord({
     required String word,
     String? audioItemId,
-    int? sentenceIndex,
     String? sentenceText,
     int? sentenceStartMs,
     int? sentenceEndMs,
@@ -71,7 +70,6 @@ class SavedWordDao extends DatabaseAccessor<AppDatabase>
         word: Value(word),
         memorySubjectId: Value(const Uuid().v4()),
         audioItemId: Value(audioItemId),
-        sentenceIndex: Value(sentenceIndex),
         sentenceText: Value(sentenceText),
         sentenceStartMs: Value(sentenceStartMs),
         sentenceEndMs: Value(sentenceEndMs),
@@ -81,7 +79,6 @@ class SavedWordDao extends DatabaseAccessor<AppDatabase>
       onConflict: DoUpdate(
         (old) => SavedWordsCompanion(
           audioItemId: Value(audioItemId),
-          sentenceIndex: Value(sentenceIndex),
           sentenceText: Value(sentenceText),
           sentenceStartMs: Value(sentenceStartMs),
           sentenceEndMs: Value(sentenceEndMs),
@@ -112,7 +109,7 @@ class SavedWordDao extends DatabaseAccessor<AppDatabase>
 
   /// 清除指定音频关联的上下文信息（音频删除时调用）
   ///
-  /// 将 sentenceIndex、sentenceText 和时间信息置 NULL，保留单词本身。
+  /// 将 sentenceText 置 NULL，保留单词本身。
   /// audioItemId 由 FK SET NULL 自动处理，此方法处理非外键字段。
   /// 注意：sentenceStartMs/sentenceEndMs 保留不清除，确保删除字幕后仍可播放。
   Future<void> clearContextForAudio(String audioItemId) {
@@ -125,14 +122,8 @@ class SavedWordDao extends DatabaseAccessor<AppDatabase>
   /// audioItemId 定位这些冗余上下文字段。
   Future<void> clearContextForAudios(Set<String> audioItemIds) {
     if (audioItemIds.isEmpty) return Future.value();
-    return (update(
-      savedWords,
-    )..where((t) => t.audioItemId.isIn(audioItemIds))).write(
-      const SavedWordsCompanion(
-        sentenceIndex: Value(null),
-        sentenceText: Value(null),
-      ),
-    );
+    return (update(savedWords)..where((t) => t.audioItemId.isIn(audioItemIds)))
+        .write(const SavedWordsCompanion(sentenceText: Value(null)));
   }
 
   /// 更新 Flashcard 练习统计

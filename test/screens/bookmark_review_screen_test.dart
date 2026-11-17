@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:echo_loop/features/chatbot/widgets/sentence_chat_button.dart';
 import 'package:echo_loop/database/daos/bookmark_dao.dart';
 import 'package:echo_loop/database/providers.dart';
 import 'package:echo_loop/features/rating_prompt/data/rating_prompt_task_completion_store.dart';
@@ -128,7 +129,6 @@ class _TestBookmarkReview extends BookmarkReview {
         audioItemId: 'audio-1',
         memorySubjectId: 'test-subject-2',
         audioName: 'Daily Listening',
-        originalSentenceIndex: 2,
       ),
       initialTotal: 1,
       remainingCount: 1,
@@ -230,6 +230,7 @@ Widget _app({
   Locale locale = const Locale('zh'),
   GoRouter? router,
   Future<void> Function()? disposeSessionWaiter,
+  String? transcriptSrt,
 }) {
   final child = router == null
       ? MaterialApp(
@@ -262,7 +263,9 @@ Widget _app({
         () => _TestBookmarkReview(disposeSessionWaiter: disposeSessionWaiter),
       ),
       bookmarkDaoProvider.overrideWithValue(_TestDao()),
-      audioItemDaoProvider.overrideWithValue(FakeAudioItemDao()),
+      audioItemDaoProvider.overrideWithValue(
+        FakeAudioItemDao()..transcriptSrtStore['audio-1'] = transcriptSrt ?? '',
+      ),
       sentenceAiNotifierProvider.overrideWithValue(
         SentenceAiNotifier(
           cacheDao: createStubbedMockCacheDao(),
@@ -368,6 +371,29 @@ void main() {
     expect(explanation.autoShowAiAnalysis, isTrue);
     expect(explanation.autoShowAiTranslation, isTrue);
     expect(explanation.autoShowAiSenseGroups, isTrue);
+  });
+
+  testWidgets('答案面的 AI 上下文句子编号按收藏区间在当前字幕里现算', (tester) async {
+    // 收藏区间 [1s, 3.5s)；当前字幕中它是第 1 句（与卡片句子自带的 index 2 不同，
+    // 确认用的是现算结果）。
+    const srt =
+        '1\n00:00:00,000 --> 00:00:01,000\nIntro.\n\n'
+        '2\n00:00:01,000 --> 00:00:03,500\nHidden sentence\n';
+    await tester.pumpWidget(_app(transcriptSrt: srt));
+    await tester.pump();
+
+    await tester.tap(find.byKey(const Key('bookmark-review-reveal-zone')));
+    await tester.pump();
+    await tester.pump();
+
+    final explanation = tester.widget<SentenceExplanationView>(
+      find.byType(SentenceExplanationView),
+    );
+    expect(explanation.sentenceIndex, 1);
+    final chat = tester.widget<SentenceChatButton>(
+      find.byType(SentenceChatButton),
+    );
+    expect(chat.target.sentenceIndex, 1);
   });
 
   testWidgets('unsaving the final sentence shows the completion summary', (

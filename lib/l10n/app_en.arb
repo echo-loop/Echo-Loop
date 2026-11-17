@@ -2062,8 +2062,6 @@
   "insertWordAfter": "Insert word after",
   "deleteWord": "Delete word",
   "subtitleNewWordHint": "New word",
-  "saveSubtitleEdits": "Save subtitle changes",
-  "subtitleStructureChangedWarning": "This will clear learning progress and saved sentences of this audio.",
   "subtitleEditsSaved": "Subtitle changes saved.",
   "discardSubtitleEditsTitle": "Discard changes?",
   "discardSubtitleEditsMessage": "Your subtitle changes have not been saved.",

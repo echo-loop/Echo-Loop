@@ -1,5 +1,8 @@
 import 'package:drift/drift.dart';
 
+import '../../models/sentence.dart';
+import '../../services/source_sentence_anchor.dart';
+import '../../services/subtitle_parser.dart';
 import '../app_database.dart';
 import '../tables/audio_items.dart';
 import '../tables/bookmarks.dart';
@@ -17,6 +20,14 @@ class BookmarkWithAudio {
   final String audioName;
 
   const BookmarkWithAudio({required this.bookmark, required this.audioName});
+}
+
+/// 书签的收藏区间。
+SourceSentenceAnchor anchorOfBookmark(Bookmark bookmark) {
+  return SourceSentenceAnchor.fromSeconds(
+    startSeconds: bookmark.startTime,
+    endSeconds: bookmark.endTime,
+  );
 }
 
 /// 回收站排序方式
@@ -41,110 +52,85 @@ class BookmarkDao extends DatabaseAccessor<AppDatabase>
     with _$BookmarkDaoMixin {
   BookmarkDao(super.db);
 
-  /// 获取指定音频的所有未删除书签
+  /// 获取指定音频的所有未删除书签（按时间排序）
   Future<List<Bookmark>> getByAudioId(String audioItemId) {
     return (select(bookmarks)
           ..where(
             (t) => t.audioItemId.equals(audioItemId) & t.deletedAt.isNull(),
           )
-          ..orderBy([(t) => OrderingTerm.asc(t.sentenceIndex)]))
+          ..orderBy([(t) => OrderingTerm.asc(t.startTime)]))
         .get();
   }
 
-  /// 读取一条书签（包含回收站内容），供收藏与调度生命周期保持同一主体 ID。
-  Future<Bookmark?> getByAudioAndSentence(
-    String audioItemId,
-    int sentenceIndex,
-  ) =>
-      (select(bookmarks)..where(
-            (table) =>
-                table.audioItemId.equals(audioItemId) &
-                table.sentenceIndex.equals(sentenceIndex),
-          ))
+  /// 按主键读取一条书签（包含回收站内容）。
+  Future<Bookmark?> getById(int id) =>
+      (select(bookmarks)..where((t) => t.id.equals(id))).getSingleOrNull();
+
+  /// 按记忆主体读取一条未删除书签。
+  Future<Bookmark?> getActiveBySubjectId(String memorySubjectId) =>
+      (select(bookmarks)
+            ..where(
+              (t) =>
+                  t.memorySubjectId.equals(memorySubjectId) &
+                  t.deletedAt.isNull(),
+            )
+            ..limit(1))
           .getSingleOrNull();
 
-  /// 监听指定音频的所有未删除书签
-  Stream<List<Bookmark>> watchByAudioId(String audioItemId) {
-    return (select(bookmarks)
-          ..where(
-            (t) => t.audioItemId.equals(audioItemId) & t.deletedAt.isNull(),
-          )
-          ..orderBy([(t) => OrderingTerm.asc(t.sentenceIndex)]))
-        .watch();
+  /// 读取音频当前字幕的句子列表，作为收藏定位的参照。
+  ///
+  /// 字幕唯一真相源是 audio_items.transcript_srt；无字幕返回空列表。
+  Future<List<Sentence>> loadCurrentSentences(String audioItemId) async {
+    final row =
+        await (selectOnly(audioItems)
+              ..addColumns([audioItems.transcriptSrt])
+              ..where(audioItems.id.equals(audioItemId)))
+            .getSingleOrNull();
+    final srt = row?.read(audioItems.transcriptSrt);
+    if (srt == null || srt.isEmpty) return const [];
+    return SubtitleParser.parseSubtitleString(srt);
   }
 
-  /// 添加书签
+  /// 监听指定音频当前字幕中被收藏的句子索引。
   ///
-  /// 以 (audioItemId, sentenceIndex) 为冲突键，冲突时更新已有行。
-  Future<void> addBookmark(BookmarksCompanion entry) {
-    return into(bookmarks).insert(
-      entry,
-      onConflict: DoUpdate(
-        (old) => BookmarksCompanion(
-          sentenceText: entry.sentenceText,
-          startTime: entry.startTime,
-          endTime: entry.endTime,
-          updatedAt: entry.updatedAt,
-          deletedAt: const Value(null),
-          syncStatus: const Value(0),
-        ),
-        target: [bookmarks.audioItemId, bookmarks.sentenceIndex],
+  /// 同时监听书签与字幕列：字幕被编辑后，即使书签行未变化，定位结果也会更新。
+  Stream<Set<int>> watchBookmarkedIndices(String audioItemId) {
+    final query = select(audioItems).join([
+      leftOuterJoin(
+        bookmarks,
+        bookmarks.audioItemId.equalsExp(audioItems.id) &
+            bookmarks.deletedAt.isNull(),
       ),
-    );
-  }
-
-  /// 批量插入或更新书签（用于迁移）。
-  ///
-  /// 用 ON CONFLICT DO UPDATE（冲突键 = 唯一键 `{audioItemId, sentenceIndex}`）：
-  /// 已存在行只更新 companion 携带的列，不触碰未携带列（如 `deletedAt` 软删标记）。
-  /// 不用 `InsertMode.insertOrReplace`——整行 DELETE+INSERT 会把未携带列重置。
-  Future<void> batchInsert(List<BookmarksCompanion> entries) async {
-    await batch((b) {
-      for (final entry in entries) {
-        b.insert(
-          bookmarks,
-          entry,
-          onConflict: DoUpdate(
-            (_) => entry,
-            target: [bookmarks.audioItemId, bookmarks.sentenceIndex],
-          ),
-        );
-      }
+    ])..where(audioItems.id.equals(audioItemId));
+    return query.watch().asyncMap((rows) async {
+      final bookmarkRows = [
+        for (final row in rows)
+          if (row.readTableOrNull(bookmarks) case final Bookmark bookmark)
+            bookmark,
+      ];
+      if (bookmarkRows.isEmpty) return <int>{};
+      final srt = rows.first.readTable(audioItems).transcriptSrt;
+      if (srt == null || srt.isEmpty) return <int>{};
+      final sentences = await SubtitleParser.parseSubtitleString(srt);
+      return _resolveIndices(bookmarkRows, sentences);
     });
   }
 
-  /// 软删除指定音频的某个书签（通过句子索引）
-  ///
-  /// 设置 deletedAt 标记而非物理删除，便于未来同步和数据恢复。
-  Future<void> removeBookmark(String audioItemId, int sentenceIndex) {
-    return (update(bookmarks)..where(
-          (t) =>
-              t.audioItemId.equals(audioItemId) &
-              t.sentenceIndex.equals(sentenceIndex),
-        ))
-        .write(
-          BookmarksCompanion(
-            deletedAt: Value(DateTime.now()),
-            updatedAt: Value(DateTime.now()),
-          ),
-        );
+  /// 新增书签。同一句可能存在多条（字幕合并后），由调用方按定位结果去重。
+  Future<void> addBookmark(BookmarksCompanion entry) {
+    return into(bookmarks).insert(entry);
   }
 
-  /// 软删除指定音频的多个书签（通过句子索引集合）
+  /// 软删除一组书签
   ///
-  /// 设置 deletedAt 标记而非物理删除，便于未来同步和数据恢复。
-  Future<void> removeBookmarks(String audioItemId, Set<int> sentenceIndices) {
-    return (update(bookmarks)..where(
-          (t) =>
-              t.audioItemId.equals(audioItemId) &
-              t.sentenceIndex.isIn(sentenceIndices),
-        ))
-        .write(
-          BookmarksCompanion(
-            deletedAt: Value(DateTime.now()),
-            updatedAt: Value(DateTime.now()),
-          ),
-        );
+  /// 设置 deletedAt 标记而非物理删除，便于回收站恢复。
+  Future<void> softDeleteByIds(Iterable<int> ids) {
+    final idSet = ids.toSet();
+    if (idSet.isEmpty) return Future.value();
+    final now = DateTime.now();
+    return (update(bookmarks)..where((t) => t.id.isIn(idSet))).write(
+      BookmarksCompanion(deletedAt: Value(now), updatedAt: Value(now)),
+    );
   }
 
   /// 移除指定音频的所有书签
@@ -154,14 +140,71 @@ class BookmarkDao extends DatabaseAccessor<AppDatabase>
     )..where((t) => t.audioItemId.equals(audioItemId))).go();
   }
 
-  /// 获取指定音频的书签句子索引集合
+  /// 获取指定音频当前字幕中被收藏的句子索引集合
+  ///
+  /// 按收藏时间区间定位到当前字幕（见 [resolveSourceSentenceIndex]），
+  /// 定位不到的收藏（来源句已被删除）不计入。
   Future<Set<int>> getBookmarkedIndices(String audioItemId) async {
-    final rows =
-        await (select(bookmarks)..where(
-              (t) => t.audioItemId.equals(audioItemId) & t.deletedAt.isNull(),
-            ))
-            .get();
-    return rows.map((r) => r.sentenceIndex).toSet();
+    final rows = await getByAudioId(audioItemId);
+    if (rows.isEmpty) return <int>{};
+    final sentences = await loadCurrentSentences(audioItemId);
+    return _resolveIndices(rows, sentences);
+  }
+
+  /// 把调用方持有的句子按其时间区间定位到当前字幕，并返回落在同一句上的书签
+  /// （包含回收站）。
+  ///
+  /// 只看时间，不看 [sentence] 的 index：调用方的句子列表可能是字幕编辑前加载
+  /// 的旧列表。定位不到（该句已不在当前字幕中）时 index 为 null、书签为空。
+  Future<({int? index, List<Bookmark> bookmarks})> getForSentence(
+    String audioItemId,
+    Sentence sentence,
+  ) async {
+    final sentences = await loadCurrentSentences(audioItemId);
+    final index = resolveSourceSentenceIndex(
+      SourceSentenceAnchor(start: sentence.startTime, end: sentence.endTime),
+      sentences,
+    );
+    if (index == null) return (index: null, bookmarks: const <Bookmark>[]);
+    final rows = await (select(
+      bookmarks,
+    )..where((t) => t.audioItemId.equals(audioItemId))).get();
+    return (
+      index: index,
+      bookmarks: [
+        for (final row in rows)
+          if (resolveSourceSentenceIndex(anchorOfBookmark(row), sentences) ==
+              index)
+            row,
+      ],
+    );
+  }
+
+  /// 重新收藏时复用回收站里的原行：改写为本次收藏的区间并移出回收站，
+  /// 记忆主体不变（保留复习记录）。
+  Future<void> reviveWithSentence(int id, Sentence sentence) {
+    return (update(bookmarks)..where((t) => t.id.equals(id))).write(
+      BookmarksCompanion(
+        sentenceText: Value(sentence.text),
+        startTime: Value(sentence.startTime.inMilliseconds / 1000.0),
+        endTime: Value(sentence.endTime.inMilliseconds / 1000.0),
+        updatedAt: Value(DateTime.now()),
+        deletedAt: const Value(null),
+        syncStatus: const Value(0),
+      ),
+    );
+  }
+
+  Set<int> _resolveIndices(List<Bookmark> rows, List<Sentence> sentences) {
+    final indices = <int>{};
+    for (final row in rows) {
+      final index = resolveSourceSentenceIndex(
+        anchorOfBookmark(row),
+        sentences,
+      );
+      if (index != null) indices.add(index);
+    }
+    return indices;
   }
 
   /// 获取所有未删除书签的总数
@@ -194,7 +237,7 @@ class BookmarkDao extends DatabaseAccessor<AppDatabase>
       ..where(bookmarks.deletedAt.isNull() & audioItems.deletedAt.isNull())
       ..orderBy([
         OrderingTerm.asc(audioItems.name),
-        OrderingTerm.asc(bookmarks.sentenceIndex),
+        OrderingTerm.asc(bookmarks.startTime),
       ]);
   }
 
@@ -239,32 +282,20 @@ class BookmarkDao extends DatabaseAccessor<AppDatabase>
   }
 
   /// 恢复已软删除的书签（清除 deletedAt）
-  Future<void> restoreBookmark(String audioItemId, int sentenceIndex) {
-    return (update(bookmarks)..where(
-          (t) =>
-              t.audioItemId.equals(audioItemId) &
-              t.sentenceIndex.equals(sentenceIndex),
-        ))
-        .write(
-          BookmarksCompanion(
-            deletedAt: const Value(null),
-            updatedAt: Value(DateTime.now()),
-          ),
-        );
+  Future<void> restoreById(int id) {
+    return (update(bookmarks)..where((t) => t.id.equals(id))).write(
+      BookmarksCompanion(
+        deletedAt: const Value(null),
+        updatedAt: Value(DateTime.now()),
+      ),
+    );
   }
 
   /// 永久删除单个已软删除的书签
-  Future<void> permanentlyDeleteBookmark(
-    String audioItemId,
-    int sentenceIndex,
-  ) {
-    return (delete(bookmarks)..where(
-          (t) =>
-              t.audioItemId.equals(audioItemId) &
-              t.sentenceIndex.equals(sentenceIndex) &
-              t.deletedAt.isNotNull(),
-        ))
-        .go();
+  Future<void> permanentlyDeleteById(int id) {
+    return (delete(
+      bookmarks,
+    )..where((t) => t.id.equals(id) & t.deletedAt.isNotNull())).go();
   }
 
   /// 永久删除所有已软删除的书签（清空回收站）

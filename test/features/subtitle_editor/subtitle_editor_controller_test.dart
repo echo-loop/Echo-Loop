@@ -1,22 +1,17 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:echo_loop/database/app_database.dart' show BookmarksCompanion;
-import 'package:echo_loop/database/enums.dart';
 import 'package:echo_loop/database/providers.dart';
-import 'package:drift/drift.dart' show Value;
 import 'package:echo_loop/features/subtitle_editor/subtitle_edit_engine.dart';
 import 'package:echo_loop/features/subtitle_editor/subtitle_editor_controller.dart';
-import 'package:echo_loop/providers/favorite_sentence_lifecycle_provider.dart';
 import 'package:echo_loop/models/audio_engine_state.dart';
 import 'package:echo_loop/models/audio_item.dart';
-import 'package:echo_loop/models/learning_progress.dart';
 import 'package:echo_loop/models/sentence.dart';
 import 'package:echo_loop/models/word_timestamp.dart';
 import 'package:echo_loop/providers/audio_engine/audio_engine_provider.dart';
 import 'package:echo_loop/providers/audio_library_provider.dart';
-import 'package:echo_loop/providers/learning_progress_provider.dart';
 import 'package:echo_loop/providers/listening_practice/listening_practice_provider.dart';
+import 'package:echo_loop/providers/transcript_change_sync_provider.dart';
 import 'package:echo_loop/utils/app_data_dir.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -466,20 +461,6 @@ void main() {
 
     expect(state().waveformZoomScale, closeTo(2.0997, 0.001));
     expect(state().maxWaveformZoomScale, closeTo(10.4987, 0.001));
-  });
-
-  test('sentenceCountChanged：调边界为 false，删除/合并为 true', () async {
-    final notifier = controller();
-    await notifier.load();
-    expect(notifier.sentenceCountChanged, isFalse);
-
-    // 仅前移第 0 句尾边界（末词 'sentence.' = 全局词 1，4s → 3s），数量不变。
-    notifier.adjustWord(1, BoundaryEdge.end, const Duration(seconds: 3));
-    expect(notifier.sentenceCountChanged, isFalse);
-
-    // 删除一句，数量变化。
-    notifier.deleteSentence(2);
-    expect(notifier.sentenceCountChanged, isTrue);
   });
 
   group('词级：拆词（不丢词）/ 对齐 / 点词播放', () {
@@ -1183,7 +1164,6 @@ void main() {
       expect(state().selectedSentenceIndex, 1);
       expect(state().words.length, wordsBefore.length + 3);
       expect(state().words.last.startTime, wordsBefore.last.startTime);
-      expect(notifier.sentenceCountChanged, isTrue);
 
       notifier.undo();
       expect(state().sentences.length, 2);
@@ -1227,42 +1207,16 @@ void main() {
     });
   });
 
-  group('save 是否清空学习进度/收藏', () {
+  group('save 同步学习数据（不再清空）', () {
     late Directory tempDir;
-    late TestBookmarkDao bookmarkDao;
+    late _RecordingTranscriptChangeSync transcriptSync;
     late TestAudioItemDao audioItemDao;
-    late TestLearningProgressNotifier progressNotifier;
 
     setUp(() async {
-      // save() 现在把字幕内容写入 DB transcript_srt 列（不再落文件）。
+      // save() 把字幕内容写入 DB transcript_srt 列（不再落文件）。
       tempDir = await Directory.systemTemp.createTemp('subtitle_save_test');
       appDataDirectoryOverride = tempDir;
-
       audioItemDao = TestAudioItemDao();
-      bookmarkDao = TestBookmarkDao();
-      // 预置收藏与学习进度，用来验证保存后是否被清空。
-      await bookmarkDao.addBookmark(
-        BookmarksCompanion.insert(
-          memorySubjectId: const Value('subtitle-editor-test-subject'),
-          audioItemId: audioItem.id,
-          sentenceIndex: 1,
-          sentenceText: 'Second sentence.',
-          startTime: 4,
-          endTime: 8,
-          createdAt: DateTime(2026, 1, 1),
-          updatedAt: DateTime(2026, 1, 1),
-        ),
-      );
-      progressNotifier = TestLearningProgressNotifier(
-        LearningProgressState(
-          progressMap: {
-            audioItem.id: LearningProgress(
-              audioItemId: audioItem.id,
-              updatedAt: DateTime(2026, 1, 1),
-            ),
-          },
-        ),
-      );
     });
 
     tearDown(() async {
@@ -1270,7 +1224,10 @@ void main() {
       if (tempDir.existsSync()) await tempDir.delete(recursive: true);
     });
 
-    ProviderContainer saveContainer() {
+    ProviderContainer saveContainer({
+      TestListeningPractice Function()? listeningPractice,
+      TestAudioLibrary Function()? audioLibrary,
+    }) {
       // 用独立的音频引擎实例：全局 setUp 的容器已挂载了共享 audioEngine，
       // 同一 Notifier 实例不能在两个容器中重复挂载。
       final engine = _RecordingAudioEngine(
@@ -1278,96 +1235,120 @@ void main() {
         sentences: sentences,
       );
       addTearDown(engine.disposeController);
-      return ProviderContainer(
+      final c = ProviderContainer(
         overrides: dedupeOverrides([
           audioEngineProvider.overrideWith(() => engine),
-          bookmarkDaoProvider.overrideWithValue(bookmarkDao),
           audioItemDaoProvider.overrideWithValue(audioItemDao),
-          audioLibraryProvider.overrideWith(() => TestAudioLibrary()),
-          listeningPracticeProvider.overrideWith(() => TestListeningPractice()),
-          favoriteSentenceLifecycleProvider.overrideWith(
-            (ref) => _TestFavoriteSentenceLifecycle(ref),
+          audioLibraryProvider.overrideWith(
+            audioLibrary ?? () => TestAudioLibrary(),
           ),
-          learningProgressProvider.overrideWith(() => progressNotifier),
+          listeningPracticeProvider.overrideWith(
+            listeningPractice ?? () => TestListeningPractice(),
+          ),
+          transcriptChangeSyncProvider.overrideWith((ref) {
+            return transcriptSync = _RecordingTranscriptChangeSync(ref);
+          }),
         ]),
       );
-    }
-
-    test('仅调整时间戳（句子数量不变）保留学习进度和收藏', () async {
-      final c = saveContainer();
       addTearDown(c.dispose);
       // 保持监听，避免 autoDispose 在 await 期间销毁控制器。
       c.listen(subtitleEditorControllerProvider(audioItem), (_, _) {});
-      final notifier = c.read(
-        subtitleEditorControllerProvider(audioItem).notifier,
-      );
-      await notifier.load();
+      return c;
+    }
 
-      // 仅前移第 0 句尾边界（末词 'sentence.' = 全局词 1，4s → 3s），句子数量保持 3。
-      notifier.adjustWord(1, BoundaryEdge.end, const Duration(seconds: 3));
-      final saved = await notifier.save();
-
-      expect(saved, isTrue);
-      // 字幕内容写入 DB transcript_srt 列
-      final savedSrt = audioItemDao.transcriptSrtStore[audioItem.id];
-      expect(savedSrt, isNotNull);
-      expect(savedSrt!, contains('-->'));
-      final savedWords = decodeWordTimestamps(
-        audioItemDao.wordTimestampsStore[audioItem.id]!,
-      );
-      expect(savedWords, isNotNull);
-      expect(savedWords!.map((w) => w.word).take(2), ['First', 'sentence.']);
-      expect(savedWords.first.startTime, Duration.zero);
-      expect(savedWords.last.endTime, const Duration(seconds: 12));
-      expect(
-        await bookmarkDao.getBookmarkedIndices(audioItem.id),
-        contains(1),
-        reason: '句子数量未变，收藏应保留',
-      );
-      expect(
-        c.read(learningProgressProvider).progressMap.containsKey(audioItem.id),
-        isTrue,
-        reason: '句子数量未变，学习进度应保留',
-      );
-    });
-
-    test('拖动词边界后保存：同时更新词级字幕和句子 SRT', () async {
+    test('调整边界后保存：写入 SRT 与词级字幕，并按新旧句子同步学习数据', () async {
       final c = saveContainer();
-      addTearDown(c.dispose);
-      c.listen(subtitleEditorControllerProvider(audioItem), (_, _) {});
       final notifier = c.read(
         subtitleEditorControllerProvider(audioItem).notifier,
       );
       await notifier.load();
 
-      // 句子未增减（词级编辑），调整句 0 内 'sentence.' 的起点到 2s。
+      // 句 0 末词 'sentence.' = 全局词 1，起点 → 2s、终点 4s → 3s，句子数量保持 3。
       notifier.adjustWord(1, BoundaryEdge.start, const Duration(seconds: 2));
-      expect(
-        c.read(subtitleEditorControllerProvider(audioItem)).isDirty,
-        isTrue,
-      );
+      notifier.adjustWord(1, BoundaryEdge.end, const Duration(seconds: 3));
+      expect(await notifier.save(), isTrue);
 
-      final saved = await notifier.save();
-      expect(saved, isTrue);
-
-      // 句子 SRT 写入。
-      expect(audioItemDao.transcriptSrtStore[audioItem.id], contains('-->'));
-      // 词级字幕写入且反映拖动后的时间。
+      final savedSrt = audioItemDao.transcriptSrtStore[audioItem.id];
+      expect(savedSrt, contains('-->'));
       final savedWords = decodeWordTimestamps(
         audioItemDao.wordTimestampsStore[audioItem.id]!,
       )!;
-      expect(savedWords.length, greaterThanOrEqualTo(2));
-      expect(savedWords[1].word, 'sentence.');
+      expect(savedWords.map((w) => w.word).take(2), ['First', 'sentence.']);
       expect(savedWords[1].startTime, const Duration(seconds: 2));
-      // 句子数量未变，收藏与进度保留。
-      expect(await bookmarkDao.getBookmarkedIndices(audioItem.id), contains(1));
+      expect(savedWords.first.startTime, Duration.zero);
+      expect(savedWords.last.endTime, const Duration(seconds: 12));
+
+      final call = transcriptSync.calls.single;
+      expect(call.audioItemId, audioItem.id);
+      expect(call.oldSentences.map((s) => s.endTime).first, seconds(4));
+      expect(call.newSentences.map((s) => s.endTime).first, seconds(3));
+      expect(call.newSentences, hasLength(3));
+    });
+
+    test('删除句子后保存：同步而不清空，第二次保存以上次保存为基线', () async {
+      final c = saveContainer();
+      final notifier = c.read(
+        subtitleEditorControllerProvider(audioItem).notifier,
+      );
+      await notifier.load();
+
+      notifier.deleteSentence(1);
+      expect(await notifier.save(), isTrue);
+      notifier.deleteSentence(0);
+      expect(await notifier.save(), isTrue);
+
+      expect(transcriptSync.calls, hasLength(2));
+      final first = transcriptSync.calls.first;
+      expect(first.oldSentences.map((s) => s.text), [
+        'First sentence.',
+        'Second sentence.',
+        'Third sentence.',
+      ]);
+      expect(first.newSentences.map((s) => s.text), [
+        'First sentence.',
+        'Third sentence.',
+      ]);
+      expect(first.newSentences.map((s) => s.index), [
+        0,
+        1,
+      ], reason: '新句子以落库的 SRT 重新解析，索引即列表位置');
+      final second = transcriptSync.calls.last;
+      expect(second.oldSentences.map((s) => s.text), [
+        'First sentence.',
+        'Third sentence.',
+      ]);
+      expect(second.newSentences.map((s) => s.text), ['Third sentence.']);
+    });
+
+    test('同步后的步骤失败：可重试保存，且不会按旧基线重复换算学习断点', () async {
+      final library = _FailingOnceAudioLibrary();
+      final c = saveContainer(audioLibrary: () => library);
+      final notifier = c.read(
+        subtitleEditorControllerProvider(audioItem).notifier,
+      );
+      SubtitleEditorState current() =>
+          c.read(subtitleEditorControllerProvider(audioItem));
+      await notifier.load();
+
+      notifier.deleteSentence(1);
+      expect(await notifier.save(), isFalse, reason: '素材库更新失败');
+      expect(current().isDirty, isTrue, reason: '失败后仍可重试保存');
+      expect(current().errorMessage, isNotNull);
+
+      expect(await notifier.save(), isTrue);
+      expect(current().isDirty, isFalse);
+      expect(transcriptSync.calls, hasLength(2));
+      final retry = transcriptSync.calls.last;
+      expect(
+        retry.oldSentences.map((s) => s.text),
+        retry.newSentences.map((s) => s.text),
+        reason: '首次同步已完成，重试以已保存字幕为基线（不再换算）',
+      );
+      expect(retry.newSentences, hasLength(2));
     });
 
     test('保存成功后重置字幕基线，未继续修改时不再保存', () async {
       final c = saveContainer();
-      addTearDown(c.dispose);
-      // 保持监听，避免 autoDispose 在 await 期间销毁控制器。
-      c.listen(subtitleEditorControllerProvider(audioItem), (_, _) {});
       final notifier = c.read(
         subtitleEditorControllerProvider(audioItem).notifier,
       );
@@ -1377,21 +1358,17 @@ void main() {
       notifier.adjustWord(1, BoundaryEdge.end, const Duration(seconds: 3));
       expect(c.read(subtitleEditorControllerProvider(audioItem)).isDirty, true);
 
-      final saved = await notifier.save();
-      expect(saved, isTrue);
+      expect(await notifier.save(), isTrue);
       expect(
         c.read(subtitleEditorControllerProvider(audioItem)).isDirty,
         false,
       );
-
-      final savedAgain = await notifier.save();
-      expect(savedAgain, isFalse);
+      expect(await notifier.save(), isFalse);
+      expect(transcriptSync.calls, hasLength(1));
     });
 
     test('保存后仍可撤销，撤销后相对保存版本为已修改', () async {
       final c = saveContainer();
-      addTearDown(c.dispose);
-      c.listen(subtitleEditorControllerProvider(audioItem), (_, _) {});
       final notifier = c.read(
         subtitleEditorControllerProvider(audioItem).notifier,
       );
@@ -1410,167 +1387,21 @@ void main() {
       expect(current().isDirty, isTrue);
     });
 
-    test('删除句子（句子数量变化）清空学习进度和收藏', () async {
-      final c = saveContainer();
-      addTearDown(c.dispose);
-      // 保持监听，避免 autoDispose 在 await 期间销毁控制器。
-      c.listen(subtitleEditorControllerProvider(audioItem), (_, _) {});
-      final notifier = c.read(
-        subtitleEditorControllerProvider(audioItem).notifier,
-      );
-      await notifier.load();
-
-      // 删除一句，句子数量从 3 变 2。
-      notifier.deleteSentence(2);
-      final saved = await notifier.save();
-
-      expect(saved, isTrue);
-      expect(
-        await bookmarkDao.getBookmarkedIndices(audioItem.id),
-        isEmpty,
-        reason: '句子数量变化，收藏应清空',
-      );
-      expect(
-        c.read(learningProgressProvider).progressMap.containsKey(audioItem.id),
-        isFalse,
-        reason: '句子数量变化，学习进度应清空',
-      );
-    });
-
-    test('保存确认只在句子数量变化且已有实际进度或收藏时需要', () async {
-      Future<SubtitleEditorController> loadedNotifier({
-        required TestBookmarkDao bookmarkDao,
-        required TestLearningProgressNotifier progressNotifier,
-      }) async {
-        final engine = _RecordingAudioEngine(
-          duration: const Duration(seconds: 12),
-          sentences: sentences,
-        );
-        addTearDown(engine.disposeController);
-        final c = ProviderContainer(
-          overrides: dedupeOverrides([
-            audioEngineProvider.overrideWith(() => engine),
-            bookmarkDaoProvider.overrideWithValue(bookmarkDao),
-            audioItemDaoProvider.overrideWithValue(TestAudioItemDao()),
-            audioLibraryProvider.overrideWith(() => TestAudioLibrary()),
-            listeningPracticeProvider.overrideWith(
-              () => TestListeningPractice(),
-            ),
-            favoriteSentenceLifecycleProvider.overrideWith(
-              (ref) => _TestFavoriteSentenceLifecycle(ref),
-            ),
-            learningProgressProvider.overrideWith(() => progressNotifier),
-          ]),
-        );
-        addTearDown(c.dispose);
-        c.listen(subtitleEditorControllerProvider(audioItem), (_, _) {});
-        final notifier = c.read(
-          subtitleEditorControllerProvider(audioItem).notifier,
-        );
-        await notifier.load();
-        notifier.deleteSentence(2);
-        return notifier;
-      }
-
-      final emptyNotifier = await loadedNotifier(
-        bookmarkDao: TestBookmarkDao(),
-        progressNotifier: TestLearningProgressNotifier(),
-      );
-      expect(emptyNotifier.sentenceCountChanged, isTrue);
-      expect(await emptyNotifier.hasResettableLearningData(), isFalse);
-
-      final bookmarkOnlyDao = TestBookmarkDao();
-      await bookmarkOnlyDao.addBookmark(
-        BookmarksCompanion.insert(
-          audioItemId: audioItem.id,
-          sentenceIndex: 1,
-          sentenceText: 'Second sentence.',
-          startTime: 4,
-          endTime: 8,
-          createdAt: DateTime(2026, 1, 1),
-          updatedAt: DateTime(2026, 1, 1),
-        ),
-      );
-      final bookmarkNotifier = await loadedNotifier(
-        bookmarkDao: bookmarkOnlyDao,
-        progressNotifier: TestLearningProgressNotifier(),
-      );
-      expect(await bookmarkNotifier.hasResettableLearningData(), isTrue);
-
-      final progressNotifier = await loadedNotifier(
-        bookmarkDao: TestBookmarkDao(),
-        progressNotifier: TestLearningProgressNotifier(
-          LearningProgressState(
-            progressMap: {
-              audioItem.id: LearningProgress(
-                audioItemId: audioItem.id,
-                // v2：精听是入口（未开始）；跟读表示已开始学习
-                currentSubStage: SubStageType.listenAndRepeat,
-                updatedAt: DateTime(2026, 1, 1),
-              ),
-            },
-          ),
-        ),
-      );
-      expect(await progressNotifier.hasResettableLearningData(), isTrue);
-
-      final placeholderNotifier = await loadedNotifier(
-        bookmarkDao: TestBookmarkDao(),
-        progressNotifier: TestLearningProgressNotifier(
-          LearningProgressState(
-            progressMap: {
-              // v2 默认起点行 currentSubStage = 入口子步骤（逐句精听）
-              audioItem.id: LearningProgress(
-                audioItemId: audioItem.id,
-                currentSubStage: SubStageType.intensiveListen,
-                updatedAt: DateTime(2026, 1, 1),
-              ),
-            },
-          ),
-        ),
-      );
-      expect(
-        await placeholderNotifier.hasResettableLearningData(),
-        isFalse,
-        reason: 'ensureProgress 创建的默认起点行不代表用户已有学习进度',
-      );
-    });
-
     test('LP 正持有该音频时，保存后以 forceTranscriptReload 重载', () async {
       // 字幕原地改写同名 SRT，id/transcriptPath 不变。loadAudio 去重守卫只比 id+path，
       // 不强制重载会命中守卫跳过解析，使自由练习/盲听显示陈旧拆分句子。
       final recordingLp = _RecordingListeningPractice(
         ListeningPracticeState(currentAudioItem: audioItem),
       );
-      final engine = _RecordingAudioEngine(
-        duration: const Duration(seconds: 12),
-        sentences: sentences,
-      );
-      addTearDown(engine.disposeController);
-      final c = ProviderContainer(
-        overrides: dedupeOverrides([
-          audioEngineProvider.overrideWith(() => engine),
-          bookmarkDaoProvider.overrideWithValue(bookmarkDao),
-          audioItemDaoProvider.overrideWithValue(audioItemDao),
-          audioLibraryProvider.overrideWith(() => TestAudioLibrary()),
-          listeningPracticeProvider.overrideWith(() => recordingLp),
-          favoriteSentenceLifecycleProvider.overrideWith(
-            (ref) => _TestFavoriteSentenceLifecycle(ref),
-          ),
-          learningProgressProvider.overrideWith(() => progressNotifier),
-        ]),
-      );
-      addTearDown(c.dispose);
-      c.listen(subtitleEditorControllerProvider(audioItem), (_, _) {});
+      final c = saveContainer(listeningPractice: () => recordingLp);
       final notifier = c.read(
         subtitleEditorControllerProvider(audioItem).notifier,
       );
       await notifier.load();
 
       notifier.deleteSentence(2);
-      final saved = await notifier.save();
+      expect(await notifier.save(), isTrue);
 
-      expect(saved, isTrue);
       expect(recordingLp.loadAudioForceFlags, isNotEmpty, reason: '应触发 LP 重载');
       expect(
         recordingLp.loadAudioForceFlags.last,
@@ -1581,15 +1412,47 @@ void main() {
   });
 }
 
-/// 测试用收藏生命周期，仅验证字幕保存触发的收藏清理，不依赖 FSRS 调度表。
-class _TestFavoriteSentenceLifecycle extends FavoriteSentenceLifecycle {
-  _TestFavoriteSentenceLifecycle(this._testRef) : super(_testRef);
+Duration seconds(int value) => Duration(seconds: value);
 
-  final Ref _testRef;
+/// 第一次更新素材库时失败，模拟字幕已落库、同步已完成后的后续步骤出错。
+class _FailingOnceAudioLibrary extends TestAudioLibrary {
+  bool _failed = false;
 
   @override
-  Future<void> removeAllForAudio(String audioItemId) =>
-      _testRef.read(bookmarkDaoProvider).removeAllForAudio(audioItemId);
+  Future<void> updateAudioItem(AudioItem updatedItem) async {
+    if (!_failed) {
+      _failed = true;
+      throw StateError('library update failed');
+    }
+    await super.updateAudioItem(updatedItem);
+  }
+}
+
+/// 记录字幕保存后的学习数据同步请求，同步本身由 TranscriptChangeSync 的测试覆盖。
+class _RecordingTranscriptChangeSync extends TranscriptChangeSync {
+  _RecordingTranscriptChangeSync(super.ref);
+
+  final calls =
+      <
+        ({
+          String audioItemId,
+          List<Sentence> oldSentences,
+          List<Sentence> newSentences,
+        })
+      >[];
+
+  @override
+  Future<void> apply(
+    String audioItemId, {
+    required List<Sentence> oldSentences,
+    required List<Sentence> newSentences,
+  }) async {
+    calls.add((
+      audioItemId: audioItemId,
+      oldSentences: oldSentences,
+      newSentences: newSentences,
+    ));
+  }
 }
 
 /// 记录 loadAudio 的 forceTranscriptReload 入参，用于验证保存后是否强制重载 LP。

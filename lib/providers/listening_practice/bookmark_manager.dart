@@ -4,21 +4,6 @@ import '../../models/sentence.dart';
 
 /// 书签读取与句子收藏状态转换工具。
 class BookmarkManager {
-  /// 规范化文本用于书签比较：转小写并移除首尾标点符号
-  /// 用于检测相同文本的书签，忽略大小写和首尾标点差异
-  static String _normalizeForBookmarkComparison(String text) {
-    // 移除首尾空白
-    String normalized = text.trim();
-    // 转小写
-    normalized = normalized.toLowerCase();
-    // 移除首尾的常见标点符号（保留中间的标点）
-    normalized = normalized.replaceAll(
-      RegExp(r'^[.,!?;:\-—…、，。！？；：]+|[.,!?;:\-—…、，。！？；：]+$'),
-      '',
-    );
-    return normalized.trim();
-  }
-
   /// 加载书签（从 Drift 数据库）
   static Future<Set<int>> loadBookmarks(
     String audioId, {
@@ -70,62 +55,30 @@ class BookmarkManager {
     ];
   }
 
-  /// 切换书签状态
-  /// 返回: (isRemoving, indicesToRemove, replacementIndex)
+  /// 切换书签状态：只作用于当前这一句。
+  /// 返回: (isRemoving, replacementIndex)
   ///
-  /// 收藏模式删除当前句时，替代焦点优先取后一条；后面没有可用
-  /// 收藏时回退到前一条。只有删除后确实无收藏可选时才返回 null。
-  static (bool, Set<int>, int?) toggleBookmark(
+  /// 收藏模式删除当前句时，替代焦点优先取后一条收藏；后面没有时回退到前一条。
+  /// 只有删除后确实无收藏可选时才返回 null。
+  static (bool, int?) toggleBookmark(
     int index,
     List<Sentence> sentences,
     Set<int> bookmarkedIndices,
     bool inBookmarksMode,
   ) {
     final isRemoving = bookmarkedIndices.contains(index);
-    Set<int> indicesToRemove = {};
-    int? replacementIndex;
+    if (!isRemoving || !inBookmarksMode) return (isRemoving, null);
 
-    if (isRemoving) {
-      // 计算所有同文本（不区分大小写，忽略首尾标点）的书签
-      final bookmarkedSentences = sentences
-          .where((s) => bookmarkedIndices.contains(s.index))
-          .toList();
-      final targetTextNormalized = _normalizeForBookmarkComparison(
-        sentences[index].text,
-      );
-
-      for (final s in bookmarkedSentences) {
-        if (_normalizeForBookmarkComparison(s.text) == targetTextNormalized) {
-          indicesToRemove.add(s.index);
-        }
-      }
-
-      // 仅在书签模式时计算"下一个"焦点
-      if (inBookmarksMode) {
-        final pos = bookmarkedSentences.indexWhere((s) => s.index == index);
-        if (pos != -1) {
-          // 优先找后一个句子（跳过将被移除的条目）。
-          for (int i = pos + 1; i < bookmarkedSentences.length; i++) {
-            if (!indicesToRemove.contains(bookmarkedSentences[i].index)) {
-              replacementIndex = bookmarkedSentences[i].index;
-              break;
-            }
-          }
-
-          // 当前句在收藏末尾时，回退到最近的前一条，避免收藏仍有
-          // 内容却丢失当前焦点，导致精听页误退回列表。
-          if (replacementIndex == null) {
-            for (int i = pos - 1; i >= 0; i--) {
-              if (!indicesToRemove.contains(bookmarkedSentences[i].index)) {
-                replacementIndex = bookmarkedSentences[i].index;
-                break;
-              }
-            }
-          }
-        }
-      }
-    }
-
-    return (isRemoving, indicesToRemove, replacementIndex);
+    final bookmarked = [
+      for (final s in sentences)
+        if (bookmarkedIndices.contains(s.index)) s.index,
+    ];
+    final pos = bookmarked.indexOf(index);
+    if (pos == -1) return (isRemoving, null);
+    if (pos + 1 < bookmarked.length) return (isRemoving, bookmarked[pos + 1]);
+    // 当前句在收藏末尾时，回退到最近的前一条，避免收藏仍有内容却丢失当前
+    // 焦点，导致精听页误退回列表。
+    if (pos > 0) return (isRemoving, bookmarked[pos - 1]);
+    return (isRemoving, null);
   }
 }

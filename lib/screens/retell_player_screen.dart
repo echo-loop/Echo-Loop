@@ -1581,7 +1581,6 @@ class _RetellPlayerScreenState extends ConsumerState<RetellPlayerScreen>
         audioItemId: widget.audioItemId,
         audioName: audioName,
         sentenceText: sentence.text,
-        sentenceIndex: sentence.index,
         startTimeMs: sentence.startTime.inMilliseconds,
         endTimeMs: sentence.endTime.inMilliseconds,
         rangePlaybackBuilder: _buildMediaRangePlayback,

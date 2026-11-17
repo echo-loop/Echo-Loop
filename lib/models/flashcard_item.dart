@@ -16,9 +16,6 @@ sealed class FlashcardItem {
   /// 来源音频 ID
   String? get audioItemId;
 
-  /// 来源句子索引
-  int? get sentenceIndex;
-
   /// 来源句子文本
   String? get sentenceText;
 
@@ -76,9 +73,6 @@ class FlashcardWordItem extends FlashcardItem {
 
   @override
   String? get audioItemId => savedWord.audioItemId;
-
-  @override
-  int? get sentenceIndex => savedWord.sentenceIndex;
 
   @override
   String? get sentenceText => savedWord.sentenceText;
@@ -141,9 +135,6 @@ class FlashcardPhraseItem extends FlashcardItem {
 
   @override
   String? get audioItemId => savedPhrase.audioItemId;
-
-  @override
-  int? get sentenceIndex => savedPhrase.sentenceIndex;
 
   @override
   String? get sentenceText => savedPhrase.sentenceText;

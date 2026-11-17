@@ -14,6 +14,7 @@ import 'package:echo_loop/services/sentence_ai_api_client.dart';
 import 'package:echo_loop/widgets/common/practice_media_presentation_host.dart';
 import 'package:echo_loop/widgets/practice/sentence_explanation_view.dart';
 import 'package:flutter/material.dart';
+import 'package:echo_loop/widgets/common/bookmark_toggle_row.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:echo_loop/widgets/common/playback_controls.dart'
     show PlaybackNavButton, PlaybackToggleIcon, playbackCenterIconKey;
@@ -156,7 +157,6 @@ SentenceDetailScreen _detailScreen({
       audioItemId: audioItemId,
       audioName: 'Media item',
       sentenceText: sentenceText,
-      sentenceIndex: sentenceIndex,
       startTimeMs: startTimeMs,
       endTimeMs: endTimeMs,
       rangePlaybackBuilder: rangePlaybackBuilder,
@@ -183,7 +183,6 @@ SentenceDetailScreen _videoDetailScreen({
       audioItemId: 'media-item',
       audioName: 'Media item',
       sentenceText: 'A sentence for media playback.',
-      sentenceIndex: 0,
       startTimeMs: 1000,
       endTimeMs: 3000,
       rangePlaybackBuilder: (_) => rangePlayback,
@@ -378,7 +377,6 @@ void main() {
             audioItemId: 'audio-item',
             audioName: 'Audio item',
             sentenceText: 'A sentence for audio playback.',
-            sentenceIndex: 0,
             startTimeMs: 1000,
             endTimeMs: 3000,
             wordHighlightSource: source,
@@ -663,7 +661,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 1));
   });
 
-  testWidgets('入口句不在字幕中时退化为单句讲解', (tester) async {
+  testWidgets('入口句文字在字幕中已修改时按时间定位到当前字幕', (tester) async {
     await tester.pumpWidget(
       createTestApp(
         _detailScreen(sentenceText: 'A sentence for media playback.'),
@@ -672,7 +670,34 @@ void main() {
     );
     await tester.pump();
 
+    expect(find.text('第 1/10 句'), findsOneWidget);
+    await tester.pump();
+    expect(find.byType(BookmarkToggleRow), findsOneWidget);
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(milliseconds: 1));
+  });
+
+  testWidgets('入口句时间与文字都不在字幕中时退化为单句讲解', (tester) async {
+    await tester.pumpWidget(
+      createTestApp(
+        // 字幕最后一句止于 30 秒，入口落在字幕之后且文字不存在。
+        _detailScreen(
+          sentenceText: 'Deleted sentence.',
+          startTimeMs: 31000,
+          endTimeMs: 33000,
+        ),
+        overrides: detailOverrides(),
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+
     expect(find.text('第 1/1 句'), findsOneWidget);
+    expect(
+      find.byType(BookmarkToggleRow),
+      findsNothing,
+      reason: '入口句不在当前字幕中，其索引可能已过期，不提供收藏切换',
+    );
     expect(find.byType(Slider), findsNothing);
     expect(
       tester
@@ -774,6 +799,8 @@ void main() {
 
     expect(find.text(l10n.sentenceDetailLoadFailed), findsNothing);
     expect(find.text('第 1/10 句'), findsOneWidget);
+    await tester.pump();
+    expect(find.byType(BookmarkToggleRow), findsOneWidget);
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump(const Duration(milliseconds: 1));
   });

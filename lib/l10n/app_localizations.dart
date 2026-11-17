@@ -7622,18 +7622,6 @@ abstract class AppLocalizations {
   /// **'New word'**
   String get subtitleNewWordHint;
 
-  /// No description provided for @saveSubtitleEdits.
-  ///
-  /// In en, this message translates to:
-  /// **'Save subtitle changes'**
-  String get saveSubtitleEdits;
-
-  /// No description provided for @subtitleStructureChangedWarning.
-  ///
-  /// In en, this message translates to:
-  /// **'This will clear learning progress and saved sentences of this audio.'**
-  String get subtitleStructureChangedWarning;
-
   /// No description provided for @subtitleEditsSaved.
   ///
   /// In en, this message translates to:

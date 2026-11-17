@@ -54,7 +54,7 @@ final class LearningProgressNotifierProvider
 }
 
 String _$learningProgressNotifierHash() =>
-    r'91ae0603e9b7cb121d54c4b13c4c01e296ce4fd5';
+    r'957f9f275be1040e25fb53a5decb4f68f4b122b0';
 
 /// 学习进度管理 Provider
 ///

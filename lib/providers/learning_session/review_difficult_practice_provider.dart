@@ -628,9 +628,7 @@ class ReviewDifficultPractice extends _$ReviewDifficultPractice {
     state = state.copyWith(bookmarkVersion: state.bookmarkVersion + 1);
 
     if (wasBookmarked) {
-      await ref.read(favoriteSentenceLifecycleProvider).remove(audioItemId, {
-        s.index,
-      });
+      await ref.read(favoriteSentenceLifecycleProvider).remove(audioItemId, s);
       return;
     }
 

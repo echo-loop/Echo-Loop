@@ -1,7 +1,5 @@
 import '../../database/daos/audio_item_dao.dart';
-import '../../models/sentence.dart';
 import '../app_logger.dart';
-import '../subtitle_parser.dart';
 import 'local_audio_clip_player.dart';
 import 'local_audio_range_player.dart';
 
@@ -34,11 +32,11 @@ class SourceSentencePlayer {
 
   /// 播放来源句并返回整个播放链路的真实终态。
   ///
-  /// 本地原音失败时才允许继续尝试其他本地来源或 TTS；明确取消时必须停止
-  /// 回退，避免用户停止原音后又被 TTS 重新播放。
+  /// 只播收藏时记录的音频区间（收藏的就是这段音频），不按句子编号或文本去
+  /// 字幕里找句子；本地原音不可用或区间无效时才用 TTS 朗读。明确取消时必须
+  /// 停止回退，避免用户停止原音后又被 TTS 重新播放。
   Future<AudioPlaybackResult> play({
     required String? audioItemId,
-    required int? sentenceIndex,
     required String? sentenceText,
     required int? sentenceStartMs,
     required int? sentenceEndMs,
@@ -46,16 +44,16 @@ class SourceSentencePlayer {
   }) async {
     final text = sentenceText?.trim();
     if (!_isPlaybackCurrent()) return AudioPlaybackResult.cancelled;
+    final range = _resolveStoredRange(sentenceStartMs, sentenceEndMs);
     try {
-      final row = audioItemId == null
+      final row = audioItemId == null || range == null
           ? null
           : await _audioItemDao.getById(audioItemId);
       if (!_isPlaybackCurrent()) return AudioPlaybackResult.cancelled;
-      if (row != null) {
+      if (row != null && range != null) {
         final filePath = await audioItemFromDatabaseRow(row).getFullAudioPath();
         if (!_isPlaybackCurrent()) return AudioPlaybackResult.cancelled;
-        final range = _resolveStoredRange(sentenceStartMs, sentenceEndMs);
-        if (filePath != null && range != null) {
+        if (filePath != null) {
           final result = await _audioClipPlayer.playRangeFile(
             filePath,
             start: range.$1,
@@ -70,42 +68,6 @@ class SourceSentencePlayer {
               return AudioPlaybackResult.cancelled;
             case AudioPlaybackResult.failed:
               break;
-          }
-        }
-
-        final srt = await _audioItemDao.getTranscriptSrt(row.id);
-        if (!_isPlaybackCurrent()) return AudioPlaybackResult.cancelled;
-        if (srt != null && srt.isNotEmpty && text != null) {
-          final sentences = await SubtitleParser.parseSubtitleString(srt);
-          if (!_isPlaybackCurrent()) return AudioPlaybackResult.cancelled;
-          Sentence? sentence =
-              sentenceIndex != null &&
-                  sentenceIndex >= 0 &&
-                  sentenceIndex < sentences.length
-              ? sentences[sentenceIndex]
-              : null;
-          if (sentence == null || sentence.text.trim() != text) {
-            sentence = sentences.cast<Sentence?>().firstWhere(
-              (candidate) => candidate!.text.trim() == text,
-              orElse: () => null,
-            );
-          }
-          if (filePath != null && sentence != null) {
-            final result = await _audioClipPlayer.playRangeFile(
-              filePath,
-              start: sentence.startTime,
-              end: sentence.endTime,
-              playbackKey: playbackKey,
-            );
-            if (!_isPlaybackCurrent()) return AudioPlaybackResult.cancelled;
-            switch (result) {
-              case AudioPlaybackResult.completed:
-                return AudioPlaybackResult.completed;
-              case AudioPlaybackResult.cancelled:
-                return AudioPlaybackResult.cancelled;
-              case AudioPlaybackResult.failed:
-                break;
-            }
           }
         }
       }

@@ -55,9 +55,9 @@ void reviewSubStageTests() {
     ) {
       final context = tester.element(find.byType(EchoLoopApp));
       final container = ProviderScope.containerOf(context);
-      final progressNotifier = container
-          .read(learningProgressProvider.notifier)
-          as TestLearningProgressNotifier;
+      final progressNotifier = container.read(
+        learningProgressProvider.notifier,
+      ) as TestLearningProgressNotifier;
 
       final completed = <String>{};
       for (final stage in LearningStage.values) {
@@ -119,18 +119,28 @@ void reviewSubStageTests() {
       final bookmarkDao =
           container.read(bookmarkDaoProvider) as TestBookmarkDao;
       final now = DateTime.now();
-      await bookmarkDao.addBookmark(BookmarksCompanion.insert(
-        audioItemId: 'test-audio-1', sentenceIndex: 0,
-        sentenceText: 'Test sentence number 1.',
-        startTime: 0.0, endTime: 5.0,
-        createdAt: now, updatedAt: now,
-      ));
-      await bookmarkDao.addBookmark(BookmarksCompanion.insert(
-        audioItemId: 'test-audio-1', sentenceIndex: 2,
-        sentenceText: 'Test sentence number 3.',
-        startTime: 10.0, endTime: 15.0,
-        createdAt: now, updatedAt: now,
-      ));
+      // 收藏按区间定位到当前字幕：预置与测试音频一致的字幕（每句 5 秒）。
+      bookmarkDao.transcripts['test-audio-1'] = createTestSentences();
+      await bookmarkDao.addBookmark(
+        BookmarksCompanion.insert(
+          audioItemId: 'test-audio-1',
+          sentenceText: 'Test sentence number 1.',
+          startTime: 0.0,
+          endTime: 5.0,
+          createdAt: now,
+          updatedAt: now,
+        ),
+      );
+      await bookmarkDao.addBookmark(
+        BookmarksCompanion.insert(
+          audioItemId: 'test-audio-1',
+          sentenceText: 'Test sentence number 3.',
+          startTime: 10.0,
+          endTime: 15.0,
+          createdAt: now,
+          updatedAt: now,
+        ),
+      );
 
       // 点击"Continue Learning"
       await tester.tap(find.text('Continue Learning').last);
@@ -151,9 +161,14 @@ void reviewSubStageTests() {
       // 如果正常导航未生效，直接通过路由进入（兜底）
       if (find.byType(ReviewDifficultPracticeScreen).evaluate().isEmpty) {
         final appCtx = tester.element(find.byType(EchoLoopApp));
-        ProviderScope.containerOf(appCtx).read(appRouterProvider).push(
-          AppRoutes.reviewDifficultPractice('test-collection-1', 'test-audio-1'),
-        );
+        ProviderScope.containerOf(appCtx)
+            .read(appRouterProvider)
+            .push(
+              AppRoutes.reviewDifficultPractice(
+                'test-collection-1',
+                'test-audio-1',
+              ),
+            );
         await _pumpUntilFound(
           tester,
           find.byType(ReviewDifficultPracticeScreen),
@@ -241,24 +256,34 @@ void reviewSubStageTests() {
       final context = tester.element(find.byType(EchoLoopApp));
       final container = ProviderScope.containerOf(context);
 
-      final session =
-          container.read(learningSessionProvider.notifier)
-              as TestLearningSession;
+      final session = container.read(
+        learningSessionProvider.notifier,
+      ) as TestLearningSession;
       await session.enterReviewDifficultPracticeMode(
-        'test-audio-1', createTestSentences(),
+        'test-audio-1',
+        createTestSentences(),
       );
 
-      final player =
-          container.read(reviewDifficultPracticeProvider.notifier)
-              as TestReviewDifficultPractice;
+      final player = container.read(
+        reviewDifficultPracticeProvider.notifier,
+      ) as TestReviewDifficultPractice;
       player.initialize(createTestSentences(count: 3));
-      player.setState(const ReviewDifficultPracticeState(
-        currentSentenceIndex: 0, totalSentences: 3, isPlaying: true,
-      ));
-
-      container.read(appRouterProvider).push(
-        AppRoutes.reviewDifficultPractice('test-collection-1', 'test-audio-1'),
+      player.setState(
+        const ReviewDifficultPracticeState(
+          currentSentenceIndex: 0,
+          totalSentences: 3,
+          isPlaying: true,
+        ),
       );
+
+      container
+          .read(appRouterProvider)
+          .push(
+            AppRoutes.reviewDifficultPractice(
+              'test-collection-1',
+              'test-audio-1',
+            ),
+          );
       await safeSettle(tester);
 
       expect(find.text('Practice saved sentences'), findsOneWidget);
@@ -289,29 +314,43 @@ void reviewSubStageTests() {
       final context = tester.element(find.byType(EchoLoopApp));
       final container = ProviderScope.containerOf(context);
 
-      final session =
-          container.read(learningSessionProvider.notifier)
-              as TestLearningSession;
+      final session = container.read(
+        learningSessionProvider.notifier,
+      ) as TestLearningSession;
       await session.enterReviewDifficultPracticeMode(
-        'test-audio-1', createTestSentences(),
+        'test-audio-1',
+        createTestSentences(),
       );
 
-      final player =
-          container.read(reviewDifficultPracticeProvider.notifier)
-              as TestReviewDifficultPractice;
+      final player = container.read(
+        reviewDifficultPracticeProvider.notifier,
+      ) as TestReviewDifficultPractice;
       player.initialize(createTestSentences(count: 3));
-      player.setState(const ReviewDifficultPracticeState(
-        currentSentenceIndex: 2, totalSentences: 3, isPlaying: false,
-      ));
-
-      container.read(appRouterProvider).push(
-        AppRoutes.reviewDifficultPractice('test-collection-1', 'test-audio-1'),
+      player.setState(
+        const ReviewDifficultPracticeState(
+          currentSentenceIndex: 2,
+          totalSentences: 3,
+          isPlaying: false,
+        ),
       );
+
+      container
+          .read(appRouterProvider)
+          .push(
+            AppRoutes.reviewDifficultPractice(
+              'test-collection-1',
+              'test-audio-1',
+            ),
+          );
       await safeSettle(tester);
 
-      player.setState(const ReviewDifficultPracticeState(
-        currentSentenceIndex: 2, totalSentences: 3, isPlaying: false,
-      ));
+      player.setState(
+        const ReviewDifficultPracticeState(
+          currentSentenceIndex: 2,
+          totalSentences: 3,
+          isPlaying: false,
+        ),
+      );
       await safeSettle(tester);
       await tester.tap(find.byIcon(Icons.check_circle_rounded));
       await safeSettle(tester);

@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:echo_loop/database/app_database.dart';
 import 'package:echo_loop/database/daos/bookmark_dao.dart';
+import 'package:echo_loop/models/sentence.dart';
 
 /// 创建内存数据库用于测试（启用外键约束）
 AppDatabase createTestDatabase() {
@@ -252,7 +253,6 @@ void main() {
       await db.bookmarkDao.addBookmark(
         BookmarksCompanion(
           audioItemId: Value('audio-1'),
-          sentenceIndex: Value(0),
           sentenceText: Value('hi'),
           startTime: Value(0.0),
           endTime: Value(1.0),
@@ -275,7 +275,7 @@ void main() {
 
       // 整行替换会触发 onDelete cascade 删空子表；DO UPDATE 不会
       expect(await db.collectionDao.getAudioIds('col-1'), ['audio-1']);
-      expect(await db.bookmarkDao.getBookmarkedIndices('audio-1'), {0});
+      expect(await db.bookmarkDao.getByAudioId('audio-1'), hasLength(1));
       final item = await db.audioItemDao.getById('audio-1');
       expect(item!.isPinned, isTrue);
     });
@@ -641,275 +641,291 @@ void main() {
   });
 
   group('BookmarkDao', () {
+    final now = DateTime(2026, 11, 17);
+
+    /// 当前字幕：第 i 句占 [i, i+1) 秒，文本 Sentence i。
+    String srtOf(List<(double, double, String)> cues) {
+      String ts(double seconds) {
+        final ms = (seconds * 1000).round();
+        final h = ms ~/ 3600000;
+        final m = ms ~/ 60000 % 60;
+        final sec = ms ~/ 1000 % 60;
+        final rest = ms % 1000;
+        String two(int v) => v.toString().padLeft(2, '0');
+        return '${two(h)}:${two(m)}:${two(sec)},${rest.toString().padLeft(3, '0')}';
+      }
+
+      final buffer = StringBuffer();
+      for (final (i, cue) in cues.indexed) {
+        buffer
+          ..writeln(i + 1)
+          ..writeln('${ts(cue.$1)} --> ${ts(cue.$2)}')
+          ..writeln(cue.$3)
+          ..writeln();
+      }
+      return buffer.toString();
+    }
+
+    List<(double, double, String)> evenCues(int count) => [
+      for (var i = 0; i < count; i++) (i * 1.0, i + 1.0, 'Sentence $i'),
+    ];
+
+    Future<void> setTranscript(List<(double, double, String)> cues) =>
+        db.audioItemDao.updateTranscriptSrt('audio-1', srtOf(cues));
+
+    Future<void> addAt(
+      int storedIndex,
+      double start,
+      double end, {
+      String? text,
+      String? subjectId,
+    }) {
+      return db.bookmarkDao.addBookmark(
+        BookmarksCompanion(
+          audioItemId: const Value('audio-1'),
+          memorySubjectId: Value(subjectId),
+          sentenceText: Value(text ?? 'Sentence $storedIndex'),
+          startTime: Value(start),
+          endTime: Value(end),
+          createdAt: Value(now),
+          updatedAt: Value(now),
+        ),
+      );
+    }
+
+    /// 测试里第 n 条收藏的起点就是 n 秒。
+    Future<int> idOf(int label) async {
+      final rows = await (db.select(
+        db.bookmarks,
+      )..where((t) => t.startTime.equals(label.toDouble()))).get();
+      return rows.single.id;
+    }
+
     setUp(() async {
-      // 先插入音频项
-      final now = DateTime.now();
       await db.audioItemDao.upsert(
         AudioItemsCompanion(
-          id: Value('audio-1'),
-          name: Value('Audio 1'),
-          audioPath: Value('audios/1.mp3'),
+          id: const Value('audio-1'),
+          name: const Value('Audio 1'),
+          audioPath: const Value('audios/1.mp3'),
           addedDate: Value(now),
           updatedAt: Value(now),
         ),
       );
+      await setTranscript(evenCues(10));
     });
 
     test('添加并查询书签', () async {
-      final now = DateTime.now();
-      await db.bookmarkDao.addBookmark(
-        BookmarksCompanion(
-          audioItemId: Value('audio-1'),
-          sentenceIndex: Value(5),
-          sentenceText: Value('Hello world'),
-          startTime: Value(10.5),
-          endTime: Value(12.3),
-          createdAt: Value(now),
-          updatedAt: Value(now),
-        ),
-      );
+      await addAt(5, 5.0, 6.0, text: 'Hello world');
 
       final bookmarks = await db.bookmarkDao.getByAudioId('audio-1');
       expect(bookmarks.length, 1);
-      expect(bookmarks.first.sentenceIndex, 5);
       expect(bookmarks.first.sentenceText, 'Hello world');
-      expect(bookmarks.first.startTime, closeTo(10.5, 0.01));
+      expect(bookmarks.first.startTime, closeTo(5.0, 0.01));
     });
 
-    test('getBookmarkedIndices 返回索引集合', () async {
-      final now = DateTime.now();
-      for (int i in [2, 5, 8]) {
-        await db.bookmarkDao.addBookmark(
-          BookmarksCompanion(
-            audioItemId: Value('audio-1'),
-            sentenceIndex: Value(i),
-            sentenceText: Value('Sentence $i'),
-            startTime: Value(i * 1.0),
-            endTime: Value(i * 1.0 + 1.0),
-            createdAt: Value(now),
-            updatedAt: Value(now),
-          ),
-        );
+    test('getBookmarkedIndices 按收藏时间区间定位到当前字幕', () async {
+      for (final i in [2, 5, 8]) {
+        await addAt(i, i * 1.0, i + 1.0);
       }
 
-      final indices = await db.bookmarkDao.getBookmarkedIndices('audio-1');
-      expect(indices, {2, 5, 8});
+      expect(await db.bookmarkDao.getBookmarkedIndices('audio-1'), {2, 5, 8});
     });
 
-    test('removeBookmark 移除单个书签', () async {
-      final now = DateTime.now();
-      await db.bookmarkDao.addBookmark(
-        BookmarksCompanion(
-          audioItemId: Value('audio-1'),
-          sentenceIndex: Value(3),
-          sentenceText: Value('Test'),
-          startTime: Value(1.0),
-          endTime: Value(2.0),
-          createdAt: Value(now),
-          updatedAt: Value(now),
-        ),
-      );
+    test('只按时间定位，不看收藏时的文字', () async {
+      // 收藏时的文字与当前字幕不同（字幕被改过字），仍按区间落在第 2 句。
+      await addAt(9, 2.0, 3.0, text: 'Old text');
 
-      await db.bookmarkDao.removeBookmark('audio-1', 3);
-
-      final indices = await db.bookmarkDao.getBookmarkedIndices('audio-1');
-      expect(indices, isEmpty);
+      expect(await db.bookmarkDao.getBookmarkedIndices('audio-1'), {2});
     });
 
-    test('removeBookmarks 批量移除', () async {
-      final now = DateTime.now();
-      for (int i = 0; i < 5; i++) {
-        await db.bookmarkDao.addBookmark(
-          BookmarksCompanion(
-            audioItemId: Value('audio-1'),
-            sentenceIndex: Value(i),
-            sentenceText: Value('Sentence $i'),
-            startTime: Value(i * 1.0),
-            endTime: Value(i * 1.0 + 1.0),
-            createdAt: Value(now),
-            updatedAt: Value(now),
-          ),
-        );
-      }
-
-      await db.bookmarkDao.removeBookmarks('audio-1', {1, 3});
-
-      final indices = await db.bookmarkDao.getBookmarkedIndices('audio-1');
-      expect(indices, {0, 2, 4});
-    });
-
-    test('addBookmark 相同 audioItemId+sentenceIndex 执行 upsert', () async {
-      final now = DateTime.now();
-      // 第一次插入
-      await db.bookmarkDao.addBookmark(
-        BookmarksCompanion(
-          audioItemId: Value('audio-1'),
-          sentenceIndex: Value(5),
-          sentenceText: Value('Hello'),
-          startTime: Value(10.0),
-          endTime: Value(12.0),
-          createdAt: Value(now),
-          updatedAt: Value(now),
-        ),
-      );
-
-      // 相同 key，不同 text
-      await db.bookmarkDao.addBookmark(
-        BookmarksCompanion(
-          audioItemId: Value('audio-1'),
-          sentenceIndex: Value(5),
-          sentenceText: Value('Updated'),
-          startTime: Value(10.0),
-          endTime: Value(12.0),
-          createdAt: Value(now),
-          updatedAt: Value(now),
-        ),
-      );
-
-      final bookmarks = await db.bookmarkDao.getByAudioId('audio-1');
-      expect(bookmarks.length, 1);
-      expect(bookmarks.first.sentenceText, 'Updated');
-    });
-
-    test('batchInsert 更新已有书签时保留未携带列（deletedAt 软删标记）', () async {
-      final now = DateTime.now();
-      // 先添加并软删除一个书签
-      await db.bookmarkDao.addBookmark(
-        BookmarksCompanion(
-          audioItemId: Value('audio-1'),
-          sentenceIndex: Value(5),
-          sentenceText: Value('old'),
-          startTime: Value(1.0),
-          endTime: Value(2.0),
-          createdAt: Value(now),
-          updatedAt: Value(now),
-        ),
-      );
-      await db.bookmarkDao.removeBookmark('audio-1', 5); // 置 deletedAt
-
-      // batchInsert 同键、不携带 deletedAt（模拟迁移/回写）
-      await db.bookmarkDao.batchInsert([
-        BookmarksCompanion(
-          audioItemId: Value('audio-1'),
-          sentenceIndex: Value(5),
-          sentenceText: Value('new'),
-          startTime: Value(1.0),
-          endTime: Value(2.0),
-          createdAt: Value(now),
-          updatedAt: Value(now),
-        ),
+    test('合并后两条收藏指向同一句，同一句可存多条收藏', () async {
+      await addAt(2, 2.0, 3.0);
+      await addAt(3, 3.0, 4.0);
+      // 第 2、3 句合并为一句：[2, 4)。
+      await setTranscript([
+        (0.0, 1.0, 'Sentence 0'),
+        (1.0, 2.0, 'Sentence 1'),
+        (2.0, 4.0, 'Sentence 2 Sentence 3'),
+        (4.0, 5.0, 'Sentence 4'),
       ]);
 
-      // 整行替换会清掉 deletedAt（书签复活）；DO UPDATE 应保留软删状态
-      expect(await db.bookmarkDao.getBookmarkedIndices('audio-1'), isEmpty);
-      final deleted = await db.bookmarkDao.getDeletedBookmarks(
-        sortMode: RecycleBinSortMode.timeDesc,
+      expect(await db.bookmarkDao.getByAudioId('audio-1'), hasLength(2));
+      expect(await db.bookmarkDao.getBookmarkedIndices('audio-1'), {2});
+      final located = await db.bookmarkDao.getForSentence(
+        'audio-1',
+        Sentence(
+          index: 2,
+          text: 'Sentence 2 Sentence 3',
+          startTime: const Duration(seconds: 2),
+          endTime: const Duration(seconds: 4),
+        ),
       );
-      expect(deleted.length, 1);
-      expect(deleted.first.bookmark.sentenceText, 'new');
+      expect(located.index, 2);
+      expect(located.bookmarks, hasLength(2));
+    });
+
+    test('来源句被删除的收藏不计入收藏句子', () async {
+      await addAt(1, 1.0, 2.0);
+      await addAt(3, 3.0, 4.0);
+      // 删除第 1 句（留下空隙），后面的句子索引前移。
+      await setTranscript([
+        (0.0, 1.0, 'Sentence 0'),
+        (2.0, 3.0, 'Sentence 2'),
+        (3.0, 4.0, 'Sentence 3'),
+      ]);
+
+      expect(await db.bookmarkDao.getBookmarkedIndices('audio-1'), {2});
+    });
+
+    test('无字幕时没有可定位的收藏句子', () async {
+      await addAt(0, 0.0, 1.0);
+      await db.audioItemDao.updateTranscriptSrt('audio-1', null);
+
+      expect(await db.bookmarkDao.getBookmarkedIndices('audio-1'), isEmpty);
+      expect(await db.bookmarkDao.getByAudioId('audio-1'), hasLength(1));
+    });
+
+    test('getForSentence 按调用方句子的时间定位，不信任其 index；包含回收站', () async {
+      await addAt(4, 4.0, 5.0);
+      await db.bookmarkDao.softDeleteByIds([await idOf(4)]);
+      // 调用方持有字幕编辑前的旧列表：该句 index 写着 9，时间仍是 [4,5)。
+      final stale = Sentence(
+        index: 9,
+        text: 'Sentence 4',
+        startTime: const Duration(seconds: 4),
+        endTime: const Duration(seconds: 5),
+      );
+
+      final located = await db.bookmarkDao.getForSentence('audio-1', stale);
+
+      expect(located.index, 4);
+      expect(located.bookmarks.single.deletedAt, isNotNull);
+    });
+
+    test('getForSentence：句子已不在当前字幕中时不匹配任何书签', () async {
+      await addAt(4, 4.0, 5.0);
+      final gone = Sentence(
+        index: 4,
+        text: 'Removed',
+        startTime: const Duration(seconds: 20),
+        endTime: const Duration(seconds: 21),
+      );
+
+      final located = await db.bookmarkDao.getForSentence('audio-1', gone);
+
+      expect(located.index, isNull);
+      expect(located.bookmarks, isEmpty);
+    });
+
+    test('softDeleteByIds 只软删除指定书签', () async {
+      for (var i = 0; i < 5; i++) {
+        await addAt(i, i * 1.0, i + 1.0);
+      }
+
+      await db.bookmarkDao.softDeleteByIds([await idOf(1), await idOf(3)]);
+
+      expect(await db.bookmarkDao.getBookmarkedIndices('audio-1'), {0, 2, 4});
+    });
+
+    test('watchBookmarkedIndices 随书签变化推送定位后的索引', () async {
+      final emissions = <Set<int>>[];
+      final subscription = db.bookmarkDao
+          .watchBookmarkedIndices('audio-1')
+          .listen(emissions.add);
+      addTearDown(subscription.cancel);
+      await pumpEventQueue();
+      await addAt(9, 6.0, 7.0);
+      await pumpEventQueue();
+
+      expect(emissions.first, isEmpty);
+      expect(emissions.last, {6});
+
+      // 只改字幕（书签行不变）也要重新定位：前面插入一句后该收藏变为第 7 句。
+      await setTranscript([(0.0, 0.5, 'Intro'), ...evenCues(10).skip(1)]);
+      await pumpEventQueue();
+      expect(emissions.last, {6});
+      await setTranscript([
+        (0.0, 0.5, 'Intro'),
+        (0.5, 1.0, 'Sentence 0'),
+        ...evenCues(10).skip(1),
+      ]);
+      await pumpEventQueue();
+      expect(emissions.last, {7});
+    });
+
+    test('reviveWithSentence 移出回收站并改写为本次收藏的区间', () async {
+      await addAt(3, 3.0, 4.0, text: 'Old');
+      final id = await idOf(3);
+      await db.bookmarkDao.softDeleteByIds([id]);
+
+      await db.bookmarkDao.reviveWithSentence(
+        id,
+        Sentence(
+          index: 7,
+          text: 'New',
+          startTime: const Duration(milliseconds: 2900),
+          endTime: const Duration(milliseconds: 4000),
+        ),
+      );
+
+      final row = await db.bookmarkDao.getById(id);
+      expect(row!.deletedAt, isNull);
+      expect(row.sentenceText, 'New');
+      expect(row.startTime, closeTo(2.9, 0.001));
     });
 
     test('getDeletedBookmarks 返回已软删除的书签', () async {
-      final now = DateTime.now();
-      // 添加 3 个书签
-      for (int i = 0; i < 3; i++) {
-        await db.bookmarkDao.addBookmark(
-          BookmarksCompanion(
-            audioItemId: Value('audio-1'),
-            sentenceIndex: Value(i),
-            sentenceText: Value('Sentence $i'),
-            startTime: Value(i * 1.0),
-            endTime: Value(i * 1.0 + 1.0),
-            createdAt: Value(now),
-            updatedAt: Value(now),
-          ),
-        );
+      for (var i = 0; i < 3; i++) {
+        await addAt(i, i * 1.0, i + 1.0);
       }
 
-      // 软删除其中 2 个
-      await db.bookmarkDao.removeBookmark('audio-1', 0);
-      await db.bookmarkDao.removeBookmark('audio-1', 2);
+      await db.bookmarkDao.softDeleteByIds([await idOf(0), await idOf(2)]);
 
       final deleted = await db.bookmarkDao.getDeletedBookmarks(
         sortMode: RecycleBinSortMode.timeDesc,
       );
       expect(deleted.length, 2);
-      expect(deleted.map((d) => d.bookmark.sentenceIndex).toSet(), {0, 2});
+      expect(deleted.map((d) => d.bookmark.startTime).toSet(), {0.0, 2.0});
       expect(deleted.first.audioName, 'Audio 1');
     });
 
-    test('restoreBookmark 恢复已软删除的书签', () async {
-      final now = DateTime.now();
-      await db.bookmarkDao.addBookmark(
-        BookmarksCompanion(
-          audioItemId: Value('audio-1'),
-          sentenceIndex: Value(0),
-          sentenceText: Value('Test'),
-          startTime: Value(0.0),
-          endTime: Value(1.0),
-          createdAt: Value(now),
-          updatedAt: Value(now),
-        ),
-      );
+    test('restoreById 恢复已软删除的书签', () async {
+      await addAt(0, 0.0, 1.0);
+      final id = await idOf(0);
 
-      await db.bookmarkDao.removeBookmark('audio-1', 0);
+      await db.bookmarkDao.softDeleteByIds([id]);
       expect(await db.bookmarkDao.getBookmarkedIndices('audio-1'), isEmpty);
 
-      await db.bookmarkDao.restoreBookmark('audio-1', 0);
+      await db.bookmarkDao.restoreById(id);
       expect(await db.bookmarkDao.getBookmarkedIndices('audio-1'), {0});
     });
 
-    test('permanentlyDeleteBookmark 物理删除书签', () async {
-      final now = DateTime.now();
-      await db.bookmarkDao.addBookmark(
-        BookmarksCompanion(
-          audioItemId: Value('audio-1'),
-          sentenceIndex: Value(0),
-          sentenceText: Value('Test'),
-          startTime: Value(0.0),
-          endTime: Value(1.0),
-          createdAt: Value(now),
-          updatedAt: Value(now),
-        ),
-      );
+    test('permanentlyDeleteById 只物理删除回收站中的书签', () async {
+      await addAt(0, 0.0, 1.0);
+      await addAt(1, 1.0, 2.0);
+      final deletedId = await idOf(0);
+      final activeId = await idOf(1);
+      await db.bookmarkDao.softDeleteByIds([deletedId]);
 
-      await db.bookmarkDao.removeBookmark('audio-1', 0);
-      await db.bookmarkDao.permanentlyDeleteBookmark('audio-1', 0);
+      await db.bookmarkDao.permanentlyDeleteById(deletedId);
+      await db.bookmarkDao.permanentlyDeleteById(activeId);
 
-      // 恢复后也查不到了（已物理删除）
-      await db.bookmarkDao.restoreBookmark('audio-1', 0);
-      expect(await db.bookmarkDao.getBookmarkedIndices('audio-1'), isEmpty);
+      expect(await db.bookmarkDao.getById(deletedId), isNull);
+      expect(await db.bookmarkDao.getById(activeId), isNotNull);
     });
 
     test('permanentlyDeleteAllDeleted 清空回收站', () async {
-      final now = DateTime.now();
-      for (int i = 0; i < 3; i++) {
-        await db.bookmarkDao.addBookmark(
-          BookmarksCompanion(
-            audioItemId: Value('audio-1'),
-            sentenceIndex: Value(i),
-            sentenceText: Value('Sentence $i'),
-            startTime: Value(i * 1.0),
-            endTime: Value(i * 1.0 + 1.0),
-            createdAt: Value(now),
-            updatedAt: Value(now),
-          ),
-        );
+      for (var i = 0; i < 3; i++) {
+        await addAt(i, i * 1.0, i + 1.0);
       }
 
-      // 软删除 2 个，保留 1 个
-      await db.bookmarkDao.removeBookmark('audio-1', 0);
-      await db.bookmarkDao.removeBookmark('audio-1', 2);
-
+      await db.bookmarkDao.softDeleteByIds([await idOf(0), await idOf(2)]);
       await db.bookmarkDao.permanentlyDeleteAllDeleted();
 
-      // 回收站为空
       final deleted = await db.bookmarkDao.getDeletedBookmarks(
         sortMode: RecycleBinSortMode.timeDesc,
       );
       expect(deleted, isEmpty);
-
-      // 未删除的书签仍在
       expect(await db.bookmarkDao.getBookmarkedIndices('audio-1'), {1});
     });
 
@@ -918,7 +934,6 @@ void main() {
       await db.bookmarkDao.addBookmark(
         BookmarksCompanion(
           audioItemId: Value('audio-1'),
-          sentenceIndex: Value(0),
           sentenceText: Value('Test'),
           startTime: Value(0.0),
           endTime: Value(1.0),

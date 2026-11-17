@@ -34,7 +34,6 @@ import 'package:echo_loop/providers/intensive_listen_prefs_provider.dart';
 import 'package:echo_loop/models/sentence.dart';
 import 'package:echo_loop/providers/learning_session/learning_session_provider.dart';
 import 'package:echo_loop/database/daos/bookmark_dao.dart';
-import 'package:echo_loop/database/app_database.dart' show Bookmark;
 import 'package:echo_loop/database/providers.dart';
 import 'package:echo_loop/providers/time_provider.dart';
 import 'package:echo_loop/services/speech_permission_service.dart';
@@ -58,8 +57,8 @@ class _EmptyBookmarkDao implements BookmarkDao {
   Future<Set<int>> getBookmarkedIndices(String audioItemId) async => <int>{};
 
   @override
-  Stream<List<Bookmark>> watchByAudioId(String audioItemId) =>
-      Stream.value(const <Bookmark>[]);
+  Stream<Set<int>> watchBookmarkedIndices(String audioItemId) =>
+      Stream.value(const <int>{});
 
   @override
   dynamic noSuchMethod(Invocation invocation) => Future<void>.value();

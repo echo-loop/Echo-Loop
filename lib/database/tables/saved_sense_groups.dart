@@ -28,9 +28,6 @@ class SavedSenseGroups extends Table {
     onDelete: KeyAction.setNull,
   )();
 
-  /// 来源句子索引
-  IntColumn get sentenceIndex => integer().nullable()();
-
   /// 来源句子文本（冗余存储，闪卡复习时展示上下文）
   TextColumn get sentenceText => text().nullable()();
 

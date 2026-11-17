@@ -333,7 +333,6 @@ class _DictionaryPanelState extends ConsumerState<DictionaryPanel> {
         phraseText: surfaceWord,
         displayText: _lookupQuery,
         audioItemId: audioItemId,
-        sentenceIndex: widget.query.sentenceIndex,
         sentenceText: widget.query.sentenceText,
         sentenceStartMs: widget.query.sentenceStartMs,
         sentenceEndMs: widget.query.sentenceEndMs,
@@ -344,7 +343,6 @@ class _DictionaryPanelState extends ConsumerState<DictionaryPanel> {
     await notifier.saveWord(
       word: surfaceWord,
       audioItemId: widget.query.audioItemId,
-      sentenceIndex: widget.query.sentenceIndex,
       sentenceText: widget.query.sentenceText,
       sentenceStartMs: widget.query.sentenceStartMs,
       sentenceEndMs: widget.query.sentenceEndMs,

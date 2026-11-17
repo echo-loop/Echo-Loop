@@ -52,9 +52,6 @@ class DictionaryPanelQuery {
   /// 来源音频 ID（可选）
   final String? audioItemId;
 
-  /// 来源句子索引（可选）
-  final int? sentenceIndex;
-
   /// 来源句子文本（可选）
   final String? sentenceText;
 
@@ -69,7 +66,6 @@ class DictionaryPanelQuery {
     this.preferredSourceId,
     this.bookmarkKind = DictionaryBookmarkKind.word,
     this.audioItemId,
-    this.sentenceIndex,
     this.sentenceText,
     this.sentenceStartMs,
     this.sentenceEndMs,
@@ -82,7 +78,6 @@ class DictionaryPanelQuery {
       other.preferredSourceId == preferredSourceId &&
       other.bookmarkKind == bookmarkKind &&
       other.audioItemId == audioItemId &&
-      other.sentenceIndex == sentenceIndex &&
       other.sentenceText == sentenceText &&
       other.sentenceStartMs == sentenceStartMs &&
       other.sentenceEndMs == sentenceEndMs;
@@ -93,7 +88,6 @@ class DictionaryPanelQuery {
     preferredSourceId,
     bookmarkKind,
     audioItemId,
-    sentenceIndex,
     sentenceText,
     sentenceStartMs,
     sentenceEndMs,

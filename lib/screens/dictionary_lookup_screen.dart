@@ -15,6 +15,7 @@ import '../database/providers.dart';
 import '../features/chatbot/sentence_passage.dart';
 import '../features/chatbot/widgets/sentence_chat_button.dart';
 import '../l10n/app_localizations.dart';
+import '../providers/source_sentence_index_provider.dart';
 import '../providers/dictionary/lookup_history_provider.dart';
 import '../providers/dictionary/wordlist_provider.dart';
 import '../services/app_logger.dart';
@@ -201,11 +202,24 @@ class _DictionaryLookupScreenState
     final savedWord = ref
         .watch(activeSavedWordProvider(normalizeWord(query)))
         .value;
+    final audioItemId = savedWord?.audioItemId;
+    // 收藏不存句子编号；取前后句作对话上下文时按来源句区间在当前字幕里现算。
+    final sentenceIndex = savedWord == null || audioItemId == null
+        ? null
+        : ref
+              .watch(
+                sourceSentenceIndexProvider((
+                  audioItemId: audioItemId,
+                  startMs: savedWord.sentenceStartMs,
+                  endMs: savedWord.sentenceEndMs,
+                )),
+              )
+              .value;
     return SentenceChatButton(
       target: SentenceChatTarget(
         text: query,
-        audioItemId: savedWord?.audioItemId,
-        sentenceIndex: savedWord?.sentenceIndex,
+        audioItemId: audioItemId,
+        sentenceIndex: sentenceIndex,
       ),
     );
   }
@@ -301,7 +315,9 @@ class _DictionaryLookupScreenState
         for (final entry in history)
           ListTile(
             // 与上方「最近查询」标题同为 AppSpacing.m 左边距，图标左边界才能对齐
-            contentPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.m),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.m,
+            ),
             leading: SvgActionIcon(
               assetName: 'assets/icon/history.svg',
               color: theme.colorScheme.outline,

@@ -1044,11 +1044,7 @@ class MediaPlayback extends Notifier<MediaPlaybackState> {
   Future<void> toggleBookmark(int index) async {
     final item = state.audioItem;
     if (item == null || index < 0 || index >= state.sentences.length) return;
-    final (
-      isRemoving,
-      indicesToRemove,
-      replacementIndex,
-    ) = BookmarkManager.toggleBookmark(
+    final (isRemoving, replacementIndex) = BookmarkManager.toggleBookmark(
       index,
       state.sentences,
       state.bookmarkedIndices,
@@ -1057,14 +1053,10 @@ class MediaPlayback extends Notifier<MediaPlaybackState> {
 
     final newBookmarks = Set<int>.from(state.bookmarkedIndices);
     final newSentences = List<Sentence>.from(state.sentences);
+    final sentence = state.sentences[index];
     if (isRemoving) {
-      final toRemove = indicesToRemove.isEmpty ? {index} : indicesToRemove;
-      for (final idx in toRemove) {
-        newBookmarks.remove(idx);
-        if (idx >= 0 && idx < newSentences.length) {
-          newSentences[idx] = newSentences[idx].copyWith(isBookmarked: false);
-        }
-      }
+      newBookmarks.remove(index);
+      newSentences[index] = newSentences[index].copyWith(isBookmarked: false);
       if (state.playlistMode == PlaylistMode.bookmarks) {
         if (newBookmarks.isEmpty) {
           // 收藏播放列表不保留空死端：取消最后一条后回到
@@ -1104,7 +1096,7 @@ class MediaPlayback extends Notifier<MediaPlaybackState> {
       }
       await ref
           .read(favoriteSentenceLifecycleProvider)
-          .remove(item.id, toRemove);
+          .remove(item.id, sentence);
     } else {
       newBookmarks.add(index);
       newSentences[index] = newSentences[index].copyWith(isBookmarked: true);
@@ -1112,9 +1104,7 @@ class MediaPlayback extends Notifier<MediaPlaybackState> {
         bookmarkedIndices: newBookmarks,
         sentences: newSentences,
       );
-      await ref
-          .read(favoriteSentenceLifecycleProvider)
-          .save(item.id, state.sentences[index]);
+      await ref.read(favoriteSentenceLifecycleProvider).save(item.id, sentence);
     }
   }
 

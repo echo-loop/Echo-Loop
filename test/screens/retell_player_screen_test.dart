@@ -75,8 +75,8 @@ class _TestBookmarkDao implements BookmarkDao {
   Future<List<Bookmark>> getByAudioId(String audioItemId) async => [];
 
   @override
-  Stream<List<Bookmark>> watchByAudioId(String audioItemId) =>
-      Stream<List<Bookmark>>.value([]);
+  Stream<Set<int>> watchBookmarkedIndices(String audioItemId) =>
+      Stream<Set<int>>.value(<int>{});
 
   @override
   dynamic noSuchMethod(Invocation invocation) {
@@ -798,9 +798,8 @@ void main() {
 
     testWidgets('完成后不再检查学习版通知提示', (tester) async {
       final notificationService = _MockNotificationPermissionService();
-      when(
-        () => notificationService.canShowPrompt(),
-      ).thenAnswer((_) async => true);
+      when(() => notificationService.canShowPrompt())
+          .thenAnswer((_) async => true);
 
       final testParagraphs = createTestParagraphs();
       final initialState = RetellPlayerState(
@@ -1055,8 +1054,14 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
 
-      expect(find.byKey(playbackCenterIconKey(PlaybackToggleIcon.play)), findsOneWidget);
-      expect(find.byKey(playbackCenterIconKey(PlaybackToggleIcon.pause)), findsNothing);
+      expect(
+        find.byKey(playbackCenterIconKey(PlaybackToggleIcon.play)),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(playbackCenterIconKey(PlaybackToggleIcon.pause)),
+        findsNothing,
+      );
     });
 
     testWidgets('播放完成后空闲态不显示复述提示', (tester) async {
@@ -1139,7 +1144,9 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
 
-      await tester.tap(find.byKey(playbackCenterIconKey(PlaybackToggleIcon.play)));
+      await tester.tap(
+        find.byKey(playbackCenterIconKey(PlaybackToggleIcon.play)),
+      );
       await tester.pump();
       await tester.pump();
 
@@ -1149,7 +1156,10 @@ void main() {
         RetellRecordingPhase.idle,
         reason: '点击主播放后录音状态应结束',
       );
-      expect(find.byKey(playbackCenterIconKey(PlaybackToggleIcon.pause)), findsOneWidget);
+      expect(
+        find.byKey(playbackCenterIconKey(PlaybackToggleIcon.pause)),
+        findsOneWidget,
+      );
     });
 
     testWidgets('复述录音中点击主播放不会在取消后自动重启录音', (tester) async {
@@ -1183,14 +1193,19 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
 
-      await tester.tap(find.byKey(playbackCenterIconKey(PlaybackToggleIcon.play)));
+      await tester.tap(
+        find.byKey(playbackCenterIconKey(PlaybackToggleIcon.play)),
+      );
       await tester.pump();
       await tester.pump();
 
       expect(recordingController.cancelCalls, 1);
       expect(recordingController.state.phase, RetellRecordingPhase.idle);
       expect(recordingController.startCalls, 0);
-      expect(find.byKey(playbackCenterIconKey(PlaybackToggleIcon.pause)), findsOneWidget);
+      expect(
+        find.byKey(playbackCenterIconKey(PlaybackToggleIcon.pause)),
+        findsOneWidget,
+      );
     });
 
     // 回归：评估中点主播放重听本段，录音清理期间跑过一帧时，
@@ -1228,7 +1243,9 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
 
-      await tester.tap(find.byKey(playbackCenterIconKey(PlaybackToggleIcon.play)));
+      await tester.tap(
+        find.byKey(playbackCenterIconKey(PlaybackToggleIcon.play)),
+      );
       // 清理尚未完成，先跑几帧，让 idle 触发的 post-frame 回调执行。
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 16));
@@ -1989,9 +2006,8 @@ void main() {
       final extra = GoRouterState.of(detailContext).extra;
       expect(extra, isA<SentenceDetailArgs>());
       if (extra case final SentenceDetailArgs args) {
-        final mediaEngine = ProviderScope.containerOf(
-          detailContext,
-        ).read(mediaEngineProvider.notifier);
+        final mediaEngine = ProviderScope.containerOf(detailContext)
+            .read(mediaEngineProvider.notifier);
         expect(args.rangePlaybackBuilder, isNotNull);
         expect(
           args.rangePlaybackBuilder!(() => 1.0),

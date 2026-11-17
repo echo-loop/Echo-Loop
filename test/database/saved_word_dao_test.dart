@@ -48,7 +48,6 @@ void main() {
       await db.savedWordDao.saveWord(
         word: 'world',
         audioItemId: 'audio-1',
-        sentenceIndex: 5,
         sentenceText: 'Hello world!',
         sentenceStartMs: 1500,
         sentenceEndMs: 3200,
@@ -58,7 +57,6 @@ void main() {
       expect(words.length, 1);
       expect(words.first.word, 'world');
       expect(words.first.audioItemId, 'audio-1');
-      expect(words.first.sentenceIndex, 5);
       expect(words.first.sentenceText, 'Hello world!');
       expect(words.first.sentenceStartMs, 1500);
       expect(words.first.sentenceEndMs, 3200);
@@ -80,21 +78,18 @@ void main() {
       await db.savedWordDao.saveWord(
         word: 'test',
         audioItemId: 'audio-1',
-        sentenceIndex: 1,
         sentenceText: 'First sentence',
       );
 
       // 再次收藏同一单词，更新来源
       await db.savedWordDao.saveWord(
         word: 'test',
-        sentenceIndex: 10,
         sentenceText: 'Updated sentence',
       );
 
       final words = await db.savedWordDao.getAll();
       expect(words.length, 1);
       expect(words.first.sentenceText, 'Updated sentence');
-      expect(words.first.sentenceIndex, 10);
     });
 
     test('removeWord 删除单词', () async {
@@ -212,13 +207,11 @@ void main() {
       await db.savedWordDao.saveWord(
         word: 'apple',
         audioItemId: 'audio-1',
-        sentenceIndex: 3,
         sentenceText: 'An apple a day',
       );
       await db.savedWordDao.saveWord(
         word: 'banana',
         audioItemId: 'audio-2',
-        sentenceIndex: 7,
         sentenceText: 'I like bananas',
       );
 
@@ -230,12 +223,10 @@ void main() {
 
       final apple = words.firstWhere((w) => w.word == 'apple');
       expect(apple.audioItemId, 'audio-1'); // audioItemId 不变（由 FK 处理）
-      expect(apple.sentenceIndex, isNull); // 上下文已清除
       expect(apple.sentenceText, isNull);
 
       final banana = words.firstWhere((w) => w.word == 'banana');
       expect(banana.audioItemId, 'audio-2'); // 其他音频不受影响
-      expect(banana.sentenceIndex, 7);
       expect(banana.sentenceText, 'I like bananas');
     });
 
@@ -254,7 +245,6 @@ void main() {
       await db.savedWordDao.saveWord(
         word: 'test',
         audioItemId: 'audio-1',
-        sentenceIndex: 3,
         sentenceText: 'Test sentence',
         sentenceStartMs: 1000,
         sentenceEndMs: 2500,
@@ -264,7 +254,6 @@ void main() {
 
       final words = await db.savedWordDao.getAll();
       final word = words.first;
-      expect(word.sentenceIndex, isNull); // 索引已清除
       expect(word.sentenceText, isNull); // 文本已清除
       // 时间信息保留（删除字幕后仍可播放）
       expect(word.sentenceStartMs, 1000);
@@ -289,7 +278,6 @@ void main() {
         await db.savedWordDao.saveWord(
           word: 'word-$i',
           audioItemId: 'audio-$i',
-          sentenceIndex: i,
           sentenceText: 'Sentence $i',
         );
       }
@@ -300,10 +288,8 @@ void main() {
       final cleared = words
           .where((w) => w.word == 'word-0' || w.word == 'word-1')
           .toList();
-      expect(cleared.every((w) => w.sentenceIndex == null), isTrue);
       expect(cleared.every((w) => w.sentenceText == null), isTrue);
       final untouched = words.firstWhere((w) => w.word == 'word-2');
-      expect(untouched.sentenceIndex, 2);
       expect(untouched.sentenceText, 'Sentence 2');
     });
 
@@ -378,7 +364,6 @@ void main() {
       await db.savedWordDao.saveWord(
         word: 'test',
         audioItemId: 'audio-1',
-        sentenceIndex: 1,
         sentenceText: 'Test sentence',
       );
 
@@ -394,7 +379,7 @@ void main() {
       expect(words.first.sentenceText, 'Test sentence');
     });
 
-    test('getByAudioId 只返回指定音频的未删除单词，按句子索引升序', () async {
+    test('getByAudioId 只返回指定音频的未删除单词，按来源句时间升序', () async {
       final now = DateTime.now();
       for (final id in ['audio-1', 'audio-2']) {
         await db.audioItemDao.upsert(
@@ -408,29 +393,23 @@ void main() {
         );
       }
 
-      // audio-1 两个词（句子索引乱序插入）、audio-2 一个词、无来源一个词
+      // audio-1 两个词（来源句时间乱序插入）、audio-2 一个词、无来源一个词
       await db.savedWordDao.saveWord(
         word: 'banana',
         audioItemId: 'audio-1',
-        sentenceIndex: 5,
+        sentenceStartMs: 5000,
+        sentenceEndMs: 6000,
       );
       await db.savedWordDao.saveWord(
         word: 'apple',
         audioItemId: 'audio-1',
-        sentenceIndex: 2,
+        sentenceStartMs: 1000,
+        sentenceEndMs: 2000,
       );
-      await db.savedWordDao.saveWord(
-        word: 'cherry',
-        audioItemId: 'audio-2',
-        sentenceIndex: 0,
-      );
+      await db.savedWordDao.saveWord(word: 'cherry', audioItemId: 'audio-2');
       await db.savedWordDao.saveWord(word: 'orphan');
       // audio-1 再插一个然后软删除，不应出现
-      await db.savedWordDao.saveWord(
-        word: 'deleted',
-        audioItemId: 'audio-1',
-        sentenceIndex: 1,
-      );
+      await db.savedWordDao.saveWord(word: 'deleted', audioItemId: 'audio-1');
       await db.savedWordDao.removeWord('deleted');
 
       final words = await db.savedWordDao.getByAudioId('audio-1');

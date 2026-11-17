@@ -23,7 +23,6 @@ BookmarkWithAudio _bookmark(String subjectId, int index) => BookmarkWithAudio(
     id: index,
     audioItemId: 'audio-1',
     memorySubjectId: subjectId,
-    sentenceIndex: index,
     sentenceText: 'Sentence $index',
     startTime: index.toDouble(),
     endTime: index + 1.0,
@@ -84,7 +83,6 @@ void main() {
             BookmarksCompanion.insert(
               memorySubjectId: Value(bookmark.memorySubjectId),
               audioItemId: bookmark.audioItemId,
-              sentenceIndex: bookmark.sentenceIndex,
               sentenceText: bookmark.sentenceText,
               startTime: bookmark.startTime,
               endTime: bookmark.endTime,

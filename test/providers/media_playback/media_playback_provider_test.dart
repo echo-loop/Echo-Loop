@@ -99,6 +99,19 @@ void main() {
   late _FailOnceStudyTimeService studyTimeService;
   late List<Sentence> transcriptSentences;
 
+  /// 收藏当前字幕第 [index] 句（收藏只存该句的时间区间）。
+  Future<void> bookmarkSentence(int index) {
+    final sentence = transcriptSentences[index];
+    return bookmarkDao.addBookmark(
+      BookmarksCompanion(
+        audioItemId: const Value('media-playback-test'),
+        sentenceText: Value(sentence.text),
+        startTime: Value(sentence.startTime.inMilliseconds / 1000.0),
+        endTime: Value(sentence.endTime.inMilliseconds / 1000.0),
+      ),
+    );
+  }
+
   final sentences = <Sentence>[
     Sentence(
       index: 0,
@@ -142,13 +155,15 @@ void main() {
     audioItemDao = FakeAudioItemDao()
       ..transcriptSrtStore['media-playback-test'] =
           '1\n00:00:43,000 --> 00:00:50,000\nFirst sentence.\n';
-    bookmarkDao = FakeBookmarkDao();
+    bookmarkDao = FakeBookmarkDao()
+      ..transcripts['media-playback-test'] = transcriptSentences;
     playbackStateDao = _MockPlaybackStateDao();
-    database = AppDatabase(NativeDatabase.memory(setup: configureAppDatabaseConnection));
+    database = AppDatabase(
+      NativeDatabase.memory(setup: configureAppDatabaseConnection),
+    );
     studyTimeService = _FailOnceStudyTimeService(database);
-    when(
-      () => playbackStateDao.getByAudioId(any()),
-    ).thenAnswer((_) async => null);
+    when(() => playbackStateDao.getByAudioId(any()))
+        .thenAnswer((_) async => null);
     router = MediaSessionRouter(defaultHandler: BaseAudioHandler());
     container = ProviderContainer(
       overrides: dedupeOverrides([
@@ -402,18 +417,8 @@ void main() {
   });
 
   test('收藏模式恢复时焦点与断点所在收藏句一致', () async {
-    await bookmarkDao.addBookmark(
-      const BookmarksCompanion(
-        audioItemId: Value('media-playback-test'),
-        sentenceIndex: Value(0),
-      ),
-    );
-    await bookmarkDao.addBookmark(
-      const BookmarksCompanion(
-        audioItemId: Value('media-playback-test'),
-        sentenceIndex: Value(2),
-      ),
-    );
+    await bookmarkSentence(0);
+    await bookmarkSentence(2);
     when(() => playbackStateDao.getByAudioId('media-playback-test')).thenAnswer(
       (_) async => PlaybackState(
         audioItemId: 'media-playback-test',
@@ -454,9 +459,8 @@ void main() {
 
   test('加载中取消会忽略迟到结果且不保存临时断点', () async {
     final restoreCompleter = Completer<PlaybackState?>();
-    when(
-      () => playbackStateDao.getByAudioId('media-playback-test'),
-    ).thenAnswer((_) => restoreCompleter.future);
+    when(() => playbackStateDao.getByAudioId('media-playback-test'))
+        .thenAnswer((_) => restoreCompleter.future);
     final controller = container.read(mediaPlaybackProvider.notifier);
     final loadFuture = controller.load(item());
     await waitUntil(() => container.read(mediaPlaybackProvider).isLoading);
@@ -497,12 +501,7 @@ void main() {
     expect(backend.pauseCalls, greaterThan(pauseCallsBefore));
     expect(backend.seekCalls, isEmpty);
 
-    await bookmarkDao.addBookmark(
-      const BookmarksCompanion(
-        audioItemId: Value('media-playback-test'),
-        sentenceIndex: Value(1),
-      ),
-    );
+    await bookmarkSentence(1);
     await controller.restoreAfterSentenceDetail(returnPosition);
 
     state = container.read(mediaPlaybackProvider);
@@ -573,12 +572,7 @@ void main() {
   });
 
   test('收藏模式取消最后一条后回全文并保持当前句', () async {
-    await bookmarkDao.addBookmark(
-      const BookmarksCompanion(
-        audioItemId: Value('media-playback-test'),
-        sentenceIndex: Value(1),
-      ),
-    );
+    await bookmarkSentence(1);
     final controller = await loadController();
     await controller.setPlaylistMode(PlaylistMode.bookmarks);
 
@@ -594,12 +588,7 @@ void main() {
 
   test('四条收藏连续取消倒数第二条和最后一条后回退到前一条', () async {
     for (var index = 0; index < sentences.length; index += 1) {
-      await bookmarkDao.addBookmark(
-        BookmarksCompanion(
-          audioItemId: const Value('media-playback-test'),
-          sentenceIndex: Value(index),
-        ),
-      );
+      await bookmarkSentence(index);
     }
     final controller = await loadController();
     await controller.setPlaylistMode(PlaylistMode.bookmarks);
@@ -617,17 +606,13 @@ void main() {
   });
 
   test('讲解页返回时收藏已清空则回全文并保持原句', () async {
-    await bookmarkDao.addBookmark(
-      const BookmarksCompanion(
-        audioItemId: Value('media-playback-test'),
-        sentenceIndex: Value(1),
-      ),
-    );
+    await bookmarkSentence(1);
     final controller = await loadController();
     await controller.setPlaylistMode(PlaylistMode.bookmarks);
     final returnPosition = await controller.prepareSentenceDetail();
     final seekCallsBeforeReturn = backend.seekCalls.length;
-    await bookmarkDao.removeBookmark('media-playback-test', 1);
+    // 模拟在讲解页取消了第 1 句的收藏。
+    await bookmarkDao.removeAllForAudio('media-playback-test');
 
     await controller.restoreAfterSentenceDetail(returnPosition);
 
@@ -641,12 +626,7 @@ void main() {
   });
 
   test('快速重复切换只执行一次暂停和位置对齐', () async {
-    await bookmarkDao.addBookmark(
-      const BookmarksCompanion(
-        audioItemId: Value('media-playback-test'),
-        sentenceIndex: Value(0),
-      ),
-    );
+    await bookmarkSentence(0);
     final controller = await loadController();
     backend.pauseDelay = const Duration(milliseconds: 40);
     final pauseCallsBefore = backend.pauseCalls;
@@ -1046,12 +1026,7 @@ void main() {
   });
 
   test('收藏播放中切换单句循环设置不重启当前逐句播放', () async {
-    await bookmarkDao.addBookmark(
-      const BookmarksCompanion(
-        audioItemId: Value('media-playback-test'),
-        sentenceIndex: Value(0),
-      ),
-    );
+    await bookmarkSentence(0);
     final controller = await loadController();
     await controller.setPlaylistMode(PlaylistMode.bookmarks);
     unawaited(controller.play());
@@ -1181,7 +1156,9 @@ void main() {
       await waitForStudyDuration();
       await container.read(learnedVocabularyTrackerProvider).flush();
 
-      final record = await database.dailyStudyRecordDao.getByDate(DateTime.now());
+      final record = await database.dailyStudyRecordDao.getByDate(
+        DateTime.now(),
+      );
       expect(record?.studyTimeMilliseconds, greaterThanOrEqualTo(1000));
       expect(record?.inputTimeMilliseconds, greaterThanOrEqualTo(1000));
       expect(
@@ -1218,7 +1195,9 @@ void main() {
       await waitForStudyDuration();
       await container.read(learnedVocabularyTrackerProvider).flush();
 
-      final record = await database.dailyStudyRecordDao.getByDate(DateTime.now());
+      final record = await database.dailyStudyRecordDao.getByDate(
+        DateTime.now(),
+      );
       expect(record?.inputWords, 8);
       expect(await database.learnedWordFormDao.countAll(), 5);
     });

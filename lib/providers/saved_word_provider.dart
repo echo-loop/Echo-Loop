@@ -42,7 +42,6 @@ class SavedWordList extends StreamNotifier<List<db.SavedWord>> {
   Future<void> saveWord({
     required String word,
     String? audioItemId,
-    int? sentenceIndex,
     String? sentenceText,
     int? sentenceStartMs,
     int? sentenceEndMs,
@@ -52,7 +51,6 @@ class SavedWordList extends StreamNotifier<List<db.SavedWord>> {
         .saveWord(
           word: word,
           audioItemId: audioItemId,
-          sentenceIndex: sentenceIndex,
           sentenceText: sentenceText,
           sentenceStartMs: sentenceStartMs,
           sentenceEndMs: sentenceEndMs,
@@ -113,8 +111,7 @@ class SavedWordTexts extends _$SavedWordTexts {
 /// 被所有可见句子共享（避免每个句子组件各自重复归一化全部 key）。
 @Riverpod(keepAlive: true)
 SavedTextIndex savedTextIndex(Ref ref) {
-  final words =
-      ref.watch(savedWordTextsProvider).value ?? const <String>{};
+  final words = ref.watch(savedWordTextsProvider).value ?? const <String>{};
   final phrases =
       ref.watch(savedSenseGroupTextsProvider).value ?? const <String>{};
   if (words.isEmpty && phrases.isEmpty) return const SavedTextIndex.empty();

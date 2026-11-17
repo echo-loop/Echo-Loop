@@ -33,6 +33,7 @@ import '../providers/notification_permission_provider.dart';
 import '../providers/sentence_ai_provider.dart';
 import '../providers/settings_provider.dart';
 import '../services/app_logger.dart';
+import '../services/source_sentence_anchor.dart';
 import '../theme/app_theme.dart';
 import '../widgets/common/bookmark_toggle_row.dart';
 import '../widgets/common/practice_playback_footer.dart';
@@ -55,9 +56,6 @@ class SentenceDetailArgs {
 
   /// 句子文本
   final String sentenceText;
-
-  /// 入口句的句子索引；讲解页打开后切句以整篇字幕为准。
-  final int sentenceIndex;
 
   /// 句子起始时间（毫秒）
   final int startTimeMs;
@@ -85,7 +83,6 @@ class SentenceDetailArgs {
     required this.audioItemId,
     required this.audioName,
     required this.sentenceText,
-    required this.sentenceIndex,
     required this.startTimeMs,
     required this.endTimeMs,
     this.rangePlaybackBuilder,
@@ -121,6 +118,12 @@ class _SentenceDetailScreenState extends ConsumerState<SentenceDetailScreen> {
   bool _bookmarkLoaded = false;
   bool _isTogglingBookmark = false;
 
+  /// 当前显示的句子来自整篇字幕（入口句已定位到当前字幕）。
+  ///
+  /// 收藏按当前字幕的句子索引读写；字幕未加载或入口句已不在字幕中（单句讲解）时，
+  /// 入口句的索引可能已过期，不提供收藏切换，避免误操作到其他句子的收藏。
+  bool _isTranscriptSentence = false;
+
   bool _isPlaying = false;
   bool _mediaExpanded = false;
 
@@ -143,13 +146,21 @@ class _SentenceDetailScreenState extends ConsumerState<SentenceDetailScreen> {
   /// 句子与意群共用的区间播放器，播放速度读取本页的 [_playbackSpeed]。
   late final SenseGroupRangePlayback _rangePlayback;
 
-  /// 讲解页入口句，字幕加载失败或字幕已改动时作为唯一可用句子。
+  /// 讲解页入口句，字幕加载失败或入口句已不在当前字幕时作为唯一可用句子。
+  ///
+  /// 入口只带时间区间，不带句子编号；此时不对应当前字幕的任何一句，编号记为
+  /// -1，不用于收藏或取前后句（见 [_transcriptIndexOf]）。
   Sentence get _entrySentence => Sentence(
-    index: widget.args.sentenceIndex,
+    index: -1,
     text: widget.args.sentenceText,
     startTime: Duration(milliseconds: widget.args.startTimeMs),
     endTime: Duration(milliseconds: widget.args.endTimeMs),
   );
+
+  /// 句子在当前字幕中的编号；单句讲解（入口句不在当前字幕中）时为 null，
+  /// 此时不取前后句作 AI 上下文。
+  int? _transcriptIndexOf(Sentence sentence) =>
+      _isTranscriptSentence ? sentence.index : null;
 
   /// 当前显示的句子；加载完成前退化为入口句，供 AppBar 与埋点取值。
   Sentence get _currentSentence {
@@ -163,7 +174,7 @@ class _SentenceDetailScreenState extends ConsumerState<SentenceDetailScreen> {
     AppLogger.log(
       'Navigation',
       'sentence-detail init audio=${widget.args.audioItemId} '
-          'sentence=${widget.args.sentenceIndex} '
+          'range=${widget.args.startTimeMs}-${widget.args.endTimeMs}ms '
           'media=${widget.args.mediaSession != null}',
     );
     _engine = ref.read(audioEngineProvider.notifier);
@@ -184,7 +195,7 @@ class _SentenceDetailScreenState extends ConsumerState<SentenceDetailScreen> {
     AppLogger.log(
       'Navigation',
       'sentence-detail dispose audio=${widget.args.audioItemId} '
-          'sentence=${widget.args.sentenceIndex}',
+          'range=${widget.args.startTimeMs}-${widget.args.endTimeMs}ms',
     );
     // 延迟到帧结束后再暂停音频：返回上一页时，监听 audioEngineProvider 的
     // 页面（如全能播放器的进度条）正在重建，若在 dispose 同步阶段改 provider
@@ -196,7 +207,7 @@ class _SentenceDetailScreenState extends ConsumerState<SentenceDetailScreen> {
       AppLogger.log(
         'SentenceDetailMedia',
         'exit fullscreen on dispose audio=${widget.args.audioItemId} '
-            'sentence=${widget.args.sentenceIndex}',
+            'range=${widget.args.startTimeMs}-${widget.args.endTimeMs}ms',
       );
       unawaited(Future<void>(() => mediaSession.setFullscreen(false)));
     }
@@ -234,7 +245,8 @@ class _SentenceDetailScreenState extends ConsumerState<SentenceDetailScreen> {
       AppLogger.log(
         'SentenceDetail',
         'entry sentence not in transcript, fallback to single sentence '
-            'audio=${widget.args.audioItemId} sentence=${widget.args.sentenceIndex} '
+            'audio=${widget.args.audioItemId} '
+            'range=${widget.args.startTimeMs}-${widget.args.endTimeMs}ms '
             'transcriptCount=${transcript.length}',
       );
     }
@@ -242,6 +254,7 @@ class _SentenceDetailScreenState extends ConsumerState<SentenceDetailScreen> {
       _loadError = null;
       _sentences = entryPosition == null ? [_entrySentence] : transcript;
       _position = entryPosition ?? 0;
+      _isTranscriptSentence = entryPosition != null;
     });
     // 入口句在字幕中换了位置时，画面需要跟到实际显示的句子。
     if (_currentSentence.startTime != _entrySentence.startTime) {
@@ -254,20 +267,16 @@ class _SentenceDetailScreenState extends ConsumerState<SentenceDetailScreen> {
     unawaited(_loadSentences());
   }
 
-  /// 定位入口句：优先信任仍与文本一致的原句序，否则按文本查找。
+  /// 定位入口句：按入口时间区间定位到当前字幕（字幕编辑后句序可能变化）。
   int? _findEntryPosition(List<Sentence> transcript) {
-    final entryText = widget.args.sentenceText.trim();
-    if (entryText.isEmpty) return null;
-    final preferred = widget.args.sentenceIndex;
-    if (preferred >= 0 &&
-        preferred < transcript.length &&
-        transcript[preferred].text.trim() == entryText) {
-      return preferred;
-    }
-    final position = transcript.indexWhere(
-      (sentence) => sentence.text.trim() == entryText,
+    final args = widget.args;
+    return resolveSourceSentenceIndex(
+      SourceSentenceAnchor.fromMilliseconds(
+        startMs: args.startTimeMs,
+        endMs: args.endTimeMs,
+      ),
+      transcript,
     );
-    return position < 0 ? null : position;
   }
 
   /// 从数据库加载收藏状态
@@ -287,7 +296,7 @@ class _SentenceDetailScreenState extends ConsumerState<SentenceDetailScreen> {
 
   /// 切换当前句的收藏状态（防重入）
   Future<void> _toggleBookmark() async {
-    if (_isTogglingBookmark) return;
+    if (_isTogglingBookmark || !_isTranscriptSentence) return;
     _isTogglingBookmark = true;
 
     try {
@@ -295,10 +304,9 @@ class _SentenceDetailScreenState extends ConsumerState<SentenceDetailScreen> {
       final sentence = _currentSentence;
       final isBookmarked = _bookmarkedIndices.contains(sentence.index);
       if (isBookmarked) {
-        await ref.read(favoriteSentenceLifecycleProvider).remove(
-          args.audioItemId,
-          {sentence.index},
-        );
+        await ref
+            .read(favoriteSentenceLifecycleProvider)
+            .remove(args.audioItemId, sentence);
       } else {
         await ref
             .read(favoriteSentenceLifecycleProvider)
@@ -552,7 +560,7 @@ class _SentenceDetailScreenState extends ConsumerState<SentenceDetailScreen> {
                   target: SentenceChatTarget(
                     text: current.text,
                     audioItemId: args.audioItemId,
-                    sentenceIndex: current.index,
+                    sentenceIndex: _transcriptIndexOf(current),
                   ),
                 ),
               ],
@@ -601,7 +609,7 @@ class _SentenceDetailScreenState extends ConsumerState<SentenceDetailScreen> {
                           (current.duration.inMilliseconds / 1000)
                               .toStringAsFixed(1),
                         ),
-                        trailing: _bookmarkLoaded
+                        trailing: _bookmarkLoaded && _isTranscriptSentence
                             ? SizedBox(
                                 width: 104,
                                 child: Align(
@@ -657,7 +665,7 @@ class _SentenceDetailScreenState extends ConsumerState<SentenceDetailScreen> {
       aiNotifier: ref.read(sentenceAiNotifierProvider),
       audioItemId: args.audioItemId,
       wordHighlightSource: isActive ? args.wordHighlightSource : null,
-      sentenceIndex: sentence.index,
+      sentenceIndex: _transcriptIndexOf(sentence),
       sentenceStartMs: sentence.startTime.inMilliseconds,
       sentenceEndMs: sentence.endTime.inMilliseconds,
       onStopMainPlayer: () => unawaited(_stopPlayback()),

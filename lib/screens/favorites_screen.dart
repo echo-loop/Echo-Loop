@@ -202,7 +202,6 @@ Future<AudioPlaybackResult> _playSourceSentence(
   WidgetRef ref, {
   required String key,
   required String? audioItemId,
-  required int? sentenceIndex,
   required String? sentenceText,
   required int? sentenceStartMs,
   required int? sentenceEndMs,
@@ -220,7 +219,6 @@ Future<AudioPlaybackResult> _playSourceSentence(
   );
   return player.play(
     audioItemId: audioItemId,
-    sentenceIndex: sentenceIndex,
     sentenceText: sentenceText,
     sentenceStartMs: sentenceStartMs,
     sentenceEndMs: sentenceEndMs,
@@ -906,7 +904,6 @@ class _BookmarkSentenceTileState extends ConsumerState<_BookmarkSentenceTile> {
         ref: ref,
         audioItemId: widget.audioId,
         sentenceText: bm.sentenceText,
-        sentenceIndex: bm.sentenceIndex,
         sentenceStartMs: (bm.startTime * 1000).round(),
         sentenceEndMs: (bm.endTime * 1000).round(),
       ),
@@ -931,7 +928,7 @@ class _BookmarkSentenceTileState extends ConsumerState<_BookmarkSentenceTile> {
         child: Icon(Icons.bookmark_remove, color: theme.colorScheme.onError),
       ),
       onDismissed: (_) {
-        unawaited(sentenceLifecycle.remove(widget.audioId, {bm.sentenceIndex}));
+        unawaited(sentenceLifecycle.removeBookmark(bm));
       },
       child: _FavoriteSourceSentenceTile(
         sentenceText: bm.sentenceText,
@@ -1468,7 +1465,6 @@ class _SavedPhraseTileState extends ConsumerState<_SavedPhraseTile> {
         preferredSourceId: AiDictionarySource.sourceId,
         bookmarkKind: DictionaryBookmarkKind.senseGroup,
         audioItemId: phrase.audioItemId,
-        sentenceIndex: phrase.sentenceIndex,
         sentenceText: phrase.sentenceText,
         sentenceStartMs: phrase.sentenceStartMs,
         sentenceEndMs: phrase.sentenceEndMs,
@@ -1476,7 +1472,7 @@ class _SavedPhraseTileState extends ConsumerState<_SavedPhraseTile> {
     );
   }
 
-  /// 打开来源句讲解；历史收藏缺少定位字段时由共享解析器回填。
+  /// 打开来源句讲解：讲解页按收藏区间定位到当前字幕。
   Future<void> _openSourceSentenceDetail() {
     final phrase = widget.savedPhrase;
     final audioItemId = phrase.audioItemId;
@@ -1487,7 +1483,6 @@ class _SavedPhraseTileState extends ConsumerState<_SavedPhraseTile> {
       ref: ref,
       audioItemId: audioItemId,
       sentenceText: sentenceText,
-      sentenceIndex: phrase.sentenceIndex,
       sentenceStartMs: phrase.sentenceStartMs,
       sentenceEndMs: phrase.sentenceEndMs,
     );
@@ -1516,7 +1511,6 @@ class _SavedPhraseTileState extends ConsumerState<_SavedPhraseTile> {
       ref,
       key: key,
       audioItemId: phrase.audioItemId,
-      sentenceIndex: phrase.sentenceIndex,
       sentenceText: phrase.sentenceText,
       sentenceStartMs: phrase.sentenceStartMs,
       sentenceEndMs: phrase.sentenceEndMs,
@@ -1749,7 +1743,7 @@ class _SavedWordTileState extends ConsumerState<_SavedWordTile> {
     }
   }
 
-  /// 打开来源句讲解；历史收藏缺少定位字段时由共享解析器回填。
+  /// 打开来源句讲解：讲解页按收藏区间定位到当前字幕。
   Future<void> _openSourceSentenceDetail() {
     final word = widget.savedWord;
     final audioItemId = word.audioItemId;
@@ -1760,7 +1754,6 @@ class _SavedWordTileState extends ConsumerState<_SavedWordTile> {
       ref: ref,
       audioItemId: audioItemId,
       sentenceText: sentenceText,
-      sentenceIndex: word.sentenceIndex,
       sentenceStartMs: word.sentenceStartMs,
       sentenceEndMs: word.sentenceEndMs,
     );
@@ -1774,7 +1767,6 @@ class _SavedWordTileState extends ConsumerState<_SavedWordTile> {
         word: word.word,
         preferredSourceId: AiDictionarySource.sourceId,
         audioItemId: word.audioItemId,
-        sentenceIndex: word.sentenceIndex,
         sentenceText: word.sentenceText,
         sentenceStartMs: word.sentenceStartMs,
         sentenceEndMs: word.sentenceEndMs,
@@ -1802,7 +1794,6 @@ class _SavedWordTileState extends ConsumerState<_SavedWordTile> {
       ref,
       key: key,
       audioItemId: word.audioItemId,
-      sentenceIndex: word.sentenceIndex,
       sentenceText: word.sentenceText,
       sentenceStartMs: word.sentenceStartMs,
       sentenceEndMs: word.sentenceEndMs,

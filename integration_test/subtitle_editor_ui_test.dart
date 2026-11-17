@@ -33,8 +33,11 @@ import 'package:echo_loop/models/sentence.dart';
 import 'package:echo_loop/models/word_timestamp.dart';
 import 'package:echo_loop/providers/audio_engine/audio_engine_provider.dart';
 import 'package:echo_loop/providers/audio_library_provider.dart';
+import 'package:echo_loop/providers/favorite_sentence_lifecycle_provider.dart';
+import 'package:echo_loop/providers/learning_progress_provider.dart';
 import 'package:echo_loop/services/app_logger.dart';
 import 'package:echo_loop/services/media_kit_player_backend.dart';
+import 'package:echo_loop/services/source_sentence_anchor.dart';
 import 'package:echo_loop/providers/media_engine/media_engine_provider.dart';
 import 'package:echo_loop/services/subtitle_parser.dart';
 import 'package:echo_loop/utils/app_data_dir.dart';
@@ -50,7 +53,7 @@ import 'package:just_audio/just_audio.dart' as ja;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:window_manager/window_manager.dart';
 
-import '../test/helpers/shared/test_fixtures.dart';
+import '../test/helpers/mock_providers.dart';
 import '../test/helpers/test_app.dart';
 
 const _captureKey = ValueKey('subtitle-editor-capture');
@@ -1004,6 +1007,187 @@ void main() {
     await tester.tap(addButton);
     await h.settle(const Duration(milliseconds: 500));
     await h.capture('35-phone-dark-new-sentence-draft');
+    await h.closeEditor();
+  });
+
+  testWidgets('保存字幕：收藏句、收藏词与学习进度按时间保留，不再弹窗清空', (tester) async {
+    final h = await createHarness(tester);
+    const desktop = Size(1280, 800);
+    const audioId = 'lesson-audio';
+    final original = h.sentences;
+    final dao = database.audioItemDao;
+    final demoSrt = await rootBundle.loadString('assets/demo/$_demoName.srt');
+
+    // 独立容器写入学习数据：与编辑页共用同一个数据库，走真实收藏生命周期
+    // （含 FSRS 调度）与学习进度持久化。
+    final seed = ProviderContainer(
+      overrides: dedupeOverrides([
+        appDatabaseProvider.overrideWithValue(database),
+        sharedPreferencesProvider.overrideWithValue(h.preferences),
+        analyticsOverride(),
+        notificationPermissionOverride(),
+        ...learningSettingsOverrides(prefs: h.preferences),
+      ]),
+    );
+    addTearDown(seed.dispose);
+    final savedWord = original[5].text.split(' ')[3].toLowerCase();
+    await tester.runAsync(() async {
+      await dao.updateTranscriptSrt(audioId, demoSrt);
+      final lifecycle = seed.read(favoriteSentenceLifecycleProvider);
+      for (final index in [1, 2, 3, 4]) {
+        await lifecycle.save(audioId, original[index]);
+      }
+      await database.savedWordDao.saveWord(
+        word: savedWord,
+        audioItemId: audioId,
+        sentenceText: original[5].text,
+        sentenceStartMs: original[5].startTime.inMilliseconds,
+        sentenceEndMs: original[5].endTime.inMilliseconds,
+      );
+      final progress = seed.read(learningProgressProvider.notifier);
+      await progress.ensureProgress(audioId);
+      await progress.saveBlindListenSentenceIndex(
+        audioId,
+        5,
+        isFreePlay: false,
+      );
+      await progress.saveIntensiveListenSentenceIndex(
+        audioId,
+        4,
+        isFreePlay: false,
+      );
+      await progress.saveShadowingSentenceIndex(audioId, 1, isFreePlay: false);
+    });
+    final progressBefore = (await tester.runAsync(
+      () => database.learningProgressDao.getByAudioId(audioId),
+    ))!;
+    final subjectIds = (await tester.runAsync(
+      () => database.bookmarkDao.getByAudioId(audioId),
+    ))!.map((b) => b.memorySubjectId!).toSet();
+    expect(subjectIds, hasLength(4));
+
+    await h.resize(desktop);
+    await h.openEditor(id: audioId, path: 'lesson.m4a');
+    final controller = h.editorController();
+    final editorState = h.editorState;
+
+    // 原 S0..S5：拆分 S0、改 S1 的字、合并 S3+S4、删除 S2。
+    controller.selectSentence(0);
+    controller.splitSentenceAtWord(5);
+    final fixedText = original[1].text.replaceFirst('9', 'nine');
+    controller.editSentenceText(2, fixedText);
+    controller.mergeWithNext(4);
+    controller.deleteSentence(3);
+    await h.settle();
+    expect(editorState().sentences, hasLength(5));
+    await h.capture('40-desktop-structure-edited');
+
+    // ⌘S 保存：直接保存，不再弹出「会清除学习进度和收藏」的确认框。
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.metaLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyS);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.metaLeft);
+    await h.settle();
+    expect(find.byType(AlertDialog), findsNothing);
+    await h.waitUntil(() => !editorState().isDirty, '⌘S 应直接保存');
+    expect(find.text('Subtitle changes saved.'), findsOneWidget);
+    await h.capture('41-desktop-saved-without-confirm');
+
+    final saved = (await tester.runAsync(() async {
+      final srt = await dao.getTranscriptSrt(audioId);
+      return SubtitleParser.parseSubtitleString(srt!);
+    }))!;
+    expect(saved.map((s) => s.text).toList(), [
+      editorState().sentences[0].text,
+      editorState().sentences[1].text,
+      fixedText,
+      '${original[3].text} ${original[4].text}',
+      original[5].text,
+    ]);
+
+    // 收藏句：内容与区间一律不改；按区间定位：S1 → 2，S3、S4 → 合并句 3，
+    // S2 已删除不计入。
+    final bookmarks = (await tester.runAsync(
+      () => database.bookmarkDao.getByAudioId(audioId),
+    ))!;
+    expect(bookmarks, hasLength(4), reason: '收藏一条都不丢');
+    expect(
+      await tester.runAsync(
+        () => database.bookmarkDao.getBookmarkedIndices(audioId),
+      ),
+      {2, 3},
+    );
+    final byStart = {for (final b in bookmarks) b.startTime: b};
+    double secondsOf(Sentence s) => s.startTime.inMilliseconds / 1000.0;
+    for (final index in [1, 2, 3, 4]) {
+      final bookmark = byStart[secondsOf(original[index])]!;
+      expect(bookmark.sentenceText, original[index].text, reason: '收藏文字不改');
+      expect(
+        bookmark.endTime,
+        original[index].endTime.inMilliseconds / 1000.0,
+        reason: '收藏区间不改',
+      );
+    }
+    final schedules = (await tester.runAsync(
+      () => (database.select(
+        database.memorySchedules,
+      )..where((t) => t.subjectId.isIn(subjectIds))).get(),
+    ))!;
+    expect(schedules.map((s) => s.status).toList(), List.filled(4, 'active'));
+
+    // 收藏词：来源句信息不改，按区间定位到新字幕第 4 句（S5）。
+    final words = (await tester.runAsync(
+      () => database.savedWordDao.getByAudioId(audioId),
+    ))!;
+    expect(words.single.word, savedWord);
+    expect(words.single.sentenceText, original[5].text);
+    expect(
+      resolveSourceSentenceIndex(
+        SourceSentenceAnchor.fromMilliseconds(
+          startMs: words.single.sentenceStartMs,
+          endMs: words.single.sentenceEndMs,
+        ),
+        saved,
+      ),
+      4,
+    );
+
+    // 学习进度：阶段不变，盲听 S5 → 4、精听 S4 → 合并句 3，难句跟读位置清除。
+    final progressAfter = (await tester.runAsync(
+      () => database.learningProgressDao.getByAudioId(audioId),
+    ))!;
+    expect(progressAfter.currentStage, progressBefore.currentStage);
+    expect(progressAfter.currentSubStage, progressBefore.currentSubStage);
+    expect(progressAfter.blindListenSentenceIndex, 4);
+    expect(progressAfter.intensiveListenSentenceIndex, 3);
+    expect(progressAfter.shadowingSentenceIndex, isNull);
+
+    // 用编辑前的旧句子取消收藏（模拟仍持有旧列表的页面）：旧 S4 的旧编号 4 在新字幕
+    // 中是 S5，但按时间它属于合并句 3；只取消合并句上的收藏（S3、S4 两条）。
+    await tester.runAsync(
+      () => seed
+          .read(favoriteSentenceLifecycleProvider)
+          .remove(audioId, original[4]),
+    );
+    expect(
+      await tester.runAsync(
+        () => database.bookmarkDao.getBookmarkedIndices(audioId),
+      ),
+      {2},
+    );
+    final activeAfterRemove = (await tester.runAsync(
+      () => database.bookmarkDao.getByAudioId(audioId),
+    ))!;
+    expect(activeAfterRemove.map((b) => b.startTime).toSet(), {
+      secondsOf(original[1]),
+      secondsOf(original[2]),
+    }, reason: 'S1 与来源句已删除的 S2 不受影响');
+    await h.closeEditor();
+
+    // 重新打开：编辑结果即保存内容。
+    await h.openEditor(id: audioId, path: 'lesson.m4a');
+    expect(editorState().sentences.map((s) => s.text).toList()[2], fixedText);
+    expect(editorState().isDirty, isFalse);
+    await h.capture('42-desktop-reopened-after-sync');
     await h.closeEditor();
   });
 }

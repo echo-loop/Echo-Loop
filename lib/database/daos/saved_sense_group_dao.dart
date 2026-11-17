@@ -40,7 +40,7 @@ class SavedSenseGroupDao extends DatabaseAccessor<AppDatabase>
     savedSenseGroups,
   )..where((t) => t.phraseText.equals(phraseText))).getSingleOrNull();
 
-  /// 获取指定音频关联的未删除收藏意群（按来源句子索引升序）
+  /// 获取指定音频关联的未删除收藏意群（按来源句时间升序）
   ///
   /// 用于学习材料导出 PDF 时将收藏意群归到所属句子。
   Future<List<SavedSenseGroup>> getByAudioId(String audioItemId) {
@@ -48,7 +48,7 @@ class SavedSenseGroupDao extends DatabaseAccessor<AppDatabase>
           ..where(
             (t) => t.audioItemId.equals(audioItemId) & t.deletedAt.isNull(),
           )
-          ..orderBy([(t) => OrderingTerm.asc(t.sentenceIndex)]))
+          ..orderBy([(t) => OrderingTerm.asc(t.sentenceStartMs)]))
         .get();
   }
 
@@ -60,7 +60,6 @@ class SavedSenseGroupDao extends DatabaseAccessor<AppDatabase>
     required String phraseText,
     required String displayText,
     String? audioItemId,
-    int? sentenceIndex,
     String? sentenceText,
     int? sentenceStartMs,
     int? sentenceEndMs,
@@ -74,7 +73,6 @@ class SavedSenseGroupDao extends DatabaseAccessor<AppDatabase>
         memorySubjectId: Value(const Uuid().v4()),
         displayText: Value(displayText),
         audioItemId: Value(audioItemId),
-        sentenceIndex: Value(sentenceIndex),
         sentenceText: Value(sentenceText),
         sentenceStartMs: Value(sentenceStartMs),
         sentenceEndMs: Value(sentenceEndMs),
@@ -191,7 +189,6 @@ class SavedSenseGroupDao extends DatabaseAccessor<AppDatabase>
       savedSenseGroups,
     )..where((t) => t.audioItemId.isIn(audioItemIds))).write(
       const SavedSenseGroupsCompanion(
-        sentenceIndex: Value(null),
         sentenceText: Value(null),
         sentenceStartMs: Value(null),
         sentenceEndMs: Value(null),

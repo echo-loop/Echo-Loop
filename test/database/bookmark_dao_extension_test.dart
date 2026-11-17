@@ -53,7 +53,6 @@ void main() {
       await db.bookmarkDao.addBookmark(
         BookmarksCompanion(
           audioItemId: const Value('audio-1'),
-          sentenceIndex: const Value(0),
           sentenceText: const Value('Hello world'),
           startTime: const Value(0.0),
           endTime: const Value(3.5),
@@ -74,7 +73,6 @@ void main() {
       await db.bookmarkDao.addBookmark(
         BookmarksCompanion(
           audioItemId: const Value('audio-2'),
-          sentenceIndex: const Value(0),
           sentenceText: const Value('TED sentence 1'),
           startTime: const Value(0.0),
           endTime: const Value(2.0),
@@ -86,7 +84,6 @@ void main() {
       await db.bookmarkDao.addBookmark(
         BookmarksCompanion(
           audioItemId: const Value('audio-1'),
-          sentenceIndex: const Value(2),
           sentenceText: const Value('Podcast sentence 3'),
           startTime: const Value(5.0),
           endTime: const Value(8.0),
@@ -97,7 +94,6 @@ void main() {
       await db.bookmarkDao.addBookmark(
         BookmarksCompanion(
           audioItemId: const Value('audio-1'),
-          sentenceIndex: const Value(0),
           sentenceText: const Value('Podcast sentence 1'),
           startTime: const Value(0.0),
           endTime: const Value(3.0),
@@ -110,9 +106,9 @@ void main() {
       expect(results.length, 3);
       // English Podcast 先于 TED Talk（按名称排序）
       expect(results[0].audioName, 'English Podcast');
-      expect(results[0].bookmark.sentenceIndex, 0);
+      expect(results[0].bookmark.sentenceText, 'Podcast sentence 1');
       expect(results[1].audioName, 'English Podcast');
-      expect(results[1].bookmark.sentenceIndex, 2);
+      expect(results[1].bookmark.sentenceText, 'Podcast sentence 3');
       expect(results[2].audioName, 'TED Talk');
     });
 
@@ -121,7 +117,6 @@ void main() {
       await db.bookmarkDao.addBookmark(
         BookmarksCompanion(
           audioItemId: const Value('audio-1'),
-          sentenceIndex: const Value(0),
           sentenceText: const Value('Active bookmark'),
           startTime: const Value(0.0),
           endTime: const Value(3.0),
@@ -136,7 +131,6 @@ void main() {
           .insert(
             BookmarksCompanion(
               audioItemId: const Value('audio-1'),
-              sentenceIndex: const Value(1),
               sentenceText: const Value('Deleted bookmark'),
               startTime: const Value(3.0),
               endTime: const Value(6.0),
@@ -156,7 +150,6 @@ void main() {
       await db.bookmarkDao.addBookmark(
         BookmarksCompanion(
           audioItemId: const Value('audio-1'),
-          sentenceIndex: const Value(0),
           sentenceText: const Value('Will be cascaded'),
           startTime: const Value(0.0),
           endTime: const Value(3.0),

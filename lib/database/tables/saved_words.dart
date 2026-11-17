@@ -25,9 +25,6 @@ class SavedWords extends Table {
     onDelete: KeyAction.setNull,
   )();
 
-  /// 来源句子索引
-  IntColumn get sentenceIndex => integer().nullable()();
-
   /// 来源句子文本（冗余存储，防止索引错位或音频删除后丢失上下文）
   TextColumn get sentenceText => text().nullable()();
 

@@ -240,7 +240,6 @@ SavedWord _word(
   int id,
   String word, {
   String? audioItemId,
-  int? sentenceIndex,
   String? sentenceText,
   int? sentenceStartMs,
   int? sentenceEndMs,
@@ -248,7 +247,6 @@ SavedWord _word(
   id: id,
   word: word,
   audioItemId: audioItemId,
-  sentenceIndex: sentenceIndex,
   sentenceText: sentenceText,
   sentenceStartMs: sentenceStartMs,
   sentenceEndMs: sentenceEndMs,
@@ -274,7 +272,6 @@ SavedSenseGroup _phrase(
   phraseText: display.toLowerCase(),
   displayText: display,
   audioItemId: audioItemId,
-  sentenceIndex: null,
   sentenceText: sentenceText,
   sentenceStartMs: sentenceStartMs,
   sentenceEndMs: sentenceEndMs,

@@ -178,7 +178,6 @@ Future<void> _bookmark(
       BookmarksCompanion.insert(
         memorySubjectId: Value(subjectId),
         audioItemId: audioId,
-        sentenceIndex: index,
         sentenceText: text,
         startTime: 0,
         endTime: end,

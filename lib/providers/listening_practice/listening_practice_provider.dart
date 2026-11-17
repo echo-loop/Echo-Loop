@@ -1,6 +1,8 @@
 import 'dart:async';
+
 import 'package:just_audio/just_audio.dart' as ja;
 import 'package:riverpod_annotation/riverpod_annotation.dart';
+
 import '../../analytics/analytics_providers.dart';
 import '../../analytics/models/event_names.dart';
 import '../../features/usage/usage_event.dart';
@@ -1585,11 +1587,7 @@ class ListeningPractice extends _$ListeningPractice {
   }
 
   Future<void> toggleBookmark(int index) async {
-    final (
-      isRemoving,
-      indicesToRemove,
-      replacementIndex,
-    ) = BookmarkManager.toggleBookmark(
+    final (isRemoving, replacementIndex) = BookmarkManager.toggleBookmark(
       index,
       state.sentences,
       state.bookmarkedIndices,
@@ -1637,14 +1635,11 @@ class ListeningPractice extends _$ListeningPractice {
     var newBookmarks = Set<int>.from(state.bookmarkedIndices);
     var newSentences = List<Sentence>.from(state.sentences);
 
+    // 取消前先取出这一句：取消后列表中的收藏态会被改写。
+    final sentence = state.sentences[index];
     if (isRemoving) {
-      final toRemove = indicesToRemove.isEmpty ? {index} : indicesToRemove;
-      for (final idx in toRemove) {
-        newBookmarks.remove(idx);
-        if (idx >= 0 && idx < newSentences.length) {
-          newSentences[idx] = newSentences[idx].copyWith(isBookmarked: false);
-        }
-      }
+      newBookmarks.remove(index);
+      newSentences[index] = newSentences[index].copyWith(isBookmarked: false);
 
       if (inBookmarksMode) {
         if (replacementIndex != null &&
@@ -1682,11 +1677,11 @@ class ListeningPractice extends _$ListeningPractice {
       if (isRemoving) {
         await ref
             .read(favoriteSentenceLifecycleProvider)
-            .remove(state.currentAudioItem!.id, indicesToRemove);
+            .remove(state.currentAudioItem!.id, sentence);
       } else {
         await ref
             .read(favoriteSentenceLifecycleProvider)
-            .save(state.currentAudioItem!.id, state.sentences[index]);
+            .save(state.currentAudioItem!.id, sentence);
       }
     }
 

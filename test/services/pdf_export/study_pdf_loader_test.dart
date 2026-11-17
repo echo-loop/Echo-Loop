@@ -7,6 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:echo_loop/database/app_database.dart';
 import 'package:echo_loop/models/dict_entry.dart';
 import 'package:echo_loop/services/pdf_export/study_pdf_loader.dart';
+import 'package:echo_loop/services/subtitle_parser.dart';
 import 'package:echo_loop/utils/text_normalize.dart';
 
 /// 创建内存数据库用于测试
@@ -30,6 +31,18 @@ This is a test.
 00:00:06,500 --> 00:00:09,000
 Goodbye now.
 ''';
+
+/// 收藏只存来源句区间：按测试字幕中该句的时间构造收藏数据。
+Future<(int, int)> _rangeOf(
+  AppDatabase db,
+  String audioItemId,
+  String sentenceText,
+) async {
+  final srt = await db.audioItemDao.getTranscriptSrt(audioItemId);
+  final sentences = await SubtitleParser.parseSubtitleString(srt!);
+  final sentence = sentences.firstWhere((s) => s.text == sentenceText);
+  return (sentence.startTime.inMilliseconds, sentence.endTime.inMilliseconds);
+}
 
 void main() {
   late AppDatabase db;
@@ -134,7 +147,6 @@ void main() {
       await db.bookmarkDao.addBookmark(
         BookmarksCompanion.insert(
           audioItemId: 'audio-1',
-          sentenceIndex: 1,
           sentenceText: 'This is a test.',
           startTime: 3.5,
           endTime: 6.0,
@@ -148,16 +160,15 @@ void main() {
       expect(all.map((s) => s.isBookmarked).toList(), [false, true, false]);
     });
 
-    test('索引错位时按文本兜底匹配', () async {
+    test('按收藏区间定位到所在的句子', () async {
       await insertAudio();
-      // 索引指向第 0 句，文本却是第 2 句 → 应落到第 2 句
+      // 收藏区间 [6.5,9) 落在第 2 句
       await db.bookmarkDao.addBookmark(
         BookmarksCompanion.insert(
           audioItemId: 'audio-1',
-          sentenceIndex: 0,
           sentenceText: 'Goodbye now.',
-          startTime: 0,
-          endTime: 3.0,
+          startTime: 6.5,
+          endTime: 9.0,
           createdAt: DateTime.now(),
           updatedAt: DateTime.now(),
         ),
@@ -168,15 +179,32 @@ void main() {
       expect(all.map((s) => s.isBookmarked).toList(), [false, false, true]);
     });
 
-    test('索引越界且文本不匹配时丢弃', () async {
+    test('无有效时间区间的收藏无法定位，不按文本去字幕里找', () async {
       await insertAudio();
       await db.bookmarkDao.addBookmark(
         BookmarksCompanion.insert(
           audioItemId: 'audio-1',
-          sentenceIndex: 99,
-          sentenceText: 'Not in transcript.',
+          sentenceText: 'Goodbye now.',
           startTime: 0,
-          endTime: 1.0,
+          endTime: 0,
+          createdAt: DateTime.now(),
+          updatedAt: DateTime.now(),
+        ),
+      );
+
+      final doc = await buildLoader().load('audio-1', targetLanguage: 'zh-CN');
+      final all = doc.paragraphs.expand((p) => p).toList();
+      expect(all.every((s) => !s.isBookmarked), isTrue);
+    });
+
+    test('来源句已删除（时间与文本都对不上）时丢弃', () async {
+      await insertAudio();
+      await db.bookmarkDao.addBookmark(
+        BookmarksCompanion.insert(
+          audioItemId: 'audio-1',
+          sentenceText: 'Not in transcript.',
+          startTime: 10.0,
+          endTime: 11.0,
           createdAt: DateTime.now(),
           updatedAt: DateTime.now(),
         ),
@@ -272,8 +300,9 @@ void main() {
       await db.savedWordDao.saveWord(
         word: 'test',
         audioItemId: 'audio-1',
-        sentenceIndex: 1,
         sentenceText: 'This is a test.',
+        sentenceStartMs: (await _rangeOf(db, 'audio-1', 'This is a test.')).$1,
+        sentenceEndMs: (await _rangeOf(db, 'audio-1', 'This is a test.')).$2,
       );
       await db.sentenceAiCacheDao.upsert(
         hashText('test|zh-CN'),
@@ -311,14 +340,16 @@ void main() {
       await db.savedWordDao.saveWord(
         word: 'test',
         audioItemId: 'audio-1',
-        sentenceIndex: 1,
         sentenceText: 'This is a test.',
+        sentenceStartMs: (await _rangeOf(db, 'audio-1', 'This is a test.')).$1,
+        sentenceEndMs: (await _rangeOf(db, 'audio-1', 'This is a test.')).$2,
       );
       await db.savedWordDao.saveWord(
         word: 'unknown',
         audioItemId: 'audio-1',
-        sentenceIndex: 0,
         sentenceText: 'Hello world.',
+        sentenceStartMs: (await _rangeOf(db, 'audio-1', 'Hello world.')).$1,
+        sentenceEndMs: (await _rangeOf(db, 'audio-1', 'Hello world.')).$2,
       );
 
       final doc = await buildLoader().load('audio-1', targetLanguage: 'zh-CN');
@@ -353,8 +384,9 @@ void main() {
       await db.savedWordDao.saveWord(
         word: 'test',
         audioItemId: 'audio-1',
-        sentenceIndex: 1,
         sentenceText: 'This is a test.',
+        sentenceStartMs: (await _rangeOf(db, 'audio-1', 'This is a test.')).$1,
+        sentenceEndMs: (await _rangeOf(db, 'audio-1', 'This is a test.')).$2,
       );
       await db.sentenceAiCacheDao.upsert(
         hashText('test|zh-CN'),
@@ -402,8 +434,13 @@ He sends messages.
       await db.savedWordDao.saveWord(
         word: 'messages',
         audioItemId: 'audio-m',
-        sentenceIndex: 0,
         sentenceText: 'He sends messages.',
+        sentenceStartMs: (await _rangeOf(
+          db,
+          'audio-m',
+          'He sends messages.',
+        )).$1,
+        sentenceEndMs: (await _rangeOf(db, 'audio-m', 'He sends messages.')).$2,
       );
       await db.sentenceAiCacheDao.upsert(
         hashText('messages|zh-CN'),
@@ -448,8 +485,9 @@ Thank you for the birthday card and message. I received it.
         await db.savedWordDao.saveWord(
           word: w,
           audioItemId: 'audio-o',
-          sentenceIndex: 0,
           sentenceText: sentence,
+          sentenceStartMs: (await _rangeOf(db, 'audio-o', sentence)).$1,
+          sentenceEndMs: (await _rangeOf(db, 'audio-o', sentence)).$2,
         );
       }
 
@@ -489,14 +527,16 @@ Come to me now.
       await db.savedWordDao.saveWord(
         word: 'to',
         audioItemId: 'audio-fo',
-        sentenceIndex: 2,
         sentenceText: 'Come to me now.',
+        sentenceStartMs: (await _rangeOf(db, 'audio-fo', 'Come to me now.')).$1,
+        sentenceEndMs: (await _rangeOf(db, 'audio-fo', 'Come to me now.')).$2,
       );
       await db.savedWordDao.saveWord(
         word: 'now',
         audioItemId: 'audio-fo',
-        sentenceIndex: 2,
         sentenceText: 'Come to me now.',
+        sentenceStartMs: (await _rangeOf(db, 'audio-fo', 'Come to me now.')).$1,
+        sentenceEndMs: (await _rangeOf(db, 'audio-fo', 'Come to me now.')).$2,
       );
 
       final doc = await buildLoader(
@@ -528,8 +568,17 @@ That's so nice of you.
       await db.savedWordDao.saveWord(
         word: 'you',
         audioItemId: 'audio-g',
-        sentenceIndex: 0,
         sentenceText: 'Thank you for the message.',
+        sentenceStartMs: (await _rangeOf(
+          db,
+          'audio-g',
+          'Thank you for the message.',
+        )).$1,
+        sentenceEndMs: (await _rangeOf(
+          db,
+          'audio-g',
+          'Thank you for the message.',
+        )).$2,
       );
 
       final doc = await buildLoader(
@@ -551,8 +600,9 @@ That's so nice of you.
       await db.savedWordDao.saveWord(
         word: 'test',
         audioItemId: 'audio-1',
-        sentenceIndex: 1,
         sentenceText: 'This is a test.',
+        sentenceStartMs: (await _rangeOf(db, 'audio-1', 'This is a test.')).$1,
+        sentenceEndMs: (await _rangeOf(db, 'audio-1', 'This is a test.')).$2,
       );
 
       final doc = await buildLoader(
@@ -574,15 +624,17 @@ That's so nice of you.
       await db.savedWordDao.saveWord(
         word: 'world',
         audioItemId: 'audio-1',
-        sentenceIndex: 0,
         sentenceText: 'Hello world.',
+        sentenceStartMs: (await _rangeOf(db, 'audio-1', 'Hello world.')).$1,
+        sentenceEndMs: (await _rangeOf(db, 'audio-1', 'Hello world.')).$2,
       );
       await db.savedSenseGroupDao.saveSenseGroup(
         phraseText: 'hello world',
         displayText: 'Hello world',
         audioItemId: 'audio-1',
-        sentenceIndex: 0,
         sentenceText: 'Hello world.',
+        sentenceStartMs: (await _rangeOf(db, 'audio-1', 'Hello world.')).$1,
+        sentenceEndMs: (await _rangeOf(db, 'audio-1', 'Hello world.')).$2,
       );
       await db.sentenceAiCacheDao.upsert(
         hashText('hello world|zh-CN'),
@@ -618,15 +670,17 @@ That's so nice of you.
       await db.savedWordDao.saveWord(
         word: 'test',
         audioItemId: 'audio-1',
-        sentenceIndex: 1,
         sentenceText: 'This is a test.',
+        sentenceStartMs: (await _rangeOf(db, 'audio-1', 'This is a test.')).$1,
+        sentenceEndMs: (await _rangeOf(db, 'audio-1', 'This is a test.')).$2,
       );
       await db.savedSenseGroupDao.saveSenseGroup(
         phraseText: 'hello world',
         displayText: 'Hello world',
         audioItemId: 'audio-1',
-        sentenceIndex: 0,
         sentenceText: 'Hello world.',
+        sentenceStartMs: (await _rangeOf(db, 'audio-1', 'Hello world.')).$1,
+        sentenceEndMs: (await _rangeOf(db, 'audio-1', 'Hello world.')).$2,
       );
 
       final doc = await buildLoader().load('audio-1', targetLanguage: 'zh-CN');
@@ -646,8 +700,9 @@ That's so nice of you.
       await db.savedWordDao.saveWord(
         word: 'other',
         audioItemId: 'audio-2',
-        sentenceIndex: 0,
         sentenceText: 'Hello world.',
+        sentenceStartMs: (await _rangeOf(db, 'audio-2', 'Hello world.')).$1,
+        sentenceEndMs: (await _rangeOf(db, 'audio-2', 'Hello world.')).$2,
       );
 
       final doc = await buildLoader().load('audio-1', targetLanguage: 'zh-CN');

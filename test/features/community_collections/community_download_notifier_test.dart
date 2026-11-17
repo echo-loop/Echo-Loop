@@ -15,6 +15,8 @@ import 'package:echo_loop/features/user_region/user_region_providers.dart';
 import 'package:echo_loop/providers/audio_library_provider.dart';
 import 'package:echo_loop/providers/collection_provider.dart';
 import 'package:echo_loop/providers/download_provider.dart';
+import 'package:echo_loop/providers/transcript_change_sync_provider.dart';
+import 'package:echo_loop/models/sentence.dart';
 import 'package:echo_loop/services/background_file_download_service.dart';
 import 'package:echo_loop/services/resource_download_registry.dart';
 import 'package:echo_loop/utils/app_data_dir.dart';
@@ -22,7 +24,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../../helpers/mock_providers.dart';
-import 'package:echo_loop/database/app_database.dart' show configureAppDatabaseConnection;
+
+import 'package:echo_loop/database/app_database.dart'
+    show configureAppDatabaseConnection;
 
 class _MissingFileApi extends CommunityCollectionApi {
   _MissingFileApi() : super.withDio(Dio());
@@ -71,6 +75,20 @@ class _AvailableFileApi extends CommunityCollectionApi {
         words: [],
       ),
     );
+  }
+}
+
+/// 学习进度同步失败，验证换字幕与同步在同一事务中回滚。
+class _FailingTranscriptSync extends TranscriptChangeSync {
+  _FailingTranscriptSync(super.ref);
+
+  @override
+  Future<void> apply(
+    String audioItemId, {
+    required List<Sentence> oldSentences,
+    required List<Sentence> newSentences,
+  }) async {
+    throw StateError('sync failed');
   }
 }
 
@@ -175,7 +193,9 @@ Future<void> _until(bool Function() condition) async {
 
 void main() {
   test('远端文件消失时下载不会永久停留在进行中', () async {
-    final database = db.AppDatabase(NativeDatabase.memory(setup: configureAppDatabaseConnection));
+    final database = db.AppDatabase(
+      NativeDatabase.memory(setup: configureAppDatabaseConnection),
+    );
     final dataDirectory = await Directory.systemTemp.createTemp(
       'community-download-',
     );
@@ -242,8 +262,178 @@ void main() {
     );
   });
 
+  test('社区字幕更新的学习进度同步失败时，新字幕一起回滚', () async {
+    final database = db.AppDatabase(
+      NativeDatabase.memory(setup: configureAppDatabaseConnection),
+    );
+    final now = DateTime(2026, 1, 1);
+    const oldSrt = '1\n00:00:00,000 --> 00:00:02,000\nHelo world\n';
+    await database.collectionDao.upsert(
+      db.CollectionsCompanion(
+        id: const Value('collection-1'),
+        name: const Value('Community'),
+        createdDate: Value(now),
+        updatedAt: Value(now),
+        source: const Value('community'),
+        remoteId: const Value('remote-1'),
+      ),
+    );
+    await database.audioItemDao.upsert(
+      db.AudioItemsCompanion(
+        id: const Value('audio-1'),
+        name: const Value('Episode'),
+        addedDate: Value(now),
+        updatedAt: Value(now),
+        remoteAudioId: const Value('file-1'),
+        transcriptSrt: const Value(oldSrt),
+      ),
+    );
+    await database
+        .into(database.collectionAudioItems)
+        .insert(
+          db.CollectionAudioItemsCompanion(
+            collectionId: const Value('collection-1'),
+            audioItemId: const Value('audio-1'),
+            addedAt: Value(now),
+          ),
+        );
+    await database.bookmarkDao.addBookmark(
+      db.BookmarksCompanion.insert(
+        memorySubjectId: const Value('subject-0'),
+        audioItemId: 'audio-1',
+        sentenceText: 'Helo world',
+        startTime: 0,
+        endTime: 2,
+        createdAt: now,
+        updatedAt: now,
+      ),
+    );
+    final container = ProviderContainer(
+      overrides: dedupeOverrides([
+        appDatabaseProvider.overrideWithValue(database),
+        communityCollectionApiProvider.overrideWithValue(_AvailableFileApi()),
+        audioLibraryProvider.overrideWith(() => TestAudioLibrary()),
+        collectionListProvider.overrideWith(() => TestCollectionList()),
+        transcriptChangeSyncProvider.overrideWith(_FailingTranscriptSync.new),
+      ]),
+    );
+    addTearDown(() async {
+      container.dispose();
+      await database.close();
+    });
+
+    await expectLater(
+      container
+          .read(communityDownloadProvider.notifier)
+          .updateTranscript(audioItemId: 'audio-1'),
+      throwsStateError,
+    );
+
+    expect(await database.audioItemDao.getTranscriptSrt('audio-1'), oldSrt);
+    final bookmark = (await database.bookmarkDao.getByAudioId('audio-1'))
+        .single;
+    expect(bookmark.sentenceText, 'Helo world');
+  });
+
+  test('社区字幕更新后保留收藏句与学习进度，并按时间同步', () async {
+    final database = db.AppDatabase(
+      NativeDatabase.memory(setup: configureAppDatabaseConnection),
+    );
+    final now = DateTime(2026, 1, 1);
+    await database.collectionDao.upsert(
+      db.CollectionsCompanion(
+        id: const Value('collection-1'),
+        name: const Value('Community'),
+        createdDate: Value(now),
+        updatedAt: Value(now),
+        source: const Value('community'),
+        remoteId: const Value('remote-1'),
+      ),
+    );
+    // 旧字幕：第 0 句有错字，第 1 句在新字幕中不存在。
+    await database.audioItemDao.upsert(
+      db.AudioItemsCompanion(
+        id: const Value('audio-1'),
+        name: const Value('Episode'),
+        addedDate: Value(now),
+        updatedAt: Value(now),
+        remoteAudioId: const Value('file-1'),
+        transcriptSrt: const Value(
+          '1\n00:00:00,000 --> 00:00:02,000\nHelo world\n\n'
+          '2\n00:00:02,000 --> 00:00:04,000\nBye\n',
+        ),
+      ),
+    );
+    await database
+        .into(database.collectionAudioItems)
+        .insert(
+          db.CollectionAudioItemsCompanion(
+            collectionId: const Value('collection-1'),
+            audioItemId: const Value('audio-1'),
+            addedAt: Value(now),
+          ),
+        );
+    for (final (index, text, start, end) in [
+      (0, 'Helo world', 0.0, 2.0),
+      (1, 'Bye', 2.0, 4.0),
+    ]) {
+      await database.bookmarkDao.addBookmark(
+        db.BookmarksCompanion.insert(
+          memorySubjectId: Value('subject-$index'),
+          audioItemId: 'audio-1',
+          sentenceText: text,
+          startTime: start,
+          endTime: end,
+          createdAt: now,
+          updatedAt: now,
+        ),
+      );
+    }
+    await database.learningProgressDao.upsert(
+      db.LearningProgressesCompanion(
+        audioItemId: const Value('audio-1'),
+        currentStage: const Value('firstLearn'),
+        currentSubStage: const Value('listenAndRepeat'),
+        intensiveListenSentenceIndex: const Value(0),
+        updatedAt: Value(now),
+      ),
+    );
+
+    final container = ProviderContainer(
+      overrides: dedupeOverrides([
+        appDatabaseProvider.overrideWithValue(database),
+        communityCollectionApiProvider.overrideWithValue(_AvailableFileApi()),
+        audioLibraryProvider.overrideWith(() => TestAudioLibrary()),
+        collectionListProvider.overrideWith(() => TestCollectionList()),
+        analyticsOverride(),
+        notificationPermissionOverride(),
+        ...learningSettingsOverrides(),
+      ]),
+    );
+    addTearDown(() async {
+      container.dispose();
+      await database.close();
+    });
+
+    final result = await container
+        .read(communityDownloadProvider.notifier)
+        .updateTranscript(audioItemId: 'audio-1');
+
+    expect(result, SubtitleUpdateResult.updated);
+    final bookmarks = await database.bookmarkDao.getByAudioId('audio-1');
+    expect(bookmarks, hasLength(2), reason: '换字幕不清空收藏');
+    expect(bookmarks.first.sentenceText, 'Helo world', reason: '收藏文字不随字幕改');
+    expect(await database.bookmarkDao.getBookmarkedIndices('audio-1'), {0});
+    final progress = await database.learningProgressDao.getByAudioId('audio-1');
+    expect(progress, isNotNull, reason: '换字幕不清空学习进度');
+    expect(progress!.currentSubStage, 'listenAndRepeat');
+    expect(progress.intensiveListenSentenceIndex, 0);
+  });
+
   test('文件大小元数据不准仍完成下载，且详情排序不覆盖合集排序', () async {
-    final database = db.AppDatabase(NativeDatabase.memory(setup: configureAppDatabaseConnection));
+    final database = db.AppDatabase(
+      NativeDatabase.memory(setup: configureAppDatabaseConnection),
+    );
     final dataDirectory = await Directory.systemTemp.createTemp(
       'community-download-success-',
     );

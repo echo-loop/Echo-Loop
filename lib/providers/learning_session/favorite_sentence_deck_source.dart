@@ -63,8 +63,10 @@ final class FavoriteSentenceDeckSource
   BookmarkSentence _toCard(DueFavoriteSentenceRow item) {
     final subjectId = item.schedule.subjectId;
     return BookmarkSentence(
+      // 收藏不存句子编号：卡片句子不对应当前字幕的某一句，编号记为 -1；需要前后句
+      // 时用 sourceSentenceIndexProvider 按收藏区间现算。
       sentence: Sentence(
-        index: item.bookmark.sentenceIndex,
+        index: -1,
         text: item.bookmark.sentenceText,
         startTime: Duration(
           milliseconds: (item.bookmark.startTime * 1000).round(),
@@ -74,7 +76,6 @@ final class FavoriteSentenceDeckSource
       ),
       audioItemId: item.bookmark.audioItemId,
       audioName: item.audioName,
-      originalSentenceIndex: item.bookmark.sentenceIndex,
       memorySubjectId: subjectId,
     );
   }

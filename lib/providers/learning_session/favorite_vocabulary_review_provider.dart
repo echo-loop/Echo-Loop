@@ -404,7 +404,6 @@ class FavoriteVocabularyReview extends _$FavoriteVocabularyReview {
       try {
         final result = await player.play(
           audioItemId: card.audioItemId,
-          sentenceIndex: card.sentenceIndex,
           sentenceText: sentenceText,
           sentenceStartMs: card.sentenceStartMs,
           sentenceEndMs: card.sentenceEndMs,
