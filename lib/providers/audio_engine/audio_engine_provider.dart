@@ -1,7 +1,9 @@
 import 'dart:async';
 import 'dart:io';
+
 import 'package:just_audio/just_audio.dart' as ja;
 import 'package:riverpod_annotation/riverpod_annotation.dart';
+
 import '../../database/providers.dart';
 import '../../database/app_database.dart' as db;
 import '../../models/audio_engine_state.dart';
@@ -10,7 +12,7 @@ import '../../models/sentence.dart';
 import '../../models/word_highlight_binding.dart';
 import '../../services/app_logger.dart';
 import '../../services/background_audio_handler.dart';
-import '../../services/subtitle_parser.dart';
+import '../../services/transcript_sentences_loader.dart';
 import '../../services/word_highlight_playback_status_tracker.dart';
 
 part 'audio_engine_provider.g.dart';
@@ -280,30 +282,11 @@ class AudioEngine extends _$AudioEngine {
   /// 字幕内容唯一真相源是 DB 的 transcript_srt 列。优先读列；列为空且存在遗留文件
   /// 路径时读文件作防御兜底（全量 backfill 后正常不会触发），并顺手回填列。
   Future<List<Sentence>> loadTranscript(AudioItem audioItem) async {
-    if (!audioItem.hasTranscript) {
-      return [];
-    }
-
     try {
-      final dao = ref.read(audioItemDaoProvider);
-      final srt = await dao.getTranscriptSrt(audioItem.id);
-      if (srt != null && srt.isNotEmpty) {
-        return await SubtitleParser.parseSubtitleString(srt);
-      }
-
-      // 防御兜底：列空但有遗留文件 → 读文件并回填列。
-      final fullTranscriptPath = await audioItem.getFullTranscriptPath();
-      if (fullTranscriptPath != null) {
-        final file = File(fullTranscriptPath);
-        if (await file.exists()) {
-          final content = await file.readAsString();
-          if (content.isNotEmpty) {
-            await dao.updateTranscriptSrt(audioItem.id, content);
-            return await SubtitleParser.parseSubtitleString(content);
-          }
-        }
-      }
-      return [];
+      return await loadTranscriptSentences(
+        ref.read(audioItemDaoProvider),
+        audioItem,
+      );
     } catch (e) {
       AppLogger.log('Player', '✗ loadTranscript 失败: $e');
       return [];

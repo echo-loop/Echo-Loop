@@ -4,34 +4,13 @@ import 'dart:math';
 import 'package:echo_loop/database/providers.dart';
 import 'package:echo_loop/features/subtitle_editor/subtitle_edit_engine.dart';
 import 'package:echo_loop/features/subtitle_editor/subtitle_editor_controller.dart';
-import 'package:echo_loop/models/audio_item.dart';
-import 'package:echo_loop/models/sentence.dart';
 import 'package:echo_loop/models/word_timestamp.dart';
-import 'package:echo_loop/providers/audio_engine/audio_engine_provider.dart';
 import 'package:echo_loop/services/subtitle_parser.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../../helpers/mock_providers.dart';
-
-/// 返回示例材料字幕、不真正播放的音频引擎。
-class _DemoAudioEngine extends FakeAudioEngine {
-  _DemoAudioEngine(this._sentences, this._duration);
-
-  final List<Sentence> _sentences;
-  final Duration _duration;
-
-  @override
-  Future<Duration?> loadAudio(
-    AudioItem item,
-    double speed, {
-    String? subtitle,
-  }) async => _duration;
-
-  @override
-  Future<List<Sentence>> loadTranscript(AudioItem audioItem) async =>
-      _sentences;
-}
+import 'subtitle_editor_test_support.dart';
 
 /// 字幕与词级时间的不变量：任何编辑序列之后都必须成立，否则保存出的字幕或
 /// 词级时间就是错的。
@@ -109,14 +88,14 @@ void main() {
       );
       final duration = sentences.last.endTime + const Duration(seconds: 3);
       final item = createTestAudioItem(totalDuration: duration.inSeconds + 1);
+      await useTemporaryAppDataDirectory();
       final dao = TestAudioItemDao();
+      dao.transcriptSrtStore[item.id] = File('$demo.srt').readAsStringSync();
       dao.wordTimestampsStore[item.id] = File('$demo.words.json')
           .readAsStringSync();
       final container = ProviderContainer(
         overrides: dedupeOverrides([
-          audioEngineProvider.overrideWith(
-            () => _DemoAudioEngine(sentences, duration),
-          ),
+          ...subtitleEditorPlaybackOverrides(RangeRecordingBackend(duration)),
           audioItemDaoProvider.overrideWithValue(dao),
         ]),
       );

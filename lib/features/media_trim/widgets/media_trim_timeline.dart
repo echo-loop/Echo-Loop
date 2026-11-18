@@ -6,10 +6,9 @@ import 'package:flutter/physics.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:just_waveform/just_waveform.dart';
 
 import '../../../l10n/app_localizations.dart';
-import '../../../utils/waveform_samples.dart';
+import '../../../utils/waveform_peaks.dart';
 import '../media_trim_clip.dart';
 import 'media_trim_clip_colors.dart';
 import 'media_trim_format.dart';
@@ -82,7 +81,7 @@ class MediaTrimTimeline extends StatefulWidget {
     this.height = 128,
   });
 
-  final Waveform? waveform;
+  final WaveformPeaks? waveform;
   final double waveformProgress;
   final bool isWaveformFailed;
   final VoidCallback onRetryWaveform;
@@ -125,7 +124,6 @@ class _MediaTrimTimelineState extends State<MediaTrimTimeline>
   double _zoom = 1;
   double _offset = 0;
   double _viewport = 0;
-  WaveformSamples? _samples;
   MouseCursor _cursor = SystemMouseCursors.click;
 
   MediaTrimEdge? _draggingEdge;
@@ -173,12 +171,6 @@ class _MediaTrimTimelineState extends State<MediaTrimTimeline>
   }
 
   @override
-  void initState() {
-    super.initState();
-    _samples = _samplesOf(widget.waveform);
-  }
-
-  @override
   void dispose() {
     _fling.dispose();
     super.dispose();
@@ -202,9 +194,6 @@ class _MediaTrimTimelineState extends State<MediaTrimTimeline>
   @override
   void didUpdateWidget(MediaTrimTimeline oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (!identical(oldWidget.waveform, widget.waveform)) {
-      _samples = _samplesOf(widget.waveform);
-    }
     if (_viewport <= 0 || _draggingEdge != null || _isScrubbing) return;
     final metrics = _metrics;
     if (widget.revealSerial != oldWidget.revealSerial) {
@@ -233,9 +222,6 @@ class _MediaTrimTimelineState extends State<MediaTrimTimeline>
         : metrics.contentX(start) - _viewport * 0.1;
     _offset = metrics.clampOffset(target);
   }
-
-  static WaveformSamples? _samplesOf(Waveform? waveform) =>
-      waveform == null ? null : WaveformSamples(waveform);
 
   void _setZoom(double zoom, {double? anchorX}) {
     final clamped = zoom.clamp(1.0, _maxZoom).toDouble();
@@ -560,7 +546,6 @@ class _MediaTrimTimelineState extends State<MediaTrimTimeline>
                                   metrics: metrics,
                                   offset: _offset,
                                   waveform: widget.waveform,
-                                  samples: _samples,
                                   spans: widget.spans,
                                   clips: widget.clips,
                                   selectedClipId: widget.selectedClipId,
@@ -732,7 +717,6 @@ class _TimelinePainter extends CustomPainter {
     required this.metrics,
     required this.offset,
     required this.waveform,
-    required this.samples,
     required this.spans,
     required this.clips,
     required this.selectedClipId,
@@ -751,8 +735,7 @@ class _TimelinePainter extends CustomPainter {
 
   final _TimelineMetrics metrics;
   final double offset;
-  final Waveform? waveform;
-  final WaveformSamples? samples;
+  final WaveformPeaks? waveform;
   final List<MediaTrimSentenceSpan> spans;
   final List<MediaTrimClip> clips;
   final int? selectedClipId;
@@ -765,17 +748,16 @@ class _TimelinePainter extends CustomPainter {
 
   /// 将固定内容坐标上的一个波形柱区间映射到采样下标。
   ({int from, int to}) sampleRangeAtContentX(double contentX) {
-    final data = waveform;
-    final values = samples;
-    if (data == null || values == null || values.length == 0) {
+    final values = waveform;
+    if (values == null || values.length == 0) {
       return (from: 0, to: 0);
     }
-    final from = data
+    final from = values
         .positionToPixel(metrics.timeAtContentX(contentX))
         .floor()
         .clamp(0, values.length - 1)
         .toInt();
-    final to = data
+    final to = values
         .positionToPixel(metrics.timeAtContentX(contentX + _barStep))
         .ceil()
         .clamp(from + 1, values.length)
@@ -836,8 +818,7 @@ class _TimelinePainter extends CustomPainter {
       );
 
   void _paintWaveform(Canvas canvas, Size size, double top, double bottom) {
-    final data = waveform;
-    final values = samples;
+    final values = waveform;
     final selectedIndex = clips.indexWhere((c) => c.id == selectedClipId);
     final centerY = (top + bottom) / 2;
     final halfHeight = (bottom - top) / 2 - 4;
@@ -845,7 +826,7 @@ class _TimelinePainter extends CustomPainter {
       ..color = scheme.onSurfaceVariant.withValues(alpha: 0.32)
       ..strokeWidth = 1.5
       ..strokeCap = StrokeCap.round;
-    if (data == null || values == null) {
+    if (values == null) {
       canvas.drawLine(
         Offset(_TimelineMetrics.padding, centerY),
         Offset(size.width - _TimelineMetrics.padding, centerY),
@@ -1111,7 +1092,6 @@ class _TimelinePainter extends CustomPainter {
       old.metrics.total != metrics.total ||
       old.offset != offset ||
       !identical(old.waveform, waveform) ||
-      !identical(old.samples, samples) ||
       !identical(old.spans, spans) ||
       !identical(old.clips, clips) ||
       old.selectedClipId != selectedClipId ||

@@ -207,9 +207,6 @@ PODS:
   - just_audio (0.0.1):
     - Flutter
     - FlutterMacOS
-  - just_waveform (0.0.1):
-    - Flutter
-    - FlutterMacOS
   - media_kit_libs_ios_video (1.0.4):
     - Flutter
   - media_kit_video (0.0.1):
@@ -253,6 +250,7 @@ PODS:
     - Flutter
   - sign_in_with_apple (0.0.1):
     - Flutter
+    - FlutterMacOS
   - sqflite_darwin (0.0.4):
     - Flutter
     - FlutterMacOS
@@ -293,7 +291,6 @@ DEPENDENCIES:
   - in_app_review (from `.symlinks/plugins/in_app_review/ios`)
   - integration_test (from `.symlinks/plugins/integration_test/ios`)
   - just_audio (from `.symlinks/plugins/just_audio/darwin`)
-  - just_waveform (from `.symlinks/plugins/just_waveform/darwin`)
   - media_kit_libs_ios_video (from `.symlinks/plugins/media_kit_libs_ios_video/ios`)
   - media_kit_video (from `.symlinks/plugins/media_kit_video/ios`)
   - package_info_plus (from `.symlinks/plugins/package_info_plus/ios`)
@@ -305,7 +302,7 @@ DEPENDENCIES:
   - share_plus (from `.symlinks/plugins/share_plus/ios`)
   - shared_preferences_foundation (from `.symlinks/plugins/shared_preferences_foundation/darwin`)
   - sherpa_onnx_ios (from `.symlinks/plugins/sherpa_onnx_ios/ios`)
-  - sign_in_with_apple (from `.symlinks/plugins/sign_in_with_apple/ios`)
+  - sign_in_with_apple (from `.symlinks/plugins/sign_in_with_apple/darwin`)
   - sqflite_darwin (from `.symlinks/plugins/sqflite_darwin/darwin`)
   - umeng_common_sdk (from `.symlinks/plugins/umeng_common_sdk/ios`)
   - url_launcher_ios (from `.symlinks/plugins/url_launcher_ios/ios`)
@@ -386,8 +383,6 @@ EXTERNAL SOURCES:
     :path: ".symlinks/plugins/integration_test/ios"
   just_audio:
     :path: ".symlinks/plugins/just_audio/darwin"
-  just_waveform:
-    :path: ".symlinks/plugins/just_waveform/darwin"
   media_kit_libs_ios_video:
     :path: ".symlinks/plugins/media_kit_libs_ios_video/ios"
   media_kit_video:
@@ -411,7 +406,7 @@ EXTERNAL SOURCES:
   sherpa_onnx_ios:
     :path: ".symlinks/plugins/sherpa_onnx_ios/ios"
   sign_in_with_apple:
-    :path: ".symlinks/plugins/sign_in_with_apple/ios"
+    :path: ".symlinks/plugins/sign_in_with_apple/darwin"
   sqflite_darwin:
     :path: ".symlinks/plugins/sqflite_darwin/darwin"
   umeng_common_sdk:
@@ -460,7 +455,6 @@ SPEC CHECKSUMS:
   in_app_review: 7dd1ea365263f834b8464673f9df72c80c17c937
   integration_test: 4a889634ef21a45d28d50d622cf412dc6d9f586e
   just_audio: 4e391f57b79cad2b0674030a00453ca5ce817eed
-  just_waveform: be2cb6dec86096cb972bf8b73c893fe16bf1cff4
   media_kit_libs_ios_video: 5a18affdb97d1f5d466dc79988b13eff6c5e2854
   media_kit_video: 1746e198cb697d1ffb734b1d05ec429d1fcd1474
   nanopb: fad817b59e0457d11a5dfbde799381cd727c1275
@@ -479,7 +473,7 @@ SPEC CHECKSUMS:
   share_plus: 50da8cb520a8f0f65671c6c6a99b3617ed10a58a
   shared_preferences_foundation: 9e1978ff2562383bd5676f64ec4e9aa8fa06a6f7
   sherpa_onnx_ios: 32af18abd5c776d5f425d2abe0903471d26db221
-  sign_in_with_apple: c5dcc141574c8c54d5ac99dd2163c0c72ad22418
+  sign_in_with_apple: 5e34677a4e74c5f42760f41b3bbe05343e84d171
   sqflite_darwin: 20b2a3a3b70e43edae938624ce550a3cbf66a3d0
   SwiftyGif: 706c60cf65fa2bc5ee0313beece843c8eb8194d4
   UMCommon: edbe91753ffc2b9daa69a6753fc3ec6151e97bb0

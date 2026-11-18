@@ -1,31 +1,30 @@
-import 'dart:async';
 import 'dart:math' as math;
+import 'dart:typed_data';
 
 import 'package:echo_loop/analytics/analytics_providers.dart';
 import 'package:echo_loop/analytics/analytics_service.dart';
 import 'package:echo_loop/analytics/models/event_names.dart';
+import 'package:echo_loop/database/providers.dart';
 import 'package:echo_loop/features/subtitle_editor/subtitle_edit_engine.dart';
 import 'package:echo_loop/features/subtitle_editor/subtitle_editor_controller.dart';
 import 'package:echo_loop/features/subtitle_editor/subtitle_simple_editor_screen.dart';
 import 'package:echo_loop/features/subtitle_editor/subtitle_waveform_view.dart';
-import 'package:echo_loop/models/audio_engine_state.dart';
-import 'package:echo_loop/models/audio_item.dart';
 import 'package:echo_loop/models/sentence.dart';
 import 'package:echo_loop/models/word_timestamp.dart';
-import 'package:echo_loop/providers/audio_engine/audio_engine_provider.dart';
+import 'package:echo_loop/utils/waveform_peaks.dart';
 import 'package:echo_loop/widgets/guide_flow.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
-import 'package:just_audio/just_audio.dart' as ja;
-import 'package:just_waveform/just_waveform.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../helpers/mock_providers.dart';
 import '../../helpers/test_app.dart';
+import 'subtitle_editor_test_support.dart';
 
 class _MockAnalyticsService extends Mock implements AnalyticsService {}
 
@@ -332,14 +331,19 @@ void main() {
       const aaMidX = 16 + 768 * .5; // 5s
 
       late List<Duration> scrubEnds;
+      late List<int> wordTaps;
       late List<(int, Duration)> moves;
       late List<(int, BoundaryEdge, Duration)> adjusts;
       late int adjustEnds;
 
-      Future<Rect> pumpView(WidgetTester tester) async {
+      Future<Rect> pumpView(
+        WidgetTester tester, {
+        List<WaveformWordBoundary> words = _activeWords,
+      }) async {
         await tester.binding.setSurfaceSize(const Size(800, 240));
         addTearDown(() => tester.binding.setSurfaceSize(null));
         scrubEnds = [];
+        wordTaps = [];
         moves = [];
         adjusts = [];
         adjustEnds = 0;
@@ -356,13 +360,14 @@ void main() {
               playbackPosition: Duration.zero,
               isPlaying: false,
               zoomScale: 1,
-              wordBoundaries: _activeWords,
+              wordBoundaries: words,
               onAdjustWord: (i, edge, target) => adjusts.add((i, edge, target)),
               onMoveWord: (i, target) => moves.add((i, target)),
               onAdjustEnd: () => adjustEnds++,
               onZoomChanged: (_) {},
               onScrub: (_) {},
               onScrubEnd: scrubEnds.add,
+              onWordTap: wordTaps.add,
             ),
           ),
         );
@@ -417,16 +422,63 @@ void main() {
         expect(adjustEnds, 1);
       });
 
-      testWidgets('鼠标在词区间轻点（不移动）仍定位播放头', (tester) async {
-        final rect = await pumpView(tester);
-        await tester.tapAt(
-          rect.topLeft + const Offset(aaMidX, bodyY),
-          kind: PointerDeviceKind.mouse,
+      for (final kind in [PointerDeviceKind.touch, PointerDeviceKind.mouse]) {
+        testWidgets('${kind.name} 轻点词区间试听该词，不定位播放头（同点单词块）', (tester) async {
+          final rect = await pumpView(tester);
+          await tester.tapAt(
+            rect.topLeft + const Offset(aaMidX, bodyY),
+            kind: kind,
+          );
+          await tester.pump();
+
+          expect(wordTaps, [0]);
+          expect(moves, isEmpty);
+          expect(scrubEnds, isEmpty);
+        });
+      }
+
+      testWidgets('轻点相邻句的词区间仍定位播放头（单词块只对应当前句）', (tester) async {
+        final rect = await pumpView(
+          tester,
+          words: [
+            ..._activeWords,
+            (
+              globalIndex: 4,
+              word: const WordTimestamp(
+                word: 'cc',
+                startTime: Duration(seconds: 8),
+                endTime: Duration(seconds: 9),
+              ),
+              primary: false,
+              isSentenceStart: true,
+              isSentenceEnd: false,
+            ),
+          ],
         );
+        // 相邻句（句 2）的词 cc [8,9]。
+        await tester.tapAt(rect.topLeft + const Offset(16 + 768 * .85, bodyY));
         await tester.pump();
 
-        expect(moves, isEmpty);
-        expect(scrubEnds.single.inMilliseconds, closeTo(5000, 20));
+        expect(wordTaps, isEmpty);
+        expect(scrubEnds.single.inMilliseconds, closeTo(8500, 20));
+      });
+
+      testWidgets('长按顶部单词块后拖动：与长按词区间一样整体移动该词', (tester) async {
+        final rect = await pumpView(tester);
+        final hold = await tester.startGesture(
+          rect.topLeft + const Offset(aaMidX, 9),
+        );
+        await tester.pump(kLongPressTimeout + const Duration(milliseconds: 50));
+        await hold.moveBy(const Offset(76.8, 0));
+        await tester.pump();
+        await hold.up();
+        await tester.pump();
+
+        expect(moves.last.$1, 2);
+        expect(moves.last.$2.inMilliseconds, closeTo(5000, 20));
+        expect(wordTaps, isEmpty);
+        expect(scrubEnds, isEmpty);
+        expect(adjustEnds, 1);
       });
 
       testWidgets('触摸直接拖动词区间不移动词；长按后拖动才整体移动', (tester) async {
@@ -1031,6 +1083,75 @@ void main() {
       return zooms;
     }
 
+    testWidgets('鼠标右键在词区间上拖动只平移波形；右键轻点不试听、不定位', (tester) async {
+      await tester.binding.setSurfaceSize(const Size(800, 240));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      final scrubbed = <Duration>[];
+      final wordTaps = <int>[];
+      final moves = <(int, Duration)>[];
+      final sentences = _sentences(duration: const Duration(seconds: 120));
+      // 放大 8 倍、偏移 0：x=500 ≈ 9.45s，落在当前句的词 [8s, 11s] 内。
+      const word = (
+        globalIndex: 2,
+        word: WordTimestamp(
+          word: 'aa',
+          startTime: Duration(seconds: 8),
+          endTime: Duration(seconds: 11),
+        ),
+        primary: true,
+        isSentenceStart: true,
+        isSentenceEnd: true,
+      );
+      await tester.pumpWidget(
+        createTestApp(
+          SubtitleWaveformView(
+            waveform: _waveform(length: 1200),
+            extractionProgress: 1,
+            duration: const Duration(seconds: 120),
+            sentences: sentences,
+            activeSentence: sentences[1],
+            selectionEpoch: 0,
+            playbackPosition: Duration.zero,
+            isPlaying: false,
+            zoomScale: 8,
+            wordBoundaries: const [word],
+            onZoomChanged: (_) {},
+            onScrub: scrubbed.add,
+            onScrubEnd: scrubbed.add,
+            onAdjustEnd: () {},
+            onWordTap: wordTaps.add,
+            onMoveWord: (i, target) => moves.add((i, target)),
+          ),
+        ),
+      );
+      final rect = tester.getRect(find.byType(SubtitleWaveformView));
+      final start = Offset(rect.left + 500, rect.top + 50);
+
+      final before = _viewOffset(tester);
+      final drag = await tester.startGesture(
+        start,
+        kind: PointerDeviceKind.mouse,
+        buttons: kSecondaryMouseButton,
+      );
+      await tester.pump();
+      await drag.moveBy(const Offset(-200, 0));
+      await tester.pump();
+      await drag.up();
+      await tester.pump();
+      expect(_viewOffset(tester), closeTo(before + 200, 1));
+
+      await tester.tapAt(
+        start,
+        kind: PointerDeviceKind.mouse,
+        buttons: kSecondaryMouseButton,
+      );
+      await tester.pump();
+
+      expect(moves, isEmpty, reason: '右键不抓词');
+      expect(wordTaps, isEmpty, reason: '右键不试听');
+      expect(scrubbed, isEmpty, reason: '右键不定位播放头');
+    });
+
     testWidgets('触控板双指左滑平移到更晚的内容，不触发缩放', (tester) async {
       final zooms = await pumpZoomed(tester);
       final before = _viewOffset(tester);
@@ -1134,6 +1255,8 @@ void main() {
   });
 
   group('SubtitleSimpleEditorScreen', () {
+    setUp(useTemporaryAppDataDirectory);
+
     setUp(() {
       SharedPreferences.setMockInitialValues({
         'guide_v1_subtitle_editor_sentence_actions_seen': true,
@@ -1154,7 +1277,7 @@ void main() {
           SubtitleSimpleEditorScreen(audioItem: audioItem),
           overrides: dedupeOverrides([
             analyticsServiceProvider.overrideWithValue(analytics),
-            audioEngineProvider.overrideWith(() => audioEngine),
+            ...audioEngine.overrides,
           ]),
         ),
       );
@@ -1168,7 +1291,6 @@ void main() {
 
       await tester.pump();
       verifyNoMoreInteractions(analytics);
-      audioEngine.disposeController();
     });
 
     testWidgets('句子行显示完整起止时间和句长', (tester) async {
@@ -1187,15 +1309,13 @@ void main() {
       await tester.pumpWidget(
         createTestScreen(
           SubtitleSimpleEditorScreen(audioItem: createTestAudioItem()),
-          overrides: [audioEngineProvider.overrideWith(() => audioEngine)],
+          overrides: audioEngine.overrides,
         ),
       );
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
 
       expect(find.text('00:01.230 - 00:03.450 · 2.2s'), findsOneWidget);
-
-      audioEngine.disposeController();
     });
 
     testWidgets('句子编号排在播放按钮正下方，不另占横向宽度', (tester) async {
@@ -1207,7 +1327,7 @@ void main() {
       await tester.pumpWidget(
         createTestScreen(
           SubtitleSimpleEditorScreen(audioItem: createTestAudioItem()),
-          overrides: [audioEngineProvider.overrideWith(() => audioEngine)],
+          overrides: audioEngine.overrides,
         ),
       );
       await tester.pump();
@@ -1228,8 +1348,6 @@ void main() {
       );
       expect(numberRect.center.dx, moreOrLessEquals(playRect.center.dx));
       expect(numberRect.top, greaterThanOrEqualTo(playRect.bottom));
-
-      audioEngine.disposeController();
     });
 
     testWidgets('波形上方工具条显示缩放和速度控制，音频材料不显示画面开关', (tester) async {
@@ -1241,7 +1359,7 @@ void main() {
       await tester.pumpWidget(
         createTestScreen(
           SubtitleSimpleEditorScreen(audioItem: createTestAudioItem()),
-          overrides: [audioEngineProvider.overrideWith(() => audioEngine)],
+          overrides: audioEngine.overrides,
         ),
       );
       await tester.pump();
@@ -1290,8 +1408,6 @@ void main() {
       expect(find.text('0.5x'), findsOneWidget);
       expect(find.text('1.5x'), findsOneWidget);
       expect(find.text('2.0x'), findsOneWidget);
-
-      audioEngine.disposeController();
     });
 
     testWidgets('缩放滑杆圆点在左右端点时仍可从外侧容易拖动', (tester) async {
@@ -1304,7 +1420,7 @@ void main() {
       await tester.pumpWidget(
         createTestScreen(
           SubtitleSimpleEditorScreen(audioItem: audioItem),
-          overrides: [audioEngineProvider.overrideWith(() => audioEngine)],
+          overrides: audioEngine.overrides,
         ),
       );
       await tester.pump();
@@ -1337,8 +1453,6 @@ void main() {
       await rightGesture.up();
       await tester.pump();
       expect(tester.widget<Slider>(sliderFinder).value, lessThan(maxValue));
-
-      audioEngine.disposeController();
     });
 
     testWidgets('保存按钮激活时使用更深的主色背景', (tester) async {
@@ -1351,7 +1465,7 @@ void main() {
       await tester.pumpWidget(
         createTestScreen(
           SubtitleSimpleEditorScreen(audioItem: audioItem),
-          overrides: [audioEngineProvider.overrideWith(() => audioEngine)],
+          overrides: audioEngine.overrides,
         ),
       );
       await tester.pump();
@@ -1385,8 +1499,6 @@ void main() {
       expect(saveButton.onPressed, isNotNull);
       expect(background, theme.colorScheme.primary);
       expect(foreground, theme.colorScheme.onPrimary);
-
-      audioEngine.disposeController();
     });
 
     testWidgets('波形和首句左右操作区挂载字幕编辑引导', (tester) async {
@@ -1398,7 +1510,7 @@ void main() {
       await tester.pumpWidget(
         createTestScreen(
           SubtitleSimpleEditorScreen(audioItem: createTestAudioItem()),
-          overrides: [audioEngineProvider.overrideWith(() => audioEngine)],
+          overrides: audioEngine.overrides,
         ),
       );
       await tester.pump();
@@ -1416,8 +1528,6 @@ void main() {
         'Tap the menu on the right to merge or delete this sentence.',
         "Drag the red or green handles on the waveform to adjust the current sentence's start and end time.",
       ]);
-
-      audioEngine.disposeController();
     });
 
     testWidgets('选中句拆成单词 label，未选中句保持纯文本', (tester) async {
@@ -1429,7 +1539,7 @@ void main() {
       await tester.pumpWidget(
         createTestScreen(
           SubtitleSimpleEditorScreen(audioItem: createTestAudioItem()),
-          overrides: [audioEngineProvider.overrideWith(() => audioEngine)],
+          overrides: audioEngine.overrides,
         ),
       );
       await tester.pump();
@@ -1449,8 +1559,6 @@ void main() {
       // 未选中句仍是整段纯文本。
       expect(find.text('Second sentence.'), findsOneWidget);
       expect(find.text('Third sentence.'), findsOneWidget);
-
-      audioEngine.disposeController();
     });
 
     testWidgets('点击单词 label 播放该词并在波形显示词边界', (tester) async {
@@ -1463,7 +1571,7 @@ void main() {
       await tester.pumpWidget(
         createTestScreen(
           SubtitleSimpleEditorScreen(audioItem: audioItem),
-          overrides: [audioEngineProvider.overrideWith(() => audioEngine)],
+          overrides: audioEngine.overrides,
         ),
       );
       await tester.pump();
@@ -1480,18 +1588,19 @@ void main() {
       );
       final st = container.read(subtitleEditorControllerProvider(audioItem));
       expect(st.focusedWordIndex, 1);
-      expect(audioEngine.playRangeOnceCallCount, 1);
+      expect(audioEngine.backend.ranges, hasLength(1));
       // 关键回归（bug1）：点第 2 个 label 必须播放第 2 个词的区间，
       // 而非因 label↔词错位 / 越界钳制播放到别的词。
       final words = notifier.wordsOfSelectedSentence;
-      expect(audioEngine.lastRangeStart, words[1].startTime);
-      expect(audioEngine.lastRangeEnd, words[1].endTime);
+      expect(audioEngine.backend.ranges.last, (
+        words[1].startTime,
+        words[1].endTime,
+      ));
       // 选中句即展示其全部单词边界（具体绘制在 SubtitleWaveformView 用例验证）。
       expect(notifier.wordBoundariesForWaveform, isNotEmpty);
 
       audioEngine.completePlayback();
       await tester.pump();
-      audioEngine.disposeController();
     });
 
     testWidgets('点击播放句子后切换下一句会更新行播放态', (tester) async {
@@ -1503,7 +1612,7 @@ void main() {
       await tester.pumpWidget(
         createTestScreen(
           SubtitleSimpleEditorScreen(audioItem: createTestAudioItem()),
-          overrides: [audioEngineProvider.overrideWith(() => audioEngine)],
+          overrides: audioEngine.overrides,
         ),
       );
       await tester.pump();
@@ -1515,21 +1624,20 @@ void main() {
       expect(find.byIcon(Icons.play_arrow_rounded), findsWidgets);
       expect(find.byIcon(Icons.play_circle_outline), findsNothing);
       expect(find.byIcon(Icons.stop_rounded), findsOneWidget);
-      expect(audioEngine.lastPlayedSentence?.index, 0);
+      expect(audioEngine.backend.ranges.last.$1, _sentences()[0].startTime);
 
       await tester.tap(find.byKey(const ValueKey('subtitle-sentence-play-1')));
       await tester.pump();
 
       expect(find.byIcon(Icons.stop_rounded), findsOneWidget);
-      expect(audioEngine.lastPlayedSentence?.index, 1);
-      expect(audioEngine.stopPlaybackCallCount, 1);
+      expect(audioEngine.backend.ranges.last.$1, _sentences()[1].startTime);
+      expect(audioEngine.backend.ranges, hasLength(2));
 
       audioEngine.completePlayback();
       await tester.pump();
       await tester.pump();
 
       expect(find.byIcon(Icons.stop_rounded), findsNothing);
-      audioEngine.disposeController();
     });
   });
 }
@@ -1627,116 +1735,30 @@ List<Sentence> _sentences({Duration duration = const Duration(seconds: 10)}) {
   ];
 }
 
-Waveform _waveform({int length = 100}) {
-  return Waveform(
-    version: 1,
-    flags: 0,
-    sampleRate: 1000,
-    samplesPerPixel: 100,
-    length: length,
-    data: [
+WaveformPeaks _waveform({int length = 100}) {
+  return WaveformPeaks(
+    pixelsPerSecond: 10,
+    duration: Duration(milliseconds: length * 100),
+    minMax: Int16List.fromList([
       for (var i = 0; i < length; i++) ...[-9000 - i * 10, 9000 + i * 10],
-    ],
+    ]),
   );
 }
 
-class _ScreenTestAudioEngine extends AudioEngine {
-  _ScreenTestAudioEngine({required this.duration, required this.sentences});
+/// 编辑页界面测试的播放与字幕依赖：fake 播放器 + 按句子生成字幕的 DAO。
+class _ScreenTestAudioEngine {
+  _ScreenTestAudioEngine({required Duration duration, required this.sentences})
+    : backend = RangeRecordingBackend(duration);
 
-  final Duration duration;
+  final RangeRecordingBackend backend;
   final List<Sentence> sentences;
-  final _positionController = StreamController<Duration>.broadcast();
-  final _playbackCompleters = <Completer<void>>[];
-  int _sessionId = 0;
-  int stopPlaybackCallCount = 0;
-  Sentence? lastPlayedSentence;
-  int playRangeOnceCallCount = 0;
-  Duration? lastRangeStart;
-  Duration? lastRangeEnd;
 
-  @override
-  AudioEngineState build() => AudioEngineState(totalDuration: duration);
+  List<Override> get overrides => [
+    ...subtitleEditorPlaybackOverrides(backend),
+    audioItemDaoProvider.overrideWithValue(
+      TranscriptAudioItemDao(() => sentences),
+    ),
+  ];
 
-  @override
-  Stream<Duration> get absolutePositionStream => _positionController.stream;
-
-  @override
-  Stream<ja.PlayerState> get playerStateStream => const Stream.empty();
-
-  @override
-  bool get isPlaying => false;
-
-  @override
-  Duration get currentPosition => Duration.zero;
-
-  @override
-  int newSession() {
-    _sessionId += 1;
-    return _sessionId;
-  }
-
-  @override
-  bool isActiveSession(int id) => id == _sessionId;
-
-  @override
-  Future<Duration?> loadAudio(
-    AudioItem item,
-    double speed, {
-    String? subtitle,
-  }) async => duration;
-
-  @override
-  Future<List<Sentence>> loadTranscript(AudioItem audioItem) async => sentences;
-
-  @override
-  Future<void> stopPlayback() async {
-    stopPlaybackCallCount += 1;
-    completePlayback();
-  }
-
-  @override
-  Future<void> playClipOnce(Sentence sentence, int sessionId) async {
-    lastPlayedSentence = sentence;
-    final completer = Completer<void>();
-    _playbackCompleters.add(completer);
-    await completer.future;
-  }
-
-  @override
-  Future<void> playRangeOnce(
-    Duration start,
-    Duration end,
-    int sessionId, {
-    void Function()? onClipReady,
-  }) async {
-    playRangeOnceCallCount += 1;
-    lastRangeStart = start;
-    lastRangeEnd = end;
-    final completer = Completer<void>();
-    _playbackCompleters.add(completer);
-    await completer.future;
-  }
-
-  @override
-  Future<void> clearClip() async {}
-
-  @override
-  Future<void> setSpeed(double speed) async {}
-
-  @override
-  Future<void> seekToAbsolute(Duration absolute) async {}
-
-  void completePlayback() {
-    for (final completer in _playbackCompleters) {
-      if (!completer.isCompleted) {
-        completer.complete();
-      }
-    }
-    _playbackCompleters.clear();
-  }
-
-  void disposeController() {
-    completePlayback();
-    unawaited(_positionController.close());
-  }
+  void completePlayback() => backend.completePlayback();
 }

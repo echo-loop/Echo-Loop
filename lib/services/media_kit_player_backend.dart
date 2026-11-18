@@ -48,6 +48,13 @@ class MediaKitPlayerBackend implements MediaPlayerBackend {
   /// 纹理中实际画着的媒体；新媒体通过门控后才更新。
   String? _textureMediaName;
   DateTime? _openStartedAt;
+
+  /// 当前打开媒体的起始位置（断点）；暂停中补出帧时必须回到它，不能用播放器当前位置，
+  /// 因为 open 完成后 mpv 的 position 可能仍是 0。
+  Duration _openPosition = Duration.zero;
+
+  /// 已为哪一代媒体请求过暂停补帧，每次打开只请求一次。
+  int? _pausedRedrawGeneration;
   bool _disposed = false;
   Future<void>? _disposeFuture;
 
@@ -112,6 +119,7 @@ class MediaKitPlayerBackend implements MediaPlayerBackend {
     );
     // 必须先于 _player.open：新媒体的出帧信号可能在 open 返回前到达。
     _resetVideoFrameGate(filePath);
+    _openPosition = initialPosition;
     // mpv 的 end 是全局选项，会延续到下一个文件，换媒体前必须撤销。
     await setPlaybackEnd(null);
     await _player.open(
@@ -202,7 +210,10 @@ class MediaKitPlayerBackend implements MediaPlayerBackend {
           'video=${_frameGate.videoSize} texture=${_frameGate.textureSize} '
           'visible=${_frameGate.isCurrentMediaVisible}',
     );
-    if (!becameVisible) return;
+    if (!becameVisible) {
+      _requestPausedFrameRedrawIfNeeded();
+      return;
+    }
     _textureMediaName = _currentMediaName;
     _isTextureVisible.value = true;
     final startedAt = _openStartedAt;
@@ -212,6 +223,28 @@ class MediaKitPlayerBackend implements MediaPlayerBackend {
           'media=$_currentMediaName trigger=$input '
           'texture=${_frameGate.textureSize} elapsedSinceOpenMs='
           '${startedAt == null ? 'n/a' : DateTime.now().difference(startedAt).inMilliseconds}',
+    );
+  }
+
+  /// 暂停打开时 mpv 不会主动出帧，纹理无法追上新媒体尺寸，门控一直不放行、画面黑屏。
+  /// seek 到打开时的起始位置即可让 mpv 重绘当前帧；每次打开只请求一次。
+  void _requestPausedFrameRedrawIfNeeded() {
+    if (_disposed || playing || !_frameGate.needsFrameRedraw) return;
+    if (_pausedRedrawGeneration == _mediaGeneration) return;
+    _pausedRedrawGeneration = _mediaGeneration;
+    final generation = _mediaGeneration;
+    AppLogger.log(
+      'VideoFrame',
+      'event=paused_redraw_requested generation=$generation '
+          'media=$_currentMediaName position=${_openPosition.inMilliseconds}ms',
+    );
+    unawaited(
+      _player.seek(_openPosition).catchError((Object error) {
+        AppLogger.log(
+          'VideoFrame',
+          'event=paused_redraw_failed generation=$generation error=$error',
+        );
+      }),
     );
   }
 
@@ -255,6 +288,21 @@ class MediaKitPlayerBackend implements MediaPlayerBackend {
 
   @override
   Future<void> setRate(double rate) => _player.setRate(rate);
+
+  /// 对应 mpv `audio-buffer` 选项（默认 0.2 秒），在音频输出重新初始化（打开
+  /// 媒体）时生效。
+  @override
+  Future<void> setAudioOutputBuffer(Duration buffer) async {
+    final platform = _player.platform;
+    if (platform is! NativePlayer) return;
+    final seconds = (buffer.inMicroseconds / Duration.microsecondsPerSecond)
+        .toStringAsFixed(3);
+    await platform.setProperty('audio-buffer', seconds);
+    AppLogger.log(
+      'MediaKitBackend',
+      'set audio buffer backend=${identityHashCode(this)} seconds=$seconds',
+    );
+  }
 
   /// 通过 mpv `end` 属性在解码层裁切；运行时修改即时生效，`none` 表示不限制。
   @override

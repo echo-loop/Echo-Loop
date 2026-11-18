@@ -1,22 +1,17 @@
-import 'dart:async';
-
+import 'package:echo_loop/database/providers.dart';
 import 'package:echo_loop/features/subtitle_editor/subtitle_editor_controller.dart';
-import 'package:echo_loop/models/audio_engine_state.dart';
-import 'package:echo_loop/models/audio_item.dart';
 import 'package:echo_loop/models/sentence.dart';
-import 'package:echo_loop/providers/audio_engine/audio_engine_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:just_audio/just_audio.dart' as ja;
 
 import '../../helpers/mock_providers.dart';
+import 'subtitle_editor_test_support.dart';
 
 /// 回归：句子自然播放结束后，playbackPosition 必须停在句尾，绝不回跳到句首。
 ///
-/// 真实根因（状态机/引擎层）：clip 播放完成时 controller 的 finally 若「先停底层
-/// 播放器再冻结状态」，`_audioPlayer.stop()` 会吐出 position=0，经
-/// `absolutePositionStream = clipStart + rel` 映射成 clip 起点（句首）后被
-/// `_handlePosition` 采纳（此刻 isPlaying 仍为 true），把播放头拉回句首。
+/// 根因（状态机层）：播放完成时 controller 的 finally 若「先停底层播放器再冻结
+/// 状态」，停止过程中晚到的句首位置事件会在 isPlaying 仍为 true 时被
+/// `_handlePosition` 采纳，把播放头拉回句首。
 /// 修复：finally 中先冻结 isPlaying=false 再停播放器；并在 _handlePosition 丢弃
 /// 大幅后退的残留事件。
 void main() {
@@ -35,13 +30,16 @@ void main() {
         endTime: const Duration(seconds: 18),
       ),
     ];
-    final engine = _StopResetEngine(
-      duration: const Duration(seconds: 60),
-      sentences: sentences,
-    );
+    await useTemporaryAppDataDirectory();
+    final engine = _StaleStopPositionBackend(const Duration(seconds: 60));
     final audioItem = createTestAudioItem();
+    final dao = TestAudioItemDao()
+      ..transcriptSrtStore[audioItem.id] = srtOf(sentences);
     final container = ProviderContainer(
-      overrides: [audioEngineProvider.overrideWith(() => engine)],
+      overrides: dedupeOverrides([
+        ...subtitleEditorPlaybackOverrides(engine),
+        audioItemDaoProvider.overrideWithValue(dao),
+      ]),
     );
     addTearDown(container.dispose);
 
@@ -63,11 +61,11 @@ void main() {
 
     // 推进播放位置到接近句尾。
     for (var s = 3; s <= 11; s++) {
-      engine.emit(Duration(seconds: s));
+      engine.emitPosition(Duration(seconds: s));
       await Future<void>.delayed(const Duration(milliseconds: 1));
     }
 
-    // 自然结束：完成 playClipOnce → finally 跑完（其间 stopPlayback 会吐出句首残留事件）。
+    // 自然结束：区间播放返回 → finally 跑完（其间停止会吐出句首残留事件）。
     engine.completePlayback();
     await playFuture;
     await Future<void>.delayed(const Duration(milliseconds: 1));
@@ -92,92 +90,14 @@ void main() {
   });
 }
 
-/// 模拟真实引擎：stopPlayback() 时吐出「相对位置归 0 → 映射成 clip 起点」的残留事件。
-class _StopResetEngine extends AudioEngine {
-  _StopResetEngine({required this.duration, required this.sentences});
-
-  final Duration duration;
-  final List<Sentence> sentences;
-  final _pos = StreamController<Duration>.broadcast();
-  final _completers = <Completer<void>>[];
-  int _session = 0;
-  Duration _clipStart = Duration.zero;
-
-  void emit(Duration p) => _pos.add(p);
+/// 停止时吐出一条句首残留位置事件：播放器停止 / 换区间前的旧位置事件可能晚到。
+class _StaleStopPositionBackend extends RangeRecordingBackend {
+  _StaleStopPositionBackend(super.duration);
 
   @override
-  AudioEngineState build() => AudioEngineState(totalDuration: duration);
-
-  @override
-  Stream<Duration> get absolutePositionStream => _pos.stream;
-
-  @override
-  Stream<ja.PlayerState> get playerStateStream => const Stream.empty();
-
-  @override
-  bool get isPlaying => false;
-
-  @override
-  Duration get currentPosition => Duration.zero;
-
-  @override
-  int newSession() => ++_session;
-
-  @override
-  bool isActiveSession(int id) => id == _session;
-
-  @override
-  Future<Duration?> loadAudio(
-    AudioItem item,
-    double speed, {
-    String? subtitle,
-  }) async => duration;
-
-  @override
-  Future<List<Sentence>> loadTranscript(AudioItem audioItem) async => sentences;
-
-  @override
-  Future<void> playClipOnce(Sentence sentence, int sessionId) async {
-    _clipStart = sentence.startTime;
-    final c = Completer<void>();
-    _completers.add(c);
-    await c.future;
-  }
-
-  @override
-  Future<void> playRangeOnce(
-    Duration start,
-    Duration end,
-    int sessionId, {
-    void Function()? onClipReady,
-  }) async {
-    _clipStart = start;
-    final c = Completer<void>();
-    _completers.add(c);
-    await c.future;
-  }
-
-  @override
-  Future<void> stopPlayback() async {
-    // 真实 just_audio：stop() 把相对位置归 0 → 绝对位置 = clipStart（句首）。
-    _pos.add(_clipStart);
-  }
-
-  @override
-  Future<void> clearClip() async {
-    _clipStart = Duration.zero;
-  }
-
-  @override
-  Future<void> setSpeed(double speed) async {}
-
-  @override
-  Future<void> seekToAbsolute(Duration absolute) async {}
-
-  void completePlayback() {
-    for (final c in _completers) {
-      if (!c.isCompleted) c.complete();
-    }
-    _completers.clear();
+  Future<void> pause() async {
+    final rangeStart = ranges.isEmpty ? null : ranges.last.$1;
+    await super.pause();
+    if (rangeStart != null) emitPosition(rangeStart);
   }
 }

@@ -1,8 +1,9 @@
-import 'package:just_waveform/just_waveform.dart';
+import 'dart:typed_data';
 
 import 'package:echo_loop/features/media_trim/media_trim_clip.dart';
 import 'package:echo_loop/features/media_trim/widgets/media_trim_timeline.dart';
 import 'package:echo_loop/l10n/app_localizations.dart';
+import 'package:echo_loop/utils/waveform_peaks.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -35,7 +36,7 @@ void main() {
     WidgetTester tester, {
     Duration position = Duration.zero,
     double viewWidth = width,
-    Waveform? waveform,
+    WaveformPeaks? waveform,
   }) async {
     drags = [];
     seeks = [];
@@ -326,17 +327,16 @@ void main() {
   });
 }
 
-Waveform _testWaveform() {
-  return Waveform(
-    version: 1,
-    flags: 1,
-    sampleRate: 80,
-    samplesPerPixel: 1,
-    length: 800,
-    data: List<int>.generate(1600, (index) {
-      final peak = index ~/ 2 % 17 == 0 ? 16000 : 4000;
-      return index.isEven ? -peak : peak;
-    }),
+WaveformPeaks _testWaveform() {
+  return WaveformPeaks(
+    pixelsPerSecond: 80,
+    duration: const Duration(seconds: 10),
+    minMax: Int16List.fromList(
+      List<int>.generate(1600, (index) {
+        final peak = index ~/ 2 % 17 == 0 ? 16000 : 4000;
+        return index.isEven ? -peak : peak;
+      }),
+    ),
   );
 }
 

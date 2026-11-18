@@ -17,6 +17,17 @@ class VideoFrameGate {
   /// 纹理是否已画出当前媒体。
   bool get isCurrentMediaVisible => _isCurrentMediaVisible;
 
+  /// VO 已为当前媒体配置、尺寸已知，但纹理尚未追上：需要主动让 mpv 重绘一帧。
+  ///
+  /// 暂停时 mpv 不会主动出帧，纹理会一直停在上一媒体的尺寸，画面不放行。
+  bool get needsFrameRedraw {
+    final videoSize = _videoSize;
+    return !_isCurrentMediaVisible &&
+        _isVoConfigured &&
+        videoSize != null &&
+        _textureSize != videoSize;
+  }
+
   // 以下仅供诊断日志使用。
   bool get isVoConfigured => _isVoConfigured;
   Size? get videoSize => _videoSize;

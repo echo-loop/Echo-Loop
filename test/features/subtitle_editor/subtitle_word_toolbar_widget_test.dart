@@ -2,7 +2,6 @@ import 'package:echo_loop/features/subtitle_editor/subtitle_editor_controller.da
 import 'package:echo_loop/features/subtitle_editor/subtitle_simple_editor_screen.dart';
 import 'package:echo_loop/models/audio_item.dart';
 import 'package:echo_loop/models/sentence.dart';
-import 'package:echo_loop/providers/audio_engine/audio_engine_provider.dart';
 import 'package:echo_loop/database/providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -11,55 +10,21 @@ import 'package:flutter_test/flutter_test.dart';
 
 import '../../helpers/mock_providers.dart';
 import '../../helpers/test_app.dart';
-
-/// 字幕编辑器返回固定句子 / 时长、不触底层播放器的测试音频引擎。
-class _FakeEditorAudioEngine extends FakeAudioEngine {
-  _FakeEditorAudioEngine(this._sentences, this._duration);
-
-  final List<Sentence> _sentences;
-  final Duration _duration;
-
-  @override
-  Future<Duration?> loadAudio(
-    AudioItem item,
-    double speed, {
-    String? subtitle,
-  }) async => _duration;
-
-  @override
-  Future<List<Sentence>> loadTranscript(AudioItem audioItem) async =>
-      _sentences;
-
-  @override
-  Future<void> playRangeOnce(
-    Duration start,
-    Duration end,
-    int sessionId, {
-    void Function()? onClipReady,
-  }) async {}
-
-  @override
-  Future<void> playClipOnce(Sentence sentence, int sessionId) async {}
-
-  @override
-  Future<void> stopPlayback() async {}
-}
+import 'subtitle_editor_test_support.dart';
 
 void main() {
   late AudioItem audioItem;
   late TestAudioItemDao audioItemDao;
   late ProviderContainer container;
 
-  setUp(() {
+  setUp(() async {
+    await useTemporaryAppDataDirectory();
     audioItem = createTestAudioItem(totalDuration: 6);
     audioItemDao = TestAudioItemDao();
   });
 
   Future<void> pumpEditor(WidgetTester tester, List<Sentence> sentences) async {
-    final engine = _FakeEditorAudioEngine(
-      sentences,
-      const Duration(seconds: 6),
-    );
+    audioItemDao.transcriptSrtStore[audioItem.id] = srtOf(sentences);
     await tester.pumpWidget(
       createTestApp(
         Consumer(
@@ -69,7 +34,12 @@ void main() {
           },
         ),
         overrides: dedupeOverrides([
-          audioEngineProvider.overrideWith(() => engine),
+          ...subtitleEditorPlaybackOverrides(
+            RangeRecordingBackend(
+              const Duration(seconds: 6),
+              completesImmediately: true,
+            ),
+          ),
           audioItemDaoProvider.overrideWithValue(audioItemDao),
         ]),
       ),

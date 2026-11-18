@@ -417,6 +417,10 @@ class MediaPlayback extends Notifier<MediaPlaybackState> {
       final playbackRestore = await playbackRestoreFuture;
       if (!isCurrentGeneration()) return MediaLoadResult.cancelled;
       _applyInitialPlaybackState(playbackRestore);
+      // 后端跨媒体复用，上一段会话隐藏视频轨后 mpv 仍不解码画面；界面显示视频时必须同步开启，
+      // 否则 VideoFrameGate 收不到 video-size / vo-configured，画面一直黑屏。
+      await _engine.setVideoTrackEnabled(state.visualTrackVisible);
+      if (!isCurrentGeneration()) return MediaLoadResult.cancelled;
       final mediaFuture = _engine.loadMedia(
         item,
         state.settings.playbackSpeed,

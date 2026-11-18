@@ -1211,14 +1211,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "0.4.16"
-  just_waveform:
-    dependency: "direct main"
-    description:
-      name: just_waveform
-      sha256: "8c65acd24f13b866e3377f07f8869e823f3f2d8b734938f4e6688075af40b4f2"
-      url: "https://pub.dev"
-    source: hosted
-    version: "0.0.7"
   leak_tracker:
     dependency: transitive
     description:

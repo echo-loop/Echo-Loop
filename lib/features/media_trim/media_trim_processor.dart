@@ -6,6 +6,7 @@ import 'package:ffmpeg_kit_flutter_new_min/ffmpeg_session.dart';
 import 'package:ffmpeg_kit_flutter_new_min/ffprobe_kit.dart';
 import 'package:ffmpeg_kit_flutter_new_min/return_code.dart';
 
+import '../../utils/waveform_peaks.dart';
 import 'media_trim_clip.dart';
 
 /// 一次剪辑任务的取消令牌；只取消该任务登记的原生会话，不影响其它 FFmpeg 任务。
@@ -46,7 +47,7 @@ class MediaTrimSourceInfo {
   final int? videoBitrate;
 }
 
-/// FFmpeg 边界：探测、精确重编码与波形代理音轨提取。实例本身无状态，可复用。
+/// FFmpeg 边界：探测、精确重编码与波形 PCM 解码。实例本身无状态，可复用。
 class MediaTrimProcessor {
   const MediaTrimProcessor();
 
@@ -157,30 +158,20 @@ class MediaTrimProcessor {
     await _verifyOutput(output, duration, cancellation);
   }
 
-  /// 为波形提取生成单声道代理音轨（视频容器不一定能被原生波形解码器读取）。
-  Future<void> extractAudio({
+  /// 把第一条音轨解码为波形用 PCM（参数见 [waveformPcmDecodeArguments]）。
+  ///
+  /// [onTimeMs] 为已解码到的媒体时间，用于换算进度。
+  Future<void> decodeWaveformPcm({
     required String source,
     required String output,
     required MediaTrimCancellation cancellation,
+    void Function(int milliseconds)? onTimeMs,
   }) async {
-    final session = await _run([
-      '-nostdin',
-      '-y',
-      '-v',
-      'error',
-      '-i',
-      source,
-      '-map',
-      '0:a:0',
-      '-vn',
-      '-c:a',
-      'aac',
-      '-b:a',
-      '64k',
-      '-ac',
-      '1',
-      output,
-    ], cancellation);
+    final session = await _run(
+      waveformPcmDecodeArguments(input: source, output: output),
+      cancellation,
+      onTimeMs: onTimeMs,
+    );
     if (!ReturnCode.isSuccess(await session.getReturnCode())) {
       throw MediaTrimException(
         MediaTrimFailure.encodeFailed,

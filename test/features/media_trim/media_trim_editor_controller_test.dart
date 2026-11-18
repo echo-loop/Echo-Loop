@@ -7,15 +7,16 @@ import 'package:echo_loop/database/app_database.dart' as db;
 import 'package:echo_loop/database/providers.dart';
 import 'package:echo_loop/features/media_trim/media_trim_clip.dart';
 import 'package:echo_loop/features/media_trim/media_trim_editor_controller.dart';
+import 'package:echo_loop/providers/pause_other_playback_provider.dart';
 import 'package:echo_loop/features/media_trim/media_trim_exporter.dart';
 import 'package:echo_loop/features/media_trim/media_trim_processor.dart';
 import 'package:echo_loop/features/media_trim/media_trim_waveform_loader.dart';
 import 'package:echo_loop/models/audio_item.dart';
 import 'package:echo_loop/providers/media_engine/media_engine_provider.dart';
 import 'package:echo_loop/utils/app_data_dir.dart';
+import 'package:echo_loop/utils/waveform_peaks.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:just_waveform/just_waveform.dart';
 
 import '../../helpers/shared/fake_media_player_backend.dart';
 
@@ -33,12 +34,13 @@ class _PendingWaveformLoader extends MediaTrimWaveformLoader {
   _PendingWaveformLoader() : super(const MediaTrimProcessor());
 
   @override
-  Future<Waveform> load({
+  Future<WaveformPeaks> load({
     required AudioItem source,
     required String mediaPath,
+    required Duration? mediaDuration,
     required MediaTrimCancellation cancellation,
     required void Function(double progress) onProgress,
-  }) => Completer<Waveform>().future;
+  }) => Completer<WaveformPeaks>().future;
 }
 
 Duration ms(int value) => Duration(milliseconds: value);
@@ -132,7 +134,7 @@ void main() {
         mediaTrimWaveformLoaderProvider.overrideWithValue(
           _PendingWaveformLoader(),
         ),
-        mediaTrimPauseOtherPlaybackProvider.overrideWithValue(() async {}),
+        pauseOtherPlaybackProvider.overrideWithValue(() async {}),
       ],
     );
   });

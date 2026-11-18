@@ -21,6 +21,13 @@ abstract class MediaPlayerBackend {
   /// 传 `null` 撤销终点。终点跨 [open] 不保留。区间播放必须靠它裁切句尾：
   /// 位置事件 + pause 的软停止会受事件间隔与音频输出缓冲影响而越过终点。
   Future<void> setPlaybackEnd(Duration? end);
+
+  /// 设置音频输出缓冲时长，下次 [open] 起生效。
+  ///
+  /// 播到 [setPlaybackEnd] 的原生终点时播放器立即暂停，输出缓冲里尚未播出的
+  /// 声音随之丢弃，句尾被截掉约一个缓冲长度。缓冲越小截得越少，但解码跟不上
+  /// 时越容易断音；只在需要精确听到句尾的场景（字幕编辑）调小。
+  Future<void> setAudioOutputBuffer(Duration buffer);
   Future<void> setVideoTrackEnabled(bool enabled);
 
   /// 关闭音轨后播放器不输出声音，也不占用音频输出；用于只借用画面、声音另由

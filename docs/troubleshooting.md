@@ -765,6 +765,7 @@
 - 验证：`test/utils/waveform_samples_test.dart` 构造带头部的波形文件，确认 min/max 与峰值正确；macOS 集成测试截图中波形恢复正常高度。
 - 相关代码：`lib/utils/waveform_samples.dart`、`lib/features/media_trim/widgets/media_trim_timeline.dart`。
 - 记录时间：2026-11-16。
+- 后续（2026-11-18）：just_waveform 已整体移除，`WaveformSamples` 随之删除，见 7.61。
 
 ### 7.55 时间轴把手在触屏上拖不动
 
@@ -810,4 +811,27 @@
 - 解法：菜单与 InkWell 改为 Stack 兄弟节点（Row 里保留等宽占位），隔离焦点；`MenuAnchor` 设 `consumeOutsideTap: true`（学习计划页 AppBar「更多」菜单同步）。
 - 验证：`audio_list_tile_test.dart`「鼠标悬停菜单项后关闭菜单，卡片不残留 focus 高亮」「菜单展开时点击外部只关闭菜单，不穿透触发下方控件」，修复前均失败。
 - 相关代码：`lib/widgets/audio_list_tile.dart`、`lib/screens/learning_plan_screen.dart`。
+- 记录时间：2026-11-18。
+
+### 7.60 iOS 上部分 mkv 视频无法编辑字幕（报「(-11828) 无法打开」）
+
+- 现象：字幕编辑页打开部分视频条目时整页报错「(-11828) 无法打开」，保存按钮不可用；同一版本里 mp4 视频正常。日志中这些条目都是 `videos/*.mkv`。
+- 根因：字幕编辑器的声音走 just_audio（全局 `AudioEngine`），iOS/macOS 上底层是 AVPlayer。AVFoundation 不解封装 matroska / avi，打开即报 `AVErrorFileFormatNotRecognized`（-11828）。视频白名单加入 mkv/webm/avi 时只有画面链路（media_kit）能处理，声音链路没跟上。macOS 同样用 AVFoundation，桌面上即可复现。
+- 解法：字幕编辑器改为独占一个 media_kit 播放器（`SubtitleEditorAudioPlayer`，与剪辑页同一模式：页面创建、离开释放，不接入全局引擎和系统媒体会话），只开音轨，画面仍由独立预览播放器负责。区间试听用 mpv 原生终点裁切句尾，会话隔离与原实现一致。字幕读取抽为 `loadTranscriptSentences`，两个 just_audio 引擎改为复用它；进入编辑页暂停其它播放改用共享的 `pauseOtherPlaybackProvider`（原剪辑页私有）。
+- 关联坑：mpv 播到原生终点（`end`）时 keep-open 立即暂停，输出缓冲里未播出的声音被丢弃。默认 `audio-buffer=0.2` 会把单词 / 句尾截掉约 200ms（日志：781ms 的单词实际只播 587ms，位置先停在句尾前 233ms 再跳到句尾）。编辑器播放器打开媒体前把输出缓冲设为 50ms（`MediaPlayerBackend.setAudioOutputBuffer`），实测播放时长与区间误差 ≤50ms。全局 `MediaEngine` 的区间播放用的是同一机制、默认缓冲，学习页句尾可能同样被截，尚未处理。
+- 关联坑 2：波形同样读不了。just_waveform 在 iOS/macOS 上用 ExtAudioFile 解码，打开 mkv/avi 报 `ExtAudioOpenURL error 1954115647`（`'typ?'`，不支持的文件类型），波形区显示「波形生成失败」。字幕编辑改用剪辑页的 `MediaTrimWaveformLoader`，两页共用 `waveforms/{id}.wave` 缓存；日志标签改为 `[MediaWaveform]`。随后波形生成整体改为 FFmpeg 解码 PCM + 自研峰值计算，见 7.61。
+- 规则：新增视频扩展名时，确认所有出声链路都走 media_kit、所有系统解码器读取（波形等）都先抽音轨；用原生终点做区间播放时，按 `区间播放 started/return … played=` 日志核对实际播放时长，而不是只看位置。
+- 验证：`integration_test/subtitle_editor_media_kit_audio_test.dart`（macOS 真实 media_kit，合成 mkv / avi：加载成功、不经 just_audio、句 / 词 / 2x 试听播放时长误差 ≤100ms、切句与停止按取消结束、视频画面加载、离开释放）；`test/features/subtitle_editor/subtitle_editor_audio_player_test.dart`；同一集成测试断言 mkv / avi 波形提取成功（修复前 macOS 上以 ExtAudioOpenURL 失败）。iOS 真机待验证：打开 mkv 条目的字幕编辑页，日志应出现 `[SubtitleEditorAudio] 打开媒体 complete file=*.mkv`。
+- 相关代码：`lib/features/subtitle_editor/subtitle_editor_audio_player.dart`、`lib/features/subtitle_editor/subtitle_editor_controller.dart`、`lib/services/media_kit_player_backend.dart`。
+- 记录时间：2026-11-18。
+
+### 7.61 波形生成改为 FFmpeg 解码 PCM，移除 just_waveform
+
+- 背景：just_waveform 依赖系统解码器（iOS/macOS 为 ExtAudioFile），读不了 mkv/avi（7.60），视频只能先用 ffmpeg 编码一条 AAC 代理音轨再交给它解码，慢（22 分钟 mkv 仅抽代理音轨 CLI 就要 13.8s）；0.0.7 还有 16 位解析错位（7.54）。导入时的静音检测也直接用 just_waveform 读原文件，mkv/avi 一律失败并退回「非静音」，检测实际失效。
+- 解法：`lib/utils/waveform_peaks.dart`。FFmpeg 把第一条音轨解码为 24kHz 单声道 s16le 临时 PCM，后台 isolate 分块计算每像素（80px/s，即每 300 个采样）min/max，缓存为自有格式（magic `ELWP` 开头）。旧 just_waveform 缓存或写坏的缓存读取时直接删除并重新生成，不做兼容。静音检测复用同一解码与计算（20px/s）。
+- 参数取舍：FFmpeg 解码耗时与输出采样率基本无关（8k~48k 均约 2.2s），采样率只影响临时文件和计算量。与原生采样率的峰值相比，16kHz 有 9% 的竖条差超过 1px（滤掉了齿擦音等高频峰值），24kHz 约 2%、p99 误差 3%，肉眼不可分辨。24kHz 临时 PCM 约 170MB/小时，用完即删。实测 macOS FFmpegKit：22 分钟 mkv 5.1s、37 分钟 mp3 10.0s，其中峰值计算 0.2~0.4s，其余为解码。
+- 坑：在方法内直接写 `Isolate.run(() => ...)`，闭包会连带捕获外层上下文（Notifier 的 onProgress 回调、Stream），发送时报 `Illegal argument in isolate message: object is unsendable - _DistinctStream`，波形区显示「生成失败」。单独调用加载器的测试回调简单，不会暴露，必须走真实页面。解法：后台计算放在顶层函数 `computeWaveformPeaksInBackground`，闭包只捕获路径与像素密度。
+- 验证：`test/utils/waveform_peaks_test.dart`（逐像素 min/max、跨 1MB 分块、尾部不足一像素、缓存编解码、无效缓存识别）；`integration_test/media_waveform_loader_test.dart`（macOS 真实 FFmpegKit，m4a/flac/wav/mkv(ac3)/avi(pcm)：静音段峰值 <1% 满量程、0.5 满量程正弦段每像素误差 ≤10%、时长误差 <100ms、进度单调到 1、二次命中缓存、解码中取消不留缓存、静音 mkv 判 silent）；`integration_test/subtitle_editor_media_kit_audio_test.dart` 走真实字幕编辑页覆盖 isolate 捕获问题。
+- 测试坑：macOS 集成测试若不在 setUpAll 初始化 `windowManager`、tearDownAll 中 `windowManager.hide()`，`flutter test -d macos` 结束后 Debug 版 Echo Loop 进程不退出，每跑一次残留一个窗口（本次连续 5 次复现，加上后不再残留）。新增 macOS 集成测试照抄现有文件的 setUpAll / tearDownAll。
+- 相关代码：`lib/utils/waveform_peaks.dart`、`lib/features/media_trim/media_trim_waveform_loader.dart`、`lib/features/media_trim/media_trim_processor.dart`、`lib/utils/audio_content_check.dart`。
 - 记录时间：2026-11-18。

@@ -2,13 +2,12 @@
 //
 // 两级判定：
 //   1. FFmpeg 短解码探测：第一条音频流无法解码 → 文件损坏 / 格式不兼容。
-//   2. 振幅分析：可解码后，用 just_waveform 判断是否全程静音、无人声。
+//   2. 振幅分析：可解码后，用 FFmpeg 解码 PCM 计算波形峰值，判断是否全程静音、无人声。
 
 import 'dart:async';
 
 import 'package:ffmpeg_kit_flutter_new_min/ffmpeg_kit.dart';
 import 'package:ffmpeg_kit_flutter_new_min/return_code.dart';
-import 'package:just_waveform/just_waveform.dart';
 import 'package:path/path.dart' as path;
 import 'package:universal_io/io.dart';
 import 'package:uuid/uuid.dart';
@@ -16,6 +15,7 @@ import 'package:uuid/uuid.dart';
 import '../models/audio_item.dart';
 import '../services/app_logger.dart';
 import 'app_data_dir.dart';
+import 'waveform_peaks.dart';
 
 /// 「响亮样本」振幅门限：绝对振幅 > 满量程 × 该比例 视为有声内容。
 ///
@@ -24,10 +24,8 @@ const double _loudAmplitudeRatio = 0.01;
 
 /// 静音判定：响亮样本占比 < 该比例 即视为整体静音。
 ///
-/// 用占比而非全局峰值，对少量离群样本健壮——`just_waveform` 16-bit 解析存在
-/// 已知偏移缺陷（数据视图比真实数据早 10 字节，导致 [Waveform.data] 头部混入
-/// 几个头部字段值，如 samplesPerPixel）。全局峰值会被这几个垃圾值污染而漏判，
-/// 占比法可忽略这种极少数离群点。
+/// 用占比而非全局峰值，对少量离群样本（爆音、点击声）健壮：全局峰值会被这几个
+/// 离群点拉高而漏判，占比法可忽略它们。
 const double _minLoudFraction = 0.005;
 
 const Duration _decodeProbeTimeout = Duration(seconds: 8);
@@ -35,20 +33,24 @@ const Duration _decodeProbeTimeout = Duration(seconds: 8);
 typedef AudioDecodeProbe = Future<bool> Function(String relativePath);
 typedef AudioSilenceProbe = Future<bool> Function(String relativePath);
 
+/// 16 位 PCM 满量程。
+const int _pcmFullScale = 32768;
+
+/// 粗像素密度足够统计响亮占比，计算量更小。
+const int _silencePixelsPerSecond = 20;
+
 /// 纯函数：判断波形样本是否整体静音。
 ///
-/// [samples] 为 just_waveform 的 min/max 交错样本（[Waveform.data]）。
-/// [bits] 为采样位宽（16 或 8），决定满量程 `1 << (bits-1)`。
+/// [samples] 为 16 位 PCM 的 min/max 交错样本（[WaveformPeaks.minMax]）。
 /// 统计「响亮样本占比」：占比低于 [minLoudFraction] 判为静音。
 /// 空样本无法判定，返回 false（不过度标记）。
 bool isWaveformSilent(
   List<int> samples, {
-  required int bits,
   double loudRatio = _loudAmplitudeRatio,
   double minLoudFraction = _minLoudFraction,
 }) {
   if (samples.isEmpty) return false;
-  final loudThreshold = (1 << (bits - 1)) * loudRatio;
+  final loudThreshold = _pcmFullScale * loudRatio;
   var loudCount = 0;
   for (final sample in samples) {
     if (sample.abs() > loudThreshold) loudCount++;
@@ -138,33 +140,35 @@ Future<bool> _canDecodeAudio(String relativePath) async {
   }
 }
 
-/// 用 just_waveform 解码波形并判断是否静音。
+/// 用 FFmpeg 解码整段音频为 PCM，计算波形峰值并判断是否静音。
 ///
-/// 写临时波形文件、读取后删除。任何异常视为「无法判定」返回 false
-/// （FFmpeg 已证明文件可解码，不因波形失败而误标）。
+/// PCM 写入临时文件、计算后删除。任何异常视为「无法判定」返回 false
+/// （FFmpeg 短解码已证明文件可解码，不因波形失败而误标）。
 Future<bool> _isFileSilent(String relativePath) async {
-  File? waveFile;
+  File? pcmFile;
   try {
     final dataDir = await getAppDataDirectory();
     final fullPath = path.join(dataDir.path, relativePath);
     final tmpDir = Directory(path.join(dataDir.path, 'tmp', 'content_check'));
     await tmpDir.create(recursive: true);
-    waveFile = File(path.join(tmpDir.path, '${const Uuid().v4()}.wave'));
-
-    Waveform? waveform;
-    // 粗 zoom 足够取峰值，加快解码。
-    await for (final progress in JustWaveform.extract(
-      audioInFile: File(fullPath),
-      waveOutFile: waveFile,
-      zoom: const WaveformZoom.pixelsPerSecond(20),
-    )) {
-      waveform = progress.waveform;
+    pcmFile = File(path.join(tmpDir.path, '${const Uuid().v4()}.pcm'));
+    final session = await FFmpegKit.executeWithArguments(
+      waveformPcmDecodeArguments(input: fullPath, output: pcmFile.path),
+    );
+    final returnCode = await session.getReturnCode();
+    if (!ReturnCode.isSuccess(returnCode)) {
+      AppLogger.log(
+        'AudioContentCheck',
+        'silence probe decode failed: ext=${path.extension(relativePath)} '
+            'returnCode=$returnCode logs=${await session.getOutput() ?? ''}',
+      );
+      return false;
     }
-    if (waveform == null) return false;
-
-    // flags==0 → 16bit（Int16List），否则 8bit。
-    final bits = waveform.flags == 0 ? 16 : 8;
-    return isWaveformSilent(waveform.data, bits: bits);
+    final peaks = await computeWaveformPeaksInBackground(
+      pcmFile.path,
+      pixelsPerSecond: _silencePixelsPerSecond,
+    );
+    return isWaveformSilent(peaks.minMax);
   } catch (e) {
     AppLogger.log(
       'AudioContentCheck',
@@ -172,9 +176,9 @@ Future<bool> _isFileSilent(String relativePath) async {
     );
     return false;
   } finally {
-    if (waveFile != null && await waveFile.exists()) {
+    if (pcmFile != null && await pcmFile.exists()) {
       try {
-        await waveFile.delete();
+        await pcmFile.delete();
       } catch (_) {}
     }
   }

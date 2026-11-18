@@ -111,7 +111,6 @@ dependencies:
   supabase_flutter: ^2.18.0
   sign_in_with_apple: ^8.2.0
   google_sign_in: ^7.2.0
-  just_waveform: ^0.0.7
   # 注意：该插件的 ProGuard keep 规则用的是 proguardFiles 而非 consumerProguardFiles，
   # 不会传播到宿主 app。release（R8）构建必须在 android/app/proguard-rules.pro 保留
   # com.antonkarpenko.ffmpegkit.**，否则 R8 会裁掉仅由 JNI_OnLoad 注册的 native 方法

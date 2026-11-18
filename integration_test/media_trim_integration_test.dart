@@ -10,7 +10,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:echo_loop/database/providers.dart';
 import 'package:echo_loop/l10n/app_localizations.dart';
-import 'package:echo_loop/features/media_trim/media_trim_editor_controller.dart';
+import 'package:echo_loop/providers/pause_other_playback_provider.dart';
 import 'package:echo_loop/features/media_trim/media_trim_screen.dart';
 import 'package:echo_loop/features/media_trim/media_trim_split_geometry.dart';
 import 'package:echo_loop/features/media_trim/media_trim_split_provider.dart';
@@ -378,7 +378,7 @@ void main() {
           appDatabaseProvider.overrideWithValue(database),
           sharedPreferencesProvider.overrideWithValue(preferences),
           // 测试只验证剪辑页本身，不启动全局播放链路。
-          mediaTrimPauseOtherPlaybackProvider.overrideWithValue(() async {}),
+          pauseOtherPlaybackProvider.overrideWithValue(() async {}),
         ],
         child: ValueListenableBuilder<(double, bool)>(
           valueListenable: presentation,

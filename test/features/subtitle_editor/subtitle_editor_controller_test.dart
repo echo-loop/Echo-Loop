@@ -1,35 +1,33 @@
-import 'dart:async';
 import 'dart:io';
 
 import 'package:echo_loop/database/providers.dart';
 import 'package:echo_loop/features/subtitle_editor/subtitle_edit_engine.dart';
 import 'package:echo_loop/features/subtitle_editor/subtitle_editor_controller.dart';
-import 'package:echo_loop/models/audio_engine_state.dart';
 import 'package:echo_loop/models/audio_item.dart';
 import 'package:echo_loop/models/sentence.dart';
 import 'package:echo_loop/models/word_timestamp.dart';
-import 'package:echo_loop/providers/audio_engine/audio_engine_provider.dart';
 import 'package:echo_loop/providers/audio_library_provider.dart';
 import 'package:echo_loop/providers/listening_practice/listening_practice_provider.dart';
 import 'package:echo_loop/providers/transcript_change_sync_provider.dart';
 import 'package:echo_loop/utils/app_data_dir.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:just_audio/just_audio.dart' as ja;
 
 import '../../helpers/mock_providers.dart';
+import 'subtitle_editor_test_support.dart';
 
 void main() {
-  late _RecordingAudioEngine audioEngine;
+  late RangeRecordingBackend audioEngine;
   late ProviderContainer container;
   late ProviderSubscription<SubtitleEditorState> subscription;
   late AudioItem audioItem;
   late List<Sentence> sentences;
-  late TestAudioItemDao audioItemDao;
+  late TranscriptAudioItemDao audioItemDao;
 
-  setUp(() {
+  setUp(() async {
+    await useTemporaryAppDataDirectory();
     audioItem = createTestAudioItem(totalDuration: 12);
-    audioItemDao = TestAudioItemDao();
+    audioItemDao = TranscriptAudioItemDao(() => sentences);
     sentences = [
       Sentence(
         index: 0,
@@ -50,13 +48,10 @@ void main() {
         endTime: const Duration(seconds: 12),
       ),
     ];
-    audioEngine = _RecordingAudioEngine(
-      duration: const Duration(seconds: 12),
-      sentences: sentences,
-    );
+    audioEngine = RangeRecordingBackend(const Duration(seconds: 12));
     container = ProviderContainer(
       overrides: dedupeOverrides([
-        audioEngineProvider.overrideWith(() => audioEngine),
+        ...subtitleEditorPlaybackOverrides(audioEngine),
         audioItemDaoProvider.overrideWithValue(audioItemDao),
       ]),
     );
@@ -70,7 +65,6 @@ void main() {
   tearDown(() {
     subscription.close();
     container.dispose();
-    audioEngine.disposeController();
   });
 
   SubtitleEditorController controller() {
@@ -86,20 +80,28 @@ void main() {
     await notifier.load();
 
     expect(state().selectedSentenceIndex, 0);
-    expect(state().selectedSentence, sentences.first);
+    expect(state().selectedSentence?.text, sentences.first.text);
     expect(state().playbackPosition, sentences.first.startTime);
     expect(state().selectionEpoch, 0);
   });
 
+  test('媒体打不开时显示加载错误，不进入可编辑状态', () async {
+    audioEngine.openError = Exception('无法打开');
+
+    await controller().load();
+
+    expect(state().isLoading, isFalse);
+    expect(state().errorMessage, contains('无法打开'));
+    expect(state().sentences, isEmpty);
+  });
+
   test('无本地音频时标记音频缺失，而不是波形生成失败', () async {
     final missingAudioItem = audioItem.copyWith(audioPath: null);
-    final localAudioEngine = _RecordingAudioEngine(
-      duration: const Duration(seconds: 12),
-      sentences: sentences,
-    );
     final localContainer = ProviderContainer(
       overrides: dedupeOverrides([
-        audioEngineProvider.overrideWith(() => localAudioEngine),
+        ...subtitleEditorPlaybackOverrides(
+          RangeRecordingBackend(const Duration(seconds: 12)),
+        ),
         audioItemDaoProvider.overrideWithValue(audioItemDao),
       ]),
     );
@@ -124,7 +126,6 @@ void main() {
     } finally {
       localSubscription.close();
       localContainer.dispose();
-      localAudioEngine.disposeController();
     }
   });
 
@@ -137,7 +138,7 @@ void main() {
     await notifier.setPlaybackSpeed(1.5);
 
     expect(state().playbackSpeed, 1.5);
-    expect(audioEngine.speedCalls, contains(1.5));
+    expect(audioEngine.rateCalls, contains(1.5));
 
     audioEngine.completePlayback();
     await playback;
@@ -152,12 +153,12 @@ void main() {
     expect(state().playbackPosition, const Duration(seconds: 6));
 
     await notifier.finishScrub(const Duration(seconds: 20));
-    expect(audioEngine.clearClipCallCount, 1);
-    expect(audioEngine.lastSeekAbsolute, const Duration(seconds: 12));
+    expect(audioEngine.seekCalls.last, const Duration(seconds: 12));
+    expect(audioEngine.playbackEnd, isNull, reason: '定位前撤销区间终点');
     expect(state().playbackPosition, const Duration(seconds: 12));
   });
 
-  test('playSentence 播完单句后清理 clip，避免后续 seek 仍落在旧句子', () async {
+  test('playSentence 播完单句后撤销区间终点，避免后续播放停在旧句尾', () async {
     final notifier = controller();
     await notifier.load();
 
@@ -166,8 +167,8 @@ void main() {
     audioEngine.completePlayback();
     await playback;
 
-    expect(audioEngine.playClipOnceCallCount, 1);
-    expect(audioEngine.clearClipCallCount, 2);
+    expect(audioEngine.ranges, [(Duration.zero, const Duration(seconds: 4))]);
+    expect(audioEngine.playbackEnd, isNull);
     expect(state().isPlaying, isFalse);
     expect(state().playingSentenceIndex, isNull);
   });
@@ -184,10 +185,11 @@ void main() {
     final secondPlayback = notifier.playSentence(1);
     await Future<void>.delayed(Duration.zero);
 
-    expect(audioEngine.stopPlaybackCallCount, 1);
-    expect(audioEngine.clearClipCallCount, 2);
-    expect(audioEngine.playClipOnceCallCount, 2);
-    expect(audioEngine.lastPlayedSentence?.index, 1);
+    expect(audioEngine.ranges, [
+      (Duration.zero, const Duration(seconds: 4)),
+      (const Duration(seconds: 4), const Duration(seconds: 8)),
+    ]);
+    expect(audioEngine.playing, isTrue);
     expect(state().playingSentenceIndex, 1);
     expect(state().playbackPosition, const Duration(seconds: 4));
 
@@ -229,7 +231,7 @@ void main() {
     expect(state().isPlaying, isFalse);
     expect(state().selectedSentenceIndex, 1);
     expect(state().playbackPosition, const Duration(seconds: 4));
-    expect(audioEngine.clearClipCallCount, greaterThanOrEqualTo(1));
+    expect(audioEngine.playing, isFalse);
 
     audioEngine.completePlayback();
     await playback;
@@ -392,13 +394,11 @@ void main() {
 
   test('maxWaveformZoomScale 长音频按 5cm/秒自适应，不被固定上限截断', () async {
     final localAudioItem = createTestAudioItem(totalDuration: 1800);
-    final localAudioEngine = _RecordingAudioEngine(
-      duration: const Duration(minutes: 30),
-      sentences: sentences,
-    );
     final localContainer = ProviderContainer(
       overrides: dedupeOverrides([
-        audioEngineProvider.overrideWith(() => localAudioEngine),
+        ...subtitleEditorPlaybackOverrides(
+          RangeRecordingBackend(const Duration(minutes: 30)),
+        ),
         audioItemDaoProvider.overrideWithValue(audioItemDao),
       ]),
     );
@@ -424,7 +424,6 @@ void main() {
     } finally {
       localSubscription.close();
       localContainer.dispose();
-      localAudioEngine.disposeController();
     }
   });
 
@@ -548,9 +547,7 @@ void main() {
 
       expect(state().focusedWordIndex, 1);
       expect(state().isPlaying, isTrue);
-      expect(audioEngine.playRangeOnceCallCount, 1);
-      expect(audioEngine.lastPlayStart, words[1].startTime);
-      expect(audioEngine.lastPlayEnd, words[1].endTime);
+      expect(audioEngine.ranges, [(words[1].startTime, words[1].endTime)]);
 
       audioEngine.completePlayback();
       await playback;
@@ -572,7 +569,7 @@ void main() {
       expect(state().playbackMode, SubtitleEditorPlaybackMode.wordAudition);
       expect(state().isPlaying, isTrue);
       expect(state().focusedWordIndex, 1);
-      expect(audioEngine.lastPlayStart, words[1].startTime);
+      expect(audioEngine.ranges.last.$1, words[1].startTime);
       expect(state().playbackPosition, before);
 
       // 播放中的位置流与计时器都不移动播放头。
@@ -582,15 +579,14 @@ void main() {
       await Future<void>.delayed(const Duration(milliseconds: 120));
       expect(state().playbackPosition, before);
 
-      final stopsBefore = audioEngine.stopPlaybackCallCount;
       audioEngine.completePlayback();
       await playback;
       expect(state().isPlaying, isFalse);
       expect(state().playbackPosition, before);
       expect(
-        audioEngine.stopPlaybackCallCount,
-        stopsBefore + 1,
-        reason: '播完必须停止底层播放器，否则清除片段后会从头继续播放',
+        audioEngine.playbackEnd,
+        isNull,
+        reason: '播完必须停止底层播放器并撤销区间终点，否则后续播放会停在词尾',
       );
     });
 
@@ -1353,13 +1349,13 @@ void main() {
   group('save 同步学习数据（不再清空）', () {
     late Directory tempDir;
     late _RecordingTranscriptChangeSync transcriptSync;
-    late TestAudioItemDao audioItemDao;
+    late TranscriptAudioItemDao audioItemDao;
 
     setUp(() async {
       // save() 把字幕内容写入 DB transcript_srt 列（不再落文件）。
       tempDir = await Directory.systemTemp.createTemp('subtitle_save_test');
       appDataDirectoryOverride = tempDir;
-      audioItemDao = TestAudioItemDao();
+      audioItemDao = TranscriptAudioItemDao(() => sentences);
     });
 
     tearDown(() async {
@@ -1371,16 +1367,12 @@ void main() {
       TestListeningPractice Function()? listeningPractice,
       TestAudioLibrary Function()? audioLibrary,
     }) {
-      // 用独立的音频引擎实例：全局 setUp 的容器已挂载了共享 audioEngine，
-      // 同一 Notifier 实例不能在两个容器中重复挂载。
-      final engine = _RecordingAudioEngine(
-        duration: const Duration(seconds: 12),
-        sentences: sentences,
-      );
-      addTearDown(engine.disposeController);
+      // 用独立的播放器实例：全局 setUp 的容器已持有共享 backend。
       final c = ProviderContainer(
         overrides: dedupeOverrides([
-          audioEngineProvider.overrideWith(() => engine),
+          ...subtitleEditorPlaybackOverrides(
+            RangeRecordingBackend(const Duration(seconds: 12)),
+          ),
           audioItemDaoProvider.overrideWithValue(audioItemDao),
           audioLibraryProvider.overrideWith(
             audioLibrary ?? () => TestAudioLibrary(),
@@ -1614,121 +1606,5 @@ class _RecordingListeningPractice extends TestListeningPractice {
       audioItem,
       forceTranscriptReload: forceTranscriptReload,
     );
-  }
-}
-
-class _RecordingAudioEngine extends AudioEngine {
-  _RecordingAudioEngine({required this.duration, required this.sentences});
-
-  final Duration duration;
-  final List<Sentence> sentences;
-  final _positionController = StreamController<Duration>.broadcast();
-  final speedCalls = <double>[];
-  Completer<void>? _playbackCompleter;
-  int _sessionId = 0;
-
-  int playRangeOnceCallCount = 0;
-  int playClipOnceCallCount = 0;
-  int stopPlaybackCallCount = 0;
-  int clearClipCallCount = 0;
-  double? lastSpeed;
-  Duration? lastPlayStart;
-  Duration? lastPlayEnd;
-  Duration? lastSeekAbsolute;
-  Sentence? lastPlayedSentence;
-
-  @override
-  AudioEngineState build() => AudioEngineState(totalDuration: duration);
-
-  @override
-  Stream<Duration> get absolutePositionStream => _positionController.stream;
-
-  @override
-  Stream<ja.PlayerState> get playerStateStream => const Stream.empty();
-
-  @override
-  bool get isPlaying => _playbackCompleter != null;
-
-  @override
-  Duration get currentPosition => Duration.zero;
-
-  @override
-  int newSession() {
-    _sessionId += 1;
-    return _sessionId;
-  }
-
-  @override
-  bool isActiveSession(int id) => id == _sessionId;
-
-  @override
-  Future<Duration?> loadAudio(
-    AudioItem item,
-    double speed, {
-    String? subtitle,
-  }) async => duration;
-
-  @override
-  Future<List<Sentence>> loadTranscript(AudioItem audioItem) async => sentences;
-
-  @override
-  Future<void> setSpeed(double speed) async {
-    lastSpeed = speed;
-    speedCalls.add(speed);
-  }
-
-  @override
-  Future<void> playRangeOnce(
-    Duration start,
-    Duration end,
-    int sessionId, {
-    void Function()? onClipReady,
-  }) async {
-    playRangeOnceCallCount += 1;
-    lastPlayStart = start;
-    lastPlayEnd = end;
-    _playbackCompleter = Completer<void>();
-    await _playbackCompleter!.future;
-  }
-
-  @override
-  Future<void> playClipOnce(Sentence sentence, int sessionId) async {
-    playClipOnceCallCount += 1;
-    lastPlayedSentence = sentence;
-    _playbackCompleter = Completer<void>();
-    await _playbackCompleter!.future;
-  }
-
-  @override
-  Future<void> stopPlayback() async {
-    stopPlaybackCallCount += 1;
-    _playbackCompleter?.complete();
-    _playbackCompleter = null;
-  }
-
-  @override
-  Future<void> clearClip() async {
-    clearClipCallCount += 1;
-  }
-
-  @override
-  Future<void> seekToAbsolute(Duration absolute) async {
-    lastSeekAbsolute = absolute;
-  }
-
-  void completePlayback() {
-    _playbackCompleter?.complete();
-    _playbackCompleter = null;
-  }
-
-  void emitPosition(Duration position) {
-    _positionController.add(position);
-  }
-
-  void disposeController() {
-    if (_playbackCompleter != null && !_playbackCompleter!.isCompleted) {
-      _playbackCompleter!.complete();
-    }
-    unawaited(_positionController.close());
   }
 }

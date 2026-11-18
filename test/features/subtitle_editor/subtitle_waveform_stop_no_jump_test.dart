@@ -1,8 +1,10 @@
+import 'dart:typed_data';
+
 import 'package:echo_loop/features/subtitle_editor/subtitle_waveform_view.dart';
 import 'package:echo_loop/models/sentence.dart';
+import 'package:echo_loop/utils/waveform_peaks.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:just_waveform/just_waveform.dart';
 
 import '../../helpers/test_app.dart';
 
@@ -151,15 +153,12 @@ bool _hasPlayhead(WidgetTester tester) {
   return false;
 }
 
-Waveform _waveform({int length = 100}) {
-  return Waveform(
-    version: 1,
-    flags: 0,
-    sampleRate: 1000,
-    samplesPerPixel: 100,
-    length: length,
-    data: [
+WaveformPeaks _waveform({int length = 100}) {
+  return WaveformPeaks(
+    pixelsPerSecond: 10,
+    duration: Duration(milliseconds: length * 100),
+    minMax: Int16List.fromList([
       for (var i = 0; i < length; i++) ...[-9000 - i * 10, 9000 + i * 10],
-    ],
+    ]),
   );
 }

@@ -2,9 +2,18 @@
 
 > 仅列未完成事项。已完成记录见 [2026-11-12 归档](./docs/tasks-archive/tasks-2026-11-12-completed.md)、[2026-10-29 归档](./docs/tasks-archive/tasks-2026-10-29-completed.md)、[2026-09-29 归档](./docs/tasks-archive/tasks-2026-09-29-completed.md)。
 
+- [x] 随心听视频偶发黑屏：`MediaKitBackend` 跨媒体复用同一 mpv 实例，上一段会话隐藏视频轨（`setVisualTrackVisible(false)`）后 vid 保持关闭；新会话 `load` 把界面显示状态重置为可见，却没有同步开启 mpv 视频轨，`VideoFrameGate` 收不到 video-size / vo-configured，画面一直隐藏。修复：加载新媒体前按 `visualTrackVisible` 同步视频轨。新增 1 个 provider 回归用例（隐藏视频轨后退出，再加载新媒体时视频轨恢复）。
+  - 后续复现：暂停打开随心听仍黑屏，点播放才出画面。日志显示 `vo-configured yes` 后纹理尺寸一直停在上一媒体尺寸，直到播放才被 mpv 出帧更新（`TextureGL: resize` 与播放同时出现）。修复：`VideoFrameGate.needsFrameRedraw`，VO 已配置且纹理未追上时，暂停中 seek 到打开时的起始位置触发一次重绘（每次打开只请求一次，不用播放器当前位置，避免断点丢失）。新增门控单元用例。待真机验证：日志应出现 `event=paused_redraw_requested`，随后 `current_media_visible trigger=texture-size`。**完成时间**: 2026-11-18
+
 - [x] 随心听收藏句译文卡在加载中：译文流正常结束但没有任何非空译文（空终帧或无帧即结束）时，`sentenceTranslationProvider` 静默结束，骨架屏永久转圈。改为抛出 `SentenceTranslationEmptyException` 进入失败态，点击可重新请求，并记录「译文流结束但无内容」日志。新增 2 个 widget 回归用例（流无内容、终帧译文为空）。根因中「为何服务端返回空流」尚未从日志确认，待复现时看该日志行。**完成时间**: 2026-11-18
 
 - [x] 随心听自动聚焦仅在播放时生效：暂停时用户手动滚动松手后，2 秒恢复计时器不再把字幕列表拉回当前句（原因：恢复逻辑未判断播放状态）。`ParagraphSentenceListCard` 新增 `isPlaying`（默认 true，段落盲听不受影响），随心听传入 `state.isPlaying`；暂停时仅解除手动滚动挂起，开始播放时立即（无动画）定位到当前句，手动滚动中不抢位置；点句子、进度条 seek、路由返回等显式定位在暂停时保持有效。新增 5 个播放门控回归用例（暂停滚动不回弹、播放中滚动恢复跟随、暂停点句定位、暂停后开始播放即时定位、两帧内完成定位）。相关测试 145 项通过。**完成时间**: 2026-11-18
+
+- [x] iOS 视频（mkv 等）字幕编辑「(-11828) 无法打开」：字幕编辑器的声音从 just_audio（AVPlayer 不能解封装 mkv/avi）切到编辑器独占的 media_kit 播放器 `SubtitleEditorAudioPlayer`（与剪辑页同一模式，不接入全局引擎），画面链路不变；撤回上一轮的 ffmpeg 抽音轨临时方案。顺带修复 mpv 原生终点丢弃 0.2s 输出缓冲导致句尾被截约 200ms（编辑器播放器缓冲设为 50ms）。波形改用剪辑页的 `MediaTrimWaveformLoader`（视频先抽代理音轨），修复 mkv 波形「ExtAudioOpenURL error 1954115647」生成失败。字幕读取抽为共享 `loadTranscriptSentences`，`pauseOtherPlaybackProvider` 由剪辑页与字幕编辑共用。新增 macOS 集成测试（mkv / avi 真实播放，按日志核对起播位置与实际播放时长）与播放器单测，字幕编辑相关单测全部迁移到 fake media_kit backend。iOS 真机验证待做。**完成时间**: 2026-11-18
+
+- [x] 字幕编辑波形：单词块与它下方的词区间合并为同一个目标。轻点当前句的词区间改为试听该词（播放头不动），不再定位播放头；长按（鼠标为按住拖动）顶部单词块也能抓住该词整体拖动。相邻句的词区间轻点仍定位播放头（顶部只显示当前句的单词块）。新增 3 个 widget 回归用例（触摸 / 鼠标轻点词区间试听、长按单词块拖词），修复前均失败；集成测试改在时间轴行轻点定位。鼠标右键在波形任意位置拖动只平移（不抓词、边界或播放头），右键轻点不试听、不定位，新增 1 个回归用例（修复前失败）。**完成时间**: 2026-11-18
+
+- [x] 波形生成去掉 just_waveform：改为 FFmpeg 解码第一条音轨为 24kHz 单声道 PCM，后台 isolate 计算每像素 min/max（80px/s），自有缓存格式（旧 just_waveform 缓存读取时直接删除重建）。音频、mkv/avi 等视频走同一路径，不再依赖系统解码器，也不再编码 AAC 代理音轨；导入时静音检测复用同一计算，修复 mkv/avi 静音检测失效。删除 `WaveformSamples`（just_waveform 16 位错位补丁）。新增峰值计算单测与 macOS 集成测试（5 种格式按信号逐像素校验、缓存、取消、静音检测）。iOS / Android 真机待验证：首次打开波形日志应出现 `[MediaWaveform] 波形生成完成 … decode=…ms total=…ms`。**完成时间**: 2026-11-18
 
 - [x] TTS 配置目标去重：控制器记录已应用的有效目标（引擎 + 发音参数），目标未变的重配置（无关设置变化、模型就绪状态变化）直接跳过，不再清空在途预热批次或通知页面重新提交。目标真正变化时仍整体重配。测试覆盖：无关设置变化、未选用模型就绪变化、被选用模型就绪变化均不改变目标；引擎切换仍清空批次。清理：有效引擎与模型就绪无关，移除就绪监听中的无效重配置与 `effectiveTtsEngine` 的无用参数（规则保持不变，改由 `tts_controller_gating_test` 单独覆盖）。**完成时间**: 2026-11-17
 

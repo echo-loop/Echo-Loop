@@ -43,6 +43,21 @@ void main() {
     expect(gate.updateVideoSize(portrait), isTrue);
   });
 
+  test('暂停打开后 VO 已配置但纹理未追上：需要触发一次重绘出帧', () {
+    final gate = VideoFrameGate()
+      ..updateTextureSize(portrait)
+      ..resetForNewMedia();
+    expect(gate.needsFrameRedraw, isFalse, reason: 'VO 未配置前不需要');
+
+    gate.updateVideoSize(landscape);
+    gate.updateVoConfigured(true);
+    expect(gate.needsFrameRedraw, isTrue, reason: 'mpv 暂停时不会主动出帧');
+
+    gate.updateTextureSize(landscape);
+    expect(gate.isCurrentMediaVisible, isTrue);
+    expect(gate.needsFrameRedraw, isFalse, reason: '已放行后无需再重绘');
+  });
+
   test('无视频轨（无有效尺寸）时始终不绘制纹理', () {
     final gate = VideoFrameGate()
       ..updateTextureSize(portrait)

@@ -1,7 +1,7 @@
 /// 字幕编辑页 UI 与布局的 macOS 交互测试。
 ///
 /// 用内置示例材料的真人语音与词级时间戳，配合 ffmpeg 生成带时间码画面的视频，
-/// 走真实波形提取与 media_kit 画面链路，在手机竖屏 / 横屏、平板、桌面四种窗口与
+/// 走真实波形提取与 media_kit 声音 / 画面链路，在手机竖屏 / 横屏、平板、桌面四种窗口与
 /// 明暗主题下验证：
 /// - 布局不溢出、关键控件（工具条、波形、句子列表）都在可视范围内；
 /// - 视频材料画面默认收起，显示后上下（窄）或左右（宽）分栏，跟随试听播放；
@@ -13,7 +13,6 @@
 /// 运行：flutter test integration_test/subtitle_editor_ui_test.dart -d macos
 library;
 
-import 'dart:async';
 import 'dart:io';
 import 'dart:ui' as ui;
 
@@ -28,11 +27,9 @@ import 'package:echo_loop/features/subtitle_editor/subtitle_editor_split_geometr
 import 'package:echo_loop/features/subtitle_editor/subtitle_editor_split_provider.dart';
 import 'package:echo_loop/features/subtitle_editor/subtitle_simple_editor_screen.dart';
 import 'package:echo_loop/features/subtitle_editor/subtitle_waveform_view.dart';
-import 'package:echo_loop/models/audio_engine_state.dart';
 import 'package:echo_loop/models/audio_item.dart';
 import 'package:echo_loop/models/sentence.dart';
 import 'package:echo_loop/models/word_timestamp.dart';
-import 'package:echo_loop/providers/audio_engine/audio_engine_provider.dart';
 import 'package:echo_loop/providers/audio_library_provider.dart';
 import 'package:echo_loop/providers/favorite_sentence_lifecycle_provider.dart';
 import 'package:echo_loop/providers/learning_progress_provider.dart';
@@ -50,7 +47,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
-import 'package:just_audio/just_audio.dart' as ja;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:window_manager/window_manager.dart';
 
@@ -62,94 +58,6 @@ const _toggleVideoKey = ValueKey('subtitle-editor-toggle-video');
 const _videoKey = ValueKey('subtitle-editor-video');
 const _dividerKey = ValueKey('practice-media-split-divider');
 const _demoName = 'B1 - Work-life balance';
-
-/// 按真实时长模拟区间播放的音频引擎：编辑器的播放态、播放头与画面跟随都依赖
-/// 「播放持续一段时间后结束」，但测试不需要真的出声。
-class _RealtimeAudioEngine extends AudioEngine {
-  _RealtimeAudioEngine({required this.duration, required this.sentences});
-
-  final Duration duration;
-  final List<Sentence> sentences;
-  final _positionController = StreamController<Duration>.broadcast();
-  Completer<void>? _playback;
-  int _sessionId = 0;
-  double _speed = 1.0;
-
-  @override
-  AudioEngineState build() => AudioEngineState(totalDuration: duration);
-
-  @override
-  Stream<Duration> get absolutePositionStream => _positionController.stream;
-
-  @override
-  Stream<ja.PlayerState> get playerStateStream => const Stream.empty();
-
-  @override
-  bool get isPlaying => _playback != null;
-
-  @override
-  Duration get currentPosition => Duration.zero;
-
-  @override
-  int newSession() => ++_sessionId;
-
-  @override
-  bool isActiveSession(int id) => id == _sessionId;
-
-  @override
-  Future<Duration?> loadAudio(
-    AudioItem item,
-    double speed, {
-    String? subtitle,
-  }) async => duration;
-
-  @override
-  Future<List<Sentence>> loadTranscript(AudioItem audioItem) async => sentences;
-
-  @override
-  Future<void> playClipOnce(Sentence sentence, int sessionId) =>
-      _play(sentence.endTime - sentence.startTime);
-
-  @override
-  Future<void> playRangeOnce(
-    Duration start,
-    Duration end,
-    int sessionId, {
-    void Function()? onClipReady,
-  }) => _play(end - start);
-
-  Future<void> _play(Duration length) async {
-    _finish();
-    final playback = Completer<void>();
-    _playback = playback;
-    final timer = Timer(length * (1 / _speed), _finish);
-    await playback.future;
-    timer.cancel();
-  }
-
-  void _finish() {
-    final playback = _playback;
-    _playback = null;
-    if (playback != null && !playback.isCompleted) playback.complete();
-  }
-
-  @override
-  Future<void> stopPlayback() async => _finish();
-
-  @override
-  Future<void> clearClip() async {}
-
-  @override
-  Future<void> setSpeed(double speed) async => _speed = speed;
-
-  @override
-  Future<void> seekToAbsolute(Duration absolute) async {}
-
-  void close() {
-    _finish();
-    unawaited(_positionController.close());
-  }
-}
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
@@ -192,8 +100,24 @@ void main() {
   /// 写入示例音频，并合成一段带时间码画面的同长视频。
   Future<void> seedMedia() async {
     final audio = await rootBundle.load('assets/demo/$_demoName.m4a');
-    await File('${appDir.path}/lesson.m4a')
-        .writeAsBytes(audio.buffer.asUint8List());
+    final source = File('${appDir.path}/source.m4a');
+    await source.writeAsBytes(audio.buffer.asUint8List());
+    // 示例音频在末句结束后只剩约 0.2 秒；补 1 秒静音，留出补句等用例需要的句尾空隙。
+    final padded = await FFmpegKit.executeWithArguments([
+      '-y',
+      '-i',
+      source.path,
+      '-af',
+      'apad=pad_dur=1',
+      '-c:a',
+      'aac',
+      '${appDir.path}/lesson.m4a',
+    ]);
+    expect(
+      ReturnCode.isSuccess(await padded.getReturnCode()),
+      isTrue,
+      reason: await padded.getOutput(),
+    );
     final session = await FFmpegKit.executeWithArguments([
       '-y',
       '-f',
@@ -235,6 +159,8 @@ void main() {
               name: _demoName,
               audioPath: Value(path),
               wordTimestampsJson: Value(words),
+              transcriptSrt: Value(srt),
+              transcriptSource: Value(TranscriptSource.local.index),
               addedDate: now,
               updatedAt: now,
             ),
@@ -333,7 +259,7 @@ void main() {
 
     // ── 播放头 / 高亮单词 / 视频画面三者一致 ──
     final controller = h.editorController();
-    final video = h.videoBackends.last;
+    final video = h.mediaBackends.last;
     void expectInSync(String moment, {required int toleranceMs}) {
       final state = editorState();
       final position = state.playbackPosition;
@@ -350,10 +276,12 @@ void main() {
       }
     }
 
-    // 在波形中部轻点定位，再按住顶部播放头手柄往左拖。
+    // 在底部时间轴行轻点定位（波形上点到当前句的词是试听），再按住顶部播放头手柄往左拖。
     final waveRect = tester.getRect(find.byType(SubtitleWaveformView));
     final tapX = waveRect.left + waveRect.width * .6;
-    await tester.tapAt(Offset(tapX, waveRect.center.dy));
+    await tester.tapAt(
+      Offset(tapX, waveRect.bottom - SubtitleWaveformView.axisHeight / 2),
+    );
     await settle(const Duration(milliseconds: 600));
     final tapped = editorState().playbackPosition;
     final playheadDrag = await tester.startGesture(
@@ -1031,8 +959,9 @@ void main() {
     final demoWords = await rootBundle.loadString(
       'assets/demo/$_demoName.words.json',
     );
+    final demoSrt = await rootBundle.loadString('assets/demo/$_demoName.srt');
     await tester.runAsync(() async {
-      await dao.updateTranscriptSrt('lesson-audio', null);
+      await dao.updateTranscriptSrt('lesson-audio', demoSrt);
       await dao.updateWordTimestamps('lesson-audio', demoWords);
     });
     await h.resize(phone);
@@ -1265,11 +1194,11 @@ class _EditorHarness {
   final SharedPreferences preferences;
   final List<Sentence> sentences;
   final Duration mediaDuration;
-  late _RealtimeAudioEngine engine;
   late AudioItem item;
 
-  /// 编辑页创建的视频画面后端（真实 media_kit），用于核对画面位置与播放头一致。
-  final List<MediaKitPlayerBackend> videoBackends = [];
+  /// 编辑页创建的真实 media_kit 后端：进入页面先建声音播放器，显示画面后再建
+  /// 视频画面播放器（总在最后），用于核对画面位置与播放头一致。
+  final List<MediaKitPlayerBackend> mediaBackends = [];
 
   /// 让真实异步（波形提取、文件 IO、计时器）推进一段时间。
   Future<void> settle([
@@ -1336,24 +1265,13 @@ class _EditorHarness {
     required String path,
     ThemeMode themeMode = ThemeMode.light,
   }) async {
-    // 与真实引擎一致：库里已有保存过的字幕时读库，否则用示例字幕。
-    final savedSrt = await tester.runAsync(
-      () => database.audioItemDao.getTranscriptSrt(id),
-    );
-    final transcript = savedSrt == null || savedSrt.isEmpty
-        ? sentences
-        : (await tester.runAsync(
-            () => SubtitleParser.parseSubtitleString(savedSrt),
-          ))!;
-    engine = _RealtimeAudioEngine(
-      duration: mediaDuration,
-      sentences: transcript,
-    );
+    // 字幕从库里读（种子数据写入示例字幕，保存后读到保存的版本），声音走真实 media_kit。
     item = createTestAudioItem(
       id: id,
       name: _demoName,
       audioPath: path,
       transcriptPath: null,
+      transcriptSource: TranscriptSource.local,
       totalDuration: mediaDuration.inSeconds,
     );
     await tester.pumpWidget(
@@ -1365,12 +1283,11 @@ class _EditorHarness {
           overrides: [
             appDatabaseProvider.overrideWithValue(database),
             sharedPreferencesProvider.overrideWithValue(preferences),
-            audioEngineProvider.overrideWith(() => engine),
             // 用真实素材库：保存时句数 / 词数经它写回数据库（默认测试替身不落库）。
             audioLibraryProvider.overrideWith(AudioLibrary.new),
             mediaBackendFactoryProvider.overrideWithValue(() {
               final backend = MediaKitPlayerBackend();
-              videoBackends.add(backend);
+              mediaBackends.add(backend);
               return backend;
             }),
           ],
@@ -1415,6 +1332,5 @@ class _EditorHarness {
   Future<void> closeEditor() async {
     await tester.pumpWidget(const SizedBox.shrink());
     await settle(const Duration(milliseconds: 300));
-    engine.close();
   }
 }

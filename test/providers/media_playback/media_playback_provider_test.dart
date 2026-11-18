@@ -1249,6 +1249,26 @@ void main() {
     expect(backend.disposed, isFalse);
   });
 
+  test('上一段会话隐藏视频轨后，新会话加载时恢复视频轨与界面显示一致', () async {
+    final controller = await loadController();
+    await controller.setVisualTrackVisible(false);
+    expect(backend.videoTrackCalls.last, isFalse);
+    await controller.releaseFromScreen();
+
+    // 后端跨媒体复用：视频轨关闭会保留到下一段会话，但新会话界面默认显示视频。
+    final nextItem = AudioItem(
+      id: 'media-playback-test-next',
+      name: 'Media Playback Test Next',
+      audioPath: mediaFile.uri.pathSegments.last,
+      addedDate: DateTime(2026, 7, 25),
+      transcriptSource: TranscriptSource.local,
+    );
+    expect(await controller.load(nextItem), MediaLoadResult.ready);
+
+    expect(container.read(mediaPlaybackProvider).visualTrackVisible, isTrue);
+    expect(backend.videoTrackCalls.last, isTrue);
+  });
+
   test('视频字幕默认关闭，且由 media controller 统一管理', () async {
     final controller = await loadController();
 

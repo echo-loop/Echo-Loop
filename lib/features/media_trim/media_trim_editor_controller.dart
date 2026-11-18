@@ -3,31 +3,19 @@ import 'dart:io';
 
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:just_waveform/just_waveform.dart';
 
 import '../../models/audio_item.dart';
 import '../../models/word_timestamp.dart';
-import '../../providers/audio_engine/audio_engine_provider.dart';
 import '../../providers/media_engine/media_engine_provider.dart';
-import '../../providers/media_playback/media_playback_provider.dart';
+import '../../providers/pause_other_playback_provider.dart';
 import '../../services/app_logger.dart';
 import '../../services/media_player_backend.dart';
+import '../../utils/waveform_peaks.dart';
 import 'media_trim_clip.dart';
 import 'media_trim_exporter.dart';
 import 'media_trim_processor.dart';
 import 'media_trim_repository.dart';
 import 'media_trim_waveform_loader.dart';
-
-/// 进入剪辑页时暂停其它正在出声的播放链路；测试替换为空实现。
-final mediaTrimPauseOtherPlaybackProvider = Provider<Future<void> Function()>(
-  (ref) => () async {
-    if (ref.read(mediaEngineProvider.notifier).isPlaying) {
-      await ref.read(mediaPlaybackProvider.notifier).pause();
-    }
-    final audioEngine = ref.read(audioEngineProvider.notifier);
-    if (audioEngine.isPlaying) await audioEngine.pause();
-  },
-);
 
 final mediaTrimEditorProvider = NotifierProvider.autoDispose
     .family<MediaTrimEditorController, MediaTrimEditorState, AudioItem>(
@@ -97,7 +85,7 @@ class MediaTrimEditorState {
   final bool isPlaying;
   final MediaTrimPreview? preview;
   final double? videoAspectRatio;
-  final Waveform? waveform;
+  final WaveformPeaks? waveform;
   final double waveformProgress;
   final bool isWaveformFailed;
   final bool isDirty;
@@ -138,7 +126,7 @@ class MediaTrimEditorState {
     bool? isPlaying,
     MediaTrimPreview? preview,
     double? videoAspectRatio,
-    Waveform? waveform,
+    WaveformPeaks? waveform,
     double? waveformProgress,
     bool? isWaveformFailed,
     bool? isDirty,
@@ -213,7 +201,7 @@ class MediaTrimEditorController extends Notifier<MediaTrimEditorState> {
     final stopwatch = Stopwatch()..start();
     try {
       // 每次 await 后都检查页面是否已关闭：已销毁的 ref 不能再读取 provider。
-      await ref.read(mediaTrimPauseOtherPlaybackProvider)();
+      await ref.read(pauseOtherPlaybackProvider)();
       if (_isDisposed) return;
       final repository = ref.read(mediaTrimRepositoryProvider);
       final processor = ref.read(mediaTrimProcessorProvider);
@@ -301,6 +289,7 @@ class MediaTrimEditorController extends Notifier<MediaTrimEditorState> {
           .load(
             source: source,
             mediaPath: path,
+            mediaDuration: state.boundaries?.total,
             cancellation: cancellation,
             onProgress: (progress) {
               if (!_isDisposed) {

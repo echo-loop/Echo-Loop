@@ -4,14 +4,13 @@ import 'dart:math' as math;
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:just_waveform/just_waveform.dart';
 import 'package:echo_loop/widgets/common/svg_action_icon.dart';
 
 import '../../l10n/app_localizations.dart';
 
 import '../../models/sentence.dart';
 import '../../models/word_timestamp.dart';
-import '../../utils/waveform_samples.dart';
+import '../../utils/waveform_peaks.dart';
 import 'subtitle_edit_engine.dart';
 import 'subtitle_sentence_colors.dart';
 
@@ -149,7 +148,7 @@ class SubtitleWaveformView extends StatefulWidget {
   /// [onRetryExtraction] 默认空实现。
   static void _ignoreRetry() {}
 
-  final Waveform? waveform;
+  final WaveformPeaks? waveform;
   final double extractionProgress;
 
   /// 波形提取是否失败：为 true 时波形区显示失败态 + 重试，而非「加载中」。
@@ -295,6 +294,9 @@ class _SubtitleWaveformViewState extends State<SubtitleWaveformView> {
   double _panDownX = 0;
   double _panTotalAbs = 0;
 
+  /// 本次是鼠标右键拖动：只平移波形，松开时不当作轻点（不试听、不定位）。
+  bool _isPanOnly = false;
+
   /// 正在整体拖动的词：全局词下标 + 按下点相对词起点的时间偏移（拖动中保持
   /// 指针相对词的位置不变）。null 表示未在拖词。
   _WordGrab? _movingWord;
@@ -338,19 +340,6 @@ class _SubtitleWaveformViewState extends State<SubtitleWaveformView> {
   /// 本次按下是否落在波形上方的按钮（「添加句子」）上：按钮自己处理点击，
   /// 波形不再把它当成定位或平移。
   bool _isPointerOnOverlay = false;
-
-  /// 按规范偏移重新读取的波形采样（规避 just_waveform 16 位错位，见 troubleshooting
-  /// 7.54）；仅在波形对象变化时重建。
-  WaveformSamples? _samples;
-  Waveform? _samplesSource;
-
-  WaveformSamples _samplesOf(Waveform waveform) {
-    if (!identical(_samplesSource, waveform) || _samples == null) {
-      _samplesSource = waveform;
-      _samples = WaveformSamples(waveform);
-    }
-    return _samples!;
-  }
 
   @override
   void dispose() {
@@ -469,7 +458,7 @@ class _SubtitleWaveformViewState extends State<SubtitleWaveformView> {
                             RepaintBoundary(
                               child: CustomPaint(
                                 painter: _WaveformLayerPainter(
-                                  samples: _samplesOf(waveform),
+                                  peaks: waveform,
                                   metrics: metrics,
                                   viewOffset: offset,
                                   sentences: widget.sentences,
@@ -656,6 +645,16 @@ class _SubtitleWaveformViewState extends State<SubtitleWaveformView> {
     if (metrics == null) return;
     final localPosition = event.localPosition;
     final localX = localPosition.dx;
+    // 鼠标右键：任意位置拖动都只平移，不抓词、边界或播放头。
+    if (event.kind == PointerDeviceKind.mouse &&
+        event.buttons & kSecondaryMouseButton != 0) {
+      _isPanOnly = true;
+      _panActive = true;
+      _panDownX = localX;
+      _panLastX = localX;
+      _panTotalAbs = 0;
+      return;
+    }
     final hits = _hitTestBoundaries(localPosition, metrics, _renderOffset);
     _downWordIndex = _wordIndexAt(localPosition, metrics, _renderOffset);
     if (_prefersPlayhead(localPosition, event.kind, metrics, hits)) {
@@ -680,8 +679,8 @@ class _SubtitleWaveformViewState extends State<SubtitleWaveformView> {
       }
       return;
     }
-    // 词区间（非边界）：鼠标按住即可拖词，触摸需长按；在开始拖词之前仍按
-    // 平移 / 轻点处理。
+    // 单词（单词块或词区间，非边界）：鼠标按住拖动即拖词，触摸需长按；在开始
+    // 拖词之前仍按平移 / 轻点处理，轻点试听该词。
     final grab = _wordGrabAt(localPosition, metrics, _renderOffset);
     if (grab != null) {
       _pendingWordGrab = grab;
@@ -809,7 +808,12 @@ class _SubtitleWaveformViewState extends State<SubtitleWaveformView> {
     }
     if (_panActive) {
       _panActive = false;
-      // 位移小于阈值视为「轻点」→ 定位播放头到点按处。
+      if (_isPanOnly) {
+        _isPanOnly = false;
+        return;
+      }
+      // 位移小于阈值视为「轻点」：落在当前句的词上试听该词（播放头不动），
+      // 否则定位播放头到点按处。
       final metrics = _metrics;
       final onWordTap = widget.onWordTap;
       if (_panTotalAbs <= SubtitleWaveformView.tapSlop &&
@@ -902,6 +906,7 @@ class _SubtitleWaveformViewState extends State<SubtitleWaveformView> {
   /// 第二指落下时，作废尚未提交的单指平移/拖边界操作。
   void _cancelSinglePointerActions() {
     _panActive = false;
+    _isPanOnly = false;
     _downWordIndex = null;
     _cancelWordGrab();
     if (_movingWord != null) {
@@ -954,8 +959,8 @@ class _SubtitleWaveformViewState extends State<SubtitleWaveformView> {
     return b == null || !b.primary;
   }
 
-  /// 鼠标悬停时更新光标：在边界命中区内显示「可左右移动」（↔），词区间内显示
-  /// 「可抓取」，顶部单词块上显示「可点击」，否则默认箭头。
+  /// 鼠标悬停时更新光标：在边界命中区内显示「可左右移动」（↔），可拖动的词
+  /// （单词块或词区间）上显示「可抓取」，只能试听的词上显示「可点击」，否则默认箭头。
   void _updateHoverCursor(Offset localPosition, WaveformMetrics metrics) {
     final hits = _hitTestBoundaries(localPosition, metrics, _renderOffset);
     final next =
@@ -1010,13 +1015,20 @@ class _SubtitleWaveformViewState extends State<SubtitleWaveformView> {
     return boundaryHits.isEmpty && dx <= _playheadSlop(kind);
   }
 
-  /// 按下处落在选中句顶部哪个单词块上，返回该词在选中句内的下标。
+  /// 单词的点击 / 长按区：顶部单词块与它下方的词区间是同一个目标，下沿止于边界把手区。
+  bool _isInWordZone(Offset position) {
+    final height = context.size?.height;
+    return height != null &&
+        position.dy >= 0 &&
+        position.dy <=
+            height -
+                SubtitleWaveformView.axisHeight -
+                SubtitleWaveformView.boundaryHandleAxisGap;
+  }
+
+  /// 按下处落在选中句哪个词上（单词块或词区间），返回该词在选中句内的下标。
   int? _wordIndexAt(Offset position, WaveformMetrics metrics, double offset) {
-    if (widget.onWordTap == null ||
-        position.dy < 0 ||
-        position.dy > _WaveformLayerPainter.labelLaneHeight) {
-      return null;
-    }
+    if (widget.onWordTap == null || !_isInWordZone(position)) return null;
     var local = 0;
     for (final b in widget.wordBoundaries) {
       if (!b.primary) continue;
@@ -1028,25 +1040,19 @@ class _SubtitleWaveformViewState extends State<SubtitleWaveformView> {
     return null;
   }
 
-  /// 按下处落在哪个可拖动词的区间内（竖线区，边界命中优先、已在调用前排除）。
+  /// 按下处落在哪个可拖动的词上（边界命中优先、已在调用前排除）。
   ///
-  /// 当前句与相邻句的词都可整体拖动；`globalIndex < 0` 的词只绘制、不可拖。
+  /// 词区间内当前句与相邻句的词都可整体拖动；顶部文字行只有当前句显示单词块，
+  /// 只命中当前句的词。`globalIndex < 0` 的词只绘制、不可拖。
   _WordGrab? _wordGrabAt(
     Offset position,
     WaveformMetrics metrics,
     double offset,
   ) {
-    final height = context.size?.height;
-    if (height == null ||
-        position.dy < _WaveformLayerPainter.labelLaneHeight ||
-        position.dy >
-            height -
-                SubtitleWaveformView.axisHeight -
-                SubtitleWaveformView.boundaryHandleAxisGap) {
-      return null;
-    }
+    if (!_isInWordZone(position)) return null;
+    final isInLabelLane = position.dy < _WaveformLayerPainter.labelLaneHeight;
     for (final b in widget.wordBoundaries) {
-      if (b.globalIndex < 0) continue;
+      if (b.globalIndex < 0 || (isInLabelLane && !b.primary)) continue;
       final startX = metrics.screenX(b.word.startTime, offset);
       final endX = metrics.screenX(b.word.endTime, offset);
       if (position.dx < startX || position.dx > endX) continue;
@@ -1475,7 +1481,7 @@ class _WaveformFailed extends StatelessWidget {
 /// 波形层：只绘制**当前可见时间窗**（约 viewport/3 根竖条，与缩放无关），
 /// 经 [metrics] + [viewOffset] 单一映射定位，故与播放头同一坐标空间、不可能错位。
 class _WaveformLayerPainter extends CustomPainter {
-  final WaveformSamples samples;
+  final WaveformPeaks peaks;
   final WaveformMetrics metrics;
   final double viewOffset;
   final List<Sentence> sentences;
@@ -1514,7 +1520,7 @@ class _WaveformLayerPainter extends CustomPainter {
   static const double _mergeDistance = 4;
 
   const _WaveformLayerPainter({
-    required this.samples,
+    required this.peaks,
     required this.metrics,
     required this.viewOffset,
     required this.sentences,
@@ -1598,13 +1604,13 @@ class _WaveformLayerPainter extends CustomPainter {
       final frac = metrics.contentUsable <= 0
           ? 0.0
           : rel / metrics.contentUsable;
-      if (samples.length == 0) break;
-      final sampleIndex = (frac * samples.length).round().clamp(
+      if (peaks.length == 0) break;
+      final sampleIndex = (frac * peaks.length).round().clamp(
         0,
-        samples.length - 1,
+        peaks.length - 1,
       );
-      final min = samples.minAt(sampleIndex);
-      final max = samples.maxAt(sampleIndex);
+      final min = peaks.minAt(sampleIndex);
+      final max = peaks.maxAt(sampleIndex);
       // 至少保留 1px 高度，静音处也连成一条细线，时间轴不显得断裂。
       final minY = math.min(
         centerY + _normalize(min, usableHeight),
@@ -2010,7 +2016,7 @@ class _WaveformLayerPainter extends CustomPainter {
 
   /// 按全段峰值归一化，低音量录音也能铺满波形区高度。
   double _normalize(int value, double height) {
-    return (value / samples.peak) * height / 2;
+    return (value / peaks.peak) * height / 2;
   }
 
   @override
@@ -2019,7 +2025,7 @@ class _WaveformLayerPainter extends CustomPainter {
         metrics.contentUsable != oldDelegate.metrics.contentUsable ||
         metrics.viewport != oldDelegate.metrics.viewport ||
         metrics.duration != oldDelegate.metrics.duration ||
-        !identical(samples, oldDelegate.samples) ||
+        !identical(peaks, oldDelegate.peaks) ||
         !identical(sentences, oldDelegate.sentences) ||
         activeSentence != oldDelegate.activeSentence ||
         highlightedWord?.startTime != oldDelegate.highlightedWord?.startTime ||

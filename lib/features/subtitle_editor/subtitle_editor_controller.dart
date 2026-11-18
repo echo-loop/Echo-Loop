@@ -1,29 +1,31 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io';
 
 import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 // StateNotifier / StateProvider 已移入 legacy 库（Riverpod 3），此处保留旧写法
 import 'package:flutter_riverpod/legacy.dart';
-import 'package:just_waveform/just_waveform.dart';
-import 'package:path/path.dart' as p;
 
 import '../../database/providers.dart';
 import '../../models/audio_item.dart';
 import '../../models/sentence.dart';
 import '../../models/word_timestamp.dart';
-import '../../providers/audio_engine/audio_engine_provider.dart';
 import '../../providers/audio_library_provider.dart';
 import '../../providers/listening_practice/listening_practice_provider.dart';
+import '../../providers/media_engine/media_engine_provider.dart';
+import '../../providers/pause_other_playback_provider.dart';
 import '../../providers/transcript_change_sync_provider.dart';
 import '../../services/app_logger.dart';
 import '../../services/subtitle_parser.dart';
-import '../../utils/app_data_dir.dart';
+import '../../services/transcript_sentences_loader.dart';
 import '../../utils/srt_generator.dart';
 import '../../utils/synthetic_word_timestamps.dart';
+import '../../utils/waveform_peaks.dart';
+import '../media_trim/media_trim_processor.dart';
+import '../media_trim/media_trim_waveform_loader.dart';
 import 'subtitle_edit_engine.dart';
+import 'subtitle_editor_audio_player.dart';
 
 /// 编辑器播放模式。
 ///
@@ -53,7 +55,7 @@ class SubtitleEditorState {
   final SubtitleEditorPlaybackMode playbackMode;
   final Duration playbackPosition;
   final Duration? totalDuration;
-  final Waveform? waveform;
+  final WaveformPeaks? waveform;
   final double waveformProgress;
 
   /// 波形提取是否失败（原生解码报错或长时间无进展）。
@@ -147,7 +149,7 @@ class SubtitleEditorState {
     SubtitleEditorPlaybackMode? playbackMode,
     Duration? playbackPosition,
     Object? totalDuration = _sentinel,
-    Waveform? waveform,
+    WaveformPeaks? waveform,
     double? waveformProgress,
     bool? waveformFailed,
     bool? waveformAudioMissing,
@@ -211,14 +213,18 @@ const _sentinel = Object();
 class SubtitleEditorController extends StateNotifier<SubtitleEditorState> {
   SubtitleEditorController({required Ref ref, required AudioItem audioItem})
     : _ref = ref,
-      _audioEngine = ref.read(audioEngineProvider.notifier),
+      _audioPlayer = SubtitleEditorAudioPlayer(
+        ref.read(mediaBackendFactoryProvider)(),
+      ),
       _engine = const SubtitleEditEngine(),
       super(SubtitleEditorState(audioItem: audioItem)) {
-    _positionSub = _audioEngine.absolutePositionStream.listen(_handlePosition);
+    _positionSub = _audioPlayer.positionStream.listen(_handlePosition);
   }
 
   final Ref _ref;
-  final AudioEngine _audioEngine;
+
+  /// 编辑器独占的声音播放器，随编辑页创建与释放。
+  final SubtitleEditorAudioPlayer _audioPlayer;
   final SubtitleEditEngine _engine;
   StreamSubscription<Duration>? _positionSub;
   Timer? _playheadTimer;
@@ -259,8 +265,15 @@ class SubtitleEditorController extends StateNotifier<SubtitleEditorState> {
     if (_hasLoaded) return;
     _hasLoaded = true;
     try {
-      final duration = await _audioEngine.loadAudio(state.audioItem, 1.0);
-      final sentences = await _audioEngine.loadTranscript(state.audioItem);
+      await _ref.read(pauseOtherPlaybackProvider)();
+      if (!mounted) return;
+      final duration = await _openAudio();
+      if (!mounted) return;
+      final sentences = await loadTranscriptSentences(
+        _ref.read(audioItemDaoProvider),
+        state.audioItem,
+      );
+      if (!mounted) return;
       _baselineSubtitleHash = _subtitleHash(sentences);
       _baselineSentences = sentences;
       // 物化为按句子文本 token 对齐的可编辑词列表（词边界拖动直接改它）。
@@ -276,10 +289,33 @@ class SubtitleEditorController extends StateNotifier<SubtitleEditorState> {
             ? Duration.zero
             : sentences.first.startTime,
       );
+      AppLogger.log(
+        'SubtitleEditor',
+        '编辑页加载完成 audio=${state.audioItem.id} video=${state.audioItem.isVideo} '
+            'duration=${duration?.inMilliseconds}ms sentences=${sentences.length}',
+      );
       unawaited(_loadWaveform());
     } catch (e) {
+      AppLogger.log(
+        'SubtitleEditor',
+        '编辑页加载失败 audio=${state.audioItem.id} error=$e',
+      );
+      if (!mounted) return;
       state = state.copyWith(isLoading: false, errorMessage: e.toString());
     }
+  }
+
+  /// 打开本地媒体并返回时长；没有本地文件时返回 null，字幕仍可编辑，只是不能试听。
+  Future<Duration?> _openAudio() async {
+    final path = await state.audioItem.getFullAudioPath();
+    if (path == null) {
+      AppLogger.log(
+        'SubtitleEditor',
+        '本地媒体文件缺失，跳过音频加载 audio=${state.audioItem.id}',
+      );
+      return null;
+    }
+    return _audioPlayer.open(path);
   }
 
   /// 加载当前音频的词级时间戳。
@@ -905,7 +941,7 @@ class SubtitleEditorController extends StateNotifier<SubtitleEditorState> {
 
   /// 播放选中句内第 [wordIndex] 个词，并把它标记为「点中词」以显示词边界。
   ///
-  /// 复用区间播放基元（[AudioEngine.playRangeOnce]）、session 隔离与播放头计时器，
+  /// 复用区间播放基元（[SubtitleEditorAudioPlayer.playRange]）、session 隔离与播放头计时器，
   /// 与 [playSentence] 同源。索引越界时钳到合法范围（label 与词数偶尔不一致时兜底）。
   /// 播放结束后保留 [SubtitleEditorState.focusedWordIndex]，便于用户继续查看边界。
   ///
@@ -917,7 +953,7 @@ class SubtitleEditorController extends StateNotifier<SubtitleEditorState> {
     final index = wordIndex.clamp(0, words.length - 1);
     final word = words[index];
     await _stopActivePlayback(invalidateSession: true);
-    final sessionId = _audioEngine.newSession();
+    final sessionId = _audioPlayer.newSession();
     if (movesPlayhead) {
       _startPlayheadTicker(
         sessionId: sessionId,
@@ -936,21 +972,21 @@ class SubtitleEditorController extends StateNotifier<SubtitleEditorState> {
       playbackPosition: movesPlayhead ? word.startTime : null,
     );
     try {
-      await _audioEngine.setSpeed(state.playbackSpeed);
-      await _audioEngine.playRangeOnce(word.startTime, word.endTime, sessionId);
+      await _audioPlayer.setSpeed(state.playbackSpeed);
+      await _audioPlayer.playRange(word.startTime, word.endTime, sessionId);
     } finally {
-      if (mounted && _audioEngine.isActiveSession(sessionId)) {
-        // 同 playSentence：先冻结状态再停底层播放器，避免 stop() 的 position=0
-        // 残留事件把播放头拉回词首。保留 focusedWordIndex 让词边界继续显示。
+      if (mounted && _audioPlayer.isActiveSession(sessionId)) {
+        // 同 playSentence：先冻结状态再停底层播放器，避免停止过程中的残留位置
+        // 事件移动播放头。保留 focusedWordIndex 让词边界继续显示。
         state = state.copyWith(
           isPlaying: false,
           playbackMode: SubtitleEditorPlaybackMode.idle,
           playbackPosition: movesPlayhead ? word.endTime : null,
         );
-        // 本会话自己播完，必须停掉底层播放器：只试听时没有播放头计时器，
-        // _stopActivePlayback 会误判为「无播放」而只清片段，播放器随即从头继续播。
+        // 本会话自己播完，必须停掉底层播放器并撤销区间终点：只试听时没有播放头
+        // 计时器，_stopActivePlayback 会误判为「无播放」而跳过停止。
         _cancelPlayheadTicker();
-        await _stopAndClearClip();
+        await _audioPlayer.stop();
       }
     }
   }
@@ -959,7 +995,7 @@ class SubtitleEditorController extends StateNotifier<SubtitleEditorState> {
     if (index < 0 || index >= state.sentences.length) return;
     await _stopActivePlayback(invalidateSession: true);
     final sentence = state.sentences[index];
-    final sessionId = _audioEngine.newSession();
+    final sessionId = _audioPlayer.newSession();
     _startPlayheadTicker(
       sessionId: sessionId,
       start: sentence.startTime,
@@ -975,14 +1011,17 @@ class SubtitleEditorController extends StateNotifier<SubtitleEditorState> {
       focusedWordIndex: null,
     );
     try {
-      await _audioEngine.setSpeed(state.playbackSpeed);
-      await _audioEngine.playClipOnce(sentence, sessionId);
+      await _audioPlayer.setSpeed(state.playbackSpeed);
+      await _audioPlayer.playRange(
+        sentence.startTime,
+        sentence.endTime,
+        sessionId,
+      );
     } finally {
-      if (mounted && _audioEngine.isActiveSession(sessionId)) {
+      if (mounted && _audioPlayer.isActiveSession(sessionId)) {
         // ⚠️ 关键顺序：必须「先冻结状态（isPlaying=false + 锁定句尾位置）再停底层
-        // 播放器」。否则 _audioPlayer.stop() 会吐出 position=0，经
-        // absolutePositionStream 映射为 clipStart(=句首) 后被 _handlePosition 采纳
-        // （此刻 isPlaying 仍为 true），把播放头拉回句首 —— 即「播放完跳回到前面」。
+        // 播放器」。否则停止过程中的残留位置事件会在 isPlaying 仍为 true 时被
+        // _handlePosition 采纳，移动播放头 —— 即「播放完跳回到前面」。
         // 与 stopPlayback() 同款处理。
         state = state.copyWith(
           playingSentenceIndex: null,
@@ -1039,8 +1078,7 @@ class SubtitleEditorController extends StateNotifier<SubtitleEditorState> {
       await stopPlayback();
     }
     scrubTo(clamped);
-    await _audioEngine.clearClip();
-    await _audioEngine.seekToAbsolute(clamped);
+    await _audioPlayer.seek(clamped);
   }
 
   Future<void> setPlaybackSpeed(double speed) async {
@@ -1049,7 +1087,7 @@ class SubtitleEditorController extends StateNotifier<SubtitleEditorState> {
     state = state.copyWith(playbackSpeed: next);
     if (state.isPlaying) {
       _calibratePlayhead(currentPosition);
-      await _audioEngine.setSpeed(next);
+      await _audioPlayer.setSpeed(next);
     }
   }
 
@@ -1317,8 +1355,8 @@ class SubtitleEditorController extends StateNotifier<SubtitleEditorState> {
       return;
     }
     // 防御：播放期间播放头由本地时钟（_tickPlayhead）单调前进，position 流仅做校准。
-    // 大幅「后退」几乎只可能是停止/换 clip 的残留事件（stop 把相对位置归 0 → 映射成
-    // clip 起点），直接丢弃，避免把播放头拉回。允许 ≤400ms 的正常校准抖动。
+    // 大幅「后退」几乎只可能是停止 / 换区间前的残留事件，直接丢弃，避免把播放头
+    // 拉回。允许 ≤400ms 的正常校准抖动。
     if (position < state.playbackPosition - const Duration(milliseconds: 400)) {
       return;
     }
@@ -1362,9 +1400,9 @@ class SubtitleEditorController extends StateNotifier<SubtitleEditorState> {
 
   void _cancelPlaybackSession() {
     if (!state.isPlaying && state.playingSentenceIndex == null) return;
-    _audioEngine.newSession();
+    _audioPlayer.newSession();
     _cancelPlayheadTicker();
-    unawaited(_stopAndClearClip());
+    unawaited(_audioPlayer.stop());
   }
 
   Future<void> _stopActivePlayback({required bool invalidateSession}) async {
@@ -1373,19 +1411,10 @@ class SubtitleEditorController extends StateNotifier<SubtitleEditorState> {
         state.playingSentenceIndex != null ||
         _activePlaybackSessionId != null;
     if (invalidateSession) {
-      _audioEngine.newSession();
+      _audioPlayer.newSession();
     }
     _cancelPlayheadTicker();
-    if (shouldStop) {
-      await _stopAndClearClip();
-      return;
-    }
-    await _audioEngine.clearClip();
-  }
-
-  Future<void> _stopAndClearClip() async {
-    await _audioEngine.stopPlayback();
-    await _audioEngine.clearClip();
+    if (shouldStop) await _audioPlayer.stop();
   }
 
   /// 用本地时钟驱动播放头，底层 position stream 只负责校准。
@@ -1427,7 +1456,7 @@ class SubtitleEditorController extends StateNotifier<SubtitleEditorState> {
         sessionId == null ||
         anchorAt == null ||
         !state.isPlaying ||
-        !_audioEngine.isActiveSession(sessionId)) {
+        !_audioPlayer.isActiveSession(sessionId)) {
       _cancelPlayheadTicker();
       return;
     }
@@ -1481,19 +1510,12 @@ class SubtitleEditorController extends StateNotifier<SubtitleEditorState> {
     ]);
   }
 
-  /// 波形提取的「无进展」超时窗口。
-  ///
-  /// 提取正常时原生会持续上报进度（每递增 1% 触发一次），只要有事件到达就重置计时；
-  /// 仅当**连续这么久没有任何进度事件**（真机原生解码卡死、且未报错）才判失败。
-  /// 取足够大的值，避免误伤慢机型上长音频「首个 1% 需解码较多音频」的正常等待。
-  static const Duration _waveformInactivityTimeout = Duration(seconds: 60);
-
-  /// 波形提取是否正在进行，避免 [load] 与 [retryWaveform] 并发重复提取。
-  bool _loadingWaveform = false;
+  /// 进行中的波形提取；非 null 时不重复提取，离开页面时取消（同时终止抽音轨的 ffmpeg）。
+  MediaTrimCancellation? _waveformCancellation;
 
   /// 重新尝试提取波形（失败态下用户点「重试」）。
   Future<void> retryWaveform() async {
-    if (_loadingWaveform) return;
+    if (_waveformCancellation != null) return;
     state = state.copyWith(
       waveformFailed: false,
       waveformAudioMissing: false,
@@ -1502,51 +1524,49 @@ class SubtitleEditorController extends StateNotifier<SubtitleEditorState> {
     await _loadWaveform();
   }
 
+  /// 提取波形，与剪辑页共用加载器和 `waveforms/{id}.wave` 缓存。
+  ///
+  /// 加载器用 FFmpeg 解码，不经系统解码器（iOS/macOS 的 ExtAudioFile 读不了
+  /// mkv/avi 等容器）。解码失败置失败态，不阻断字幕编辑。
   Future<void> _loadWaveform() async {
-    if (_loadingWaveform) return;
-    _loadingWaveform = true;
+    if (_waveformCancellation != null) return;
+    final cancellation = MediaTrimCancellation();
+    _waveformCancellation = cancellation;
     try {
       final audioPath = await state.audioItem.getFullAudioPath();
       if (audioPath == null) {
         if (mounted) state = state.copyWith(waveformAudioMissing: true);
         return;
       }
-      final dataDir = await getAppDataDirectory();
-      final waveDir = Directory(p.join(dataDir.path, 'waveforms'));
-      if (!await waveDir.exists()) {
-        await waveDir.create(recursive: true);
-      }
-      final waveFile = File(p.join(waveDir.path, '${state.audioItem.id}.wave'));
-      if (await waveFile.exists()) {
-        final waveform = await JustWaveform.parse(waveFile);
-        if (!mounted) return;
-        state = state.copyWith(
-          waveform: waveform,
-          waveformProgress: 1,
-          waveformAudioMissing: false,
-        );
-        return;
-      }
-
-      // 原生提取失败（如 HE-AAC/SBR 触发采样率变更抛异常，见 §排查）会以 stream error
-      // 抛出；原生卡死无事件则由 timeout 兜底。两者都进 catch 置失败态，而不再假死 0%。
-      await for (final progress in JustWaveform.extract(
-        audioInFile: File(audioPath),
-        waveOutFile: waveFile,
-        zoom: const WaveformZoom.pixelsPerSecond(80),
-      ).timeout(_waveformInactivityTimeout)) {
-        if (!mounted) return;
-        state = state.copyWith(
-          waveform: progress.waveform,
-          waveformProgress: progress.progress,
-          waveformAudioMissing: false,
-        );
-      }
-    } catch (_) {
+      final waveform = await _ref
+          .read(mediaTrimWaveformLoaderProvider)
+          .load(
+            source: state.audioItem,
+            mediaPath: audioPath,
+            mediaDuration: state.totalDuration,
+            cancellation: cancellation,
+            onProgress: (progress) {
+              if (mounted) state = state.copyWith(waveformProgress: progress);
+            },
+          );
       if (!mounted) return;
+      state = state.copyWith(
+        waveform: waveform,
+        waveformProgress: 1,
+        waveformAudioMissing: false,
+      );
+    } on Object catch (error) {
+      if (!mounted || cancellation.isCancelled) return;
+      AppLogger.log(
+        'SubtitleEditor',
+        '波形提取失败 audio=${state.audioItem.id} video=${state.audioItem.isVideo} '
+            'error=$error',
+      );
       state = state.copyWith(waveformFailed: true);
     } finally {
-      _loadingWaveform = false;
+      if (identical(_waveformCancellation, cancellation)) {
+        _waveformCancellation = null;
+      }
     }
   }
 
@@ -1583,8 +1603,8 @@ class SubtitleEditorController extends StateNotifier<SubtitleEditorState> {
   void dispose() {
     _positionSub?.cancel();
     _cancelPlayheadTicker();
-    _audioEngine.newSession();
-    unawaited(_stopAndClearClip());
+    unawaited(_waveformCancellation?.cancel());
+    unawaited(_audioPlayer.dispose());
     super.dispose();
   }
 }
