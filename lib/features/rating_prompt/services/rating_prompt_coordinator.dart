@@ -1,5 +1,7 @@
 import 'package:package_info_plus/package_info_plus.dart';
 
+import '../../../analytics/analytics_service.dart';
+import '../../../analytics/models/event_names.dart';
 import '../../../config/client_distribution.dart';
 import '../../../database/daos/daily_study_record_dao.dart';
 import '../../../services/app_logger.dart';
@@ -22,6 +24,7 @@ class RatingPromptCoordinator {
     required RatingPromptAttemptStore attemptStore,
     required RatingPromptTaskCompletionStore taskCompletionStore,
     required InAppReviewGateway reviewGateway,
+    required AnalyticsService analytics,
     required bool Function() isEnabled,
     RatingPromptRules rules = RatingPromptRules.defaults,
     bool Function()? storeInstallCheck,
@@ -31,6 +34,7 @@ class RatingPromptCoordinator {
        _attemptStore = attemptStore,
        _taskCompletionStore = taskCompletionStore,
        _reviewGateway = reviewGateway,
+       _analytics = analytics,
        _isEnabled = isEnabled,
        _rules = rules,
        _storeInstallCheck = storeInstallCheck,
@@ -44,6 +48,7 @@ class RatingPromptCoordinator {
   final RatingPromptAttemptStore _attemptStore;
   final RatingPromptTaskCompletionStore _taskCompletionStore;
   final InAppReviewGateway _reviewGateway;
+  final AnalyticsService _analytics;
 
   /// 每次检查都读取最新远程开关，允许刷新后立即停止尚未发起的请求。
   final bool Function() _isEnabled;
@@ -96,6 +101,11 @@ class RatingPromptCoordinator {
       }
 
       AppLogger.log(logTag, 'request');
+      // 埋点只统计真正发起的请求：条件不满足或冷却落盘后失效的请求都不会走到这里。
+      _analytics.track(Events.ratingPromptRequested, {
+        EventParams.checkInDays: status.checkInDays,
+        EventParams.isRepeat: status.lastAttempt == null ? 0 : 1,
+      });
       await _reviewGateway.requestReview();
     } catch (error, stackTrace) {
       AppLogger.log(logTag, 'request failed error=$error\n$stackTrace');

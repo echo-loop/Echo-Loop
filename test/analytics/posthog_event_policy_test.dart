@@ -40,6 +40,10 @@ void main() {
         isTrue,
       );
       expect(
+        PostHogEventPolicy.shouldCapture(Events.ratingPromptRequested),
+        isTrue,
+      );
+      expect(
         PostHogEventPolicy.shouldCapture(Events.themeModeChanged),
         isFalse,
       );

@@ -899,36 +899,44 @@ class _MainShellState extends ConsumerState<MainShell>
                   labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
                   destinations: [
                     NavigationDestination(
-                      icon: const Icon(Icons.library_music_outlined),
-                      selectedIcon: const Icon(
-                        Icons.library_music,
+                      icon: const SvgActionIcon(
+                        assetName: 'assets/icon/library.svg',
+                      ),
+                      selectedIcon: const SvgActionIcon(
+                        assetName: 'assets/icon/library.svg',
                         color: AppTheme.navActiveColor,
                       ),
                       label: l10n.library,
                     ),
                     NavigationDestination(
-                      icon: const Icon(Icons.school_outlined),
-                      selectedIcon: const Icon(
-                        Icons.school,
+                      icon: const SvgActionIcon(
+                        assetName: 'assets/icon/book-open.svg',
+                      ),
+                      selectedIcon: const SvgActionIcon(
+                        assetName: 'assets/icon/book-open.svg',
                         color: AppTheme.navActiveColor,
                       ),
                       label: l10n.study,
                     ),
                     NavigationDestination(
-                      icon: const Icon(Icons.bookmark_border),
-                      selectedIcon: const Icon(
-                        Icons.bookmark,
+                      icon: const SvgActionIcon(
+                        assetName: 'assets/icon/bookmark.svg',
+                      ),
+                      selectedIcon: const SvgActionIcon(
+                        assetName: 'assets/icon/bookmark.svg',
                         color: AppTheme.navActiveColor,
                       ),
                       label: l10n.favorites,
                     ),
                     NavigationDestination(
                       icon: const MemberTabBadge(
-                        child: Icon(Icons.person_outline),
+                        child: SvgActionIcon(
+                          assetName: 'assets/icon/account-round.svg',
+                        ),
                       ),
                       selectedIcon: const MemberTabBadge(
-                        child: Icon(
-                          Icons.person,
+                        child: SvgActionIcon(
+                          assetName: 'assets/icon/account-round.svg',
                           color: AppTheme.navActiveColor,
                         ),
                       ),

@@ -50,6 +50,7 @@ class _RecordingCoordinator extends RatingPromptCoordinator {
          attemptStore: RatingPromptAttemptStore(preferences),
          taskCompletionStore: RatingPromptTaskCompletionStore(preferences),
          reviewGateway: _NoopReviewGateway(),
+         analytics: createTestAnalyticsServiceSync(),
          isEnabled: () => true,
        );
 

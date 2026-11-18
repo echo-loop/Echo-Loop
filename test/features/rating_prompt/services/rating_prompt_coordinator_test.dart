@@ -5,6 +5,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:echo_loop/analytics/analytics_channel.dart';
+import 'package:echo_loop/analytics/analytics_service.dart';
+import 'package:echo_loop/analytics/consent_manager.dart';
+import 'package:echo_loop/analytics/models/event_names.dart';
 import 'package:echo_loop/database/app_database.dart';
 import 'package:echo_loop/database/daos/study_statistics_dao.dart';
 import 'package:echo_loop/features/rating_prompt/data/rating_prompt_attempt_store.dart';
@@ -13,6 +17,33 @@ import 'package:echo_loop/features/rating_prompt/domain/rating_prompt_policy.dar
 import 'package:echo_loop/features/rating_prompt/services/in_app_review_gateway.dart';
 import 'package:echo_loop/features/rating_prompt/services/rating_prompt_coordinator.dart';
 import 'package:echo_loop/models/study_stage.dart';
+
+class _RecordingChannel implements AnalyticsChannel {
+  final List<({String name, Map<String, Object>? params})> events = [];
+
+  @override
+  Future<void> initialize() async {}
+
+  @override
+  Future<void> logEvent(String name, Map<String, Object>? parameters) async {
+    events.add((name: name, params: parameters));
+  }
+
+  @override
+  Future<void> setUserId(String? id) async {}
+
+  @override
+  Future<void> setUserProperty(String name, String? value) async {}
+
+  @override
+  Future<void> setUserProperties(Map<String, String?> properties) async {}
+
+  @override
+  Future<void> registerSuperProperties(Map<String, Object> properties) async {}
+
+  @override
+  Future<void> unregisterSuperProperty(String name) async {}
+}
 
 class _FakeReviewGateway implements InAppReviewGateway {
   _FakeReviewGateway(this.onRequest);
@@ -46,6 +77,8 @@ class _DelayedAttemptStore extends RatingPromptAttemptStore {
 void main() {
   late AppDatabase database;
   late SharedPreferences preferences;
+  late _RecordingChannel analyticsChannel;
+  late AnalyticsService analytics;
 
   final now = DateTime(2026, 10, 22, 12);
   final installTime = DateTime(2026, 10, 15, 11, 59);
@@ -56,6 +89,11 @@ void main() {
     );
     SharedPreferences.setMockInitialValues({});
     preferences = await SharedPreferences.getInstance();
+    analyticsChannel = _RecordingChannel();
+    analytics = AnalyticsService(
+      channel: analyticsChannel,
+      consent: ConsentManager(preferences),
+    );
   });
 
   tearDown(() async => database.close());
@@ -110,6 +148,7 @@ void main() {
     attemptStore: store,
     taskCompletionStore: RatingPromptTaskCompletionStore(preferences),
     reviewGateway: gateway,
+    analytics: analytics,
     isEnabled: () => remoteEnabled,
     storeInstallCheck: () => storeInstall,
     clock: () => clockOverride ?? now,
@@ -128,6 +167,60 @@ void main() {
 
     expect(gateway.requestCount, 1);
     expect(attemptStore.readLastAttempt(), now);
+  });
+
+  test('请求系统评分时上报 rating_prompt_requested，首次提醒 is_repeat 为 0', () async {
+    await recordRecentCompletion();
+    await addThreeCheckInDays();
+    final gateway = _FakeReviewGateway(() async {});
+    final coordinator = coordinatorFor(
+      RatingPromptAttemptStore(preferences),
+      gateway: gateway,
+    );
+
+    await coordinator.maybeRequest(canPresent: () => true);
+
+    expect(gateway.requestCount, 1);
+    expect(analyticsChannel.events, hasLength(1));
+    expect(analyticsChannel.events.single.name, Events.ratingPromptRequested);
+    expect(analyticsChannel.events.single.params, {
+      EventParams.checkInDays: 3,
+      EventParams.isRepeat: 0,
+    });
+  });
+
+  test('冷却期已过的再次提醒上报 is_repeat 为 1，打卡天数只统计上次提醒之后', () async {
+    await recordRecentCompletion();
+    await addCheckInDay(DateTime(2026, 1, 1));
+    await addThreeCheckInDays();
+    await RatingPromptAttemptStore(preferences)
+        .recordAttempt(DateTime(2026, 1, 1));
+    final gateway = _FakeReviewGateway(() async {});
+    final coordinator = coordinatorFor(
+      RatingPromptAttemptStore(preferences),
+      gateway: gateway,
+    );
+
+    await coordinator.maybeRequest(canPresent: () => true);
+
+    expect(gateway.requestCount, 1);
+    expect(analyticsChannel.events.single.params, {
+      EventParams.checkInDays: 3,
+      EventParams.isRepeat: 1,
+    });
+  });
+
+  test('条件未满足时不上报埋点', () async {
+    await addCheckInDay(DateTime(2026, 10, 22));
+    final gateway = _FakeReviewGateway(() async {});
+
+    await coordinatorFor(
+      RatingPromptAttemptStore(preferences),
+      gateway: gateway,
+    ).maybeRequest(canPresent: () => true);
+
+    expect(gateway.requestCount, 0);
+    expect(analyticsChannel.events, isEmpty);
   });
 
   test('条件未满足时不请求也不记录冷却', () async {
@@ -193,6 +286,7 @@ void main() {
 
       expect(gateway.requestCount, 0);
       expect(store.readLastAttempt(), previous);
+      expect(analyticsChannel.events, isEmpty);
     });
   }
 
@@ -241,6 +335,7 @@ void main() {
       attemptStore: store,
       taskCompletionStore: RatingPromptTaskCompletionStore(preferences),
       reviewGateway: gateway,
+      analytics: analytics,
       isEnabled: () => enabled,
       storeInstallCheck: () => true,
       clock: () => now,

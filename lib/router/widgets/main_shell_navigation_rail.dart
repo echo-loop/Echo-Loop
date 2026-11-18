@@ -7,6 +7,7 @@ import '../../features/subscription/widgets/member_tab_badge.dart';
 import '../../l10n/app_localizations.dart';
 import '../../providers/desktop_sidebar_provider.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/common/svg_action_icon.dart';
 
 const _compactRailWidth = 72.0;
 const _expandedRailWidth = 172.0;
@@ -46,33 +47,38 @@ class MainShellNavigationRail extends ConsumerWidget {
       trailing: _MainShellSidebarToggle(isExpanded: isExpanded, l10n: l10n),
       destinations: [
         NavigationRailDestination(
-          icon: const Icon(Icons.library_music_outlined),
-          selectedIcon: const Icon(
-            Icons.library_music,
+          icon: const SvgActionIcon(assetName: 'assets/icon/library.svg'),
+          selectedIcon: const SvgActionIcon(
+            assetName: 'assets/icon/library.svg',
             color: AppTheme.navActiveColor,
           ),
           label: Text(l10n.library),
         ),
         NavigationRailDestination(
-          icon: const Icon(Icons.school_outlined),
-          selectedIcon: const Icon(
-            Icons.school,
+          icon: const SvgActionIcon(assetName: 'assets/icon/book-open.svg'),
+          selectedIcon: const SvgActionIcon(
+            assetName: 'assets/icon/book-open.svg',
             color: AppTheme.navActiveColor,
           ),
           label: Text(l10n.study),
         ),
         NavigationRailDestination(
-          icon: const Icon(Icons.bookmark_border),
-          selectedIcon: const Icon(
-            Icons.bookmark,
+          icon: const SvgActionIcon(assetName: 'assets/icon/bookmark.svg'),
+          selectedIcon: const SvgActionIcon(
+            assetName: 'assets/icon/bookmark.svg',
             color: AppTheme.navActiveColor,
           ),
           label: Text(l10n.favorites),
         ),
         NavigationRailDestination(
-          icon: const MemberTabBadge(child: Icon(Icons.person_outline)),
+          icon: const MemberTabBadge(
+            child: SvgActionIcon(assetName: 'assets/icon/account-round.svg'),
+          ),
           selectedIcon: const MemberTabBadge(
-            child: Icon(Icons.person, color: AppTheme.navActiveColor),
+            child: SvgActionIcon(
+              assetName: 'assets/icon/account-round.svg',
+              color: AppTheme.navActiveColor,
+            ),
           ),
           label: Text(l10n.profile),
         ),

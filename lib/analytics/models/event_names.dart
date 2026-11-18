@@ -184,6 +184,11 @@ abstract class Events {
   /// params: goal_minutes（打卡时的每日学习目标，分钟）
   static const dailyGoalCheckedIn = 'daily_goal_checked_in';
 
+  // ── 评价提醒 ──
+  /// 满足条件并真正向系统发起原生评分请求（系统是否展示不可知）
+  /// params: check_in_days（上次提醒之后的打卡天数）、is_repeat（之前是否已发起过请求，0 / 1）
+  static const ratingPromptRequested = 'rating_prompt_requested';
+
   // ── 收藏复习按钮 ──
   /// 点击句子复习按钮
   static const bookmarkReviewButtonTapped = 'bookmark_review_button_tapped';
@@ -400,6 +405,12 @@ abstract class EventParams {
 
   /// 打卡时的每日学习目标（分钟），用于 [Events.dailyGoalCheckedIn]
   static const goalMinutes = 'goal_minutes';
+
+  /// 评价提醒时统计的打卡天数，用于 [Events.ratingPromptRequested]
+  static const checkInDays = 'check_in_days';
+
+  /// 是否为再次提醒（0 / 1），用于 [Events.ratingPromptRequested]
+  static const isRepeat = 'is_repeat';
 
   /// Q3 来源渠道（user property 同名）
   static const referralSource = 'referral_source';

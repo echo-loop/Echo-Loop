@@ -10,6 +10,8 @@ import 'package:echo_loop/providers/desktop_sidebar_provider.dart';
 import 'package:echo_loop/router/widgets/main_shell_navigation_rail.dart';
 import 'package:echo_loop/theme/app_theme.dart';
 
+import '../helpers/svg_icon_finder.dart';
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -64,7 +66,7 @@ void main() {
     final railRect = tester.getRect(find.byKey(railFinder));
     expect(railRect.width, closeTo(172, 0.1));
     final selectedIconCenterX = tester
-        .getCenter(find.byIcon(Icons.library_music))
+        .getCenter(svgIcon('assets/icon/library.svg'))
         .dx;
     final toggleRect = tester.getRect(
       find.byKey(const ValueKey('main-shell-sidebar-toggle')),
@@ -89,7 +91,7 @@ void main() {
     expect(transitioningWidth, greaterThan(72));
     expect(transitioningWidth, lessThan(172));
     expect(
-      tester.getCenter(find.byIcon(Icons.library_music)).dx,
+      tester.getCenter(svgIcon('assets/icon/library.svg')).dx,
       closeTo(selectedIconCenterX, 0.1),
     );
     var transitioningRailRect = tester.getRect(find.byKey(railFinder));
@@ -110,7 +112,7 @@ void main() {
     expect(rail.labelType, NavigationRailLabelType.none);
     expect(tester.getRect(find.byKey(railFinder)).width, closeTo(72, 0.1));
     expect(
-      tester.getCenter(find.byIcon(Icons.library_music)).dx,
+      tester.getCenter(svgIcon('assets/icon/library.svg')).dx,
       closeTo(selectedIconCenterX, 0.1),
     );
     final collapsedToggleRect = tester.getRect(
@@ -136,7 +138,7 @@ void main() {
     expect(transitioningWidth, greaterThan(72));
     expect(transitioningWidth, lessThan(172));
     expect(
-      tester.getCenter(find.byIcon(Icons.library_music)).dx,
+      tester.getCenter(svgIcon('assets/icon/library.svg')).dx,
       closeTo(selectedIconCenterX, 0.1),
     );
     transitioningRailRect = tester.getRect(find.byKey(railFinder));
@@ -155,7 +157,7 @@ void main() {
     expect(rail.extended, isTrue);
     expect(tester.getRect(find.byKey(railFinder)).width, closeTo(172, 0.1));
     expect(
-      tester.getCenter(find.byIcon(Icons.library_music)).dx,
+      tester.getCenter(svgIcon('assets/icon/library.svg')).dx,
       closeTo(selectedIconCenterX, 0.1),
     );
     expect(
@@ -163,7 +165,7 @@ void main() {
       isTrue,
     );
 
-    await tester.tap(find.byIcon(Icons.school_outlined));
+    await tester.tap(svgIcon('assets/icon/book-open.svg'));
     expect(selectedIndex, 1);
   });
 
@@ -183,7 +185,7 @@ void main() {
       closeTo(72, 0.1),
     );
     final railIconCenterX = tester
-        .getCenter(find.byIcon(Icons.library_music))
+        .getCenter(svgIcon('assets/icon/library.svg'))
         .dx;
     final toggleRect = tester.getRect(
       find.byKey(const ValueKey('main-shell-sidebar-toggle')),

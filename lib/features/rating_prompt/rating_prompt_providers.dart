@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../analytics/analytics_providers.dart';
 import '../../database/providers.dart';
 import '../remote_config/remote_config.dart';
 import '../remote_config/remote_config_providers.dart';
@@ -38,6 +39,7 @@ final ratingPromptCoordinatorProvider = Provider<RatingPromptCoordinator>((
     ),
     taskCompletionStore: ref.watch(ratingPromptTaskCompletionStoreProvider),
     reviewGateway: ref.watch(inAppReviewGatewayProvider),
+    analytics: ref.watch(analyticsServiceProvider),
     isEnabled: () =>
         ref.read(remoteFeatureEnabledProvider(RemoteFeature.inAppReview)),
   );

@@ -196,6 +196,10 @@ flutter:
     - assets/icon/bell.svg
     - assets/icon/book.svg
     - assets/icon/book-shelf.svg
+    - assets/icon/library.svg
+    - assets/icon/book-open.svg
+    - assets/icon/bookmark.svg
+    - assets/icon/account-round.svg
     - assets/icon/reading.svg
     - assets/icon/refresh.svg
     - assets/icon/check-circle-3.svg
