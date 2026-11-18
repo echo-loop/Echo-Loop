@@ -8,10 +8,18 @@ library;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../features/auth/providers/auth_providers.dart';
+import '../services/app_logger.dart';
 import 'audio_sentences_provider.dart';
 import 'sentence_ai_prewarm.dart';
 import 'sentence_ai_provider.dart';
 import 'settings_provider.dart';
+
+/// 译文流正常结束却没有任何非空译文（服务端无内容或提前断开）。
+///
+/// 界面据此进入失败态并允许重试；若静默结束，骨架屏会永久转圈。
+class SentenceTranslationEmptyException implements Exception {
+  const SentenceTranslationEmptyException();
+}
 
 /// 单句译文流：逐帧输出累积译文。
 ///
@@ -41,6 +49,7 @@ final sentenceTranslationProvider = StreamProvider.autoDispose
         previous = at(sentenceIndex - 1);
         next = at(sentenceIndex + 1);
       }
+      var hasText = false;
       await for (final translation in ai.getTranslationStream(
         target.text,
         previous: previous,
@@ -49,6 +58,15 @@ final sentenceTranslationProvider = StreamProvider.autoDispose
         accessToken: accessToken,
         respectLocalQuotaReset: true,
       )) {
+        if (translation.translation.isEmpty) continue;
+        hasText = true;
         yield translation.translation;
+      }
+      if (!hasText) {
+        AppLogger.log(
+          'SentenceTranslation',
+          '译文流结束但无内容 sentence=$sentenceIndex',
+        );
+        throw const SentenceTranslationEmptyException();
       }
     }, retry: (_, _) => null);
