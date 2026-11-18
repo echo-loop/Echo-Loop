@@ -200,6 +200,41 @@ void main() {
     });
   });
 
+  testWidgets('流式生成：解码期间收到递增的部分波形，前缀与最终结果一致', (tester) async {
+    await tester.runAsync(() async {
+      // 30 分钟音频，解码耗时远超一个刷新间隔，保证解码期间能收到部分快照。
+      final path = await synthesize('stream.flac', [
+        ...['-f', 'lavfi', '-i', 'sine=frequency=440:duration=1800'],
+        ...['-c:a', 'flac'],
+      ]);
+      final partials = <WaveformPeaks>[];
+
+      final peaks = await _loader.load(
+        source: createTestAudioItem(id: 'stream.flac', audioPath: path),
+        mediaPath: path,
+        mediaDuration: const Duration(seconds: 1800),
+        cancellation: MediaTrimCancellation(),
+        onProgress: (_) {},
+        onPartial: partials.add,
+      );
+
+      expect(partials.any((partial) => !partial.isComplete), isTrue);
+      var previousReady = 0;
+      for (final partial in partials) {
+        expect(partial.readyLength, greaterThanOrEqualTo(previousReady));
+        expect(partial.length, peaks.length);
+        previousReady = partial.readyLength;
+        expect(
+          partial.minMax.sublist(0, partial.readyLength * 2),
+          peaks.minMax.sublist(0, partial.readyLength * 2),
+          reason: '就绪像素与最终结果不一致 ready=${partial.readyLength}',
+        );
+      }
+      expect(peaks.isComplete, isTrue);
+      expect(hasLog('波形生成完成 source=stream.flac'), isTrue);
+    });
+  });
+
   testWidgets('静音检测：全程静音的 mkv 判为 silent，有声音的判为 ok', (tester) async {
     await tester.runAsync(() async {
       const video = [

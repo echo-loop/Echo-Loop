@@ -1609,6 +1609,8 @@ class _WaveformLayerPainter extends CustomPainter {
         0,
         peaks.length - 1,
       );
+      // 流式生成中尚未解码到的位置不画，留白等待后续像素。
+      if (sampleIndex >= peaks.readyLength) continue;
       final min = peaks.minAt(sampleIndex);
       final max = peaks.maxAt(sampleIndex);
       // 至少保留 1px 高度，静音处也连成一条细线，时间轴不显得断裂。

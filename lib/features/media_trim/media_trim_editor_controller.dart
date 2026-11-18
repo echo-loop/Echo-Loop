@@ -296,6 +296,9 @@ class MediaTrimEditorController extends Notifier<MediaTrimEditorState> {
                 state = state.copyWith(waveformProgress: progress);
               }
             },
+            onPartial: (partial) {
+              if (!_isDisposed) state = state.copyWith(waveform: partial);
+            },
           );
       if (_isDisposed) return;
       state = state.copyWith(waveform: waveform, waveformProgress: 1);

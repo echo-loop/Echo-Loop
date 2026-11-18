@@ -42,17 +42,26 @@ List<String> waveformPcmDecodeArguments({
 ];
 
 /// 波形峰值：每个像素一对 min/max（16 位 PCM 采样值），按时间顺序交错存放。
+///
+/// 解码过程中可能只有前半段像素就绪（流式显示）：[length] 恒为整段音频的像素数，
+/// 只有 [readyLength] 之前的像素有效，绘制与采样都应以 [readyLength] 为界。
 class WaveformPeaks {
   WaveformPeaks({
     required this.pixelsPerSecond,
     required this.duration,
     required Int16List minMax,
+    int? readyLength,
+    int? peak,
   }) : _minMax = minMax,
-       peak = _peakOf(minMax) {
+       readyLength = readyLength ?? minMax.length ~/ 2,
+       peak = peak ?? _peakOf(minMax, readyLength ?? minMax.length ~/ 2) {
     if (pixelsPerSecond <= 0 || minMax.length.isOdd) {
       throw ArgumentError(
         '波形数据无效 pps=$pixelsPerSecond values=${minMax.length}',
       );
+    }
+    if (this.readyLength < 0 || this.readyLength > length) {
+      throw ArgumentError('就绪像素越界 ready=${this.readyLength} length=$length');
     }
   }
 
@@ -64,11 +73,16 @@ class WaveformPeaks {
 
   final Int16List _minMax;
 
-  /// 全部采样的最大绝对值，用于把低音量录音也放大到可见高度；至少为 1。
+  /// 全部就绪采样的最大绝对值，用于把低音量录音也放大到可见高度；至少为 1。
   final int peak;
 
-  /// 像素（min/max 对）数量。
+  /// 已计算完成的像素数，即 [minAt] / [maxAt] 有效的下标范围为 `[0, readyLength)`。
+  final int readyLength;
+
+  /// 整段音频的像素（min/max 对）数量。
   int get length => _minMax.length ~/ 2;
+
+  bool get isComplete => readyLength == length;
 
   /// 交错的 min/max 采样只读视图。
   List<int> get minMax => _minMax.asUnmodifiableView();
@@ -88,6 +102,8 @@ class WaveformPeaks {
   static const int _headerBytes = 20;
 
   Uint8List encode() {
+    // 缓存只保存完整波形，半成品写入会让下次打开时显示缺失的一截。
+    if (!isComplete) throw StateError('未完成的波形不能写入缓存');
     final bytes = Uint8List(_headerBytes + _minMax.lengthInBytes)
       ..setAll(0, _magic)
       ..setAll(_headerBytes, Uint8List.sublistView(_minMax));
@@ -114,13 +130,129 @@ class WaveformPeaks {
     );
   }
 
-  static int _peakOf(Int16List values) {
+  static int _peakOf(Int16List values, int pixelCount) {
+    // 越界的 pixelCount 交给构造函数的参数校验报错，这里只保证不越界读取。
+    final sampleCount = math.min(pixelCount * 2, values.length);
     var peak = 1;
-    for (final value in values) {
-      final magnitude = value.abs();
+    for (var i = 0; i < sampleCount; i++) {
+      final magnitude = values[i].abs();
       if (magnitude > peak) peak = magnitude;
     }
     return peak;
+  }
+}
+
+/// 增量计算波形峰值：PCM 采样可以分段喂入（FFmpeg 仍在解码时即可边读边算），
+/// 任意时刻都能取到已完整像素的 [WaveformPeaks] 快照。
+///
+/// 不足一个像素的尾部采样只在 [finish] 时才成为像素，快照不包含它。
+class WaveformPeaksBuilder {
+  WaveformPeaksBuilder({
+    required int expectedSamples,
+    this.pixelsPerSecond = waveformPixelsPerSecond,
+  }) : _expectedPixels = _pixelCountOf(expectedSamples, pixelsPerSecond),
+       _samplesPerPixel = _samplesPerPixelOf(pixelsPerSecond),
+       _buffer = Int16List(_pixelCountOf(expectedSamples, pixelsPerSecond) * 2);
+
+  /// 每秒像素数，与 [WaveformPeaks.pixelsPerSecond] 一致。
+  final int pixelsPerSecond;
+
+  /// 预期整段音频的像素数。快照的 [WaveformPeaks.length] 以它为准，让绘制时按
+  /// 时间换算的像素下标在解码过程中保持稳定；实际采样更多时再向后扩展。
+  final int _expectedPixels;
+  final int _samplesPerPixel;
+
+  /// 像素 min/max 缓冲，只追加不修改已完成的像素，因此旧快照共享前缀仍然有效。
+  Int16List _buffer;
+  int _readyPixels = 0;
+  int _totalSamples = 0;
+  int _peak = 1;
+
+  /// 当前未满一像素的 min/max 与采样数。
+  int _low = 32767;
+  int _high = -32768;
+  int _countInPixel = 0;
+
+  /// 已完成的像素数。
+  int get readyPixels => _readyPixels;
+
+  /// 喂入 [samples] 的前 [count] 个采样（16 位单声道）。
+  void addSamples(Int16List samples, int count) {
+    for (var i = 0; i < count; i++) {
+      final value = samples[i];
+      if (value < _low) _low = value;
+      if (value > _high) _high = value;
+      _totalSamples++;
+      if (++_countInPixel == _samplesPerPixel) _commitPixel();
+    }
+  }
+
+  /// 当前已完成像素的快照。之后的 [addSamples] 不影响已返回的快照。
+  WaveformPeaks snapshot() {
+    final pixelCount = math.max(_expectedPixels, _readyPixels);
+    _ensureCapacity(pixelCount);
+    return WaveformPeaks(
+      pixelsPerSecond: pixelsPerSecond,
+      duration: _durationOfPixels(pixelCount),
+      minMax: Int16List.view(_buffer.buffer, 0, pixelCount * 2),
+      readyLength: _readyPixels,
+      peak: _peak,
+    );
+  }
+
+  /// 结束计算，把尾部采样并入最后一个像素，返回完整波形。
+  WaveformPeaks finish() {
+    if (_countInPixel > 0) _commitPixel();
+    return WaveformPeaks(
+      pixelsPerSecond: pixelsPerSecond,
+      duration: Duration(
+        microseconds:
+            _totalSamples *
+            Duration.microsecondsPerSecond ~/
+            waveformPcmSampleRate,
+      ),
+      minMax: Int16List.view(_buffer.buffer, 0, _readyPixels * 2),
+      peak: _peak,
+    );
+  }
+
+  void _commitPixel() {
+    _ensureCapacity(_readyPixels + 1);
+    _buffer[_readyPixels * 2] = _low;
+    _buffer[_readyPixels * 2 + 1] = _high;
+    _readyPixels++;
+    _peak = math.max(_peak, math.max(_low.abs(), _high.abs()));
+    _low = 32767;
+    _high = -32768;
+    _countInPixel = 0;
+  }
+
+  void _ensureCapacity(int pixelCount) {
+    if (pixelCount * 2 <= _buffer.length) return;
+    // 容量翻倍，避免每个像素都重新分配；_buffer.length 以采样计，即 2 倍像素数。
+    final grown = Int16List(math.max(pixelCount, _buffer.length) * 2);
+    grown.setRange(0, _readyPixels * 2, _buffer);
+    _buffer = grown;
+  }
+
+  Duration _durationOfPixels(int pixelCount) => Duration(
+    microseconds:
+        pixelCount *
+        _samplesPerPixel *
+        Duration.microsecondsPerSecond ~/
+        waveformPcmSampleRate,
+  );
+
+  static int _samplesPerPixelOf(int pixelsPerSecond) {
+    if (pixelsPerSecond <= 0 || waveformPcmSampleRate % pixelsPerSecond != 0) {
+      throw ArgumentError('采样率须为像素密度的整数倍：$pixelsPerSecond');
+    }
+    return waveformPcmSampleRate ~/ pixelsPerSecond;
+  }
+
+  static int _pixelCountOf(int samples, int pixelsPerSecond) {
+    final samplesPerPixel = _samplesPerPixelOf(pixelsPerSecond);
+    return (samples + samplesPerPixel - 1) ~/ samplesPerPixel;
   }
 }
 
@@ -149,23 +281,17 @@ WaveformPeaks computeWaveformPeaksFromPcmFile(
   String pcmPath, {
   int pixelsPerSecond = waveformPixelsPerSecond,
 }) {
-  if (waveformPcmSampleRate % pixelsPerSecond != 0) {
-    throw ArgumentError('采样率须为像素密度的整数倍：$pixelsPerSecond');
-  }
-  final samplesPerPixel = waveformPcmSampleRate ~/ pixelsPerSecond;
   final file = File(pcmPath).openSync();
   try {
     final totalSamples = file.lengthSync() ~/ 2;
-    final pixelCount = (totalSamples + samplesPerPixel - 1) ~/ samplesPerPixel;
-    final minMax = Int16List(pixelCount * 2);
+    final builder = WaveformPeaksBuilder(
+      expectedSamples: totalSamples,
+      pixelsPerSecond: pixelsPerSecond,
+    );
     // 1MB 一块：读写次数少，又不会一次占用整段 PCM 的内存。
     final buffer = Uint8List(1 << 20);
     final samples = Int16List.view(buffer.buffer);
     var remaining = totalSamples;
-    var out = 0;
-    var count = 0;
-    var low = 32767;
-    var high = -32768;
     while (remaining > 0) {
       final want = math.min(remaining, samples.length);
       final read = file.readIntoSync(buffer, 0, want * 2);
@@ -173,33 +299,9 @@ WaveformPeaks computeWaveformPeaksFromPcmFile(
         throw FileSystemException('PCM 读取不完整', pcmPath);
       }
       remaining -= want;
-      for (var i = 0; i < want; i++) {
-        final value = samples[i];
-        if (value < low) low = value;
-        if (value > high) high = value;
-        if (++count == samplesPerPixel) {
-          minMax[out++] = low;
-          minMax[out++] = high;
-          count = 0;
-          low = 32767;
-          high = -32768;
-        }
-      }
+      builder.addSamples(samples, want);
     }
-    if (count > 0) {
-      minMax[out++] = low;
-      minMax[out++] = high;
-    }
-    return WaveformPeaks(
-      pixelsPerSecond: pixelsPerSecond,
-      duration: Duration(
-        microseconds:
-            totalSamples *
-            Duration.microsecondsPerSecond ~/
-            waveformPcmSampleRate,
-      ),
-      minMax: minMax,
-    );
+    return builder.finish();
   } finally {
     file.closeSync();
   }

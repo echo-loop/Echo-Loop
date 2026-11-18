@@ -1548,6 +1548,9 @@ class SubtitleEditorController extends StateNotifier<SubtitleEditorState> {
             onProgress: (progress) {
               if (mounted) state = state.copyWith(waveformProgress: progress);
             },
+            onPartial: (partial) {
+              if (mounted) state = state.copyWith(waveform: partial);
+            },
           );
       if (!mounted) return;
       state = state.copyWith(

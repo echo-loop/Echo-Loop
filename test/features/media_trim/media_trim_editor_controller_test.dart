@@ -40,6 +40,7 @@ class _PendingWaveformLoader extends MediaTrimWaveformLoader {
     required Duration? mediaDuration,
     required MediaTrimCancellation cancellation,
     required void Function(double progress) onProgress,
+    void Function(WaveformPeaks partial)? onPartial,
   }) => Completer<WaveformPeaks>().future;
 }
 

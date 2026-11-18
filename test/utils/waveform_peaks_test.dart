@@ -137,6 +137,73 @@ void main() {
     expect(peaks.positionToPixel(const Duration(microseconds: 12500)), 1);
   });
 
+  group('WaveformPeaksBuilder 增量计算', () {
+    test('分段喂入（边界不对齐像素）的结果与整文件计算一致', () {
+      final samples = [for (var i = 0; i < 1000; i++) (i * 37) % 2001 - 1000];
+      final builder = WaveformPeaksBuilder(expectedSamples: samples.length);
+      final chunks = [7, 293, 300, 400];
+      var offset = 0;
+      for (final size in chunks) {
+        builder.addSamples(
+          Int16List.fromList(samples.sublist(offset, offset + size)),
+          size,
+        );
+        offset += size;
+      }
+
+      final incremental = builder.finish();
+      final batch = computeWaveformPeaksFromPcmFile(writePcm(samples));
+
+      expect(incremental.minMax, batch.minMax);
+      expect(incremental.duration, batch.duration);
+      expect(incremental.peak, batch.peak);
+      expect(incremental.isComplete, isTrue);
+    });
+
+    test('快照只暴露已完整的像素，长度按预期采样数确定', () {
+      // 1500 个预期采样 = 5 个像素（每像素 300 个采样）。
+      final builder = WaveformPeaksBuilder(expectedSamples: 1500);
+      builder.addSamples(Int16List.fromList(List.filled(600, 4)), 600);
+
+      final first = builder.snapshot();
+      expect(first.length, 5);
+      expect(first.readyLength, 2);
+      expect(first.isComplete, isFalse);
+      expect([first.minAt(1), first.maxAt(1)], [4, 4]);
+
+      // 未满一像素的尾巴不进快照。
+      builder.addSamples(Int16List.fromList(List.filled(100, 9)), 100);
+      expect(builder.snapshot().readyLength, 2);
+
+      builder.addSamples(Int16List.fromList(List.filled(200, -9)), 200);
+      final third = builder.snapshot();
+      expect(third.readyLength, 3);
+      expect([third.minAt(2), third.maxAt(2)], [-9, 9]);
+      // 之前返回的快照不随后续写入变化。
+      expect(first.readyLength, 2);
+      expect(first.minAt(1), 4);
+    });
+
+    test('就绪像素数越界时抛出参数错误', () {
+      expect(
+        () => WaveformPeaks(
+          pixelsPerSecond: 80,
+          duration: const Duration(seconds: 1),
+          minMax: Int16List(4),
+          readyLength: 3,
+        ),
+        throwsArgumentError,
+      );
+    });
+
+    test('未完成的波形不能写入缓存', () {
+      final builder = WaveformPeaksBuilder(expectedSamples: 1500);
+      builder.addSamples(Int16List.fromList(List.filled(600, 4)), 600);
+
+      expect(() => builder.snapshot().encode(), throwsStateError);
+    });
+  });
+
   test('解码参数：只取第一条音轨，单声道 24kHz 16 位小端 PCM', () {
     final arguments = waveformPcmDecodeArguments(
       input: '/media/a.mkv',

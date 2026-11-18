@@ -572,7 +572,9 @@ class _MediaTrimTimelineState extends State<MediaTrimTimeline>
                                   ),
                                 ),
                               ),
-                            if (widget.waveform == null)
+                            // 流式生成中途失败时仍需显示失败态与重试，即使已有部分波形。
+                            if (widget.waveform == null ||
+                                widget.isWaveformFailed)
                               Center(
                                 child: _WaveformStatus(
                                   progress: widget.waveformProgress,
@@ -855,9 +857,11 @@ class _TimelinePainter extends CustomPainter {
       if (contentX < firstContentX) continue;
       final x = contentX - offset;
       final range = sampleRangeAtContentX(contentX);
+      // 流式生成中尚未解码到的位置不画。
+      if (!values.isComplete && range.from >= values.readyLength) continue;
       var low = 0;
       var high = 0;
-      for (var i = range.from; i < range.to && i < values.length; i++) {
+      for (var i = range.from; i < range.to && i < values.readyLength; i++) {
         final min = values.minAt(i);
         final max = values.maxAt(i);
         if (min < low) low = min;

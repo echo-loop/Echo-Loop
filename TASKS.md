@@ -2,6 +2,8 @@
 
 > 仅列未完成事项。已完成记录见 [2026-11-12 归档](./docs/tasks-archive/tasks-2026-11-12-completed.md)、[2026-10-29 归档](./docs/tasks-archive/tasks-2026-10-29-completed.md)、[2026-09-29 归档](./docs/tasks-archive/tasks-2026-09-29-completed.md)。
 
+- [x] 波形流式生成：FFmpeg 解码期间每 300ms 跟随增长中的 PCM 文件增量计算峰值（`WaveformPeaksBuilder`，`computeWaveformPeaksFromPcmFile` 复用同一实现），通过 `onPartial` 把已完成像素的快照推给剪辑页与字幕编辑页，边生成边显示；快照的 `length` 恒为整段像素数，`readyLength` 之后不绘制。只有完整波形写入缓存，解码失败或取消仍走原失败 / 取消路径。日志行由 `decode=…ms total=…ms` 简化为 `total=…ms`（解码与峰值已交织，不再单独计时）。单测 3 项（分段喂入与整文件一致、快照只含完整像素、未完成不能编码）；macOS 集成测试 6 种格式与取消 / 静音检测全部通过，新增 30 分钟音频流式用例（解码期间收到未完成快照，前缀与最终结果逐像素一致）。iOS / Android / Windows 真机待验证：边解码边读取 PCM 文件在 Windows 上的文件共享行为未验证。**完成时间**: 2026-11-18
+
 - [x] 随心听视频偶发黑屏：`MediaKitBackend` 跨媒体复用同一 mpv 实例，上一段会话隐藏视频轨（`setVisualTrackVisible(false)`）后 vid 保持关闭；新会话 `load` 把界面显示状态重置为可见，却没有同步开启 mpv 视频轨，`VideoFrameGate` 收不到 video-size / vo-configured，画面一直隐藏。修复：加载新媒体前按 `visualTrackVisible` 同步视频轨。新增 1 个 provider 回归用例（隐藏视频轨后退出，再加载新媒体时视频轨恢复）。
   - 后续复现：暂停打开随心听仍黑屏，点播放才出画面。日志显示 `vo-configured yes` 后纹理尺寸一直停在上一媒体尺寸，直到播放才被 mpv 出帧更新（`TextureGL: resize` 与播放同时出现）。修复：`VideoFrameGate.needsFrameRedraw`，VO 已配置且纹理未追上时，暂停中 seek 到打开时的起始位置触发一次重绘（每次打开只请求一次，不用播放器当前位置，避免断点丢失）。新增门控单元用例。待真机验证：日志应出现 `event=paused_redraw_requested`，随后 `current_media_visible trigger=texture-size`。**完成时间**: 2026-11-18
 
