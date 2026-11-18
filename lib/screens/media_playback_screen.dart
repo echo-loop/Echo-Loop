@@ -556,6 +556,7 @@ class _MediaPlaybackScreenState extends ConsumerState<MediaPlaybackScreen>
       playingSentenceIndex: resolvedPlayingLocalIndex,
       wordHighlightSource: wordHighlightSource,
       autoFocusEnabled: true,
+      isPlaying: state.isPlaying,
       focusActive:
           !showSingleSentence &&
           _routeVisible &&

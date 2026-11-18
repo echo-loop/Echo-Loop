@@ -34,6 +34,8 @@ void main() {
       int? focusRequestRevision,
       SentenceFocusReason? focusReason,
       int focusRestoreRevision = 0,
+      bool isPlaying = true,
+      Duration autoFocusResumeDelay = const Duration(milliseconds: 300),
     }) {
       // MaskedSentenceTile 监听收藏索引 provider，需要 ProviderScope；
       // 收藏标记与滚动行为无关，固定为空索引。
@@ -70,6 +72,8 @@ void main() {
                   focusReason: focusReason,
                   focusRestoreRevision: focusRestoreRevision,
                   directInitialPositioning: directInitialPositioning,
+                  isPlaying: isPlaying,
+                  autoFocusResumeDelay: autoFocusResumeDelay,
                 ),
               ),
             ),
@@ -566,6 +570,146 @@ void main() {
       }
       expect(checkedFrames, greaterThan(0), reason: '应至少检查到若干帧的滚动位置');
       await tester.pumpAndSettle();
+    });
+
+    group('播放状态门控', () {
+      // 初始定位到第 12 句（远离边界，留出可滚动空间），随后手动上滑一小段。
+      const dragOffset = Offset(0, -60);
+
+      Future<void> pumpPausedAtSentence12(WidgetTester tester) async {
+        await tester.pumpWidget(
+          buildHost(
+            playingIndex: 12,
+            directInitialPositioning: true,
+            focusRequestRevision: 1,
+            focusReason: SentenceFocusReason.immediate,
+            isPlaying: false,
+          ),
+        );
+        await tester.pumpAndSettle();
+      }
+
+      testWidgets('暂停时手动滚动松手后，恢复计时器不把列表拉回当前句', (tester) async {
+        await pumpPausedAtSentence12(tester);
+        await tester.drag(find.byType(ScrollablePositionedList), dragOffset);
+        await tester.pump();
+        final draggedTop = tileRect(tester, 12).top;
+        // DEBUG
+
+        await tester.pump(const Duration(seconds: 1));
+        await tester.pumpAndSettle();
+        expect(
+          tileRect(tester, 12).top,
+          closeTo(draggedTop, 1),
+          reason: '暂停时用户滚动后的恢复计时器不应移动列表',
+        );
+      });
+
+      testWidgets('播放中手动滚动松手后，恢复计时器仍拉回当前句', (tester) async {
+        await tester.pumpWidget(
+          buildHost(
+            playingIndex: 12,
+            directInitialPositioning: true,
+            focusRequestRevision: 1,
+            focusReason: SentenceFocusReason.immediate,
+          ),
+        );
+        await tester.pumpAndSettle();
+        await tester.drag(find.byType(ScrollablePositionedList), dragOffset);
+        await tester.pump();
+        await tester.pump(const Duration(seconds: 1));
+        await tester.pumpAndSettle();
+
+        final list = viewportRect(tester);
+        expect(
+          tileRect(tester, 12).top,
+          closeTo(list.top + list.height * 0.4, 3),
+          reason: '播放中保留原有的滚动后恢复跟随',
+        );
+      });
+
+      testWidgets('暂停时点击句子仍平滑定位到新句', (tester) async {
+        await pumpPausedAtSentence12(tester);
+        await tester.pumpWidget(
+          buildHost(
+            playingIndex: 18,
+            directInitialPositioning: true,
+            focusRequestRevision: 2,
+            focusReason: SentenceFocusReason.navigation,
+            isPlaying: false,
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        final list = viewportRect(tester);
+        expect(
+          tileRect(tester, 18).top,
+          closeTo(list.top + list.height * 0.4, 3),
+          reason: '显式切句不受播放门控影响',
+        );
+      });
+
+      testWidgets('暂停时滚动后开始播放，列表回到当前句', (tester) async {
+        await pumpPausedAtSentence12(tester);
+        await tester.drag(find.byType(ScrollablePositionedList), dragOffset);
+        await tester.pump();
+        await tester.pump(const Duration(seconds: 1));
+        expect(
+          tileRect(tester, 12).top,
+          isNot(
+            closeTo(
+              viewportRect(tester).top + viewportRect(tester).height * 0.4,
+              3,
+            ),
+          ),
+        );
+
+        await tester.pumpWidget(
+          buildHost(
+            playingIndex: 12,
+            directInitialPositioning: true,
+            focusRequestRevision: 1,
+            focusReason: SentenceFocusReason.immediate,
+            isPlaying: true,
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        final list = viewportRect(tester);
+        expect(
+          tileRect(tester, 12).top,
+          closeTo(list.top + list.height * 0.4, 3),
+          reason: '开始播放后应恢复自动跟随',
+        );
+      });
+
+      testWidgets('开始播放时立即定位到当前句，不经过滚动动画', (tester) async {
+        await pumpPausedAtSentence12(tester);
+        await tester.drag(find.byType(ScrollablePositionedList), dragOffset);
+        await tester.pump();
+        await tester.pump(const Duration(seconds: 1));
+        await tester.pumpAndSettle();
+
+        await tester.pumpWidget(
+          buildHost(
+            playingIndex: 12,
+            directInitialPositioning: true,
+            focusRequestRevision: 1,
+            focusReason: SentenceFocusReason.immediate,
+            isPlaying: true,
+          ),
+        );
+        // 只推进两帧：即时定位应在布局后的校正帧内完成，动画则需要数百毫秒。
+        await tester.pump();
+        await tester.pump();
+
+        final list = viewportRect(tester);
+        expect(
+          tileRect(tester, 12).top,
+          closeTo(list.top + list.height * 0.4, 3),
+          reason: '开始播放应立即定位，不能等滚动动画',
+        );
+      });
     });
   });
 }

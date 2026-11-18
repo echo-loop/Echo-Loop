@@ -47,6 +47,10 @@ class ParagraphSentenceListCard extends StatefulWidget {
   final Map<int, Set<int>> keywordMap;
   final int playingSentenceIndex;
   final bool autoFocusEnabled;
+
+  /// 播放状态。自动跟随只在播放中生效：暂停时用户滚动结束不会把列表拉回当前句，
+  /// 恢复播放后再重新跟随。默认 true，保持未传入该参数的复用场景原有行为。
+  final bool isPlaying;
   final bool focusActive;
   final int? focusRequestRevision;
   final SentenceFocusReason? focusReason;
@@ -98,6 +102,7 @@ class ParagraphSentenceListCard extends StatefulWidget {
     required this.keywordMap,
     required this.playingSentenceIndex,
     this.autoFocusEnabled = false,
+    this.isPlaying = true,
     this.focusActive = true,
     this.focusRequestRevision,
     this.focusReason,
@@ -349,6 +354,7 @@ class _ParagraphSentenceListCardState extends State<ParagraphSentenceListCard>
         !oldWidget.autoFocusEnabled && widget.autoFocusEnabled;
     final becameFocusActive = !oldWidget.focusActive && widget.focusActive;
     final becameFocusInactive = oldWidget.focusActive && !widget.focusActive;
+    final playbackStarted = !oldWidget.isPlaying && widget.isPlaying;
     final focusRestoreRequested =
         widget.focusRestoreRevision != oldWidget.focusRestoreRevision;
     final focusRequestChanged =
@@ -462,6 +468,10 @@ class _ParagraphSentenceListCardState extends State<ParagraphSentenceListCard>
       } else if (!_userSuspendedFocus) {
         _focusPlayingSentence();
       }
+    } else if (playbackStarted && !_userSuspendedFocus) {
+      // 暂停期间列表可能已被用户滚走，开始播放时立即回到当前句；手动滚动中则不抢位置，
+      // 由松手后的计时器恢复。
+      _focusImmediately(hideWhilePositioning: false);
     }
   }
 
@@ -620,6 +630,8 @@ class _ParagraphSentenceListCardState extends State<ParagraphSentenceListCard>
     _resumeFocusTimer = Timer(widget.autoFocusResumeDelay, () {
       if (!mounted || !widget.autoFocusEnabled || !widget.focusActive) return;
       _userSuspendedFocus = false;
+      // 暂停时只解除手动滚动挂起，不把列表拉回当前句；播放开始时再统一跟随。
+      if (!widget.isPlaying) return;
       if (widget.focusRequestRevision != null &&
           widget.focusReason == SentenceFocusReason.immediate) {
         _focusImmediately(hideWhilePositioning: false);
