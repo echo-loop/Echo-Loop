@@ -226,58 +226,7 @@ class _BackupRestoreScreenState extends ConsumerState<BackupRestoreScreen> {
       barrierDismissible: false,
       builder: (_) => PopScope(
         canPop: false,
-        child: AlertDialog(
-          content: ValueListenableBuilder<BackupProgress>(
-            valueListenable: progress,
-            builder: (_, value, __) {
-              final progressValue = value.progress;
-              final determinate = progressValue >= 0 && progressValue <= 1;
-              return ConstrainedBox(
-                constraints: const BoxConstraints(minWidth: 260),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        SizedBox(
-                          width: 24,
-                          height: 24,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2.8,
-                            value: determinate ? progressValue : null,
-                          ),
-                        ),
-                        const SizedBox(width: AppSpacing.m),
-                        Expanded(
-                          child: Text(
-                            _progressText(AppLocalizations.of(context)!, value),
-                            style: Theme.of(context).textTheme.titleMedium,
-                          ),
-                        ),
-                      ],
-                    ),
-                    if (determinate) ...[
-                      const SizedBox(height: AppSpacing.m),
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(999),
-                        child: LinearProgressIndicator(value: progressValue),
-                      ),
-                      const SizedBox(height: AppSpacing.xs),
-                      Align(
-                        alignment: Alignment.centerRight,
-                        child: Text(
-                          '${(progressValue * 100).round()}%',
-                          style: Theme.of(context).textTheme.bodySmall,
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              );
-            },
-          ),
-        ),
+        child: BackupProgressDialog(progress: progress),
       ),
     );
   }
@@ -383,22 +332,6 @@ class _BackupRestoreScreenState extends ConsumerState<BackupRestoreScreen> {
     ),
   );
 
-  String _progressText(AppLocalizations l10n, BackupProgress progress) {
-    return switch (progress.stage) {
-      'exportingDatabase' => l10n.exportingDatabase,
-      'exportingPreferences' => l10n.exportingPreferences,
-      'exportingMedia' => l10n.exportingMedia,
-      'exportingResources' => l10n.exportingResources,
-      'exportingPacking' => l10n.exportingPacking,
-      'importingExtracting' => l10n.importingExtracting,
-      'importingMedia' => l10n.importingMedia,
-      'importingResources' => l10n.importingResources,
-      'importingDatabase' => l10n.importingDatabase,
-      'importingPreferences' => l10n.importingPreferences,
-      _ => progress.stage,
-    };
-  }
-
   void _showError(String message) {
     ScaffoldMessenger.of(
       context,
@@ -444,6 +377,90 @@ class _BackupRestoreScreenState extends ConsumerState<BackupRestoreScreen> {
         ],
       ),
     );
+  }
+}
+
+/// 备份或恢复进行中的进度弹窗：阶段文案加不确定 / 确定进度指示。
+///
+/// 无标题无按钮时 AlertDialog 默认上 16 / 下 24 的内边距会让内容偏上，
+/// 这里统一为上下对称的 24。
+class BackupProgressDialog extends StatelessWidget {
+  const BackupProgressDialog({required this.progress, super.key});
+
+  final ValueNotifier<BackupProgress> progress;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    return AlertDialog(
+      contentPadding: const EdgeInsets.all(AppSpacing.l),
+      content: ValueListenableBuilder<BackupProgress>(
+        valueListenable: progress,
+        builder: (_, value, __) {
+          final progressValue = value.progress;
+          final determinate = progressValue >= 0 && progressValue <= 1;
+          return ConstrainedBox(
+            constraints: const BoxConstraints(minWidth: 260),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2.8,
+                        value: determinate ? progressValue : null,
+                      ),
+                    ),
+                    const SizedBox(width: AppSpacing.m),
+                    Expanded(
+                      child: Text(
+                        _progressText(l10n, value),
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                    ),
+                  ],
+                ),
+                if (determinate) ...[
+                  const SizedBox(height: AppSpacing.m),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(999),
+                    child: LinearProgressIndicator(value: progressValue),
+                  ),
+                  const SizedBox(height: AppSpacing.xs),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: Text(
+                      '${(progressValue * 100).round()}%',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  String _progressText(AppLocalizations l10n, BackupProgress progress) {
+    return switch (progress.stage) {
+      'exportingDatabase' => l10n.exportingDatabase,
+      'exportingPreferences' => l10n.exportingPreferences,
+      'exportingMedia' => l10n.exportingMedia,
+      'exportingResources' => l10n.exportingResources,
+      'exportingPacking' => l10n.exportingPacking,
+      'importingExtracting' => l10n.importingExtracting,
+      'importingMedia' => l10n.importingMedia,
+      'importingResources' => l10n.importingResources,
+      'importingDatabase' => l10n.importingDatabase,
+      'importingPreferences' => l10n.importingPreferences,
+      _ => progress.stage,
+    };
   }
 }
 

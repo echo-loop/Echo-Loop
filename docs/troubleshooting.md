@@ -49,6 +49,7 @@
 - 7.37 同一资源多入口下载：查找再登记导致重复任务，取消需绑定具体任务
 - 7.38 Riverpod 3 暂停无监听 StreamProvider：启动会话永久挂起，登录后仍提示未登录
 - 7.41 百度网盘批量导入：下载时才取 dlink，切后台后队列无法接力下一个文件
+- 7.63 同一版本备份恢复提示「请先更新应用」：迁移版本常量落后于迁移链末尾
 
 ---
 
@@ -842,4 +843,13 @@
 - 证据：同款 FFmpeg 8.0.0 真机探针对 1280×720、24 fps 的 H.264 输入裁剪 1.5 秒时，MediaCodec 也可能返回成功，但只写出 1 帧（约 42ms），完整 AAC 音轨使容器时长仍约为 1.5 秒。用原生 MediaCodec API 单独调用同一 `OMX.hisi.video.encoder.avc`，`yuv420p` 和 NV12 均完整编码 25 帧。用同一原生 API 先预送一帧、发 EOS 再 flush，随后只收到 2 帧就再次收到 EOS。
 - 根因：FFmpeg 8.0 为 MP4 全局头部探测 H.264 配置时，先送入探测帧并发送 EOS，随后尝试 flush 同一编码会话。该流程触发了这台 HONOR 上的兼容性问题。只加 `-flags:v -global_header` 后，同一 1.5 秒输入写满 36 帧，MP4 包含 H.264 配置并通过完整解码。原始报障素材未参与对照。
 - 修复：仅对 Android 的 `h264_mediacodec` 禁用全局头部预探测，MP4 封装器从实际码流提取 H.264 配置。校验视频轨时长，防止音轨掩盖失败。Android 文档明确指出，编码器回到 Flushed 状态的行为未定义。见 [Android MediaCodec 文档](https://developer.android.com/reference/android/media/MediaCodec)和 [FFmpeg 8.0 MediaCodec 源码](https://ffmpeg.org/doxygen/8.0/mediacodecenc_8c_source.html)。
+- 记录时间：2026-11-19。
+
+### 7.63 同一版本创建的备份恢复时提示「请先更新应用」：迁移版本常量落后于迁移链
+
+- 现象：1.0.46 及以后版本导出的备份，在同一版本恢复时报「此备份由更新版本的应用创建，请先更新应用」。日志为 `Unsupported app update migration version: 12`，异常码 `incompatibleVersion`，失败发生在读取 manifest 阶段。
+- 根因：提交 `49854753` 在升级迁移链末尾新增了 v12，但常量 `currentAppUpdateMigrationVersion` 仍为 11。应用启动后迁移进度写为 12，导出的 manifest 记录 12；恢复校验 `12 > 11`，把自己生成的备份判定为新版本备份。
+- 解法：常量改为 12，并在常量注释中写明必须与 `buildAppUpdateMigrations` 末尾版本一致。已有的 v12 备份无需迁移，修复后可直接恢复。
+- 规则：新增升级迁移时必须同步更新 `currentAppUpdateMigrationVersion`。备份测试使用的是迁移链真实末尾版本，而不是常量本身，否则测试会和被测代码一起错误。版本一致性由 `test/services/app_update_migration_test.dart` 断言，恢复链路由 `test/services/backup/backup_service_test.dart` 的「同一应用导出的迁移进度可直接恢复」覆盖。
+- 相关代码：`lib/services/app_update_migration.dart`、`lib/services/backup/backup_service.dart`（`_validateAppUpdateMigrationVersion`、`_runRestoredAppUpdateMigrations`）。
 - 记录时间：2026-11-19。

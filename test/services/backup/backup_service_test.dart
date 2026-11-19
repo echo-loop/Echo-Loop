@@ -34,6 +34,12 @@ class _FakePathProvider extends PathProviderPlatform
   Future<String?> getTemporaryPath() async => rootPath;
 }
 
+/// 应用启动迁移跑完后 SharedPreferences 中记录的真实迁移进度。
+Future<int> _latestAppUpdateMigrationVersion() async {
+  final prefs = await SharedPreferences.getInstance();
+  return buildAppUpdateMigrations(prefs, isAndroid: false).last.version;
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -266,6 +272,49 @@ void main() {
       expect(
         preferences.getString('user_preferences_sync_state_v1'),
         'current-device-metadata',
+      );
+    });
+
+    test('同一应用导出的迁移进度可直接恢复', () async {
+      final latestMigrationVersion = await _latestAppUpdateMigrationVersion();
+      SharedPreferences.setMockInitialValues({
+        appUpdateMigrationVersionKey: latestMigrationVersion,
+      });
+      final backupPath = await service.exportData(
+        outputDir: outputDir.path,
+        appVersion: '1.0.48',
+        platform: 'ios',
+      );
+
+      final prepared = await service.prepareImport(zipPath: backupPath);
+      addTearDown(prepared.dispose);
+
+      expect(
+        prepared.manifest.appUpdateMigrationVersion,
+        latestMigrationVersion,
+      );
+    });
+
+    test('迁移进度超过当前应用迁移链时拒绝恢复', () async {
+      final latestMigrationVersion = await _latestAppUpdateMigrationVersion();
+      SharedPreferences.setMockInitialValues({
+        appUpdateMigrationVersionKey: latestMigrationVersion + 1,
+      });
+      final backupPath = await service.exportData(
+        outputDir: outputDir.path,
+        appVersion: '1.0.48',
+        platform: 'ios',
+      );
+
+      await expectLater(
+        service.prepareImport(zipPath: backupPath),
+        throwsA(
+          isA<BackupException>().having(
+            (error) => error.code,
+            'code',
+            BackupFailureCode.incompatibleVersion,
+          ),
+        ),
       );
     });
 

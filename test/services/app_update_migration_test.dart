@@ -142,4 +142,17 @@ void main() {
       await expectLater(runner.migrate(), throwsStateError);
     });
   });
+
+  group('currentAppUpdateMigrationVersion', () {
+    // 备份会记录迁移链真实完成的版本，常量必须与迁移链末尾保持一致，
+    // 否则应用会拒绝恢复自己生成的备份（见 docs/troubleshooting.md）。
+    test('与已注册迁移链的最后一个版本一致', () async {
+      SharedPreferences.setMockInitialValues({});
+      final prefs = await SharedPreferences.getInstance();
+
+      final migrations = buildAppUpdateMigrations(prefs, isAndroid: false);
+
+      expect(migrations.last.version, currentAppUpdateMigrationVersion);
+    });
+  });
 }

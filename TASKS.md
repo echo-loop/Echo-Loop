@@ -2,6 +2,12 @@
 
 > 仅列未完成事项。已完成记录见 [2026-11-12 归档](./docs/tasks-archive/tasks-2026-11-12-completed.md)、[2026-10-29 归档](./docs/tasks-archive/tasks-2026-10-29-completed.md)、[2026-09-29 归档](./docs/tasks-archive/tasks-2026-09-29-completed.md)。
 
+- [x] 升级应用版本至 1.0.49：将 `pubspec.yaml` 中的版本从 1.0.48 提升至 1.0.49。纯版本元数据变更，无需运行测试。**完成时间**: 2026-11-20
+
+- [x] 备份 / 恢复进度弹窗内容未垂直居中：无标题无按钮的 `AlertDialog` 默认上 16 / 下 24 内边距，卡片内容偏上。进度弹窗抽为 `BackupProgressDialog`，统一为上下 24 对称内边距。新增 `test/screens/backup_progress_content_test.dart` 校验卡片上下留白对称、图标与文案垂直对齐（去掉修复后失败：上 16 / 下 24）。**完成时间**: 2026-11-19
+
+- [x] 修复同一版本导出的备份恢复时提示「此备份由更新版本的应用创建」：升级迁移链已到 v12（1.0.46 起），但 `currentAppUpdateMigrationVersion` 仍为 11，备份 manifest 记录的 12 被判定为更新版本。常量改为 12，并新增两类测试：迁移链末尾版本与常量一致（修复前失败）、同一应用导出的备份可直接恢复（修复前报 `Unsupported app update migration version: 12`），另补一条迁移进度超过迁移链时仍拒绝恢复的回归。相关备份与迁移测试 `All tests passed`，改动文件 `dart analyze` 仅余沿用的 `prefer_initializing_formals` info。见 [排障记录 7.63](./docs/troubleshooting.md)。**完成时间**: 2026-11-19
+
 - [x] 修复 HONOR YAL-AL00（Android 10）视频剪辑保存失败。真机对照定位到 FFmpeg 8.0 为 MP4 全局头部预探测时发送 EOS 并 flush MediaCodec 编码器，导致后续提交帧失败或只产出一帧。Android 跳过预探测，由 MP4 封装器从实际码流提取 H.264 配置，并单独校验视频轨时长。原真机集成用例修复前失败，修复后音频/视频、有/无字幕四种场景全部通过，视频保留 H.264 并验证应用播放器出画；剪辑相关单元和组件测试 56 项通过。见 [排障记录](./docs/troubleshooting.md#762-honor-上视频剪辑保存失败或视频轨只有一帧)。**完成时间**: 2026-11-19
 
 - [x] 评价提醒埋点：真正向系统发起原生评分请求时上报 `rating_prompt_requested`（已加入 PostHog 白名单），参数 `check_in_days`（上次提醒之后的打卡天数）与 `is_repeat`（0 / 1）。埋点放在冷却落盘与二次条件检查之后、`requestReview` 之前，条件不满足或冷却回滚的请求不上报；`RatingPromptCoordinator` 注入 `AnalyticsService`。新增 3 个埋点用例（首次 / 冷却后再次 / 条件未满足）并在冷却回滚用例中断言不上报；白名单测试同步。复审修复：`main_shell_rating_prompt_test` 的 `_RecordingCoordinator` 未传入新增的 `analytics` 参数导致编译失败，已补测试替身。回归范围（router、评价提醒、analytics、四类学习页与收藏复习页测试）共 445 项全部通过；改动文件 `dart format` 无变更，`flutter analyze` 无 error / warning（仅沿用的 `prefer_initializing_formals` info）。**完成时间**: 2026-11-18
