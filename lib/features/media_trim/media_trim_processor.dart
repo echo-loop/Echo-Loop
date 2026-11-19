@@ -120,6 +120,9 @@ class MediaTrimProcessor {
         Platform.isAndroid ? 'h264_mediacodec' : 'h264_videotoolbox',
         // 硬件编码会话可能被占用或不可用，允许 VideoToolbox 退回系统软件编码。
         if (!Platform.isAndroid) ...['-allow_sw', '1'],
+        // 跳过 FFmpeg 为 MP4 全局头部预送探测帧后 flush 的流程。
+        // 部分 MediaCodec 编码器在该流程后会拒收后续帧或提前结束。
+        if (Platform.isAndroid) ...['-flags:v', '-global_header'],
         '-b:v',
         '$videoBitrate',
         '-pix_fmt',
@@ -155,7 +158,12 @@ class MediaTrimProcessor {
         await session.getOutput(),
       );
     }
-    await _verifyOutput(output, duration, cancellation);
+    await _verifyOutput(
+      output,
+      duration,
+      cancellation,
+      verifyVideoTrack: isVideo && Platform.isAndroid,
+    );
   }
 
   /// 把第一条音轨解码为波形用 PCM（参数见 [waveformPcmDecodeArguments]）。
@@ -183,8 +191,9 @@ class MediaTrimProcessor {
   Future<void> _verifyOutput(
     String output,
     Duration expected,
-    MediaTrimCancellation cancellation,
-  ) async {
+    MediaTrimCancellation cancellation, {
+    required bool verifyVideoTrack,
+  }) async {
     final decode = await FFmpegKit.executeWithArguments([
       '-nostdin',
       '-v',
@@ -204,12 +213,41 @@ class MediaTrimProcessor {
         await decode.getOutput(),
       );
     }
-    final actual = (await probe(output)).duration;
-    if ((actual - expected).abs() > durationTolerance) {
+    final session = await FFprobeKit.getMediaInformation(output);
+    cancellation.throwIfCancelled();
+    final information = session.getMediaInformation();
+    final seconds = double.tryParse(information?.getDuration() ?? '');
+    final expectedSeconds =
+        expected.inMicroseconds / Duration.microsecondsPerSecond;
+    final toleranceSeconds =
+        durationTolerance.inMicroseconds / Duration.microsecondsPerSecond;
+    if (seconds == null ||
+        !seconds.isFinite ||
+        (seconds - expectedSeconds).abs() > toleranceSeconds) {
       throw MediaTrimException(
         MediaTrimFailure.outputInvalid,
-        '时长不符 expected=$expected actual=$actual',
+        '时长不符 expectedSeconds=$expectedSeconds actualSeconds=$seconds',
       );
+    }
+    if (verifyVideoTrack) {
+      double? videoSeconds;
+      for (final stream in information?.getStreams() ?? const []) {
+        if (stream.getType() == 'video') {
+          videoSeconds = double.tryParse(
+            stream.getStringProperty('duration') ?? '',
+          );
+          break;
+        }
+      }
+      // 容器时长可能只来自完整的音轨，无法证明视频已写全。
+      if (videoSeconds == null ||
+          !videoSeconds.isFinite ||
+          (videoSeconds - expectedSeconds).abs() > toleranceSeconds) {
+        throw MediaTrimException(
+          MediaTrimFailure.outputInvalid,
+          '视频轨时长不符 expectedSeconds=$expectedSeconds actualSeconds=$videoSeconds',
+        );
+      }
     }
   }
 

@@ -835,3 +835,11 @@
 - 测试坑：macOS 集成测试若不在 setUpAll 初始化 `windowManager`、tearDownAll 中 `windowManager.hide()`，`flutter test -d macos` 结束后 Debug 版 Echo Loop 进程不退出，每跑一次残留一个窗口（本次连续 5 次复现，加上后不再残留）。新增 macOS 集成测试照抄现有文件的 setUpAll / tearDownAll。
 - 相关代码：`lib/utils/waveform_peaks.dart`、`lib/features/media_trim/media_trim_waveform_loader.dart`、`lib/features/media_trim/media_trim_processor.dart`、`lib/utils/audio_content_check.dart`。
 - 记录时间：2026-11-18。
+
+### 7.62 HONOR 上视频剪辑保存失败或视频轨只有一帧
+
+- 复现：HONOR YAL-AL00（Android 10 / API 29）运行原剪辑集成测试。两段 320×240、25 fps 的选区中，第二段报 `Error submitting video frame to the encoder`，整批未提交。
+- 证据：同款 FFmpeg 8.0.0 真机探针对 1280×720、24 fps 的 H.264 输入裁剪 1.5 秒时，MediaCodec 也可能返回成功，但只写出 1 帧（约 42ms），完整 AAC 音轨使容器时长仍约为 1.5 秒。用原生 MediaCodec API 单独调用同一 `OMX.hisi.video.encoder.avc`，`yuv420p` 和 NV12 均完整编码 25 帧。用同一原生 API 先预送一帧、发 EOS 再 flush，随后只收到 2 帧就再次收到 EOS。
+- 根因：FFmpeg 8.0 为 MP4 全局头部探测 H.264 配置时，先送入探测帧并发送 EOS，随后尝试 flush 同一编码会话。该流程触发了这台 HONOR 上的兼容性问题。只加 `-flags:v -global_header` 后，同一 1.5 秒输入写满 36 帧，MP4 包含 H.264 配置并通过完整解码。原始报障素材未参与对照。
+- 修复：仅对 Android 的 `h264_mediacodec` 禁用全局头部预探测，MP4 封装器从实际码流提取 H.264 配置。校验视频轨时长，防止音轨掩盖失败。Android 文档明确指出，编码器回到 Flushed 状态的行为未定义。见 [Android MediaCodec 文档](https://developer.android.com/reference/android/media/MediaCodec)和 [FFmpeg 8.0 MediaCodec 源码](https://ffmpeg.org/doxygen/8.0/mediacodecenc_8c_source.html)。
+- 记录时间：2026-11-19。

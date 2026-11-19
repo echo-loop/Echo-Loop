@@ -89,9 +89,10 @@
 - 剪辑页独占一个 `MediaPlayerBackend`，不接入学习统计或系统媒体会话；进入时暂停
   随心听等其它正在出声的播放链路。试听请求用递增代号作废过期的异步步骤。
 - 音频输出 AAC/M4A，视频输出 H.264 + AAC/MP4，全部精确重编码，不用关键帧流复制。
-  Apple 使用 VideoToolbox 并允许系统软件编码（见 troubleshooting 7.52），Android 使用
-  MediaCodec。视频码率取原视频流码率并钳在 0.8–12 Mbps，未知时 4 Mbps。产物生成后
-  校验可解码且时长误差不超过 150ms。FFmpeg minimal 固定到 3.6.7。
+  Apple 使用 VideoToolbox 并允许系统软件编码（见 troubleshooting 7.52）。Android 使用
+  MediaCodec，并由 MP4 封装器从实际 H.264 码流提取配置（见 troubleshooting 7.62）。
+  视频码率取原视频流码率并钳在 0.8–12 Mbps，未知时 4 Mbps。校验产物可解码且容器时长误差
+  不超过 150ms，Android 视频另校验视频轨时长。FFmpeg minimal 固定到 3.6.7。
 - 每批产物写入 `audios/trimmed/<taskId>` 或 `videos/trimmed/<taskId>`，各片段使用新
   UUID 和实际文件 SHA256。全部生成并校验后单事务写入媒体、字幕和合集关联；提交前
   失败或取消删除整批目录。启动清理与发布走同一数据库事务串行，保留所有被引用

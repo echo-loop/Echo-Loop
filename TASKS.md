@@ -2,6 +2,8 @@
 
 > 仅列未完成事项。已完成记录见 [2026-11-12 归档](./docs/tasks-archive/tasks-2026-11-12-completed.md)、[2026-10-29 归档](./docs/tasks-archive/tasks-2026-10-29-completed.md)、[2026-09-29 归档](./docs/tasks-archive/tasks-2026-09-29-completed.md)。
 
+- [x] 修复 HONOR YAL-AL00（Android 10）视频剪辑保存失败。真机对照定位到 FFmpeg 8.0 为 MP4 全局头部预探测时发送 EOS 并 flush MediaCodec 编码器，导致后续提交帧失败或只产出一帧。Android 跳过预探测，由 MP4 封装器从实际码流提取 H.264 配置，并单独校验视频轨时长。原真机集成用例修复前失败，修复后音频/视频、有/无字幕四种场景全部通过，视频保留 H.264 并验证应用播放器出画；剪辑相关单元和组件测试 56 项通过。见 [排障记录](./docs/troubleshooting.md#762-honor-上视频剪辑保存失败或视频轨只有一帧)。**完成时间**: 2026-11-19
+
 - [x] 评价提醒埋点：真正向系统发起原生评分请求时上报 `rating_prompt_requested`（已加入 PostHog 白名单），参数 `check_in_days`（上次提醒之后的打卡天数）与 `is_repeat`（0 / 1）。埋点放在冷却落盘与二次条件检查之后、`requestReview` 之前，条件不满足或冷却回滚的请求不上报；`RatingPromptCoordinator` 注入 `AnalyticsService`。新增 3 个埋点用例（首次 / 冷却后再次 / 条件未满足）并在冷却回滚用例中断言不上报；白名单测试同步。复审修复：`main_shell_rating_prompt_test` 的 `_RecordingCoordinator` 未传入新增的 `analytics` 参数导致编译失败，已补测试替身。回归范围（router、评价提醒、analytics、四类学习页与收藏复习页测试）共 445 项全部通过；改动文件 `dart format` 无变更，`flutter analyze` 无 error / warning（仅沿用的 `prefer_initializing_formals` info）。**完成时间**: 2026-11-18
 
 - [x] 底部导航与侧边栏「资源库」图标改用 `assets/icon/library.svg`（替换 Material `library_music`，选中态仍为 `navActiveColor`）；「学习」图标改用 `assets/icon/book-open.svg`（替换 Material `school`）；「收藏」改用 `assets/icon/bookmark.svg`、「我的」改用 `assets/icon/account-round.svg`（激活态与未激活态同形，仅靠颜色区分，VIP 角标保留）；同步更新 `main_shell_navigation_rail_test` 的图标查找方式。格式、分析与相关测试通过。**完成时间**: 2026-11-18

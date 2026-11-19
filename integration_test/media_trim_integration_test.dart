@@ -16,6 +16,7 @@ import 'package:echo_loop/features/media_trim/media_trim_split_geometry.dart';
 import 'package:echo_loop/features/media_trim/media_trim_split_provider.dart';
 import 'package:echo_loop/features/onboarding_survey/providers/onboarding_survey_provider.dart'
     show sharedPreferencesProvider;
+import 'package:echo_loop/services/media_kit_player_backend.dart';
 import 'package:echo_loop/theme/app_theme.dart';
 
 import 'package:drift/drift.dart' hide isNull, isNotNull;
@@ -216,6 +217,11 @@ void main() {
                   .where((stream) => stream.getType() == 'video')
                   .single;
               expect(track.getCodec(), 'h264');
+              expect(
+                double.parse(track.getStringProperty('duration')!),
+                closeTo(1.5, 0.15),
+                reason: '视频轨应覆盖整个选区，音轨时长无法检出少帧',
+              );
               expect(track.getWidth(), subtitles ? 240 : 320);
               expect(track.getHeight(), subtitles ? 320 : 240);
             }
@@ -272,6 +278,30 @@ void main() {
               lessThan(5),
               reason: '首帧应对应选区起点，而非前一个关键帧',
             );
+            if (Platform.isAndroid && !subtitles) {
+              final player = MediaKitPlayerBackend();
+              try {
+                await tester.pumpWidget(
+                  MaterialApp(
+                    home: player.buildVideoView(
+                      viewportSize: const Size(320, 240),
+                    ),
+                  ),
+                );
+                await player.open('${directory.path}/${first.audioPath}');
+                await player.play();
+                await player.positionStream
+                    .firstWhere(
+                      (position) =>
+                          position >= const Duration(milliseconds: 750),
+                    )
+                    .timeout(const Duration(seconds: 10));
+                expect(player.videoAspectRatio, closeTo(4 / 3, 0.01));
+              } finally {
+                await tester.pumpWidget(const SizedBox.shrink());
+                await player.dispose();
+              }
+            }
           }
           if (subtitles) {
             final srt = await database.audioItemDao.getTranscriptSrt(ids.first);
