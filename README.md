@@ -5,7 +5,7 @@
 <div align="center">
   <img src="assets/icon/app-icon-1024-rounded.png" alt="Echo Loop" width="128" />
 
-  <h1>Echo Loop — 高效的英语听说训练 App</h1>
+  <h1>Echo Loop — 最专业的英语精听 App</h1>
 
   <p><strong>从此不必自己摸索怎么练好英语。</strong></p>
 
@@ -15,7 +15,7 @@
 
   <p>
     <a href="./LICENSE"><img src="https://img.shields.io/badge/License-AGPL--3.0-blue.svg" alt="License: AGPL-3.0" /></a>
-    <img src="https://img.shields.io/badge/Platform-iOS%20%C2%B7%20Android%20%C2%B7%20macOS%20%C2%B7%20Windows-brightgreen.svg" alt="Platform" />
+    <img src="https://img.shields.io/badge/Platform-iOS%20%C2%B7%20Android-brightgreen.svg" alt="Platform" />
     <a href="https://github.com/echo-loop/Echo-Loop/releases/latest"><img src="https://img.shields.io/github/v/release/echo-loop/Echo-Loop?label=release&color=orange" alt="Latest release" /></a>
     <a href="https://github.com/echo-loop/Echo-Loop/releases"><img src="https://img.shields.io/github/downloads/echo-loop/Echo-Loop/total?label=downloads" alt="Total release downloads" /></a>
     <a href="https://github.com/echo-loop/Echo-Loop/commits/main"><img src="https://img.shields.io/github/last-commit/echo-loop/Echo-Loop" alt="Last commit" /></a>
@@ -46,7 +46,7 @@
 初练之后，八阶回环自成周天，间隔复习固本培元，难句与生词也在一次次回炉中融会贯通，化为己用。
 练到深处，听力不再靠猜，口语不再硬憋，真正生出一身可持续增长的英语听说内功。
 
-说得直白一点，Echo Loop 是一款科学高效的英语听说训练 App。它帮助你把一段音频从陌生练到真正听懂，再通过跟读和复述实现听说闭环，逐步练到脱口而出。系统会自动安排间隔复习和提醒，逐步推进训练节奏。你不用自己摸索方法，也不用手动控制流程，只需专注练习本身。
+说得直白一点，Echo Loop 是最专业的英语精听 App，也是一款科学高效的英语听说训练 App。它帮助你把一段音频从陌生练到真正听懂，再通过跟读和复述实现听说闭环，逐步练到脱口而出。系统会自动安排间隔复习和提醒，逐步推进训练节奏。你不用自己摸索方法，也不用手动控制流程，只需专注练习本身。
 
 ---
 
@@ -82,7 +82,12 @@
 - 📍 **断点续学**：自动记录学习阶段和当前句子，下次打开直接继续，5 分钟碎片时间也能练。
 - 📊 **学习数据统计**：记录学习时长、输入输出比例、唯一词汇量，让练了多少、说了多少一目了然。
 - 🎙️ **跟读 AI 评测**：自动对齐识别结果与原文，高亮命中词，并给出跟读评级。
-- 🎧 **导入本地音频 + AI 字幕**：支持批量导入本地音频，可导入本地字幕，也可用 AI 自动转录生成字幕。
+- 🎧 **导入本地音视频 + AI 字幕**：支持批量导入本地音频和视频，可导入本地字幕，也可用 AI 自动转录生成字幕。
+- 🎬 **视频学习**：视频画面随句子同步，可隐藏画面只听声音；还能用字幕遮罩遮住视频里烧录的原字幕。
+- ✏️ **字幕编辑与音视频剪辑**：拆分、合并、改字、删句，在波形上直接调整时间；也可剪辑片段并导出。编辑字幕后，收藏和学习进度按时间区间保留。
+- 🔍 **手动查词**：学习页随时查词，保留查词历史，需要时可切换 AI 解释。
+- 📅 **每日学习目标与打卡**：设定每日学习时长，达成后自动打卡，并生成可分享的打卡卡片。
+- 📄 **PDF 导出**：学习材料、收藏的句子和词汇都能导出为可打印的 PDF 笔记。
 
 ---
 
@@ -119,7 +124,7 @@ Echo Loop 想做的，就是在不违背人性的前提下，用更科学的训�
 | **断点续学**| ✅ | ⚠️ 部分支持 | ⚠️ 部分支持 | ⚠️ 部分支持 | ⚠️ 部分支持 |
 | 学习数据：时长 / 输入输出比 / 唯一词汇量 | ✅ | ⚠️ 部分支持 | ⚠️ 部分支持 | ⚠️ 部分支持 | ❌ |
 | 跟读 AI 评测 | ✅ | ✅ | ✅ | ✅ | ❌ |
-| 导入本地音频 | ✅ | ✅ | ❌ | ❌ | ⚠️ 需自制卡片 |
+| 导入本地音视频 | ✅ | ✅ | ❌ | ❌ | ⚠️ 需自制卡片 |
 | 离线可用 | ✅ | ✅ | ✅ | ⚠️ 部分支持 | ✅ |
 | 开源 | ✅ | ❌ | ❌ | ❌ | ✅ |
 
@@ -147,18 +152,18 @@ flowchart LR
 <details>
 <summary><strong>间隔复习法是怎么安排的？</strong></summary>
 
-每段素材分成 1 次首次学习 + 7 轮间隔复习。间隔从 6 小时拉长到 28 天，让大脑在快要遗忘时重新触达记忆痕迹，符合艾宾浩斯遗忘曲线。
+每段素材分成 1 次首次学习 + 7 轮间隔复习。每轮间隔从 6 小时逐步拉长到 14 天，7 轮累计约 28 天，让大脑在快要遗忘时重新触达记忆痕迹，符合艾宾浩斯遗忘曲线。
 
 | 阶段 | 距上次间隔 | 任务 |
 |---|---|---|
 | 首次学习 | — | 精听 → 跟读 → 盲听 → 段落复述 |
 | 首轮复习 | 6 小时后 | 难句补练 + 段落复述 |
-| 第二轮复习 | 1 天后 | 盲听 + 难句补练 + 段落复述 |
-| 第三轮复习 | 2 天后 | 盲听 + 难句补练 + 段落复述 |
-| 第四轮复习 | 4 天后 | 盲听 + 难句补练 + 段落复述 |
-| 第五轮复习 | 7 天后 | 盲听 + 难句补练 + 段落复述 |
-| 第六轮复习 | 14 天后 | 盲听 + 难句补练 + 段落复述 |
-| 第七轮复习 | 28 天后 | 盲听 + 难句补练 + 段落复述 |
+| 第二轮复习 | 18 小时后 | 盲听 + 难句补练 + 段落复述 |
+| 第三轮复习 | 1 天后 | 盲听 + 难句补练 + 段落复述 |
+| 第四轮复习 | 2 天后 | 盲听 + 难句补练 + 段落复述 |
+| 第五轮复习 | 3 天后 | 盲听 + 难句补练 + 段落复述 |
+| 第六轮复习 | 7 天后 | 盲听 + 难句补练 + 段落复述 |
+| 第七轮复习 | 14 天后 | 盲听 + 难句补练 + 段落复述 |
 
 </details>
 
@@ -202,9 +207,9 @@ flowchart LR
 - **无限收藏**：难句、单词、意群随便收藏，没有上限
 - **完整学习闭环**：精听、跟读、盲听、复述，加上 7 轮间隔复习和到点提醒
 - **难句专项复习 + 语境化闪卡**
-- **跟读评测**：用设备自带的语音识别，不计次数
+- **跟读评测**：使用系统或本机离线语音识别，不计次数
 - **本地离线转录字幕**：下载模型后在本机生成字幕，不用登录
-- **离线词典、学习数据统计、导出 PDF 笔记、备份与恢复**
+- **词典查询、学习数据统计、导出 PDF 笔记、备份与恢复**
 
 AI 讲解类功能每月有一份免费额度，大多数用户日常学习够用。只有 AI 用得很多的用户，才需要在 App 内升级会员。
 
@@ -234,7 +239,7 @@ AI 讲解类功能每月有一份免费额度，大多数用户日常学习够�
 <details>
 <summary><strong>支持哪些平台？</strong></summary>
 
-目前主力是 **iOS 和 Android**，在 App Store、Google Play 下载，或者在 [Releases](https://github.com/echo-loop/Echo-Loop/releases) 下载 Android APK。macOS 和 Windows 的桌面版正在开发中，以后会正式发布。
+目前主力是 **iOS 和 Android**，在 App Store、Google Play 下载，或者在 [Releases](https://github.com/echo-loop/Echo-Loop/releases) 下载 Android APK。macOS 桌面版正在开发中，Windows 桌面版规划中，以后会正式发布。
 
 想现在就在电脑上用，可以这样装：
 
@@ -253,8 +258,8 @@ AI 讲解类功能每月有一份免费额度，大多数用户日常学习够�
 <details>
 <summary><strong>支持哪些学习材料？</strong></summary>
 
-- **音频**：mp3、m4a、wav、aac、flac
-- **视频**：mp4、mov、m4v、mkv（可隐藏画面当音频练）
+- **音频**：mp3、m4a、wav、aac、flac、opus、ogg
+- **视频**：mp4、mov、m4v、mkv、webm、avi（可隐藏画面当音频练）
 - **字幕**：srt、vtt、lrc，与音频同名会自动配对；没有字幕可以用 AI 转录生成
 - **来源**：本地文件、音频直链、百度网盘、播客订阅
 
@@ -272,14 +277,14 @@ AI 讲解类功能每月有一份免费额度，大多数用户日常学习够�
 <details>
 <summary><strong>多久能看到效果？</strong></summary>
 
-一段素材练完首次学习，你就能听懂这段内容，并用自己的话复述出来。之后的 7 轮间隔复习会持续大约 8 周，把它变成长期记忆。整体听说能力的提升靠积累，建议每天练 20～30 分钟，同时学 2～3 段素材，坚持几周会明显感到听得更轻松、说得更顺。
+一段素材练完首次学习，你就能听懂这段内容，并用自己的话复述出来。之后的 7 轮间隔复习会在约 4 周内陆续完成，把它变成长期记忆。整体听说能力的提升靠积累，建议每天练 20～30 分钟，同时学 2～3 段素材，坚持几周会明显感到听得更轻松、说得更顺。
 
 </details>
 
 <details>
 <summary><strong>没有网络能用吗？</strong></summary>
 
-可以。学习流程、复习、收藏、跟读评测、本地转录都能离线使用，只有云端 AI 功能需要联网。
+可以。学习流程、复习、收藏、跟读评测、本地转录都能离线使用；词典查询与云端 AI 功能需要联网。
 
 </details>
 
@@ -308,7 +313,7 @@ AI 讲解类功能每月有一份免费额度，大多数用户日常学习够�
 ### ✅ 1 · 核心功能
 
 - [x] 学习闭环：精听 / 跟读 / 盲听 / 段落复述
-- [x] 间隔复习调度（6h → 28d）
+- [x] 间隔复习调度（6h → 14d，累计 28d）
 - [x] 长难句意群划分
 - [x] 难句收藏 + 专项复习
 - [x] 语境化闪卡复习
@@ -316,6 +321,11 @@ AI 讲解类功能每月有一份免费额度，大多数用户日常学习够�
 - [x] iOS / macOS 原生 ASR 跟读评测
 - [x] 断点续学
 - [x] 学习数据统计
+- [x] 视频学习与字幕遮罩
+- [x] 字幕编辑器与音视频剪辑
+- [x] 手动查词与查词历史
+- [x] 每日学习目标与打卡
+- [x] PDF 导出（学习材料 / 收藏）
 
 ### 🚧 2 · AI 能力
 
@@ -357,7 +367,8 @@ AI 讲解类功能每月有一份免费额度，大多数用户日常学习够�
 
 **核心依赖**
 
-- 音频与语音：[just_audio](https://pub.dev/packages/just_audio) · [audio_session](https://pub.dev/packages/audio_session) · [flutter_tts](https://pub.dev/packages/flutter_tts) · [sherpa_onnx](https://pub.dev/packages/sherpa_onnx)
+- 音频与视频：[just_audio](https://pub.dev/packages/just_audio) · [audio_session](https://pub.dev/packages/audio_session) · [media_kit](https://pub.dev/packages/media_kit) · [ffmpeg_kit_flutter_new_min](https://pub.dev/packages/ffmpeg_kit_flutter_new_min)
+- 语音：[flutter_tts](https://pub.dev/packages/flutter_tts) · [sherpa_onnx](https://pub.dev/packages/sherpa_onnx)
 - 数据与状态：[drift](https://pub.dev/packages/drift) · [flutter_riverpod](https://pub.dev/packages/flutter_riverpod)
 - 文本处理：[subtitle](https://pub.dev/packages/subtitle) · [lemmatizerx](https://pub.dev/packages/lemmatizerx)
 - 系统能力：[file_picker](https://pub.dev/packages/file_picker) · [flutter_local_notifications](https://pub.dev/packages/flutter_local_notifications)
@@ -422,8 +433,12 @@ Commit 标题遵循 `PREFIX: 内容` 格式（参考 `git log` 看常用前缀�
 | UI 框架 | Flutter + Material 3 | 跨平台 UI |
 | 状态管理 | Riverpod（代码生成） | 单向数据流 |
 | 音频播放 | just_audio + audio_session | 音频引擎层 |
-| 字幕解析 | subtitle | SRT/VTT |
-| 文件选择 | file_picker | 本地音频/字幕导入 |
+| 视频与解码 | media_kit + FFmpeg（ffmpeg_kit_flutter_new_min） | 视频播放、音频解码、波形生成与剪辑导出 |
+| 离线语音识别 | sherpa_onnx | 本机转录与跟读识别 |
+| 字幕解析 | subtitle | SRT/VTT，LRC 由自有解析器处理 |
+| PDF 导出 | pdf + printing | 学习材料与收藏笔记 |
+| 登录与订阅 | Supabase · RevenueCat · Paddle | 账号登录、会员订阅与 AI 额度 |
+| 文件选择 | file_picker | 本地音视频/字幕导入 |
 | 数据持久化 | Drift (SQLite) + shared_preferences | 学习进度、收藏、缓存 |
 | 国际化 | flutter_localizations + ARB | 简体中文 / English |
 | 测试 | flutter_test + mocktail | 单元 / Widget / 集成 |
@@ -436,19 +451,19 @@ Commit 标题遵循 `PREFIX: 内容` 格式（参考 `git log` 看常用前缀�
 
 ```
 lib/
+├── database/          # Drift 数据库：表定义与 DAO
+├── features/          # 按功能域划分的模块（字幕编辑、媒体剪辑、订阅、每日目标、AI 对话助手等）
 ├── l10n/              # 国际化翻译文件（ARB 格式）
 ├── models/            # 数据模型（AudioItem, Sentence, Collection 等）
-├── providers/         # Riverpod 状态管理
-│   ├── audio_engine/  # 音频引擎层（底层播放控制）
-│   └── listening_practice/  # 听力练习层（业务逻辑）
-│       ├── sentence_tracker.dart   # 句子定位（二分查找）
-│       └── bookmark_manager.dart   # 书签管理
+├── providers/         # Riverpod 状态管理（audio_engine、media_engine、listening_practice 等）
 ├── screens/           # 页面
-├── services/          # 服务层（StorageService, SubtitleParser）
+├── services/          # 服务层（ASR、词典、TTS、备份、PDF 导出等）
+├── router/            # 路由
 └── widgets/           # 可复用组件
 
 integration_test/      # 端到端测试
 test/                  # 单元 / Widget 测试
+maestro/               # Maestro UI 烟测流程
 ```
 
 </details>
@@ -511,7 +526,7 @@ flutter run --release -d <DEVICE_ID> --dart-define-from-file=.dev.env
 
 **环境要求**
 
-- Flutter SDK 3.9.2+
+- Flutter 3.47.9+ / Dart 3.13+（以 `pubspec.yaml` 为准）
 - iOS 模拟器 / Android 模拟器 / 真机
 - 桌面端：macOS / Windows / Linux 开发环境
 

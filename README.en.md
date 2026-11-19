@@ -5,7 +5,7 @@
 <div align="center">
   <img src="assets/icon/app-icon-1024-rounded.png" alt="Echo Loop" width="128" />
 
-  <h1>Echo Loop — Efficient English Listening & Speaking Training</h1>
+  <h1>Echo Loop — The Most Professional English Intensive Listening App</h1>
 
   <p><strong>You no longer have to figure out how to practice English on your own.</strong></p>
 
@@ -15,7 +15,7 @@
 
   <p>
     <a href="./LICENSE"><img src="https://img.shields.io/badge/License-AGPL--3.0-blue.svg" alt="License: AGPL-3.0" /></a>
-    <img src="https://img.shields.io/badge/Platform-iOS%20%C2%B7%20Android%20%C2%B7%20macOS%20%C2%B7%20Windows-brightgreen.svg" alt="Platform" />
+    <img src="https://img.shields.io/badge/Platform-iOS%20%C2%B7%20Android-brightgreen.svg" alt="Platform" />
     <a href="https://github.com/echo-loop/Echo-Loop/releases/latest"><img src="https://img.shields.io/github/v/release/echo-loop/Echo-Loop?label=release&color=orange" alt="Latest release" /></a>
     <a href="https://github.com/echo-loop/Echo-Loop/releases"><img src="https://img.shields.io/github/downloads/echo-loop/Echo-Loop/total?label=downloads" alt="Total release downloads" /></a>
     <a href="https://github.com/echo-loop/Echo-Loop/commits/main"><img src="https://img.shields.io/github/last-commit/echo-loop/Echo-Loop" alt="Last commit" /></a>
@@ -30,6 +30,21 @@
     <a href="https://play.google.com/store/apps/details?id=app.echoloop"><img src="assets/badges/google-play-en.png" alt="Get it on Google Play" height="48" /></a>
   </p>
 </div>
+
+---
+
+## 📖 What is Echo Loop
+
+Put plainly, **Echo Loop is the most professional English intensive-listening app**, and a science-driven English listening and speaking trainer. It takes a piece of audio from unfamiliar to genuinely understood, then closes the loop with shadowing and retelling until you can say it naturally. Spaced review and reminders keep the rhythm moving automatically, so you don't have to work out the method or manage the process yourself. Just focus on practicing.
+
+Echo Loop guides you through four steps:
+
+- **Intensive listening first**: understand the material sentence by sentence and flag the hard sentences
+- **Shadowing**: match pronunciation, rhythm and intonation
+- **Blind listening**: check your overall comprehension without the transcript
+- **Retelling**: express what you heard in your own words
+
+After the first pass, spaced review reinforces the material, and hard sentences and new words keep coming back until they become part of you.
 
 ---
 
@@ -65,7 +80,12 @@
 - 📍 **Resume where you left off**: Automatically records your stage and current sentence, so you can pick up instantly — even 5-minute fragments count.
 - 📊 **Learning statistics**: Tracks practice time, input/output ratio, and unique vocabulary — see exactly how much you've practiced and spoken.
 - 🎙️ **AI shadowing evaluation**: Automatically aligns ASR results with the original text, highlights matched words, and gives a shadowing rating.
-- 🎧 **Local audio import + AI subtitles**: Batch-import local audio, import existing subtitles, or auto-transcribe with AI.
+- 🎧 **Local audio & video import + AI subtitles**: Batch-import local audio and video, import existing subtitles, or auto-transcribe with AI.
+- 🎬 **Video learning**: The picture stays in sync with each sentence, and you can hide it to listen audio-only. Subtitle masking covers the original subtitles burned into the video.
+- ✏️ **Subtitle editing & media trimming**: Split, merge, retype and delete sentences, and adjust timing directly on the waveform. You can also trim clips and export them. After you edit subtitles, favorites and learning progress are kept by time range.
+- 🔍 **Manual word lookup**: Look up words anytime from the study page, keep a lookup history, and switch to AI explanations when needed.
+- 📅 **Daily goals & check-in**: Set a daily study-time target. Reaching it checks you in automatically and generates a shareable check-in card.
+- 📄 **PDF export**: Study materials, saved sentences and saved words can be exported as printable PDF notes.
 
 ---
 
@@ -96,7 +116,7 @@ We picked four English-learning apps most familiar to Chinese learners for compa
 | **Resume where you left off** | ✅ | ⚠️ Partial | ⚠️ Partial | ⚠️ Partial | ⚠️ Partial |
 | Stats: time / input-output ratio / unique vocabulary | ✅ | ⚠️ Partial | ⚠️ Partial | ⚠️ Partial | ❌ |
 | AI shadowing evaluation | ✅ | ✅ | ✅ | ✅ | ❌ |
-| Local audio import | ✅ | ✅ | ❌ | ❌ | ⚠️ Manual cards |
+| Local audio & video import | ✅ | ✅ | ❌ | ❌ | ⚠️ Manual cards |
 | Offline available | ✅ | ✅ | ✅ | ⚠️ Partial | ✅ |
 | Open source | ✅ | ❌ | ❌ | ❌ | ✅ |
 
@@ -124,18 +144,18 @@ The full process is quantified: **practice time · input/output ratio · unique 
 <details>
 <summary><strong>How are spaced reviews scheduled?</strong></summary>
 
-Each piece of material is split into 1 first-pass session + 7 spaced reviews. Intervals stretch from 6 hours to 28 days, hitting the memory trace just before forgetting — aligned with the Ebbinghaus forgetting curve.
+Each piece of material is split into 1 first-pass session + 7 spaced reviews. The gap between reviews stretches from 6 hours to 14 days, and the 7 reviews cover about 28 days in total, hitting the memory trace just before forgetting — aligned with the Ebbinghaus forgetting curve.
 
 | Stage | Interval since last | Tasks |
 |---|---|---|
 | First pass | — | Intensive → Shadowing → Blind → Retelling |
 | Review 1 | After 6 hours | Hard-sentence drills + retelling |
-| Review 2 | After 1 day | Blind listening + drills + retelling |
-| Review 3 | After 2 days | Blind listening + drills + retelling |
-| Review 4 | After 4 days | Blind listening + drills + retelling |
-| Review 5 | After 7 days | Blind listening + drills + retelling |
-| Review 6 | After 14 days | Blind listening + drills + retelling |
-| Review 7 | After 28 days | Blind listening + drills + retelling |
+| Review 2 | After 18 hours | Blind listening + drills + retelling |
+| Review 3 | After 1 day | Blind listening + drills + retelling |
+| Review 4 | After 2 days | Blind listening + drills + retelling |
+| Review 5 | After 3 days | Blind listening + drills + retelling |
+| Review 6 | After 7 days | Blind listening + drills + retelling |
+| Review 7 | After 14 days | Blind listening + drills + retelling |
 
 </details>
 
@@ -179,9 +199,9 @@ All core features are free, with no usage caps and no item limits:
 - **Unlimited favorites**: save as many hard sentences, words and sense groups as you like
 - **The full learning loop**: intensive listening, shadowing, blind listening and retelling, plus 7 rounds of spaced review with reminders
 - **Focused review of hard sentences + in-context flashcards**
-- **Shadowing evaluation**: runs on your device's built-in speech recognition, with no usage count
+- **Shadowing evaluation**: uses system or on-device offline speech recognition, with no usage count
 - **Offline transcription**: download a model and generate subtitles on your device, no sign-in needed
-- **Offline dictionary, learning statistics, PDF note export, backup & restore**
+- **Dictionary lookup, learning statistics, PDF note export, backup & restore**
 
 AI explanation features come with a free monthly quota, which covers everyday study for most people. Only heavy AI users need to upgrade to a membership in the app.
 
@@ -211,7 +231,7 @@ The code is fully open source (AGPL-3.0). Every AI request costs us money paid t
 <details>
 <summary><strong>Which platforms are supported?</strong></summary>
 
-Right now the focus is **iOS and Android**: get it from the App Store or Google Play, or download the Android APK from [Releases](https://github.com/echo-loop/Echo-Loop/releases). Native macOS and Windows versions are in development and will be released later.
+Right now the focus is **iOS and Android**: get it from the App Store or Google Play, or download the Android APK from [Releases](https://github.com/echo-loop/Echo-Loop/releases). The native macOS version is in development, and a Windows version is planned; both will be officially released later.
 
 To use it on a computer today:
 
@@ -230,8 +250,8 @@ Other apps mostly give you materials and tools and leave it to you to work out h
 <details>
 <summary><strong>What materials are supported?</strong></summary>
 
-- **Audio**: mp3, m4a, wav, aac, flac
-- **Video**: mp4, mov, m4v, mkv (you can hide the picture and practice with audio only)
+- **Audio**: mp3, m4a, wav, aac, flac, opus, ogg
+- **Video**: mp4, mov, m4v, mkv, webm, avi (you can hide the picture and practice with audio only)
 - **Subtitles**: srt, vtt, lrc; subtitle files with the same name as the audio are paired automatically. No subtitles? Generate them with AI transcription
 - **Sources**: local files, direct audio links, Baidu Netdisk, podcast subscriptions
 
@@ -249,14 +269,14 @@ If you can follow the gist of a material with subtitles, you're ready. When a se
 <details>
 <summary><strong>How soon will I see results?</strong></summary>
 
-After the first study session on a material, you'll understand it and be able to retell it in your own words. The 7 rounds of spaced review that follow take about 8 weeks and lock it into long-term memory. Overall listening and speaking skills build up over time: practice 20–30 minutes a day with 2–3 materials at once, and within a few weeks listening should feel easier and speaking more fluent.
+After the first study session on a material, you'll understand it and be able to retell it in your own words. The 7 rounds of spaced review that follow are completed over about 4 weeks and lock it into long-term memory. Overall listening and speaking skills build up over time: practice 20–30 minutes a day with 2–3 materials at once, and within a few weeks listening should feel easier and speaking more fluent.
 
 </details>
 
 <details>
 <summary><strong>Can I use it offline?</strong></summary>
 
-Yes. The learning flow, reviews, favorites, shadowing evaluation and local transcription all work offline. Only cloud AI features need a connection.
+Yes. The learning flow, reviews, favorites, shadowing evaluation and local transcription all work offline. Dictionary lookups and cloud AI features need a connection.
 
 </details>
 
@@ -285,7 +305,7 @@ Practice English alongside other committed learners: share methods, give feedbac
 ### ✅ 1 · Core features
 
 - [x] Learning loop: intensive / shadowing / blind / retelling
-- [x] Spaced review scheduling (6h → 28d)
+- [x] Spaced review scheduling (6h → 14d, 28d in total)
 - [x] Sense-group splitting for long sentences
 - [x] Saved hard sentences + focused review
 - [x] Contextualized flashcard review
@@ -293,6 +313,11 @@ Practice English alongside other committed learners: share methods, give feedbac
 - [x] iOS / macOS native ASR shadowing evaluation
 - [x] Resume where you left off
 - [x] Learning statistics
+- [x] Video learning with subtitle masking
+- [x] Subtitle editor & media trimming
+- [x] Manual word lookup & lookup history
+- [x] Daily goals & check-in
+- [x] PDF export (materials / favorites)
 
 ### 🚧 2 · AI capabilities
 
@@ -323,6 +348,7 @@ Practice English alongside other committed learners: share methods, give feedbac
    <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=echo-loop/Echo-Loop&type=date&legend=top-left&sealed_token=Yn1CvBygp-TANTMrrjOoIPcBqfBW4dJBno9qMlDVPTRaqlNZEvy5k6QNjheAb8AxwJ3ygwow4Zszp0Z5XCtxf7OP4MOtE_fCjKTjyBALH5gvoX-6BOLIIQ" />
  </picture>
 </a>
+
 ---
 
 ## 🎓 Academic guidance & acknowledgements
@@ -333,7 +359,8 @@ Thanks to [Yang Yan](https://sfs.muc.edu.cn/info/1063/3729.htm) (School of Forei
 
 **Core dependencies**
 
-- Audio & speech: [just_audio](https://pub.dev/packages/just_audio) · [audio_session](https://pub.dev/packages/audio_session) · [flutter_tts](https://pub.dev/packages/flutter_tts) · [sherpa_onnx](https://pub.dev/packages/sherpa_onnx)
+- Audio & video: [just_audio](https://pub.dev/packages/just_audio) · [audio_session](https://pub.dev/packages/audio_session) · [media_kit](https://pub.dev/packages/media_kit) · [ffmpeg_kit_flutter_new_min](https://pub.dev/packages/ffmpeg_kit_flutter_new_min)
+- Speech: [flutter_tts](https://pub.dev/packages/flutter_tts) · [sherpa_onnx](https://pub.dev/packages/sherpa_onnx)
 - Data & state: [drift](https://pub.dev/packages/drift) · [flutter_riverpod](https://pub.dev/packages/flutter_riverpod)
 - Text processing: [subtitle](https://pub.dev/packages/subtitle) · [lemmatizerx](https://pub.dev/packages/lemmatizerx)
 - System capabilities: [file_picker](https://pub.dev/packages/file_picker) · [flutter_local_notifications](https://pub.dev/packages/flutter_local_notifications)
@@ -402,8 +429,12 @@ Commit titles follow the `PREFIX: content` format (check `git log` for common pr
 | UI framework | Flutter + Material 3 | Cross-platform UI |
 | State management | Riverpod (code generation) | Unidirectional data flow |
 | Audio playback | just_audio + audio_session | Audio engine layer |
-| Subtitle parsing | subtitle | SRT/VTT |
-| File picker | file_picker | Local audio/subtitle import |
+| Video & decoding | media_kit + FFmpeg (ffmpeg_kit_flutter_new_min) | Video playback, audio decoding, waveform generation and clip export |
+| Offline speech recognition | sherpa_onnx | On-device transcription and shadowing recognition |
+| Subtitle parsing | subtitle | SRT/VTT; LRC handled by an in-house parser |
+| PDF export | pdf + printing | Study materials and favorite notes |
+| Sign-in & subscriptions | Supabase · RevenueCat · Paddle | Account sign-in, memberships and AI quota |
+| File picker | file_picker | Local audio/video/subtitle import |
 | Persistence | Drift (SQLite) + shared_preferences | Progress, favorites, cache |
 | i18n | flutter_localizations + ARB | 简体中文 / English |
 | Testing | flutter_test + mocktail | Unit / widget / integration |
@@ -416,19 +447,19 @@ Commit titles follow the `PREFIX: content` format (check `git log` for common pr
 
 ```
 lib/
+├── database/          # Drift database: table definitions and DAOs
+├── features/          # Feature modules by domain (subtitle editing, media trim, subscriptions, daily goals, AI chat assistant, etc.)
 ├── l10n/              # i18n files (ARB format)
 ├── models/            # Data models (AudioItem, Sentence, Collection, etc.)
-├── providers/         # Riverpod state management
-│   ├── audio_engine/  # Audio engine layer (low-level playback control)
-│   └── listening_practice/  # Listening practice layer (business logic)
-│       ├── sentence_tracker.dart   # Sentence locator (binary search)
-│       └── bookmark_manager.dart   # Bookmark manager
+├── providers/         # Riverpod state management (audio_engine, media_engine, listening_practice, etc.)
 ├── screens/           # Pages
-├── services/          # Service layer (StorageService, SubtitleParser)
+├── services/          # Service layer (ASR, dictionary, TTS, backup, PDF export, etc.)
+├── router/            # Routing
 └── widgets/           # Reusable components
 
 integration_test/      # End-to-end tests
 test/                  # Unit / widget tests
+maestro/               # Maestro UI smoke flows
 ```
 
 </details>
@@ -492,7 +523,7 @@ flutter run --release -d <DEVICE_ID> --dart-define-from-file=.dev.env
 
 **Requirements**
 
-- Flutter SDK 3.9.2+
+- Flutter 3.47.9+ / Dart 3.13+ (see `pubspec.yaml`)
 - iOS Simulator / Android emulator / physical devices
 - Desktop: macOS / Windows / Linux dev environment
 
