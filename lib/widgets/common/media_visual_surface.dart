@@ -95,6 +95,23 @@ class _MediaVisualSurfaceState extends State<MediaVisualSurface> {
   Timer? _hideTimer;
 
   @override
+  void initState() {
+    super.initState();
+    if (widget.state.expanded) {
+      _controlsVisible = true;
+      _scheduleControlsHide();
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant MediaVisualSurface oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!oldWidget.state.expanded && widget.state.expanded) {
+      _showControlsTemporarily();
+    }
+  }
+
+  @override
   void dispose() {
     _hideTimer?.cancel();
     super.dispose();
@@ -116,10 +133,19 @@ class _MediaVisualSurfaceState extends State<MediaVisualSurface> {
   void _showControlsTemporarily() {
     _hideTimer?.cancel();
     setState(() => _controlsVisible = true);
+    _scheduleControlsHide();
+  }
+
+  void _scheduleControlsHide() {
     _hideTimer = Timer(_buttonVisibleDuration, () {
       if (mounted) setState(() => _controlsVisible = false);
     });
   }
+
+  VoidCallback _showControlsThen(VoidCallback action) => () {
+    _showControlsTemporarily();
+    action();
+  };
 
   @override
   Widget build(BuildContext context) {
@@ -155,7 +181,7 @@ class _MediaVisualSurfaceState extends State<MediaVisualSurface> {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final controlsVisible = state.expanded || _controlsVisible;
+        final controlsVisible = _controlsVisible;
         final subtitleMask = state.subtitleMask;
         final isSubtitleMaskEnabled = subtitleMask?.enabled ?? false;
         final controls = widget.controls;
@@ -232,7 +258,9 @@ class _MediaVisualSurfaceState extends State<MediaVisualSurface> {
                                 iconSize: 42,
                                 padding: const EdgeInsets.all(14),
                                 tooltip: null,
-                                onPressed: widget.actions.onPlayPause,
+                                onPressed: _showControlsThen(
+                                  widget.actions.onPlayPause,
+                                ),
                               ),
                             ),
                           ),
@@ -263,7 +291,9 @@ class _MediaVisualSurfaceState extends State<MediaVisualSurface> {
                                           .mediaHideSubtitleMask
                                     : AppLocalizations.of(context)!
                                           .mediaShowSubtitleMask,
-                                onPressed: _toggleSubtitleMask,
+                                onPressed: _showControlsThen(
+                                  _toggleSubtitleMask,
+                                ),
                               ),
                               if (controls.showSubtitleTrackButton)
                                 _VisualControlButton(
@@ -279,7 +309,9 @@ class _MediaVisualSurfaceState extends State<MediaVisualSurface> {
                                             .mediaHideVideoSubtitles
                                       : AppLocalizations.of(context)!
                                             .mediaShowVideoSubtitles,
-                                  onPressed: widget.actions.onSubtitleToggle,
+                                  onPressed: _showControlsThen(
+                                    widget.actions.onSubtitleToggle,
+                                  ),
                                 ),
                               if (controls.showFullscreenButton)
                                 _VisualControlButton(
@@ -297,7 +329,9 @@ class _MediaVisualSurfaceState extends State<MediaVisualSurface> {
                                             .mediaExitFullscreen
                                       : AppLocalizations.of(context)!
                                             .mediaEnterFullscreen,
-                                  onPressed: widget.actions.onFullscreenToggle,
+                                  onPressed: _showControlsThen(
+                                    widget.actions.onFullscreenToggle,
+                                  ),
                                 ),
                             ]),
                           ),

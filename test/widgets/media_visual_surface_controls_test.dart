@@ -1,5 +1,6 @@
 import 'package:echo_loop/models/video_subtitle_mask.dart';
 import 'package:echo_loop/widgets/common/media_visual_surface.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -15,6 +16,8 @@ void main() {
     WidgetTester tester, {
     required MediaVisualControls controls,
     required bool isMaskEnabled,
+    bool expanded = false,
+    bool tapToShow = true,
   }) async {
     final calls = <String>[];
     await tester.pumpWidget(
@@ -26,7 +29,7 @@ void main() {
             child: MediaVisualSurface(
               state: MediaVisualSurfaceState(
                 visible: true,
-                expanded: false,
+                expanded: expanded,
                 isPlaying: false,
                 subtitleVisible: false,
                 subtitleMask: VideoSubtitleMask(enabled: isMaskEnabled),
@@ -49,8 +52,10 @@ void main() {
         ),
       ),
     );
-    // 点按画面显示悬浮控件。
-    await tester.tap(find.byKey(const ValueKey('media-visual-surface')));
+    if (tapToShow) {
+      // 点按画面显示悬浮控件。
+      await tester.tap(find.byKey(const ValueKey('media-visual-surface')));
+    }
     await tester.pump(const Duration(milliseconds: 200));
     return calls;
   }
@@ -65,6 +70,114 @@ void main() {
     expect(find.byKey(ccButton), findsOneWidget);
     expect(find.byKey(fullscreenButton), findsOneWidget);
     expect(find.byKey(hideButton), findsOneWidget);
+  });
+
+  bool isControlInteractive(WidgetTester tester, Key key) {
+    final ignorePointer = tester.widget<IgnorePointer>(
+      find
+          .ancestor(of: find.byKey(key), matching: find.byType(IgnorePointer))
+          .first,
+    );
+    return !ignorePointer.ignoring;
+  }
+
+  testWidgets('全屏控件 3 秒无交互后隐藏，点击画面后重新显示', (tester) async {
+    await pumpSurface(
+      tester,
+      controls: const MediaVisualControls(),
+      isMaskEnabled: true,
+      expanded: true,
+      tapToShow: false,
+    );
+    expect(
+      isControlInteractive(
+        tester,
+        const ValueKey('media-visual-play-pause-button'),
+      ),
+      isTrue,
+    );
+
+    await tester.pump(const Duration(seconds: 3, milliseconds: 200));
+    expect(
+      isControlInteractive(
+        tester,
+        const ValueKey('media-visual-play-pause-button'),
+      ),
+      isFalse,
+    );
+
+    await tester.tap(find.byKey(const ValueKey('media-visual-surface')));
+    await tester.pump(const Duration(milliseconds: 200));
+    expect(
+      isControlInteractive(
+        tester,
+        const ValueKey('media-visual-play-pause-button'),
+      ),
+      isTrue,
+    );
+  });
+
+  testWidgets('全屏控件隐藏后鼠标移动会重新显示', (tester) async {
+    await pumpSurface(
+      tester,
+      controls: const MediaVisualControls(),
+      isMaskEnabled: true,
+      expanded: true,
+      tapToShow: false,
+    );
+    await tester.pump(const Duration(seconds: 3, milliseconds: 200));
+    expect(
+      isControlInteractive(
+        tester,
+        const ValueKey('media-visual-play-pause-button'),
+      ),
+      isFalse,
+    );
+
+    final position = tester.getCenter(
+      find.byKey(const ValueKey('media-visual-surface')),
+    );
+    await tester.sendEventToBinding(PointerHoverEvent(position: position));
+    await tester.pump(const Duration(milliseconds: 200));
+    expect(
+      isControlInteractive(
+        tester,
+        const ValueKey('media-visual-play-pause-button'),
+      ),
+      isTrue,
+    );
+  });
+
+  testWidgets('全屏按钮操作会从点击时重新计 3 秒', (tester) async {
+    await pumpSurface(
+      tester,
+      controls: const MediaVisualControls(),
+      isMaskEnabled: true,
+      expanded: true,
+      tapToShow: false,
+    );
+    await tester.pump(const Duration(seconds: 2));
+    await tester.tap(
+      find.byKey(const ValueKey('media-visual-play-pause-button')),
+    );
+    await tester.pump(const Duration(milliseconds: 200));
+
+    await tester.pump(const Duration(seconds: 2, milliseconds: 500));
+    expect(
+      isControlInteractive(
+        tester,
+        const ValueKey('media-visual-play-pause-button'),
+      ),
+      isTrue,
+    );
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(
+      isControlInteractive(
+        tester,
+        const ValueKey('media-visual-play-pause-button'),
+      ),
+      isFalse,
+    );
   });
 
   const reviewControls = MediaVisualControls(
