@@ -21,6 +21,7 @@ import 'package:echo_loop/providers/learning_session/intensive_listen_playback_d
 import 'package:echo_loop/providers/learning_session/learning_session_provider.dart';
 import 'package:echo_loop/providers/learning_settings_provider.dart';
 import 'package:echo_loop/providers/settings_provider.dart';
+
 import '../helpers/mock_providers.dart';
 
 class _ReplayTestAudioEngine extends TestAudioEngine {
@@ -61,6 +62,7 @@ class _PositionedReplayTestAudioEngine extends _ReplayTestAudioEngine {
 class _OverlappingReplayAudioEngine extends TestAudioEngine {
   int _playbackSessionId = 0;
   final Map<int, Completer<void>> _playbackCompletions = {};
+  final List<int> playedSentenceIndices = [];
 
   @override
   int newSession() => ++_playbackSessionId;
@@ -75,6 +77,7 @@ class _OverlappingReplayAudioEngine extends TestAudioEngine {
     int playbackSessionId, {
     Duration? startAt,
   }) {
+    playedSentenceIndices.add(sentence.index);
     final completion = Completer<void>();
     _playbackCompletions[playbackSessionId] = completion;
     return completion.future;
@@ -1312,6 +1315,110 @@ void main() {
       expect(waiting.isPauseBetweenSentences, isFalse);
       expect(waiting.annotationState?.phase, isA<WaitingAnnotationUser>());
     });
+
+    test('讲解循环遍间停顿保持播放态，暂停后不再起播下一遍', () async {
+      final audioEngine = _OverlappingReplayAudioEngine();
+      final loopContainer = ProviderContainer(
+        overrides: dedupeOverrides([
+          initialLearningSettingsProvider.overrideWithValue(
+            const LearningSettings(),
+          ),
+          audioEngineProvider.overrideWith(() => audioEngine),
+          learningSessionProvider.overrideWith(() => TestLearningSession()),
+          analyticsOverride(),
+          ...studyTimeOverrides(),
+        ]),
+      );
+      addTearDown(loopContainer.dispose);
+      final loopNotifier = loopContainer.read(
+        intensiveListenPlayerProvider.notifier,
+      );
+      await _initializeWithTestAudio(
+        loopContainer,
+        loopNotifier,
+        sentences,
+        settings: const IntensiveListenSettings(
+          repeatCount: 3,
+          annotationReplayUsesRepeatCount: true,
+          pauseMode: PauseMode.multiplier,
+          pauseMultiplier: 5.0,
+        ),
+      );
+      loopNotifier.enterAnnotationMode();
+
+      final replay = loopNotifier.replayInAnnotationMode();
+      await Future<void>.delayed(Duration.zero);
+      audioEngine.completePlayback(1);
+      await Future<void>.delayed(Duration.zero);
+
+      // 遍间停顿期间没有声音，但循环未结束，图标与点击仍对应播放中。
+      final interval = loopContainer.read(intensiveListenPlayerProvider);
+      expect(interval.annotationState?.phase, isA<WaitingAnnotationInterval>());
+      expect(interval.isPlaying, isTrue);
+      expect(interval.isPauseBetweenPlays, isTrue);
+
+      await loopNotifier.pause();
+
+      final paused = loopContainer.read(intensiveListenPlayerProvider);
+      expect(paused.isPlaying, isFalse);
+      expect(paused.annotationState?.phase, isA<WaitingAnnotationUser>());
+
+      await replay;
+
+      expect(audioEngine.playedSentenceIndices, [0]);
+      expect(
+        loopContainer.read(intensiveListenPlayerProvider).isPlaying,
+        isFalse,
+      );
+    });
+
+    test('讲解循环在最后一遍播完后才结束播放态', () async {
+      final audioEngine = _OverlappingReplayAudioEngine();
+      final loopContainer = ProviderContainer(
+        overrides: dedupeOverrides([
+          initialLearningSettingsProvider.overrideWithValue(
+            const LearningSettings(),
+          ),
+          audioEngineProvider.overrideWith(() => audioEngine),
+          learningSessionProvider.overrideWith(() => TestLearningSession()),
+          analyticsOverride(),
+          ...studyTimeOverrides(),
+        ]),
+      );
+      addTearDown(loopContainer.dispose);
+      final loopNotifier = loopContainer.read(
+        intensiveListenPlayerProvider.notifier,
+      );
+      await _initializeWithTestAudio(
+        loopContainer,
+        loopNotifier,
+        sentences,
+        settings: const IntensiveListenSettings(
+          repeatCount: 2,
+          annotationReplayUsesRepeatCount: true,
+          pauseMode: PauseMode.multiplier,
+          pauseMultiplier: 1.0,
+        ),
+      );
+      loopNotifier.enterAnnotationMode();
+
+      final replay = loopNotifier.replayInAnnotationMode();
+      await Future<void>.delayed(Duration.zero);
+      audioEngine.completePlayback(1);
+      // 等待遍间停顿（120ms）结束并开始第二遍。
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+
+      final secondPlay = loopContainer.read(intensiveListenPlayerProvider);
+      expect(audioEngine.playedSentenceIndices, [0, 0]);
+      expect(secondPlay.isPlaying, isTrue);
+
+      audioEngine.completePlayback(1);
+      await replay;
+
+      final finished = loopContainer.read(intensiveListenPlayerProvider);
+      expect(finished.isPlaying, isFalse);
+      expect(finished.annotationState?.phase, isA<InspectingAnnotation>());
+    });
   });
 
   group('开始播放一句时异步保存断点', () {
@@ -1445,9 +1552,9 @@ void main() {
           ...studyTimeOverrides(),
         ]),
       );
-      notifier =
-          container.read(intensiveListenPlayerProvider.notifier)
-              as TestIntensiveListenPlayer;
+      notifier = container.read(
+        intensiveListenPlayerProvider.notifier,
+      ) as TestIntensiveListenPlayer;
     });
 
     tearDown(() => container.dispose());

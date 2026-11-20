@@ -1103,6 +1103,8 @@ PlaybackToggleIcon _buildFooterCenterIcon(IntensiveListenState playerState) {
 }
 
 bool _isIntensiveMainPlaybackActive(IntensiveListenState state) {
+  // 讲解循环的遍间间隙仍是播放中（显示暂停图标），由 provider 维护 isPlaying。
+  if (state.isAnnotationMode) return state.isPlaying;
   return state.isPlaying &&
       !state.isPauseBetweenPlays &&
       !state.isPauseBetweenSentences;

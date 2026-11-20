@@ -353,8 +353,10 @@ class IntensiveListenPlayer extends _$IntensiveListenPlayer {
       _annotationResumePlayCount = null;
       final sentence = currentSentence;
       final position = _playbackDriver.currentPosition;
+      // 循环间隙无声音，不记录续播位置，续播从下一遍开头开始。
       if (state.isPlaying &&
-          _annotationSentencePlaybackSessionId == _annotationSessionId &&
+          state.annotationState?.phase is! WaitingAnnotationInterval &&
+          _isAnnotationLoopActive &&
           sentence != null &&
           position >= sentence.startTime &&
           position < sentence.endTime) {
@@ -535,10 +537,11 @@ class IntensiveListenPlayer extends _$IntensiveListenPlayer {
     // 讲解会话正在播放句子（含主播放重听）时，只登记「播完后等待」，不改播放态；
     // 否则 isPlaying 会先被置 false，而底层句子仍在播放，按钮图标与声音不一致。
     final phase = state.annotationState!.phase;
+    // 循环间隙期间 isPlaying 为 true 但没有句子在播，应走下方间隙分支取消倒计时。
     final isAnnotationSentencePlaying =
         state.isPlaying &&
-        _annotationSentencePlaybackSessionId != null &&
-        _annotationSentencePlaybackSessionId == _annotationSessionId;
+        phase is! WaitingAnnotationInterval &&
+        _isAnnotationLoopActive;
     if (phase is ReplayingWithSubtitle || isAnnotationSentencePlaying) {
       _annotationWaitAfterCurrentPlayback = true;
       AppLogger.log('IntensiveAnnotation', '-> WaitingForUser (after replay)');
@@ -1376,16 +1379,26 @@ class IntensiveListenPlayer extends _$IntensiveListenPlayer {
     state = state.copyWith(isPlaying: false);
   }
 
+  /// 讲解循环协程仍在运行（含遍与遍之间的间隙）。
+  bool get _isAnnotationLoopActive =>
+      _annotationSentencePlaybackSessionId != null &&
+      _annotationSentencePlaybackSessionId == _annotationSessionId;
+
   void _setAnnotationPhase(IntensiveAnnotationPhase phase) {
     final waitingInterval = phase is WaitingAnnotationInterval ? phase : null;
     final replaying = phase is ReplayingWithSubtitle ? phase : null;
     final isSenseGroupPlaying = state.playingSenseGroupIndex != null;
+    // 循环未结束时，间隙仍视为播放中，图标才能对应「暂停循环」；
+    // “继续”流程的倒计时不属于循环，仍按暂停处理。
+    final isLoopIntervalActive =
+        waitingInterval != null && _isAnnotationLoopActive;
 
     state = state.copyWith(
       annotationState: IntensiveAnnotationState(phase: phase),
       isAnnotationMode: true,
       isAnnotationReplay: replaying != null,
-      isPlaying: replaying != null || isSenseGroupPlaying,
+      isPlaying:
+          replaying != null || isSenseGroupPlaying || isLoopIntervalActive,
       isPauseBetweenPlays: waitingInterval != null,
       isPauseBetweenSentences: waitingInterval != null,
       pauseDuration: waitingInterval?.total ?? Duration.zero,
