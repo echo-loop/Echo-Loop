@@ -11,24 +11,6 @@ class InspectingAnnotation extends IntensiveAnnotationPhase {
   const InspectingAnnotation();
 }
 
-/// 带字幕重播当前句
-class ReplayingWithSubtitle extends IntensiveAnnotationPhase {
-  /// 剩余时长
-  final Duration remaining;
-
-  /// 总时长
-  final Duration total;
-
-  const ReplayingWithSubtitle({required this.remaining, required this.total});
-
-  ReplayingWithSubtitle copyWith({Duration? remaining, Duration? total}) {
-    return ReplayingWithSubtitle(
-      remaining: remaining ?? this.remaining,
-      total: total ?? this.total,
-    );
-  }
-}
-
 /// 详情模式下的句间等待
 class WaitingAnnotationInterval extends IntensiveAnnotationPhase {
   /// 剩余时长
@@ -57,14 +39,6 @@ class WaitingAnnotationInterval extends IntensiveAnnotationPhase {
       isPaused: isPaused ?? this.isPaused,
     );
   }
-}
-
-/// 详情页倒计时结束后，等待页面动画完成再进入下一句。
-class WaitingAnnotationPageTransition extends IntensiveAnnotationPhase {
-  /// 页面动画完成后要进入的句子索引。
-  final int targetSentenceIndex;
-
-  const WaitingAnnotationPageTransition({required this.targetSentenceIndex});
 }
 
 /// 等待用户操作

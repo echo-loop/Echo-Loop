@@ -29,7 +29,6 @@ import '../providers/learning_progress_provider.dart';
 import '../providers/learning_session/intensive_listen_player_provider.dart';
 import '../providers/media_engine/media_engine_provider.dart';
 import '../providers/learning_session/learning_session_provider.dart';
-import '../providers/intensive_annotation/intensive_annotation_phase.dart';
 import '../providers/sentence_ai_provider.dart';
 import '../providers/favorite_sentence_lifecycle_provider.dart';
 import '../theme/app_theme.dart';
@@ -46,6 +45,7 @@ import '../widgets/review/review_briefing_sheet.dart';
 import '../widgets/practice/selectable_sentence_text.dart';
 import '../widgets/common/bookmark_toggle_row.dart';
 import '../widgets/common/countdown_chip.dart';
+import '../widgets/common/countdown_ring.dart';
 import '../widgets/common/playback_controls.dart';
 import '../widgets/common/practice_playback_footer.dart';
 import '../widgets/player_hotkey_scope.dart';
@@ -116,7 +116,6 @@ class _IntensiveListenPlayerScreenState
   ProviderSubscription<IntensiveListenState>? _playerSubscription;
   bool _mediaStartupReady = false;
   bool _autoPlayScheduled = false;
-  bool _isAutoAdvancingAnnotationPage = false;
 
   @override
   void initState() {
@@ -125,16 +124,6 @@ class _IntensiveListenPlayerScreenState
       intensiveListenPlayerProvider,
       (prev, next) {
         if (_isExiting || prev == null) return;
-        final nextPhase = next.annotationState?.phase;
-        final previousPhase = prev.annotationState?.phase;
-        if (nextPhase is WaitingAnnotationPageTransition &&
-            (previousPhase is! WaitingAnnotationPageTransition ||
-                previousPhase.targetSentenceIndex !=
-                    nextPhase.targetSentenceIndex)) {
-          unawaited(
-            _animatePendingAnnotationAdvance(nextPhase.targetSentenceIndex),
-          );
-        }
         // 切句即结束查词会话。横滑、自动推进、进度条跳句、底部切句最终都汇入
         // provider 的 goToSentence，所以这里是覆盖全部路径的单一入口。面板与
         // 选区绑在同一个句子上，而 PageView 每页是独立实例，跨句存活会让已经
@@ -171,27 +160,6 @@ class _IntensiveListenPlayerScreenState
       } else {
         _scheduleAutoPlay();
       }
-    }
-  }
-
-  /// 先完成讲解页到下一句的分页动画，再提交 provider 的切句状态。
-  Future<void> _animatePendingAnnotationAdvance(int targetSentenceIndex) async {
-    if (_isAutoAdvancingAnnotationPage || !mounted) return;
-    _isAutoAdvancingAnnotationPage = true;
-    try {
-      await _sentencePager.animateAndCommit(
-        targetSentenceIndex,
-        commit: () {
-          final commit = ref
-              .read(intensiveListenPlayerProvider.notifier)
-              .commitPendingAnnotationAdvance(targetSentenceIndex);
-          // Provider 已同步切换句索引；新句播放在后台继续时即可开始下一次导航。
-          _isAutoAdvancingAnnotationPage = false;
-          return commit;
-        },
-      );
-    } finally {
-      _isAutoAdvancingAnnotationPage = false;
     }
   }
 
@@ -618,7 +586,7 @@ class _IntensiveListenPlayerScreenState
     final theme = Theme.of(context);
     final mediaReady = widget.mediaStartup == null || _mediaStartupReady;
 
-    // 只监听非倒计时字段，排除 pauseRemaining / annotationReplayRemaining，
+    // 只监听非倒计时字段，排除 pauseRemaining，
     // 避免倒计时每 100ms tick 导致整个页面（含 ListView、句子卡片）重建
     ref.watch(
       intensiveListenPlayerProvider.select(
@@ -631,9 +599,7 @@ class _IntensiveListenPlayerScreenState
           s.isPauseBetweenPlays,
           s.isPauseBetweenSentences,
           s.pauseDuration,
-          s.annotationReplayDuration,
           s.isAnnotationMode,
-          s.isAnnotationReplay,
           s.isTextRevealed,
           s.difficultSentences,
           s.isCurrentSentenceAutoMarked,
@@ -800,9 +766,6 @@ class _IntensiveListenPlayerScreenState
                                   horizontalPadding: const EdgeInsets.symmetric(
                                     horizontal: AppSpacing.m,
                                   ),
-                                  isTransitionLocked:
-                                      playerState.annotationState?.phase
-                                          is WaitingAnnotationPageTransition,
                                   onSentenceSettled: player.goToSentence,
                                   itemBuilder: (context, sentenceIndex) {
                                     final sentence =
@@ -828,8 +791,7 @@ class _IntensiveListenPlayerScreenState
                                     // 当前的源句，目标页在横滑期间始终显示盲听内容。
                                     final showAnnotationContent =
                                         isActivePage &&
-                                        (playerState.isAnnotationMode ||
-                                            playerState.isAnnotationReplay);
+                                        playerState.isAnnotationMode;
                                     final content = showAnnotationContent
                                         ? _AnnotationContent(
                                             child: SentenceExplanationView(
@@ -967,69 +929,6 @@ class _IntensiveListenPlayerScreenState
                                 child: Column(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    if (playerState.isAnnotationReplay)
-                                      Padding(
-                                        padding: const EdgeInsets.only(
-                                          bottom: AppSpacing.m,
-                                        ),
-                                        child: Text(
-                                          l10n.intensiveListenReplayingWithSubtitle,
-                                          style: theme.textTheme.bodySmall
-                                              ?.copyWith(
-                                                color: theme
-                                                    .colorScheme
-                                                    .onSurfaceVariant
-                                                    .withValues(alpha: 0.5),
-                                              ),
-                                        ),
-                                      ),
-                                    if (_showAnnotationCountdown(playerState))
-                                      Consumer(
-                                        builder: (context, ref, _) {
-                                          final countdown = ref.watch(
-                                            intensiveListenPlayerProvider.select(
-                                              (s) => (
-                                                show: _showAnnotationCountdown(
-                                                  s,
-                                                ),
-                                                sentenceIndex:
-                                                    s.currentSentenceIndex,
-                                                total: s.pauseDuration,
-                                                paused: s.isCountdownPaused,
-                                                fastForward:
-                                                    s.isCountdownFastForward,
-                                              ),
-                                            ),
-                                          );
-                                          if (!countdown.show) {
-                                            return const SizedBox.shrink();
-                                          }
-                                          return Padding(
-                                            padding: const EdgeInsets.only(
-                                              left: AppSpacing.l,
-                                              right: AppSpacing.l,
-                                              bottom: AppSpacing.m,
-                                            ),
-                                            child: CountdownChip(
-                                              key: ValueKey(
-                                                'annotation-countdown-'
-                                                '${countdown.sentenceIndex}-'
-                                                '${countdown.total.inMilliseconds}',
-                                              ),
-                                              total: countdown.total,
-                                              isPaused: countdown.paused,
-                                              isFastForward:
-                                                  countdown.fastForward,
-                                              onTap: player
-                                                  .onAnnotationUserInteraction,
-                                              onPause: () =>
-                                                  player.pauseCountdown(),
-                                              onResume: () =>
-                                                  player.resumeCountdown(),
-                                            ),
-                                          );
-                                        },
-                                      ),
                                     PracticePlaybackFooter(
                                       canGoPrev:
                                           playerState.currentSentenceIndex > 0,
@@ -1037,6 +936,9 @@ class _IntensiveListenPlayerScreenState
                                           playerState.currentSentenceIndex >=
                                           playerState.totalSentences - 1,
                                       centerIcon: _buildFooterCenterIcon(
+                                        playerState,
+                                      ),
+                                      centerRing: _buildCenterCountdownRing(
                                         playerState,
                                       ),
                                       onPrevious: _handlePrevious,
@@ -1092,14 +994,36 @@ class _AnnotationContent extends StatelessWidget {
   }
 }
 
-bool _showAnnotationCountdown(IntensiveListenState playerState) {
-  return playerState.isAnnotationMode && playerState.isPauseBetweenSentences;
-}
-
 PlaybackToggleIcon _buildFooterCenterIcon(IntensiveListenState playerState) {
   return _isIntensiveMainPlaybackActive(playerState)
       ? PlaybackToggleIcon.pause
       : PlaybackToggleIcon.play;
+}
+
+/// 讲解循环间隙：主播放按钮外围的环形倒计时，与句子卡片上的倒计时同步。
+///
+/// 只在讲解页的自动循环间隙显示；手动模式不自动推进，因此不显示。
+Widget? _buildCenterCountdownRing(IntensiveListenState playerState) {
+  final isLoopInterval =
+      playerState.isAnnotationMode &&
+      playerState.isPauseBetweenPlays &&
+      !playerState.settings.isManualMode;
+  if (!isLoopInterval) return null;
+  return CountdownRing(
+    total: playerState.pauseDuration,
+    isPaused: playerState.isCountdownPaused,
+    isFastForward: playerState.isCountdownFastForward,
+    diameter: PlaybackControls.controlButtonSize,
+    overlayBuilder: (context, seconds) => Positioned(
+      // 秒数标签压在圆环顶部边缘上，不占用按钮行的布局高度。
+      top: -9,
+      left: 0,
+      right: 0,
+      child: Center(
+        child: IgnorePointer(child: CountdownSecondsBadge(seconds: seconds)),
+      ),
+    ),
+  );
 }
 
 bool _isIntensiveMainPlaybackActive(IntensiveListenState state) {
@@ -1113,9 +1037,6 @@ bool _isIntensiveMainPlaybackActive(IntensiveListenState state) {
 extension on _IntensiveListenPlayerScreenState {
   void _handlePrevious() {
     final playerState = ref.read(intensiveListenPlayerProvider);
-    if (playerState.annotationState?.phase is WaitingAnnotationPageTransition) {
-      return;
-    }
     if (playerState.currentSentenceIndex <= 0) {
       return;
     }
@@ -1131,9 +1052,6 @@ extension on _IntensiveListenPlayerScreenState {
 
   void _handleNext() {
     final playerState = ref.read(intensiveListenPlayerProvider);
-    if (playerState.annotationState?.phase is WaitingAnnotationPageTransition) {
-      return;
-    }
     final player = ref.read(intensiveListenPlayerProvider.notifier);
     final isLast =
         playerState.currentSentenceIndex >= playerState.totalSentences - 1;
@@ -1164,23 +1082,15 @@ extension on _IntensiveListenPlayerScreenState {
 
   void _handleCenter() {
     final playerState = ref.read(intensiveListenPlayerProvider);
-    if (playerState.annotationState?.phase is WaitingAnnotationPageTransition) {
-      return;
-    }
     final player = ref.read(intensiveListenPlayerProvider.notifier);
     AppLogger.log(
       'IntensivePlayPause',
       'isPlaying=${playerState.isPlaying} '
-          'isAnnotationReplay=${playerState.isAnnotationReplay} '
           'isPauseBetweenPlays=${playerState.isPauseBetweenPlays} '
           'isAnnotationMode=${playerState.isAnnotationMode}',
     );
     if (playerState.isPlaying) {
       unawaited(player.pause());
-      return;
-    }
-    if (playerState.isAnnotationReplay) {
-      unawaited(player.resume());
       return;
     }
     if (playerState.isPauseBetweenPlays) {

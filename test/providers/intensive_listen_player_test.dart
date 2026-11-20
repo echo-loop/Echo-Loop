@@ -364,7 +364,6 @@ void main() {
       expect(state.pauseRemaining, Duration.zero);
       expect(state.pauseDuration, Duration.zero);
       expect(state.isAnnotationMode, false);
-      expect(state.isAnnotationReplay, false);
       expect(state.isTextRevealed, false);
       expect(state.difficultSentences, isEmpty);
       expect(state.isCurrentSentenceAutoMarked, false);
@@ -430,19 +429,6 @@ void main() {
       expect(annotated.isAnnotationMode, true);
       expect(annotated.isPlaying, false);
       expect(annotated.difficultSentences, {0, 3, 5});
-    });
-
-    test('copyWith 标注重播模式', () {
-      const state = IntensiveListenState();
-      final replaying = state.copyWith(
-        isAnnotationMode: false,
-        isAnnotationReplay: true,
-        isPlaying: true,
-      );
-
-      expect(replaying.isAnnotationMode, false);
-      expect(replaying.isAnnotationReplay, true);
-      expect(replaying.isPlaying, true);
     });
 
     test('copyWith 偷看字幕', () {
@@ -545,7 +531,6 @@ void main() {
         currentSentenceIndex: 4,
         currentPlayCount: 1,
         isAnnotationMode: false,
-        isAnnotationReplay: false,
         isTextRevealed: false,
         isPauseBetweenPlays: false,
         isCurrentSentenceAutoMarked: false,
@@ -1419,6 +1404,51 @@ void main() {
       expect(finished.isPlaying, isFalse);
       expect(finished.annotationState?.phase, isA<InspectingAnnotation>());
     });
+
+    test('讲解重播启动后立即进入播放态，快速第二次点击变为暂停而非重新开始', () async {
+      final audioEngine = _OverlappingReplayAudioEngine();
+      final tapContainer = ProviderContainer(
+        overrides: dedupeOverrides([
+          initialLearningSettingsProvider.overrideWithValue(
+            const LearningSettings(),
+          ),
+          audioEngineProvider.overrideWith(() => audioEngine),
+          learningSessionProvider.overrideWith(() => TestLearningSession()),
+          analyticsOverride(),
+          ...studyTimeOverrides(),
+        ]),
+      );
+      addTearDown(tapContainer.dispose);
+      final tapNotifier = tapContainer.read(
+        intensiveListenPlayerProvider.notifier,
+      );
+      await _initializeWithTestAudio(
+        tapContainer,
+        tapNotifier,
+        sentences,
+        settings: const IntensiveListenSettings(
+          repeatCount: 2,
+          annotationReplayUsesRepeatCount: true,
+        ),
+      );
+      tapNotifier.enterAnnotationMode();
+
+      // 第一次点击：异步准备（设置速度）完成前，图标已应为暂停。
+      final replay = tapNotifier.replayInAnnotationMode();
+      expect(
+        tapContainer.read(intensiveListenPlayerProvider).isPlaying,
+        isTrue,
+      );
+
+      // 第二次点击按暂停处理，之后的循环不得再起播。
+      await tapNotifier.pause();
+      await replay;
+
+      expect(audioEngine.playedSentenceIndices, isEmpty);
+      final paused = tapContainer.read(intensiveListenPlayerProvider);
+      expect(paused.isPlaying, isFalse);
+      expect(paused.annotationState?.phase, isA<WaitingAnnotationUser>());
+    });
   });
 
   group('开始播放一句时异步保存断点', () {
@@ -1711,7 +1741,6 @@ void main() {
       expect(state.isAnnotationMode, false);
       expect(state.annotationState, isNull);
       expect(state.isPlaying, false);
-      expect(state.isAnnotationReplay, false);
     });
 
     test('手动模式使用循环次数和句间停顿，循环中停留当前句', () async {

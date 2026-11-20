@@ -1261,9 +1261,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get intensiveListenWordDictNotFound => '未收录该单词';
 
   @override
-  String get intensiveListenReplayingWithSubtitle => '再听一遍，巩固记忆';
-
-  @override
   String get intensiveListenCompleteTitle => '精听完成';
 
   @override

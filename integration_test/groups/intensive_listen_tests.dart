@@ -45,9 +45,9 @@ void intensiveListenTests() {
       final container = ProviderScope.containerOf(context);
 
       // 设置学习会话为精听模式
-      final session =
-          container.read(learningSessionProvider.notifier)
-              as TestLearningSession;
+      final session = container.read(
+        learningSessionProvider.notifier,
+      ) as TestLearningSession;
       session.setState(
         const LearningSessionState(
           learningMode: LearningMode.intensiveListen,
@@ -56,9 +56,9 @@ void intensiveListenTests() {
       );
 
       // 初始化精听播放器的句子数据
-      final player =
-          container.read(intensiveListenPlayerProvider.notifier)
-              as TestIntensiveListenPlayer;
+      final player = container.read(
+        intensiveListenPlayerProvider.notifier,
+      ) as TestIntensiveListenPlayer;
       final sentences = createTestSentences();
       player.setTestSentences(sentences);
       player.setState(
@@ -221,13 +221,10 @@ void intensiveListenTests() {
       // 通过 provider 退出标注模式（按钮 tap 在 LiveTest 下可能不生效）
       final ctx2 = tester.element(find.byType(EchoLoopApp));
       final c2 = ProviderScope.containerOf(ctx2);
-      final p = c2.read(intensiveListenPlayerProvider.notifier)
-          as TestIntensiveListenPlayer;
-      p.setState(p.state.copyWith(
-        isAnnotationMode: false,
-        isAnnotationReplay: false,
-        isPlaying: true,
-      ));
+      final p = c2.read(
+        intensiveListenPlayerProvider.notifier,
+      ) as TestIntensiveListenPlayer;
+      p.setState(p.state.copyWith(isAnnotationMode: false, isPlaying: true));
       await safeSettle(tester);
 
       // 验证标注卡片消失
@@ -248,13 +245,15 @@ void intensiveListenTests() {
       final container = getContainer(tester);
 
       // 定位到最后一句，点击"下一句"触发完成
-      final player =
-          container.read(intensiveListenPlayerProvider.notifier)
-              as TestIntensiveListenPlayer;
-      player.setState(player.state.copyWith(
-        currentSentenceIndex: player.state.totalSentences - 1,
-        isPlaying: false,
-      ));
+      final player = container.read(
+        intensiveListenPlayerProvider.notifier,
+      ) as TestIntensiveListenPlayer;
+      player.setState(
+        player.state.copyWith(
+          currentSentenceIndex: player.state.totalSentences - 1,
+          isPlaying: false,
+        ),
+      );
       await safeSettle(tester);
       // 最后一句时，下一步按钮变为完成图标
       await tester.tap(find.byIcon(Icons.check_circle_rounded));
@@ -352,8 +351,9 @@ void intensiveListenTests() {
       final container2 = ProviderScope.containerOf(context);
       final bookmarkDao =
           container2.read(bookmarkDaoProvider) as TestBookmarkDao;
-      final bookmarkedIndices =
-          await bookmarkDao.getBookmarkedIndices('test-audio-1');
+      final bookmarkedIndices = await bookmarkDao.getBookmarkedIndices(
+        'test-audio-1',
+      );
       // 第一句（index 0）被标记为难句
       expect(bookmarkedIndices, contains(0));
 
@@ -376,9 +376,9 @@ void intensiveListenTests() {
       final ctx = tester.element(find.byType(EchoLoopApp));
       final container = ProviderScope.containerOf(ctx);
 
-      final session =
-          container.read(learningSessionProvider.notifier)
-              as TestLearningSession;
+      final session = container.read(
+        learningSessionProvider.notifier,
+      ) as TestLearningSession;
       session.setState(
         const LearningSessionState(
           learningMode: LearningMode.intensiveListen,
@@ -387,9 +387,9 @@ void intensiveListenTests() {
         ),
       );
 
-      final player =
-          container.read(intensiveListenPlayerProvider.notifier)
-              as TestIntensiveListenPlayer;
+      final player = container.read(
+        intensiveListenPlayerProvider.notifier,
+      ) as TestIntensiveListenPlayer;
       final sentences = createTestSentences();
       player.setTestSentences(sentences);
       player.setState(
@@ -425,8 +425,9 @@ void intensiveListenTests() {
       );
       final bookmarkDao =
           container2.read(bookmarkDaoProvider) as TestBookmarkDao;
-      final bookmarkedIndices =
-          await bookmarkDao.getBookmarkedIndices('test-audio-1');
+      final bookmarkedIndices = await bookmarkDao.getBookmarkedIndices(
+        'test-audio-1',
+      );
       expect(bookmarkedIndices, contains(0));
 
       // 难句数快照字段当前未在 production 代码中被写入（仅 schema 保留），
@@ -473,8 +474,9 @@ void intensiveListenTests() {
       final container2 = ProviderScope.containerOf(context);
       final bookmarkDao =
           container2.read(bookmarkDaoProvider) as TestBookmarkDao;
-      final bookmarkedIndices =
-          await bookmarkDao.getBookmarkedIndices('test-audio-1');
+      final bookmarkedIndices = await bookmarkDao.getBookmarkedIndices(
+        'test-audio-1',
+      );
       expect(bookmarkedIndices, containsAll([0, 2]));
       expect(bookmarkedIndices.length, equals(2));
 

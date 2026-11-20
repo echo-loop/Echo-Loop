@@ -25,8 +25,6 @@ import 'package:echo_loop/providers/audio_engine/audio_engine_provider.dart';
 import 'package:echo_loop/providers/learning_progress_provider.dart';
 import 'package:echo_loop/providers/learning_session/learning_session_provider.dart';
 import 'package:echo_loop/providers/learning_session/intensive_listen_player_provider.dart';
-import 'package:echo_loop/providers/intensive_annotation/intensive_annotation_phase.dart';
-import 'package:echo_loop/providers/intensive_annotation/intensive_annotation_state.dart';
 import 'package:echo_loop/providers/sentence_ai_provider.dart';
 import 'package:echo_loop/providers/learning_settings_provider.dart';
 import 'package:echo_loop/widgets/dialogs/unclear_auto_save_dialog.dart';
@@ -38,6 +36,7 @@ import 'package:echo_loop/database/providers.dart';
 import 'package:echo_loop/services/sentence_ai_api_client.dart';
 import 'package:echo_loop/theme/app_theme.dart';
 import 'package:echo_loop/widgets/common/bookmark_toggle_row.dart';
+import 'package:echo_loop/widgets/common/countdown_ring.dart';
 import 'package:echo_loop/widgets/common/playback_controls.dart';
 import 'package:echo_loop/widgets/common/capsule_selector.dart';
 import 'package:echo_loop/widgets/practice/sentence_annotation_card.dart';
@@ -111,7 +110,6 @@ class _RecordingIntensiveListenPlayer extends TestIntensiveListenPlayer {
   int goToPreviousCalls = 0;
   int goToSentenceCalls = 0;
   int startPlayingCalls = 0;
-  Completer<void>? pendingAnnotationAdvanceGate;
 
   @override
   Future<void> startPlaying() async {
@@ -162,27 +160,11 @@ class _RecordingIntensiveListenPlayer extends TestIntensiveListenPlayer {
       currentSentenceIndex: index,
       currentPlayCount: 1,
       isAnnotationMode: false,
-      isAnnotationReplay: false,
       annotationState: null,
       isTextRevealed: false,
       isCurrentSentenceAutoMarked: false,
     );
   }
-
-  @override
-  Future<void> commitPendingAnnotationAdvance(int targetSentenceIndex) async {
-    await super.commitPendingAnnotationAdvance(targetSentenceIndex);
-    final gate = pendingAnnotationAdvanceGate;
-    if (gate != null) await gate.future;
-  }
-
-  void emit(IntensiveListenState nextState) {
-    state = nextState;
-  }
-}
-
-class _MutableIntensiveListenPlayer extends TestIntensiveListenPlayer {
-  _MutableIntensiveListenPlayer(super.initialState, super.testSentences);
 
   void emit(IntensiveListenState nextState) {
     state = nextState;
@@ -210,14 +192,11 @@ void main() {
     IntensiveListenSettings settings = const IntensiveListenSettings(),
     bool isPlaying = true,
     bool isAnnotationMode = false,
-    bool isAnnotationReplay = false,
     bool isTextRevealed = false,
     bool isPauseBetweenPlays = false,
     bool isPauseBetweenSentences = false,
     Duration pauseRemaining = Duration.zero,
     Duration pauseDuration = Duration.zero,
-    Duration annotationReplayRemaining = Duration.zero,
-    Duration annotationReplayDuration = Duration.zero,
     Set<int> difficultSentences = const {},
     bool isCurrentSentenceAutoMarked = false,
     bool isCountdownPaused = false,
@@ -231,14 +210,11 @@ void main() {
       settings: settings,
       isPlaying: isPlaying,
       isAnnotationMode: isAnnotationMode,
-      isAnnotationReplay: isAnnotationReplay,
       isTextRevealed: isTextRevealed,
       isPauseBetweenPlays: isPauseBetweenPlays,
       isPauseBetweenSentences: isPauseBetweenSentences,
       pauseRemaining: pauseRemaining,
       pauseDuration: pauseDuration,
-      annotationReplayRemaining: annotationReplayRemaining,
-      annotationReplayDuration: annotationReplayDuration,
       difficultSentences: difficultSentences,
       isCurrentSentenceAutoMarked: isCurrentSentenceAutoMarked,
       isCountdownPaused: isCountdownPaused,
@@ -760,7 +736,6 @@ void main() {
       expect(find.byType(SentenceAnnotationCard), findsOneWidget);
       expect(find.byIcon(Icons.skip_next_rounded), findsOneWidget);
       expect(find.text('3s'), findsNothing);
-      expect(find.text('Listen again to help it stick'), findsNothing);
     });
 
     testWidgets('首次点击听不懂先弹出自动收藏说明，确认后才进入讲解', (tester) async {
@@ -816,88 +791,6 @@ void main() {
         isFalse,
       );
       expect(find.byType(SentenceAnnotationCard), findsOneWidget);
-    });
-
-    testWidgets('详情重播时保留详情页并显示重播提示', (tester) async {
-      await tester.pumpWidget(
-        createTestWidget(
-          playerState: createPlayerState(
-            isAnnotationMode: true,
-            isAnnotationReplay: true,
-            isPlaying: true,
-            annotationReplayRemaining: const Duration(seconds: 3),
-            annotationReplayDuration: const Duration(seconds: 5),
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      expect(find.byType(SentenceAnnotationCard), findsOneWidget);
-      expect(find.text('Next'), findsNothing);
-      expect(find.text('Listen again to help it stick'), findsOneWidget);
-    });
-
-    testWidgets('详情页重播后显示正常样式倒计时', (tester) async {
-      await tester.pumpWidget(
-        createTestWidget(
-          playerState: createPlayerState(
-            isAnnotationMode: true,
-            isPauseBetweenPlays: true,
-            isPauseBetweenSentences: true,
-            isPlaying: false,
-            pauseRemaining: const Duration(seconds: 3),
-            pauseDuration: const Duration(seconds: 3),
-            isCountdownPaused: true,
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      expect(find.byType(SentenceAnnotationCard), findsOneWidget);
-      expect(find.text('3'), findsOneWidget);
-      expect(find.text('Next'), findsNothing);
-    });
-
-    testWidgets('详情页倒计时使用 pauseDuration 作为总时长', (tester) async {
-      late _MutableIntensiveListenPlayer player;
-      await tester.pumpWidget(
-        createTestWidget(
-          playerState: createPlayerState(
-            isAnnotationMode: true,
-            isPauseBetweenPlays: true,
-            isPauseBetweenSentences: true,
-            isPlaying: false,
-            pauseRemaining: const Duration(seconds: 3),
-            pauseDuration: const Duration(seconds: 5),
-            isCountdownPaused: true,
-          ),
-          playerFactory: (state, sentences) {
-            player = _MutableIntensiveListenPlayer(state, sentences);
-            return player;
-          },
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      // CountdownChip 使用 pauseDuration 作为总时长，初始显示 5s
-      expect(find.text('5'), findsOneWidget);
-
-      // 改变 pauseDuration 会触发 countdown 重建
-      player.emit(
-        createPlayerState(
-          isAnnotationMode: true,
-          isPauseBetweenPlays: true,
-          isPauseBetweenSentences: true,
-          isPlaying: false,
-          pauseRemaining: const Duration(seconds: 2),
-          pauseDuration: const Duration(seconds: 3),
-          isCountdownPaused: true,
-        ),
-      );
-      await tester.pump();
-
-      // 新的 pauseDuration 为 3s，显示 '3'
-      expect(find.text('3'), findsOneWidget);
     });
 
     testWidgets('显示播放/暂停和上下句按钮', (tester) async {
@@ -1611,98 +1504,6 @@ void main() {
       expect(player.state.isAnnotationMode, isFalse);
     });
 
-    testWidgets('讲解自动翻页动画期间保持讲解页，不闪回当前句盲听页', (tester) async {
-      late _RecordingIntensiveListenPlayer player;
-      await tester.pumpWidget(
-        createTestWidget(
-          playerState: createPlayerState(
-            isAnnotationMode: true,
-            isPlaying: false,
-          ),
-          playerFactory: (state, sentences) {
-            player = _RecordingIntensiveListenPlayer(state, sentences);
-            return player;
-          },
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      player.emit(
-        player.state.copyWith(
-          isAnnotationMode: true,
-          isAnnotationReplay: false,
-          isPlaying: false,
-          annotationState: const IntensiveAnnotationState(
-            phase: WaitingAnnotationPageTransition(targetSentenceIndex: 1),
-          ),
-        ),
-      );
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 160));
-
-      expect(find.byType(SentenceAnnotationCard), findsOneWidget);
-      expect(
-        find.byKey(const ValueKey('intensive-sentence-mode-0-blind')),
-        findsNothing,
-      );
-      expect(player.currentIndex, 0);
-
-      await tester.pump(const Duration(milliseconds: 200));
-      await tester.pumpAndSettle();
-
-      expect(player.currentIndex, 1);
-      expect(player.state.isAnnotationMode, isFalse);
-      expect(
-        find.byKey(const ValueKey('intensive-sentence-mode-1-blind')),
-        findsOneWidget,
-      );
-    });
-
-    testWidgets('自动翻到新句后播放未结束也允许继续切句', (tester) async {
-      late _RecordingIntensiveListenPlayer player;
-      final playbackGate = Completer<void>();
-      await tester.pumpWidget(
-        createTestWidget(
-          playerState: createPlayerState(
-            isAnnotationMode: true,
-            isPlaying: false,
-          ),
-          playerFactory: (state, sentences) {
-            player = _RecordingIntensiveListenPlayer(state, sentences)
-              ..pendingAnnotationAdvanceGate = playbackGate;
-            return player;
-          },
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      player.emit(
-        player.state.copyWith(
-          isAnnotationMode: true,
-          isAnnotationReplay: false,
-          isPlaying: false,
-          annotationState: const IntensiveAnnotationState(
-            phase: WaitingAnnotationPageTransition(targetSentenceIndex: 1),
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      expect(player.currentIndex, 1);
-      expect(player.state.annotationState, isNull);
-
-      await tester.tap(find.byIcon(Icons.skip_next_rounded));
-      await tester.pumpAndSettle();
-
-      expect(player.goToSentenceCalls, 1);
-      expect(player.goToNextCalls, 0);
-      expect(player.currentIndex, 2);
-
-      playbackGate.complete();
-      await tester.pump();
-      await tester.pumpAndSettle();
-    });
-
     testWidgets('讲解状态取消横滑时保留源句讲解态', (tester) async {
       late _RecordingIntensiveListenPlayer player;
       await tester.pumpWidget(
@@ -1755,14 +1556,13 @@ void main() {
       expect(prevOpacity.opacity, 0.6);
     });
 
-    testWidgets('详情页重播中导航按钮仍可用', (tester) async {
+    testWidgets('详情页播放中导航按钮仍可用', (tester) async {
       await tester.pumpWidget(
         createTestWidget(
           playerState: createPlayerState(
             currentSentenceIndex: 2,
             totalSentences: 5,
             isAnnotationMode: true,
-            isAnnotationReplay: true,
             isPlaying: true,
           ),
         ),
@@ -1812,13 +1612,12 @@ void main() {
       expect(nextOpacity.opacity, 0.6);
     });
 
-    testWidgets('详情页重播中点击播放按钮先暂停，不触发详情页内重播', (tester) async {
+    testWidgets('详情页播放中点击播放按钮先暂停，不触发详情页内重播', (tester) async {
       late _RecordingIntensiveListenPlayer player;
       await tester.pumpWidget(
         createTestWidget(
           playerState: createPlayerState(
             isAnnotationMode: true,
-            isAnnotationReplay: true,
             isPlaying: true,
           ),
           playerFactory: (state, sentences) {
@@ -1836,32 +1635,6 @@ void main() {
 
       expect(player.pauseCalls, 1);
       expect(player.resumeCalls, 0);
-      expect(player.replayInDetailsCalls, 0);
-    });
-
-    testWidgets('详情页重播暂停后点击播放会从当前句重新开始', (tester) async {
-      late _RecordingIntensiveListenPlayer player;
-      await tester.pumpWidget(
-        createTestWidget(
-          playerState: createPlayerState(
-            isAnnotationMode: true,
-            isAnnotationReplay: true,
-            isPlaying: false,
-          ),
-          playerFactory: (state, sentences) {
-            player = _RecordingIntensiveListenPlayer(state, sentences);
-            return player;
-          },
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      await tester.tap(
-        find.byKey(playbackCenterIconKey(PlaybackToggleIcon.play)),
-      );
-      await tester.pumpAndSettle();
-
-      expect(player.resumeCalls, 1);
       expect(player.replayInDetailsCalls, 0);
     });
 
@@ -1887,40 +1660,30 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(player.replayInDetailsCalls, 1);
-      expect(find.text('Listen again to help it stick'), findsNothing);
       expect(find.byIcon(Icons.skip_next_rounded), findsOneWidget);
     });
 
-    testWidgets('详情页倒计时中点击播放按钮会回到带字幕重播态', (tester) async {
-      late _RecordingIntensiveListenPlayer player;
+    testWidgets('讲解循环间隙在主播放按钮上显示环形倒计时秒数', (tester) async {
       await tester.pumpWidget(
         createTestWidget(
           playerState: createPlayerState(
             isAnnotationMode: true,
-            isPlaying: false,
+            isPlaying: true,
             isPauseBetweenPlays: true,
             isPauseBetweenSentences: true,
-            pauseRemaining: const Duration(seconds: 3),
-            pauseDuration: const Duration(seconds: 3),
+            pauseDuration: const Duration(seconds: 5),
+            pauseRemaining: const Duration(seconds: 5),
           ),
-          playerFactory: (state, sentences) {
-            player = _RecordingIntensiveListenPlayer(state, sentences);
-            return player;
-          },
         ),
       );
       await tester.pumpAndSettle();
 
-      await tester.tap(
-        find.byKey(playbackCenterIconKey(PlaybackToggleIcon.play)),
+      expect(find.byType(CountdownSecondsBadge), findsOneWidget);
+      expect(find.byType(CountdownRing), findsOneWidget);
+      expect(
+        find.byKey(playbackCenterIconKey(PlaybackToggleIcon.pause)),
+        findsOneWidget,
       );
-      await tester.pumpAndSettle();
-
-      expect(player.replayDuringCountdownCalls, 1);
-      expect(player.replayInDetailsCalls, 0);
-      expect(player.resumeCalls, 0);
-      expect(find.text('Listen again to help it stick'), findsOneWidget);
-      expect(find.text('Next'), findsNothing);
     });
 
     testWidgets('偷看按钮点击切换 isTextRevealed（非按住）', (tester) async {

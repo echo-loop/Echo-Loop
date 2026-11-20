@@ -66,10 +66,7 @@ class IntensiveListenState {
   final bool isPauseBetweenSentences;
   final Duration pauseRemaining;
   final Duration pauseDuration;
-  final Duration annotationReplayRemaining;
-  final Duration annotationReplayDuration;
   final bool isAnnotationMode;
-  final bool isAnnotationReplay;
   final bool isTextRevealed;
   final Set<int> difficultSentences;
   final bool isCurrentSentenceAutoMarked;
@@ -94,10 +91,7 @@ class IntensiveListenState {
     this.isPauseBetweenSentences = false,
     this.pauseRemaining = Duration.zero,
     this.pauseDuration = Duration.zero,
-    this.annotationReplayRemaining = Duration.zero,
-    this.annotationReplayDuration = Duration.zero,
     this.isAnnotationMode = false,
-    this.isAnnotationReplay = false,
     this.isTextRevealed = false,
     this.difficultSentences = const {},
     this.isCurrentSentenceAutoMarked = false,
@@ -125,10 +119,7 @@ class IntensiveListenState {
     bool? isPauseBetweenSentences,
     Duration? pauseRemaining,
     Duration? pauseDuration,
-    Duration? annotationReplayRemaining,
-    Duration? annotationReplayDuration,
     bool? isAnnotationMode,
-    bool? isAnnotationReplay,
     bool? isTextRevealed,
     Set<int>? difficultSentences,
     bool? isCurrentSentenceAutoMarked,
@@ -152,12 +143,7 @@ class IntensiveListenState {
           isPauseBetweenSentences ?? this.isPauseBetweenSentences,
       pauseRemaining: pauseRemaining ?? this.pauseRemaining,
       pauseDuration: pauseDuration ?? this.pauseDuration,
-      annotationReplayRemaining:
-          annotationReplayRemaining ?? this.annotationReplayRemaining,
-      annotationReplayDuration:
-          annotationReplayDuration ?? this.annotationReplayDuration,
       isAnnotationMode: isAnnotationMode ?? this.isAnnotationMode,
-      isAnnotationReplay: isAnnotationReplay ?? this.isAnnotationReplay,
       isTextRevealed: isTextRevealed ?? this.isTextRevealed,
       difficultSentences: difficultSentences ?? this.difficultSentences,
       isCurrentSentenceAutoMarked:
@@ -410,8 +396,6 @@ class IntensiveListenPlayer extends _$IntensiveListenPlayer {
       _annotationResumePlayCount = null;
       await _startInlineAnnotationReplay(
         repeatCount: _annotationReplayRepeatCount,
-        advanceAfterReplay: false,
-        showReplayStatus: true,
         startAt: resumePosition,
         startingPlayCount: resumePlayCount,
       );
@@ -466,21 +450,6 @@ class IntensiveListenPlayer extends _$IntensiveListenPlayer {
     await _goToSentence(target);
   }
 
-  /// 提交讲解页自动翻页。
-  ///
-  /// 讲解页倒计时结束后，页面先完成分页动画，再调用此方法切换业务状态，
-  /// 避免旧页面在动画期间因状态变化闪回盲听内容。
-  Future<void> commitPendingAnnotationAdvance(int targetSentenceIndex) async {
-    final phase = state.annotationState?.phase;
-    if (phase is! WaitingAnnotationPageTransition ||
-        phase.targetSentenceIndex != targetSentenceIndex ||
-        targetSentenceIndex < 0 ||
-        targetSentenceIndex >= state.totalSentences) {
-      return;
-    }
-    await _goToSentence(targetSentenceIndex);
-  }
-
   void enterAnnotationMode() {
     if (state.annotationState != null) return;
 
@@ -524,10 +493,6 @@ class IntensiveListenPlayer extends _$IntensiveListenPlayer {
   void onAnnotationUserInteraction() {
     if (state.annotationState == null) return;
 
-    if (state.annotationState?.phase is WaitingAnnotationPageTransition) {
-      return;
-    }
-
     if (state.playingSenseGroupIndex != null) {
       stopSenseGroupPlayback();
       _setAnnotationPhase(const WaitingAnnotationUser());
@@ -542,7 +507,7 @@ class IntensiveListenPlayer extends _$IntensiveListenPlayer {
         state.isPlaying &&
         phase is! WaitingAnnotationInterval &&
         _isAnnotationLoopActive;
-    if (phase is ReplayingWithSubtitle || isAnnotationSentencePlaying) {
+    if (isAnnotationSentencePlaying) {
       _annotationWaitAfterCurrentPlayback = true;
       AppLogger.log('IntensiveAnnotation', '-> WaitingForUser (after replay)');
       return;
@@ -561,9 +526,6 @@ class IntensiveListenPlayer extends _$IntensiveListenPlayer {
   /// 抢占同一音频引擎，句子根本播不完，等待标志会残留到下一次播放。
   void interruptAnnotationForSenseGroup() {
     if (state.annotationState == null) return;
-    if (state.annotationState?.phase is WaitingAnnotationPageTransition) {
-      return;
-    }
 
     stopSenseGroupPlayback();
     _cleanupAnnotationSession();
@@ -573,14 +535,9 @@ class IntensiveListenPlayer extends _$IntensiveListenPlayer {
   Future<void> replayInAnnotationMode() async {
     _annotationResumePosition = null;
     _annotationResumePlayCount = null;
-    if (state.annotationState == null ||
-        state.annotationState?.phase is WaitingAnnotationPageTransition) {
-      return;
-    }
+    if (state.annotationState == null) return;
     await _startInlineAnnotationReplay(
       repeatCount: _annotationReplayRepeatCount,
-      advanceAfterReplay: false,
-      showReplayStatus: false,
     );
   }
 
@@ -739,27 +696,11 @@ class IntensiveListenPlayer extends _$IntensiveListenPlayer {
     );
   }
 
+  /// 倒计时中点击播放，仅用于盲听。
+  ///
+  /// 讲解循环间隙的 isPlaying 为 true，点击会走 [pause]，不会到达这里。
   Future<void> replayDuringCountdown() async {
-    if (state.annotationState != null) {
-      if (state.annotationState?.phase is WaitingAnnotationPageTransition) {
-        return;
-      }
-      _cleanupAnnotationSession();
-      state = state.copyWith(
-        isPauseBetweenPlays: false,
-        isPauseBetweenSentences: false,
-        annotationReplayRemaining: Duration.zero,
-        annotationReplayDuration: Duration.zero,
-        isCountdownPaused: false,
-        isCountdownFastForward: false,
-      );
-      await _startInlineAnnotationReplay(
-        repeatCount: _annotationReplayRepeatCount,
-        advanceAfterReplay: true,
-        showReplayStatus: true,
-      );
-      return;
-    }
+    if (state.annotationState != null) return;
 
     await _blindEngine.replayCurrentSentence();
   }
@@ -831,7 +772,6 @@ class IntensiveListenPlayer extends _$IntensiveListenPlayer {
       isPauseBetweenPlays: false,
       isPauseBetweenSentences: false,
       isAnnotationMode: false,
-      isAnnotationReplay: false,
       isCountdownPaused: false,
       isCountdownFastForward: false,
       stepFinished: false,
@@ -853,10 +793,7 @@ class IntensiveListenPlayer extends _$IntensiveListenPlayer {
       isPauseBetweenPlays: false,
       isPauseBetweenSentences: false,
       isAnnotationMode: false,
-      isAnnotationReplay: false,
       isTextRevealed: false,
-      annotationReplayRemaining: Duration.zero,
-      annotationReplayDuration: Duration.zero,
       isCurrentSentenceAutoMarked: false,
       isCountdownPaused: false,
       isCountdownFastForward: false,
@@ -1030,9 +967,6 @@ class IntensiveListenPlayer extends _$IntensiveListenPlayer {
           ? false
           : state.isCountdownFastForward,
       isAnnotationMode: false,
-      isAnnotationReplay: false,
-      annotationReplayRemaining: Duration.zero,
-      annotationReplayDuration: Duration.zero,
       annotationState: null,
       isTextRevealed: sentenceChanged ? false : state.isTextRevealed,
       stepFinished: phase is BlindSessionCompleted,
@@ -1131,10 +1065,7 @@ class IntensiveListenPlayer extends _$IntensiveListenPlayer {
       isTextRevealed: false,
       isPauseBetweenPlays: false,
       isPauseBetweenSentences: false,
-      annotationReplayRemaining: Duration.zero,
-      annotationReplayDuration: Duration.zero,
       isAnnotationMode: false,
-      isAnnotationReplay: false,
       isCurrentSentenceAutoMarked: false,
       isCountdownPaused: false,
       isCountdownFastForward: false,
@@ -1148,21 +1079,14 @@ class IntensiveListenPlayer extends _$IntensiveListenPlayer {
     await _startBlindFlow();
   }
 
-  /// 讲解页按指定次数播放当前句。
-  ///
-  /// [advanceAfterReplay] 仅供“继续”流程使用；播放按钮完成后仍停留在讲解页。
+  /// 讲解页按指定次数播放当前句，播完后停留在讲解页等待用户操作。
   Future<void> _startInlineAnnotationReplay({
     required int repeatCount,
-    required bool advanceAfterReplay,
-    required bool showReplayStatus,
     Duration? startAt,
     int? startingPlayCount,
   }) async {
     final sentence = currentSentence;
-    if (sentence == null || sentence.duration <= Duration.zero) {
-      if (advanceAfterReplay) await _finishAnnotationReplay();
-      return;
-    }
+    if (sentence == null || sentence.duration <= Duration.zero) return;
 
     stopSenseGroupPlayback();
     _cleanupAnnotationSession();
@@ -1171,6 +1095,8 @@ class IntensiveListenPlayer extends _$IntensiveListenPlayer {
     _annotationSessionId = playbackDriver.newSession();
     final annotationSessionId = _annotationSessionId;
     _annotationSentencePlaybackSessionId = annotationSessionId;
+    // 设置速度是异步的，播放态须先于它置位，否则快速连续点击时第二次点击会被当作“播放”而重新开始。
+    state = state.copyWith(isPlaying: true);
 
     try {
       await playbackDriver.setSpeed(state.settings.playbackSpeed);
@@ -1184,18 +1110,8 @@ class IntensiveListenPlayer extends _$IntensiveListenPlayer {
         }
 
         state = state.copyWith(currentPlayCount: playCount);
-        if (showReplayStatus) {
-          _setAnnotationPhase(
-            ReplayingWithSubtitle(
-              remaining: sentence.duration,
-              total: sentence.duration,
-            ),
-          );
-        } else {
-          // 播放按钮只是讲解页内重听：保留讲解态和“继续”按钮，不显示重听提示。
-          _setAnnotationPhase(const InspectingAnnotation());
-          state = state.copyWith(isPlaying: true);
-        }
+        _setAnnotationPhase(const InspectingAnnotation());
+        state = state.copyWith(isPlaying: true);
         final result = await playbackDriver.playSentence(
           sentence,
           annotationSessionId,
@@ -1204,7 +1120,7 @@ class IntensiveListenPlayer extends _$IntensiveListenPlayer {
         firstPlayback = false;
 
         // 暂停会立即放弃当前讲解会话。即使底层播放器的取消回调晚到，
-        // 旧重播也不能进入倒计时或覆盖图中的“继续”等待态。
+        // 旧重播也不能进入倒计时或覆盖等待用户的状态。
         if (result != SentencePlaybackResult.completed ||
             _annotationSessionId != annotationSessionId ||
             !playbackDriver.isActiveSession(annotationSessionId)) {
@@ -1229,10 +1145,6 @@ class IntensiveListenPlayer extends _$IntensiveListenPlayer {
               total: pauseDuration,
             ),
           );
-          if (!showReplayStatus) {
-            // 循环间停顿不属于“继续”流程，继续按钮仍保持可用。
-            state = state.copyWith(isPauseBetweenSentences: false);
-          }
           await _annotationCountdown.start(pauseDuration);
           if (_annotationSessionId != annotationSessionId ||
               !playbackDriver.isActiveSession(annotationSessionId) ||
@@ -1247,11 +1159,7 @@ class IntensiveListenPlayer extends _$IntensiveListenPlayer {
           !playbackDriver.isActiveSession(annotationSessionId)) {
         return;
       }
-      if (advanceAfterReplay) {
-        await _finishAnnotationReplay();
-      } else {
-        _setAnnotationPhase(const InspectingAnnotation());
-      }
+      _setAnnotationPhase(const InspectingAnnotation());
     } finally {
       if (_annotationSentencePlaybackSessionId == annotationSessionId) {
         _annotationSentencePlaybackSessionId = null;
@@ -1264,80 +1172,6 @@ class IntensiveListenPlayer extends _$IntensiveListenPlayer {
       state.settings.annotationReplayUsesRepeatCount
       ? state.settings.repeatCount
       : 1;
-
-  Future<void> _finishAnnotationReplay() async {
-    if (_annotationWaitAfterCurrentPlayback) {
-      _annotationWaitAfterCurrentPlayback = false;
-      _setAnnotationPhase(const WaitingAnnotationUser());
-      return;
-    }
-
-    if (state.settings.isManualMode) {
-      state = state.copyWith(
-        isAnnotationMode: false,
-        isAnnotationReplay: false,
-        isPlaying: false,
-        annotationReplayRemaining: Duration.zero,
-        annotationReplayDuration: Duration.zero,
-        annotationState: null,
-      );
-      return;
-    }
-
-    final sentence = currentSentence;
-    final pauseDur = sentence != null
-        ? calculatePauseDuration(sentence.duration, state.settings)
-        : const Duration(seconds: 1);
-    final playbackDriver = _playbackDriver;
-    _annotationSessionId = playbackDriver.newSession();
-    final annotationSessionId = _annotationSessionId;
-
-    _setAnnotationPhase(
-      WaitingAnnotationInterval(remaining: pauseDur, total: pauseDur),
-    );
-
-    await _annotationCountdown.start(pauseDur);
-
-    // 取消倒计时也会正常完成 Future；只有仍停留在倒计时阶段时，
-    // 才允许继续执行自动切句，避免用户接管后被旧流程推进到下一句。
-    if (!playbackDriver.isActiveSession(annotationSessionId) ||
-        state.annotationState?.phase is! WaitingAnnotationInterval) {
-      return;
-    }
-
-    final isLastSentence =
-        state.currentSentenceIndex >= state.totalSentences - 1;
-    if (isLastSentence) {
-      state = state.copyWith(
-        isPlaying: false,
-        isPauseBetweenPlays: false,
-        isPauseBetweenSentences: false,
-        isAnnotationMode: false,
-        isAnnotationReplay: false,
-        annotationReplayRemaining: Duration.zero,
-        annotationReplayDuration: Duration.zero,
-        isCountdownPaused: false,
-        isCountdownFastForward: false,
-        stepFinished: true,
-        annotationState: null,
-        playingSenseGroupIndex: null,
-        playedSenseGroupIndices: const {},
-      );
-      ref.read(analyticsServiceProvider).track(Events.intensiveListenComplete, {
-        ...ref.audioEventParams(ref.read(learningSessionProvider).audioItemId),
-        EventParams.totalSentences: state.totalSentences,
-        EventParams.difficultCount: state.difficultSentences.length,
-      });
-      return;
-    }
-
-    // 保留当前句讲解内容，交由页面层先完成横向分页动画，再提交切句。
-    _setAnnotationPhase(
-      WaitingAnnotationPageTransition(
-        targetSentenceIndex: state.currentSentenceIndex + 1,
-      ),
-    );
-  }
 
   void _persistCurrentSentenceIndexAsync() {
     final session = ref.read(learningSessionProvider);
@@ -1371,7 +1205,7 @@ class IntensiveListenPlayer extends _$IntensiveListenPlayer {
 
   /// 仅允许当前讲解播放会话清除播放态。
   ///
-  /// 用户在详情重播期间再次点击继续或播放时，旧 session 会异步返回。
+  /// 用户在详情重播期间再次点击播放时，旧 session 会异步返回。
   /// 旧 session 已失效并不代表新 session 已停止，因此不能覆盖新会话的
   /// [IntensiveListenState.isPlaying]。
   void _clearPlayingIfCurrentAnnotationSession(int annotationSessionId) {
@@ -1386,25 +1220,19 @@ class IntensiveListenPlayer extends _$IntensiveListenPlayer {
 
   void _setAnnotationPhase(IntensiveAnnotationPhase phase) {
     final waitingInterval = phase is WaitingAnnotationInterval ? phase : null;
-    final replaying = phase is ReplayingWithSubtitle ? phase : null;
     final isSenseGroupPlaying = state.playingSenseGroupIndex != null;
-    // 循环未结束时，间隙仍视为播放中，图标才能对应「暂停循环」；
-    // “继续”流程的倒计时不属于循环，仍按暂停处理。
+    // 循环未结束时，间隙仍视为播放中，图标才能对应「暂停循环」。
     final isLoopIntervalActive =
         waitingInterval != null && _isAnnotationLoopActive;
 
     state = state.copyWith(
       annotationState: IntensiveAnnotationState(phase: phase),
       isAnnotationMode: true,
-      isAnnotationReplay: replaying != null,
-      isPlaying:
-          replaying != null || isSenseGroupPlaying || isLoopIntervalActive,
+      isPlaying: isSenseGroupPlaying || isLoopIntervalActive,
       isPauseBetweenPlays: waitingInterval != null,
       isPauseBetweenSentences: waitingInterval != null,
       pauseDuration: waitingInterval?.total ?? Duration.zero,
       pauseRemaining: waitingInterval?.remaining ?? Duration.zero,
-      annotationReplayRemaining: replaying?.remaining ?? Duration.zero,
-      annotationReplayDuration: replaying?.total ?? Duration.zero,
       isCountdownPaused: waitingInterval?.isPaused ?? false,
       isCountdownFastForward: waitingInterval == null
           ? false

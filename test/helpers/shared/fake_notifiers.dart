@@ -44,7 +44,6 @@ export 'package:echo_loop/services/asr/offline_asr_engine.dart'
 export 'package:echo_loop/database/app_database.dart' show SavedWord;
 import 'package:echo_loop/database/enums.dart';
 import 'package:echo_loop/models/audio_engine_state.dart';
-import 'package:echo_loop/providers/intensive_annotation/intensive_annotation_phase.dart';
 import 'package:echo_loop/models/audio_item.dart';
 import 'package:echo_loop/models/blind_listen_settings.dart';
 import 'package:echo_loop/models/collection.dart';
@@ -1293,36 +1292,6 @@ class FakeIntensiveListenPlayer extends IntensiveListenPlayer {
       pauseDuration: Duration.zero,
       pauseRemaining: Duration.zero,
       isAnnotationMode: false,
-      isAnnotationReplay: false,
-      annotationReplayRemaining: Duration.zero,
-      annotationReplayDuration: Duration.zero,
-      annotationState: null,
-      isTextRevealed: false,
-      isCurrentSentenceAutoMarked: false,
-    );
-  }
-
-  @override
-  Future<void> commitPendingAnnotationAdvance(int targetSentenceIndex) async {
-    final phase = state.annotationState?.phase;
-    if (phase is! WaitingAnnotationPageTransition ||
-        phase.targetSentenceIndex != targetSentenceIndex ||
-        targetSentenceIndex < 0 ||
-        targetSentenceIndex >= state.totalSentences) {
-      return;
-    }
-    state = state.copyWith(
-      currentSentenceIndex: targetSentenceIndex,
-      currentPlayCount: 1,
-      isPlaying: true,
-      isPauseBetweenPlays: false,
-      isPauseBetweenSentences: false,
-      pauseRemaining: Duration.zero,
-      pauseDuration: Duration.zero,
-      isAnnotationMode: false,
-      isAnnotationReplay: false,
-      annotationReplayRemaining: Duration.zero,
-      annotationReplayDuration: Duration.zero,
       annotationState: null,
       isTextRevealed: false,
       isCurrentSentenceAutoMarked: false,
@@ -1362,9 +1331,6 @@ class FakeIntensiveListenPlayer extends IntensiveListenPlayer {
         isPlaying: true,
         isPauseBetweenPlays: false,
         isPauseBetweenSentences: false,
-        isAnnotationReplay: true,
-        annotationReplayRemaining: const Duration(seconds: 3),
-        annotationReplayDuration: const Duration(seconds: 3),
       );
       return;
     }
@@ -1372,8 +1338,6 @@ class FakeIntensiveListenPlayer extends IntensiveListenPlayer {
       isPlaying: true,
       isPauseBetweenPlays: false,
       isPauseBetweenSentences: false,
-      annotationReplayRemaining: Duration.zero,
-      annotationReplayDuration: Duration.zero,
     );
   }
 
@@ -1403,9 +1367,6 @@ class FakeIntensiveListenPlayer extends IntensiveListenPlayer {
       isPlaying: false,
       isPauseBetweenPlays: false,
       isPauseBetweenSentences: false,
-      isAnnotationReplay: false,
-      annotationReplayRemaining: Duration.zero,
-      annotationReplayDuration: Duration.zero,
     );
   }
 
@@ -1415,7 +1376,6 @@ class FakeIntensiveListenPlayer extends IntensiveListenPlayer {
       currentSentenceIndex: 0,
       currentPlayCount: 1,
       isAnnotationMode: false,
-      isAnnotationReplay: false,
       isTextRevealed: false,
       difficultSentences: {},
       isPlaying: true,

@@ -2,7 +2,12 @@
 
 > 仅列未完成事项。已完成记录见 [2026-11-12 归档](./docs/tasks-archive/tasks-2026-11-12-completed.md)、[2026-10-29 归档](./docs/tasks-archive/tasks-2026-10-29-completed.md)、[2026-09-29 归档](./docs/tasks-archive/tasks-2026-09-29-completed.md)。
 
+- [x] 讲解页循环间隙主播放按钮环形倒计时：按钮外侧绕一圈 64pt 圆环（与句子卡片倒计时同源，随时长推进），圆环顶部压一枚秒数胶囊（tabular 数字，随文字撑开）。圆环与动画抽为共享 `CountdownRing`，`CountdownChip` 改为复用它；修复 `CountdownRing` 在总时长变化时重建动画控制器触发的 ticker 冲突（原 `CountdownChip` 同样存在，未被测试覆盖）。仅讲解页自动循环间隙显示，手动模式与盲听不显示。新增 `test/widgets/countdown_ring_test.dart` 与讲解页主按钮秒数测试；相关 292+ 项测试通过。**完成时间**: 2026-11-20
+  - 修正：圆环外径由 64 改为与按钮同尺寸（56，贴合按钮外缘），秒数标签仍压在顶边；64 时在窄屏带速度按钮的控制栏右侧溢出 4px。新增窄屏回归测试（修复前失败）。**完成时间**: 2026-11-20
 - [x] 逐句精听讲解页循环播放间隙图标：开启「讲解页按循环次数播放」后，遍与遍之间的倒计时期间播放按钮变为播放图标（`isPlaying` 被置 false），点击会立即重播而非停止。改为循环未结束时（含间隙）保持播放态：图标为暂停，点击走 `pause()` 停止循环；间隙中暂停不记录续播位置，循环最后一遍播完后才变回播放图标。“继续”流程的倒计时行为不变。新增 2 个 provider 回归用例（间隙保持播放态且暂停后不再起播；最后一遍播完后结束），第一个在修复前失败。相关测试 124 项通过；改动文件 `dart format` 与 `flutter analyze` 无问题。**完成时间**: 2026-11-20
+  - 补充修复：讲解重播在异步设置速度前未置位播放态，快速连续点击时第二次点击被当作“播放”而重新开始、显示倒计时。启动时立即置为播放态，第二次点击改为暂停；新增回归用例（修复前失败）。**完成时间**: 2026-11-20
+  - 清理已删除“继续”流程的残留代码：`_finishAnnotationReplay`、`advanceAfterReplay`、`WaitingAnnotationPageTransition` 及其页面自动翻页逻辑、`commitPendingAnnotationAdvance`；`replayDuringCountdown` 仅保留盲听分支。行为不变，相关测试 123 项通过（删除依赖旧流程的两个翻页用例）。**完成时间**: 2026-11-20
+  - 暂停后继续播放不再显示“再听一遍，巩固记忆”，与播放按钮循环保持一致：移除 `ReplayingWithSubtitle` 阶段、`isAnnotationReplay` 与 `annotationReplay*` 状态、`showReplayStatus` 参数、提示文案（arb 与生成文件）以及讲解页主体倒计时（仅旧路径可达）。相关测试 117 项通过；`integration_test/groups/intensive_listen_tests.dart` 未在本机运行。**完成时间**: 2026-11-20
 
 - [x] 升级应用版本至 1.0.49：将 `pubspec.yaml` 中的版本从 1.0.48 提升至 1.0.49。纯版本元数据变更，无需运行测试。**完成时间**: 2026-11-20
 

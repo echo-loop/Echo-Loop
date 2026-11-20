@@ -63,6 +63,9 @@ class PracticePlaybackFooter extends StatelessWidget {
   /// 可选：选定新速度后的回调。
   final ValueChanged<double>? onPlaybackSpeedChanged;
 
+  /// 可选：绕在中间按钮外侧的环形倒计时，透传给 [PlaybackControls.centerRing]。
+  final Widget? centerRing;
+
   const PracticePlaybackFooter({
     super.key,
     required this.canGoPrev,
@@ -80,6 +83,7 @@ class PracticePlaybackFooter extends StatelessWidget {
     this.centerGuideStep,
     this.playbackSpeed,
     this.onPlaybackSpeedChanged,
+    this.centerRing,
   });
 
   @override
@@ -109,6 +113,7 @@ class PracticePlaybackFooter extends StatelessWidget {
               centerGuideStep: centerGuideStep,
               playbackSpeed: playbackSpeed,
               onPlaybackSpeedChanged: onPlaybackSpeedChanged,
+              centerRing: centerRing,
             ),
             const SizedBox(height: AppSpacing.s),
             _buildCountSlot(),

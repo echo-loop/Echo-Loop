@@ -97,8 +97,10 @@ class PlaybackCenterButton extends StatelessWidget {
 /// 播放控制栏：[上一个] [播放/暂停] [下一个/完成]
 class PlaybackControls extends StatelessWidget {
   static const double controlButtonSize = 56;
+
   /// 播放按钮与上一句 / 下一句的间距，与随心听保持一致（中心距 104）。
   static const double standardControlGap = 48;
+
   /// 随心听 / 普通状态下相邻按钮的中心距。
   static const double standardControlPitch =
       controlButtonSize + standardControlGap;
@@ -158,6 +160,10 @@ class PlaybackControls extends StatelessWidget {
   /// 可选：选定新速度后的回调。
   final ValueChanged<double>? onPlaybackSpeedChanged;
 
+  /// 可选：与中间按钮同心、同尺寸（[controlButtonSize]）的环形倒计时。
+  /// 讲解页循环间隙使用，让用户看到何时自动进入下一遍。
+  final Widget? centerRing;
+
   const PlaybackControls({
     super.key,
     required this.canGoPrev,
@@ -170,6 +176,7 @@ class PlaybackControls extends StatelessWidget {
     this.centerGuideStep,
     this.playbackSpeed,
     this.onPlaybackSpeedChanged,
+    this.centerRing,
   });
 
   @override
@@ -190,10 +197,24 @@ class PlaybackControls extends StatelessWidget {
       ),
     );
 
+    final ring = centerRing;
+    // 环形倒计时与按钮同尺寸、叠放在同一布局框内，因此不改变控制栏的宽度分配。
+    // 秒数标签会伸出布局框顶部，所以 Stack 不裁剪。
+    final centerWithRing = ring == null
+        ? centerButton
+        : SizedBox.square(
+            dimension: controlButtonSize,
+            child: Stack(
+              alignment: Alignment.center,
+              clipBehavior: Clip.none,
+              children: [ring, centerButton],
+            ),
+          );
+
     final centerStep = centerGuideStep;
     final centerWidget = centerStep != null
-        ? GuideTarget(step: centerStep, child: centerButton)
-        : centerButton;
+        ? GuideTarget(step: centerStep, child: centerWithRing)
+        : centerWithRing;
 
     final previousWidget = PlaybackNavButton(
       icon: Icons.skip_previous_rounded,
