@@ -49,7 +49,7 @@ import '../models/speech_practice_models.dart';
 import '../services/app_logger.dart';
 import '../providers/repeat_flow/repeat_flow_phase.dart';
 import '../providers/repeat_flow/repeat_flow_state.dart';
-import '../widgets/common/countdown_chip.dart';
+import '../widgets/common/countdown_ring.dart';
 import '../widgets/common/recording_button.dart' show RecordingButtonMode;
 import '../widgets/common/repeat_practice_panel.dart';
 import '../widgets/practice/practice_normal_mode_view.dart';
@@ -558,21 +558,7 @@ class _ReviewDifficultPracticeScreenState
       onActivity: player.markStudyActivity,
       child: wakelockBody(
         child: LearningHotkeyScope(
-          onPlayPause: mediaReady
-              ? () {
-                  unawaited(_cancelRecordingAndPlayback());
-                  if (playerState.isPauseBetweenPlays) {
-                    ref
-                        .read(speechRecordingControllerProvider.notifier)
-                        .clearRecording();
-                    player.replayDuringCountdown();
-                  } else if (playerState.isPlaying) {
-                    player.pause();
-                  } else {
-                    player.resume();
-                  }
-                }
-              : () {},
+          onPlayPause: mediaReady ? _handleCenter : () {},
           onPrevious: mediaReady
               ? () => _handlePrevious(source: 'hotkey')
               : () {},
@@ -785,39 +771,6 @@ class _ReviewDifficultPracticeScreenState
                                       isTextRevealed:
                                           isActivePage &&
                                           playerState.isTextRevealed,
-                                      countdown: Consumer(
-                                        builder: (context, ref, _) {
-                                          final s = ref.watch(
-                                            reviewDifficultPracticeProvider
-                                                .select(
-                                                  (s) => (
-                                                    show:
-                                                        isActivePage &&
-                                                        s.isPauseBetweenPlays &&
-                                                        !s.isManualMode,
-                                                    total: s.pauseDuration,
-                                                    paused: s.isCountdownPaused,
-                                                    fastForward: s
-                                                        .isCountdownFastForward,
-                                                  ),
-                                                ),
-                                          );
-                                          if (!s.show) {
-                                            return const SizedBox.shrink();
-                                          }
-                                          return CountdownChip(
-                                            total: s.total,
-                                            isPaused: s.paused,
-                                            isFastForward: s.fastForward,
-                                            onTap: player
-                                                .enterWaitingForUserInBlindMode,
-                                            onPause: () =>
-                                                player.pauseCountdown(),
-                                            onResume: () =>
-                                                player.resumeCountdown(),
-                                          );
-                                        },
-                                      ),
                                       onPeekToggle: () {
                                         player.enterWaitingForUserInBlindMode();
                                         player.setTextRevealed(
@@ -854,6 +807,23 @@ class _ReviewDifficultPracticeScreenState
                                     playerState.currentSentenceIndex >=
                                     playerState.totalSentences - 1,
                                 centerIcon: _buildFooterCenterIcon(playerState),
+                                centerRing: Consumer(
+                                  builder: (context, ref, _) {
+                                    final countdown = ref.watch(
+                                      reviewDifficultPracticeProvider.select(
+                                        _selectCenterCountdown,
+                                      ),
+                                    );
+                                    if (countdown == null) {
+                                      return const SizedBox.shrink();
+                                    }
+                                    return PlaybackCountdownRing(
+                                      total: countdown.total,
+                                      isPaused: countdown.isPaused,
+                                      isFastForward: countdown.isFastForward,
+                                    );
+                                  },
+                                ),
                                 onPrevious: () =>
                                     _handlePrevious(source: 'footer'),
                                 onNext: () => _handleNext(source: 'footer'),
@@ -901,7 +871,6 @@ class _ReviewDifficultPracticeScreenState
     final engine = ref
         .read(reviewDifficultPracticeProvider.notifier)
         .repeatEngine;
-    void noop() {}
 
     final isPlaying = flowState.phase is PlayingPrompt;
     final isInPause = flowState.isInPause;
@@ -928,30 +897,6 @@ class _ReviewDifficultPracticeScreenState
       ),
       showCountdown: showCountdown,
       isInPause: isInPause,
-      countdownWidget: showCountdown
-          ? Center(
-              child: Consumer(
-                builder: (context, ref, _) {
-                  final phase = ref.watch(
-                    reviewDifficultPracticeProvider.select(
-                      (s) => s.repeatFlowState?.phase,
-                    ),
-                  );
-                  if (phase is! WaitingInterval) {
-                    return const SizedBox.shrink();
-                  }
-                  return CountdownChip(
-                    total: phase.total,
-                    isPaused: phase.isPaused,
-                    isFastForward: phase.speed > 1.0,
-                    onTap: engine?.enterWaitingForUser,
-                    onPause: engine?.pauseInterval ?? noop,
-                    onResume: engine?.resumeInterval ?? noop,
-                  );
-                },
-              ),
-            )
-          : null,
       onRecordTap: () {
         if (engine == null) return;
         unawaited(engine.onRecordButtonTapped());
@@ -962,7 +907,9 @@ class _ReviewDifficultPracticeScreenState
     );
   }
 
-  PlaybackToggleIcon _buildFooterCenterIcon(ReviewDifficultPracticeState playerState) {
+  PlaybackToggleIcon _buildFooterCenterIcon(
+    ReviewDifficultPracticeState playerState,
+  ) {
     final flowState = playerState.repeatFlowState;
     if (playerState.isAnnotationMode && flowState != null) {
       return _isRepeatPromptPlaybackActive(flowState)
@@ -975,16 +922,15 @@ class _ReviewDifficultPracticeScreenState
   }
 
   bool _isRepeatPromptPlaybackActive(RepeatFlowState flowState) {
-    return flowState.phase is PlayingPrompt &&
-        !flowState.isWaitingForUser &&
-        !flowState.isCountingDown;
+    // 遍间倒计时仍是播放循环的一部分，主按钮显示暂停。
+    return flowState.phase is PlayingPrompt || flowState.isCountingDown;
   }
 
   bool _isBlindSentencePlaybackActive(ReviewDifficultPracticeState state) {
+    if (_isAutoBlindInterval(state)) return true;
     return state.isPlaying &&
         !state.isPauseBetweenPlays &&
-        !state.isPauseBetweenSentences &&
-        !state.isCountdownPaused;
+        !state.isPauseBetweenSentences;
   }
 
   bool _isCurrentPlaybackActive(ReviewDifficultPracticeState state) {
@@ -1103,13 +1049,21 @@ class _ReviewDifficultPracticeScreenState
     unawaited(_cancelRecordingAndPlayback());
     if (playerState.isAnnotationMode && engine != null) {
       final flowState = playerState.repeatFlowState;
-      if (flowState?.isInPause ?? false) {
+      // 跟读遍间倒计时：点击即停止自动推进，进入等待用户。
+      if (flowState?.isCountingDown ?? false) {
+        engine.enterWaitingForUser();
+      } else if (flowState?.isInPause ?? false) {
         unawaited(player.resume());
       } else if (flowState?.phase is PlayingPrompt) {
         player.pause();
       } else {
         unawaited(player.resume());
       }
+      return;
+    }
+    // 盲听自动间隙：点击即停止自动推进，进入等待用户。
+    if (_isAutoBlindInterval(playerState)) {
+      player.enterWaitingForUserInBlindMode();
       return;
     }
     if (playerState.isPauseBetweenPlays) {
@@ -1121,6 +1075,32 @@ class _ReviewDifficultPracticeScreenState
       unawaited(player.resume());
     }
   }
+}
+
+/// 盲听自动间隙（句间倒计时）。手动模式不自动推进，不属于此类。
+bool _isAutoBlindInterval(ReviewDifficultPracticeState state) =>
+    !state.isAnnotationMode && state.isPauseBetweenPlays && !state.isManualMode;
+
+/// 主播放按钮外圈倒计时的参数：跟读遍间取自重复流程阶段，盲听取自句间停顿。
+/// 不在自动间隙时返回 null。
+({Duration total, bool isPaused, bool isFastForward})? _selectCenterCountdown(
+  ReviewDifficultPracticeState state,
+) {
+  if (state.isAnnotationMode) {
+    final phase = state.repeatFlowState?.phase;
+    if (phase is! WaitingInterval) return null;
+    return (
+      total: phase.total,
+      isPaused: phase.isPaused,
+      isFastForward: phase.speed > 1.0,
+    );
+  }
+  if (!_isAutoBlindInterval(state)) return null;
+  return (
+    total: state.pauseDuration,
+    isPaused: state.isCountdownPaused,
+    isFastForward: state.isCountdownFastForward,
+  );
 }
 
 /// 统一显示速度标签：始终保留一位小数。

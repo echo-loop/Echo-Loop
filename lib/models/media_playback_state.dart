@@ -27,6 +27,7 @@ class MediaPlaybackState {
     this.isPlaying = false,
     this.wholeLoopsDone = 0,
     this.sentenceRepeatsDone = 0,
+    this.playbackInterval,
     this.position = Duration.zero,
     this.duration,
     this.visualTrackVisible = true,
@@ -58,6 +59,10 @@ class MediaPlaybackState {
   final bool isPlaying;
   final int wholeLoopsDone;
   final int sentenceRepeatsDone;
+
+  /// 自动续播间隔的总时长（遍间 / 句间停顿）；不在间隔内时为 null。
+  /// 主播放按钮据此显示环形倒计时，间隔期间仍视为播放中。
+  final Duration? playbackInterval;
   final Duration position;
   final Duration? duration;
   final bool visualTrackVisible;
@@ -130,6 +135,8 @@ class MediaPlaybackState {
     bool? isPlaying,
     int? wholeLoopsDone,
     int? sentenceRepeatsDone,
+    Duration? playbackInterval,
+    bool clearPlaybackInterval = false,
     Duration? position,
     Duration? duration,
     bool clearDuration = false,
@@ -183,6 +190,9 @@ class MediaPlaybackState {
       isPlaying: isPlaying ?? this.isPlaying,
       wholeLoopsDone: wholeLoopsDone ?? this.wholeLoopsDone,
       sentenceRepeatsDone: sentenceRepeatsDone ?? this.sentenceRepeatsDone,
+      playbackInterval: clearPlaybackInterval
+          ? null
+          : playbackInterval ?? this.playbackInterval,
       position: position ?? this.position,
       duration: clearDuration ? null : duration ?? this.duration,
       visualTrackVisible: visualTrackVisible ?? this.visualTrackVisible,

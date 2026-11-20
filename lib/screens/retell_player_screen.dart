@@ -54,7 +54,7 @@ import '../widgets/dialogs/free_play_complete_dialog.dart';
 import '../widgets/dialogs/step_complete_dialog.dart';
 import '../widgets/review/review_briefing_sheet.dart';
 import '../widgets/common/speech_rating_badge.dart';
-import '../widgets/common/countdown_chip.dart';
+import '../widgets/common/countdown_ring.dart';
 import '../widgets/common/repeat_practice_panel.dart';
 import '../widgets/common/paragraph_practice_scaffold.dart';
 import '../widgets/common/practice_media_presentation_host.dart';
@@ -1379,6 +1379,12 @@ class _RetellPlayerScreenState extends ConsumerState<RetellPlayerScreen>
       _manualStoppedThisParagraph = false;
     }
 
+    // 段间倒计时：点击即停止自动推进，进入等待用户。
+    if (playerState.isRetellCountdown) {
+      _takeOverCountdown();
+      return;
+    }
+
     if (playerState.phase == RetellPhase.listening) {
       final player = ref.read(retellPlayerProvider.notifier);
       if (_isRetellMainPlaybackActive(playerState)) {
@@ -1869,33 +1875,6 @@ class _RetellPlayerScreenState extends ConsumerState<RetellPlayerScreen>
                     isInPause:
                         state.phase == RetellPhase.retelling &&
                         !state.isRetellCountdown,
-                    countdownWidget: state.isRetellCountdown
-                        ? Consumer(
-                            builder: (context, ref, _) {
-                              final s = ref.watch(
-                                retellPlayerProvider.select(
-                                  (s) => (
-                                    total: s.pauseDuration,
-                                    paused: s.isCountdownPaused,
-                                    fastForward: s.isCountdownFastForward,
-                                  ),
-                                ),
-                              );
-                              return CountdownChip(
-                                total: s.total,
-                                isPaused: s.paused,
-                                isFastForward: s.fastForward,
-                                onTap: _takeOverCountdown,
-                                onPause: () => ref
-                                    .read(retellPlayerProvider.notifier)
-                                    .pauseCountdown(),
-                                onResume: () => ref
-                                    .read(retellPlayerProvider.notifier)
-                                    .resumeCountdown(),
-                              );
-                            },
-                          )
-                        : null,
                     onRecordTap: _handleRecordTap,
                     onBeforePlayback: _prepareAttemptPlayback,
                     showRatingBadge: retellRatingEnabled,
@@ -1916,6 +1895,26 @@ class _RetellPlayerScreenState extends ConsumerState<RetellPlayerScreen>
                   centerIcon: _isRetellMainPlaybackActive(state)
                       ? PlaybackToggleIcon.pause
                       : PlaybackToggleIcon.play,
+                  centerRing: state.isRetellCountdown
+                      ? Consumer(
+                          builder: (context, ref, _) {
+                            final s = ref.watch(
+                              retellPlayerProvider.select(
+                                (s) => (
+                                  total: s.pauseDuration,
+                                  paused: s.isCountdownPaused,
+                                  fastForward: s.isCountdownFastForward,
+                                ),
+                              ),
+                            );
+                            return PlaybackCountdownRing(
+                              total: s.total,
+                              isPaused: s.paused,
+                              isFastForward: s.fastForward,
+                            );
+                          },
+                        )
+                      : null,
                   onPrevious: _goToPreviousParagraph,
                   onNext: _goToNextParagraph,
                   onCenter: () => unawaited(_handleMainPlaybackTap()),
@@ -1972,9 +1971,10 @@ String _formatDurationText(
 String _formatSpeed(double speed) => formatPlaybackSpeedLabel(speed);
 
 bool _isRetellMainPlaybackActive(RetellPlayerState state) {
+  // 段间倒计时仍是播放循环的一部分，主按钮显示暂停。
+  if (state.isRetellCountdown) return true;
   return state.phase == RetellPhase.listening &&
       state.isPlaying &&
-      !state.isRetellCountdown &&
       !state.isCountdownPaused &&
       !state.isWaitingForUser;
 }

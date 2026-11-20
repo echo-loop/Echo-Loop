@@ -3,7 +3,7 @@
 /// 支持暂停/恢复/加速，替代 Timer + Future.delayed 的简单倒计时。
 /// 倒计时结束时 [start] 返回的 Future 自动 complete。
 ///
-/// **UI 不通过此控制器获取 remaining**：[CountdownChip] 自带 AnimationController
+/// **UI 不通过此控制器获取 remaining**：[CountdownRing] 自带 AnimationController
 /// 驱动进度动画，本控制器仅负责流程计时和完成通知。
 ///
 /// 使用场景：精听/跟读/复述/难句补练的句间/遍间停顿。

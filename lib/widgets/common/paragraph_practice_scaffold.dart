@@ -76,6 +76,9 @@ class ParagraphPracticeScaffold extends StatelessWidget {
   /// 可选：选定新速度后的回调。
   final ValueChanged<double>? onPlaybackSpeedChanged;
 
+  /// 可选：绕在主播放按钮外侧的环形倒计时（遍间 / 段间倒计时时传入）。
+  final Widget? centerRing;
+
   final AppLocalizations l10n;
   final ThemeData theme;
 
@@ -111,6 +114,7 @@ class ParagraphPracticeScaffold extends StatelessWidget {
     this.statusSuffixText,
     this.playbackSpeed,
     this.onPlaybackSpeedChanged,
+    this.centerRing,
     required this.l10n,
     required this.theme,
   });
@@ -158,6 +162,7 @@ class ParagraphPracticeScaffold extends StatelessWidget {
           statusSuffixText: statusSuffixText,
           playbackSpeed: playbackSpeed,
           onPlaybackSpeedChanged: onPlaybackSpeedChanged,
+          centerRing: centerRing,
           l10n: l10n,
           theme: theme,
         ),

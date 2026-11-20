@@ -43,7 +43,7 @@ import '../providers/sentence_ai_prewarm.dart';
 import '../services/app_logger.dart';
 import '../theme/app_theme.dart';
 import '../widgets/common/bookmark_toggle_row.dart';
-import '../widgets/common/countdown_chip.dart';
+import '../widgets/common/countdown_ring.dart';
 import '../widgets/listen_and_repeat/listen_and_repeat_settings_sheet.dart';
 import '../widgets/dialogs/free_play_complete_dialog.dart';
 import '../widgets/dialogs/step_complete_dialog.dart';
@@ -494,7 +494,10 @@ class _ListenAndRepeatPlayerScreenState
   void _handleCenter() {
     final state = ref.read(listenAndRepeatControllerProvider);
     final ctrl = ref.read(listenAndRepeatControllerProvider.notifier);
-    if (state.phase is PlayingPrompt) {
+    // 遍间倒计时：点击即停止自动推进，进入等待用户。
+    if (state.isCountingDown) {
+      ctrl.enterWaitingForUser();
+    } else if (state.phase is PlayingPrompt) {
       ctrl.pausePlayback();
     } else {
       unawaited(ctrl.resumeOrReplayCurrentSentence());
@@ -580,7 +583,9 @@ class _ListenAndRepeatPlayerScreenState
                   final controller = ref.read(
                     listenAndRepeatControllerProvider.notifier,
                   );
-                  if (state.isInPause) {
+                  if (state.isCountingDown) {
+                    controller.enterWaitingForUser();
+                  } else if (state.isInPause) {
                     unawaited(controller.replayCurrentSentence());
                   } else if (state.phase is PlayingPrompt) {
                     controller.enterWaitingForUserAfterCurrentPrompt();
@@ -796,29 +801,6 @@ class _ListenAndRepeatPlayerScreenState
                                     : null,
                                 showCountdown: showCountdown,
                                 isInPause: isInPause,
-                                countdownWidget: showCountdown
-                                    ? Center(
-                                        child: Consumer(
-                                          builder: (context, ref, _) {
-                                            final phase = ref.watch(
-                                              listenAndRepeatControllerProvider
-                                                  .select((s) => s.phase),
-                                            );
-                                            if (phase is! WaitingInterval) {
-                                              return const SizedBox.shrink();
-                                            }
-                                            return CountdownChip(
-                                              total: phase.total,
-                                              isPaused: phase.isPaused,
-                                              isFastForward: phase.speed > 1.0,
-                                              onTap: ctrl.enterWaitingForUser,
-                                              onPause: ctrl.pauseInterval,
-                                              onResume: ctrl.resumeInterval,
-                                            );
-                                          },
-                                        ),
-                                      )
-                                    : null,
                                 onRecordTap: () => ctrl.onRecordButtonTapped(),
                                 // 关闭评级时由面板降级为录音回放 badge。
                                 showRatingBadge: ref.watch(
@@ -836,9 +818,27 @@ class _ListenAndRepeatPlayerScreenState
                               PracticePlaybackFooter(
                                 canGoPrev: !ctrlState.isFirstSentence,
                                 isLast: ctrlState.isLastSentence,
-                                centerIcon: isPlaying
+                                // 遍间倒计时仍是播放循环的一部分，主按钮显示暂停。
+                                centerIcon: isPlaying || showCountdown
                                     ? PlaybackToggleIcon.pause
                                     : PlaybackToggleIcon.play,
+                                centerRing: Consumer(
+                                  builder: (context, ref, _) {
+                                    final phase = ref.watch(
+                                      listenAndRepeatControllerProvider.select(
+                                        (s) => s.phase,
+                                      ),
+                                    );
+                                    if (phase is! WaitingInterval) {
+                                      return const SizedBox.shrink();
+                                    }
+                                    return PlaybackCountdownRing(
+                                      total: phase.total,
+                                      isPaused: phase.isPaused,
+                                      isFastForward: phase.speed > 1.0,
+                                    );
+                                  },
+                                ),
                                 onPrevious: _handlePrevious,
                                 onNext: _handleNext,
                                 onCenter: _handleCenter,

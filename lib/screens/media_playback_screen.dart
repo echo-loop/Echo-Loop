@@ -27,6 +27,7 @@ import '../utils/playback_speed.dart';
 import '../widgets/common/anchored_bubble.dart';
 import '../widgets/common/capsule_selector.dart';
 import '../widgets/common/audio_app_bar_title.dart';
+import '../widgets/common/countdown_ring.dart';
 import '../widgets/common/playback_controls.dart';
 import '../widgets/common/paragraph_sentence_list_card.dart';
 import '../widgets/common/free_player_sentence_pager.dart';
@@ -1129,18 +1130,30 @@ class _MediaControls extends ConsumerWidget {
   }
 
   Widget _playPauseButton(BuildContext context, MediaPlayback controller) {
+    final interval = state.playbackInterval;
+    final button = PlaybackCenterButton(
+      icon: playbackToggleGlyph(
+        state.isPlaying ? PlaybackToggleIcon.pause : PlaybackToggleIcon.play,
+        color: Theme.of(context).colorScheme.primary,
+        size: PlaybackControls.centerIconSize,
+      ),
+      onPressed: () => state.isPlaying
+          ? unawaited(controller.pause())
+          : unawaited(controller.play()),
+    );
+    // 自动续播间隔：与讲解页、盲听一致，按钮外圈显示环形倒计时，点击即停止续播。
     return SizedBox.square(
       dimension: _controlButtonSize,
-      child: PlaybackCenterButton(
-        icon: playbackToggleGlyph(
-          state.isPlaying ? PlaybackToggleIcon.pause : PlaybackToggleIcon.play,
-          color: Theme.of(context).colorScheme.primary,
-          size: PlaybackControls.centerIconSize,
-        ),
-        onPressed: () => state.isPlaying
-            ? unawaited(controller.pause())
-            : unawaited(controller.play()),
-      ),
+      child: interval == null
+          ? button
+          : Stack(
+              alignment: Alignment.center,
+              clipBehavior: Clip.none,
+              children: [
+                PlaybackCountdownRing(total: interval, isPaused: false),
+                button,
+              ],
+            ),
     );
   }
 

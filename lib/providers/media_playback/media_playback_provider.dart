@@ -223,10 +223,11 @@ class MediaPlayback extends Notifier<MediaPlaybackState> {
   }
 
   /// 自动续播间隔内维持逻辑播放态，避免 backend 暂停时切成播放按钮。
-  void _beginPlaybackInterval(int generation) {
+  void _beginPlaybackInterval(int generation, Duration duration) {
     if (generation != _playbackGen) return;
     _isInPlaybackInterval = true;
     _playbackIntervalGeneration = generation;
+    state = state.copyWith(playbackInterval: duration);
     _setPlaying(true);
     _engine.setLogicalPlaying(true);
     _engine.setProgressFrozen(true);
@@ -237,6 +238,8 @@ class MediaPlayback extends Notifier<MediaPlaybackState> {
     if (!_isInPlaybackInterval) return;
     _isInPlaybackInterval = false;
     _playbackIntervalGeneration = null;
+    // 页面已释放时 state 不可读，间隔状态随 notifier 一起失效。
+    if (ref.mounted) state = state.copyWith(clearPlaybackInterval: true);
     _engineCache?.setProgressFrozen(false);
     _engineCache?.setLogicalPlaying(null);
   }
@@ -1749,8 +1752,12 @@ class MediaPlayback extends Notifier<MediaPlaybackState> {
     if (duration <= Duration.zero || playbackGeneration != _playbackGen) {
       return;
     }
-    _beginPlaybackInterval(playbackGeneration);
+    _beginPlaybackInterval(playbackGeneration, duration);
     await Future.delayed(duration);
+    // 倒计时走完后收起环形倒计时；播放态仍由 _isInPlaybackInterval 维持到下一遍真正起播。
+    if (playbackGeneration == _playbackGen && ref.mounted) {
+      state = state.copyWith(clearPlaybackInterval: true);
+    }
   }
 
   void _autoSaveProgress() {

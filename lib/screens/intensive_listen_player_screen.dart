@@ -44,7 +44,6 @@ import '../widgets/dialogs/step_complete_dialog.dart';
 import '../widgets/review/review_briefing_sheet.dart';
 import '../widgets/practice/selectable_sentence_text.dart';
 import '../widgets/common/bookmark_toggle_row.dart';
-import '../widgets/common/countdown_chip.dart';
 import '../widgets/common/countdown_ring.dart';
 import '../widgets/common/playback_controls.dart';
 import '../widgets/common/practice_playback_footer.dart';
@@ -838,45 +837,6 @@ class _IntensiveListenPlayerScreenState
                                             alwaysShowToggleButton:
                                                 sentence.isBookmarked,
                                             showBookmarkRow: false,
-                                            countdown: Consumer(
-                                              builder: (context, ref, _) {
-                                                final s = ref.watch(
-                                                  intensiveListenPlayerProvider.select(
-                                                    (s) => (
-                                                      show:
-                                                          s.isPauseBetweenPlays &&
-                                                          !s
-                                                              .settings
-                                                              .isManualMode,
-                                                      total: s.pauseDuration,
-                                                      paused:
-                                                          s.isCountdownPaused,
-                                                      fastForward: s
-                                                          .isCountdownFastForward,
-                                                    ),
-                                                  ),
-                                                );
-                                                if (!isActivePage || !s.show) {
-                                                  return const SizedBox.shrink();
-                                                }
-                                                return CountdownChip(
-                                                  key: ValueKey(
-                                                    'blind-countdown-'
-                                                    '${playerState.currentSentenceIndex}-'
-                                                    '${s.total.inMilliseconds}',
-                                                  ),
-                                                  total: s.total,
-                                                  isPaused: s.paused,
-                                                  isFastForward: s.fastForward,
-                                                  onTap: player
-                                                      .enterWaitingForUserInBlindMode,
-                                                  onPause: () =>
-                                                      player.pauseCountdown(),
-                                                  onResume: () =>
-                                                      player.resumeCountdown(),
-                                                );
-                                              },
-                                            ),
                                             isDifficult: playerState
                                                 .difficultSentences
                                                 .contains(sentenceIndex),
@@ -1000,35 +960,24 @@ PlaybackToggleIcon _buildFooterCenterIcon(IntensiveListenState playerState) {
       : PlaybackToggleIcon.play;
 }
 
-/// 讲解循环间隙：主播放按钮外围的环形倒计时，与句子卡片上的倒计时同步。
-///
-/// 只在讲解页的自动循环间隙显示；手动模式不自动推进，因此不显示。
+/// 自动循环间隙（讲解循环遍间 / 盲听句间）。手动模式不自动推进，不属于此类。
+bool _isAutoLoopInterval(IntensiveListenState state) =>
+    state.isPauseBetweenPlays && !state.settings.isManualMode;
+
+/// 自动循环间隙：主播放按钮外围的环形倒计时。
 Widget? _buildCenterCountdownRing(IntensiveListenState playerState) {
-  final isLoopInterval =
-      playerState.isAnnotationMode &&
-      playerState.isPauseBetweenPlays &&
-      !playerState.settings.isManualMode;
-  if (!isLoopInterval) return null;
-  return CountdownRing(
+  if (!_isAutoLoopInterval(playerState)) return null;
+  return PlaybackCountdownRing(
     total: playerState.pauseDuration,
     isPaused: playerState.isCountdownPaused,
     isFastForward: playerState.isCountdownFastForward,
-    diameter: PlaybackControls.controlButtonSize,
-    overlayBuilder: (context, seconds) => Positioned(
-      // 秒数标签压在圆环顶部边缘上，不占用按钮行的布局高度。
-      top: -9,
-      left: 0,
-      right: 0,
-      child: Center(
-        child: IgnorePointer(child: CountdownSecondsBadge(seconds: seconds)),
-      ),
-    ),
   );
 }
 
 bool _isIntensiveMainPlaybackActive(IntensiveListenState state) {
-  // 讲解循环的遍间间隙仍是播放中（显示暂停图标），由 provider 维护 isPlaying。
+  // 讲解循环的遍间间隙由 provider 维护 isPlaying；盲听的自动间隙同样显示暂停图标。
   if (state.isAnnotationMode) return state.isPlaying;
+  if (_isAutoLoopInterval(state)) return true;
   return state.isPlaying &&
       !state.isPauseBetweenPlays &&
       !state.isPauseBetweenSentences;
@@ -1091,6 +1040,11 @@ extension on _IntensiveListenPlayerScreenState {
     );
     if (playerState.isPlaying) {
       unawaited(player.pause());
+      return;
+    }
+    // 盲听自动间隙：点击即停止自动推进，进入等待用户。
+    if (_isAutoLoopInterval(playerState) && !playerState.isAnnotationMode) {
+      player.enterWaitingForUserInBlindMode();
       return;
     }
     if (playerState.isPauseBetweenPlays) {

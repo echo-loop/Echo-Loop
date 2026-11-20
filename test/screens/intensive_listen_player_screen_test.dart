@@ -106,6 +106,7 @@ class _RecordingIntensiveListenPlayer extends TestIntensiveListenPlayer {
   int resumeCalls = 0;
   int replayInDetailsCalls = 0;
   int replayDuringCountdownCalls = 0;
+  int blindWaitCalls = 0;
   int goToNextCalls = 0;
   int goToPreviousCalls = 0;
   int goToSentenceCalls = 0;
@@ -138,6 +139,12 @@ class _RecordingIntensiveListenPlayer extends TestIntensiveListenPlayer {
   Future<void> replayDuringCountdown() async {
     replayDuringCountdownCalls += 1;
     await super.replayDuringCountdown();
+  }
+
+  @override
+  void enterWaitingForUserInBlindMode() {
+    blindWaitCalls += 1;
+    super.enterWaitingForUserInBlindMode();
   }
 
   @override
@@ -1057,7 +1064,7 @@ void main() {
       await tester.pump();
       await tester.pump();
 
-      // CountdownChip 显示秒数文本和进度环
+      // 环形倒计时显示秒数文本和进度环
       expect(find.text('3'), findsOneWidget);
       expect(find.byType(CircularProgressIndicator), findsOneWidget);
     });
@@ -1077,7 +1084,7 @@ void main() {
       await tester.pump();
       await tester.pump();
 
-      // CountdownChip 显示秒数文本和进度环
+      // 环形倒计时显示秒数文本和进度环
       expect(find.text('3'), findsOneWidget);
       expect(find.byType(CircularProgressIndicator), findsOneWidget);
     });
@@ -1684,6 +1691,39 @@ void main() {
         find.byKey(playbackCenterIconKey(PlaybackToggleIcon.pause)),
         findsOneWidget,
       );
+    });
+
+    testWidgets('盲听遍间停顿主播放按钮显示暂停，点击进入等待用户而非重播', (tester) async {
+      late _RecordingIntensiveListenPlayer player;
+      await tester.pumpWidget(
+        createTestWidget(
+          playerState: createPlayerState(
+            isPauseBetweenPlays: true,
+            isPauseBetweenSentences: false,
+            isPlaying: false,
+            pauseRemaining: const Duration(seconds: 3),
+            pauseDuration: const Duration(seconds: 3),
+          ),
+          playerFactory: (state, sentences) {
+            player = _RecordingIntensiveListenPlayer(state, sentences);
+            return player;
+          },
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(playbackCenterIconKey(PlaybackToggleIcon.pause)),
+        findsOneWidget,
+      );
+
+      await tester.tap(
+        find.byKey(playbackCenterIconKey(PlaybackToggleIcon.pause)),
+      );
+      await tester.pumpAndSettle();
+
+      expect(player.blindWaitCalls, 1);
+      expect(player.replayDuringCountdownCalls, 0);
     });
 
     testWidgets('偷看按钮点击切换 isTextRevealed（非按住）', (tester) async {

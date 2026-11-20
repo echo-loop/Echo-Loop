@@ -801,6 +801,65 @@ void main() {
     expect(container.read(mediaPlaybackProvider).isPlaying, isFalse);
   });
 
+  test('循环间隔期间暴露间隔时长供环形倒计时，点击暂停后清除', () async {
+    final controller = await loadController();
+    const interval = Duration(milliseconds: 300);
+    await controller.updateSettings(
+      container
+          .read(mediaPlaybackProvider)
+          .settings
+          .copyWith(
+            loopSentence: true,
+            sentenceLoopCount: 2,
+            sentenceInterval: interval,
+          ),
+    );
+
+    unawaited(controller.play());
+    await waitUntil(() => backend.playCalls == 1);
+    backend.emitPosition(const Duration(seconds: 50));
+    await waitUntil(
+      () => container.read(mediaPlaybackProvider).playbackInterval != null,
+    );
+
+    expect(container.read(mediaPlaybackProvider).playbackInterval, interval);
+    expect(container.read(mediaPlaybackProvider).isPlaying, isTrue);
+
+    await controller.pause();
+
+    expect(container.read(mediaPlaybackProvider).playbackInterval, isNull);
+    expect(container.read(mediaPlaybackProvider).isPlaying, isFalse);
+  });
+
+  test('循环间隔走完后环形倒计时收起，播放态保持到下一遍', () async {
+    final controller = await loadController();
+    const interval = Duration(milliseconds: 100);
+    await controller.updateSettings(
+      container
+          .read(mediaPlaybackProvider)
+          .settings
+          .copyWith(
+            loopSentence: true,
+            sentenceLoopCount: 2,
+            sentenceInterval: interval,
+          ),
+    );
+
+    unawaited(controller.play());
+    await waitUntil(() => backend.playCalls == 1);
+    backend.emitPosition(const Duration(seconds: 50));
+    await waitUntil(
+      () => container.read(mediaPlaybackProvider).playbackInterval != null,
+    );
+    await waitUntil(
+      () => container.read(mediaPlaybackProvider).playbackInterval == null,
+    );
+
+    expect(container.read(mediaPlaybackProvider).isPlaying, isTrue);
+
+    await controller.pause();
+  });
+
   test('单句循环间隔期间保持暂停态图标，点击暂停取消待续播', () async {
     final controller = await loadController();
     const interval = Duration(milliseconds: 100);

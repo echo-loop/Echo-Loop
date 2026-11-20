@@ -87,4 +87,24 @@ void main() {
       const Size.square(PlaybackControls.controlButtonSize),
     );
   });
+
+  testWidgets('PlaybackCountdownRing 与主按钮同尺寸并显示剩余秒数', (tester) async {
+    await tester.pumpWidget(
+      createTestApp(
+        const Center(
+          child: PlaybackCountdownRing(
+            total: Duration(seconds: 5),
+            isPaused: false,
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('5'), findsOneWidget);
+    expect(
+      tester.getSize(find.byType(CountdownRing)),
+      const Size.square(PlaybackControls.controlButtonSize),
+    );
+  });
 }

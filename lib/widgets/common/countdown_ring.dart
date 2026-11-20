@@ -1,8 +1,8 @@
 /// 环形倒计时（共享组件）
 ///
 /// 圆环随时间推进，剩余秒数交给调用方通过 [overlayBuilder] 绘制，
-/// 因此同一个圆环既可以包住文字（[CountdownChip]），也可以只配一个秒数标签
-/// （讲解页主播放按钮）。
+/// 因此同一个圆环既可以包住文字，也可以只配一个秒数标签（主播放按钮，
+/// 见 [PlaybackCountdownRing]）。
 ///
 /// **自驱动动画**：内部使用 [AnimationController] 驱动圆环，不依赖外部高频
 /// 传入 remaining，避免 Provider 每 100ms rebuild。
@@ -11,6 +11,8 @@
 library;
 
 import 'package:flutter/material.dart';
+
+import 'playback_controls.dart';
 
 /// 环形倒计时
 ///
@@ -163,6 +165,47 @@ class _CountdownRingState extends State<CountdownRing>
           ),
           if (overlayBuilder != null) overlayBuilder(context, seconds),
         ],
+      ),
+    );
+  }
+}
+
+/// 主播放按钮外侧的环形倒计时：直径与主按钮一致，秒数标签压在圆环顶部。
+///
+/// 讲解页、跟读、盲听等页面的循环间隙共用，通过 [PlaybackControls.centerRing]
+/// 与主按钮叠放，不改变控制栏布局。
+class PlaybackCountdownRing extends StatelessWidget {
+  /// 倒计时总时长
+  final Duration total;
+
+  /// 是否已暂停
+  final bool isPaused;
+
+  /// 是否快进中
+  final bool isFastForward;
+
+  const PlaybackCountdownRing({
+    super.key,
+    required this.total,
+    required this.isPaused,
+    this.isFastForward = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return CountdownRing(
+      total: total,
+      isPaused: isPaused,
+      isFastForward: isFastForward,
+      diameter: PlaybackControls.controlButtonSize,
+      overlayBuilder: (context, seconds) => Positioned(
+        // 秒数标签压在圆环顶部边缘上，不占用按钮行的布局高度。
+        top: -9,
+        left: 0,
+        right: 0,
+        child: Center(
+          child: IgnorePointer(child: CountdownSecondsBadge(seconds: seconds)),
+        ),
       ),
     );
   }

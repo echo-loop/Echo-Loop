@@ -32,6 +32,7 @@ import 'package:echo_loop/screens/blind_listen_player_screen.dart';
 import 'package:echo_loop/services/notification_permission_service.dart';
 import 'package:echo_loop/theme/app_theme.dart';
 import 'package:echo_loop/widgets/common/capsule_selector.dart';
+import 'package:echo_loop/widgets/common/countdown_ring.dart';
 import 'package:echo_loop/widgets/common/masked_sentence_tile.dart';
 import 'package:echo_loop/widgets/common/playback_controls.dart';
 import 'package:echo_loop/widgets/practice/practice_progress_section.dart';
@@ -44,6 +45,11 @@ class _StaticBlindListenPlayer extends TestBlindListenPlayer {
 
   VoidCallback? onStart;
   int activityCalls = 0;
+  int waitingCalls = 0;
+
+  @override
+  void enterWaitingForUser({bool afterCurrentParagraph = false}) =>
+      waitingCalls += 1;
 
   @override
   Future<void> startPlaying() async => onStart?.call();
@@ -445,6 +451,40 @@ void main() {
       // 倒计时阶段不再显示多余的「回忆提示」label（仅倒计时行）。
       expect(find.text('Recall what you just heard'), findsNothing);
       expect(find.byType(PlaybackControls), findsOneWidget);
+    });
+
+    testWidgets('段间倒计时主播放按钮显示暂停，点击进入等待用户', (tester) async {
+      late _StaticBlindListenPlayer player;
+      await tester.pumpWidget(
+        createTestWidget(
+          playerState: const BlindListenPlayerState(
+            currentParagraphIndex: 0,
+            totalParagraphs: 2,
+            currentRepeatCount: 1,
+            isPauseCountdown: true,
+            pauseRemaining: Duration(seconds: 2),
+            pauseDuration: Duration(seconds: 3),
+          ),
+          playerFactory: (state) {
+            player = _StaticBlindListenPlayer(state);
+            return player;
+          },
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byType(PlaybackCountdownRing), findsOneWidget);
+      expect(
+        find.byKey(playbackCenterIconKey(PlaybackToggleIcon.pause)),
+        findsOneWidget,
+      );
+
+      await tester.tap(
+        find.byKey(playbackCenterIconKey(PlaybackToggleIcon.pause)),
+      );
+      await tester.pump();
+
+      expect(player.waitingCalls, 1);
     });
 
     testWidgets('手动模式播放前显示先听再回忆提示', (tester) async {

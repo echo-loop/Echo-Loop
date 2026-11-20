@@ -12,7 +12,7 @@ import 'package:echo_loop/providers/learning_session/blind_listen_player_provide
 import 'package:echo_loop/providers/learning_session/learning_session_provider.dart';
 import 'package:echo_loop/router/app_router.dart';
 import 'package:echo_loop/screens/blind_listen_player_screen.dart';
-import 'package:echo_loop/widgets/common/countdown_chip.dart';
+import 'package:echo_loop/widgets/common/countdown_ring.dart';
 import 'package:echo_loop/widgets/common/playback_controls.dart';
 import 'package:echo_loop/widgets/dialogs/step_complete_dialog.dart';
 
@@ -101,8 +101,8 @@ void blindListenTests() {
       ));
       await safeSettle(tester);
 
-      // 验证倒计时芯片出现（CountdownChip 在 isPauseCountdown=true 时渲染）
-      expect(find.byType(CountdownChip), findsOneWidget);
+      // 验证主播放按钮外的环形倒计时出现（isPauseCountdown=true 时渲染）
+      expect(find.byType(PlaybackCountdownRing), findsOneWidget);
     });
 
     testWidgets('达到目标遍数弹出完成对话框', (tester) async {

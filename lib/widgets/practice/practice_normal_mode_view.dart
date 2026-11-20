@@ -3,7 +3,7 @@
 /// 布局：
 /// - 上方：难句/收藏标记行
 /// - 中间（Expanded）：字幕内容与显隐入口整体居中，整个区域可点击切换
-/// - 底部固定区：听不懂按钮（居中，与跟读录音按钮同位置） + 倒计时
+/// - 底部固定区：听不懂按钮（居中，与跟读录音按钮同位置）
 ///
 /// 用于精听、难句补练和收藏复习。
 library;
@@ -36,7 +36,7 @@ class PracticeNormalModeView extends StatelessWidget {
     'practice-subtitle-label-region',
   );
 
-  /// 标签区下方、操作按钮上方的倒计时预留点击区。
+  /// 标签区下方、操作按钮上方的预留点击区。
   static const subtitleTrailingTapRegionKey = ValueKey(
     'practice-subtitle-trailing-tap-region',
   );
@@ -65,11 +65,6 @@ class PracticeNormalModeView extends StatelessWidget {
 
   /// 当前句子文本是否已显示
   final bool isTextRevealed;
-
-  /// 独立倒计时组件（由调用方通过 Consumer 隔离 tick rebuild）
-  ///
-  /// 放在固定 56 高度的 SizedBox 内，null 时不显示。
-  final Widget? countdown;
 
   /// 底部标记按钮是否始终显示（false 时仅 isDifficult 为 true 才显示）
   final bool alwaysShowToggleButton;
@@ -119,7 +114,6 @@ class PracticeNormalModeView extends StatelessWidget {
     required this.l10n,
     required this.theme,
     required this.isTextRevealed,
-    this.countdown,
     this.alwaysShowToggleButton = true,
     required this.onPeekToggle,
     required this.onUnclear,
@@ -199,10 +193,10 @@ class PracticeNormalModeView extends StatelessWidget {
   /// 可用高度低于该值时切换为紧凑排布（如视频被拉高后学习区变矮）。
   static const compactLayoutMaxHeight = 300.0;
 
-  /// 紧凑排布中倒计时与偷看入口所在行。
+  /// 紧凑排布中偷看入口所在行。
   static const compactPeekRowKey = ValueKey('practice-compact-peek-row');
 
-  /// 紧凑排布：倒计时并入偷看入口所在行，正文区可滚动，压缩上下留白，
+  /// 紧凑排布：正文区可滚动，压缩上下留白，
   /// 保证「听不懂」等按钮在矮空间内仍完整可用。
   Widget _buildCompactLayout(Widget subtitleContent, Widget peekLabel) {
     return Column(
@@ -238,12 +232,12 @@ class PracticeNormalModeView extends StatelessWidget {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                // 左侧等宽占位，使偷看入口保持水平居中。
+                // 左右等宽占位，使偷看入口保持水平居中。
                 const SizedBox(width: 56),
                 const SizedBox(width: AppSpacing.s),
                 peekLabel,
                 const SizedBox(width: AppSpacing.s),
-                SizedBox(width: 56, height: 56, child: countdown),
+                const SizedBox(width: 56, height: 56),
               ],
             ),
           ),
@@ -307,12 +301,11 @@ class PracticeNormalModeView extends StatelessWidget {
           ),
         ),
 
-        // 底部固定区：倒计时 + 按钮行
+        // 底部固定区：占位 + 按钮行
         Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // 倒计时预留区与其下方间距在空白状态下也属于字幕显隐入口，
-            // 避免视觉上连续的大块空白无法点击。
+            // 预留区与其下方间距属于字幕显隐入口，避免视觉上连续的大块空白无法点击。
             GestureDetector(
               key: subtitleTrailingTapRegionKey,
               behavior: HitTestBehavior.opaque,
@@ -322,8 +315,8 @@ class PracticeNormalModeView extends StatelessWidget {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    // 固定 56 高度占位，避免字幕区随倒计时显隐跳动。
-                    SizedBox(height: 56, child: countdown),
+                    // 固定 56 高度占位，保持字幕区高度稳定。
+                    const SizedBox(height: 56),
                     const SizedBox(height: AppSpacing.m),
                   ],
                 ),

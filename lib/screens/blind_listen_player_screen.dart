@@ -41,7 +41,7 @@ import '../widgets/speech_permission_dialog.dart';
 import '../widgets/dialogs/step_complete_dialog.dart';
 import '../widgets/review/review_briefing_sheet.dart';
 import '../widgets/blind_listen_settings_sheet.dart';
-import '../widgets/common/countdown_chip.dart';
+import '../widgets/common/countdown_ring.dart';
 import '../widgets/common/paragraph_practice_scaffold.dart';
 import '../widgets/common/playback_controls.dart';
 import '../widgets/common/paragraph_sentence_list_card.dart';
@@ -582,12 +582,10 @@ class _BlindListenPlayerScreenState
           suppressVisualView: _isNavigatingToDetail,
           audioItemId: widget.audioItemId,
           isPlaying: playerState.isPlaying,
-          onPlayPause: () {
-            final player = ref.read(blindListenPlayerProvider.notifier);
-            playerState.isPlaying
-                ? unawaited(player.pause())
-                : unawaited(player.resume());
-          },
+          onPlayPause: () => _handleBlindMainTap(
+            playerState,
+            ref.read(blindListenPlayerProvider.notifier),
+          ),
           onSessionChanged: (session) => _mediaPresentationSession = session,
           fillVisualSurface: true,
           builder: (context, presentation, mediaSurface) => _buildParagraphMode(
@@ -696,15 +694,7 @@ class _BlindListenPlayerScreenState
     ];
 
     return LearningHotkeyScope(
-      onPlayPause: () {
-        if (playerState.isPauseCountdown) {
-          playerState.isCountdownPaused
-              ? player.resumeCountdown()
-              : player.pauseCountdown();
-        } else {
-          playerState.isPlaying ? player.pause() : player.resume();
-        }
-      },
+      onPlayPause: () => _handleBlindMainTap(playerState, player),
       onPrevious: () => player.goToPreviousParagraph(),
       onNext: () {
         final ps = ref.read(blindListenPlayerProvider);
@@ -829,60 +819,31 @@ class _BlindListenPlayerScreenState
                 ),
               ),
             ),
-            // 常态（非倒计时）只占必要高度，倒计时时才撑开为倒计时行。
-            practiceControls: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                SizedBox(
-                  height: playerState.isPauseCountdown ? 48 : 32,
-                  child: playerState.isPauseCountdown
-                      ? Consumer(
-                          builder: (context, ref, _) {
-                            final s = ref.watch(
-                              blindListenPlayerProvider.select(
-                                (s) => (
-                                  total: s.pauseDuration,
-                                  paused: s.isCountdownPaused,
-                                  fastForward: s.isCountdownFastForward,
-                                ),
-                              ),
-                            );
-                            return Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                // 左槽位：占位（与 prev 按钮对齐）
-                                const SizedBox(
-                                  width: PlaybackControls.controlButtonSize,
-                                ),
-                                const SizedBox(width: 48),
-                                // 中间槽位：倒计时（与中心按钮对齐）
-                                SizedBox(
-                                  width: PlaybackControls.controlButtonSize,
-                                  child: Center(
-                                    child: CountdownChip(
-                                      total: s.total,
-                                      isPaused: s.paused,
-                                      isFastForward: s.fastForward,
-                                      onTap: player.enterWaitingForUser,
-                                      onPause: () => player.pauseCountdown(),
-                                      onResume: () => player.resumeCountdown(),
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 48),
-                                const SizedBox(
-                                  width: PlaybackControls.controlButtonSize,
-                                ),
-                              ],
-                            );
-                          },
-                        )
-                      : Center(
-                          child: _buildManualHint(playerState, l10n, theme),
-                        ),
-                ),
-              ],
+            // 固定高度：倒计时已移到主播放按钮上，此处不再撑开。
+            practiceControls: SizedBox(
+              height: 32,
+              child: Center(child: _buildManualHint(playerState, l10n, theme)),
             ),
+            centerRing: playerState.isPauseCountdown
+                ? Consumer(
+                    builder: (context, ref, _) {
+                      final s = ref.watch(
+                        blindListenPlayerProvider.select(
+                          (s) => (
+                            total: s.pauseDuration,
+                            paused: s.isCountdownPaused,
+                            fastForward: s.isCountdownFastForward,
+                          ),
+                        ),
+                      );
+                      return PlaybackCountdownRing(
+                        total: s.total,
+                        isPaused: s.paused,
+                        isFastForward: s.fastForward,
+                      );
+                    },
+                  )
+                : null,
             canGoPrev: playerState.currentParagraphIndex > 0,
             isLast:
                 playerState.currentParagraphIndex >=
@@ -902,9 +863,7 @@ class _BlindListenPlayerScreenState
                 player.goToNextParagraph();
               }
             },
-            onCenter: _isBlindMainPlaybackActive(playerState)
-                ? player.pause
-                : player.resume,
+            onCenter: () => _handleBlindMainTap(playerState, player),
             isManualMode: playerState.settings.isManualMode,
             playCountText: formatPracticePlayCount(
               l10n,
@@ -955,10 +914,25 @@ String _formatDurationText(
 String _formatSpeed(double speed) => formatPlaybackSpeedLabel(speed);
 
 bool _isBlindMainPlaybackActive(BlindListenPlayerState state) {
-  return state.isPlaying &&
-      !state.isPauseCountdown &&
-      !state.isCountdownPaused &&
-      !state.isWaitingForUser;
+  // 段间倒计时仍是播放循环的一部分，主按钮显示暂停。
+  if (state.isPauseCountdown) return true;
+  return state.isPlaying && !state.isWaitingForUser;
+}
+
+/// 主播放按钮与视频点击共用的播放控制。
+///
+/// 段间倒计时期间点击即停止自动推进，进入等待用户。
+void _handleBlindMainTap(
+  BlindListenPlayerState state,
+  BlindListenPlayer player,
+) {
+  if (state.isPauseCountdown) {
+    player.enterWaitingForUser();
+  } else if (_isBlindMainPlaybackActive(state)) {
+    unawaited(player.pause());
+  } else {
+    unawaited(player.resume());
+  }
 }
 
 /// 判断子步骤是否有专用播放器页面
