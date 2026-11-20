@@ -874,7 +874,6 @@ class _ReviewDifficultPracticeScreenState
 
     final isPlaying = flowState.phase is PlayingPrompt;
     final isInPause = flowState.isInPause;
-    final showCountdown = flowState.isCountingDown;
     final effectivePromptId = engine?.currentPromptId ?? currentPromptId;
     final isRecording = turnState.isRecordingPrompt(effectivePromptId);
     final recordingMode = isRecording
@@ -895,7 +894,6 @@ class _ReviewDifficultPracticeScreenState
       showRatingBadge: ref.watch(
         learningSettingsProvider.select((s) => s.listenAndRepeatRatingEnabled),
       ),
-      showCountdown: showCountdown,
       isInPause: isInPause,
       onRecordTap: () {
         if (engine == null) return;

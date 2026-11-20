@@ -1871,10 +1871,7 @@ class _RetellPlayerScreenState extends ConsumerState<RetellPlayerScreen>
                               ? l10n.retellListeningPhase
                               : l10n.retellPreListenHint)
                         : null,
-                    showCountdown: state.isRetellCountdown,
-                    isInPause:
-                        state.phase == RetellPhase.retelling &&
-                        !state.isRetellCountdown,
+                    isInPause: state.phase == RetellPhase.retelling,
                     onRecordTap: _handleRecordTap,
                     onBeforePlayback: _prepareAttemptPlayback,
                     showRatingBadge: retellRatingEnabled,

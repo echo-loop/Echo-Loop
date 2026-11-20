@@ -72,9 +72,6 @@ class RepeatPracticePanel extends StatelessWidget {
   /// 提示文本（如"先听再跟读"，播放中显示）
   final String? hintText;
 
-  /// 是否处于遍间倒计时。倒计时圆环位于主播放按钮上，此处中间槽位留空。
-  final bool showCountdown;
-
   /// 是否处于停顿状态（录音/等待/倒计时）
   final bool isInPause;
 
@@ -122,7 +119,6 @@ class RepeatPracticePanel extends StatelessWidget {
     required this.l10n,
     required this.theme,
     this.hintText,
-    required this.showCountdown,
     required this.isInPause,
     required this.onRecordTap,
     this.onFastForward,
@@ -409,11 +405,6 @@ class RepeatPracticePanel extends StatelessWidget {
           ),
         ],
       );
-    }
-
-    // 遍间倒计时：圆环在主播放按钮上，这里不显示录音按钮，避免与倒计时并存。
-    if (showCountdown) {
-      return const SizedBox.shrink();
     }
 
     // 停顿中：录音按钮

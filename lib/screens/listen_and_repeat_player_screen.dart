@@ -799,7 +799,6 @@ class _ListenAndRepeatPlayerScreenState
                                 hintText: isPlaying
                                     ? l10n.listenAndRepeatListenHint
                                     : null,
-                                showCountdown: showCountdown,
                                 isInPause: isInPause,
                                 onRecordTap: () => ctrl.onRecordButtonTapped(),
                                 // 关闭评级时由面板降级为录音回放 badge。

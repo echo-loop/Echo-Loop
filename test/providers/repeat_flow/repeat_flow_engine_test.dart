@@ -613,6 +613,62 @@ void main() {
 
   // 回归：0.8x 播放时用户跟读的是放慢后的音频，参考时长若仍按 1.0x 原句时长，
   // 有声时长很快超过「原句时长」，动态静音兜底被压到 1s，把仍在说话的用户截断。
+  test('间隙中手动录音后再次录完，旧倒计时不会提前推进到下一遍', () async {
+    RepeatFlowState? latestState;
+    final engine = RepeatFlowEngine(
+      onStateChanged: (state) => latestState = state,
+      callbacks: RepeatFlowCallbacks(
+        pauseAudio: () {},
+        playSentence: (_, _) async => SentencePlaybackResult.completed,
+        startRecording:
+            ({
+              required promptId,
+              required referenceText,
+              required maxDuration,
+              referenceDuration,
+            }) {},
+        cancelRecording: () async {},
+        stopAndEvaluate: ({required referenceText}) async {},
+        clearRecording: () {},
+        setMaxRecordingDuration: (_) {},
+        hasDetectedSpeech: () => true,
+      ),
+    );
+    engine.prepare(
+      sentences: [
+        Sentence(
+          index: 0,
+          text: 'Tap record during countdown.',
+          startTime: Duration.zero,
+          endTime: const Duration(seconds: 1),
+        ),
+      ],
+      config: RepeatFlowConfig(
+        audioItemId: 'audio-tap-during-countdown',
+        getRepeatCount: (_) => 3,
+        getIntervalDuration: (_) => const Duration(seconds: 1),
+        isManualMode: () => false,
+      ),
+    );
+
+    await engine.startPlaying();
+    engine.onRecordingFinished('/tmp/first.m4a', null);
+    expect(latestState?.phase, isA<WaitingInterval>());
+
+    // 间隙内点录音：录音中不应再有倒计时在后台推进流程。
+    engine.startManualRecording();
+    expect(latestState?.phase, isA<Recording>());
+    engine.onRecordingFinished('/tmp/second.m4a', null);
+    expect(latestState?.phase, isA<WaitingInterval>());
+
+    // 让旧倒计时的完成回调有机会执行。
+    await Future<void>.delayed(Duration.zero);
+
+    expect(latestState?.phase, isA<WaitingInterval>());
+    expect(latestState?.repeatIndex, 0);
+    engine.dispose();
+  });
+
   test('录音参考时长与最大时长按播放倍速换算为实际听到的时长', () async {
     final recordings = <({Duration max, Duration? reference})>[];
     final engine = RepeatFlowEngine(

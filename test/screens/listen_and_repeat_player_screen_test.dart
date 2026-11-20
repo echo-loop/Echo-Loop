@@ -40,6 +40,7 @@ import 'package:echo_loop/services/notification_permission_service.dart';
 import 'package:echo_loop/services/sentence_ai_api_client.dart';
 import 'package:echo_loop/services/transcription_api_client.dart';
 import 'package:echo_loop/theme/app_theme.dart';
+import 'package:echo_loop/widgets/common/countdown_ring.dart';
 import 'package:echo_loop/widgets/common/playback_controls.dart';
 import 'package:echo_loop/widgets/common/recording_button.dart';
 import 'package:echo_loop/widgets/common/bookmark_toggle_row.dart';
@@ -756,6 +757,30 @@ void main() {
       expect(find.byType(RecordingButton), findsOneWidget);
       expect(find.text('Tap to record'), findsNothing);
       expect(find.text('Recording...'), findsNothing);
+    });
+
+    testWidgets('遍间倒计时期间录音按钮可用，主按钮显示暂停与环形倒计时', (tester) async {
+      final controller = _TestListenAndRepeatController(
+        createState(
+          phase: const WaitingInterval(
+            remaining: Duration(seconds: 2),
+            total: Duration(seconds: 3),
+          ),
+        ),
+        createTestSentences(count: 3),
+        startPlayingNoop: true,
+      );
+
+      await tester.pumpWidget(_createTestWidget(controller: controller));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 200));
+
+      expect(find.byType(RecordingButton), findsOneWidget);
+      expect(find.byType(PlaybackCountdownRing), findsOneWidget);
+      expect(
+        find.byKey(playbackCenterIconKey(PlaybackToggleIcon.pause)),
+        findsOneWidget,
+      );
     });
 
     testWidgets('停止录音后 idle 态不应继续显示红色录音按钮', (tester) async {

@@ -155,6 +155,9 @@ class RepeatFlowEngine {
   /// 倒计时控制器
   final CountdownController _countdown = CountdownController();
 
+  /// 当前遍间倒计时的代号，每次启动新间隙递增。
+  int _intervalGeneration = 0;
+
   /// 录音回放服务
   final AudioPlaybackService _playbackService = AudioPlaybackService();
 
@@ -388,6 +391,11 @@ class RepeatFlowEngine {
         'startManualRecording 跳过: phase=${phase.runtimeType}',
       );
       return;
+    }
+    // 间隙内点录音：先取消倒计时。否则旧倒计时的完成回调会在录音结束、
+    // 新一轮间隙开始时执行，误把流程推进到下一遍。
+    if (phase is WaitingInterval) {
+      _countdown.cancel();
     }
     _startRecording();
   }
@@ -910,9 +918,13 @@ class RepeatFlowEngine {
       return;
     }
 
+    // start 会先 cancel 旧倒计时，旧倒计时的续接随后执行时代号已过期，
+    // 不能再依据当前 phase 误推进新一轮间隙。
+    final generation = ++_intervalGeneration;
     await _countdown.start(remaining);
 
-    if (_isCurrentFlow(sessionId, flowToken) &&
+    if (generation == _intervalGeneration &&
+        _isCurrentFlow(sessionId, flowToken) &&
         _state.phase is WaitingInterval) {
       AppLogger.log(
         '$logTag Interval',

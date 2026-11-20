@@ -53,6 +53,7 @@ import 'package:echo_loop/services/audio_preview_controller.dart';
 import 'package:echo_loop/theme/app_theme.dart';
 import 'package:echo_loop/features/subscription/providers/subscription_availability.dart';
 import 'package:echo_loop/features/subscription/models/ai_quota_rejection.dart';
+import 'package:echo_loop/widgets/common/countdown_ring.dart';
 import 'package:echo_loop/widgets/common/playback_controls.dart';
 import 'package:echo_loop/widgets/common/recording_button.dart';
 import 'package:echo_loop/widgets/common/masked_sentence_tile.dart';
@@ -1110,6 +1111,32 @@ void main() {
 
       expect(find.text('Retell what you heard'), findsNothing);
       expect(find.text('Recording...'), findsOneWidget);
+    });
+
+    testWidgets('段间倒计时期间录音按钮可用，主按钮显示暂停与环形倒计时', (tester) async {
+      await tester.pumpWidget(
+        createTestWidget(
+          playerState: RetellPlayerState(
+            currentParagraphIndex: 0,
+            totalParagraphs: 1,
+            phase: RetellPhase.retelling,
+            isRetellCountdown: true,
+            pauseDuration: const Duration(seconds: 3),
+            pauseRemaining: const Duration(seconds: 2),
+            settings: const RetellSettings(keywordMethod: KeywordMethod.random),
+          ),
+          playerFactory: _StaticRetellPlayer.new,
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(find.byType(RecordingButton), findsOneWidget);
+      expect(find.byType(PlaybackCountdownRing), findsOneWidget);
+      expect(
+        find.byKey(playbackCenterIconKey(PlaybackToggleIcon.pause)),
+        findsOneWidget,
+      );
     });
 
     testWidgets('录音状态下点击主播放按钮先取消录音再继续播放', (tester) async {
